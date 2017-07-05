@@ -3,7 +3,7 @@ package log
 import (
 	"context"
 
-	tokencontext "github.com/fabric8-services/fabric8-wit/login/tokencontext"
+	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa/client"

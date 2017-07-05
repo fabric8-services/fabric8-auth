@@ -1,10 +1,10 @@
 package controller
 
 import (
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/jsonapi"
-	"github.com/fabric8-services/fabric8-wit/rendering"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/rendering"
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
 )

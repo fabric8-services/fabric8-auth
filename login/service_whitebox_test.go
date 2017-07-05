@@ -8,12 +8,12 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-wit/account"
-	"github.com/fabric8-services/fabric8-wit/auth"
-	config "github.com/fabric8-services/fabric8-wit/configuration"
-	"github.com/fabric8-services/fabric8-wit/resource"
-	testtoken "github.com/fabric8-services/fabric8-wit/test/token"
-	"github.com/fabric8-services/fabric8-wit/token"
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/auth"
+	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-auth/token"
 
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"

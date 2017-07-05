@@ -3,9 +3,9 @@ package link
 import (
 	"time"
 
-	convert "github.com/fabric8-services/fabric8-wit/convert"
-	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/gormsupport"
+	convert "github.com/fabric8-services/fabric8-auth/convert"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
 
 	uuid "github.com/satori/go.uuid"
 )

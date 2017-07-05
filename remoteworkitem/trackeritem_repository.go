@@ -5,10 +5,10 @@ import (
 
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/account"
-	"github.com/fabric8-services/fabric8-wit/criteria"
-	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8-services/fabric8-wit/workitem"
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/criteria"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/workitem"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"

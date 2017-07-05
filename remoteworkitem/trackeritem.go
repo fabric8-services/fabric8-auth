@@ -1,6 +1,6 @@
 package remoteworkitem
 
-import "github.com/fabric8-services/fabric8-wit/gormsupport"
+import "github.com/fabric8-services/fabric8-auth/gormsupport"
 
 // TrackerItem represents a remote tracker item
 // Staging area before pushing to work item

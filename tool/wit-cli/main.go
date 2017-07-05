@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/fabric8-services/fabric8-wit/client"
-	"github.com/fabric8-services/fabric8-wit/tool/cli"
+	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/tool/cli"
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/spf13/cobra"
 )

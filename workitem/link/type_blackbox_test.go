@@ -5,10 +5,10 @@ import (
 
 	"time"
 
-	"github.com/fabric8-services/fabric8-wit/convert"
-	"github.com/fabric8-services/fabric8-wit/gormsupport"
-	"github.com/fabric8-services/fabric8-wit/resource"
-	"github.com/fabric8-services/fabric8-wit/workitem/link"
+	"github.com/fabric8-services/fabric8-auth/convert"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/workitem/link"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )

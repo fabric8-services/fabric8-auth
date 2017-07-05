@@ -1,16 +1,16 @@
 package application
 
 import (
-	"github.com/fabric8-services/fabric8-wit/account"
-	"github.com/fabric8-services/fabric8-wit/area"
-	"github.com/fabric8-services/fabric8-wit/auth"
-	"github.com/fabric8-services/fabric8-wit/codebase"
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/area"
+	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/codebase"
 
-	"github.com/fabric8-services/fabric8-wit/comment"
-	"github.com/fabric8-services/fabric8-wit/iteration"
-	"github.com/fabric8-services/fabric8-wit/space"
-	"github.com/fabric8-services/fabric8-wit/workitem"
-	"github.com/fabric8-services/fabric8-wit/workitem/link"
+	"github.com/fabric8-services/fabric8-auth/comment"
+	"github.com/fabric8-services/fabric8-auth/iteration"
+	"github.com/fabric8-services/fabric8-auth/space"
+	"github.com/fabric8-services/fabric8-auth/workitem"
+	"github.com/fabric8-services/fabric8-auth/workitem/link"
 )
 
 //An Application stands for a particular implementation of the business logic of our application

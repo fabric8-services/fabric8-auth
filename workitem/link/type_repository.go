@@ -5,10 +5,10 @@ import (
 
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/application/repository"
-	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8-services/fabric8-wit/space"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/space"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"

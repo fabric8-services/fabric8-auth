@@ -312,7 +312,7 @@ Build:
 +
 [source]
 ----
-git clone https://github.com/fabric8-services/fabric8-wit.git %HOMEDRIVE%\%HOMEPATH%\go\src\github.com\fabric8-services/fabric8-wit
+git clone https://github.com/fabric8-services/fabric8-auth.git %HOMEDRIVE%\%HOMEPATH%\go\src\github.com\fabric8-services/fabric8-auth
 ----
 
 [[fetch-dependencies]]
@@ -351,7 +351,7 @@ NOTE: Unlike the Windows Command Prompt, Cygwin64 Terminal can only handle forwa
 +
 [source,bash]
 ----
-cd "$(cygpath --unix $HOMEPATH)/go/src/github.com/fabric8-services/fabric8-wit"
+cd "$(cygpath --unix $HOMEPATH)/go/src/github.com/fabric8-services/fabric8-auth"
 ----
 
 1. Now, generate code from the design templates using link:https://goa.design/[Goa]:

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-wit/gormsupport/cleaner"
-	gormbench "github.com/fabric8-services/fabric8-wit/gormtestsupport/benchmark"
-	"github.com/fabric8-services/fabric8-wit/space"
-	"github.com/fabric8-services/fabric8-wit/test"
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
+	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
+	"github.com/fabric8-services/fabric8-auth/space"
+	"github.com/fabric8-services/fabric8-auth/test"
 	uuid "github.com/satori/go.uuid"
 )
 

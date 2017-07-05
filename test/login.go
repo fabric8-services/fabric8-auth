@@ -3,11 +3,11 @@ package test
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/account"
-	"github.com/fabric8-services/fabric8-wit/auth"
-	tokencontext "github.com/fabric8-services/fabric8-wit/login/tokencontext"
-	"github.com/fabric8-services/fabric8-wit/space/authz"
-	"github.com/fabric8-services/fabric8-wit/token"
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/auth"
+	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
+	"github.com/fabric8-services/fabric8-auth/space/authz"
+	"github.com/fabric8-services/fabric8-auth/token"
 
 	"time"
 

@@ -3,7 +3,7 @@ package gormsupport
 import (
 	"time"
 
-	"github.com/fabric8-services/fabric8-wit/convert"
+	"github.com/fabric8-services/fabric8-auth/convert"
 	"github.com/jinzhu/gorm"
 )
 

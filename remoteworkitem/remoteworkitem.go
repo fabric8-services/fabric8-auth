@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-wit/rendering"
-	"github.com/fabric8-services/fabric8-wit/workitem"
+	"github.com/fabric8-services/fabric8-auth/rendering"
+	"github.com/fabric8-services/fabric8-auth/workitem"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )

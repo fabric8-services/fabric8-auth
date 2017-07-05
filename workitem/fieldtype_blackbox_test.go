@@ -5,9 +5,9 @@ import (
 
 	"reflect"
 
-	"github.com/fabric8-services/fabric8-wit/rendering"
-	"github.com/fabric8-services/fabric8-wit/resource"
-	. "github.com/fabric8-services/fabric8-wit/workitem"
+	"github.com/fabric8-services/fabric8-auth/rendering"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	. "github.com/fabric8-services/fabric8-auth/workitem"
 )
 
 var (

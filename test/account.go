@@ -3,9 +3,9 @@ package test
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/account"
-	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8-services/fabric8-wit/models"
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/models"
 
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"

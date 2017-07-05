@@ -5,12 +5,12 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/fabric8-services/fabric8-wit/codebase"
-	"github.com/fabric8-services/fabric8-wit/gormsupport/cleaner"
-	gormbench "github.com/fabric8-services/fabric8-wit/gormtestsupport/benchmark"
-	"github.com/fabric8-services/fabric8-wit/migration"
-	"github.com/fabric8-services/fabric8-wit/space"
-	testsupport "github.com/fabric8-services/fabric8-wit/test"
+	"github.com/fabric8-services/fabric8-auth/codebase"
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
+	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
+	"github.com/fabric8-services/fabric8-auth/migration"
+	"github.com/fabric8-services/fabric8-auth/space"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 )
 
 type BenchCodebaseRepository struct {

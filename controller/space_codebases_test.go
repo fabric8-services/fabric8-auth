@@ -8,18 +8,18 @@ import (
 
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/app/test"
-	"github.com/fabric8-services/fabric8-wit/application"
-	. "github.com/fabric8-services/fabric8-wit/controller"
-	"github.com/fabric8-services/fabric8-wit/gormapplication"
-	"github.com/fabric8-services/fabric8-wit/gormsupport/cleaner"
-	"github.com/fabric8-services/fabric8-wit/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/app/test"
+	"github.com/fabric8-services/fabric8-auth/application"
+	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
-	"github.com/fabric8-services/fabric8-wit/resource"
-	"github.com/fabric8-services/fabric8-wit/space"
-	testsupport "github.com/fabric8-services/fabric8-wit/test"
-	almtoken "github.com/fabric8-services/fabric8-wit/token"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/space"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	almtoken "github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -67,34 +67,34 @@ func (rest *TestSpaceCodebaseREST) UnSecuredController() (*goa.Service, *SpaceCo
 func (rest *TestSpaceCodebaseREST) TestCreateCodebaseCreated() {
 	s := rest.createSpace(testsupport.TestIdentity.ID)
 	stackId := "stackId"
-	ci := createSpaceCodebase("https://github.com/fabric8-services/fabric8-wit.git", &stackId)
+	ci := createSpaceCodebase("https://github.com/fabric8-services/fabric8-auth.git", &stackId)
 
 	svc, ctrl := rest.SecuredController()
 	_, c := test.CreateSpaceCodebasesCreated(rest.T(), svc.Context, svc, ctrl, s.ID, ci)
 	require.NotNil(rest.T(), c.Data.ID)
 	require.NotNil(rest.T(), c.Data.Relationships.Space)
 	assert.Equal(rest.T(), s.ID.String(), *c.Data.Relationships.Space.Data.ID)
-	assert.Equal(rest.T(), "https://github.com/fabric8-services/fabric8-wit.git", *c.Data.Attributes.URL)
+	assert.Equal(rest.T(), "https://github.com/fabric8-services/fabric8-auth.git", *c.Data.Attributes.URL)
 	assert.Equal(rest.T(), "stackId", *c.Data.Attributes.StackID)
 }
 
 func (rest *TestSpaceCodebaseREST) TestCreateCodebaseWithNoStackIdCreated() {
 	s := rest.createSpace(testsupport.TestIdentity.ID)
-	ci := createSpaceCodebase("https://github.com/fabric8-services/fabric8-wit.git", nil)
+	ci := createSpaceCodebase("https://github.com/fabric8-services/fabric8-auth.git", nil)
 
 	svc, ctrl := rest.SecuredController()
 	_, c := test.CreateSpaceCodebasesCreated(rest.T(), svc.Context, svc, ctrl, s.ID, ci)
 	require.NotNil(rest.T(), c.Data.ID)
 	require.NotNil(rest.T(), c.Data.Relationships.Space)
 	assert.Equal(rest.T(), s.ID.String(), *c.Data.Relationships.Space.Data.ID)
-	assert.Equal(rest.T(), "https://github.com/fabric8-services/fabric8-wit.git", *c.Data.Attributes.URL)
+	assert.Equal(rest.T(), "https://github.com/fabric8-services/fabric8-auth.git", *c.Data.Attributes.URL)
 	assert.Nil(rest.T(), c.Data.Attributes.StackID)
 }
 
 func (rest *TestSpaceCodebaseREST) TestCreateCodebaseForbidden() {
 	s := rest.createSpace(testsupport.TestIdentity2.ID)
 	stackId := "stackId"
-	ci := createSpaceCodebase("https://github.com/fabric8-services/fabric8-wit.git", &stackId)
+	ci := createSpaceCodebase("https://github.com/fabric8-services/fabric8-auth.git", &stackId)
 
 	svc, ctrl := rest.SecuredController()
 	// Codebase creation is forbidden if the user is not the space owner
@@ -110,7 +110,7 @@ func (rest *TestSpaceCodebaseREST) TestListCodebase() {
 	// Create another space where we'll create 1 codebase.
 	anotherSpace := rest.createSpace(testsupport.TestIdentity.ID)
 
-	repo := "https://github.com/fabric8-services/fabric8-wit.git"
+	repo := "https://github.com/fabric8-services/fabric8-auth.git"
 
 	svc, ctrl := rest.SecuredController()
 	spaceId := s.ID

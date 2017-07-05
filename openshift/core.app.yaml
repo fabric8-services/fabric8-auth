@@ -30,7 +30,7 @@ objects:
           service: core
       spec:
         containers:
-        - image: registry.devshift.net/fabric8-services/fabric8-wit:${IMAGE_TAG}
+        - image: registry.devshift.net/fabric8-services/fabric8-auth:${IMAGE_TAG}
           env:
           - name: F8_POSTGRES_HOST
             valueFrom:

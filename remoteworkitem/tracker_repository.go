@@ -7,11 +7,11 @@ import (
 
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/application/repository"
-	"github.com/fabric8-services/fabric8-wit/criteria"
-	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8-services/fabric8-wit/workitem"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/criteria"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/workitem"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	govalidator "gopkg.in/asaskevich/govalidator.v4"

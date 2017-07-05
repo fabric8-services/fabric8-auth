@@ -5,13 +5,13 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/fabric8-services/fabric8-wit/account"
-	"github.com/fabric8-services/fabric8-wit/comment"
-	"github.com/fabric8-services/fabric8-wit/gormsupport/cleaner"
-	gormbench "github.com/fabric8-services/fabric8-wit/gormtestsupport/benchmark"
-	"github.com/fabric8-services/fabric8-wit/migration"
-	"github.com/fabric8-services/fabric8-wit/rendering"
-	testsupport "github.com/fabric8-services/fabric8-wit/test"
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/comment"
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
+	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
+	"github.com/fabric8-services/fabric8-auth/migration"
+	"github.com/fabric8-services/fabric8-auth/rendering"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"

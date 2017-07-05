@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fabric8-services/fabric8-wit/convert"
-	"github.com/fabric8-services/fabric8-wit/gormsupport"
+	"github.com/fabric8-services/fabric8-auth/convert"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"

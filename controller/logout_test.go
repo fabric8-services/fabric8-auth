@@ -3,12 +3,12 @@ package controller
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-wit/app/test"
-	config "github.com/fabric8-services/fabric8-wit/configuration"
-	"github.com/fabric8-services/fabric8-wit/login"
-	"github.com/fabric8-services/fabric8-wit/resource"
-	testsupport "github.com/fabric8-services/fabric8-wit/test"
-	almtoken "github.com/fabric8-services/fabric8-wit/token"
+	"github.com/fabric8-services/fabric8-auth/app/test"
+	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	almtoken "github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"

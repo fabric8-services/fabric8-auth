@@ -1,9 +1,9 @@
 package gormtestsupport
 
 import (
-	config "github.com/fabric8-services/fabric8-wit/configuration"
-	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8-services/fabric8-wit/resource"
+	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/resource"
 
 	"github.com/stretchr/testify/suite"
 )

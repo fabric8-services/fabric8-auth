@@ -1,8 +1,8 @@
 package remoteworkitem
 
 import (
-	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8-services/fabric8-wit/models"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/models"
 
 	"context"
 	"github.com/jinzhu/gorm"

@@ -5,9 +5,9 @@ import (
 	"runtime/debug"
 	"testing"
 
-	. "github.com/fabric8-services/fabric8-wit/criteria"
-	"github.com/fabric8-services/fabric8-wit/resource"
-	. "github.com/fabric8-services/fabric8-wit/workitem"
+	. "github.com/fabric8-services/fabric8-auth/criteria"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	. "github.com/fabric8-services/fabric8-auth/workitem"
 	"github.com/stretchr/testify/assert"
 )
 

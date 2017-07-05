@@ -3,13 +3,13 @@ package controller
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/application"
-	"github.com/fabric8-services/fabric8-wit/criteria"
-	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/jsonapi"
-	query "github.com/fabric8-services/fabric8-wit/query/simple"
-	"github.com/fabric8-services/fabric8-wit/workitem"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/criteria"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	query "github.com/fabric8-services/fabric8-auth/query/simple"
+	"github.com/fabric8-services/fabric8-auth/workitem"
 
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"

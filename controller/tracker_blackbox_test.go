@@ -6,22 +6,22 @@ import (
 	"testing"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/app/test"
-	. "github.com/fabric8-services/fabric8-wit/controller"
-	"github.com/fabric8-services/fabric8-wit/gormapplication"
-	"github.com/fabric8-services/fabric8-wit/gormtestsupport"
-	"github.com/fabric8-services/fabric8-wit/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/app/test"
+	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	testsupport "github.com/fabric8-services/fabric8-wit/test"
-	almtoken "github.com/fabric8-services/fabric8-wit/token"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	almtoken "github.com/fabric8-services/fabric8-auth/token"
 
-	"github.com/fabric8-services/fabric8-wit/gormsupport/cleaner"
-	"github.com/fabric8-services/fabric8-wit/remoteworkitem"
-	"github.com/fabric8-services/fabric8-wit/resource"
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
+	"github.com/fabric8-services/fabric8-auth/remoteworkitem"
+	"github.com/fabric8-services/fabric8-auth/resource"
 )
 
 type TestTrackerREST struct {
@@ -238,7 +238,7 @@ func (rest *TestTrackerREST) TestGetTracker() {
 }
 
 // This test ensures that List does not return NIL items.
-// refer : https://github.com/fabric8-services/fabric8-wit/issues/191
+// refer : https://github.com/fabric8-services/fabric8-auth/issues/191
 func (rest *TestTrackerREST) TestTrackerListItemsNotNil() {
 	t := rest.T()
 	resource.Require(t, resource.Database)
@@ -262,7 +262,7 @@ func (rest *TestTrackerREST) TestTrackerListItemsNotNil() {
 }
 
 // This test ensures that ID returned by Show is valid.
-// refer : https://github.com/fabric8-services/fabric8-wit/issues/189
+// refer : https://github.com/fabric8-services/fabric8-auth/issues/189
 func (rest *TestTrackerREST) TestCreateTrackerValidId() {
 	t := rest.T()
 	resource.Require(t, resource.Database)

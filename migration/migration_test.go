@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	config "github.com/fabric8-services/fabric8-wit/configuration"
-	"github.com/fabric8-services/fabric8-wit/resource"
+	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/resource"
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"

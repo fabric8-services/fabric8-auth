@@ -1,7 +1,7 @@
 package remoteworkitem
 
 import (
-	"github.com/fabric8-services/fabric8-wit/gormsupport"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
 
 	uuid "github.com/satori/go.uuid"
 )

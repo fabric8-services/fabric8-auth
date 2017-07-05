@@ -6,7 +6,7 @@ package query
 import (
 	"encoding/json"
 
-	. "github.com/fabric8-services/fabric8-wit/criteria"
+	. "github.com/fabric8-services/fabric8-auth/criteria"
 	"github.com/pkg/errors"
 )
 

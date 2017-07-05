@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/fabric8-services/fabric8-wit/codebase"
-	"github.com/fabric8-services/fabric8-wit/convert"
-	"github.com/fabric8-services/fabric8-wit/rendering"
+	"github.com/fabric8-services/fabric8-auth/codebase"
+	"github.com/fabric8-services/fabric8-auth/convert"
+	"github.com/fabric8-services/fabric8-auth/rendering"
 	errs "github.com/pkg/errors"
 )
 

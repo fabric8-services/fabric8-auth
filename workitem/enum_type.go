@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/fabric8-services/fabric8-wit/convert"
+	"github.com/fabric8-services/fabric8-auth/convert"
 )
 
 type EnumType struct {

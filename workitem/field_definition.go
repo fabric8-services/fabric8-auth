@@ -7,7 +7,7 @@ import (
 
 	"strings"
 
-	"github.com/fabric8-services/fabric8-wit/convert"
+	"github.com/fabric8-services/fabric8-auth/convert"
 
 	errs "github.com/pkg/errors"
 )

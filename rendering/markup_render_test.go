@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-wit/rendering"
+	"github.com/fabric8-services/fabric8-auth/rendering"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

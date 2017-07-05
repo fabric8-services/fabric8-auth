@@ -38,7 +38,7 @@ COMMIT := $(COMMIT)-dirty
 endif
 BUILD_TIME=`date -u '+%Y-%m-%dT%H:%M:%SZ'`
 
-PACKAGE_NAME := github.com/fabric8-services/fabric8-wit
+PACKAGE_NAME := github.com/fabric8-services/fabric8-auth
 
 # For the global "clean" target all targets in this variable will be executed
 CLEAN_TARGETS =

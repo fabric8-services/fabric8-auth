@@ -113,8 +113,8 @@ function deploy() {
 
   TAG=$(echo $GIT_COMMIT | cut -c1-6)
 
-  tag_push registry.devshift.net/fabric8-services/fabric8-wit:$TAG
-  tag_push registry.devshift.net/fabric8-services/fabric8-wit:latest
+  tag_push registry.devshift.net/fabric8-services/fabric8-auth:$TAG
+  tag_push registry.devshift.net/fabric8-services/fabric8-auth:latest
   echo 'CICO: Image pushed, ready to update deployed app'
 }
 

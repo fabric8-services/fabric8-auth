@@ -8,20 +8,20 @@ import (
 
 	"context"
 
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/application"
-	"github.com/fabric8-services/fabric8-wit/codebase"
-	"github.com/fabric8-services/fabric8-wit/criteria"
-	"github.com/fabric8-services/fabric8-wit/errors"
-	"github.com/fabric8-services/fabric8-wit/jsonapi"
-	"github.com/fabric8-services/fabric8-wit/log"
-	"github.com/fabric8-services/fabric8-wit/login"
-	query "github.com/fabric8-services/fabric8-wit/query/simple"
-	"github.com/fabric8-services/fabric8-wit/rendering"
-	"github.com/fabric8-services/fabric8-wit/rest"
-	"github.com/fabric8-services/fabric8-wit/space"
-	"github.com/fabric8-services/fabric8-wit/space/authz"
-	"github.com/fabric8-services/fabric8-wit/workitem"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/codebase"
+	"github.com/fabric8-services/fabric8-auth/criteria"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
+	query "github.com/fabric8-services/fabric8-auth/query/simple"
+	"github.com/fabric8-services/fabric8-auth/rendering"
+	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/space"
+	"github.com/fabric8-services/fabric8-auth/space/authz"
+	"github.com/fabric8-services/fabric8-auth/workitem"
 
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
@@ -362,7 +362,7 @@ func (c *WorkitemController) Show(ctx *app.ShowWorkitemContext) error {
 // Delete does DELETE workitem
 func (c *WorkitemController) Delete(ctx *app.DeleteWorkitemContext) error {
 
-	// Temporarly disabled, See https://github.com/fabric8-services/fabric8-wit/issues/1036
+	// Temporarly disabled, See https://github.com/fabric8-services/fabric8-auth/issues/1036
 	if true {
 		return ctx.MethodNotAllowed()
 	}

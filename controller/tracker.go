@@ -3,12 +3,12 @@ package controller
 import (
 	"fmt"
 
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/application"
-	"github.com/fabric8-services/fabric8-wit/jsonapi"
-	"github.com/fabric8-services/fabric8-wit/log"
-	query "github.com/fabric8-services/fabric8-wit/query/simple"
-	"github.com/fabric8-services/fabric8-wit/remoteworkitem"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/log"
+	query "github.com/fabric8-services/fabric8-auth/query/simple"
+	"github.com/fabric8-services/fabric8-auth/remoteworkitem"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 )

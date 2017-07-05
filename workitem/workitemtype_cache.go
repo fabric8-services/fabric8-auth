@@ -3,7 +3,7 @@ package workitem
 import (
 	"sync"
 
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-auth/log"
 	uuid "github.com/satori/go.uuid"
 )
 
