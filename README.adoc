@@ -241,7 +241,7 @@ If no configuration file is specified when the core is started, these are the de
 #------------------------
 
 postgres.host: localhost
-postgres.port: 5432
+postgres.port: 5433
 postgres.user: postgres
 postgres.password: mysecretpassword
 postgres.database: postgres
