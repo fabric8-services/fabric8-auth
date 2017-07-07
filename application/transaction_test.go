@@ -1,14 +1,14 @@
-package application
+package application_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/almighty/almighty-core/application"
-	"github.com/almighty/almighty-core/gormapplication"
-	"github.com/almighty/almighty-core/gormsupport/cleaner"
-	"github.com/almighty/almighty-core/gormtestsupport"
-	"github.com/almighty/almighty-core/resource"
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/resource"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
