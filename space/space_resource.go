@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/application/repository"
-	"github.com/fabric8-services/fabric8-auth/convert"
-	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormsupport"
-	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-wit/application/repository"
+	"github.com/fabric8-services/fabric8-wit/convert"
+	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-wit/gormsupport"
+	"github.com/fabric8-services/fabric8-wit/log"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
@@ -90,10 +90,10 @@ func (r *GormResourceRepository) Load(ctx context.Context, ID uuid.UUID) (*Resou
 	return &res, nil
 }
 
-// Exists returns true|false whether a space resource exists with a specific identifier
-func (m *GormResourceRepository) Exists(ctx context.Context, id string) (bool, error) {
+// CheckExists returns nil if the given ID exists otherwise returns an error
+func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "spaceresource", "exists"}, time.Now())
-	return repository.Exists(ctx, m.db, Resource{}.TableName(), id)
+	return repository.CheckExists(ctx, m.db, Resource{}.TableName(), id)
 }
 
 // Delete deletes the space resource with the given id

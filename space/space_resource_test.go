@@ -5,11 +5,11 @@ import (
 
 	"context"
 
-	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/space"
+	"github.com/fabric8-services/fabric8-wit/errors"
+	"github.com/fabric8-services/fabric8-wit/gormsupport/cleaner"
+	"github.com/fabric8-services/fabric8-wit/gormtestsupport"
+	"github.com/fabric8-services/fabric8-wit/resource"
+	"github.com/fabric8-services/fabric8-wit/space"
 
 	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -71,15 +71,14 @@ func (test *resourceRepoBBTest) TestExistsSpaceResource() {
 		expectResource(test.load(uuid.NewV4()), test.assertNotFound())
 		res, _, _ := expectResource(test.create(testResourceID, testPolicyID, testPermissionID), test.requireOk)
 
-		exists, err := test.repo.Exists(context.Background(), res.ID.String())
+		err := test.repo.CheckExists(context.Background(), res.ID.String())
 		require.Nil(t, err)
-		assert.True(t, exists)
 	})
 
 	t.Run("space resource doesn't exist", func(t *testing.T) {
-		exists, err := test.repo.Exists(context.Background(), uuid.NewV4().String())
+		err := test.repo.CheckExists(context.Background(), uuid.NewV4().String())
+
 		require.IsType(t, errors.NotFoundError{}, err)
-		assert.False(t, exists)
 	})
 
 }

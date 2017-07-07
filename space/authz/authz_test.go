@@ -6,20 +6,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/area"
-	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/codebase"
-	"github.com/fabric8-services/fabric8-auth/comment"
-	"github.com/fabric8-services/fabric8-auth/iteration"
-	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/space"
-	"github.com/fabric8-services/fabric8-auth/space/authz"
-	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	almtoken "github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/workitem"
-	"github.com/fabric8-services/fabric8-auth/workitem/link"
+	"github.com/fabric8-services/fabric8-wit/account"
+	"github.com/fabric8-services/fabric8-wit/application"
+	"github.com/fabric8-services/fabric8-wit/area"
+	"github.com/fabric8-services/fabric8-wit/auth"
+	"github.com/fabric8-services/fabric8-wit/codebase"
+	"github.com/fabric8-services/fabric8-wit/comment"
+	"github.com/fabric8-services/fabric8-wit/iteration"
+	"github.com/fabric8-services/fabric8-wit/resource"
+	"github.com/fabric8-services/fabric8-wit/space"
+	"github.com/fabric8-services/fabric8-wit/space/authz"
+	testsupport "github.com/fabric8-services/fabric8-wit/test"
+	almtoken "github.com/fabric8-services/fabric8-wit/token"
+	"github.com/fabric8-services/fabric8-wit/workitem"
+	"github.com/fabric8-services/fabric8-wit/workitem/link"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -196,8 +196,8 @@ func (r *resourceRepo) Delete(ctx context.Context, ID uuid.UUID) error {
 	return nil
 }
 
-func (r *resourceRepo) Exists(ctx context.Context, ID string) (bool, error) {
-	return false, nil
+func (r *resourceRepo) CheckExists(ctx context.Context, ID string) error {
+	return nil
 }
 
 func (r *resourceRepo) LoadBySpace(ctx context.Context, spaceID *uuid.UUID) (*space.Resource, error) {
