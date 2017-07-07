@@ -6,16 +6,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/area"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/codebase"
-	"github.com/fabric8-services/fabric8-auth/comment"
-	"github.com/fabric8-services/fabric8-auth/iteration"
-	"github.com/fabric8-services/fabric8-auth/remoteworkitem"
-	"github.com/fabric8-services/fabric8-auth/search"
 	"github.com/fabric8-services/fabric8-auth/space"
-	"github.com/fabric8-services/fabric8-auth/workitem"
-	"github.com/fabric8-services/fabric8-auth/workitem/link"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -66,31 +58,8 @@ type GormDB struct {
 	txIsoLevel string
 }
 
-func (g *GormBase) WorkItems() workitem.WorkItemRepository {
-	return workitem.NewWorkItemRepository(g.db)
-}
-
-func (g *GormBase) WorkItemTypes() workitem.WorkItemTypeRepository {
-	return workitem.NewWorkItemTypeRepository(g.db)
-}
-
-func (g *GormBase) Spaces() space.Repository {
-	return space.NewRepository(g.db)
-}
-
 func (g *GormBase) SpaceResources() space.ResourceRepository {
 	return space.NewResourceRepository(g.db)
-}
-
-func (g *GormBase) Trackers() application.TrackerRepository {
-	return remoteworkitem.NewTrackerRepository(g.db)
-}
-func (g *GormBase) TrackerQueries() application.TrackerQueryRepository {
-	return remoteworkitem.NewTrackerQueryRepository(g.db)
-}
-
-func (g *GormBase) SearchItems() application.SearchRepository {
-	return search.NewGormSearchRepository(g.db)
 }
 
 // Identities creates new Identity repository
@@ -103,44 +72,9 @@ func (g *GormBase) Users() account.UserRepository {
 	return account.NewUserRepository(g.db)
 }
 
-// WorkItemLinkCategories returns a work item link category repository
-func (g *GormBase) WorkItemLinkCategories() link.WorkItemLinkCategoryRepository {
-	return link.NewWorkItemLinkCategoryRepository(g.db)
-}
-
-// WorkItemLinkTypes returns a work item link type repository
-func (g *GormBase) WorkItemLinkTypes() link.WorkItemLinkTypeRepository {
-	return link.NewWorkItemLinkTypeRepository(g.db)
-}
-
-// WorkItemLinks returns a work item link repository
-func (g *GormBase) WorkItemLinks() link.WorkItemLinkRepository {
-	return link.NewWorkItemLinkRepository(g.db)
-}
-
-// Comments returns a work item comments repository
-func (g *GormBase) Comments() comment.Repository {
-	return comment.NewRepository(g.db)
-}
-
-// Iterations returns a iteration repository
-func (g *GormBase) Iterations() iteration.Repository {
-	return iteration.NewIterationRepository(g.db)
-}
-
-// Areas returns a area repository
-func (g *GormBase) Areas() area.Repository {
-	return area.NewAreaRepository(g.db)
-}
-
 // OauthStates returns an oauth state reference repository
 func (g *GormBase) OauthStates() auth.OauthStateReferenceRepository {
 	return auth.NewOauthStateReferenceRepository(g.db)
-}
-
-// Codebases returns a codebase repository
-func (g *GormBase) Codebases() codebase.Repository {
-	return codebase.NewCodebaseRepository(g.db)
 }
 
 func (g *GormBase) DB() *gorm.DB {

@@ -44,11 +44,8 @@ const (
 	varPostgresConnectionRetrySleep     = "postgres.connection.retrysleep"
 	varPostgresConnectionMaxIdle        = "postgres.connection.maxidle"
 	varPostgresConnectionMaxOpen        = "postgres.connection.maxopen"
-	varFeatureWorkitemRemote            = "feature.workitem.remote"
-	varPopulateCommonTypes              = "populate.commontypes"
 	varHTTPAddress                      = "http.address"
 	varDeveloperModeEnabled             = "developer.mode.enabled"
-	varGithubAuthToken                  = "github.auth.token"
 	varKeycloakSecret                   = "keycloak.secret"
 	varKeycloakClientID                 = "keycloak.client.id"
 	varKeycloakDomainPrefix             = "keycloak.domain.prefix"
@@ -72,21 +69,11 @@ const (
 	varTokenPrivateKey                  = "token.privatekey"
 	varAuthNotApprovedRedirect          = "auth.notapproved.redirect"
 	varHeaderMaxLength                  = "header.maxlength"
-	varCacheControlWorkItems            = "cachecontrol.workitems"
-	varCacheControlWorkItemTypes        = "cachecontrol.workitemtypes"
-	varCacheControlWorkItemLinks        = "cachecontrol.workitemLinks"
-	varCacheControlWorkItemLinkTypes    = "cachecontrol.workitemlinktypes"
-	varCacheControlSpaces               = "cachecontrol.spaces"
-	varCacheControlIterations           = "cachecontrol.iterations"
-	varCacheControlAreas                = "cachecontrol.areas"
-	varCacheControlComments             = "cachecontrol.comments"
-	varCacheControlFilters              = "cachecontrol.filters"
 	varCacheControlUsers                = "cachecontrol.users"
 	varCacheControlCollaborators        = "cachecontrol.collaborators"
 	varCacheControlUser                 = "cachecontrol.user"
 	defaultConfigFile                   = "config.yaml"
 	varOpenshiftTenantMasterURL         = "openshift.tenant.masterurl"
-	varCheStarterURL                    = "chestarterurl"
 	varValidRedirectURLs                = "redirect.valid"
 	varLogLevel                         = "log.level"
 	varLogJSON                          = "log.json"
@@ -177,41 +164,25 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
-	c.v.SetDefault(varPopulateCommonTypes, true)
-
 	// Auth-related defaults
 	c.v.SetDefault(varTokenPublicKey, defaultTokenPublicKey)
 	c.v.SetDefault(varTokenPrivateKey, defaultTokenPrivateKey)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
-	c.v.SetDefault(varGithubAuthToken, defaultActualToken)
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 
 	// HTTP Cache-Control/max-age default
-	c.v.SetDefault(varCacheControlWorkItems, "max-age=2") // very short life in cache, to allow for quick, repetitive updates.
-	c.v.SetDefault(varCacheControlWorkItemTypes, "max-age=2")
-	c.v.SetDefault(varCacheControlWorkItemLinks, "max-age=2")
-	c.v.SetDefault(varCacheControlWorkItemLinkTypes, "max-age=2")
-	c.v.SetDefault(varCacheControlSpaces, "max-age=2")
-	c.v.SetDefault(varCacheControlIterations, "max-age=2")
-	c.v.SetDefault(varCacheControlAreas, "max-age=2")
-	c.v.SetDefault(varCacheControlComments, "max-age=2")
-	c.v.SetDefault(varCacheControlFilters, "max-age=86400")
 	c.v.SetDefault(varCacheControlUsers, "max-age=2")
 	c.v.SetDefault(varCacheControlCollaborators, "max-age=2")
 	// data returned from '/api/user' must not be cached by intermediate proxies,
 	// but can only be kept in the client's local cache.
 	c.v.SetDefault(varCacheControlUser, "private,max-age=2")
 
-	// Features
-	c.v.SetDefault(varFeatureWorkitemRemote, true)
-
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
 	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
-	c.v.SetDefault(varCheStarterURL, defaultCheStarterURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -222,11 +193,6 @@ func (c *ConfigurationData) GetPostgresHost() string {
 // GetPostgresPort returns the postgres port as set via default, config file, or environment variable
 func (c *ConfigurationData) GetPostgresPort() int64 {
 	return c.v.GetInt64(varPostgresPort)
-}
-
-// GetFeatureWorkitemRemote returns true if remote Work Item feaute is enabled
-func (c *ConfigurationData) GetFeatureWorkitemRemote() bool {
-	return c.v.GetBool(varFeatureWorkitemRemote)
 }
 
 // GetPostgresUser returns the postgres user as set via default, config file, or environment variable
@@ -290,12 +256,6 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 	)
 }
 
-// GetPopulateCommonTypes returns true if the (as set via default, config file, or environment variable)
-// the common work item types such as bug or feature shall be created.
-func (c *ConfigurationData) GetPopulateCommonTypes() bool {
-	return c.v.GetBool(varPopulateCommonTypes)
-}
-
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or environment variable)
 // that the alm server binds to (e.g. "0.0.0.0:8080")
 func (c *ConfigurationData) GetHTTPAddress() string {
@@ -312,60 +272,6 @@ func (c *ConfigurationData) GetHeaderMaxLength() int64 {
 // e.g. token generation endpoint are enabled
 func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
-}
-
-// GetCacheControlWorkItemTypes returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item type (or a list of).
-func (c *ConfigurationData) GetCacheControlWorkItemTypes() string {
-	return c.v.GetString(varCacheControlWorkItemTypes)
-}
-
-// GetCacheControlWorkItemLinkTypes returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item type (or a list of).
-func (c *ConfigurationData) GetCacheControlWorkItemLinkTypes() string {
-	return c.v.GetString(varCacheControlWorkItemLinkTypes)
-}
-
-// GetCacheControlWorkItems returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item (or a list of).
-func (c *ConfigurationData) GetCacheControlWorkItems() string {
-	return c.v.GetString(varCacheControlWorkItems)
-}
-
-// GetCacheControlWorkItemLinks returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item (or a list of).
-func (c *ConfigurationData) GetCacheControlWorkItemLinks() string {
-	return c.v.GetString(varCacheControlWorkItemLinks)
-}
-
-// GetCacheControlAreas returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item (or a list of).
-func (c *ConfigurationData) GetCacheControlAreas() string {
-	return c.v.GetString(varCacheControlAreas)
-}
-
-// GetCacheControlSpaces returns the value to set in the "Cache-Control" HTTP response header
-// when returning spaces.
-func (c *ConfigurationData) GetCacheControlSpaces() string {
-	return c.v.GetString(varCacheControlSpaces)
-}
-
-// GetCacheControlIterations returns the value to set in the "Cache-Control" HTTP response header
-// when returning iterations.
-func (c *ConfigurationData) GetCacheControlIterations() string {
-	return c.v.GetString(varCacheControlIterations)
-}
-
-// GetCacheControlComments returns the value to set in the "Cache-Control" HTTP response header
-// when returning comments.
-func (c *ConfigurationData) GetCacheControlComments() string {
-	return c.v.GetString(varCacheControlComments)
-}
-
-// GetCacheControlFilters returns the value to set in the "Cache-Control" HTTP response header
-// when returning comments.
-func (c *ConfigurationData) GetCacheControlFilters() string {
-	return c.v.GetString(varCacheControlFilters)
 }
 
 // GetCacheControlUsers returns the value to set in the "Cache-Control" HTTP response header
@@ -402,11 +308,6 @@ func (c *ConfigurationData) GetTokenPublicKey() []byte {
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
 func (c *ConfigurationData) GetAuthNotApprovedRedirect() string {
 	return c.v.GetString(varAuthNotApprovedRedirect)
-}
-
-// GetGithubAuthToken returns the actual Github OAuth Access Token
-func (c *ConfigurationData) GetGithubAuthToken() string {
-	return c.v.GetString(varGithubAuthToken)
 }
 
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
@@ -605,11 +506,6 @@ func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (s
 	newURL := fmt.Sprintf("%s://%s/%s", scheme, newHost, path)
 
 	return newURL, nil
-}
-
-// GetCheStarterURL returns the URL for the Che Starter service used by codespaces to initiate code editing
-func (c *ConfigurationData) GetCheStarterURL() string {
-	return c.v.GetString(varCheStarterURL)
 }
 
 // GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running

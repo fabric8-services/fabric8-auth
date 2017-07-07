@@ -3,7 +3,6 @@
     "attributes": {
       "createdAt": "0001-01-01T00:00:00Z",
       "last_used_workspace": "my-last-used-workspace",
-      "stackId": "golang-default",
       "type": "git",
       "url": "https://github.com/fabric8-services/fabric8-wit.git"
     },
