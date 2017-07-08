@@ -7,14 +7,14 @@ goTemplate{
       goCI{
         githubOrganisation = 'fabric8-services'
         dockerOrganisation = 'fabric8'
-        project = 'fabric8-wit'
+        project = 'fabric8-auth'
         dockerBuildOptions = '--file Dockerfile.deploy'
       }
     } else if (env.BRANCH_NAME.equals('master')) {
       goRelease{
         githubOrganisation = 'fabric8-services'
         dockerOrganisation = 'fabric8'
-        project = 'fabric8-wit'
+        project = 'fabric8-auth'
         dockerBuildOptions = '--file Dockerfile.deploy'
       }
     }

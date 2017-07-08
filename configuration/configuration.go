@@ -109,7 +109,7 @@ func NewConfigurationData(configFilePath string) (*ConfigurationData, error) {
 
 func getConfigFilePath() string {
 	// This was either passed as a env var Or, set inside main.go from --config
-	envConfigPath, ok := os.LookupEnv("F8_CONFIG_FILE_PATH")
+	envConfigPath, ok := os.LookupEnv("F8_AUTH_CONFIG_FILE_PATH")
 	if !ok {
 		return ""
 	}

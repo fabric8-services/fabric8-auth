@@ -4,7 +4,7 @@
       "createdAt": "0001-01-01T00:00:00Z",
       "last_used_workspace": "my-last-used-workspace",
       "type": "git",
-      "url": "https://github.com/fabric8-services/fabric8-wit.git"
+      "url": "https://github.com/fabric8-services/fabric8-auth.git"
     },
     "id": "d7a282f6-1c10-459e-bb44-55a1a6d48bdd",
     "links": {

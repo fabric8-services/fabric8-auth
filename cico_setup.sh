@@ -103,7 +103,7 @@ function run_tests_with_coverage() {
 
 function tag_push() {
   TARGET=$1
-  docker tag fabric8-wit-deploy $TARGET
+  docker tag fabric8-auth-deploy $TARGET
   docker push $TARGET
 }
 

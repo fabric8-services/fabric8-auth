@@ -1,4 +1,4 @@
-PROJECT_NAME=fabric8-wit
+PROJECT_NAME=fabric8-auth
 CUR_DIR=$(shell pwd)
 TMP_PATH=$(CUR_DIR)/tmp
 INSTALL_PREFIX=$(CUR_DIR)/bin

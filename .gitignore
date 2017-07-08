@@ -60,11 +60,11 @@ _testmain.go
 *.test
 *.prof
 
-# Fabric8-wit specific artifacts
+# Fabric8-auth specific artifacts
 /debug
 **/debug.test
 
-# Fabric8-wit binaries
+# Fabric8-auth binaries
 bin/
 
 # Glide package manager

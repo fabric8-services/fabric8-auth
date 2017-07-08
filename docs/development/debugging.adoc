@@ -63,7 +63,7 @@ Let's assume the binary `./bin/alm` is running.
 === Attach to program
 
 To link:https://github.com/derekparker/delve/blob/master/Documentation/usage/dlv_attach.md#dlv-attach[*attach*]
-the debugger to your running fabric8-wit server,run:
+the debugger to your running fabric8-auth server,run:
 
 ----
 $ dlv attach $(pidof ./bin/alm)
@@ -88,7 +88,7 @@ on the on the `WorkitemController.Show` function that is defined in `workitem.go
 (dlv) break WorkitemController.Show
 ----
 
-As mentioned before the fabric8-wit server is paused and we need to bring it
+As mentioned before the fabric8-auth server is paused and we need to bring it
 back into a *run* state. To do this, we let the program
 link:https://github.com/derekparker/delve/tree/master/Documentation/cli#continue[*continue*]:
 

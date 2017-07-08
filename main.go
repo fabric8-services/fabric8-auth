@@ -8,8 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"context"
-
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 
@@ -24,13 +22,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/models"
-	"github.com/fabric8-services/fabric8-auth/remoteworkitem"
-	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/workitem"
-	"github.com/fabric8-services/fabric8-auth/workitem/link"
 
 	"github.com/goadesign/goa"
 	goalogrus "github.com/goadesign/goa/logging/logrus"
@@ -46,7 +39,6 @@ func main() {
 	var configFilePath string
 	var printConfig bool
 	var migrateDB bool
-	var scheduler *remoteworkitem.Scheduler
 	flag.StringVar(&configFilePath, "config", "", "Path to the config file to read")
 	flag.BoolVar(&printConfig, "printConfig", false, "Prints the config (including merged environment variables) and exits")
 	flag.BoolVar(&migrateDB, "migrateDatabase", false, "Migrates the database to the newest version and exits.")
@@ -61,7 +53,7 @@ func main() {
 		}
 	})
 	if !configSwitchIsSet {
-		if envConfigPath, ok := os.LookupEnv("F8_CONFIG_FILE_PATH"); ok {
+		if envConfigPath, ok := os.LookupEnv("F8_AUTH_CONFIG_FILE_PATH"); ok {
 			configFilePath = envConfigPath
 		}
 	}
@@ -126,28 +118,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Make sure the database is populated with the correct types (e.g. bug etc.)
-	if configuration.GetPopulateCommonTypes() {
-		ctx := migration.NewMigrationContext(context.Background())
-
-		if err := models.Transactional(db, func(tx *gorm.DB) error {
-			return migration.PopulateCommonTypes(ctx, tx, workitem.NewWorkItemTypeRepository(tx))
-		}); err != nil {
-			log.Panic(ctx, map[string]interface{}{
-				"err": err,
-			}, "failed to populate common types")
-		}
-		if err := models.Transactional(db, func(tx *gorm.DB) error {
-			return migration.BootstrapWorkItemLinking(ctx, link.NewWorkItemLinkCategoryRepository(tx), space.NewRepository(tx), link.NewWorkItemLinkTypeRepository(tx))
-		}); err != nil {
-			log.Panic(ctx, map[string]interface{}{
-				"err": err,
-			}, "failed to bootstap work item linking")
-		}
-	}
-
 	// Create service
-	service := goa.New("wit")
+	service := goa.New("auth")
 
 	// Mount middleware
 	service.Use(middleware.RequestID())
@@ -189,59 +161,6 @@ func main() {
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
 
-	// Mount "workitem" controller
-	workitemCtrl := controller.NewWorkitemController(service, appDB, configuration)
-	app.MountWorkitemController(service, workitemCtrl)
-
-	// Mount "workitemtype" controller
-	workitemtypeCtrl := controller.NewWorkitemtypeController(service, appDB, configuration)
-	app.MountWorkitemtypeController(service, workitemtypeCtrl)
-
-	// Mount "work item link category" controller
-	workItemLinkCategoryCtrl := controller.NewWorkItemLinkCategoryController(service, appDB)
-	app.MountWorkItemLinkCategoryController(service, workItemLinkCategoryCtrl)
-
-	// Mount "work item link type" controller
-	workItemLinkTypeCtrl := controller.NewWorkItemLinkTypeController(service, appDB, configuration)
-	app.MountWorkItemLinkTypeController(service, workItemLinkTypeCtrl)
-
-	// Mount "work item link" controller
-	workItemLinkCtrl := controller.NewWorkItemLinkController(service, appDB, configuration)
-	app.MountWorkItemLinkController(service, workItemLinkCtrl)
-
-	// Mount "work item comments" controller
-	workItemCommentsCtrl := controller.NewWorkItemCommentsController(service, appDB, configuration)
-	app.MountWorkItemCommentsController(service, workItemCommentsCtrl)
-
-	// Mount "work item relationships links" controller
-	workItemRelationshipsLinksCtrl := controller.NewWorkItemRelationshipsLinksController(service, appDB, configuration)
-	app.MountWorkItemRelationshipsLinksController(service, workItemRelationshipsLinksCtrl)
-
-	// Mount "comments" controller
-	commentsCtrl := controller.NewCommentsController(service, appDB, configuration)
-	app.MountCommentsController(service, commentsCtrl)
-
-	if configuration.GetFeatureWorkitemRemote() {
-		// Scheduler to fetch and import remote tracker items
-		scheduler = remoteworkitem.NewScheduler(db)
-		defer scheduler.Stop()
-
-		accessTokens := controller.GetAccessTokens(configuration)
-		scheduler.ScheduleAllQueries(service.Context, accessTokens)
-
-		// Mount "tracker" controller
-		c5 := controller.NewTrackerController(service, appDB, scheduler, configuration)
-		app.MountTrackerController(service, c5)
-
-		// Mount "trackerquery" controller
-		c6 := controller.NewTrackerqueryController(service, appDB, scheduler, configuration)
-		app.MountTrackerqueryController(service, c6)
-	}
-
-	// Mount "space" controller
-	spaceCtrl := controller.NewSpaceController(service, appDB, configuration, auth.NewKeycloakResourceManager(configuration))
-	app.MountSpaceController(service, spaceCtrl)
-
 	// Mount "user" controller
 	userCtrl := controller.NewUserController(service, appDB, tokenManager, configuration)
 	if configuration.GetTenantServiceURL() != "" {
@@ -262,48 +181,6 @@ func main() {
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	usersCtrl := controller.NewUsersController(service, appDB, configuration, keycloakProfileService)
 	app.MountUsersController(service, usersCtrl)
-
-	// Mount "iterations" controller
-	iterationCtrl := controller.NewIterationController(service, appDB, configuration)
-	app.MountIterationController(service, iterationCtrl)
-
-	// Mount "spaceiterations" controller
-	spaceIterationCtrl := controller.NewSpaceIterationsController(service, appDB, configuration)
-	app.MountSpaceIterationsController(service, spaceIterationCtrl)
-
-	// Mount "userspace" controller
-	userspaceCtrl := controller.NewUserspaceController(service, db)
-	app.MountUserspaceController(service, userspaceCtrl)
-
-	// Mount "render" controller
-	renderCtrl := controller.NewRenderController(service)
-	app.MountRenderController(service, renderCtrl)
-
-	// Mount "areas" controller
-	areaCtrl := controller.NewAreaController(service, appDB, configuration)
-	app.MountAreaController(service, areaCtrl)
-
-	spaceAreaCtrl := controller.NewSpaceAreasController(service, appDB, configuration)
-	app.MountSpaceAreasController(service, spaceAreaCtrl)
-
-	filterCtrl := controller.NewFilterController(service, configuration)
-	app.MountFilterController(service, filterCtrl)
-
-	// Mount "namedspaces" controller
-	namedSpacesCtrl := controller.NewNamedspacesController(service, appDB)
-	app.MountNamedspacesController(service, namedSpacesCtrl)
-
-	// Mount "plannerBacklog" controller
-	plannerBacklogCtrl := controller.NewPlannerBacklogController(service, appDB, configuration)
-	app.MountPlannerBacklogController(service, plannerBacklogCtrl)
-
-	// Mount "codebase" controller
-	codebaseCtrl := controller.NewCodebaseController(service, appDB, configuration)
-	app.MountCodebaseController(service, codebaseCtrl)
-
-	// Mount "spacecodebases" controller
-	spaceCodebaseCtrl := controller.NewSpaceCodebasesController(service, appDB)
-	app.MountSpaceCodebasesController(service, spaceCodebaseCtrl)
 
 	// Mount "collaborators" controller
 	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, configuration, auth.NewKeycloakPolicyManager(configuration))
@@ -328,7 +205,6 @@ func main() {
 		}, "unable to connect to server")
 		service.LogError("startup", "err", err)
 	}
-
 }
 
 func printUserInfo() {
@@ -354,5 +230,4 @@ func printUserInfo() {
 			}, "Running as as group '%s' with GID %s.", g.Name, g.Gid)
 		}
 	}
-
 }
