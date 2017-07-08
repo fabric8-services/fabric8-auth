@@ -14,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/workitem"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
@@ -310,7 +309,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			// instead of over-writing it altogether. Note: The PATCH-ing is only for the
 			// 1st level of JSON.
 			if user.ContextInformation == nil {
-				user.ContextInformation = workitem.Fields{}
+				user.ContextInformation = make(map[string]string)
 			}
 			for fieldName, fieldValue := range updatedContextInformation {
 				// Save it as is, for short-term.
@@ -538,7 +537,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
-	var contextInformation workitem.Fields
+	var contextInformation map[string]string
 
 	if user != nil {
 		fullName = user.FullName
@@ -551,15 +550,6 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
-	}
-
-	// The following will be used for ContextInformation.
-	// The simplest way to represent is to have all fields
-	// as a SimpleType. During conversion from 'model' to 'app',
-	// the value would be returned 'as is'.
-
-	simpleFieldDefinition := workitem.FieldDefinition{
-		Type: workitem.SimpleType{Kind: workitem.KindString},
 	}
 
 	converted := app.User{
@@ -579,7 +569,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				ProviderType:          &providerType,
 				Email:                 &email,
 				Company:               &company,
-				ContextInformation:    workitem.Fields{},
+				ContextInformation:    make(map[string]string),
 				RegistrationCompleted: &registrationCompleted,
 			},
 			Links: createUserLinks(request, &identity.ID),
@@ -590,14 +580,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 			// this can be used to unset a key in contextInformation
 			continue
 		}
-		convertedValue, err := simpleFieldDefinition.ConvertFromModel(name, value)
-		if err != nil {
-			log.Error(nil, map[string]interface{}{
-				"err": err,
-			}, "Unable to convert user context field %s ", name)
-			converted.Data.Attributes.ContextInformation[name] = nil
-		}
-		converted.Data.Attributes.ContextInformation[name] = convertedValue
+		converted.Data.Attributes.ContextInformation[name] = value
 	}
 	return &converted
 }
