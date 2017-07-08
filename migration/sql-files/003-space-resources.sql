@@ -11,6 +11,3 @@ CREATE TABLE space_resources (
 );
 
 CREATE INDEX space_resources_space_id_idx ON space_resources USING BTREE (space_id);
-
-ALTER TABLE space_resources
-    ADD CONSTRAINT space_resources_space_fk FOREIGN KEY (space_id) REFERENCES spaces(id) ON DELETE CASCADE;
