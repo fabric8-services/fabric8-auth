@@ -33,7 +33,7 @@
 			}
 		});
 		requirejs(['client', 'jquery', 'jsrsasign'], function (client, jquery, jsrsasign) {
-			var cl = client("http", "localhost:8080")
+			var cl = client("http", "localhost:8089")
 			cl.generateLogin("/api/login/generate")
 				.then(function (resp) {
 					document.getElementById('response').innerHTML = resp.statusText;

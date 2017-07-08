@@ -106,13 +106,13 @@ func GetMigrations() Migrations {
 	m = append(m, steps{ExecuteSQLFile("000-bootstrap.sql")})
 
 	// Version 1
-	m = append(m, steps{ExecuteSQLFile("001-common.sql")})
+	m = append(m, steps{ExecuteSQLFile("001-identites-users.sql")})
 
 	// Version 2
-	m = append(m, steps{ExecuteSQLFile("002-tracker-items.sql")})
+	m = append(m, steps{ExecuteSQLFile("002-oauth-states.sql")})
 
 	// Version 3
-	m = append(m, steps{ExecuteSQLFile("003-login.sql")})
+	m = append(m, steps{ExecuteSQLFile("003-space-resources.sql")})
 
 	// Version N
 	//

@@ -4,7 +4,7 @@ services:
   db:
     image: registry.centos.org/postgresql/postgresql:9.6
     ports:
-      - "5433:5433"
+      - "5433:5432"
     environment:
       POSTGRESQL_ADMIN_PASSWORD: mysecretpassword
     networks:
@@ -15,7 +15,7 @@ services:
     environment:
       F8_POSTGRES_HOST: db
     ports:
-      - "8080:8080"
+      - "8089:8089"
     networks:
       - default
     depends_on:

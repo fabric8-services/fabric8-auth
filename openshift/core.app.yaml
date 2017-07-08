@@ -115,13 +115,13 @@ objects:
           imagePullPolicy: Always
           name: core
           ports:
-          - containerPort: 8080
+          - containerPort: 8089
             protocol: TCP
           livenessProbe:
             failureThreshold: 3
             httpGet:
               path: /api/status
-              port: 8080
+              port: 8089
               scheme: HTTP
             initialDelaySeconds: 1
             periodSeconds: 10
@@ -131,7 +131,7 @@ objects:
             failureThreshold: 3
             httpGet:
               path: /api/status
-              port: 8080
+              port: 8089
               scheme: HTTP
             initialDelaySeconds: 1
             periodSeconds: 10
@@ -157,10 +157,10 @@ objects:
       service: core
   spec:
     ports:
-      - name: "8080"
+      - name: "8089"
         protocol: TCP
         port: 80
-        targetPort: 8080
+        targetPort: 8089
     selector:
       service: core
     type: ClusterIP

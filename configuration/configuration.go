@@ -152,7 +152,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	//-----
 	// HTTP
 	//-----
-	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8080")
+	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8089")
 	c.v.SetDefault(varHeaderMaxLength, defaultHeaderMaxLength)
 
 	//-----
@@ -257,7 +257,7 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or environment variable)
-// that the alm server binds to (e.g. "0.0.0.0:8080")
+// that the alm server binds to (e.g. "0.0.0.0:8089")
 func (c *ConfigurationData) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
 }

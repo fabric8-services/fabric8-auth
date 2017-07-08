@@ -21,7 +21,7 @@ postgres.transaction.timeout: 5m
 # HTTP configuration
 #------------------------
 
-http.address: 0.0.0.0:8080
+http.address: 0.0.0.0:8089
 #header.maxlength: 10240 # bytes
 
 #------------------------
