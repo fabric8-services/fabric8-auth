@@ -136,14 +136,8 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 
 // Remove user from the list of space collaborators.
 func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) error {
-	// Don't remove the space owner
-	err := c.checkSpaceOwner(ctx, ctx.SpaceID, ctx.IdentityID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
 	identityIDs := []*app.UpdateUserID{{ID: ctx.IdentityID}}
-	err = c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, identityIDs, c.policyManager.RemoveUserFromPolicy)
+	err := c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, identityIDs, c.policyManager.RemoveUserFromPolicy)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -153,15 +147,6 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 // RemoveMany removes users from the list of space collaborators.
 func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsContext) error {
 	if ctx.Payload != nil && ctx.Payload.Data != nil {
-		// Don't remove the space owner
-		for _, idn := range ctx.Payload.Data {
-			if idn != nil {
-				err := c.checkSpaceOwner(ctx, ctx.SpaceID, idn.ID)
-				if err != nil {
-					return jsonapi.JSONErrorResponse(ctx, err)
-				}
-			}
-		}
 		err := c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, ctx.Payload.Data, c.policyManager.RemoveUserFromPolicy)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
@@ -169,29 +154,6 @@ func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsCon
 	}
 
 	return ctx.OK([]byte{})
-}
-
-func (c *CollaboratorsController) checkSpaceOwner(ctx context.Context, spaceID uuid.UUID, identityID string) error {
-	var ownerID string
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		space, err := appl.Spaces().Load(ctx, spaceID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"space_id": spaceID.String(),
-				"err":      err,
-			}, "unable to find the space")
-			return err
-		}
-		ownerID = space.OwnerId.String()
-		return nil
-	})
-	if err != nil {
-		return goa.ErrNotFound(err.Error())
-	}
-	if identityID == ownerID {
-		return goa.ErrBadRequest("Space owner can't be removed from the list of the space collaborators")
-	}
-	return nil
 }
 
 func (c *CollaboratorsController) updatePolicy(ctx collaboratorContext, req *goa.RequestData, spaceID uuid.UUID, identityIDs []*app.UpdateUserID, update func(policy *auth.KeycloakPolicy, identityID string) bool) error {
@@ -243,6 +205,10 @@ func (c *CollaboratorsController) updatePolicy(ctx collaboratorContext, req *goa
 				return goa.ErrNotFound(err.Error())
 			}
 			updated = update(policy, identityID) || updated
+			if !strings.Contains(policy.Config.UserIDs, "\"") {
+				// Updated policy has no User IDs
+				return goa.ErrBadRequest("space should have at least one collaborator")
+			}
 		}
 	}
 	if !updated {
