@@ -2,13 +2,13 @@ FROM centos:7
 LABEL maintainer "Devtools <devtools@redhat.com>"
 LABEL author "Konrad Kleine <kkleine@redhat.com>"
 ENV LANG=en_US.utf8
-ENV F8_INSTALL_PREFIX=/usr/local/wit
+ENV F8_INSTALL_PREFIX=/usr/local/auth
 
-# Create a non-root user and a group with the same name: "wit"
-ENV F8_USER_NAME=wit
+# Create a non-root user and a group with the same name: "auth"
+ENV F8_USER_NAME=auth
 RUN useradd --no-create-home -s /bin/bash ${F8_USER_NAME}
 
-COPY bin/wit ${F8_INSTALL_PREFIX}/bin/wit
+COPY bin/auth ${F8_INSTALL_PREFIX}/bin/auth
 COPY config.yaml ${F8_INSTALL_PREFIX}/etc/config.yaml
 
 # Install little pcp pmcd server for metrics collection
@@ -18,7 +18,7 @@ RUN yum install -y pcp && yum clean all && \
     mkdir -p /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
     chown -R ${F8_USER_NAME} /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp && \
     chmod -R ug+rw /etc/pcp /var/run/pcp /var/lib/pcp /var/log/pcp
-COPY ./wit+pmcd.sh /wit+pmcd.sh
+COPY ./auth+pmcd.sh /auth+pmcd.sh
 EXPOSE 44321
 
 
@@ -26,6 +26,6 @@ EXPOSE 44321
 USER ${F8_USER_NAME}
 
 WORKDIR ${F8_INSTALL_PREFIX}
-ENTRYPOINT [ "/wit+pmcd.sh" ]
+ENTRYPOINT [ "/auth+pmcd.sh" ]
 
 EXPOSE 8080

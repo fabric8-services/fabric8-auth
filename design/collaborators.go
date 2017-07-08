@@ -6,7 +6,6 @@ import (
 )
 
 var _ = a.Resource("collaborators", func() {
-	a.Parent("space")
 	a.BasePath("/collaborators")
 
 	a.Action("list", func() {
@@ -15,6 +14,7 @@ var _ = a.Resource("collaborators", func() {
 		)
 		a.Description("List collaborators for the given space ID.")
 		a.Params(func() {
+			a.Param("spaceID", d.UUID, "ID of the space")
 			a.Param("page[offset]", d.String, "Paging start position")
 			a.Param("page[limit]", d.Integer, "Paging size")
 		})

@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/workitem"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
@@ -24,15 +23,15 @@ import (
 // User describes a User account. A few identities can be assosiated with one user account
 type User struct {
 	gormsupport.Lifecycle
-	ID                 uuid.UUID       `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
-	Email              string          `sql:"unique_index"`                                            // This is the unique email field
-	FullName           string          // The fullname of the User
-	ImageURL           string          // The image URL for the User
-	Bio                string          // The bio of the User
-	URL                string          // The URL of the User
-	Company            string          // The (optional) Company of the User
-	Identities         []Identity      // has many Identities from different IDPs
-	ContextInformation workitem.Fields `sql:"type:jsonb"` // context information of the user activity
+	ID                 uuid.UUID              `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
+	Email              string                 `sql:"unique_index"`                                            // This is the unique email field
+	FullName           string                 // The fullname of the User
+	ImageURL           string                 // The image URL for the User
+	Bio                string                 // The bio of the User
+	URL                string                 // The URL of the User
+	Company            string                 // The (optional) Company of the User
+	Identities         []Identity             // has many Identities from different IDPs
+	ContextInformation map[string]interface{} `sql:"type:jsonb"` // context information of the user activity
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
