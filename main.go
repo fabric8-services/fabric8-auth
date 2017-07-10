@@ -53,7 +53,7 @@ func main() {
 		}
 	})
 	if !configSwitchIsSet {
-		if envConfigPath, ok := os.LookupEnv("F8_AUTH_CONFIG_FILE_PATH"); ok {
+		if envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH"); ok {
 			configFilePath = envConfigPath
 		}
 	}

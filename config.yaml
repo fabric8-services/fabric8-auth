@@ -86,7 +86,7 @@ token.publickey : |
                     ZwIDAQAB
                     -----END PUBLIC KEY-----
 
-#auth.notapproved.redirect : https://manage.openshift.com/openshiftio
+#notapproved.redirect : https://manage.openshift.com/openshiftio
 
 # ----------------------------
 # Keycloak OAuth2.0 configuration

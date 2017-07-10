@@ -39,7 +39,7 @@ type loginConfiguration interface {
 	GetKeycloakTestUser2Secret() string
 	GetValidRedirectURLs(*goa.RequestData) (string, error)
 	GetHeaderMaxLength() int64
-	GetAuthNotApprovedRedirect() string
+	GetNotApprovedRedirect() string
 }
 
 // LoginController implements the login resource.
@@ -109,7 +109,7 @@ func (c *LoginController) Authorize(ctx *app.AuthorizeLoginContext) error {
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.auth.Perform(ctx, oauth, brokerEndpoint, entitlementEndpoint, profileEndpoint, whitelist, c.configuration.GetAuthNotApprovedRedirect())
+	return c.auth.Perform(ctx, oauth, brokerEndpoint, entitlementEndpoint, profileEndpoint, whitelist, c.configuration.GetNotApprovedRedirect())
 }
 
 // Refresh obtain a new access token using the refresh token.

@@ -13,7 +13,7 @@ services:
     image: fabric8-services/fabric8-auth:latest
     command: -config /usr/local/alm/etc/config.yaml
     environment:
-      F8_POSTGRES_HOST: db
+      AUTH_POSTGRES_HOST: db
     ports:
       - "8089:8089"
     networks:

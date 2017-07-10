@@ -1,6 +1,6 @@
-:: Run "set F8_DEBUG=1" before calling this script to enable debug output.
+:: Run "set AUTH_DEBUG=1" before calling this script to enable debug output.
 :: This basically just outputs every command before executing it.
-@if not defined F8_DEBUG echo off
+@if not defined AUTH_DEBUG echo off
 
 :: This is a script to help have a CI system on a Windows host with no
 :: other requirement other than to have a CMD.

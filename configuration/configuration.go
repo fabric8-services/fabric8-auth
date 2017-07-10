@@ -67,7 +67,7 @@ const (
 	varKeycloakEndpointLogout           = "keycloak.endpoint.logout"
 	varTokenPublicKey                   = "token.publickey"
 	varTokenPrivateKey                  = "token.privatekey"
-	varAuthNotApprovedRedirect          = "auth.notapproved.redirect"
+	varNotApprovedRedirect              = "notapproved.redirect"
 	varHeaderMaxLength                  = "header.maxlength"
 	varCacheControlUsers                = "cachecontrol.users"
 	varCacheControlCollaborators        = "cachecontrol.collaborators"
@@ -109,7 +109,7 @@ func NewConfigurationData(configFilePath string) (*ConfigurationData, error) {
 
 func getConfigFilePath() string {
 	// This was either passed as a env var Or, set inside main.go from --config
-	envConfigPath, ok := os.LookupEnv("F8_AUTH_CONFIG_FILE_PATH")
+	envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH")
 	if !ok {
 		return ""
 	}
@@ -304,10 +304,10 @@ func (c *ConfigurationData) GetTokenPublicKey() []byte {
 	return []byte(c.v.GetString(varTokenPublicKey))
 }
 
-// GetAuthNotApprovedRedirect returns the URL to redirect to if the user is not approved
+// GetNotApprovedRedirect returns the URL to redirect to if the user is not approved
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
-func (c *ConfigurationData) GetAuthNotApprovedRedirect() string {
-	return c.v.GetString(varAuthNotApprovedRedirect)
+func (c *ConfigurationData) GetNotApprovedRedirect() string {
+	return c.v.GetString(varNotApprovedRedirect)
 }
 
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
@@ -530,7 +530,7 @@ func (c *ConfigurationData) IsLogJSON() bool {
 }
 
 // GetValidRedirectURLs returns the RegEx of valid redirect URLs for auth requests
-// If the F8_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
+// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 // In prod mode the default regex will be returned
 func (c *ConfigurationData) GetValidRedirectURLs(req *goa.RequestData) (string, error) {
 	if c.v.IsSet(varValidRedirectURLs) {
@@ -632,7 +632,7 @@ vwIDAQAB
 	defaultCheStarterURL            = "che-server"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
-	// If the F8_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
+	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 	// In prod mode the following regex will be used by default:
 	DefaultValidRedirectURLs = "^(https|http)://([^/]+[.])?(?i:openshift[.]io)(/.*)?$" // *.openshift.io/*
 	devModeValidRedirectURLs = ".*"

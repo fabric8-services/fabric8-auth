@@ -88,7 +88,7 @@ func TestGetKeycloakURLForTooShortHostFails(t *testing.T) {
 func TestKeycloakRealmInDevModeCanBeOverridden(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	key := "F8_KEYCLOAK_REALM"
+	key := "AUTH_KEYCLOAK_REALM"
 	realEnvValue := os.Getenv(key)
 
 	os.Unsetenv(key)
@@ -108,7 +108,7 @@ func TestKeycloakRealmInDevModeCanBeOverridden(t *testing.T) {
 func TestGetLogLevelOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	key := "F8_LOG_LEVEL"
+	key := "AUTH_LOG_LEVEL"
 	realEnvValue := os.Getenv(key)
 
 	os.Unsetenv(key)
@@ -128,7 +128,7 @@ func TestGetLogLevelOK(t *testing.T) {
 func TestGetTransactionTimeoutOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	key := "F8_POSTGRES_TRANSACTION_TIMEOUT"
+	key := "AUTH_POSTGRES_TRANSACTION_TIMEOUT"
 	realEnvValue := os.Getenv(key)
 
 	os.Unsetenv(key)
@@ -148,7 +148,7 @@ func TestGetTransactionTimeoutOK(t *testing.T) {
 func TestValidRedirectURLsInDevModeCanBeOverridden(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	key := "F8_REDIRECT_VALID"
+	key := "AUTH_REDIRECT_VALID"
 	realEnvValue := os.Getenv(key)
 
 	os.Unsetenv(key)

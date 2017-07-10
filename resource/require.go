@@ -17,13 +17,13 @@ const (
 	// specify that unit tests shall be run. Unless this environment variable
 	// is explicitly set to evaluate to false ("0", "no", or "false"), unit
 	// tests are executed all the time.
-	UnitTest = "F8_RESOURCE_UNIT_TEST"
+	UnitTest = "AUTH_RESOURCE_UNIT_TEST"
 	// Database refers to the name of the environment variable that is used to
 	// specify that test can be run that require a database.
-	Database = "F8_RESOURCE_DATABASE"
+	Database = "AUTH_RESOURCE_DATABASE"
 	// Remote refers to the name of the environment variable that is used to
 	// specify that test can be run that require availability of some remote servers such as Keycloak.
-	Remote = "F8_RESOURCE_REMOTE"
+	Remote = "AUTH_RESOURCE_REMOTE"
 	// StSkipReasonValueFalse is the skip message for tests when an environment variable is present but evaluates to false.
 	StSkipReasonValueFalse = "Skipping test because environment variable %s evaluates to false: %s"
 	// StSkipReasonNotSet is the skip message for tests when an environment is not present.
@@ -42,7 +42,7 @@ func Require(t testing.TB, envVars ...string) {
 		v, isSet := os.LookupEnv(envVar)
 
 		// If we don't explicitly opt out from unit tests
-		// by specifying F8_RESOURCE_UNIT_TEST=0
+		// by specifying AUTH_RESOURCE_UNIT_TEST=0
 		// we're going to run them
 		if !isSet && envVar == UnitTest {
 			continue
