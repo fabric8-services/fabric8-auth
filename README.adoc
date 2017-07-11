@@ -231,7 +231,7 @@ coverage information for all tests.
 
 == Configuration file
 
-If no configuration file is specified when the core is started, these are the defaults.
+If no configuration file is specified when the auth is started, these are the defaults.
 
 [source,yaml]
 .config.yaml

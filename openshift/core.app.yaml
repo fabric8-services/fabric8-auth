@@ -1,18 +1,18 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: core
+  name: auth
 objects:
 - kind: DeploymentConfig
   apiVersion: v1
   metadata:
     labels:
-      service: core
-    name: core
+      service: auth
+    name: auth
   spec:
     replicas: 4
     selector:
-      service: core
+      service: auth
     strategy:
       resources:
         limits:
@@ -27,7 +27,7 @@ objects:
     template:
       metadata:
         labels:
-          service: core
+          service: auth
       spec:
         containers:
         - image: registry.devshift.net/fabric8-services/fabric8-auth:${IMAGE_TAG}
@@ -35,85 +35,85 @@ objects:
           - name: AUTH_POSTGRES_HOST
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: db.host
           - name: AUTH_POSTGRES_PORT
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: db.port
           - name: AUTH_POSTGRES_USER
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: db.user
           - name: AUTH_POSTGRES_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: db.password
           - name: AUTH_KEYCLOAK_REALM
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: keycloak.realm
           - name: AUTH_TOKEN_PUBLICKEY
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: token.publickey
           - name: AUTH_KEYCLOAK_SECRET
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: keycloak.secret
           - name: AUTH_POSTGRES_SSLMODE
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: postgres.sslmode
           - name: AUTH_POSTGRES_CONNECTION_MAXIDLE
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: postgres.connection.maxidle
           - name: AUTH_POSTGRES_CONNECTION_MAXOPEN
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: postgres.connection.maxopen
           - name: AUTH_NOTAPPROVED_REDIRECT
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: notapproved_redirect
           - name: AUTH_TENANT_SERVICEURL
             valueFrom:
               secretKeyRef:
-                name: core
+                name: auth
                 key: tenantsvc.url
           - name: AUTH_CHESTARTERURL
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: chestarter.url
           - name: AUTH_REDIRECT_VALID
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: redirect.valid
           - name: AUTH_OPENSHIFT_TENANT_MASTERURL
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: openshift.tenant.masterurl
           - name: AUTH_FEATURE_WORKITEM_REMOTE
             valueFrom:
               configMapKeyRef:
-                name: core
+                name: auth
                 key: feature.workitem.remote
           imagePullPolicy: Always
-          name: core
+          name: auth
           ports:
           - containerPort: 8089
             protocol: TCP
@@ -152,9 +152,9 @@ objects:
 - kind: Service
   apiVersion: v1
   metadata:
-    name: core
+    name: auth
     labels:
-      service: core
+      service: auth
   spec:
     ports:
       - name: "8089"
@@ -162,18 +162,18 @@ objects:
         port: 80
         targetPort: 8089
     selector:
-      service: core
+      service: auth
     type: ClusterIP
     sessionAffinity: null
 - kind: Route
   apiVersion: v1
   metadata:
-    name: core
+    name: auth
   spec:
     host: ''
     to:
       kind: Service
-      name: core
+      name: auth
 parameters:
 - name: IMAGE_TAG
   value: latest

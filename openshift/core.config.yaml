@@ -1,12 +1,12 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: core
+  name: auth
 objects:
 - apiVersion: v1
   kind: Secret
   metadata:
-    name: core
+    name: auth
   type: Opaque
   data:
     db.host: ZGI=
@@ -20,7 +20,7 @@ objects:
 - apiVersion: v1
   kind: ConfigMap
   metadata:
-    name: core
+    name: auth
   type: Opaque
   data:
     postgres.sslmode: require

@@ -23,7 +23,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	coreerrors "github.com/fabric8-services/fabric8-auth/errors"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	er "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -143,7 +143,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, c
 				"err": err,
 			}, "failed to create a user and KeyCloak identity using the access token")
 			switch err.(type) {
-			case coreerrors.UnauthorizedError:
+			case autherrors.UnauthorizedError:
 				if userNotApprovedRedirectURL != "" {
 					log.Debug(ctx, map[string]interface{}{
 						"user_not_approved_redirect_url": userNotApprovedRedirectURL,
@@ -268,7 +268,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, c
 
 	stateID := uuid.NewV4()
 	if ctx.Link != nil && *ctx.Link {
-		// We need to save the "link" param so we don't lose it when redirect to sso for auth and back to core.
+		// We need to save the "link" param so we don't lose it when redirect to sso for auth and back to auth.
 		// TODO find a better place to save this param between redirects.
 		linkURL, err := url.Parse(*redirect)
 		if err != nil {
@@ -659,7 +659,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			return nil, nil, err
 		}
 		if !approved {
-			return nil, nil, coreerrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
+			return nil, nil, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
 		}
 		user = new(account.User)
 		identity = &account.Identity{}
