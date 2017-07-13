@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"net/http"
 
 	"context"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -598,4 +600,25 @@ func CreateSecuredSpace(t *testing.T, db application.DB, config SpaceConfigurati
 	require.NotNil(t, sp)
 	require.NotNil(t, sp.Data)
 	return *sp.Data
+}
+
+func assertResponseHeaders(t *testing.T, res http.ResponseWriter) (string, string, string) {
+	lastModified := res.Header()[app.LastModified]
+	eTag := res.Header()[app.ETag]
+	cacheControl := res.Header()[app.CacheControl]
+	assert.NotEmpty(t, lastModified)
+	assert.NotEmpty(t, eTag)
+	assert.NotEmpty(t, cacheControl)
+	return eTag[0], lastModified[0], cacheControl[0]
+}
+
+type DummyResourceManager struct {
+}
+
+func (m *DummyResourceManager) CreateResource(ctx context.Context, request *goa.RequestData, name string, rType string, uri *string, scopes *[]string, userID string) (*auth.Resource, error) {
+	return &auth.Resource{ResourceID: uuid.NewV4().String(), PermissionID: uuid.NewV4().String(), PolicyID: uuid.NewV4().String()}, nil
+}
+
+func (m *DummyResourceManager) DeleteResource(ctx context.Context, request *goa.RequestData, resource auth.Resource) error {
+	return nil
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/workitem"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -85,19 +84,17 @@ func (s *userBlackBoxTest) TestExistsUser() {
 		t.Parallel()
 		user := createAndLoadUser(s)
 		// when
-		exists, err := s.repo.Exists(s.ctx, user.ID.String())
+		err := s.repo.CheckExists(s.ctx, user.ID.String())
 		// then
 		require.Nil(t, err)
-		require.True(t, exists)
 	})
 
 	t.Run("user doesn't exist", func(t *testing.T) {
 		t.Parallel()
 		// Check not existing
-		exists, err := s.repo.Exists(s.ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
-		require.False(t, exists)
 	})
 }
 
@@ -128,7 +125,7 @@ func createAndLoadUser(s *userBlackBoxTest) *account.User {
 		ImageURL: "someImageUrl" + uuid.NewV4().String(),
 		Bio:      "somebio" + uuid.NewV4().String(),
 		URL:      "someurl" + uuid.NewV4().String(),
-		ContextInformation: workitem.Fields{
+		ContextInformation: account.Fields{
 			"space":        uuid.NewV4(),
 			"last_visited": "http://www.google.com",
 			"myid":         "71f343e3-2bfa-4ec6-86d4-79b91476acfc",

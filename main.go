@@ -161,6 +161,10 @@ func main() {
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
 
+	// Mount "space" controller
+	spaceCtrl := controller.NewSpaceController(service, appDB, configuration, auth.NewKeycloakResourceManager(configuration))
+	app.MountSpaceController(service, spaceCtrl)
+
 	// Mount "user" controller
 	userCtrl := controller.NewUserController(service, appDB, tokenManager, configuration)
 	if configuration.GetTenantServiceURL() != "" {

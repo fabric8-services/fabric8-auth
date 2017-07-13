@@ -5,10 +5,7 @@ import (
 
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/models"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/workitem"
 
 	"context"
 
@@ -56,16 +53,6 @@ func (s *DBTestSuite) SetupSuite() {
 
 // PopulateDBTestSuite populates the DB with common values
 func (s *DBTestSuite) PopulateDBTestSuite(ctx context.Context) {
-	if _, c := os.LookupEnv(resource.Database); c != false {
-		if err := models.Transactional(s.DB, func(tx *gorm.DB) error {
-			return migration.PopulateCommonTypes(ctx, tx, workitem.NewWorkItemTypeRepository(tx))
-		}); err != nil {
-			log.Panic(nil, map[string]interface{}{
-				"err":             err,
-				"postgres_config": s.Configuration.GetPostgresConfigString(),
-			}, "failed to populate the database with common types")
-		}
-	}
 }
 
 // TearDownSuite implements suite.TearDownAllSuite

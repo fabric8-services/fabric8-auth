@@ -18,25 +18,24 @@ import (
 
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+	"github.com/almighty/almighty-core/account"
 )
 
-type Space struct {
+type Identity struct {
 	gorm.Model
 	gormsupport.Lifecycle
 	ID          uuid.UUID
-	Version     int
-	Name        string
-	Description string
-	OwnerId     uuid.UUID `sql:"type:uuid"` // Belongs To Identity
+	Username        string
 }
 
 type BenchDbOperations struct {
 	gormbench.DBBenchSuite
 	clean func()
-	repo  space.Repository
+	repo  account.IdentityRepository
 	ctx   context.Context
 	appDB application.DB
 	dbPq  *sql.DB
+	identity *account.Identity
 }
 
 func BenchmarkRunDbOperations(b *testing.B) {
@@ -62,8 +61,18 @@ func (s *BenchDbOperations) SetupSuite() {
 
 func (s *BenchDbOperations) SetupBenchmark() {
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-	s.repo = space.NewRepository(s.DB)
+	s.repo = account.NewIdentityRepository(s.DB)
 	s.appDB = gormapplication.NewGormDB(s.DB)
+
+	s.identity = &account.Identity{
+		ID:           uuid.NewV4(),
+		Username:     "BenchmarkTestIdentity",
+		ProviderType: account.KeycloakIDP}
+
+	err := s.repo.Create(s.ctx, s.identity)
+	if err != nil {
+		s.B().Fail()
+	}
 }
 
 func (s *BenchDbOperations) TearDownBenchmark() {
@@ -104,40 +113,40 @@ func (s *BenchDbOperations) BenchmarkGormSelectOneQuery() {
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkGormSelectSpaceNameFirst() {
-	var sp Space
+func (s *BenchDbOperations) BenchmarkGormSelectUsernameFirst() {
+	var idn Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		db := s.DB.Select("name")
-		db.Where("id=?", space.SystemSpace).First(&sp)
+		db := s.DB.Select("username")
+		db.Where("id=?", s.identity.ID.String()).First(&idn)
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkGormSelectSpaceNameFind() {
-	var sp Space
+func (s *BenchDbOperations) BenchmarkGormSelectUsernameFind() {
+	var idn Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		db := s.DB.Table("spaces").Select("name")
-		db.Where("id=?", space.SystemSpace).Find(&sp)
+		db := s.DB.Table("identities").Select("username")
+		db.Where("id=?", s.identity.ID.String()).Find(&idn)
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkGormSelectSpaceNameRaw() {
+func (s *BenchDbOperations) BenchmarkGormSelectUsernameRaw() {
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	todo := func() {
 		var names []string
-		result, err := s.DB.Raw("select name from spaces where id=?", space.SystemSpace).Rows()
+		result, err := s.DB.Raw("select username from identities where id=?", s.identity.ID.String()).Rows()
 		if err != nil {
 			s.B().Fail()
 		}
 		defer result.Close()
 		for result.Next() {
-			var wit string
-			result.Scan(&wit)
-			names = append(names, wit)
+			var username string
+			result.Scan(&username)
+			names = append(names, username)
 		}
 	}
 	for n := 0; n < s.B().N; n++ {
@@ -145,73 +154,70 @@ func (s *BenchDbOperations) BenchmarkGormSelectSpaceNameRaw() {
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkPqSelectSpaceNamePreparedStatement() {
-	queryStmt, err := s.dbPq.Prepare("SELECT name FROM spaces WHERE id=$1")
+func (s *BenchDbOperations) BenchmarkPqSelectUsernamePreparedStatement() {
+	queryStmt, err := s.dbPq.Prepare("SELECT username FROM identities WHERE id=$1")
 	if err != nil {
 		s.B().Fail()
 	}
-	var sp space.Space
+	var idn account.Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		err = queryStmt.QueryRow(space.SystemSpace).Scan(&sp.Name)
+		err = queryStmt.QueryRow(s.identity.ID.String()).Scan(&idn.Username)
 		if err != nil {
 			s.B().Fail()
 		}
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkPqSelectSpaceNameQueryRow() {
-	var sp space.Space
+func (s *BenchDbOperations) BenchmarkPqSelectUsernameQueryRow() {
+	var idn account.Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		err := s.dbPq.QueryRow("SELECT name FROM spaces WHERE id=$1", space.SystemSpace).Scan(&sp.Name)
+		err := s.dbPq.QueryRow("SELECT username FROM identities WHERE id=$1", s.identity.ID.String()).Scan(&idn.Username)
 		if err != nil {
 			s.B().Fail()
 		}
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkGormSelectSpaceFirst() {
-	var sp Space
+func (s *BenchDbOperations) BenchmarkGormSelectIdentityFirst() {
+	var idn Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		db := s.DB.Select("version, name, description, owner_id")
-		db.Where("id=?", space.SystemSpace).First(&sp)
+		db := s.DB.Select("username")
+		db.Where("id=?", s.identity.ID.String()).First(&idn)
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkGormSelectSpaceFind() {
-	var sp Space
+func (s *BenchDbOperations) BenchmarkGormSelectIdentityFind() {
+	var idn Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		db := s.DB.Table("spaces").Select("version, name, description, owner_id")
-		db.Where("id=?", space.SystemSpace).Find(&sp)
+		db := s.DB.Table("identities").Select("username")
+		db.Where("id=?", s.identity.ID.String()).Find(&idn)
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkGormSelectSpaceRaw() {
+func (s *BenchDbOperations) BenchmarkGormSelectIdentityRaw() {
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 
 	todo := func() {
-		var sps []space.Space
-		result, err := s.DB.Raw("select version, name, description, owner_id from spaces where id=?", space.SystemSpace).Rows()
+		var idns []account.Identity
+		result, err := s.DB.Raw("select username from identities where id=?", s.identity.ID.String()).Rows()
 		if err != nil {
 			s.B().Fail()
 		}
 		defer result.Close()
 		for result.Next() {
-			var sp space.Space
+			var idn account.Identity
 			result.Scan(
-				&sp.Version,
-				&sp.Name,
-				&sp.Description,
-				&sp.OwnerId)
-			sps = append(sps, sp)
+				&idn.Username)
+			idns = append(idns, idn)
 		}
 	}
 	for n := 0; n < s.B().N; n++ {
@@ -219,20 +225,17 @@ func (s *BenchDbOperations) BenchmarkGormSelectSpaceRaw() {
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkPqSelectSpacePreparedStatement() {
-	queryStmt, err := s.dbPq.Prepare("SELECT version, name, description, owner_id FROM spaces WHERE id=$1")
+func (s *BenchDbOperations) BenchmarkPqSelectIdentityPreparedStatement() {
+	queryStmt, err := s.dbPq.Prepare("SELECT username FROM identities WHERE id=$1")
 	if err != nil {
 		s.B().Fail()
 	}
-	var sp space.Space
+	var idn account.Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		err = queryStmt.QueryRow(space.SystemSpace).Scan(
-			&sp.Version,
-			&sp.Name,
-			&sp.Description,
-			&sp.OwnerId)
+		err = queryStmt.QueryRow(s.identity.ID.String()).Scan(
+			&idn.Username)
 		if err != nil {
 			s.B().Logf("%v", err)
 			s.B().Fail()
@@ -240,16 +243,13 @@ func (s *BenchDbOperations) BenchmarkPqSelectSpacePreparedStatement() {
 	}
 }
 
-func (s *BenchDbOperations) BenchmarkPqSelectSpaceQueryRow() {
-	var sp space.Space
+func (s *BenchDbOperations) BenchmarkPqSelectIdentityQueryRow() {
+	var idn account.Identity
 	s.B().ResetTimer()
 	s.B().ReportAllocs()
 	for n := 0; n < s.B().N; n++ {
-		err := s.dbPq.QueryRow("SELECT version, name, description, owner_id FROM spaces WHERE id=$1", space.SystemSpace).Scan(
-			&sp.Version,
-			&sp.Name,
-			&sp.Description,
-			&sp.OwnerId)
+		err := s.dbPq.QueryRow("SELECT username FROM identiteis WHERE id=$1", s.identity.ID.String()).Scan(
+			&idn.Username)
 		if err != nil {
 			s.B().Logf("%v", err)
 			s.B().Fail()

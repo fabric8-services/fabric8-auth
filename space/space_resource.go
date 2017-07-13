@@ -26,7 +26,8 @@ type Resource struct {
 	ResourceID   string
 	PermissionID string
 	PolicyID     string
-	SpaceID      uuid.UUID `sql:"type:uuid"` // Belongs to Space
+	SpaceID      uuid.UUID `sql:"type:uuid"`
+	OwnerID      uuid.UUID `sql:"type:uuid"`
 }
 
 // TableName implements gorm.tabler

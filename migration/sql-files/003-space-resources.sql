@@ -5,6 +5,7 @@ CREATE TABLE space_resources (
     deleted_at timestamp with time zone,
     id uuid primary key DEFAULT uuid_generate_v4() NOT NULL,
     space_id uuid NOT NULL,
+    owner_id uuid NOT NULL,
     resource_id text NOT NULL,
     policy_id text NOT NULL,
     permission_id text NOT NULL

@@ -295,33 +295,6 @@ type GormTestBase struct {
 	UserRepository     account.UserRepository
 }
 
-func (g *GormTestBase) WorkItems() workitem.WorkItemRepository {
-	return nil
-}
-
-func (g *GormTestBase) WorkItemTypes() workitem.WorkItemTypeRepository {
-	return nil
-}
-
-func (g *GormTestBase) Spaces() space.Repository {
-	return nil
-}
-
-func (g *GormTestBase) SpaceResources() space.ResourceRepository {
-	return nil
-}
-
-func (g *GormTestBase) Trackers() application.TrackerRepository {
-	return nil
-}
-func (g *GormTestBase) TrackerQueries() application.TrackerQueryRepository {
-	return nil
-}
-
-func (g *GormTestBase) SearchItems() application.SearchRepository {
-	return nil
-}
-
 // Identities creates new Identity repository
 func (g *GormTestBase) Identities() account.IdentityRepository {
 	return g.IdentityRepository
@@ -332,42 +305,7 @@ func (g *GormTestBase) Users() account.UserRepository {
 	return g.UserRepository
 }
 
-// WorkItemLinkCategories returns a work item link category repository
-func (g *GormTestBase) WorkItemLinkCategories() link.WorkItemLinkCategoryRepository {
-	return nil
-}
-
-// WorkItemLinkTypes returns a work item link type repository
-func (g *GormTestBase) WorkItemLinkTypes() link.WorkItemLinkTypeRepository {
-	return nil
-}
-
-// WorkItemLinks returns a work item link repository
-func (g *GormTestBase) WorkItemLinks() link.WorkItemLinkRepository {
-	return nil
-}
-
-// Comments returns a work item comments repository
-func (g *GormTestBase) Comments() comment.Repository {
-	return nil
-}
-
-// Iterations returns a iteration repository
-func (g *GormTestBase) Iterations() iteration.Repository {
-	return nil
-}
-
-// Iterations returns a iteration repository
-func (g *GormTestBase) Areas() area.Repository {
-	return nil
-}
-
 func (g *GormTestBase) OauthStates() auth.OauthStateReferenceRepository {
-	return nil
-}
-
-// Codebases returns a codebase repository
-func (g *GormTestBase) Codebases() codebase.Repository {
 	return nil
 }
 

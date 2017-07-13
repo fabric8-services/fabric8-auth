@@ -12,17 +12,18 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/space"
+	"github.com/fabric8-services/fabric8-auth/account"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 )
 
 type BenchTransactional struct {
 	gormbench.DBBenchSuite
 	clean func()
-	repo  space.Repository
+	repo  account.IdentityRepository
 	ctx   context.Context
 	appDB application.DB
 	dbPq  *sql.DB
+	identity *account.Identity
 }
 
 func BenchmarkRunTransactional(b *testing.B) {
@@ -40,8 +41,18 @@ func (s *BenchTransactional) SetupSuite() {
 
 func (s *BenchTransactional) SetupBenchmark() {
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-	s.repo = space.NewRepository(s.DB)
+	s.repo = account.NewIdentityRepository(s.DB)
 	s.appDB = gormapplication.NewGormDB(s.DB)
+
+	s.identity = &account.Identity{
+		ID:           uuid.NewV4(),
+		Username:     "BenchmarkTransactionalTestIdentity",
+		ProviderType: account.KeycloakIDP}
+
+	err := s.repo.Create(s.ctx, s.identity)
+	if err != nil {
+		s.B().Fail()
+	}
 }
 
 func (s *BenchTransactional) TearDownBenchmark() {
@@ -50,7 +61,7 @@ func (s *BenchTransactional) TearDownBenchmark() {
 
 func (s *BenchTransactional) transactionLoadSpace() {
 	err := application.Transactional(s.appDB, func(appl application.Application) error {
-		_, err := s.repo.Load(s.ctx, space.SystemSpace)
+		_, err := s.repo.Load(s.ctx, s.identity.ID)
 		return err
 	})
 	if err != nil {
