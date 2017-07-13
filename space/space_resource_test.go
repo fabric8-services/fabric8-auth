@@ -166,7 +166,7 @@ func (test *resourceRepoBBTest) create(resourceID string, policyID string, permi
 		ResourceID:   resourceID,
 		PolicyID:     policyID,
 		PermissionID: permissionID,
-		SpaceID: uuid.NewV4(),
+		SpaceID:      uuid.NewV4(),
 	}
 	return func() (*space.Resource, error) {
 		r, err := test.repo.Create(context.Background(), &newResource)

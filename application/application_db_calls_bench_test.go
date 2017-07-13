@@ -16,25 +16,25 @@ import (
 	"github.com/fabric8-services/fabric8-auth/space"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/almighty/almighty-core/account"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
-	"github.com/almighty/almighty-core/account"
 )
 
 type Identity struct {
 	gorm.Model
 	gormsupport.Lifecycle
-	ID          uuid.UUID
-	Username        string
+	ID       uuid.UUID
+	Username string
 }
 
 type BenchDbOperations struct {
 	gormbench.DBBenchSuite
-	clean func()
-	repo  account.IdentityRepository
-	ctx   context.Context
-	appDB application.DB
-	dbPq  *sql.DB
+	clean    func()
+	repo     account.IdentityRepository
+	ctx      context.Context
+	appDB    application.DB
+	dbPq     *sql.DB
 	identity *account.Identity
 }
 

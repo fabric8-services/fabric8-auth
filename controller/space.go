@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	spaceResourceType  = "space"
+	spaceResourceType = "space"
 )
 
 var scopes = []string{"read:space", "admin:space"}
@@ -53,7 +53,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 	id, err := uuid.FromString(spaceID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"space_id":     spaceID,
+			"space_id": spaceID,
 		}, "unable to convert the space ID to UUID")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("spaceID", spaceID).Expected("valid UUID"))
 	}

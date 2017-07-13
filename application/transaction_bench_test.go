@@ -7,22 +7,22 @@ import (
 	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/account"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 )
 
 type BenchTransactional struct {
 	gormbench.DBBenchSuite
-	clean func()
-	repo  account.IdentityRepository
-	ctx   context.Context
-	appDB application.DB
-	dbPq  *sql.DB
+	clean    func()
+	repo     account.IdentityRepository
+	ctx      context.Context
+	appDB    application.DB
+	dbPq     *sql.DB
 	identity *account.Identity
 }
 

@@ -1,10 +1,10 @@
 package controller_test
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 	"time"
-	"net/http"
 
 	"context"
 
@@ -26,9 +26,9 @@ import (
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
