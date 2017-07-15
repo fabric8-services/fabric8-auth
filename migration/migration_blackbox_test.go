@@ -25,8 +25,6 @@ import (
 type fn func(tx *sql.Tx) error
 
 const (
-	// Migration version where to start testing
-	initialMigratedVersion = 45
 	databaseName           = "test"
 )
 
@@ -107,11 +105,11 @@ func TestMigrations(t *testing.T) {
 }
 
 func testMigration01(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(initialMigratedVersion+9)], (initialMigratedVersion + 9))
+	migrateToVersion(sqlDB, migrations[:(2)], (2))
 	require.True(t, dialect.HasColumn("identities", "registration_completed"))
 
 	// add new rows and check if the new column has the default value
-	assert.Nil(t, runSQLscript(sqlDB, "053-edit-username.sql"))
+	assert.Nil(t, runSQLscript(sqlDB, "001-insert-identities-users.sql"))
 
 	// check if ALL the existing rows & new rows have the default value
 	rows, err := sqlDB.Query("SELECT registration_completed FROM identities")
@@ -127,13 +125,13 @@ func testMigration01(t *testing.T) {
 }
 
 func testMigration02(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(initialMigratedVersion+2)], (initialMigratedVersion + 2))
+	migrateToVersion(sqlDB, migrations[:(3)], (3))
 
 	assert.True(t, gormDB.HasTable("oauth_state_references"))
 	assert.True(t, dialect.HasColumn("oauth_state_references", "referrer"))
 	assert.True(t, dialect.HasColumn("oauth_state_references", "id"))
 
-	assert.Nil(t, runSQLscript(sqlDB, "046-insert-oauth-states.sql"))
+	assert.Nil(t, runSQLscript(sqlDB, "002-insert-oauth-states.sql"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
