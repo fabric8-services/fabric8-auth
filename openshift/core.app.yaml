@@ -107,11 +107,6 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: openshift.tenant.masterurl
-          - name: AUTH_FEATURE_WORKITEM_REMOTE
-            valueFrom:
-              configMapKeyRef:
-                name: auth
-                key: feature.workitem.remote
           imagePullPolicy: Always
           name: auth
           ports:

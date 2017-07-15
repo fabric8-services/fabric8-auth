@@ -119,7 +119,7 @@ func (test *resourceRepoBBTest) TestLoadBySpace() {
 	expectResource(test.load(uuid.NewV4()), test.assertNotFound())
 	res, _ := expectResource(test.create(testResourceID, testPolicyID, testPermissionID), test.requireOk)
 
-	res2, _ := expectResource(test.loadBySpace(s.ID), test.requireOk)
+	res2, _ := expectResource(test.loadBySpace(res.SpaceID), test.requireOk)
 	assert.True(test.T(), (*res).Equal(*res2))
 }
 

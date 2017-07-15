@@ -5,15 +5,10 @@ import (
 
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/models"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/workitem"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq" // need to import postgres driver
-
-	"golang.org/x/net/context"
 )
 
 var _ test.SetupAllSuite = &DBBenchSuite{}
@@ -49,20 +44,6 @@ func (s *DBBenchSuite) SetupSuite() {
 				"err":             err,
 				"postgres_config": configuration.GetPostgresConfigString(),
 			}, "failed to connect to the database")
-		}
-	}
-}
-
-// PopulateDBBenchSuite populates the DB with common values
-func (s *DBBenchSuite) PopulateDBBenchSuite(ctx context.Context) {
-	if _, c := os.LookupEnv(resource.Database); c != false {
-		if err := models.Transactional(s.DB, func(tx *gorm.DB) error {
-			return migration.PopulateCommonTypes(ctx, tx, workitem.NewWorkItemTypeRepository(tx))
-		}); err != nil {
-			log.Panic(nil, map[string]interface{}{
-				"err":             err,
-				"postgres_config": s.Configuration.GetPostgresConfigString(),
-			}, "failed to populate the database with common types")
 		}
 	}
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/space"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/almighty/almighty-core/account"
@@ -48,7 +47,6 @@ func BenchmarkRunDbOperations(b *testing.B) {
 func (s *BenchDbOperations) SetupSuite() {
 	s.DBBenchSuite.SetupSuite()
 	s.ctx = migration.NewMigrationContext(context.Background())
-	s.DBBenchSuite.PopulateDBBenchSuite(s.ctx)
 	var err error
 	s.dbPq, err = sql.Open("postgres", "host=localhost port=5433 user=postgres password=mysecretpassword dbname=postgres sslmode=disable connect_timeout=5")
 	if err != nil {

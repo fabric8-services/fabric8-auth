@@ -14,19 +14,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/area"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/codebase"
-	"github.com/fabric8-services/fabric8-auth/comment"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
-	"github.com/fabric8-services/fabric8-auth/iteration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
 	almtoken "github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/workitem"
-	"github.com/fabric8-services/fabric8-auth/workitem/link"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
@@ -256,11 +250,11 @@ func (m TestUserRepository) Load(ctx context.Context, id uuid.UUID) (*account.Us
 	return m.User, nil
 }
 
-func (m TestUserRepository) Exists(ctx context.Context, id string) (bool, error) {
+func (m TestUserRepository) CheckExists(ctx context.Context, id string) error {
 	if m.User == nil {
-		return false, errors.New("not found")
+		return errors.New("not found")
 	}
-	return true, nil
+	return nil
 }
 
 // Create creates a new record.
@@ -306,6 +300,10 @@ func (g *GormTestBase) Users() account.UserRepository {
 }
 
 func (g *GormTestBase) OauthStates() auth.OauthStateReferenceRepository {
+	return nil
+}
+
+func (g *GormTestBase) SpaceResources() space.ResourceRepository {
 	return nil
 }
 

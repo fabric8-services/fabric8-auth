@@ -8,18 +8,12 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/area"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/codebase"
-	"github.com/fabric8-services/fabric8-auth/comment"
-	"github.com/fabric8-services/fabric8-auth/iteration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	almtoken "github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/workitem"
-	"github.com/fabric8-services/fabric8-auth/workitem/link"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -112,47 +106,7 @@ func (d *db) BeginTransaction() (application.Transaction, error) {
 	return &trx{}, nil
 }
 
-func (a *app) WorkItems() workitem.WorkItemRepository {
-	return nil
-}
-
-func (a *app) WorkItemTypes() workitem.WorkItemTypeRepository {
-	return nil
-}
-
-func (a *app) Trackers() application.TrackerRepository {
-	return nil
-}
-
-func (a *app) TrackerQueries() application.TrackerQueryRepository {
-	return nil
-}
-
-func (a *app) SearchItems() application.SearchRepository {
-	return nil
-}
-
 func (a *app) Identities() account.IdentityRepository {
-	return nil
-}
-
-func (a *app) WorkItemLinkCategories() link.WorkItemLinkCategoryRepository {
-	return nil
-}
-
-func (a *app) WorkItemLinkTypes() link.WorkItemLinkTypeRepository {
-	return nil
-}
-
-func (a *app) WorkItemLinks() link.WorkItemLinkRepository {
-	return nil
-}
-
-func (a *app) Comments() comment.Repository {
-	return nil
-}
-
-func (a *app) Spaces() space.Repository {
 	return nil
 }
 
@@ -160,23 +114,11 @@ func (a *app) SpaceResources() space.ResourceRepository {
 	return &resourceRepo{a.resource}
 }
 
-func (a *app) Iterations() iteration.Repository {
-	return nil
-}
-
 func (a *app) Users() account.UserRepository {
 	return nil
 }
 
-func (a *app) Areas() area.Repository {
-	return nil
-}
-
 func (a *app) OauthStates() auth.OauthStateReferenceRepository {
-	return nil
-}
-
-func (a *app) Codebases() codebase.Repository {
 	return nil
 }
 

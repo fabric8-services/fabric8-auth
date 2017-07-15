@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/workitem"
 	uuid "github.com/satori/go.uuid"
 
 	"fmt"
@@ -72,10 +71,6 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 			}, "Deleting entities from '%s' table with key %v", entry.table, entry.key)
 			tx.Table(entry.table).Where(entry.keyname+" = ?", entry.key).Delete("")
 		}
-
-		// Delete the work item cache as well
-		// NOTE: Feel free to add more cache freeing calls here as needed.
-		workitem.ClearGlobalWorkItemTypeCache()
 
 		if !inTransaction {
 			tx.Commit()

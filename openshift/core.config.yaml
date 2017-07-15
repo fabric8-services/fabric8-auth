@@ -30,4 +30,4 @@ objects:
     redirect.valid: ".*"
     openshift.tenant.masterurl: https://openshift.local/
     notapproved_redirect: ""
-    feature.workitem.remote: "false"
+  

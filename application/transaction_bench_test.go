@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
+	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -36,7 +37,6 @@ func BenchmarkRunTransactional(b *testing.B) {
 func (s *BenchTransactional) SetupSuite() {
 	s.DBBenchSuite.SetupSuite()
 	s.ctx = migration.NewMigrationContext(context.Background())
-	s.DBBenchSuite.PopulateDBBenchSuite(s.ctx)
 }
 
 func (s *BenchTransactional) SetupBenchmark() {
