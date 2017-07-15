@@ -12,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -109,8 +108,7 @@ func (rest *TestCollaboratorsREST) SetupTest() {
 	testIdentity, err = testsupport.CreateTestIdentity(rest.DB, "TestCollaborators-"+uuid.NewV4().String(), "TestCollaborators")
 	require.Nil(rest.T(), err)
 	rest.testIdentity3 = testIdentity
-	space := rest.createSpace()
-	rest.spaceID = *space.ID
+	rest.spaceID = rest.createSpace()
 }
 
 func (rest *TestCollaboratorsREST) TearDownTest() {
@@ -541,26 +539,15 @@ func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsOk() {
 	require.True(rest.T(), resource.UpdatedAt.Before(updatedResource.UpdatedAt))
 }
 
-func (rest *TestCollaboratorsREST) createSpace() app.Space {
+func (rest *TestCollaboratorsREST) createSpace() uuid.UUID {
 	// given
 	svc, _ := rest.SecuredController()
 	spaceCtrl := NewSpaceController(svc, rest.db, rest.Configuration, &DummyResourceManager{})
 	require.NotNil(rest.T(), spaceCtrl)
-	name := "TestCollaborators-space-" + uuid.NewV4().String()
-	description := "description"
-	spacePayload := &app.CreateSpacePayload{
-		Data: &app.Space{
-			Type: "spaces",
-			Attributes: &app.SpaceAttributes{
-				Name:        &name,
-				Description: &description,
-			},
-		},
-	}
-	_, sp := test.CreateSpaceCreated(rest.T(), svc.Context, svc, spaceCtrl, spacePayload)
-	require.NotNil(rest.T(), sp)
-	require.NotNil(rest.T(), sp.Data)
-	return *sp.Data
+
+	id := uuid.NewV4()
+	test.CreateSpaceOK(rest.T(), svc.Context, svc, spaceCtrl, id.String())
+	return id
 }
 
 type TestSpaceAuthzService struct {
@@ -578,28 +565,6 @@ func (s *TestSpaceAuthzService) Authorize(ctx context.Context, endpoint string, 
 
 func (s *TestSpaceAuthzService) Configuration() authz.AuthzConfiguration {
 	return nil
-}
-
-func CreateSecuredSpace(t *testing.T, db application.DB, config SpaceConfiguration, owner account.Identity) app.Space {
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
-	svc := testsupport.ServiceAsSpaceUser("Collaborators-Service", almtoken.NewManagerWithPrivateKey(priv), owner, &TestSpaceAuthzService{owner})
-	spaceCtrl := NewSpaceController(svc, db, config, &DummyResourceManager{})
-	require.NotNil(t, spaceCtrl)
-	name := "TestCollaborators-space-" + uuid.NewV4().String()
-	description := "description"
-	spacePayload := &app.CreateSpacePayload{
-		Data: &app.Space{
-			Type: "spaces",
-			Attributes: &app.SpaceAttributes{
-				Name:        &name,
-				Description: &description,
-			},
-		},
-	}
-	_, sp := test.CreateSpaceCreated(t, svc.Context, svc, spaceCtrl, spacePayload)
-	require.NotNil(t, sp)
-	require.NotNil(t, sp.Data)
-	return *sp.Data
 }
 
 func assertResponseHeaders(t *testing.T, res http.ResponseWriter) (string, string, string) {
