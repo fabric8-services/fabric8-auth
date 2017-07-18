@@ -25,7 +25,7 @@ import (
 type fn func(tx *sql.Tx) error
 
 const (
-	databaseName           = "test"
+	databaseName = "test"
 )
 
 var (
