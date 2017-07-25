@@ -48,7 +48,7 @@ func (s *BenchDbOperations) SetupSuite() {
 	s.DBBenchSuite.SetupSuite()
 	s.ctx = migration.NewMigrationContext(context.Background())
 	var err error
-	s.dbPq, err = sql.Open("postgres", "host=localhost port=5432 user=postgres password=mysecretpassword dbname=auth sslmode=disable connect_timeout=5")
+	s.dbPq, err = sql.Open("postgres", "host=localhost port=5432 user=postgres password=mysecretpassword dbname=postgres sslmode=disable connect_timeout=5")
 	if err != nil {
 		s.B().Fail()
 	}

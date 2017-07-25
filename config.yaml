@@ -6,7 +6,7 @@ postgres.host: localhost
 postgres.port: 5432
 postgres.user: postgres
 postgres.password: mysecretpassword
-postgres.database: auth
+postgres.database: postgres
 postgres.sslmode: disable
 # The amount of time before the connection times out
 postgres.connection.timeout: 5
