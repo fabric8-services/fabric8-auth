@@ -4,11 +4,11 @@ services:
     image: centos/postgresql-95-centos7
     network_mode: "bridge"
     ports:
-      - "5432"
+      - "5433"
     environment:
       POSTGRESQL_ADMIN_PASSWORD: mysecretpassword
     healthcheck:
-      test: "bash -c 'pg_isready -h localhost -p 5432 -q -U postgres'"
+      test: "bash -c 'pg_isready -h localhost -p 5433 -q -U postgres'"
       interval: 3s
       timeout: 7s
       retries: 5
