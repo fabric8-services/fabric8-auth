@@ -3,7 +3,7 @@
 #------------------------
 
 postgres.host: localhost
-postgres.port: 5433
+postgres.port: 5432
 postgres.user: postgres
 postgres.password: mysecretpassword
 postgres.database: postgres
