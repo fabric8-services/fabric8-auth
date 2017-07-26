@@ -3,7 +3,7 @@
 #------------------------
 
 postgres.host: localhost
-postgres.port: 5432
+postgres.port: 5433
 postgres.user: postgres
 postgres.password: mysecretpassword
 postgres.database: postgres
@@ -14,7 +14,7 @@ postgres.connection.timeout: 5
 postgres.connection.retrysleep: 1s
 postgres.connection.maxidle: -1
 postgres.connection.maxopen: -1
-# Timeout for a transaction in minutes 
+# Timeout for a transaction in minutes
 postgres.transaction.timeout: 5m
 
 #------------------------
