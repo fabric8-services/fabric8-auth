@@ -191,6 +191,21 @@ func convertToken(token auth.Token) *app.AuthToken {
 
 // Link links identity provider(s) to the user's account
 func (c *LoginController) Link(ctx *app.LinkLoginContext) error {
+
+	/*
+
+		We'll keep the Link API endpoint as is but will modify the behaviour to not use
+		KC linking.
+
+		- Based on the IDP passed as req param ( "github", "OSO-1" , "OSO-2" ) , pick up the client id and secret
+		from the config framework and initiate an OAuth flow.
+
+		- Handle the 2 step auth ( code + token exchange ) the same way we do for login using KC ,
+
+		- After a successful auth, save the token.
+
+	*/
+
 	brokerEndpoint, err := c.configuration.GetKeycloakEndpointBroker(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -207,6 +222,9 @@ func (c *LoginController) Link(ctx *app.LinkLoginContext) error {
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return c.auth.Link(ctx, brokerEndpoint, clientID, whitelist)
 }
+
+// We can do away with /LinkSession because we anyway don't do auto-linking right now
+// https://github.com/alexeykazakov/fabric8-wit/commit/1cede472e36dfc85c9bdf43c9629dff2dbec3c29
 
 // Linksession links identity provider(s) to the user's account
 func (c *LoginController) Linksession(ctx *app.LinksessionLoginContext) error {
