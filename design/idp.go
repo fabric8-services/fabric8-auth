@@ -5,17 +5,17 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
-var _ = a.Resource("idp", func() {
-	a.BasePath("/idp")
+var _ = a.Resource("broker", func() {
+	a.BasePath("/broker")
 
 	a.Action("get", func() {
 		a.Routing(
-			a.GET("/realm/:realm/token"),
+			a.GET("/:provider"),
 		)
 		a.Params(func() {
-			a.Param("realm", d.String, "Left operand")
+			a.Param("provider", d.String, "Identity Provider - example github or OSO ")
 		})
-		a.Description("Get access token issued by Identity Provider")
+		a.Description("Retrieve stored access token issued by Identity Provider")
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)
 		a.Response(d.InternalServerError, JSONAPIErrors)
@@ -24,7 +24,7 @@ var _ = a.Resource("idp", func() {
 
 	a.Action("refresh", func() {
 		a.Routing(
-			a.POST("refresh"),
+			a.POST("/:provider/refresh"),
 		)
 		a.Payload(refreshToken)
 		a.Description("Refresh access token issued by Identity Provider")
