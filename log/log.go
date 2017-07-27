@@ -14,7 +14,7 @@ import (
 	"github.com/goadesign/goa"
 )
 
-const defaultPackageName = "github.com/fabric8-services/fabric8-wit/"
+const defaultPackageName = "github.com/fabric8-services/fabric8-auth/"
 
 var (
 	logger = &log.Logger{
