@@ -34,7 +34,7 @@ type UsersController struct {
 	userProfileService login.UserProfileService
 }
 
-// UsersControllerConfiguration the configuration for the UsersController
+// UsersControllerConfiguration the Configuration for the UsersController
 type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
@@ -175,7 +175,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if err != nil || identity == nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
-			}, "auth token contains id %s of unknown Identity", *id)
+			}, "Auth token contains id %s of unknown Identity", *id)
 			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", *id)))
 			return ctx.Unauthorized(jerrors)
 		}

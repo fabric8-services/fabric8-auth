@@ -24,7 +24,7 @@ func TestRunLogoutREST(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	configuration, err := config.GetConfigurationData()
 	if err != nil {
-		t.Fatalf("Failed to setup the configuration: %s", err.Error())
+		t.Fatalf("Failed to setup the Configuration: %s", err.Error())
 	}
 	suite.Run(t, &TestLogoutREST{configuration: configuration})
 }

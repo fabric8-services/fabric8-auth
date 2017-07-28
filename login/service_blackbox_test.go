@@ -102,7 +102,7 @@ func (s *serviceBlackBoxTest) TearDownTest() {
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/login/authorize"),
+		Path: fmt.Sprintf("/api/login"),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -117,7 +117,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	prms := url.Values{}
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err := app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	if err != nil {
 		panic("invalid test data " + err.Error()) // bug
 	}
@@ -148,7 +148,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam(
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/login/authorize?redirect="),
+		Path: fmt.Sprintf("/api/login?redirect="),
 	}
 	parameters := url.Values{}
 	if redirect != "" {
@@ -162,7 +162,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam(
 
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, parameters)
-	authorizeCtx, err := app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	if err != nil {
 		panic("invalid test data " + err.Error()) // bug
 	}
@@ -183,7 +183,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam(
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/login/authorize"),
+		Path: fmt.Sprintf("/api/login"),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -193,7 +193,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 	prms := url.Values{}
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err := app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	if err != nil {
 		panic("invalid test data " + err.Error()) // bug
 	}
@@ -211,7 +211,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/login/authorize"),
+		Path: fmt.Sprintf("/api/login"),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -224,7 +224,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err := app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	if err != nil {
 		panic("invalid test data " + err.Error()) // bug
 	}
@@ -244,7 +244,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 	prms.Add("redirect", "https://openshift.io/somepath")
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err = app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	if err != nil {
 		panic("invalid test data " + err.Error()) // bug
 	}
@@ -260,7 +260,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 	prms.Add("redirect", "https://anydoamin.io/somepath")
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err = app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	if err != nil {
 		panic("invalid test data " + err.Error()) // bug
 	}
@@ -282,7 +282,7 @@ func (s *serviceBlackBoxTest) TestKeycloakLinkRedirect() {
 
 func keycloakLinkRedirect(s *serviceBlackBoxTest, provider string, redirect string) {
 	rw := httptest.NewRecorder()
-	p := "/api/login/link"
+	p := "/api/link"
 
 	parameters := url.Values{}
 	if redirect != "" {
@@ -305,7 +305,7 @@ func keycloakLinkRedirect(s *serviceBlackBoxTest, provider string, redirect stri
 	ctx := goajwt.WithJWT(context.Background(), token)
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LinkTest"), rw, req, parameters)
 
-	linkCtx, err := app.NewLinkLoginContext(goaCtx, req, goa.New("LoginService"))
+	linkCtx, err := app.NewLinkLinkContext(goaCtx, req, goa.New("LinkService"))
 	require.Nil(s.T(), err)
 
 	r := &goa.RequestData{
@@ -332,7 +332,7 @@ func keycloakLinkRedirect(s *serviceBlackBoxTest, provider string, redirect stri
 
 func keycloakLinkCallbackRedirect(s *serviceBlackBoxTest, next string) {
 	rw := httptest.NewRecorder()
-	p := "/api/login/linkcallback"
+	p := "/api/link/callback"
 
 	parameters := url.Values{}
 	parameters.Add("state", uuid.NewV4().String())
@@ -348,7 +348,7 @@ func keycloakLinkCallbackRedirect(s *serviceBlackBoxTest, next string) {
 
 	goaCtx := goa.NewContext(goa.WithAction(context.Background(), "LinkcallbackTest"), rw, req, parameters)
 
-	linkCtx, err := app.NewLinkcallbackLoginContext(goaCtx, req, goa.New("LoginService"))
+	linkCtx, err := app.NewCallbackLinkContext(goaCtx, req, goa.New("LinkService"))
 	require.Nil(s.T(), err)
 
 	r := &goa.RequestData{
@@ -375,7 +375,7 @@ func (s *serviceBlackBoxTest) TestInvalidState() {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/login/authorize"),
+		Path: fmt.Sprintf("/api/login"),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -394,7 +394,7 @@ func (s *serviceBlackBoxTest) TestInvalidState() {
 	}
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err := app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
 	r := &goa.RequestData{
@@ -420,7 +420,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/login/authorize"),
+		Path: fmt.Sprintf("/api/login"),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -435,7 +435,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	prms := url.Values{}
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err := app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
 	r := &goa.RequestData{
@@ -477,7 +477,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	require.Nil(s.T(), err)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err = app.NewAuthorizeLoginContext(goaCtx, req, goa.New("LoginService"))
+	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 
 	err = s.loginService.Perform(authorizeCtx, s.oauth, brokerEndpoint, "", "", s.getValidRedirectURLs(), "")
 

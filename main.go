@@ -150,12 +150,22 @@ func main() {
 	spaceAuthzService := authz.NewAuthzService(configuration, appDB)
 	service.Use(authz.InjectAuthzService(spaceAuthzService))
 
+	// Mount "login" controller
 	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB)
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, configuration)
 	app.MountLoginController(service, loginCtrl)
 
+	// Mount "logout" controller
 	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, configuration)
 	app.MountLogoutController(service, logoutCtrl)
+
+	// Mount "token" controller
+	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration)
+	app.MountTokenController(service, tokenCtrl)
+
+	// Mount "link" controller
+	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, configuration)
+	app.MountLinkController(service, linkCtrl)
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)

@@ -24,7 +24,7 @@ type UserController struct {
 	InitTenant   func(context.Context) error
 }
 
-// UserControllerConfiguration the configuration for the UserController
+// UserControllerConfiguration the Configuration for the UserController
 type UserControllerConfiguration interface {
 	GetCacheControlUser() string
 }
@@ -52,7 +52,7 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 		if err != nil || identity == nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
-			}, "auth token containers id %s of unknown Identity", id)
+			}, "Auth token containers id %s of unknown Identity", id)
 			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", id)))
 			return ctx.Unauthorized(jerrors)
 		}

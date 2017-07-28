@@ -56,11 +56,11 @@ type KeycloakOAuthProvider struct {
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Perform(ctx *app.AuthorizeLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error
+	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error
 	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, *account.User, error)
-	Link(ctx *app.LinkLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	LinkSession(ctx *app.LinksessionLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	LinkCallback(ctx *app.LinkcallbackLoginContext, brokerEndpoint string, clientID string) error
+	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
+	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
+	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
 }
 
 type linkInterface interface {
@@ -89,7 +89,7 @@ const (
 )
 
 // Perform performs authentication
-func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error {
+func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error {
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
 
@@ -297,7 +297,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, c
 	return ctx.TemporaryRedirect()
 }
 
-func (keycloak *KeycloakOAuthProvider) autoLinkProvidersDuringLogin(ctx *app.AuthorizeLoginContext, token string, referrerURL string) error {
+func (keycloak *KeycloakOAuthProvider) autoLinkProvidersDuringLogin(ctx *app.LoginLoginContext, token string, referrerURL string) error {
 	// Link all available Identity Providers
 	linkURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, "/api/login/linksession"))
 	if err != nil {
@@ -355,7 +355,7 @@ func (keycloak *KeycloakOAuthProvider) checkFederatedIdentity(ctx context.Contex
 }
 
 // Link links identity provider(s) to the user's account using user's access token
-func (keycloak *KeycloakOAuthProvider) Link(ctx *app.LinkLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
+func (keycloak *KeycloakOAuthProvider) Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
 	token := goajwt.ContextJWT(ctx)
 	claims := token.Claims.(jwt.MapClaims)
 	sessionState := claims["session_state"]
@@ -367,7 +367,7 @@ func (keycloak *KeycloakOAuthProvider) Link(ctx *app.LinkLoginContext, brokerEnd
 }
 
 // LinkSession links identity provider(s) to the user's account using session state
-func (keycloak *KeycloakOAuthProvider) LinkSession(ctx *app.LinksessionLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
+func (keycloak *KeycloakOAuthProvider) LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
 	if ctx.SessionState == nil {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("Authorization header or session state param is required"))
 	}
@@ -396,7 +396,7 @@ func (keycloak *KeycloakOAuthProvider) linkAccountToProviders(ctx linkInterface,
 }
 
 // LinkCallback redirects to original referrer when Identity Provider account are linked to the user account
-func (keycloak *KeycloakOAuthProvider) LinkCallback(ctx *app.LinkcallbackLoginContext, brokerEndpoint string, clientID string) error {
+func (keycloak *KeycloakOAuthProvider) LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error {
 	state := ctx.State
 	errorMessage := ctx.Params.Get("error")
 	if state == nil {
@@ -781,7 +781,7 @@ func checkApproved(ctx context.Context, profileService UserProfileService, acces
 	return b, nil
 }
 
-func redirectWithError(ctx *app.AuthorizeLoginContext, knownReferrer string, errorString string) error {
+func redirectWithError(ctx *app.LoginLoginContext, knownReferrer string, errorString string) error {
 	ctx.ResponseData.Header().Set("Location", knownReferrer+"?error="+errorString)
 	return ctx.TemporaryRedirect()
 }
