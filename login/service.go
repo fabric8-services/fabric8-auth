@@ -299,7 +299,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 func (keycloak *KeycloakOAuthProvider) autoLinkProvidersDuringLogin(ctx *app.LoginLoginContext, token string, referrerURL string) error {
 	// Link all available Identity Providers
-	linkURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, "/api/login/linksession"))
+	linkURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, "/api/link/session"))
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
 	}
@@ -536,7 +536,7 @@ func getProviderURL(req *goa.RequestData, state string, sessionState string, pro
 	if nextProvider != nil {
 		nextParam = "&next=" + *nextProvider
 	}
-	callbackURL := rest.AbsoluteURL(req, "/api/login/linkcallback?provider="+provider+nextParam+"&sessionState="+sessionState+"&state="+state)
+	callbackURL := rest.AbsoluteURL(req, "/api/link/callback?provider="+provider+nextParam+"&sessionState="+sessionState+"&state="+state)
 
 	nonce := uuid.NewV4().String()
 
