@@ -3,6 +3,7 @@ package application
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/provider"
 
 	"github.com/fabric8-services/fabric8-auth/space"
 )
@@ -13,6 +14,7 @@ type Application interface {
 	SpaceResources() space.ResourceRepository
 	Users() account.UserRepository
 	OauthStates() auth.OauthStateReferenceRepository
+	ExternalProviderTokens() provider.ExternalProviderTokenRepository
 }
 
 // A Transaction abstracts a database transaction. The repositories created for the transaction object make changes inside the the transaction

@@ -10,7 +10,7 @@ var _ = a.Resource("link", func() {
 	a.BasePath("/link")
 
 	a.Action("link", func() {
-		a.Security("jwt")
+		//a.Security("jwt")  // TEMPORARY, for testing.
 		a.Routing(
 			a.GET(""),
 		)

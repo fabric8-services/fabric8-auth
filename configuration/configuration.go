@@ -46,6 +46,8 @@ const (
 	varPostgresConnectionMaxOpen        = "postgres.connection.maxopen"
 	varHTTPAddress                      = "http.address"
 	varDeveloperModeEnabled             = "developer.mode.enabled"
+	varGithubSecret                     = "github.secret"
+	varGithubClientID                   = "github.client.id"
 	varKeycloakSecret                   = "keycloak.secret"
 	varKeycloakClientID                 = "keycloak.client.id"
 	varKeycloakDomainPrefix             = "keycloak.domain.prefix"
@@ -152,7 +154,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	//-----
 	// HTTP
 	//-----
-	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8089")
+	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8080")
 	c.v.SetDefault(varHeaderMaxLength, defaultHeaderMaxLength)
 
 	//-----
@@ -173,6 +175,10 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 
+	// github defaults
+	c.v.SetDefault(varGithubClientID, defaultGithubClientID)
+	c.v.SetDefault(varGithubSecret, defaultGithubSecret)
+
 	// HTTP Cache-Control/max-age default
 	c.v.SetDefault(varCacheControlUsers, "max-age=2")
 	c.v.SetDefault(varCacheControlCollaborators, "max-age=2")
@@ -183,6 +189,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
 	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
+
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -308,6 +315,18 @@ func (c *ConfigurationData) GetTokenPublicKey() []byte {
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
 func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
+}
+
+// GetGithubSecret returns the Github client secret (as set via config file or environment variable)
+// that is used to make authorized github API Calls.
+func (c *ConfigurationData) GetGithubSecret() string {
+	return c.v.GetString(varGithubSecret)
+}
+
+// GetGithubClientID returns the github client ID (as set via config file or environment variable)
+// that is used to make authorized github API Calls.
+func (c *ConfigurationData) GetGithubClientID() string {
+	return c.v.GetString(varGithubClientID)
 }
 
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
@@ -612,6 +631,9 @@ vwIDAQAB
 
 	defaultKeycloakClientID = "fabric8-online-platform"
 	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+
+	defaultGithubClientID = "7498db1eaea3b051fbba"
+	defaultGithubSecret   = "86ef7c8900f69e57b28d1ef850b22d2595fdea59"
 
 	defaultKeycloakDomainPrefix = "sso"
 	defaultKeycloakRealm        = "fabric8"

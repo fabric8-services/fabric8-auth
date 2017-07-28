@@ -8,6 +8,9 @@ import (
 	"runtime"
 	"time"
 
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 
@@ -22,6 +25,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/migration"
+	"github.com/fabric8-services/fabric8-auth/provider"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 
@@ -141,6 +145,7 @@ func main() {
 	// Setup Account/Login/Security
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
+	externalProviderTokenRepository := provider.NewExternalProviderTokenRepository(db)
 
 	appDB := gormapplication.NewGormDB(db)
 
@@ -163,13 +168,25 @@ func main() {
 	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration)
 	app.MountTokenController(service, tokenCtrl)
 
-	// Mount "link" controller
-	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, configuration)
-	app.MountLinkController(service, linkCtrl)
-
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
+
+	oauthConfig := &oauth2.Config{
+		ClientID:     configuration.GetKeycloakClientID(),
+		ClientSecret: configuration.GetKeycloakSecret(),
+		Scopes:       []string{"user", "gist", "read:org", "admin:repo_hook"},
+		Endpoint:     github.Endpoint,
+	}
+	ghService := provider.NewGitHubOAuth(oauthConfig, identityRepository, userRepository, externalProviderTokenRepository)
+
+	// Mount "link" controller
+	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, configuration, ghService)
+	app.MountLinkController(service, linkCtrl)
+
+	// Mount "provider" controller
+	providerCtrl := controller.NewProviderController(service, appDB)
+	app.MountProviderController(service, providerCtrl)
 
 	// Mount "space" controller
 	spaceCtrl := controller.NewSpaceController(service, appDB, configuration, auth.NewKeycloakResourceManager(configuration))
