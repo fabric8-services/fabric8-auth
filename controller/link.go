@@ -1,68 +1,62 @@
 package controller
 
 import (
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/provider"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
-	errs "github.com/pkg/errors"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
 )
 
 // LinkController implements the link resource.
 type LinkController struct {
 	*goa.Controller
-	Auth          login.KeycloakOAuthService
-	TokenManager  token.Manager
-	Configuration LoginConfiguration
-	GithubService provider.GithubLoginService
+	Configuration           LoginConfiguration
+	Identities              account.IdentityRepository
+	Users                   account.UserRepository
+	ExternalTokenRepository provider.ExternalProviderTokenRepository
 }
 
 // NewLinkController creates a link controller.
-func NewLinkController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, githubLoginService provider.GithubLoginService) *LinkController {
-	return &LinkController{Controller: service.NewController("link"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, GithubService: githubLoginService}
+func NewLinkController(service *goa.Service, configuration LoginConfiguration, identities account.IdentityRepository, users account.UserRepository, externalTokenRepository provider.ExternalProviderTokenRepository) *LinkController {
+	return &LinkController{
+		Controller:    service.NewController("link"),
+		Configuration: configuration,
+		Identities:    identities,
+		Users:         users,
+		ExternalTokenRepository: externalTokenRepository,
+	}
 }
 
 // Link links identity provider(s) to the user's account
 func (c *LinkController) Link(ctx *app.LinkLinkContext) error {
 	// TODO: Write code in a generic way to use the appropriate oauth
 	// service based on provider
-	return c.GithubService.Perform(ctx)
-}
 
-// Session links identity provider(s) to the user's account
-func (c *LinkController) Session(ctx *app.SessionLinkContext) error {
-	brokerEndpoint, err := c.Configuration.GetKeycloakEndpointBroker(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak broker endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
+	// TODO: move endpoints/cliendID/Secret to configuration framework.
+	var oauthConfig *oauth2.Config
+	if ctx.Provider == nil || *ctx.Provider == "openshift-v3" {
+		osoOAuthEndpoint := oauth2.Endpoint{
+			AuthURL:  "https://192.168.42.59:8443/oauth/authorize",
+			TokenURL: "https://192.168.42.59:8443/oauth/access_token",
+		}
+		oauthConfig = &oauth2.Config{
+			ClientID:     "openshift-v3-authentication",
+			ClientSecret: "1234",
+			Scopes:       []string{"user:full"},
+			Endpoint:     osoOAuthEndpoint,
+		}
+	} else if *ctx.Provider == "github" {
+		oauthConfig = &oauth2.Config{
+			ClientID:     c.Configuration.GetGithubClientID(),
+			ClientSecret: c.Configuration.GetGithubSecret(),
+			Scopes:       []string{"user", "gist", "read:org", "admin:repo_hook"},
+			Endpoint:     github.Endpoint,
+		}
 	}
-	clientID := c.Configuration.GetKeycloakClientID()
-	whitelist, err := c.Configuration.GetValidRedirectURLs(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
 
-	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.LinkSession(ctx, brokerEndpoint, clientID, whitelist)
-}
-
-// Callback redirects to original referel when Identity Provider account are linked to the user account
-func (c *LinkController) Callback(ctx *app.CallbackLinkContext) error {
-	brokerEndpoint, err := c.Configuration.GetKeycloakEndpointBroker(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak broker endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL ")))
-	}
-	clientID := c.Configuration.GetKeycloakClientID()
-
-	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.LinkCallback(ctx, brokerEndpoint, clientID)
+	// TODO: feels a bit uncomfortable that new oauthService objects are being initialized per req.
+	genericOAuthService := provider.NewGenericOAuth(oauthConfig, c.Identities, c.Users, c.ExternalTokenRepository)
+	return genericOAuthService.Perform(ctx)
 }

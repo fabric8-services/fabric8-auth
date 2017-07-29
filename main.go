@@ -8,9 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
-
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 
@@ -172,16 +169,8 @@ func main() {
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
 
-	oauthConfig := &oauth2.Config{
-		ClientID:     configuration.GetKeycloakClientID(),
-		ClientSecret: configuration.GetKeycloakSecret(),
-		Scopes:       []string{"user", "gist", "read:org", "admin:repo_hook"},
-		Endpoint:     github.Endpoint,
-	}
-	ghService := provider.NewGitHubOAuth(oauthConfig, identityRepository, userRepository, externalProviderTokenRepository)
-
 	// Mount "link" controller
-	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, configuration, ghService)
+	linkCtrl := controller.NewLinkController(service, configuration, identityRepository, userRepository, externalProviderTokenRepository)
 	app.MountLinkController(service, linkCtrl)
 
 	// Mount "provider" controller

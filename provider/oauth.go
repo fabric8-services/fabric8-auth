@@ -1,7 +1,10 @@
 package provider
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -14,14 +17,14 @@ const (
 	InvalidCodeError string = "Invalid OAuth2.0 code"
 )
 
-// GithubLoginService defines the basic entrypoint required to perform a remote oauth login
-type GithubLoginService interface {
+// OAuthLoginService defines the basic entrypoint required to perform a remote oauth login
+type OAuthLoginService interface {
 	Perform(ctx *app.LinkLinkContext) error
 }
 
-// NewGitHubOAuth creates a new login.GithubService capable of using GitHub for authorization
-func NewGitHubOAuth(config *oauth2.Config, identities account.IdentityRepository, users account.UserRepository, externalTokenRepository ExternalProviderTokenRepository) GithubLoginService {
-	return &gitHubOAuth{
+// NewGenericOAuth creates a new login.GithubService capable of using GitHub for authorization
+func NewGenericOAuth(config *oauth2.Config, identities account.IdentityRepository, users account.UserRepository, externalTokenRepository ExternalProviderTokenRepository) OAuthLoginService {
+	return &genericOAuth{
 		config:     config,
 		identities: identities,
 		users:      users,
@@ -29,14 +32,14 @@ func NewGitHubOAuth(config *oauth2.Config, identities account.IdentityRepository
 	}
 }
 
-type gitHubOAuth struct {
+type genericOAuth struct {
 	config                  *oauth2.Config
 	identities              account.IdentityRepository
 	users                   account.UserRepository
 	externalTokenRepository ExternalProviderTokenRepository
 }
 
-func (gh *gitHubOAuth) Perform(ctx *app.LinkLinkContext) error {
+func (gh *genericOAuth) Perform(ctx *app.LinkLinkContext) error {
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
 	referer := ctx.RequestData.Header.Get("Referer")
@@ -48,6 +51,12 @@ func (gh *gitHubOAuth) Perform(ctx *app.LinkLinkContext) error {
 		}
 
 		// TODO : check oauth state reference table.
+
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		sslcli := &http.Client{Transport: tr}
+		ctx.Context = context.WithValue(ctx, oauth2.HTTPClient, sslcli)
 
 		ghtoken, err := gh.config.Exchange(ctx, code)
 
@@ -61,6 +70,7 @@ func (gh *gitHubOAuth) Perform(ctx *app.LinkLinkContext) error {
 
 		if err != nil || ghtoken.AccessToken == "" {
 			fmt.Println(err)
+			fmt.Println("******************** ERROR ********************8")
 			ctx.ResponseData.Header().Set("Location", referer+"?error="+InvalidCodeError)
 			return ctx.TemporaryRedirect()
 		}
