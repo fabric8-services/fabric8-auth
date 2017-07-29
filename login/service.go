@@ -57,9 +57,6 @@ type KeycloakOAuthProvider struct {
 type KeycloakOAuthService interface {
 	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error
 	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, *account.User, error)
-	//	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	//	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	//	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
 }
 
 type linkInterface interface {
