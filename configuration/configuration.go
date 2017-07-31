@@ -76,6 +76,8 @@ const (
 	varCacheControlUser                 = "cachecontrol.user"
 	defaultConfigFile                   = "config.yaml"
 	varOpenshiftTenantMasterURL         = "openshift.tenant.masterurl"
+	varOpenshiftClientID                = "openshift.client.id"
+	varOpenshiftSecret                  = "openshift.secret"
 	varValidRedirectURLs                = "redirect.valid"
 	varLogLevel                         = "log.level"
 	varLogJSON                          = "log.json"
@@ -315,6 +317,18 @@ func (c *ConfigurationData) GetTokenPublicKey() []byte {
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
 func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
+}
+
+// GetOpenShiftSecret returns the OpenShift client secret (as set via config file or environment variable)
+// that is used to make authorized OpenShift API Calls.
+func (c *ConfigurationData) GetOpenShiftSecret() string {
+	return c.v.GetString(varOpenshiftSecret)
+}
+
+// GetOpenShiftClientID returns the OpenShift client ID (as set via config file or environment variable)
+// that is used to make authorized OpenShift API Calls.
+func (c *ConfigurationData) GetOpenShiftClientID() string {
+	return c.v.GetString(varOpenshiftClientID)
 }
 
 // GetGithubSecret returns the Github client secret (as set via config file or environment variable)

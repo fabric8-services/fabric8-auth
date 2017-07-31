@@ -169,8 +169,11 @@ func main() {
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
 
+	// initialize for all possible oauth providers.
+	allOAuthConfig := provider.InitializeOAuthConfiguration(configuration)
+
 	// Mount "link" controller
-	linkCtrl := controller.NewLinkController(service, configuration, identityRepository, userRepository, externalProviderTokenRepository)
+	linkCtrl := controller.NewLinkController(service, configuration, identityRepository, userRepository, externalProviderTokenRepository, allOAuthConfig)
 	app.MountLinkController(service, linkCtrl)
 
 	// Mount "provider" controller
