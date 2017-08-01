@@ -17,9 +17,9 @@ import (
 type ExternalProviderToken struct {
 	gormsupport.Lifecycle
 	ID           uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
-	Identity     uuid.UUID `sql:"type:uuid"`
-	token        string
-	providerType string
+	IdentityID   uuid.UUID `sql:"type:uuid"`
+	Token        string
+	ProviderType string
 	Version      int
 }
 

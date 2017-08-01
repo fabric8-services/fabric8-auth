@@ -79,10 +79,17 @@ func (gh *genericOAuth) Perform(ctx *app.LinkLinkContext) error {
 			return ctx.TemporaryRedirect()
 		}
 
-		// TODO: check identities table if the specific github account is linked,
-		// if not, create identity, else skip.  ( re-linking accounts )
+		err = gh.persistToken(ctx, ghtoken.AccessToken)
 
-		// TODO: insert token into ExternalProviderTokens table.
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"provider": ctx.Provider,
+			}, "could not save token in database")
+		}
+
+		// TODO: check identities table if the specific github account is linked,
+		// if not, create identity, else skip.
 
 		ctx.ResponseData.Header().Set("Location", referer+"?token="+ghtoken.AccessToken)
 		return ctx.TemporaryRedirect()
@@ -98,4 +105,16 @@ func (gh *genericOAuth) Perform(ctx *app.LinkLinkContext) error {
 	redirectURL := gh.config.AuthCodeURL(state, oauth2.AccessTypeOnline)
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
+}
+
+func (gh *genericOAuth) persistToken(ctx *app.LinkLinkContext, accessToken string) error {
+	// insert token into ExternalProviderTokens table.
+	tokenData := ExternalProviderToken{
+		Token:        accessToken,
+		ProviderType: *ctx.Provider,
+		IdentityID:   uuid.NewV4(), // TODO: Use real ID
+	}
+
+	err := gh.externalTokenRepository.Create(ctx, &tokenData)
+	return err
 }

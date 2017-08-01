@@ -9,7 +9,7 @@ var _ = a.Resource("provider", func() {
 	a.BasePath("/provider")
 
 	a.Action("get", func() {
-		a.Security("jwt")
+		// a.Security("jwt") // Temporary
 		a.Routing(
 			a.GET(":provider/token"),
 		)

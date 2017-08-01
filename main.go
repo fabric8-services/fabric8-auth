@@ -177,7 +177,7 @@ func main() {
 	app.MountLinkController(service, linkCtrl)
 
 	// Mount "provider" controller
-	providerCtrl := controller.NewProviderController(service, appDB)
+	providerCtrl := controller.NewProviderController(service, appDB, externalProviderTokenRepository)
 	app.MountProviderController(service, providerCtrl)
 
 	// Mount "space" controller
