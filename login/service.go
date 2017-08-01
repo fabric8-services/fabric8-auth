@@ -3,8 +3,6 @@ package login
 import (
 	"crypto/md5"
 	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -28,7 +26,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
-	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
@@ -189,7 +186,6 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 		// skip linking stuff.
 
-		referrerStr = referrerStr + "&linked=true"
 		ctx.ResponseData.Header().Set("Location", referrerStr)
 		log.Debug(ctx, map[string]interface{}{
 			"code":           code,
@@ -342,36 +338,6 @@ func (keycloak *KeycloakOAuthProvider) getReferrer(ctx context.Context, state st
 		return "", errors.New("Unable to delete oauth state reference " + err.Error())
 	}
 	return referrer, nil
-}
-
-func getProviderURL(req *goa.RequestData, state string, sessionState string, provider string, nextProvider *string, brokerEndpoint string, clientID string) (string, error) {
-	var nextParam string
-	if nextProvider != nil {
-		nextParam = "&next=" + *nextProvider
-	}
-	callbackURL := rest.AbsoluteURL(req, "/api/login/linkcallback?provider="+provider+nextParam+"&sessionState="+sessionState+"&state="+state)
-
-	nonce := uuid.NewV4().String()
-
-	s := nonce + sessionState + clientID + provider
-	h := sha256.New()
-	h.Write([]byte(s))
-	hash := base64.StdEncoding.EncodeToString(h.Sum(nil))
-
-	linkingURL, err := url.Parse(brokerEndpoint + "/" + provider + "/link")
-	if err != nil {
-		return "", err
-	}
-
-	parameters := url.Values{}
-	parameters.Add("provider_id", provider)
-	parameters.Add("client_id", clientID)
-	parameters.Add("redirect_uri", callbackURL)
-	parameters.Add("nonce", nonce)
-	parameters.Add("hash", hash)
-	linkingURL.RawQuery = parameters.Encode()
-
-	return linkingURL.String(), nil
 }
 
 func numberToInt(number interface{}) (int64, error) {
