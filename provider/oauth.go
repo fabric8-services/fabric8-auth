@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -69,8 +71,10 @@ func (gh *genericOAuth) Perform(ctx *app.LinkLinkContext) error {
 		*/
 
 		if err != nil || ghtoken.AccessToken == "" {
-			fmt.Println(err)
-			fmt.Println("******************** ERROR ********************8")
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"provider": ctx.Provider,
+			}, "could not retrieve token using code")
 			ctx.ResponseData.Header().Set("Location", referer+"?error="+InvalidCodeError)
 			return ctx.TemporaryRedirect()
 		}

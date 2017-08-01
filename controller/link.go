@@ -37,18 +37,18 @@ func (c *LinkController) Link(ctx *app.LinkLinkContext) error {
 
 	var oauthConfig *oauth2.Config
 	if ctx.Provider == nil {
-		defaultProvider := "github"
+		defaultProvider := provider.GITHUB
 		ctx.Provider = &defaultProvider
 	}
 
-	if *ctx.Provider == "github" { // default
+	if *ctx.Provider == provider.GITHUB { // default
 		oauthConfig = c.AllOAuthConfigurationService.GetGithubOAuthConfiguration()
 	} else if ctx.Provider != nil {
 		// everything else should be some OSO cluster.
 		// TODO: have some url pattern validation
 		oauthConfig = c.AllOAuthConfigurationService.GetOpenShiftConfiguration(*ctx.Provider)
 	}
-	// TODO: feels a bit uncomfortable that new oauthService objects are being initialized per req.
+
 	if oauthConfig == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("provider", *ctx.Provider).Expected("github/openshift-v3"))
 	}
