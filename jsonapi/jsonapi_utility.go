@@ -1,6 +1,7 @@
 package jsonapi
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -28,13 +29,13 @@ const (
 // of an error and the HTTP status code that will be associated with it.
 // This function knows about the models package and the errors from there
 // as well as goa error classes.
-func ErrorToJSONAPIError(err error) (app.JSONAPIError, int) {
+func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int) {
 	cause := errs.Cause(err)
 	detail := cause.Error()
 	var title, code string
 	var statusCode int
 	var id *string
-	log.Info(nil, map[string]interface{}{"err": cause, "error_message": cause.Error()}, "an error occurred in our api")
+	log.Info(ctx, map[string]interface{}{"err": cause, "error_message": cause.Error()}, "an error occurred in our api")
 	switch cause.(type) {
 	case errors.NotFoundError:
 		code = ErrorCodeNotFound
@@ -95,8 +96,8 @@ func ErrorToJSONAPIError(err error) (app.JSONAPIError, int) {
 // ErrorToJSONAPIErrors is a convenience function if you
 // just want to return one error from the models package as a JSONAPI errors
 // array.
-func ErrorToJSONAPIErrors(err error) (*app.JSONAPIErrors, int) {
-	jerr, httpStatusCode := ErrorToJSONAPIError(err)
+func ErrorToJSONAPIErrors(ctx context.Context, err error) (*app.JSONAPIErrors, int) {
+	jerr, httpStatusCode := ErrorToJSONAPIError(ctx, err)
 	jerrors := app.JSONAPIErrors{}
 	jerrors.Errors = append(jerrors.Errors, &jerr)
 	return &jerrors, httpStatusCode
@@ -134,8 +135,11 @@ type Conflict interface {
 
 // JSONErrorResponse auto maps the provided error to the correct response type
 // If all else fails, InternalServerError is returned
-func JSONErrorResponse(x InternalServerError, err error) error {
-	jsonErr, status := ErrorToJSONAPIErrors(err)
+func JSONErrorResponse(obj interface{}, err error) error {
+	x := obj.(InternalServerError)
+	c := obj.(context.Context)
+
+	jsonErr, status := ErrorToJSONAPIErrors(c, err)
 	switch status {
 	case http.StatusBadRequest:
 		if ctx, ok := x.(BadRequest); ok {
