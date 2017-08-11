@@ -160,7 +160,7 @@ func main() {
 	app.MountLogoutController(service, logoutCtrl)
 
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration)
+	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration, identityRepository)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "link" controller
