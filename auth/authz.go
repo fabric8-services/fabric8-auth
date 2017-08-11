@@ -145,8 +145,6 @@ type UserInfo struct {
 
 // EntitlementResource represents a payload for obtaining entitlement for specific resource
 type EntitlementResource struct {
-	Permissions []ResourceSet `json:"permissions"`
-
 	Permissions     []ResourceSet   `json:"permissions"`
 	MetaInformation EntitlementMeta `json:"metadata"`
 }
