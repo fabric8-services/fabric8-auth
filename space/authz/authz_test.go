@@ -83,8 +83,6 @@ func (s *TestAuthzSuite) checkPermissions(authzPayload auth.AuthorizationPayload
 	entitlementEndpoint, err := s.configuration.GetKeycloakEndpointEntitlement(r)
 	require.Nil(s.T(), err)
 	ok, err := authzService.Authorize(svc.Context, entitlementEndpoint, spaceID)
-
-	ok, err := authzService.Authorize(svc.Context, "", spaceID)
 	require.Nil(s.T(), err)
 	return ok
 }
