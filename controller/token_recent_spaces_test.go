@@ -32,7 +32,6 @@ type TestRecentSpacesREST struct {
 	tokenManager       token.Manager
 	identityRepository *MockIdentityRepository
 	userRepository     *MockUserRepository
-	loginService       *TestLoginService
 
 	clean func()
 }
@@ -63,8 +62,6 @@ func (rest *TestRecentSpacesREST) SetupTest() {
 	user := account.User{}
 	identity.User = user
 
-	rest.loginService = &TestLoginService{}
-
 	rest.identityRepository = &MockIdentityRepository{testIdentity: &identity}
 	rest.userRepository = &MockUserRepository{}
 
@@ -76,16 +73,15 @@ type MockIdentityRepository struct {
 	testIdentity *account.Identity
 }
 
-func (rest *TestRecentSpacesREST) SecuredController() (*goa.Service, *LoginController) {
+func (rest *TestRecentSpacesREST) SecuredController() (*goa.Service, *TokenController) {
 	svc := testsupport.ServiceAsUser("Login-Service", rest.tokenManager, testsupport.TestIdentity)
-	loginController := &LoginController{
+	tokenController := &TokenController{
 		Controller:         svc.NewController("login"),
-		auth:               rest.loginService,
-		tokenManager:       rest.tokenManager,
-		configuration:      rest.configuration,
+		TokenManager:       rest.tokenManager,
+		Configuration:      rest.configuration,
 		identityRepository: rest.identityRepository,
 	}
-	return svc, loginController
+	return svc, tokenController
 }
 
 func (rest *TestRecentSpacesREST) TestResourceRequestPayload() {

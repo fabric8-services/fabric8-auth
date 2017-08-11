@@ -21,6 +21,7 @@ import (
 
 type TestTokenREST struct {
 	gormtestsupport.DBTestSuite
+	identityRepository *MockIdentityRepository
 
 	db    *gormapplication.GormDB
 	clean func()
@@ -52,7 +53,7 @@ func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) 
 	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
 
 	svc := testsupport.ServiceAsUser("Token-Service", almtoken.NewManagerWithPrivateKey(priv), testsupport.TestIdentity)
-	return svc, NewTokenController(svc, loginService, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, loginService, loginService.TokenManager, rest.Configuration, rest.identityRepository)
 }
 
 func (rest *TestTokenREST) TestTestUserTokenObtainedFromKeycloakOK() {
