@@ -24,7 +24,7 @@ type UserController struct {
 	InitTenant   func(context.Context) error
 }
 
-// UserControllerConfiguration the configuration for the UserController
+// UserControllerConfiguration the Configuration for the UserController
 type UserControllerConfiguration interface {
 	GetCacheControlUser() string
 }
@@ -43,7 +43,7 @@ func NewUserController(service *goa.Service, db application.DB, tokenManager tok
 func (c *UserController) Show(ctx *app.ShowUserContext) error {
 	id, err := c.tokenManager.Locate(ctx)
 	if err != nil {
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrBadRequest(err.Error()))
+		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest(err.Error()))
 		return ctx.BadRequest(jerrors)
 	}
 
@@ -52,8 +52,8 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 		if err != nil || identity == nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
-			}, "auth token containers id %s of unknown Identity", id)
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", id)))
+			}, "Auth token containers id %s of unknown Identity", id)
+			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", id)))
 			return ctx.Unauthorized(jerrors)
 		}
 		var user *account.User

@@ -56,11 +56,11 @@ type KeycloakOAuthProvider struct {
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Perform(ctx *app.AuthorizeLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error
+	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error
 	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, *account.User, error)
-	Link(ctx *app.LinkLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	LinkSession(ctx *app.LinksessionLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	LinkCallback(ctx *app.LinkcallbackLoginContext, brokerEndpoint string, clientID string) error
+	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
+	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
+	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
 }
 
 type linkInterface interface {
@@ -89,7 +89,7 @@ const (
 )
 
 // Perform performs authentication
-func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error {
+func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error {
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
 
@@ -112,7 +112,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, c
 				"state": state,
 				"err":   err,
 			}, "uknown state")
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrUnauthorized("uknown state. " + err.Error()))
+			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized("uknown state. "+err.Error()))
 			return ctx.Unauthorized(jerrors)
 		}
 
@@ -254,7 +254,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, c
 	referrer := ctx.RequestData.Header.Get("Referer")
 	if redirect == nil {
 		if referrer == "" {
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrBadRequest("Referer Header and redirect param are both empty. At least one should be specified."))
+			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("Referer Header and redirect param are both empty. At least one should be specified."))
 			return ctx.BadRequest(jerrors)
 		}
 		redirect = &referrer
@@ -297,9 +297,9 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.AuthorizeLoginContext, c
 	return ctx.TemporaryRedirect()
 }
 
-func (keycloak *KeycloakOAuthProvider) autoLinkProvidersDuringLogin(ctx *app.AuthorizeLoginContext, token string, referrerURL string) error {
+func (keycloak *KeycloakOAuthProvider) autoLinkProvidersDuringLogin(ctx *app.LoginLoginContext, token string, referrerURL string) error {
 	// Link all available Identity Providers
-	linkURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, "/api/login/linksession"))
+	linkURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, "/api/link/session"))
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
 	}
@@ -355,7 +355,7 @@ func (keycloak *KeycloakOAuthProvider) checkFederatedIdentity(ctx context.Contex
 }
 
 // Link links identity provider(s) to the user's account using user's access token
-func (keycloak *KeycloakOAuthProvider) Link(ctx *app.LinkLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
+func (keycloak *KeycloakOAuthProvider) Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
 	token := goajwt.ContextJWT(ctx)
 	claims := token.Claims.(jwt.MapClaims)
 	sessionState := claims["session_state"]
@@ -367,7 +367,7 @@ func (keycloak *KeycloakOAuthProvider) Link(ctx *app.LinkLoginContext, brokerEnd
 }
 
 // LinkSession links identity provider(s) to the user's account using session state
-func (keycloak *KeycloakOAuthProvider) LinkSession(ctx *app.LinksessionLoginContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
+func (keycloak *KeycloakOAuthProvider) LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
 	if ctx.SessionState == nil {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("Authorization header or session state param is required"))
 	}
@@ -396,7 +396,7 @@ func (keycloak *KeycloakOAuthProvider) linkAccountToProviders(ctx linkInterface,
 }
 
 // LinkCallback redirects to original referrer when Identity Provider account are linked to the user account
-func (keycloak *KeycloakOAuthProvider) LinkCallback(ctx *app.LinkcallbackLoginContext, brokerEndpoint string, clientID string) error {
+func (keycloak *KeycloakOAuthProvider) LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error {
 	state := ctx.State
 	errorMessage := ctx.Params.Get("error")
 	if state == nil {
@@ -414,7 +414,7 @@ func (keycloak *KeycloakOAuthProvider) LinkCallback(ctx *app.LinkcallbackLoginCo
 			log.Error(ctx, map[string]interface{}{
 				"state": state,
 			}, "session state is empty")
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrBadRequest("session state is empty"))
+			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("session state is empty"))
 			return ctx.Unauthorized(jerrors)
 		}
 		providerURL, err := getProviderURL(ctx.RequestData, *state, *sessionState, *next, nextProvider(*next), brokerEndpoint, clientID)
@@ -432,7 +432,7 @@ func (keycloak *KeycloakOAuthProvider) LinkCallback(ctx *app.LinkcallbackLoginCo
 			"state": state,
 			"err":   err,
 		}, "uknown state")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrUnauthorized("uknown state. " + err.Error()))
+		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized("uknown state. "+err.Error()))
 		return ctx.Unauthorized(jerrors)
 	}
 
@@ -469,7 +469,7 @@ func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx linkInterface, state uui
 			"valid_referrer_url": validReferrerURL,
 			"err":                err,
 		}, "Can't match referrer and whitelist regex")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrInternal(err.Error()))
+		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInternal(err.Error()))
 		return ctx.InternalServerError(jerrors)
 	}
 	if !matched {
@@ -477,7 +477,7 @@ func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx linkInterface, state uui
 			"referrer":           referrer,
 			"valid_referrer_url": validReferrerURL,
 		}, "Referrer not valid")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrBadRequest("Not valid redirect URL"))
+		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("Not valid redirect URL"))
 		return ctx.BadRequest(jerrors)
 	}
 	// TODO The state reference table will be collecting dead states left from some failed login attempts.
@@ -496,7 +496,7 @@ func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx linkInterface, state uui
 			"referrer": referrer,
 			"err":      err,
 		}, "unable to create oauth state reference")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(goa.ErrInternal("Unable to create oauth state reference " + err.Error()))
+		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInternal("Unable to create oauth state reference "+err.Error()))
 		return ctx.InternalServerError(jerrors)
 	}
 	return nil
@@ -536,7 +536,7 @@ func getProviderURL(req *goa.RequestData, state string, sessionState string, pro
 	if nextProvider != nil {
 		nextParam = "&next=" + *nextProvider
 	}
-	callbackURL := rest.AbsoluteURL(req, "/api/login/linkcallback?provider="+provider+nextParam+"&sessionState="+sessionState+"&state="+state)
+	callbackURL := rest.AbsoluteURL(req, "/api/link/callback?provider="+provider+nextParam+"&sessionState="+sessionState+"&state="+state)
 
 	nonce := uuid.NewV4().String()
 
@@ -781,7 +781,7 @@ func checkApproved(ctx context.Context, profileService UserProfileService, acces
 	return b, nil
 }
 
-func redirectWithError(ctx *app.AuthorizeLoginContext, knownReferrer string, errorString string) error {
+func redirectWithError(ctx *app.LoginLoginContext, knownReferrer string, errorString string) error {
 	ctx.ResponseData.Header().Set("Location", knownReferrer+"?error="+errorString)
 	return ctx.TemporaryRedirect()
 }
