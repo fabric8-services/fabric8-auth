@@ -27,6 +27,8 @@ const (
 	PolicyLogicPossitive = "POSITIVE"
 	// PolicyDecisionStrategyUnanimous is to used in a Keycloak Policy payload: {"decisionStrategy":""UNANIMOUS"}
 	PolicyDecisionStrategyUnanimous = "UNANIMOUS"
+	// EntitlementLimit is used to specify the number of entitlement resources info in the RPT
+	EntitlementLimit = "1"
 )
 
 // KeycloakResource represents a keycloak resource payload
@@ -144,6 +146,14 @@ type UserInfo struct {
 // EntitlementResource represents a payload for obtaining entitlement for specific resource
 type EntitlementResource struct {
 	Permissions []ResourceSet `json:"permissions"`
+
+	Permissions     []ResourceSet   `json:"permissions"`
+	MetaInformation EntitlementMeta `json:"metadata"`
+}
+
+// EntitlementMeta represents the part of the payload where entitlement metadata is defined.
+type EntitlementMeta struct {
+	Limit string `json:"limit"`
 }
 
 // ResourceSet represents a resource set for Entitlement payload
