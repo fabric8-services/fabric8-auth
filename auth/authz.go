@@ -184,7 +184,8 @@ type Permissions struct {
 // VerifyResourceUser returns true if the user among the resource collaborators
 func VerifyResourceUser(ctx context.Context, token string, resourceName string, entitlementEndpoint string) (bool, error) {
 	resource := EntitlementResource{
-		Permissions: []ResourceSet{{Name: resourceName}},
+		Permissions:     []ResourceSet{{Name: resourceName}},
+		MetaInformation: EntitlementMeta{Limit: EntitlementLimit}, // We dont need to fetch everything for 1 resource
 	}
 	ent, err := GetEntitlement(ctx, entitlementEndpoint, &resource, token)
 	if err != nil {
