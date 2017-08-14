@@ -9,27 +9,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Fields map[string]interface{}
+type ContextInformation map[string]interface{}
 
-// Ensure Fields implements the Equaler interface
-var _ convert.Equaler = Fields{}
-var _ convert.Equaler = (*Fields)(nil)
+// Ensure ContextInformation implements the Equaler interface
+var _ convert.Equaler = ContextInformation{}
+var _ convert.Equaler = (*ContextInformation)(nil)
 
-// Equal returns true if two Fields objects are equal; otherwise false is returned.
-// TODO: (kwk) think about a better comparison for Fields map.
-func (f Fields) Equal(u convert.Equaler) bool {
-	other, ok := u.(Fields)
+// Equal returns true if two ContextInformation objects are equal; otherwise false is returned.
+// TODO: (kwk) think about a better comparison for ContextInformation map.
+func (f ContextInformation) Equal(u convert.Equaler) bool {
+	other, ok := u.(ContextInformation)
 	if !ok {
 		return false
 	}
 	return reflect.DeepEqual(f, other)
 }
 
-func (j Fields) Value() (driver.Value, error) {
+func (j ContextInformation) Value() (driver.Value, error) {
 	return toBytes(j)
 }
 
-func (j *Fields) Scan(src interface{}) error {
+func (j *ContextInformation) Scan(src interface{}) error {
 	return fromBytes(src, j)
 }
 
