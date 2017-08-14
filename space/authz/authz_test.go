@@ -3,17 +3,20 @@ package authz_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	almtoken "github.com/fabric8-services/fabric8-auth/token"
+	"github.com/goadesign/goa"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -31,7 +34,8 @@ func TestAuthz(t *testing.T) {
 
 type TestAuthzSuite struct {
 	suite.Suite
-	authzService *authz.KeycloakAuthzService
+	authzService  *authz.KeycloakAuthzService
+	configuration *config.ConfigurationData
 }
 
 func (s *TestAuthzSuite) SetupSuite() {
@@ -41,6 +45,7 @@ func (s *TestAuthzSuite) SetupSuite() {
 	}
 	var resource *space.Resource
 	s.authzService = authz.NewAuthzService(nil, &db{app{resource: resource}})
+	s.configuration, err = config.GetConfigurationData()
 }
 
 func (s *TestAuthzSuite) TestFailsIfNoTokenInContext() {
@@ -73,7 +78,12 @@ func (s *TestAuthzSuite) checkPermissions(authzPayload auth.AuthorizationPayload
 	svc := testsupport.ServiceAsUserWithAuthz("SpaceAuthz-Service", almtoken.NewManagerWithPrivateKey(priv), priv, testIdentity, authzPayload)
 	resource.UpdatedAt = time.Now()
 
-	ok, err := authzService.Authorize(svc.Context, "", spaceID)
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "api.example.org"},
+	}
+	entitlementEndpoint, err := s.configuration.GetKeycloakEndpointEntitlement(r)
+	require.Nil(s.T(), err)
+	ok, err := authzService.Authorize(svc.Context, entitlementEndpoint, spaceID)
 	require.Nil(s.T(), err)
 	return ok
 }

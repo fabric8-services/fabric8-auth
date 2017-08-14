@@ -125,7 +125,7 @@ func createAndLoadUser(s *userBlackBoxTest) *account.User {
 		ImageURL: "someImageUrl" + uuid.NewV4().String(),
 		Bio:      "somebio" + uuid.NewV4().String(),
 		URL:      "someurl" + uuid.NewV4().String(),
-		ContextInformation: account.Fields{
+		ContextInformation: account.ContextInformation{
 			"space":        uuid.NewV4(),
 			"last_visited": "http://www.google.com",
 			"myid":         "71f343e3-2bfa-4ec6-86d4-79b91476acfc",
