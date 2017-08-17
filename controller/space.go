@@ -49,17 +49,8 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
 	}
 
-	spaceID := ctx.SpaceID
-	id, err := uuid.FromString(spaceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"space_id": spaceID,
-		}, "unable to convert the space ID to UUID")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("spaceID", spaceID).Expected("valid UUID"))
-	}
-
 	// Create keycloak resource for this space
-	resource, err := c.resourceManager.CreateResource(ctx, ctx.RequestData, spaceID, spaceResourceType, nil, &scopes, currentUser.String())
+	resource, err := c.resourceManager.CreateResource(ctx, ctx.RequestData, ctx.SpaceID.String(), spaceResourceType, nil, &scopes, currentUser.String())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -67,7 +58,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		ResourceID:   resource.ResourceID,
 		PolicyID:     resource.PolicyID,
 		PermissionID: resource.PermissionID,
-		SpaceID:      id,
+		SpaceID:      ctx.SpaceID,
 		OwnerID:      *currentUser,
 	}
 
@@ -80,7 +71,18 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	return ctx.OK([]byte{})
+	log.Debug(ctx, map[string]interface{}{
+		"space_id":      ctx.SpaceID,
+		"resource_id":   resource.ResourceID,
+		"permission_id": resource.PermissionID,
+		"policy_id":     resource.PolicyID,
+	}, "space resource created")
+
+	return ctx.OK(&app.SpaceResource{&app.SpaceResourceData{
+		ResourceID:   resource.ResourceID,
+		PermissionID: resource.PermissionID,
+		PolicyID:     resource.PolicyID,
+	}})
 }
 
 // Delete runs the delete action.

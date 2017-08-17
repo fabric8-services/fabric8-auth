@@ -65,6 +65,18 @@ func (m *KeycloakResourceManager) CreateResource(ctx context.Context, request *g
 		return nil, err
 	}
 	adminEndpoint, err := m.configuration.GetKeycloakEndpointAdmin(request)
+
+	found, err := ValidateKeycloakUser(ctx, adminEndpoint, userID, pat)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		log.Error(ctx, map[string]interface{}{
+			"user_id": userID,
+		}, "User not found in Keycloak")
+		return nil, errors.NewNotFoundError("keycloak user", userID) // The user is not found in the Keycloak user base
+	}
+
 	// Create resource
 	kcResource := KeycloakResource{
 		Name:   name,
@@ -78,16 +90,6 @@ func (m *KeycloakResourceManager) CreateResource(ctx context.Context, request *g
 	}
 
 	// Create policy
-	found, err := ValidateKeycloakUser(ctx, adminEndpoint, userID, pat)
-	if err != nil {
-		return nil, err
-	}
-	if !found {
-		log.Error(ctx, map[string]interface{}{
-			"user_id": userID,
-		}, "User not found in Keycloak")
-		return nil, errors.NewNotFoundError("keycloak user", userID) // The user is not found in the Keycloak user base
-	}
 	userIDs := "[\"" + userID + "\"]"
 	policy := KeycloakPolicy{
 		Name:             fmt.Sprintf("%s-%s", name, uuid.NewV4().String()),
