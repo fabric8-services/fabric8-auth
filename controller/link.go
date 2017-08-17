@@ -1,78 +1,57 @@
 package controller
 
 import (
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/provider"
 	"github.com/goadesign/goa"
-	errs "github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 // LinkController implements the link resource.
 type LinkController struct {
 	*goa.Controller
-	Auth          login.KeycloakOAuthService
-	TokenManager  token.Manager
-	Configuration LoginConfiguration
+	Configuration                LoginConfiguration
+	Identities                   account.IdentityRepository
+	Users                        account.UserRepository
+	ExternalTokenRepository      provider.ExternalProviderTokenRepository
+	AllOAuthConfigurationService provider.OAuthConfigurationService
 }
 
 // NewLinkController creates a link controller.
-func NewLinkController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration) *LinkController {
-	return &LinkController{Controller: service.NewController("link"), Auth: auth, TokenManager: tokenManager, Configuration: configuration}
+func NewLinkController(service *goa.Service, configuration LoginConfiguration, identities account.IdentityRepository, users account.UserRepository, externalTokenRepository provider.ExternalProviderTokenRepository, allOAuthConfig provider.OAuthConfigurationService) *LinkController {
+	return &LinkController{
+		Controller:    service.NewController("link"),
+		Configuration: configuration,
+		Identities:    identities,
+		Users:         users,
+		ExternalTokenRepository:      externalTokenRepository,
+		AllOAuthConfigurationService: allOAuthConfig,
+	}
 }
 
 // Link links identity provider(s) to the user's account
 func (c *LinkController) Link(ctx *app.LinkLinkContext) error {
-	brokerEndpoint, err := c.Configuration.GetKeycloakEndpointBroker(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak broker endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
-	}
-	clientID := c.Configuration.GetKeycloakClientID()
-	whitelist, err := c.Configuration.GetValidRedirectURLs(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+
+	var oauthConfig *oauth2.Config
+	if ctx.Provider == nil {
+		defaultProvider := provider.GITHUB
+		ctx.Provider = &defaultProvider
 	}
 
-	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.Link(ctx, brokerEndpoint, clientID, whitelist)
-}
-
-// Session links identity provider(s) to the user's account
-func (c *LinkController) Session(ctx *app.SessionLinkContext) error {
-	brokerEndpoint, err := c.Configuration.GetKeycloakEndpointBroker(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak broker endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
-	}
-	clientID := c.Configuration.GetKeycloakClientID()
-	whitelist, err := c.Configuration.GetValidRedirectURLs(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	if *ctx.Provider == provider.GITHUB { // default
+		oauthConfig = c.AllOAuthConfigurationService.GetGithubOAuthConfiguration()
+	} else if ctx.Provider != nil {
+		// everything else should be some OSO cluster.
+		// TODO: have some url pattern validation
+		oauthConfig = c.AllOAuthConfigurationService.GetOpenShiftConfiguration(*ctx.Provider)
 	}
 
-	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.LinkSession(ctx, brokerEndpoint, clientID, whitelist)
-}
-
-// Callback redirects to original referel when Identity Provider account are linked to the user account
-func (c *LinkController) Callback(ctx *app.CallbackLinkContext) error {
-	brokerEndpoint, err := c.Configuration.GetKeycloakEndpointBroker(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak broker endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL ")))
+	if oauthConfig == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("provider", *ctx.Provider).Expected("github/openshift-v3"))
 	}
-	clientID := c.Configuration.GetKeycloakClientID()
-
-	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.LinkCallback(ctx, brokerEndpoint, clientID)
+	genericOAuthService := provider.NewGenericOAuth(oauthConfig, c.Identities, c.Users, c.ExternalTokenRepository)
+	return genericOAuthService.Perform(ctx)
 }

@@ -114,6 +114,9 @@ func GetMigrations() Migrations {
 	// Version 3
 	m = append(m, steps{ExecuteSQLFile("003-space-resources.sql")})
 
+	// Version 4
+	m = append(m, steps{ExecuteSQLFile("004-token-storage.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

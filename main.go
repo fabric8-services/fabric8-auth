@@ -22,6 +22,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/migration"
+	"github.com/fabric8-services/fabric8-auth/provider"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 
@@ -141,6 +142,7 @@ func main() {
 	// Setup Account/Login/Security
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
+	externalProviderTokenRepository := provider.NewExternalProviderTokenRepository(db)
 
 	appDB := gormapplication.NewGormDB(db)
 
@@ -163,13 +165,20 @@ func main() {
 	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration, identityRepository)
 	app.MountTokenController(service, tokenCtrl)
 
-	// Mount "link" controller
-	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, configuration)
-	app.MountLinkController(service, linkCtrl)
-
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, db)
 	app.MountStatusController(service, statusCtrl)
+
+	// initialize for all possible oauth providers.
+	allOAuthConfig := provider.InitializeOAuthConfiguration(configuration)
+
+	// Mount "link" controller
+	linkCtrl := controller.NewLinkController(service, configuration, identityRepository, userRepository, externalProviderTokenRepository, allOAuthConfig)
+	app.MountLinkController(service, linkCtrl)
+
+	// Mount "provider" controller
+	providerCtrl := controller.NewProviderController(service, appDB, externalProviderTokenRepository)
+	app.MountProviderController(service, providerCtrl)
 
 	// Mount "space" controller
 	spaceCtrl := controller.NewSpaceController(service, appDB, configuration, auth.NewKeycloakResourceManager(configuration))

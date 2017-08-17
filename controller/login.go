@@ -23,6 +23,8 @@ type LoginConfiguration interface {
 	GetKeycloakEndpointEntitlement(*goa.RequestData) (string, error)
 	GetKeycloakClientID() string
 	GetKeycloakSecret() string
+	GetGithubClientID() string
+	GetGithubSecret() string
 	IsPostgresDeveloperModeEnabled() bool
 	GetKeycloakTestUserName() string
 	GetKeycloakTestUserSecret() string
