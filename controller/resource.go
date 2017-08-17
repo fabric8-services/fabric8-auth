@@ -1,7 +1,6 @@
 package controller
 
 import (
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/goadesign/goa"
 )

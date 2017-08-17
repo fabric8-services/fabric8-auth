@@ -9,6 +9,8 @@ var _ = a.Resource("resource", func() {
 
 	a.BasePath("/resource")
 
+	a.DefaultMedia(ResourceMedia)
+
 	a.Action("register", func() {
 		a.Routing(
 			a.POST(""),
@@ -76,3 +78,26 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
 })
+
+// ResourceMedia represents a protected resource
+var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
+	a.Description("A Protected Resource")
+	a.Attributes(func() {
+		a.Attribute("resource_scopes", a.ArrayOf(d.String), "The valid scopes for this resource")
+		a.Attribute("icon_uri", d.String, "The URI containing the icon for the resource")
+		a.Attribute("name", d.String, "The name of the resource")
+		a.Attribute("type", d.String, "The type of resource")
+		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs")
+		a.Attribute("resource_id", d.String, "The identifier for this resource. If left blank, one will be generated")
+		a.Required("name", "type")
+	})
+	a.View("default", func() {
+		a.Attribute("resource_scopes")
+		a.Attribute("icon_uri")
+		a.Attribute("name")
+		a.Attribute("type")
+		a.Attribute("parent_resource_id")
+		a.Attribute("resource_id")
+	})
+})
+
