@@ -87,26 +87,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: notapproved_redirect
-          - name: AUTH_TENANT_SERVICEURL
-            valueFrom:
-              secretKeyRef:
-                name: auth
-                key: tenantsvc.url
-          - name: AUTH_CHESTARTERURL
-            valueFrom:
-              configMapKeyRef:
-                name: auth
-                key: chestarter.url
           - name: AUTH_REDIRECT_VALID
             valueFrom:
               configMapKeyRef:
                 name: auth
                 key: redirect.valid
-          - name: AUTH_OPENSHIFT_TENANT_MASTERURL
-            valueFrom:
-              configMapKeyRef:
-                name: auth
-                key: openshift.tenant.masterurl
           imagePullPolicy: Always
           name: auth
           ports:

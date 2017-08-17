@@ -73,11 +73,9 @@ const (
 	varCacheControlCollaborators        = "cachecontrol.collaborators"
 	varCacheControlUser                 = "cachecontrol.user"
 	defaultConfigFile                   = "config.yaml"
-	varOpenshiftTenantMasterURL         = "openshift.tenant.masterurl"
 	varValidRedirectURLs                = "redirect.valid"
 	varLogLevel                         = "log.level"
 	varLogJSON                          = "log.json"
-	varTenantServiceURL                 = "tenant.serviceurl"
 )
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -182,7 +180,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
-	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -508,11 +505,6 @@ func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (s
 	return newURL, nil
 }
 
-// GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
-func (c *ConfigurationData) GetOpenshiftTenantMasterURL() string {
-	return c.v.GetString(varOpenshiftTenantMasterURL)
-}
-
 // GetLogLevel returns the loggging level (as set via config file or environment variable)
 func (c *ConfigurationData) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
@@ -554,11 +546,6 @@ func (c *ConfigurationData) checkLocalhostRedirectException(req *goa.RequestData
 		return localhostRedirectURLs, nil
 	}
 	return DefaultValidRedirectURLs, nil
-}
-
-// GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
-func (c *ConfigurationData) GetTenantServiceURL() string {
-	return c.v.GetString(varTenantServiceURL)
 }
 
 const (
@@ -627,9 +614,6 @@ vwIDAQAB
 	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
-
-	defaultOpenshiftTenantMasterURL = "https://tsrv.devshift.net:8443"
-	defaultCheStarterURL            = "che-server"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *

@@ -16,7 +16,6 @@ objects:
     keycloak.realm: ZmFicmljOAo=
     keycloak.secret: Cg==
     token.publickey: Cg==
-    tenantsvc.url: aHR0cDovL2Y4dGVuYW50Ojgw
 - apiVersion: v1
   kind: ConfigMap
   metadata:
@@ -26,8 +25,6 @@ objects:
     postgres.sslmode: require
     postgres.connection.maxidle: "90"
     postgres.connection.maxopen: "90"
-    chestarter.url: http://che-starter:10000
     redirect.valid: ".*"
-    openshift.tenant.masterurl: https://openshift.local/
     notapproved_redirect: ""
   
