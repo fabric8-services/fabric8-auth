@@ -544,7 +544,7 @@ func (rest *TestCollaboratorsREST) createSpace() uuid.UUID {
 	require.NotNil(rest.T(), spaceCtrl)
 
 	id := uuid.NewV4()
-	test.CreateSpaceOK(rest.T(), svc.Context, svc, spaceCtrl, id.String())
+	test.CreateSpaceOK(rest.T(), svc.Context, svc, spaceCtrl, id)
 	return id
 }
 
@@ -576,10 +576,16 @@ func assertResponseHeaders(t *testing.T, res http.ResponseWriter) (string, strin
 }
 
 type DummyResourceManager struct {
+	ResourceID   *string
+	PermissionID *string
+	PolicyID     *string
 }
 
 func (m *DummyResourceManager) CreateResource(ctx context.Context, request *goa.RequestData, name string, rType string, uri *string, scopes *[]string, userID string) (*auth.Resource, error) {
-	return &auth.Resource{ResourceID: uuid.NewV4().String(), PermissionID: uuid.NewV4().String(), PolicyID: uuid.NewV4().String()}, nil
+	if m.ResourceID == nil {
+		return &auth.Resource{ResourceID: uuid.NewV4().String(), PermissionID: uuid.NewV4().String(), PolicyID: uuid.NewV4().String()}, nil
+	}
+	return &auth.Resource{ResourceID: *m.ResourceID, PermissionID: *m.PermissionID, PolicyID: *m.PolicyID}, nil
 }
 
 func (m *DummyResourceManager) DeleteResource(ctx context.Context, request *goa.RequestData, resource auth.Resource) error {
