@@ -46,7 +46,7 @@ func NewIdentityRelationshipeRepository(db *gorm.DB) IdentityRelationshipReposit
 
 // IdentityRelationshipRepository represents the storage interface.
 type IdentityRelationshipRepository interface {
-	repository.Exister
+	//repository.Exister
 	Load(ctx context.Context, ParentIdentity Identity, ChildIdentity Identity) (*IdentityRelationship, error)
 	Create(ctx context.Context, u *IdentityRelationship) error
 	Save(ctx context.Context, u *IdentityRelationship) error

@@ -49,6 +49,8 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	// ResourceController_Register: start_implement
 
+	//ctx.Payload.
+
 	// Put your logic here
 
 	// ResourceController_Register: end_implement

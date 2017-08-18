@@ -47,7 +47,7 @@ func NewRoleScopeRepository(db *gorm.DB) RoleScopeRepository {
 
 // RoleScopeRepository represents the storage interface.
 type RoleScopeRepository interface {
-	repository.Exister
+	//repository.Exister
 	Load(ctx context.Context, Scope ResourceTypeScope, Role Role) (*RoleScope, error)
 	Create(ctx context.Context, u *RoleScope) error
 	Save(ctx context.Context, u *RoleScope) error

@@ -16,6 +16,7 @@ var _ = a.Resource("resource", func() {
 			a.POST(""),
 		)
 		a.Description("Register a new resource")
+		a.Payload(ResourceMedia)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.Created, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
