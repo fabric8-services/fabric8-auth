@@ -22,7 +22,7 @@ type Resource struct {
 	// This is the primary key value
 	ID string `sql:"type:string" gorm:"primary_key" gorm:"column:resource_id"`
 	// The parent resource
-	ParentResource Resource
+	ParentResource *Resource
 	// The owning identity
 	Owner account.Identity
 	// The resource type

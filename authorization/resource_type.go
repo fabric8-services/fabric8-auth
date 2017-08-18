@@ -7,13 +7,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
 
 	"github.com/satori/go.uuid"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 
 	errs "github.com/pkg/errors"
+	"fmt"
 )
 
 type ResourceType struct {
@@ -49,7 +49,7 @@ func NewResourceTypeRepository(db *gorm.DB) ResourceTypeRepository {
 
 // ResourceTypeRepository represents the storage interface.
 type ResourceTypeRepository interface {
-	repository.Exister
+	CheckExists(ctx context.Context, id string) (bool, error)
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceType, error)
 	Create(ctx context.Context, u *ResourceType) error
 	Save(ctx context.Context, u *ResourceType) error
@@ -79,9 +79,28 @@ func (m *GormResourceTypeRepository) Load(ctx context.Context, id uuid.UUID) (*R
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormResourceTypeRepository) CheckExists(ctx context.Context, id string) error {
+func (m *GormResourceTypeRepository) CheckExists(ctx context.Context, id string) (bool, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type", "exists"}, time.Now())
-	return repository.CheckExists(ctx, m.db, m.TableName(), id)
+
+	//return repository.CheckExists(ctx, m.db, m.TableName(), id)
+
+	var exists bool
+	query := fmt.Sprintf(`
+		SELECT EXISTS (
+			SELECT 1 FROM %[1]s
+			WHERE
+				resource_type_id=$1
+				AND deleted_at IS NULL
+		)`, m.TableName())
+
+	err := m.db.CommonDB().QueryRow(query, id).Scan(&exists)
+	if err == nil && !exists {
+		return exists, errors.NewNotFoundError(m.TableName(), id)
+	}
+	if err != nil {
+		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
+	}
+	return exists, nil
 }
 
 // Create creates a new record.

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/migration"
@@ -68,6 +69,51 @@ func (s *resourceTypeBlackBoxTest) TestOKToDelete() {
 		// that none of the resource type objects returned include the one deleted.
 		require.NotEqual(s.T(), resourceType.ResourceTypeID.String(), data.ResourceTypeID.String())
 	}
+}
+
+func (s *resourceTypeBlackBoxTest) TestOKToLoad() {
+	t := s.T()
+	resource.Require(t, resource.Database)
+
+	createAndLoadResourceType(s) // this function does the needful already
+}
+
+func (s *resourceTypeBlackBoxTest) TestExistsResourceType() {
+	t := s.T()
+	resource.Require(t, resource.Database)
+
+	t.Run("resource type exists", func(t *testing.T) {
+		//t.Parallel()
+		resourceType := createAndLoadResourceType(s)
+		// when
+		_, err := s.repo.CheckExists(s.ctx, resourceType.ResourceTypeID.String())
+		// then
+		require.Nil(t, err)
+	})
+
+	t.Run("resource type doesn't exist", func(t *testing.T) {
+		//t.Parallel()
+		// Check not existing
+		_, err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
+		// then
+		require.IsType(s.T(), errors.NotFoundError{}, err)
+	})
+}
+
+func (s *resourceTypeBlackBoxTest) TestOKToSave() {
+	t := s.T()
+	resource.Require(t, resource.Database)
+
+	resourceType := createAndLoadResourceType(s)
+
+	resourceType.Name = "newResourceTypeNameTestType"
+	err := s.repo.Save(s.ctx, resourceType)
+	require.Nil(s.T(), err, "Could not update resourceType")
+
+	updatedResourceType, err := s.repo.Load(s.ctx, resourceType.ResourceTypeID)
+	require.Nil(s.T(), err, "Could not load resource type")
+	assert.Equal(s.T(), resourceType.Name, updatedResourceType.Name)
+	assert.Equal(s.T(), resourceType.Description, "An area is a logical grouping within a space")
 }
 
 func createAndLoadResourceType(s *resourceTypeBlackBoxTest) *authorization.ResourceType {
