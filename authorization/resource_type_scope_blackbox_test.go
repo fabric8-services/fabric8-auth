@@ -67,8 +67,8 @@ func (s *resourceTypeScopeBlackBoxTest) TestOKToDelete() {
 	require.True(s.T(), len(resourceTypeScopes) > 0)
 
 	for _, data := range resourceTypeScopes {
-		// The resource type 'resourceType' was deleted and rest were not deleted, hence we check
-		// that none of the resource type objects returned include the one deleted.
+		// The resource type scope 'resourceTypeScope' was deleted and rest were not deleted, hence we check
+		// that none of the resource type scope objects returned include the one deleted.
 		require.NotEqual(s.T(), resourceTypeScope.ResourceTypeScopeID.String(), data.ResourceTypeScopeID.String())
 	}
 }
