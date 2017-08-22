@@ -167,11 +167,13 @@ func (m *KeycloakResourceManager) DeleteResource(ctx context.Context, request *g
 	if err != nil {
 		return err
 	}
-	// Delete permission
-	err = DeletePermission(ctx, clientsEndpoint, clientID, resource.PermissionID, pat)
-	if err != nil {
-		return err
-	}
+
+	// Don't need to delete permission because Keycloak deletes all the relevant permissions when deleting the relevant resource
+	// err = DeletePermission(ctx, clientsEndpoint, clientID, resource.PermissionID, pat)
+	// if err != nil {
+	// 	return err
+	// }
+
 	// Delete policy
 	err = DeletePolicy(ctx, clientsEndpoint, clientID, resource.PolicyID, pat)
 	if err != nil {
