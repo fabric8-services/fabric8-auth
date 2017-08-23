@@ -5,6 +5,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -91,6 +93,9 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
+	if ctx.Scope != nil {
+		authEndpoint = fmt.Sprintf("%s?scope=%s", authEndpoint, *ctx.Scope) // Offline token
+	}
 	oauth := &oauth2.Config{
 		ClientID:     c.Configuration.GetKeycloakClientID(),
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
