@@ -1,15 +1,14 @@
-package authorization_test
+package resource_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/resource"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,18 +16,19 @@ import (
 
 	"github.com/satori/go.uuid"
 
+	res "github.com/fabric8-services/fabric8-auth/resource"
 )
 
 type resourceTypeScopeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo  authorization.ResourceTypeScopeRepository
-	resourceTypeRepo  authorization.ResourceTypeRepository
+	repo  resource.ResourceTypeScopeRepository
+	resourceTypeRepo  resource.ResourceTypeRepository
 	clean func()
 	ctx   context.Context
 }
 
 func TestRunResourceTypeScopeBlackBoxTest(t *testing.T) {
-	suite.Run(t, &resourceTypeScopeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &resourceTypeScopeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
 }
 
 // SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
@@ -41,8 +41,9 @@ func (s *resourceTypeScopeBlackBoxTest) SetupSuite() {
 }
 
 func (s *resourceTypeScopeBlackBoxTest) SetupTest() {
-	s.repo = authorization.NewResourceTypeScopeRepository(s.DB)
-	s.resourceTypeRepo = authorization.NewResourceTypeRepository(s.DB)
+	s.DB.LogMode(true)
+	s.repo = resource.NewResourceTypeScopeRepository(s.DB)
+	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 }
 
@@ -52,7 +53,7 @@ func (s *resourceTypeScopeBlackBoxTest) TearDownTest() {
 
 func (s *resourceTypeScopeBlackBoxTest) TestOKToDelete() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	// create 2 resources types, where the first one would be deleted.
 	resourceTypeScope := createAndLoadResourceTypeScope(s)
@@ -75,14 +76,14 @@ func (s *resourceTypeScopeBlackBoxTest) TestOKToDelete() {
 
 func (s *resourceTypeScopeBlackBoxTest) TestOKToLoad() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	createAndLoadResourceTypeScope(s)
 }
 
 func (s *resourceTypeScopeBlackBoxTest) TestExistsResourceTypeScope() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	t.Run("resource type scope exists", func(t *testing.T) {
 		//t.Parallel()
@@ -104,7 +105,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestExistsResourceTypeScope() {
 
 func (s *resourceTypeScopeBlackBoxTest) TestOKToSave() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	resourceTypeScope := createAndLoadResourceTypeScope(s)
 
@@ -118,31 +119,36 @@ func (s *resourceTypeScopeBlackBoxTest) TestOKToSave() {
 	assert.Equal(s.T(), resourceTypeScope.Description, "Collaborators may perform many operations within an area")
 }
 
-func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *authorization.ResourceTypeScope {
-	resourceType := &authorization.ResourceType{
-		ResourceTypeID:       uuid.NewV4(),
-		Name:    "Area" + uuid.NewV4().String(),
-		Description: "An area is a logical grouping within a space",
-	}
+func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.ResourceTypeScope {
 
-	err := s.resourceTypeRepo.Create(s.ctx, resourceType)
-	require.Nil(s.T(), err, "Could not create resource type")
+	resourceType := &resource.ResourceType{
+			ResourceTypeID: uuid.NewV4(),
+			Name:    "Area" + uuid.NewV4().String(),
+			Description: "An area is a logical grouping within a space",
+  }
 
-	resourceTypeScope := &authorization.ResourceTypeScope{
+	s.resourceTypeRepo.Create(s.ctx, resourceType)
+
+	resourceTypeScope := &resource.ResourceTypeScope{
 		ResourceTypeScopeID:       uuid.NewV4(),
 		ResourceType: *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
 		Name:    "collaborate" + uuid.NewV4().String(),
 		Description: "Collaborators may perform many operations within an area",
 	}
 
-	err = s.repo.Create(s.ctx, resourceTypeScope)
+	err := s.repo.Create(s.ctx, resourceTypeScope)
 	require.Nil(s.T(), err, "Could not create resource type scope")
 
+	//s.DB.Preload("ResourceType").Table("ResourceTypeScope")
 	createdResourceTypeScope, err := s.repo.Load(s.ctx, resourceTypeScope.ResourceTypeScopeID)
+
 	require.Nil(s.T(), err, "Could not load resource type scope")
 	require.Equal(s.T(), resourceTypeScope.Name, createdResourceTypeScope.Name)
 	require.Equal(s.T(), resourceTypeScope.ResourceTypeScopeID, createdResourceTypeScope.ResourceTypeScopeID)
 	require.Equal(s.T(), resourceTypeScope.Description, createdResourceTypeScope.Description)
+	require.Equal(s.T(), resourceTypeScope.ResourceType.ResourceTypeID, createdResourceTypeScope.ResourceType.ResourceTypeID)
+	//require.Equal(s.T(), resourceTypeScope.ResourceTypeID, createdResourceTypeScope.ResourceType.ResourceTypeID)
 
 	return createdResourceTypeScope
 }

@@ -1,15 +1,15 @@
-package authorization_test
+package role_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/resource"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,18 +17,19 @@ import (
 
 	"github.com/satori/go.uuid"
 
+	res "github.com/fabric8-services/fabric8-auth/resource"
 )
 
 type roleBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo  authorization.RoleRepository
-	resourceTypeRepo  authorization.ResourceTypeRepository
+	repo  role.RoleRepository
+	resourceTypeRepo  resource.ResourceTypeRepository
 	clean func()
 	ctx   context.Context
 }
 
 func TestRunRoleBlackBoxTest(t *testing.T) {
-	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
 }
 
 // SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
@@ -41,8 +42,8 @@ func (s *roleBlackBoxTest) SetupSuite() {
 }
 
 func (s *roleBlackBoxTest) SetupTest() {
-	s.repo = authorization.NewRoleRepository(s.DB)
-	s.resourceTypeRepo = authorization.NewResourceTypeRepository(s.DB)
+	s.repo = role.NewRoleRepository(s.DB)
+	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 }
 
@@ -52,7 +53,7 @@ func (s *roleBlackBoxTest) TearDownTest() {
 
 func (s *roleBlackBoxTest) TestOKToDelete() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	// create 2 roles, where the first one would be deleted.
 	role := createAndLoadRole(s)
@@ -75,14 +76,14 @@ func (s *roleBlackBoxTest) TestOKToDelete() {
 
 func (s *roleBlackBoxTest) TestOKToLoad() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	createAndLoadRole(s)
 }
 
 func (s *roleBlackBoxTest) TestExistsRole() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	t.Run("role exists", func(t *testing.T) {
 		//t.Parallel()
@@ -104,7 +105,7 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 
 func (s *roleBlackBoxTest) TestOKToSave() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	role := createAndLoadRole(s)
 
@@ -117,9 +118,9 @@ func (s *roleBlackBoxTest) TestOKToSave() {
 	assert.Equal(s.T(), role.Name, updatedRole.Name)
 }
 
-func createAndLoadRole(s *roleBlackBoxTest) *authorization.Role {
+func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 
-	resourceType := &authorization.ResourceType{
+	resourceType := &resource.ResourceType{
 		ResourceTypeID:       uuid.NewV4(),
 		Name:    "Area" + uuid.NewV4().String(),
 		Description: "An area is a logical grouping within a space",
@@ -128,9 +129,10 @@ func createAndLoadRole(s *roleBlackBoxTest) *authorization.Role {
 	err := s.resourceTypeRepo.Create(s.ctx, resourceType)
 	require.Nil(s.T(), err, "Could not create resource type")
 
-	role := &authorization.Role{
+	role := &role.Role{
 		RoleID:       uuid.NewV4(),
 		ResourceType: *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
 		Name:    "admin" + uuid.NewV4().String(),
 	}
 

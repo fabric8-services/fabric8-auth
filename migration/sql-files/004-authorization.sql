@@ -12,7 +12,7 @@ CREATE INDEX resource_type_resource_type_id_idx ON resource_type USING BTREE (re
 
 CREATE TABLE resource_type_scope (
     resource_type_scope_id uuid primary key DEFAULT uuid_generate_v4(),
-    resource_type_id uuid NOT NULL,
+    resource_type_id uuid NOT NULL references resource_type(resource_type_id),
     name text NOT NULL,
     description text NULL,
     created_at timestamp with time zone,

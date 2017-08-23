@@ -1,11 +1,12 @@
-package authorization
+package role
 
 import (
 	"context"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
@@ -25,7 +26,7 @@ type IdentityRole struct {
 	// The identity to which the role is assigned
 	Identity account.Identity
 	// The resource to which the role is applied
-	Resource Resource
+	Resource resource.Resource
 	// The role that is assigned
 	Role Role
 }
@@ -159,7 +160,7 @@ func (m *GormIdentityRoleRepository) List(ctx context.Context) ([]IdentityRole, 
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var rows []IdentityRole
 
-	err := m.db.Model(&ResourceType{}).Find(&rows).Error
+	err := m.db.Model(&resource.ResourceType{}).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

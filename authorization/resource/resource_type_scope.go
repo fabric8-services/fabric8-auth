@@ -1,4 +1,4 @@
-package authorization
+package resource
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type ResourceTypeScope struct {
 	// This is the primary key value
 	ResourceTypeScopeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:resource_type_scope_id"`
 	// The resource type that this scope belongs to
-	ResourceType ResourceType
+	ResourceType ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
 	// The foreign key value for ResourceType
 	ResourceTypeID uuid.UUID
 	// The name of this scope
@@ -99,7 +99,8 @@ func (m *GormResourceTypeScopeRepository) CheckExists(ctx context.Context, id st
 func (m *GormResourceTypeScopeRepository) Load(ctx context.Context, id uuid.UUID) (*ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "load"}, time.Now())
 	var native ResourceTypeScope
-	err := m.db.Table(m.TableName()).Where("resource_type_scope_id = ?", id).Find(&native).Error
+	//err := m.db.Preload("ResourceType").Table(m.TableName()).Where("resource_type_scope_id = ?", id).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("resource_type_scope_id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundError("resource_type_scope", id.String())
 	}

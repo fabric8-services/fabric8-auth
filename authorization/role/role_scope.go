@@ -1,9 +1,10 @@
-package authorization
+package role
 
 import (
 	"context"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -19,7 +20,7 @@ import (
 type RoleScope struct {
 	gormsupport.Lifecycle
 
-	Scope ResourceTypeScope `gorm:"primary_key"`
+	Scope resource.ResourceTypeScope `gorm:"primary_key"`
 	Role Role `gorm:"primary_key"`
 }
 
@@ -48,7 +49,7 @@ func NewRoleScopeRepository(db *gorm.DB) RoleScopeRepository {
 // RoleScopeRepository represents the storage interface.
 type RoleScopeRepository interface {
 	//repository.Exister
-	Load(ctx context.Context, Scope ResourceTypeScope, Role Role) (*RoleScope, error)
+	Load(ctx context.Context, Scope resource.ResourceTypeScope, Role Role) (*RoleScope, error)
 	Create(ctx context.Context, u *RoleScope) error
 	Save(ctx context.Context, u *RoleScope) error
 	List(ctx context.Context) ([]RoleScope, error)
@@ -66,7 +67,7 @@ func (m *GormRoleScopeRepository) TableName() string {
 
 // Load returns a single RoleScope as a Database Model
 // This is more for use internally, and probably not what you want in  your controllers
-func (m *GormRoleScopeRepository) Load(ctx context.Context, Scope ResourceTypeScope, Role Role) (*RoleScope, error) {
+func (m *GormRoleScopeRepository) Load(ctx context.Context, Scope resource.ResourceTypeScope, Role Role) (*RoleScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "load"}, time.Now())
 	var native RoleScope
 	err := m.db.Table(m.TableName()).Where("resource_type_scope_id = ? and role_id = ?", Scope, Role).Find(&native).Error
@@ -132,7 +133,7 @@ func (m *GormRoleScopeRepository) Save(ctx context.Context, model *RoleScope) er
 func (m *GormRoleScopeRepository) Delete(ctx context.Context, resourceTypeScopeID uuid.UUID, roleID uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "delete"}, time.Now())
 
-	obj := RoleScope{Scope:ResourceTypeScope{ResourceTypeScopeID: resourceTypeScopeID}, Role: Role{RoleID: roleID}}
+	obj := RoleScope{Scope:resource.ResourceTypeScope{ResourceTypeScopeID: resourceTypeScopeID}, Role: Role{RoleID: roleID}}
 
 	err := m.db.Delete(&obj).Error
 
@@ -158,7 +159,7 @@ func (m *GormRoleScopeRepository) List(ctx context.Context) ([]RoleScope, error)
 	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "list"}, time.Now())
 	var rows []RoleScope
 
-	err := m.db.Model(&ResourceType{}).Find(&rows).Error
+	err := m.db.Model(&resource.ResourceType{}).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

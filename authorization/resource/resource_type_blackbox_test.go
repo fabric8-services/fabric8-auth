@@ -1,33 +1,32 @@
-package authorization_test
+package resource_test
 
 import (
 	"context"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/resource"
+	res "github.com/fabric8-services/fabric8-auth/resource"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/satori/go.uuid"
-
 )
 
 type resourceTypeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo  authorization.ResourceTypeRepository
+	repo  resource.ResourceTypeRepository
 	clean func()
 	ctx   context.Context
 }
 
 func TestRunResourceTypeBlackBoxTest(t *testing.T) {
-	suite.Run(t, &resourceTypeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &resourceTypeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
 }
 
 // SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
@@ -40,7 +39,7 @@ func (s *resourceTypeBlackBoxTest) SetupSuite() {
 }
 
 func (s *resourceTypeBlackBoxTest) SetupTest() {
-	s.repo = authorization.NewResourceTypeRepository(s.DB)
+	s.repo = resource.NewResourceTypeRepository(s.DB)
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 }
 
@@ -50,7 +49,7 @@ func (s *resourceTypeBlackBoxTest) TearDownTest() {
 
 func (s *resourceTypeBlackBoxTest) TestOKToDelete() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	// create 2 resources types, where the first one would be deleted.
 	resourceType := createAndLoadResourceType(s)
@@ -73,14 +72,14 @@ func (s *resourceTypeBlackBoxTest) TestOKToDelete() {
 
 func (s *resourceTypeBlackBoxTest) TestOKToLoad() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	createAndLoadResourceType(s) // this function does the needful already
 }
 
 func (s *resourceTypeBlackBoxTest) TestExistsResourceType() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	t.Run("resource type exists", func(t *testing.T) {
 		//t.Parallel()
@@ -102,7 +101,7 @@ func (s *resourceTypeBlackBoxTest) TestExistsResourceType() {
 
 func (s *resourceTypeBlackBoxTest) TestOKToSave() {
 	t := s.T()
-	resource.Require(t, resource.Database)
+	res.Require(t, res.Database)
 
 	resourceType := createAndLoadResourceType(s)
 
@@ -116,8 +115,8 @@ func (s *resourceTypeBlackBoxTest) TestOKToSave() {
 	assert.Equal(s.T(), resourceType.Description, "An area is a logical grouping within a space")
 }
 
-func createAndLoadResourceType(s *resourceTypeBlackBoxTest) *authorization.ResourceType {
-	resourceType := &authorization.ResourceType{
+func createAndLoadResourceType(s *resourceTypeBlackBoxTest) *resource.ResourceType {
+	resourceType := &resource.ResourceType{
 		ResourceTypeID:       uuid.NewV4(),
 		Name:    "Area" + uuid.NewV4().String(),
 		Description: "An area is a logical grouping within a space",

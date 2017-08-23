@@ -1,9 +1,10 @@
-package authorization
+package role
 
 import (
 	"context"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/goadesign/goa"
@@ -21,7 +22,7 @@ type Role struct {
 	// This is the primary key value
 	RoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:role_id"`
 	// The resource type that this role applies to
-	ResourceType ResourceType
+	ResourceType resource.ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
 	// The foreign key value for ResourceType
 	ResourceTypeID uuid.UUID
 	// The name of this role
@@ -97,7 +98,7 @@ func (m *GormRoleRepository) CheckExists(ctx context.Context, id string) (bool, 
 func (m *GormRoleRepository) Load(ctx context.Context, id uuid.UUID) (*Role, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "load"}, time.Now())
 	var native Role
-	err := m.db.Table(m.TableName()).Where("role_id = ?", id).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("role_id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundError("role", id.String())
 	}
@@ -175,7 +176,7 @@ func (m *GormRoleRepository) List(ctx context.Context) ([]Role, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "list"}, time.Now())
 	var rows []Role
 
-	err := m.db.Model(&ResourceType{}).Find(&rows).Error
+	err := m.db.Model(&resource.ResourceType{}).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
