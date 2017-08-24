@@ -22,6 +22,7 @@ import (
 	almtoken "github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -76,7 +77,20 @@ func (rest *TestLoginREST) TestLoginOK() {
 	resource.Require(t, resource.UnitTest)
 	svc, ctrl := rest.UnSecuredController()
 
-	test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil)
+	test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, nil)
+}
+
+func (rest *TestLoginREST) TestOfflineAccessOK() {
+	t := rest.T()
+	resource.Require(t, resource.UnitTest)
+	svc, ctrl := rest.UnSecuredController()
+
+	offline := "offline_access"
+	resp := test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, &offline)
+	assert.Contains(t, resp.Header().Get("Location"), "scope=offline_access")
+
+	resp = test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, nil)
+	assert.NotContains(t, resp.Header().Get("Location"), "scope=offline_access")
 }
 
 type TestLoginService struct{}
