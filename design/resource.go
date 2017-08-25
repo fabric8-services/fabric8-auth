@@ -69,16 +69,6 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 	})
 
-	a.Action("list", func() {
-		a.Routing(
-			a.GET(""),
-		)
-		a.Description("List all resources")
-		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.TemporaryRedirect)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.BadRequest, JSONAPIErrors)
-	})
 })
 
 // ResourceMedia represents a protected resource
