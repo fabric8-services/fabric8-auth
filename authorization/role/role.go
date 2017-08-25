@@ -27,6 +27,8 @@ type Role struct {
 	ResourceTypeID uuid.UUID
 	// The name of this role
 	Name string
+	// The scopes associated with this role
+	Scopes []resource.ResourceTypeScope `gorm:"many2many:role_scope;AssociationForeignKey:resourceTypeScopeID;ForeignKey:roleID"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -98,7 +100,7 @@ func (m *GormRoleRepository) CheckExists(ctx context.Context, id string) (bool, 
 func (m *GormRoleRepository) Load(ctx context.Context, id uuid.UUID) (*Role, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "load"}, time.Now())
 	var native Role
-	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("role_id = ?", id).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("ResourceType").Preload("Scopes").Where("role_id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundError("role", id.String())
 	}

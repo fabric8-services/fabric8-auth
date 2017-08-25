@@ -24,6 +24,7 @@ type roleBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	repo  role.RoleRepository
 	resourceTypeRepo  resource.ResourceTypeRepository
+	resourceTypeScopeRepo resource.ResourceTypeScopeRepository
 	clean func()
 	ctx   context.Context
 }
@@ -42,8 +43,10 @@ func (s *roleBlackBoxTest) SetupSuite() {
 }
 
 func (s *roleBlackBoxTest) SetupTest() {
+	s.DB.LogMode(true)
 	s.repo = role.NewRoleRepository(s.DB)
 	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
+	s.resourceTypeScopeRepo = resource.NewResourceTypeScopeRepository(s.DB)
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 }
 
@@ -129,11 +132,23 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 	err := s.resourceTypeRepo.Create(s.ctx, resourceType)
 	require.Nil(s.T(), err, "Could not create resource type")
 
+	resourceTypeScope := &resource.ResourceTypeScope{
+		ResourceTypeScopeID:       uuid.NewV4(),
+		ResourceType: *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
+		Name:    "collaborate" + uuid.NewV4().String(),
+		Description: "Collaborators may perform many operations within an area",
+	}
+
+	err = s.resourceTypeScopeRepo.Create(s.ctx, resourceTypeScope)
+	require.Nil(s.T(), err, "Could not create resource type scope")
+
 	role := &role.Role{
 		RoleID:       uuid.NewV4(),
 		ResourceType: *resourceType,
 		ResourceTypeID: resourceType.ResourceTypeID,
 		Name:    "admin" + uuid.NewV4().String(),
+		Scopes: []resource.ResourceTypeScope {*resourceTypeScope},
 	}
 
 	err = s.repo.Create(s.ctx, role)
