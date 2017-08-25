@@ -55,7 +55,6 @@ type ResourceTypeRepository interface {
 	Save(ctx context.Context, u *ResourceType) error
 	List(ctx context.Context) ([]ResourceType, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
-	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ResourceType, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -179,23 +178,6 @@ func (m *GormResourceTypeRepository) List(ctx context.Context) ([]ResourceType, 
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
-}
-
-// Query expose an open ended Query model
-func (m *GormResourceTypeRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ResourceType, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "resource_type", "query"}, time.Now())
-	var objs []ResourceType
-
-	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&objs).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-
-	log.Debug(nil, map[string]interface{}{
-		"resource_type_list": objs,
-	}, "Resource type query successfully executed!")
-
-	return objs, nil
 }
 
 // ResourceTypeFilterByID is a gorm filter for Resource Type ID.

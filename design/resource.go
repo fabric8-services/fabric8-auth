@@ -47,6 +47,7 @@ var _ = a.Resource("resource", func() {
 		})
 		a.Description("Update the details of the specified resource")
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)

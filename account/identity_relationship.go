@@ -52,7 +52,6 @@ type IdentityRelationshipRepository interface {
 	Save(ctx context.Context, u *IdentityRelationship) error
 	List(ctx context.Context) ([]IdentityRelationship, error)
 	Delete(ctx context.Context, parentIdentityID uuid.UUID, childIdentityID uuid.UUID) error
-	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]IdentityRelationship, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -115,7 +114,7 @@ func (m *GormIdentityRelationshipRepository) Save(ctx context.Context, model *Id
 		}, "unable to update identity relationship")
 		return errs.WithStack(err)
 	}
-	err = m.db.Model(obj).Updates(model).Error
+	err = m.db.Model(obj).Save(model).Error
 	if err != nil {
 		return errs.WithStack(err)
 	}
@@ -162,23 +161,6 @@ func (m *GormIdentityRelationshipRepository) List(ctx context.Context) ([]Identi
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
-}
-
-// Query expose an open ended Query model
-func (m *GormIdentityRelationshipRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]IdentityRelationship, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity_relationship", "query"}, time.Now())
-	var objs []IdentityRelationship
-
-	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&objs).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-
-	log.Debug(nil, map[string]interface{}{
-		"identity_relationship_list": objs,
-	}, "Identity relationship query successfully executed!")
-
-	return objs, nil
 }
 
 // IdentityRelationshipFilterByID is a gorm filter for Parent Identity ID and Child Identity ID.

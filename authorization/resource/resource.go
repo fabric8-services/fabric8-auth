@@ -57,11 +57,9 @@ type ResourceRepository interface {
 	repository.Exister
 	Load(ctx context.Context, id string) (*Resource, error)
 	Create(ctx context.Context, resource *Resource) error
-	Lookup(ctx context.Context, id string) (*Resource, error)
 	Save(ctx context.Context, resource *Resource) error
 	Delete(ctx context.Context, id string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Resource, error)
-	List(ctx context.Context) ([]Resource, error)
 	IsValid(context.Context, string) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Resource, int, error)
 }
@@ -94,60 +92,44 @@ func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) err
 }
 
 // Create creates a new record.
-func (m *GormResourceRepository) Create(ctx context.Context, model *Resource) error {
+func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "create"}, time.Now())
 
 	// If no identifier has been specified for the new resource, then generate one
-	if model.ID == "" {
-		model.ID = uuid.NewV4().String()
+	if resource.ID == "" {
+		resource.ID = uuid.NewV4().String()
 	}
-	err := m.db.Create(model).Error
+	err := m.db.Create(resource).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"resource_id": model.ID,
+			"resource_id": resource.ID,
 			"err":         err,
 		}, "unable to create the resource")
 		return errs.WithStack(err)
 	}
 	log.Info(ctx, map[string]interface{}{
-		"resource_id": model.ID,
+		"resource_id": resource.ID,
 	}, "Resource created!")
 	return nil
 }
 
-// Lookup looks for an existing resource with the given ID
-func (m *GormResourceRepository) Lookup(ctx context.Context, id string) (*Resource, error) {
-	if id == "" {
-		return nil, errs.New("Cannot lookup resource with empty resource ID")
-	}
-	log.Debug(nil, nil, "Looking for resource with id=%s\n", id)
-	// bind the assignee to an existing resource
-	resource, err := m.First(ResourceFilterByID(id))
-	if err != nil {
-		return nil, errs.Wrapf(err, "failed to lookup resource by id '%s'", id)
-	}
-	// use existing resource
-	log.Debug(nil, nil, "Using existing resource with ID: %v", resource.ID)
-	return resource, nil
-}
-
 // Save modifies a single record.
-func (m *GormResourceRepository) Save(ctx context.Context, model *Resource) error {
+func (m *GormResourceRepository) Save(ctx context.Context, resource *Resource) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, model.ID)
+	obj, err := m.Load(ctx, resource.ID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"resource_id": model.ID,
+			"resource_id": resource.ID,
 			"ctx":         ctx,
 			"err":         err,
 		}, "unable to update the resource")
 		return errs.WithStack(err)
 	}
-	err = m.db.Model(obj).Updates(model).Error
+	err = m.db.Model(obj).Save(resource).Error
 
 	log.Debug(ctx, map[string]interface{}{
-		"resource_id": model.ID,
+		"resource_id": resource.ID,
 	}, "Resource saved!")
 
 	return errs.WithStack(err)
@@ -191,28 +173,6 @@ func (m *GormResourceRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Reso
 	}, "Resource query executed successfully!")
 
 	return resources, nil
-}
-
-// First returns the first Resource element that matches the given criteria
-func (m *GormResourceRepository) First(funcs ...func(*gorm.DB) *gorm.DB) (*Resource, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "resource", "first"}, time.Now())
-	var objs []*Resource
-	log.Debug(nil, nil, "Looking for resource matching: %v", funcs)
-
-	err := m.db.Scopes(funcs...).Table(m.TableName()).First(&objs).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-	if len(objs) != 0 && objs[0] != nil {
-		log.Debug(nil, map[string]interface{}{
-			"resource_list": objs,
-		}, "Found matching resource: %v", *objs[0])
-		return objs[0], nil
-	}
-	log.Debug(nil, map[string]interface{}{
-		"resource_list": objs,
-	}, "No matching resource found")
-	return nil, nil
 }
 
 // ResourceFilterByResourceID is a gorm filter for a Belongs To relationship.
