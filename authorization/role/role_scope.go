@@ -2,26 +2,29 @@ package role
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 
+	uuid "github.com/satori/go.uuid"
 	errs "github.com/pkg/errors"
 )
 
 type RoleScope struct {
 	gormsupport.Lifecycle
 
-	Scope resource.ResourceTypeScope `gorm:"primary_key"`
-	Role Role `gorm:"primary_key"`
+	Scope resource.ResourceTypeScope `gorm:"primary_key;ForeignKey:ScopeID;AssociationForeignKey:ResourceTypeScopeID"`
+	ScopeID uuid.UUID
+
+	Role Role `gorm:"primary_key;ForeignKey:RoleID;AssociationForeignKey:RoleID"`
+	RoleID uuid.UUID
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -48,8 +51,8 @@ func NewRoleScopeRepository(db *gorm.DB) RoleScopeRepository {
 
 // RoleScopeRepository represents the storage interface.
 type RoleScopeRepository interface {
-	//repository.Exister
-	Load(ctx context.Context, Scope resource.ResourceTypeScope, Role Role) (*RoleScope, error)
+	CheckExists(ctx context.Context, resourceTypeScopeID string, roleID string) (bool, error)
+	Load(ctx context.Context, ScopeID uuid.UUID, RoleID uuid.UUID) (*RoleScope, error)
 	Create(ctx context.Context, u *RoleScope) error
 	Save(ctx context.Context, u *RoleScope) error
 	List(ctx context.Context) ([]RoleScope, error)
@@ -63,26 +66,43 @@ func (m *GormRoleScopeRepository) TableName() string {
 	return "role_scope"
 }
 
+// CheckExists returns nil if the given ID exists otherwise returns an error
+func (m *GormRoleScopeRepository) CheckExists(ctx context.Context, resourceTypeScopeID string, roleID string) (bool, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "exists"}, time.Now())
+
+	var exists bool
+	query := fmt.Sprintf(`
+		SELECT EXISTS (
+			SELECT 1 FROM %[1]s
+			WHERE
+				resource_type_scope_id=$1
+				AND role_id=$2
+				AND deleted_at IS NULL
+		)`, m.TableName())
+
+	err := m.db.CommonDB().QueryRow(query, resourceTypeScopeID, roleID).Scan(&exists)
+	if err == nil && !exists {
+		return exists, errors.NewNotFoundError(m.TableName(), resourceTypeScopeID + "," + roleID)
+	}
+	if err != nil {
+		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
+	}
+	return exists, nil
+}
+
 // CRUD Functions
 
 // Load returns a single RoleScope as a Database Model
 // This is more for use internally, and probably not what you want in  your controllers
-func (m *GormRoleScopeRepository) Load(ctx context.Context, Scope resource.ResourceTypeScope, Role Role) (*RoleScope, error) {
+func (m *GormRoleScopeRepository) Load(ctx context.Context, ScopeID uuid.UUID, RoleID uuid.UUID) (*RoleScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "load"}, time.Now())
 	var native RoleScope
-	err := m.db.Table(m.TableName()).Where("resource_type_scope_id = ? and role_id = ?", Scope, Role).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("Scope,Role").Where("scope_id = ? and role_id = ?",
+		ScopeID.String(), RoleID.String()).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errors.NewNotFoundError("role_scope", Scope.ResourceTypeScopeID.String() + "," + Role.RoleID.String())
+		return nil, errors.NewNotFoundError("role_scope", ScopeID.String() + "," + RoleID.String())
 	}
 	return &native, errs.WithStack(err)
-}
-
-// CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormRoleScopeRepository) CheckExists(ctx context.Context, resourceTypeScopeID string, roleID string) error {
-	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "exists"}, time.Now())
-	// TODO - CheckExists is bad code, makes assumption that there is only a singular primary key.. need to rewrite this
-	// to work with a composite primary
-	return repository.CheckExists(ctx, m.db, m.TableName(), resourceTypeScopeID)
 }
 
 // Create creates a new record.
@@ -108,7 +128,7 @@ func (m *GormRoleScopeRepository) Create(ctx context.Context, u *RoleScope) erro
 func (m *GormRoleScopeRepository) Save(ctx context.Context, model *RoleScope) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, model.Scope, model.Role)
+	obj, err := m.Load(ctx, model.Scope.ResourceTypeScopeID, model.Role.RoleID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": model.Scope.ResourceTypeScopeID,
