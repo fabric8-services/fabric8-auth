@@ -7,13 +7,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	"github.com/fabric8-services/fabric8-auth/log"
 
-	uuid "github.com/satori/go.uuid"
-	errs "github.com/pkg/errors"
 	"fmt"
+	errs "github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Role struct {
@@ -69,7 +69,6 @@ func (m *GormRoleRepository) TableName() string {
 	return "role"
 }
 
-
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormRoleRepository) CheckExists(ctx context.Context, id string) (bool, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "exists"}, time.Now())
@@ -117,7 +116,7 @@ func (m *GormRoleRepository) Create(ctx context.Context, u *Role) error {
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"role_id": u.RoleID,
-			"err": err,
+			"err":     err,
 		}, "unable to create the role")
 		return errs.WithStack(err)
 	}
@@ -135,7 +134,7 @@ func (m *GormRoleRepository) Save(ctx context.Context, model *Role) error {
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"role_id": model.RoleID,
-			"err": err,
+			"err":     err,
 		}, "unable to update role")
 		return errs.WithStack(err)
 	}
@@ -161,7 +160,7 @@ func (m *GormRoleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"role_id": id,
-			"err": err,
+			"err":     err,
 		}, "unable to delete the role")
 		return errs.WithStack(err)
 	}

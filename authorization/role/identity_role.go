@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
 
-	"github.com/jinzhu/gorm"
 	"github.com/goadesign/goa"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 
 	errs "github.com/pkg/errors"
@@ -99,7 +99,7 @@ func (m *GormIdentityRoleRepository) Create(ctx context.Context, u *IdentityRole
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"identity_role_id": u.IdentityRoleID,
-			"err":                    err,
+			"err":              err,
 		}, "unable to create the identity role")
 		return errs.WithStack(err)
 	}
@@ -117,7 +117,7 @@ func (m *GormIdentityRoleRepository) Save(ctx context.Context, model *IdentityRo
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"identity_role_id": model.IdentityRoleID,
-			"err":                    err,
+			"err":              err,
 		}, "unable to update identity role")
 		return errs.WithStack(err)
 	}
@@ -143,7 +143,7 @@ func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) e
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"identity_role_id": id,
-			"err": err,
+			"err":              err,
 		}, "unable to delete the identity role")
 		return errs.WithStack(err)
 	}

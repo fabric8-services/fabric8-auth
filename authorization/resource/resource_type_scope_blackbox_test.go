@@ -21,10 +21,10 @@ import (
 
 type resourceTypeScopeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo  resource.ResourceTypeScopeRepository
-	resourceTypeRepo  resource.ResourceTypeRepository
-	clean func()
-	ctx   context.Context
+	repo             resource.ResourceTypeScopeRepository
+	resourceTypeRepo resource.ResourceTypeRepository
+	clean            func()
+	ctx              context.Context
 }
 
 func TestRunResourceTypeScopeBlackBoxTest(t *testing.T) {
@@ -122,19 +122,19 @@ func (s *resourceTypeScopeBlackBoxTest) TestOKToSave() {
 func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.ResourceTypeScope {
 
 	resourceType := &resource.ResourceType{
-			ResourceTypeID: uuid.NewV4(),
-			Name:    "Area" + uuid.NewV4().String(),
-			Description: "An area is a logical grouping within a space",
-  }
+		ResourceTypeID: uuid.NewV4(),
+		Name:           "Area" + uuid.NewV4().String(),
+		Description:    "An area is a logical grouping within a space",
+	}
 
 	s.resourceTypeRepo.Create(s.ctx, resourceType)
 
 	resourceTypeScope := &resource.ResourceTypeScope{
-		ResourceTypeScopeID:       uuid.NewV4(),
-		ResourceType: *resourceType,
-		ResourceTypeID: resourceType.ResourceTypeID,
-		Name:    "collaborate" + uuid.NewV4().String(),
-		Description: "Collaborators may perform many operations within an area",
+		ResourceTypeScopeID: uuid.NewV4(),
+		ResourceType:        *resourceType,
+		ResourceTypeID:      resourceType.ResourceTypeID,
+		Name:                "collaborate" + uuid.NewV4().String(),
+		Description:         "Collaborators may perform many operations within an area",
 	}
 
 	err := s.repo.Create(s.ctx, resourceTypeScope)

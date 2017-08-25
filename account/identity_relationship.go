@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/goadesign/goa"
@@ -20,7 +20,7 @@ type IdentityRelationship struct {
 	gormsupport.Lifecycle
 
 	ParentIdentity Identity `gorm:"primary_key"`
-	ChildIdentity Identity `gorm:"primary_key"`
+	ChildIdentity  Identity `gorm:"primary_key"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -69,7 +69,7 @@ func (m *GormIdentityRelationshipRepository) Load(ctx context.Context, ParentIde
 	var native IdentityRelationship
 	err := m.db.Table(m.TableName()).Where("parent_identity_id = ? and child_identity_id = ?", ParentIdentity.ID.String(), ChildIdentity.ID.String()).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errors.NewNotFoundError("identity_relationship", ParentIdentity.ID.String() + "," + ChildIdentity.ID.String())
+		return nil, errors.NewNotFoundError("identity_relationship", ParentIdentity.ID.String()+","+ChildIdentity.ID.String())
 	}
 	return &native, errs.WithStack(err)
 }
@@ -89,14 +89,14 @@ func (m *GormIdentityRelationshipRepository) Create(ctx context.Context, u *Iden
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"parent_identity_id": u.ParentIdentity.ID,
-			"child_identity_id": u.ChildIdentity.ID,
-			"err": err,
+			"child_identity_id":  u.ChildIdentity.ID,
+			"err":                err,
 		}, "unable to create the identity relationship")
 		return errs.WithStack(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
 		"parent_identity_id": u.ParentIdentity.ID,
-		"child_identity_id": u.ChildIdentity.ID,
+		"child_identity_id":  u.ChildIdentity.ID,
 	}, "Identity relationship created!")
 	return nil
 }
@@ -109,8 +109,8 @@ func (m *GormIdentityRelationshipRepository) Save(ctx context.Context, model *Id
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"parent_identity_id": model.ParentIdentity.ID.String(),
-			"child_identity_id": model.ChildIdentity.ID.String(),
-			"err": err,
+			"child_identity_id":  model.ChildIdentity.ID.String(),
+			"err":                err,
 		}, "unable to update identity relationship")
 		return errs.WithStack(err)
 	}
@@ -121,7 +121,7 @@ func (m *GormIdentityRelationshipRepository) Save(ctx context.Context, model *Id
 
 	log.Debug(ctx, map[string]interface{}{
 		"parent_identity_id": model.ParentIdentity.ID.String(),
-		"child_identity_id": model.ChildIdentity.ID.String(),
+		"child_identity_id":  model.ChildIdentity.ID.String(),
 	}, "Identity relationship saved!")
 	return nil
 }
@@ -130,22 +130,22 @@ func (m *GormIdentityRelationshipRepository) Save(ctx context.Context, model *Id
 func (m *GormIdentityRelationshipRepository) Delete(ctx context.Context, parentIdentityID uuid.UUID, childIdentityID uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_relationship", "delete"}, time.Now())
 
-	obj := IdentityRelationship{ParentIdentity:Identity{ID: parentIdentityID}, ChildIdentity: Identity{ID: childIdentityID}}
+	obj := IdentityRelationship{ParentIdentity: Identity{ID: parentIdentityID}, ChildIdentity: Identity{ID: childIdentityID}}
 
 	err := m.db.Delete(&obj).Error
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"parent_identity_id": parentIdentityID,
-			"child_identity_id": childIdentityID,
-			"err": err,
+			"child_identity_id":  childIdentityID,
+			"err":                err,
 		}, "unable to delete the identity relationship")
 		return errs.WithStack(err)
 	}
 
 	log.Debug(ctx, map[string]interface{}{
 		"parent_identity_id": parentIdentityID,
-		"child_identity_id": childIdentityID,
+		"child_identity_id":  childIdentityID,
 	}, "Identity relationship deleted!")
 
 	return nil

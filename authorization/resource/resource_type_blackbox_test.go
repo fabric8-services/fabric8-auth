@@ -117,9 +117,9 @@ func (s *resourceTypeBlackBoxTest) TestOKToSave() {
 
 func createAndLoadResourceType(s *resourceTypeBlackBoxTest) *resource.ResourceType {
 	resourceType := &resource.ResourceType{
-		ResourceTypeID:       uuid.NewV4(),
-		Name:    "Area" + uuid.NewV4().String(),
-		Description: "An area is a logical grouping within a space",
+		ResourceTypeID: uuid.NewV4(),
+		Name:           "Area" + uuid.NewV4().String(),
+		Description:    "An area is a logical grouping within a space",
 	}
 
 	err := s.repo.Create(s.ctx, resourceType)

@@ -8,12 +8,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"github.com/satori/go.uuid"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
 
-	errs "github.com/pkg/errors"
 	"fmt"
+	errs "github.com/pkg/errors"
 )
 
 type ResourceTypeScope struct {
@@ -117,7 +117,7 @@ func (m *GormResourceTypeScopeRepository) Create(ctx context.Context, u *Resourc
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": u.ResourceTypeScopeID,
-			"err":                    err,
+			"err": err,
 		}, "unable to create the resource type scope")
 		return errs.WithStack(err)
 	}
@@ -135,7 +135,7 @@ func (m *GormResourceTypeScopeRepository) Save(ctx context.Context, model *Resou
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": model.ResourceTypeScopeID,
-			"err":                    err,
+			"err": err,
 		}, "unable to update resource type scope")
 		return errs.WithStack(err)
 	}
@@ -161,7 +161,7 @@ func (m *GormResourceTypeScopeRepository) Delete(ctx context.Context, id uuid.UU
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": id,
-			"err":                    err,
+			"err": err,
 		}, "unable to delete the resource type scope")
 		return errs.WithStack(err)
 	}

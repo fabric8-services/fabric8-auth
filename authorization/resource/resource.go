@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/gormsupport"
-	"github.com/jinzhu/gorm"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/jinzhu/gorm"
 
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"

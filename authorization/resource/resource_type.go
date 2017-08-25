@@ -4,16 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"github.com/satori/go.uuid"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
 
-	errs "github.com/pkg/errors"
 	"fmt"
+	errs "github.com/pkg/errors"
 )
 
 type ResourceType struct {
