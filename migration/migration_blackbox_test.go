@@ -97,6 +97,7 @@ func TestMigrations(t *testing.T) {
 
 	t.Run("TestMigration01", testMigration01)
 	t.Run("TestMigration02", testMigration02)
+	t.Run("TestMigration04", testMigration04)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName); err != nil {
@@ -132,6 +133,12 @@ func testMigration02(t *testing.T) {
 	assert.True(t, dialect.HasColumn("oauth_state_references", "id"))
 
 	assert.Nil(t, runSQLscript(sqlDB, "002-insert-oauth-states.sql"))
+}
+
+func testMigration04(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(5)], (5))
+
+	assert.NotNil(t, runSQLscript(sqlDB, "004-insert-duplicate-space-resource.sql"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
