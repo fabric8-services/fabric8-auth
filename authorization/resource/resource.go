@@ -48,7 +48,7 @@ type GormResourceRepository struct {
 }
 
 // NewResourceRepository creates a new storage type.
-func NewResourceRepository(db *gorm.DB) *GormResourceRepository {
+func NewResourceRepository(db *gorm.DB) ResourceRepository {
 	return &GormResourceRepository{db: db}
 }
 
@@ -60,8 +60,6 @@ type ResourceRepository interface {
 	Save(ctx context.Context, resource *Resource) error
 	Delete(ctx context.Context, id string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Resource, error)
-	IsValid(context.Context, string) bool
-	Search(ctx context.Context, q string, start int, limit int) ([]Resource, int, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
