@@ -59,12 +59,3 @@ CREATE TABLE identity_role (
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone
 );
-
-CREATE TABLE identity_relationship (
-    parent_identity_id uuid references identities(id),
-    child_identity_id uuid references identities(id),
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone,
-    deleted_at timestamp with time zone,
-    PRIMARY KEY(parent_identity_id, child_identity_id)
-);
