@@ -116,6 +116,13 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 	})
 
 	if err != nil {
+		if notFound, _ := errors.IsNotFoundError(err); notFound {
+			log.Warn(ctx, map[string]interface{}{
+				"space_id":     ctx.SpaceID,
+				"current_user": *currentUser,
+			}, "Space is not found. May happen if it's an old space. Ignore until WIT and Auth resource space DB is in sync")
+			return ctx.OK([]byte{})
+		}
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	err = c.resourceManager.DeleteResource(ctx, ctx.RequestData, auth.Resource{ResourceID: resourceID, PermissionID: permissionID, PolicyID: policyID})
