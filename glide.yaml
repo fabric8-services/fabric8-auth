@@ -2,6 +2,9 @@ package: github.com/fabric8-services/fabric8-auth
 homepage: https://github.com/fabric8-services/fabric8-auth
 license: Apache-2.0
 import:
+- package: github.com/fabric8-services/fabric8-auth
+  subpackages:
+   - design
 - package: github.com/dgrijalva/jwt-go
   version: ^3.0.0
 - package: github.com/goadesign/goa
