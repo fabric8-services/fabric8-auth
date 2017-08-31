@@ -121,6 +121,25 @@ func (s *roleBlackBoxTest) TestOKToSave() {
 	assert.Equal(s.T(), role.Name, updatedRole.Name)
 }
 
+func (s *roleBlackBoxTest) TestScopes() {
+	t := s.T()
+	res.Require(t, res.Database)
+
+	role := createAndLoadRole(s);
+
+	resourceTypeScopes, err := s.resourceTypeScopeRepo.List(s.ctx, &role.ResourceType)
+	require.Nil(s.T(), err, "Could not load resource type scopes")
+	require.NotZero(s.T(), len(resourceTypeScopes))
+
+	err = s.repo.AddScope(s.ctx, role, &resourceTypeScopes[0])
+	require.Nil(s.T(), err, "Role scope not created")
+
+	roleScopes, err := s.repo.ListScopes(s.ctx, role)
+	require.NotNil(s.T(), roleScopes, "Could not load role scopes")
+
+	require.Equal(s.T(), len(roleScopes), 1, "Should be exactly one role scope")
+}
+
 func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 
 	resourceType := &resource.ResourceType{
@@ -148,7 +167,7 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 		ResourceType:   *resourceType,
 		ResourceTypeID: resourceType.ResourceTypeID,
 		Name:           "admin" + uuid.NewV4().String(),
-		Scopes:         []resource.ResourceTypeScope{*resourceTypeScope},
+		//Scopes:         []resource.ResourceTypeScope{*resourceTypeScope},
 	}
 
 	err = s.repo.Create(s.ctx, role)

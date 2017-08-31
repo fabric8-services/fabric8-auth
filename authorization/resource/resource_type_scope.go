@@ -58,7 +58,7 @@ type ResourceTypeScopeRepository interface {
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
 	Create(ctx context.Context, u *ResourceTypeScope) error
 	Save(ctx context.Context, u *ResourceTypeScope) error
-	List(ctx context.Context) ([]ResourceTypeScope, error)
+	List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ResourceTypeScope, error)
 }
@@ -174,11 +174,16 @@ func (m *GormResourceTypeScopeRepository) Delete(ctx context.Context, id uuid.UU
 }
 
 // List return all resource type scopes
-func (m *GormResourceTypeScopeRepository) List(ctx context.Context) ([]ResourceTypeScope, error) {
+func (m *GormResourceTypeScopeRepository) List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "list"}, time.Now())
 	var rows []ResourceTypeScope
 
-	err := m.db.Model(&ResourceType{}).Order("name").Find(&rows).Error
+	var err error
+	if (resourceType != nil) {
+		err = m.db.Where("resource_type_id = ?", resourceType.ResourceTypeID).Order("name").Find(&rows).Error
+	} else {
+		err = m.db.Order("name").Find(&rows).Error
+	}
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

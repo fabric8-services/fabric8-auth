@@ -63,7 +63,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestOKToDelete() {
 	assert.Nil(s.T(), err)
 
 	// lets see how many are present.
-	resourceTypeScopes, err := s.repo.List(s.ctx)
+	resourceTypeScopes, err := s.repo.List(s.ctx, nil)
 	require.Nil(s.T(), err, "Could not list resource type scopes")
 	require.True(s.T(), len(resourceTypeScopes) > 0)
 

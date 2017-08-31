@@ -60,15 +60,15 @@ func (s *resourceBlackBoxTest) TestOKToDelete() {
 	resource := createAndLoadResource(s)
 	createAndLoadResource(s)
 
-	loadedResource, err := s.repo.Load(s.ctx, resource.ID)
+	loadedResource, err := s.repo.Load(s.ctx, resource.ResourceID)
 	require.NotNil(s.T(), loadedResource, "Created resource should be loaded")
 	require.Nil(s.T(), err, "Should be no error when loading existing resource")
 
-	err = s.repo.Delete(s.ctx, resource.ID)
+	err = s.repo.Delete(s.ctx, resource.ResourceID)
 	assert.Nil(s.T(), err, "Should be no error when deleting resource")
 
 	// Check the resource is deleted correctly
-	loadedResource, err = s.repo.Load(s.ctx, resource.ID)
+	loadedResource, err = s.repo.Load(s.ctx, resource.ResourceID)
 	require.Nil(s.T(), loadedResource, "Deleted resource should not be possible to load")
 	require.NotNil(s.T(), err, "Should be error when loading non-existing resource")
 }
@@ -88,7 +88,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 		//t.Parallel()
 		resource := createAndLoadResource(s)
 		// when
-		err := s.repo.CheckExists(s.ctx, resource.ID)
+		_, err := s.repo.CheckExists(s.ctx, resource.ResourceID)
 		// then
 		require.Nil(t, err)
 	})
@@ -96,7 +96,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 	t.Run("resource doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		// Check not existing
-		err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
+		_, err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
 	})
@@ -135,7 +135,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resource := &resource.Resource{
-		ID: uuid.NewV4().String(),
+		ResourceID: uuid.NewV4().String(),
 		ParentResource: nil,
 		Owner:          *identity,
 		ResourceType:   *resourceType,
@@ -145,7 +145,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	err = s.repo.Create(s.ctx, resource)
 	require.Nil(s.T(), err, "Could not create resource")
 
-	createdResource, err := s.repo.Load(s.ctx, resource.ID)
+	createdResource, err := s.repo.Load(s.ctx, resource.ResourceID)
 	require.Nil(s.T(), err, "Could not load resource")
 
 	require.Equal(s.T(), resource.Description, createdResource.Description)

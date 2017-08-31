@@ -27,9 +27,10 @@ type Role struct {
 	ResourceTypeID uuid.UUID
 	// The name of this role
 	Name string
-	// The scopes associated with this role
-	Scopes []resource.ResourceTypeScope `gorm:"many2many:role_scope;AssociationForeignKey:resourceTypeScopeID;ForeignKey:roleID"`
 }
+
+// The scopes associated with this role
+//Scopes []resource.ResourceTypeScope `gorm:"many2many:role_scope;AssociationForeignKey:resourceTypeScopeID;ForeignKey:roleID"`
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
@@ -39,6 +40,24 @@ func (m Role) TableName() string {
 
 // GetLastModified returns the last modification time
 func (m Role) GetLastModified() time.Time {
+	return m.UpdatedAt
+}
+
+type RoleScope struct {
+	gormsupport.Lifecycle
+
+	RoleID uuid.UUID `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
+
+	Scope resource.ResourceTypeScope `gorm:"ForeignKey:ScopeID;AssociationForeignKey:ResourceTypeScopeID"`
+	ScopeID uuid.UUID `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
+}
+
+func (m RoleScope) TableName() string {
+	return "role_scope"
+}
+
+// GetLastModified returns the last modification time
+func (m RoleScope) GetLastModified() time.Time {
 	return m.UpdatedAt
 }
 
@@ -61,6 +80,9 @@ type RoleRepository interface {
 	List(ctx context.Context) ([]Role, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Role, error)
+
+	ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error)
+	AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -99,7 +121,7 @@ func (m *GormRoleRepository) CheckExists(ctx context.Context, id string) (bool, 
 func (m *GormRoleRepository) Load(ctx context.Context, id uuid.UUID) (*Role, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "load"}, time.Now())
 	var native Role
-	err := m.db.Table(m.TableName()).Preload("ResourceType").Preload("Scopes").Where("role_id = ?", id).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("ResourceType") /*.Preload("Scopes")*/.Where("role_id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundError("role", id.String())
 	}
@@ -177,7 +199,7 @@ func (m *GormRoleRepository) List(ctx context.Context) ([]Role, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "list"}, time.Now())
 	var rows []Role
 
-	err := m.db.Model(&resource.ResourceType{}).Find(&rows).Error
+	err := m.db.Model(&Role{}).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
@@ -199,6 +221,49 @@ func (m *GormRoleRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Role, er
 	}, "Role query successfully executed!")
 
 	return objs, nil
+}
+
+func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "role", "listscopes"}, time.Now())
+
+	var scopes []RoleScope
+
+	err := m.db.Where("role_id = ?", u.RoleID.String()).Preload("Scope").Find(&scopes).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+
+	results := make([]resource.ResourceTypeScope, len(scopes))
+	for index := 0; index < len(scopes); index++ {
+		results[index] = scopes[index].Scope
+	}
+
+	return results, nil
+}
+
+func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error {
+	defer goa.MeasureSince([]string{"goa", "db", "role", "addscope"}, time.Now())
+
+	roleScope := &RoleScope{
+		RoleID:         u.RoleID,
+		Scope:          *s,
+		ScopeID:        s.ResourceTypeScopeID,
+	}
+
+	err := m.db.Create(roleScope).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"role_id": u.RoleID,
+			"scope_id": s.ResourceTypeScopeID,
+			"err":     err,
+		}, "unable to create the role scope")
+		return errs.WithStack(err)
+	}
+	log.Debug(ctx, map[string]interface{}{
+		"role_id": u.RoleID,
+		"scope_id": s.ResourceTypeScopeID,
+	}, "Role scope created!")
+	return nil
 }
 
 // RoleFilterByID is a gorm filter for Role ID.

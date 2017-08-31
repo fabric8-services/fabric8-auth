@@ -30,12 +30,12 @@ CREATE TABLE role (
 );
 
 CREATE TABLE role_scope (
-    resource_type_scope_resource_type_scope_id uuid references resource_type_scope(resource_type_scope_id),
-    role_role_id uuid references role(role_id),
+    scope_id uuid references resource_type_scope(resource_type_scope_id),
+    role_id uuid references role(role_id),
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
-    PRIMARY KEY(resource_type_scope_resource_type_scope_id, role_role_id)
+    PRIMARY KEY(scope_id, role_id)
 );
 
 CREATE TABLE resource (
