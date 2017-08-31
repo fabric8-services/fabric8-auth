@@ -125,7 +125,7 @@ func (s *roleBlackBoxTest) TestScopes() {
 	t := s.T()
 	res.Require(t, res.Database)
 
-	role := createAndLoadRole(s);
+	role := createAndLoadRole(s)
 
 	resourceTypeScopes, err := s.resourceTypeScopeRepo.List(s.ctx, &role.ResourceType)
 	require.Nil(s.T(), err, "Could not load resource type scopes")

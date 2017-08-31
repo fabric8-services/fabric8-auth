@@ -157,7 +157,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	require.Nil(s.T(), err, "Could not create resource type scope")
 
 	res := &resource.Resource{
-		ResourceID: uuid.NewV4().String(),
+		ResourceID:     uuid.NewV4().String(),
 		ParentResource: nil,
 		Owner:          *identity,
 		ResourceType:   *resourceType,
@@ -178,11 +178,11 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	err = s.roleRepo.Create(s.ctx, r)
 	require.Nil(s.T(), err, "Could not create role")
 
-	identityRole := &role.IdentityRole {
+	identityRole := &role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
-		Identity: *identity,
-		Resource: *res,
-		Role: *r,
+		Identity:       *identity,
+		Resource:       *res,
+		Role:           *r,
 	}
 
 	createdIdentityRole, err := s.repo.Load(s.ctx, identityRole.IdentityRoleID)
@@ -192,4 +192,3 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 
 	return createdIdentityRole
 }
-

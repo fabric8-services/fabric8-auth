@@ -10,10 +10,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/jinzhu/gorm"
 
+	"fmt"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"fmt"
 )
 
 type Resource struct {

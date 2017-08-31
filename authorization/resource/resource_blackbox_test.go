@@ -22,11 +22,11 @@ import (
 
 type resourceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo  resource.ResourceRepository
-	identityRepo account.IdentityRepository
+	repo             resource.ResourceRepository
+	identityRepo     account.IdentityRepository
 	resourceTypeRepo resource.ResourceTypeRepository
-	clean func()
-	ctx   context.Context
+	clean            func()
+	ctx              context.Context
 }
 
 func TestRunResourceBlackBoxTest(t *testing.T) {
@@ -135,7 +135,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resource := &resource.Resource{
-		ResourceID: uuid.NewV4().String(),
+		ResourceID:     uuid.NewV4().String(),
 		ParentResource: nil,
 		Owner:          *identity,
 		ResourceType:   *resourceType,
@@ -152,4 +152,3 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 
 	return createdResource
 }
-

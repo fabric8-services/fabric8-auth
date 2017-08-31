@@ -179,7 +179,7 @@ func (m *GormResourceTypeScopeRepository) List(ctx context.Context, resourceType
 	var rows []ResourceTypeScope
 
 	var err error
-	if (resourceType != nil) {
+	if resourceType != nil {
 		err = m.db.Where("resource_type_id = ?", resourceType.ResourceTypeID).Order("name").Find(&rows).Error
 	} else {
 		err = m.db.Order("name").Find(&rows).Error

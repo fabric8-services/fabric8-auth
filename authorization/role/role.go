@@ -48,8 +48,8 @@ type RoleScope struct {
 
 	RoleID uuid.UUID `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
 
-	Scope resource.ResourceTypeScope `gorm:"ForeignKey:ScopeID;AssociationForeignKey:ResourceTypeScopeID"`
-	ScopeID uuid.UUID `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
+	Scope   resource.ResourceTypeScope `gorm:"ForeignKey:ScopeID;AssociationForeignKey:ResourceTypeScopeID"`
+	ScopeID uuid.UUID                  `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
 }
 
 func (m RoleScope) TableName() string {
@@ -121,7 +121,7 @@ func (m *GormRoleRepository) CheckExists(ctx context.Context, id string) (bool, 
 func (m *GormRoleRepository) Load(ctx context.Context, id uuid.UUID) (*Role, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "load"}, time.Now())
 	var native Role
-	err := m.db.Table(m.TableName()).Preload("ResourceType") /*.Preload("Scopes")*/.Where("role_id = ?", id).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("ResourceType"). /*.Preload("Scopes")*/ Where("role_id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundError("role", id.String())
 	}
@@ -245,22 +245,22 @@ func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *resource.
 	defer goa.MeasureSince([]string{"goa", "db", "role", "addscope"}, time.Now())
 
 	roleScope := &RoleScope{
-		RoleID:         u.RoleID,
-		Scope:          *s,
-		ScopeID:        s.ResourceTypeScopeID,
+		RoleID:  u.RoleID,
+		Scope:   *s,
+		ScopeID: s.ResourceTypeScopeID,
 	}
 
 	err := m.db.Create(roleScope).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"role_id": u.RoleID,
+			"role_id":  u.RoleID,
 			"scope_id": s.ResourceTypeScopeID,
-			"err":     err,
+			"err":      err,
 		}, "unable to create the role scope")
 		return errs.WithStack(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
-		"role_id": u.RoleID,
+		"role_id":  u.RoleID,
 		"scope_id": s.ResourceTypeScopeID,
 	}, "Role scope created!")
 	return nil
