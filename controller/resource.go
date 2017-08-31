@@ -25,16 +25,6 @@ func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
 	return nil
 }
 
-// List runs the list action.
-func (c *ResourceController) List(ctx *app.ListResourceContext) error {
-	// ResourceController_List: start_implement
-
-	// Put your logic here
-
-	// ResourceController_List: end_implement
-	return nil
-}
-
 // Read runs the read action.
 func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 	// ResourceController_Read: start_implement
@@ -48,8 +38,6 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 // Register runs the register action.
 func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	// ResourceController_Register: start_implement
-
-	//ctx.Payload.
 
 	// Put your logic here
 
