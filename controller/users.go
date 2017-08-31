@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -14,7 +16,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/wit/witservice"
+	"github.com/fabric8-services/fabric8-wit/goasupport"
 	"github.com/goadesign/goa"
+	goaclient "github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -23,7 +28,8 @@ import (
 )
 
 const (
-	usersEndpoint = "/api/users"
+	delegationFlag = "isRequestDelegated"
+	usersEndpoint  = "/api/users"
 )
 
 // UsersController implements the users resource.
@@ -39,6 +45,7 @@ type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetCacheControlUser() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
+	GetWITEndpointUserProfileUpdate(*goa.RequestData) (string, error)
 }
 
 // NewUsersController creates a users controller.
@@ -177,6 +184,21 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
 			}, "Auth token contains id %s of unknown Identity", *id)
+			/*
+				TODO:
+
+				Idenity/User not found --
+
+				This might be because it's an old user whose info is not present
+				with AUTH, but probably present with WIT.
+				So, call WIT and check if the user exists.
+
+				If Yes, use it to create the new user/identity in the Auth DB,
+				and then proceed with updating it in both places.
+
+				Else, throw Error.
+
+			*/
 			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", *id)))
 			return ctx.Unauthorized(jerrors)
 		}
@@ -361,7 +383,63 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 	}
+	c.notifyWITService(ctx, ctx.RequestData) // TODO: Dont ignore error
 	return returnResponse
+}
+
+// addDelegationFlag adds information for WIT service to know that
+// this was forwarded from AUTH
+func addDelegationFlag(ctx *app.UpdateUsersContext) *app.UpdateUsersContext {
+	ctx.Context = context.WithValue(ctx.Context, delegationFlag, true)
+	return ctx
+}
+
+func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request *goa.RequestData) error {
+	remoteWITClient, err := c.createRemoteWITClient(ctx.Context, request)
+	if err != nil {
+		return err
+	}
+	updateUserPayload := &witservice.UpdateUsersPayload{
+		Data: &witservice.UpdateUserData{
+			Attributes: &witservice.UpdateIdentityDataAttributes{
+				Bio:                   ctx.Payload.Data.Attributes.Bio,
+				Company:               ctx.Payload.Data.Attributes.Company,
+				ContextInformation:    ctx.Payload.Data.Attributes.ContextInformation,
+				Email:                 ctx.Payload.Data.Attributes.Email,
+				FullName:              ctx.Payload.Data.Attributes.FullName,
+				ImageURL:              ctx.Payload.Data.Attributes.ImageURL,
+				RegistrationCompleted: ctx.Payload.Data.Attributes.RegistrationCompleted,
+				URL:      ctx.Payload.Data.Attributes.URL,
+				Username: ctx.Payload.Data.Attributes.Username,
+			},
+			Type: ctx.Payload.Data.Type,
+			Links: &witservice.GenericLinks{
+				Self:    ctx.Payload.Data.Links.Self,
+				Related: ctx.Payload.Data.Links.Related,
+				Meta:    ctx.Payload.Data.Links.Meta,
+			},
+		},
+	}
+	ctx = addDelegationFlag(ctx)
+	_, err = remoteWITClient.UpdateUsers(goasupport.ForwardContextRequestID(ctx), "", updateUserPayload)
+	return err
+}
+
+func (c *UsersController) createRemoteWITClient(ctx context.Context, request *goa.RequestData) (*witservice.Client, error) {
+	authUserProfileEndpoint, err := c.config.GetWITEndpointUserProfileUpdate(request)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := url.Parse(authUserProfileEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	WITClient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
+	WITClient.Host = u.Host
+	WITClient.Scheme = u.Scheme
+	WITClient.SetJWTSigner(goasupport.NewForwardSigner(ctx))
+	return WITClient, nil
 }
 
 func isEmailValid(email string) bool {

@@ -156,6 +156,11 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
 		}
 
+		/*
+			TODO:
+			Call WIT and update the user details.
+		*/
+
 		log.Debug(ctx, map[string]interface{}{
 			"code":           code,
 			"state":          state,

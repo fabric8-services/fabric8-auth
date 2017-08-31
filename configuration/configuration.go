@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-wit/rest"
 	"github.com/goadesign/goa"
 	"github.com/spf13/viper"
 )
@@ -33,49 +33,71 @@ const (
 	// Constants for viper variable names. Will be used to set
 	// default values as well as to get each value
 
-	varPostgresHost                     = "postgres.host"
-	varPostgresPort                     = "postgres.port"
-	varPostgresUser                     = "postgres.user"
-	varPostgresDatabase                 = "postgres.database"
-	varPostgresPassword                 = "postgres.password"
-	varPostgresSSLMode                  = "postgres.sslmode"
-	varPostgresConnectionTimeout        = "postgres.connection.timeout"
-	varPostgresTransactionTimeout       = "postgres.transaction.timeout"
-	varPostgresConnectionRetrySleep     = "postgres.connection.retrysleep"
-	varPostgresConnectionMaxIdle        = "postgres.connection.maxidle"
-	varPostgresConnectionMaxOpen        = "postgres.connection.maxopen"
-	varHTTPAddress                      = "http.address"
-	varDeveloperModeEnabled             = "developer.mode.enabled"
-	varKeycloakSecret                   = "keycloak.secret"
-	varKeycloakClientID                 = "keycloak.client.id"
-	varKeycloakDomainPrefix             = "keycloak.domain.prefix"
-	varKeycloakRealm                    = "keycloak.realm"
-	varKeycloakTesUserName              = "keycloak.testuser.name"
-	varKeycloakTesUserSecret            = "keycloak.testuser.secret"
-	varKeycloakTesUser2Name             = "keycloak.testuser2.name"
-	varKeycloakTesUser2Secret           = "keycloak.testuser2.secret"
-	varKeycloakURL                      = "keycloak.url"
-	varKeycloakEndpointAdmin            = "keycloak.endpoint.admin"
-	varKeycloakEndpointAuth             = "keycloak.endpoint.auth"
-	varKeycloakEndpointToken            = "keycloak.endpoint.token"
-	varKeycloakEndpointUserinfo         = "keycloak.endpoint.userinfo"
-	varKeycloakEndpointAuthzResourceset = "keycloak.endpoint.authz.resourceset"
-	varKeycloakEndpointClients          = "keycloak.endpoint.clients"
-	varKeycloakEndpointEntitlement      = "keycloak.endpoint.entitlement"
-	varKeycloakEndpointBroker           = "keycloak.endpoint.broker"
-	varKeycloakEndpointAccount          = "keycloak.endpoint.account"
-	varKeycloakEndpointLogout           = "keycloak.endpoint.logout"
-	varTokenPublicKey                   = "token.publickey"
-	varTokenPrivateKey                  = "token.privatekey"
-	varNotApprovedRedirect              = "notapproved.redirect"
-	varHeaderMaxLength                  = "header.maxlength"
-	varCacheControlUsers                = "cachecontrol.users"
-	varCacheControlCollaborators        = "cachecontrol.collaborators"
-	varCacheControlUser                 = "cachecontrol.user"
-	defaultConfigFile                   = "config.yaml"
-	varValidRedirectURLs                = "redirect.valid"
-	varLogLevel                         = "log.level"
-	varLogJSON                          = "log.json"
+	varPostgresHost                 = "postgres.host"
+	varPostgresPort                 = "postgres.port"
+	varPostgresUser                 = "postgres.user"
+	varPostgresDatabase             = "postgres.database"
+	varPostgresPassword             = "postgres.password"
+	varPostgresSSLMode              = "postgres.sslmode"
+	varPostgresConnectionTimeout    = "postgres.connection.timeout"
+	varPostgresTransactionTimeout   = "postgres.transaction.timeout"
+	varPostgresConnectionRetrySleep = "postgres.connection.retrysleep"
+	varPostgresConnectionMaxIdle    = "postgres.connection.maxidle"
+	varPostgresConnectionMaxOpen    = "postgres.connection.maxopen"
+	varFeatureWorkitemRemote        = "feature.workitem.remote"
+	varPopulateCommonTypes          = "populate.commontypes"
+	varHTTPAddress                  = "http.address"
+	varDeveloperModeEnabled         = "developer.mode.enabled"
+	varAuthDomainPrefix             = "auth.domain.prefix"
+	varAuthURL                      = "auth.url"
+	varAuthorizationEnabled         = "authz.enabled"
+	varGithubAuthToken              = "github.auth.token"
+	varKeycloakSecret               = "keycloak.secret"
+	varKeycloakClientID             = "keycloak.client.id"
+	varKeycloakDomainPrefix         = "keycloak.domain.prefix"
+	varKeycloakRealm                = "keycloak.realm"
+	varKeycloakTesUserName          = "keycloak.testuser.name"
+	varKeycloakTesUserSecret        = "keycloak.testuser.secret"
+	varKeycloakTesUser2Name         = "keycloak.testuser2.name"
+	varKeycloakTesUser2Secret       = "keycloak.testuser2.secret"
+	varKeycloakURL                  = "keycloak.url"
+	varTokenPublicKey               = "token.publickey"
+	varTokenPrivateKey              = "token.privatekey"
+	varAuthNotApprovedRedirect      = "auth.notapproved.redirect"
+	varHeaderMaxLength              = "header.maxlength"
+
+	// cache control settings for a list of resources
+	varCacheControlWorkItems         = "cachecontrol.workitems"
+	varCacheControlWorkItemTypes     = "cachecontrol.workitemtypes"
+	varCacheControlWorkItemLinks     = "cachecontrol.workitemLinks"
+	varCacheControlWorkItemLinkTypes = "cachecontrol.workitemlinktypes"
+	varCacheControlSpaces            = "cachecontrol.spaces"
+	varCacheControlIterations        = "cachecontrol.iterations"
+	varCacheControlAreas             = "cachecontrol.areas"
+	varCacheControlComments          = "cachecontrol.comments"
+	varCacheControlFilters           = "cachecontrol.filters"
+	varCacheControlUsers             = "cachecontrol.users"
+	varCacheControlCollaborators     = "cachecontrol.collaborators"
+
+	// cache control settings for a single resource
+	varCacheControlUser             = "cachecontrol.user"
+	varCacheControlWorkItem         = "cachecontrol.workitem"
+	varCacheControlWorkItemType     = "cachecontrol.workitemtype"
+	varCacheControlWorkItemLink     = "cachecontrol.workitemLink"
+	varCacheControlWorkItemLinkType = "cachecontrol.workitemlinktype"
+	varCacheControlSpace            = "cachecontrol.space"
+	varCacheControlIteration        = "cachecontrol.iteration"
+	varCacheControlArea             = "cachecontrol.area"
+	varCacheControlComment          = "cachecontrol.comment"
+
+	defaultConfigFile           = "config.yaml"
+	varOpenshiftTenantMasterURL = "openshift.tenant.masterurl"
+	varCheStarterURL            = "chestarterurl"
+	varValidRedirectURLs        = "redirect.valid"
+	varLogLevel                 = "log.level"
+	varLogJSON                  = "log.json"
+	varTenantServiceURL         = "tenant.serviceurl"
+	varNotificationServiceURL   = "notification.serviceurl"
 )
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -88,7 +110,7 @@ func NewConfigurationData(configFilePath string) (*ConfigurationData, error) {
 	c := ConfigurationData{
 		v: viper.New(),
 	}
-	c.v.SetEnvPrefix("AUTH")
+	c.v.SetEnvPrefix("F8")
 	c.v.AutomaticEnv()
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	c.v.SetTypeByDefaultValue(true)
@@ -107,7 +129,7 @@ func NewConfigurationData(configFilePath string) (*ConfigurationData, error) {
 
 func getConfigFilePath() string {
 	// This was either passed as a env var Or, set inside main.go from --config
-	envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH")
+	envConfigPath, ok := os.LookupEnv("F8_CONFIG_FILE_PATH")
 	if !ok {
 		return ""
 	}
@@ -132,7 +154,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	//---------
 	c.v.SetTypeByDefaultValue(true)
 	c.v.SetDefault(varPostgresHost, "localhost")
-	c.v.SetDefault(varPostgresPort, 5433)
+	c.v.SetDefault(varPostgresPort, 5432)
 	c.v.SetDefault(varPostgresUser, "postgres")
 	c.v.SetDefault(varPostgresDatabase, "postgres")
 	c.v.SetDefault(varPostgresPassword, "mysecretpassword")
@@ -150,7 +172,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	//-----
 	// HTTP
 	//-----
-	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8089")
+	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8080")
 	c.v.SetDefault(varHeaderMaxLength, defaultHeaderMaxLength)
 
 	//-----
@@ -162,24 +184,52 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
+	c.v.SetDefault(varPopulateCommonTypes, true)
+
 	// Auth-related defaults
+	c.v.SetDefault(varAuthDomainPrefix, "auth")
 	c.v.SetDefault(varTokenPublicKey, defaultTokenPublicKey)
 	c.v.SetDefault(varTokenPrivateKey, defaultTokenPrivateKey)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
+	c.v.SetDefault(varGithubAuthToken, defaultActualToken)
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 
-	// HTTP Cache-Control/max-age default
+	// HTTP Cache-Control/max-age default for a list of resources
+	c.v.SetDefault(varCacheControlWorkItems, "max-age=2") // very short life in cache, to allow for quick, repetitive updates.
+	c.v.SetDefault(varCacheControlWorkItemTypes, "max-age=2")
+	c.v.SetDefault(varCacheControlWorkItemLinks, "max-age=2")
+	c.v.SetDefault(varCacheControlWorkItemLinkTypes, "max-age=2")
+	c.v.SetDefault(varCacheControlSpaces, "max-age=2")
+	c.v.SetDefault(varCacheControlIterations, "max-age=2")
+	c.v.SetDefault(varCacheControlAreas, "max-age=2")
+	c.v.SetDefault(varCacheControlComments, "max-age=2")
+	c.v.SetDefault(varCacheControlFilters, "max-age=86400")
 	c.v.SetDefault(varCacheControlUsers, "max-age=2")
 	c.v.SetDefault(varCacheControlCollaborators, "max-age=2")
+
+	// Cache control values for a single resource
+	c.v.SetDefault(varCacheControlWorkItem, "private,max-age=2")
+	c.v.SetDefault(varCacheControlWorkItemType, "private,max-age=120")
+	c.v.SetDefault(varCacheControlWorkItemLink, "private,max-age=120")
+	c.v.SetDefault(varCacheControlWorkItemLinkType, "private,max-age=120")
+	c.v.SetDefault(varCacheControlSpace, "private,max-age=120")
+	c.v.SetDefault(varCacheControlIteration, "private,max-age=2")
+	c.v.SetDefault(varCacheControlArea, "private,max-age=120")
+	c.v.SetDefault(varCacheControlComment, "private,max-age=120")
 	// data returned from '/api/user' must not be cached by intermediate proxies,
 	// but can only be kept in the client's local cache.
-	c.v.SetDefault(varCacheControlUser, "private,max-age=10")
+	c.v.SetDefault(varCacheControlUser, "private,max-age=120")
+
+	// Features
+	c.v.SetDefault(varFeatureWorkitemRemote, true)
 
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
+	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
+	c.v.SetDefault(varCheStarterURL, defaultCheStarterURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -190,6 +240,11 @@ func (c *ConfigurationData) GetPostgresHost() string {
 // GetPostgresPort returns the postgres port as set via default, config file, or environment variable
 func (c *ConfigurationData) GetPostgresPort() int64 {
 	return c.v.GetInt64(varPostgresPort)
+}
+
+// GetFeatureWorkitemRemote returns true if remote Work Item feaute is enabled
+func (c *ConfigurationData) GetFeatureWorkitemRemote() bool {
+	return c.v.GetBool(varFeatureWorkitemRemote)
 }
 
 // GetPostgresUser returns the postgres user as set via default, config file, or environment variable
@@ -253,8 +308,14 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 	)
 }
 
+// GetPopulateCommonTypes returns true if the (as set via default, config file, or environment variable)
+// the common work item types such as bug or feature shall be created.
+func (c *ConfigurationData) GetPopulateCommonTypes() bool {
+	return c.v.GetBool(varPopulateCommonTypes)
+}
+
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or environment variable)
-// that the alm server binds to (e.g. "0.0.0.0:8089")
+// that the wit server binds to (e.g. "0.0.0.0:8080")
 func (c *ConfigurationData) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
 }
@@ -269,6 +330,118 @@ func (c *ConfigurationData) GetHeaderMaxLength() int64 {
 // e.g. token generation endpoint are enabled
 func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
+}
+
+// IsAuthorizationEnabled returns true if space authorization enabled
+// By default athorization is disabled in Developer Mode only (if F8_AUTHZ_ENABLED us not set)
+// Set F8_AUTHZ_ENABLED env var to explictly disable or enable authorization regardless of Developer Mode settings
+func (c *ConfigurationData) IsAuthorizationEnabled() bool {
+	if c.v.IsSet(varAuthorizationEnabled) {
+		return c.v.GetBool(varAuthorizationEnabled)
+	}
+	return !c.IsPostgresDeveloperModeEnabled()
+}
+
+// GetCacheControlWorkItemTypes returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of work item types.
+func (c *ConfigurationData) GetCacheControlWorkItemTypes() string {
+	return c.v.GetString(varCacheControlWorkItemTypes)
+}
+
+// GetCacheControlWorkItemType returns the value to set in the "Cache-Control" HTTP response header
+// when returning a work item type.
+func (c *ConfigurationData) GetCacheControlWorkItemType() string {
+	return c.v.GetString(varCacheControlWorkItemType)
+}
+
+// GetCacheControlWorkItemLinkTypes returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of work item types.
+func (c *ConfigurationData) GetCacheControlWorkItemLinkTypes() string {
+	return c.v.GetString(varCacheControlWorkItemLinkTypes)
+}
+
+// GetCacheControlWorkItemLinkType returns the value to set in the "Cache-Control" HTTP response header
+// when returning a work item type.
+func (c *ConfigurationData) GetCacheControlWorkItemLinkType() string {
+	return c.v.GetString(varCacheControlWorkItemLinkType)
+}
+
+// GetCacheControlWorkItems returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of work items.
+func (c *ConfigurationData) GetCacheControlWorkItems() string {
+	return c.v.GetString(varCacheControlWorkItems)
+}
+
+// GetCacheControlWorkItem returns the value to set in the "Cache-Control" HTTP response header
+// when returning a work item.
+func (c *ConfigurationData) GetCacheControlWorkItem() string {
+	return c.v.GetString(varCacheControlWorkItem)
+}
+
+// GetCacheControlWorkItemLinks returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of work item links.
+func (c *ConfigurationData) GetCacheControlWorkItemLinks() string {
+	return c.v.GetString(varCacheControlWorkItemLinks)
+}
+
+// GetCacheControlWorkItemLink returns the value to set in the "Cache-Control" HTTP response header
+// when returning a work item.
+func (c *ConfigurationData) GetCacheControlWorkItemLink() string {
+	return c.v.GetString(varCacheControlWorkItemLink)
+}
+
+// GetCacheControlAreas returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of work items.
+func (c *ConfigurationData) GetCacheControlAreas() string {
+	return c.v.GetString(varCacheControlAreas)
+}
+
+// GetCacheControlArea returns the value to set in the "Cache-Control" HTTP response header
+// when returning a work item (or a list of).
+func (c *ConfigurationData) GetCacheControlArea() string {
+	return c.v.GetString(varCacheControlArea)
+}
+
+// GetCacheControlSpaces returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of spaces.
+func (c *ConfigurationData) GetCacheControlSpaces() string {
+	return c.v.GetString(varCacheControlSpaces)
+}
+
+// GetCacheControlSpace returns the value to set in the "Cache-Control" HTTP response header
+// when returning a space.
+func (c *ConfigurationData) GetCacheControlSpace() string {
+	return c.v.GetString(varCacheControlSpace)
+}
+
+// GetCacheControlIterations returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of iterations.
+func (c *ConfigurationData) GetCacheControlIterations() string {
+	return c.v.GetString(varCacheControlIterations)
+}
+
+// GetCacheControlIteration returns the value to set in the "Cache-Control" HTTP response header
+// when returning an iteration.
+func (c *ConfigurationData) GetCacheControlIteration() string {
+	return c.v.GetString(varCacheControlIteration)
+}
+
+// GetCacheControlComments returns the value to set in the "Cache-Control" HTTP response header
+// when returning a list of comments.
+func (c *ConfigurationData) GetCacheControlComments() string {
+	return c.v.GetString(varCacheControlComments)
+}
+
+// GetCacheControlComment returns the value to set in the "Cache-Control" HTTP response header
+// when returning a comment.
+func (c *ConfigurationData) GetCacheControlComment() string {
+	return c.v.GetString(varCacheControlComment)
+}
+
+// GetCacheControlFilters returns the value to set in the "Cache-Control" HTTP response header
+// when returning comments.
+func (c *ConfigurationData) GetCacheControlFilters() string {
+	return c.v.GetString(varCacheControlFilters)
 }
 
 // GetCacheControlUsers returns the value to set in the "Cache-Control" HTTP response header
@@ -301,10 +474,60 @@ func (c *ConfigurationData) GetTokenPublicKey() []byte {
 	return []byte(c.v.GetString(varTokenPublicKey))
 }
 
-// GetNotApprovedRedirect returns the URL to redirect to if the user is not approved
+// GetWITDevModeURL returns Auth Service URL used by default in Dev mode
+func (c *ConfigurationData) GetWITDevModeURL() string {
+	return devModeWITURL
+}
+
+// GetWITDomainPrefix returns the domain prefix which should be used in requests to the auth service
+func (c *ConfigurationData) GetWITDomainPrefix() string {
+	return c.v.GetString(varAuthDomainPrefix)
+}
+
+// GetWITEndpointSpaces returns the <auth>/api/spaces endpoint
+// set via config file or environment variable.
+// If nothing set then in Dev environment the defualt endopoint will be returned.
+// In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
+// Example: api.service.domain.org -> auth.service.domain.org
+// or api.domain.org -> auth.domain.org
+func (c *ConfigurationData) GetWITEndpointUserProfileUpdate(req *goa.RequestData) (string, error) {
+	return c.getWITEndpoint(req, "api/users")
+}
+
+func (c *ConfigurationData) getWITEndpoint(req *goa.RequestData, pathSufix string) (string, error) {
+	return c.getServiceEndpoint(req, varAuthURL, devModeWITURL, c.GetWITDomainPrefix(), pathSufix)
+}
+
+func (c *ConfigurationData) getServiceEndpoint(req *goa.RequestData, varServiceURL string, devModeURL string, serviceDomainPrefix string, pathSufix string) (string, error) {
+	var endpoint string
+	var err error
+	if c.v.IsSet(varServiceURL) {
+		// Service URL is set. Calculate the URL endpoint
+		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varServiceURL), pathSufix)
+	} else {
+		if c.IsPostgresDeveloperModeEnabled() {
+			// Devmode is enabled. Calculate the URL endopoint using the devmode Service URL
+			endpoint = fmt.Sprintf("%s/%s", devModeURL, pathSufix)
+		} else {
+			// Calculate relative URL based on request
+			endpoint, err = c.getServiceURL(req, serviceDomainPrefix, pathSufix)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+	return endpoint, nil
+}
+
+// GetAuthNotApprovedRedirect returns the URL to redirect to if the user is not approved
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
-func (c *ConfigurationData) GetNotApprovedRedirect() string {
-	return c.v.GetString(varNotApprovedRedirect)
+func (c *ConfigurationData) GetAuthNotApprovedRedirect() string {
+	return c.v.GetString(varAuthNotApprovedRedirect)
+}
+
+// GetGithubAuthToken returns the actual Github OAuth Access Token
+func (c *ConfigurationData) GetGithubAuthToken() string {
+	return c.v.GetString(varGithubAuthToken)
 }
 
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
@@ -361,7 +584,7 @@ func (c *ConfigurationData) GetKeycloakTestUser2Secret() string {
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointAuth(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointAuth, "auth")
+	return c.getKeycloakOpenIDConnectEndpoint(req, "auth")
 }
 
 // GetKeycloakEndpointToken returns the keycloak token endpoint set via config file or environment variable.
@@ -370,7 +593,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuth(req *goa.RequestData) (strin
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointToken, "token")
+	return c.getKeycloakOpenIDConnectEndpoint(req, "token")
 }
 
 // GetKeycloakEndpointUserInfo returns the keycloak userinfo endpoint set via config file or environment variable.
@@ -379,7 +602,7 @@ func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (stri
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointUserInfo(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointUserinfo, "userinfo")
+	return c.getKeycloakOpenIDConnectEndpoint(req, "userinfo")
 }
 
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
@@ -389,7 +612,7 @@ func (c *ConfigurationData) GetKeycloakEndpointUserInfo(req *goa.RequestData) (s
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm())
+	return c.getKeycloakEndpoint(req, "auth/admin/realms/"+c.GetKeycloakRealm())
 }
 
 // GetKeycloakEndpointAuthzResourceset returns the <keycloak>/realms/<realm>/authz/protection/resource_set endpoint
@@ -399,7 +622,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (stri
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointAuthzResourceset(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAuthzResourceset, "auth/realms/"+c.GetKeycloakRealm()+"/authz/protection/resource_set")
+	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/authz/protection/resource_set")
 }
 
 // GetKeycloakEndpointClients returns the <keycloak>/admin/realms/<realm>/clients endpoint
@@ -409,7 +632,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuthzResourceset(req *goa.Request
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointClients(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointClients, "auth/admin/realms/"+c.GetKeycloakRealm()+"/clients")
+	return c.getKeycloakEndpoint(req, "auth/admin/realms/"+c.GetKeycloakRealm()+"/clients")
 }
 
 // GetKeycloakEndpointEntitlement returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
@@ -419,7 +642,7 @@ func (c *ConfigurationData) GetKeycloakEndpointClients(req *goa.RequestData) (st
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointEntitlement(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointEntitlement, "auth/realms/"+c.GetKeycloakRealm()+"/authz/entitlement/"+c.GetKeycloakClientID())
+	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/authz/entitlement/"+c.GetKeycloakClientID())
 }
 
 // GetKeycloakEndpointBroker returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
@@ -429,12 +652,12 @@ func (c *ConfigurationData) GetKeycloakEndpointEntitlement(req *goa.RequestData)
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointBroker(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointBroker, "auth/realms/"+c.GetKeycloakRealm()+"/broker")
+	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/broker")
 }
 
 // GetKeycloakAccountEndpoint returns the API URL for Read and Update on Keycloak User Accounts.
 func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAccount, "auth/realms/"+c.GetKeycloakRealm()+"/account")
+	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/account")
 }
 
 // GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.
@@ -443,7 +666,7 @@ func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (st
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointLogout(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointLogout, "logout")
+	return c.getKeycloakOpenIDConnectEndpoint(req, "logout")
 }
 
 // GetKeycloakDevModeURL returns Keycloak URL used by default in Dev mode
@@ -451,42 +674,19 @@ func (c *ConfigurationData) GetKeycloakDevModeURL() string {
 	return devModeKeycloakURL
 }
 
-func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
-	return c.getKeycloakEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
+func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, pathSufix string) (string, error) {
+	return c.getKeycloakEndpoint(req, c.openIDConnectPath(pathSufix))
 }
 
-func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
-	if c.v.IsSet(endpointVarName) {
-		return c.v.GetString(endpointVarName), nil
-	}
-	var endpoint string
-	var err error
-	if c.v.IsSet(varKeycloakURL) {
-		// Keycloak URL is set. Calculate the URL endpoint
-		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varKeycloakURL), pathSufix)
-	} else {
-		if c.IsPostgresDeveloperModeEnabled() {
-			// Devmode is enabled. Calculate the URL endopoint using the devmode Keycloak URL
-			endpoint = fmt.Sprintf("%s/%s", devModeKeycloakURL, pathSufix)
-		} else {
-			// Calculate relative URL based on request
-			endpoint, err = c.getKeycloakURL(req, pathSufix)
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
-	// Can't set this variable because viper is not thread-safe. See https://github.com/spf13/viper/issues/268
-	// c.v.Set(endpointVarName, endpoint) // Set the variable, so, we don't have to recalculate it again the next time
-	return endpoint, nil
+func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, pathSufix string) (string, error) {
+	return c.getServiceEndpoint(req, varKeycloakURL, devModeKeycloakURL, c.GetKeycloakDomainPrefix(), pathSufix)
 }
 
 func (c *ConfigurationData) openIDConnectPath(suffix string) string {
 	return "auth/realms/" + c.GetKeycloakRealm() + "/protocol/openid-connect/" + suffix
 }
 
-func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (string, error) {
+func (c *ConfigurationData) getServiceURL(req *goa.RequestData, serviceDomainPrefix string, path string) (string, error) {
 	scheme := "http"
 	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
 		scheme = "https"
@@ -496,13 +696,23 @@ func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (s
 		scheme = xForwardProto
 	}
 
-	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetKeycloakDomainPrefix())
+	newHost, err := rest.ReplaceDomainPrefix(req.Host, serviceDomainPrefix)
 	if err != nil {
 		return "", err
 	}
 	newURL := fmt.Sprintf("%s://%s/%s", scheme, newHost, path)
 
 	return newURL, nil
+}
+
+// GetCheStarterURL returns the URL for the Che Starter service used by codespaces to initiate code editing
+func (c *ConfigurationData) GetCheStarterURL() string {
+	return c.v.GetString(varCheStarterURL)
+}
+
+// GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
+func (c *ConfigurationData) GetOpenshiftTenantMasterURL() string {
+	return c.v.GetString(varOpenshiftTenantMasterURL)
 }
 
 // GetLogLevel returns the loggging level (as set via config file or environment variable)
@@ -522,7 +732,7 @@ func (c *ConfigurationData) IsLogJSON() bool {
 }
 
 // GetValidRedirectURLs returns the RegEx of valid redirect URLs for auth requests
-// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
+// If the F8_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 // In prod mode the default regex will be returned
 func (c *ConfigurationData) GetValidRedirectURLs(req *goa.RequestData) (string, error) {
 	if c.v.IsSet(varValidRedirectURLs) {
@@ -548,13 +758,23 @@ func (c *ConfigurationData) checkLocalhostRedirectException(req *goa.RequestData
 	return DefaultValidRedirectURLs, nil
 }
 
+// GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
+func (c *ConfigurationData) GetTenantServiceURL() string {
+	return c.v.GetString(varTenantServiceURL)
+}
+
+// GetNotificationServiceURL returns the URL for the Notification service used for event notification
+func (c *ConfigurationData) GetNotificationServiceURL() string {
+	return c.v.GetString(varNotificationServiceURL)
+}
+
 const (
 	defaultHeaderMaxLength = 5000 // bytes
 
 	// Auth-related defaults
 
 	// RSAPrivateKey for signing JWT Tokens
-	// ssh-keygen -f alm_rsa
+	// ssh-keygen -f wit_rsa
 	defaultTokenPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
 DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
@@ -584,7 +804,7 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 -----END RSA PRIVATE KEY-----`
 
 	// RSAPublicKey for verifying JWT Tokens
-	// openssl rsa -in alm_rsa -pubout -out alm_rsa.pub
+	// openssl rsa -in wit_rsa -pubout -out wit_rsa.pub
 	defaultTokenPublicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvQ8p+HsTMrgcsuIMoOR1
 LXRhynL9YAU0qoDON6PLKCpdBv0Xy/jnsPjo5DrtUOijuJcID8CR7E0hYpY9MgK5
@@ -596,6 +816,9 @@ vwIDAQAB
 -----END PUBLIC KEY-----`
 
 	defaultLogLevel = "info"
+
+	// Auth service URL to be used in dev mode. Can be overridden by setting up auth.url
+	devModeWITURL = "https://auth.prod-preview.openshift.io"
 
 	defaultKeycloakClientID = "fabric8-online-platform"
 	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
@@ -615,8 +838,11 @@ vwIDAQAB
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
 
+	defaultOpenshiftTenantMasterURL = "https://tsrv.devshift.net:8443"
+	defaultCheStarterURL            = "che-server"
+
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
-	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
+	// If the F8_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 	// In prod mode the following regex will be used by default:
 	DefaultValidRedirectURLs = "^(https|http)://([^/]+[.])?(?i:openshift[.]io)(/.*)?$" // *.openshift.io/*
 	devModeValidRedirectURLs = ".*"
