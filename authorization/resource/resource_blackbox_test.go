@@ -88,7 +88,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 		//t.Parallel()
 		resource := createAndLoadResource(s)
 		// when
-		_, err := s.repo.CheckExists(s.ctx, resource.ResourceID)
+		err := s.repo.CheckExists(s.ctx, resource.ResourceID)
 		// then
 		require.Nil(t, err)
 	})
@@ -96,7 +96,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 	t.Run("resource doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		// Check not existing
-		_, err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
 	})
@@ -108,18 +108,19 @@ func (s *resourceBlackBoxTest) TestOKToSave() {
 
 	resource := createAndLoadResource(s)
 
+	resource.Description = "foo"
 	err := s.repo.Save(s.ctx, resource)
 	require.Nil(s.T(), err, "Could not update resource")
 
-	//updatedResource, err := s.repo.Load(s.ctx, resource.ID)
-	//require.Nil(s.T(), err, "Could not load resource")
-	//assert.Equal(s.T(), resource.Description, "A description of the created resource")
+	updatedResource, err := s.repo.Load(s.ctx, resource.ResourceID)
+	require.Nil(s.T(), err, "Could not load resource")
+	assert.Equal(s.T(), updatedResource.Description, "foo")
 }
 
 func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	identity := &account.Identity{
 		ID:           uuid.NewV4(),
-		Username:     "someuserTestIdentity2",
+		Username:     "resource_blackbox_test_someuserTestIdentity2",
 		ProviderType: account.KeycloakIDP}
 
 	err := s.identityRepo.Create(s.ctx, identity)
@@ -127,7 +128,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 
 	resourceType := &resource.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
-		Name:           "Area" + uuid.NewV4().String(),
+		Name:           "resource_blackbox_test_Area" + uuid.NewV4().String(),
 		Description:    "An area is a logical grouping within a space",
 	}
 
@@ -139,7 +140,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 		ParentResource: nil,
 		Owner:          *identity,
 		ResourceType:   *resourceType,
-		Description:    "A description of the created resource",
+		Description:    "resource_blackbox_test_A description of the created resource",
 	}
 
 	err = s.repo.Create(s.ctx, resource)

@@ -55,9 +55,6 @@ func (s *roleBlackBoxTest) TearDownTest() {
 }
 
 func (s *roleBlackBoxTest) TestOKToDelete() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	// create 2 roles, where the first one would be deleted.
 	role := createAndLoadRole(s)
 	createAndLoadRole(s)
@@ -144,7 +141,7 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 
 	resourceType := &resource.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
-		Name:           "Area" + uuid.NewV4().String(),
+		Name:           "role_blackbox_test_Area" + uuid.NewV4().String(),
 		Description:    "An area is a logical grouping within a space",
 	}
 
@@ -155,7 +152,7 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceType:        *resourceType,
 		ResourceTypeID:      resourceType.ResourceTypeID,
-		Name:                "collaborate" + uuid.NewV4().String(),
+		Name:                "role_blackbox_test_collaborate" + uuid.NewV4().String(),
 		Description:         "Collaborators may perform many operations within an area",
 	}
 
@@ -166,7 +163,7 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 		RoleID:         uuid.NewV4(),
 		ResourceType:   *resourceType,
 		ResourceTypeID: resourceType.ResourceTypeID,
-		Name:           "admin" + uuid.NewV4().String(),
+		Name:           "role_blackbox_test_admin" + uuid.NewV4().String(),
 		//Scopes:         []resource.ResourceTypeScope{*resourceTypeScope},
 	}
 

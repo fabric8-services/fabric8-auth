@@ -61,9 +61,6 @@ func (s *identityRoleBlackBoxTest) TearDownTest() {
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToDelete() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	// create 2 identity roles, where the first one would be deleted.
 	identityRole := createAndLoadIdentityRole(s)
 	createAndLoadIdentityRole(s)
@@ -130,7 +127,7 @@ func (s *identityRoleBlackBoxTest) TestOKToSave() {
 func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	identity := &account.Identity{
 		ID:           uuid.NewV4(),
-		Username:     "someuserTestIdentity2",
+		Username:     "identity_role_blackbox_test_someuserTestIdentity2",
 		ProviderType: account.KeycloakIDP}
 
 	err := s.identityRepo.Create(s.ctx, identity)
@@ -138,7 +135,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 
 	resourceType := &resource.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
-		Name:           "Area" + uuid.NewV4().String(),
+		Name:           "identity_role_blackbox_test_Area" + uuid.NewV4().String(),
 		Description:    "An area is a logical grouping within a space",
 	}
 
@@ -149,7 +146,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceType:        *resourceType,
 		ResourceTypeID:      resourceType.ResourceTypeID,
-		Name:                "collaborate" + uuid.NewV4().String(),
+		Name:                "identity_role_blackbox_test_collaborate" + uuid.NewV4().String(),
 		Description:         "Collaborators may perform many operations within an area",
 	}
 
@@ -161,7 +158,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		ParentResource: nil,
 		Owner:          *identity,
 		ResourceType:   *resourceType,
-		Description:    "A description of the created resource",
+		Description:    "identity_role_blackbox_test_A description of the created resource",
 	}
 
 	err = s.resourceRepo.Create(s.ctx, res)
@@ -171,7 +168,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		RoleID:         uuid.NewV4(),
 		ResourceType:   *resourceType,
 		ResourceTypeID: resourceType.ResourceTypeID,
-		Name:           "admin" + uuid.NewV4().String(),
+		Name:           "identity_role_blackbox_test_admin" + uuid.NewV4().String(),
 		//Scopes:         []resource.ResourceTypeScope{*resourceTypeScope},
 	}
 

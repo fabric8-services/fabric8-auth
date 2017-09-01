@@ -60,7 +60,6 @@ type IdentityRoleRepository interface {
 	Save(ctx context.Context, u *IdentityRole) error
 	List(ctx context.Context) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
-	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]IdentityRole, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -165,23 +164,6 @@ func (m *GormIdentityRoleRepository) List(ctx context.Context) ([]IdentityRole, 
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
-}
-
-// Query expose an open ended Query model
-func (m *GormIdentityRoleRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]IdentityRole, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "query"}, time.Now())
-	var objs []IdentityRole
-
-	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&objs).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-
-	log.Debug(nil, map[string]interface{}{
-		"identity_role_list": objs,
-	}, "Identity role query successfully executed!")
-
-	return objs, nil
 }
 
 // IdentityRoleFilterByID is a gorm filter for Identity Role ID.

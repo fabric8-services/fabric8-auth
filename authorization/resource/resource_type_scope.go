@@ -60,7 +60,6 @@ type ResourceTypeScopeRepository interface {
 	Save(ctx context.Context, u *ResourceTypeScope) error
 	List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
-	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ResourceTypeScope, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -188,28 +187,4 @@ func (m *GormResourceTypeScopeRepository) List(ctx context.Context, resourceType
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
-}
-
-// Query expose an open ended Query model
-func (m *GormResourceTypeScopeRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ResourceTypeScope, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "query"}, time.Now())
-	var objs []ResourceTypeScope
-
-	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&objs).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-
-	log.Debug(nil, map[string]interface{}{
-		"resource_type_scope_list": objs,
-	}, "Resource type scope query successfully executed!")
-
-	return objs, nil
-}
-
-// ResourceTypeScopeFilterByID is a gorm filter for Resource Type Scope ID.
-func ResourceTypeScopeFilterByID(resourceTypeScopeID uuid.UUID) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("resource_type_scope_id = ?", resourceTypeScopeID)
-	}
 }

@@ -52,9 +52,6 @@ func (s *resourceTypeScopeBlackBoxTest) TearDownTest() {
 }
 
 func (s *resourceTypeScopeBlackBoxTest) TestOKToDelete() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	// create 2 resources types, where the first one would be deleted.
 	resourceTypeScope := createAndLoadResourceTypeScope(s)
 	createAndLoadResourceTypeScope(s)
@@ -123,7 +120,7 @@ func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.
 
 	resourceType := &resource.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
-		Name:           "Area" + uuid.NewV4().String(),
+		Name:           "resource_type_scope_blackbox_test_Area" + uuid.NewV4().String(),
 		Description:    "An area is a logical grouping within a space",
 	}
 
@@ -133,7 +130,7 @@ func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceType:        *resourceType,
 		ResourceTypeID:      resourceType.ResourceTypeID,
-		Name:                "collaborate" + uuid.NewV4().String(),
+		Name:                "resource_type_scope_blackbox_test_collaborate" + uuid.NewV4().String(),
 		Description:         "Collaborators may perform many operations within an area",
 	}
 

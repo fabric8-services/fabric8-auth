@@ -14,6 +14,7 @@ import (
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
 )
 
 type Resource struct {
@@ -54,12 +55,11 @@ func NewResourceRepository(db *gorm.DB) ResourceRepository {
 
 // ResourceRepository represents the storage interface.
 type ResourceRepository interface {
-	CheckExists(ctx context.Context, id string) (bool, error)
+	repository.Exister
 	Load(ctx context.Context, id string) (*Resource, error)
 	Create(ctx context.Context, resource *Resource) error
 	Save(ctx context.Context, resource *Resource) error
 	Delete(ctx context.Context, id string) error
-	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Resource, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -84,7 +84,7 @@ func (m *GormResourceRepository) Load(ctx context.Context, id string) (*Resource
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) (bool, error) {
+func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) (error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "exists"}, time.Now())
 
 	var exists bool
@@ -98,12 +98,12 @@ func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) (bo
 
 	err := m.db.CommonDB().QueryRow(query, id).Scan(&exists)
 	if err == nil && !exists {
-		return exists, errors.NewNotFoundError(m.TableName(), id)
+		return errors.NewNotFoundError(m.TableName(), id)
 	}
 	if err != nil {
-		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
+		return errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
 	}
-	return exists, nil
+	return nil
 }
 
 // Create creates a new record.
@@ -136,7 +136,6 @@ func (m *GormResourceRepository) Save(ctx context.Context, resource *Resource) e
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resource.ResourceID,
-			"ctx":         ctx,
 			"err":         err,
 		}, "unable to update the resource")
 		return errs.WithStack(err)
@@ -169,30 +168,8 @@ func (m *GormResourceRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"identity_id": id,
-	}, "Identity deleted!")
+		"resource_id": id,
+	}, "Resource deleted!")
 
 	return nil
-}
-
-// Query expose an open ended Query model
-func (m *GormResourceRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Resource, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "resource", "query"}, time.Now())
-	var resources []Resource
-	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&resources).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-	log.Debug(nil, map[string]interface{}{
-		"resource_query": resources,
-	}, "Resource query executed successfully!")
-
-	return resources, nil
-}
-
-// ResourceFilterByResourceID is a gorm filter for a Belongs To relationship.
-func ResourceFilterByID(id string) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("resource_id = ?", id)
-	}
 }

@@ -79,7 +79,6 @@ type RoleRepository interface {
 	Save(ctx context.Context, u *Role) error
 	List(ctx context.Context) ([]Role, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
-	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Role, error)
 
 	ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error)
 	AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error
@@ -206,23 +205,6 @@ func (m *GormRoleRepository) List(ctx context.Context) ([]Role, error) {
 	return rows, nil
 }
 
-// Query expose an open ended Query model
-func (m *GormRoleRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Role, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "role", "query"}, time.Now())
-	var objs []Role
-
-	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&objs).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-
-	log.Debug(nil, map[string]interface{}{
-		"role_list": objs,
-	}, "Role query successfully executed!")
-
-	return objs, nil
-}
-
 func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listscopes"}, time.Now())
 
@@ -264,11 +246,4 @@ func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *resource.
 		"scope_id": s.ResourceTypeScopeID,
 	}, "Role scope created!")
 	return nil
-}
-
-// RoleFilterByID is a gorm filter for Role ID.
-func RoleFilterByID(roleID uuid.UUID) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("role_id = ?", roleID)
-	}
 }
