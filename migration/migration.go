@@ -115,7 +115,11 @@ func GetMigrations() Migrations {
 	m = append(m, steps{ExecuteSQLFile("003-space-resources.sql")})
 
 	// Version 4
+
 	m = append(m, steps{ExecuteSQLFile("004-unique-resource-space.sql")})
+
+	// Version 5
+	m = append(m, steps{ExecuteSQLFile("005-authorization.sql")})
 
 	// Version N
 	//
