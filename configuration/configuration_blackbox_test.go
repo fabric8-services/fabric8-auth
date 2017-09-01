@@ -96,62 +96,62 @@ func TestGetKeycloakEndpointSetByUrlEnvVaribaleOK(t *testing.T) {
 
 func TestGetKeycloakEndpointAdminDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	os.Setenv(generateEnvKey(varDeveloperModeEnabled), "1")
+	//t.Parallel()
+	//os.Setenv(generateEnvKey(varDeveloperModeEnabled), "true")
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm(), config.GetKeycloakEndpointAdmin)
 }
 
 func TestGetKeycloakEndpointAuthzResourcesetDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/authz/protection/resource_set", config.GetKeycloakEndpointAuthzResourceset)
 }
 
 func TestGetKeycloakEndpointClientsDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/clients", config.GetKeycloakEndpointClients)
 }
 
 func TestGetKeycloakEndpointAuthDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/auth", config.GetKeycloakEndpointAuth)
 }
 
 func TestGetKeycloakEndpointLogoutDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/logout", config.GetKeycloakEndpointLogout)
 }
 
 func TestGetKeycloakEndpointTokenOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/token", config.GetKeycloakEndpointToken)
 }
 
 func TestGetKeycloakEndpointUserInfoOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
 }
 
 func TestGetKeycloakEndpointEntitlementOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/authz/entitlement/fabric8-online-platform", config.GetKeycloakEndpointEntitlement)
 }
 
 func TestGetKeycloakEndpointBrokerOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/broker", config.GetKeycloakEndpointBroker)
 }
 
 func TestGetKeycloakUserInfoEndpointOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	t.Parallel()
+	//t.Parallel()
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/account", config.GetKeycloakAccountEndpoint)
 }
 
@@ -237,7 +237,7 @@ func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 	assert.Equal(t, envValue, viperValue)
 }
 
-func TestGetDeveloperEnabledOK(t *testing.T) {
+func TestGetDeveloperModeEnabledOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	assert.True(t, config.IsPostgresDeveloperModeEnabled())
 }
