@@ -53,37 +53,15 @@ func resetConfiguration(configPath string) {
 	}
 }
 
-func TestGetAuthEndpointSpacesDevModeOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetServiceEndpointOK(t, config.GetAuthDevModeURL()+"/api/spaces", config.GetAuthEndpointSpaces)
-}
-
-func TestGetAuthEndpointSetByUrlEnvVaribaleOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	env := os.Getenv("F8_AUTH_URL")
-	defer func() {
-		os.Setenv("F8_AUTH_URL", env)
-		resetConfiguration(defaultValuesConfigFilePath)
-	}()
-
-	os.Setenv("F8_AUTH_URL", "https://auth.xyz.io")
-	resetConfiguration(defaultValuesConfigFilePath)
-
-	url, err := config.GetAuthEndpointSpaces(reqLong)
-	require.Nil(t, err)
-	require.Equal(t, "https://auth.xyz.io/api/spaces", url)
-}
-
 func TestGetKeycloakEndpointSetByUrlEnvVaribaleOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	env := os.Getenv("F8_KEYCLOAK_URL")
+	env := os.Getenv("AUTH_KEYCLOAK_URL")
 	defer func() {
-		os.Setenv("F8_KEYCLOAK_URL", env)
+		os.Setenv("AUTH_KEYCLOAK_URL", env)
 		resetConfiguration(defaultValuesConfigFilePath)
 	}()
 
-	os.Setenv("F8_KEYCLOAK_URL", "http://xyz.io")
+	os.Setenv("AUTH_KEYCLOAK_URL", "http://xyz.io")
 	resetConfiguration(defaultValuesConfigFilePath)
 
 	url, err := config.GetKeycloakEndpointAuth(reqLong)
@@ -241,7 +219,7 @@ func TestGetMaxHeaderSizeUsingDefaults(t *testing.T) {
 
 func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	envName := "F8_HEADER_MAXLENGTH"
+	envName := "AUTH_HEADER_MAXLENGTH"
 	envValue := time.Now().Unix()
 	env := os.Getenv(envName)
 	defer func() {
@@ -258,7 +236,7 @@ func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 }
 
 func generateEnvKey(yamlKey string) string {
-	return "F8_" + strings.ToUpper(strings.Replace(yamlKey, ".", "_", -1))
+	return "AUTH_" + strings.ToUpper(strings.Replace(yamlKey, ".", "_", -1))
 }
 
 func checkGetKeycloakEndpointSetByEnvVaribaleOK(t *testing.T, envName string, getEndpoint func(req *goa.RequestData) (string, error)) {
