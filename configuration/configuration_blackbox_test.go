@@ -235,6 +235,11 @@ func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 	assert.Equal(t, envValue, viperValue)
 }
 
+func TestGetDeveloperEnabledOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	assert.True(t, config.IsPostgresDeveloperModeEnabled())
+}
+
 func generateEnvKey(yamlKey string) string {
 	return "AUTH_" + strings.ToUpper(strings.Replace(yamlKey, ".", "_", -1))
 }

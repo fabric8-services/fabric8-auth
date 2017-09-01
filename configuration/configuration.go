@@ -812,7 +812,7 @@ vwIDAQAB
 
 	defaultLogLevel = "info"
 
-	// Auth service URL to be used in dev mode. Can be overridden by setting up auth.url
+	// WIT service URL to be used in dev mode. Can be overridden by setting up auth.url
 	devModeWITURL = "https://auth.prod-preview.openshift.io"
 
 	defaultKeycloakClientID = "fabric8-online-platform"
