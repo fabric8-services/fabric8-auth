@@ -12,8 +12,8 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-wit/configuration"
-	"github.com/fabric8-services/fabric8-wit/resource"
+	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -97,7 +97,6 @@ func TestGetKeycloakEndpointSetByUrlEnvVaribaleOK(t *testing.T) {
 func TestGetKeycloakEndpointAdminDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	//t.Parallel()
-	//os.Setenv(generateEnvKey(varDeveloperModeEnabled), "true")
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm(), config.GetKeycloakEndpointAdmin)
 }
 
