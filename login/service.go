@@ -808,7 +808,7 @@ func (keycloak *KeycloakOAuthProvider) fetchUserInfoFromRemoteService(ctx contex
 		}
 	} else {
 		// The user is not present in Auth, but present in WIT.
-		witServiceUser, _ := keycloak.remoteWITService.DecodeUser(res)
+		witServiceUser, _ := remoteWITService.DecodeUser(res)
 		id, _ := uuid.FromString(*witServiceUser.Data.ID)
 		user = &account.User{
 			FullName:           *witServiceUser.Data.Attributes.FullName,
