@@ -2,17 +2,24 @@ package controller
 
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application"
+
 	"github.com/goadesign/goa"
 )
 
 // ResourceController implements the resource resource.
 type ResourceController struct {
 	*goa.Controller
+
+	db application.DB
 }
 
 // NewResourceController creates a resource controller.
-func NewResourceController(service *goa.Service) *ResourceController {
-	return &ResourceController{Controller: service.NewController("ResourceController")}
+func NewResourceController(service *goa.Service, db application.DB) *ResourceController {
+	return &ResourceController{
+		Controller: service.NewController("ResourceController"),
+		db: db,
+	}
 }
 
 // Delete runs the delete action.
@@ -40,6 +47,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	// ResourceController_Register: start_implement
 
 	// Put your logic here
+
 
 	// ResourceController_Register: end_implement
 	return nil
