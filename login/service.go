@@ -51,11 +51,10 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 
 // KeycloakOAuthProvider represents a keycloak IDP
 type KeycloakOAuthProvider struct {
-	Identities       account.IdentityRepository
-	Users            account.UserRepository
-	TokenManager     token.Manager
-	db               application.DB
-	remoteWITService *witservice.Client
+	Identities   account.IdentityRepository
+	Users        account.UserRepository
+	TokenManager token.Manager
+	db           application.DB
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
@@ -158,11 +157,6 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			}
 			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
 		}
-
-		/*
-			TODO:
-			Call WIT and update the user details.
-		*/
 
 		log.Debug(ctx, map[string]interface{}{
 			"code":           code,
