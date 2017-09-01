@@ -3,8 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -15,11 +13,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
 	"github.com/fabric8-services/fabric8-wit/goasupport"
 	"github.com/goadesign/goa"
-	goaclient "github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -45,7 +43,7 @@ type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetCacheControlUser() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
-	GetWITEndpointUserProfileUpdate(*goa.RequestData) (string, error)
+	GetWITEndpointUserProfile(*goa.RequestData) (string, error)
 }
 
 // NewUsersController creates a users controller.
@@ -413,11 +411,6 @@ func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request 
 				Username: ctx.Payload.Data.Attributes.Username,
 			},
 			Type: ctx.Payload.Data.Type,
-			Links: &witservice.GenericLinks{
-				Self:    ctx.Payload.Data.Links.Self,
-				Related: ctx.Payload.Data.Links.Related,
-				Meta:    ctx.Payload.Data.Links.Meta,
-			},
 		},
 	}
 	ctx = addDelegationFlag(ctx)
@@ -426,19 +419,14 @@ func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request 
 }
 
 func (c *UsersController) createRemoteWITClient(ctx context.Context, request *goa.RequestData) (*witservice.Client, error) {
-	authUserProfileEndpoint, err := c.config.GetWITEndpointUserProfileUpdate(request)
+	authUserProfileEndpoint, err := c.config.GetWITEndpointUserProfile(request)
 	if err != nil {
 		return nil, err
 	}
-
-	u, err := url.Parse(authUserProfileEndpoint)
+	WITClient, err := remoteservice.CreateSecureRemoteWITClient(ctx, authUserProfileEndpoint, nil)
 	if err != nil {
 		return nil, err
 	}
-	WITClient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
-	WITClient.Host = u.Host
-	WITClient.Scheme = u.Scheme
-	WITClient.SetJWTSigner(goasupport.NewForwardSigner(ctx))
 	return WITClient, nil
 }
 

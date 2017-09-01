@@ -490,7 +490,7 @@ func (c *ConfigurationData) GetWITDomainPrefix() string {
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> auth.service.domain.org
 // or api.domain.org -> auth.domain.org
-func (c *ConfigurationData) GetWITEndpointUserProfileUpdate(req *goa.RequestData) (string, error) {
+func (c *ConfigurationData) GetWITEndpointUserProfile(req *goa.RequestData) (string, error) {
 	return c.getWITEndpoint(req, "api/users")
 }
 

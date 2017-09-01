@@ -46,15 +46,15 @@ func TestOpenIDConnectPathOK(t *testing.T) {
 	assert.Equal(t, "auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/somesufix", path)
 }
 
-func TestGetKeycloakURLOK(t *testing.T) {
+func TestgetKeycloakURLOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
-	url, err := config.getKeycloakURL(reqLong, "somepath")
+	url, err := config.getServiceURL(reqLong, config.GetKeycloakDomainPrefix(), "somepath")
 	assert.Nil(t, err)
 	assert.Equal(t, "http://sso.service.domain.org/somepath", url)
 
-	url, err = config.getKeycloakURL(reqShort, "somepath2")
+	url, err = config.getServiceURL(reqLong, config.GetKeycloakDomainPrefix(), "somepath")
 	assert.Nil(t, err)
 	assert.Equal(t, "http://sso.domain.org/somepath2", url)
 }
@@ -63,25 +63,16 @@ func TestGetKeycloakHttpsURLOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
-	r, err := http.NewRequest("", "https://sso.domain.org", nil)
-	require.Nil(t, err)
-	req := &goa.RequestData{
-		Request: r,
-	}
-
-	url, err := config.getKeycloakURL(req, "somepath")
+	url, err := config.getServiceURL(reqLong, config.GetKeycloakDomainPrefix(), "somepath")
 	assert.Nil(t, err)
 	assert.Equal(t, "https://sso.domain.org/somepath", url)
 }
 
-func TestGetKeycloakURLForTooShortHostFails(t *testing.T) {
+func TestgetKeycloakURLForTooShortHostFails(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "org"},
-	}
-	_, err := config.getKeycloakURL(r, "somepath")
+	_, err := config.getServiceURL(reqLong, config.GetKeycloakDomainPrefix(), "somepath")
 	assert.NotNil(t, err)
 }
 

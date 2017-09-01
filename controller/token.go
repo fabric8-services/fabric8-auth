@@ -142,7 +142,14 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		}, "unable to get Keycloak account endpoint URL")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
-	c.Auth.CreateOrUpdateKeycloakUser(*testuser.Token.AccessToken, ctx, profileEndpoint)
+	WITEndpointUserProfile, err := c.Configuration.GetWITEndpointUserProfile(ctx.RequestData)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to get Keycloak account endpoint URL")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+	_, _, err = c.Auth.CreateOrUpdateKeycloakUser(*testuser.Token.AccessToken, ctx, profileEndpoint, WITEndpointUserProfile)
 	tokens = append(tokens, testuser)
 
 	testuser, err = GenerateUserToken(ctx, tokenEndpoint, c.Configuration, c.Configuration.GetKeycloakTestUser2Name(), c.Configuration.GetKeycloakTestUser2Secret())
@@ -153,7 +160,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token")))
 	}
 	// Creates the testuser2 user and identity if they don't yet exist
-	_, _, err = c.Auth.CreateOrUpdateKeycloakUser(*testuser.Token.AccessToken, ctx, profileEndpoint)
+	_, _, err = c.Auth.CreateOrUpdateKeycloakUser(*testuser.Token.AccessToken, ctx, profileEndpoint, WITEndpointUserProfile)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,

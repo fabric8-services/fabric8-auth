@@ -33,6 +33,7 @@ type LoginConfiguration interface {
 	GetValidRedirectURLs(*goa.RequestData) (string, error)
 	GetHeaderMaxLength() int64
 	GetAuthNotApprovedRedirect() string
+	GetWITEndpointUserProfile(*goa.RequestData) (string, error)
 }
 
 // LoginController implements the login resource.
@@ -103,7 +104,11 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login"),
 	}
+	remoteWITUserProfile, err := c.Configuration.GetWITEndpointUserProfile(ctx.RequestData)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.Perform(ctx, oauth, brokerEndpoint, entitlementEndpoint, profileEndpoint, whitelist, c.Configuration.GetAuthNotApprovedRedirect())
+	return c.Auth.Perform(ctx, oauth, brokerEndpoint, entitlementEndpoint, profileEndpoint, whitelist, c.Configuration.GetAuthNotApprovedRedirect(), remoteWITUserProfile)
 }

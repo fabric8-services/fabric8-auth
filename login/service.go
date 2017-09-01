@@ -28,8 +28,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
+	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/wit/witservice"
+	"github.com/fabric8-services/fabric8-wit/goasupport"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	uuid "github.com/satori/go.uuid"
@@ -48,16 +51,17 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 
 // KeycloakOAuthProvider represents a keycloak IDP
 type KeycloakOAuthProvider struct {
-	Identities   account.IdentityRepository
-	Users        account.UserRepository
-	TokenManager token.Manager
-	db           application.DB
+	Identities       account.IdentityRepository
+	Users            account.UserRepository
+	TokenManager     token.Manager
+	db               application.DB
+	remoteWITService *witservice.Client
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error
-	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, *account.User, error)
+	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string, WITEndpointUserProfile string) error
+	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, WITEndpointUserProfile string) (*account.Identity, *account.User, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -89,7 +93,7 @@ const (
 )
 
 // Perform performs authentication
-func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string) error {
+func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string, WITEndpointUserProfile string) error {
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
 
@@ -136,8 +140,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"state":          state,
 			"known_referrer": knownReferrer,
 		}, "exchanged code to access token")
-
-		_, usr, err := keycloak.CreateOrUpdateKeycloakUser(keycloakToken.AccessToken, ctx, profileEndpoint)
+		_, usr, err := keycloak.CreateOrUpdateKeycloakUser(keycloakToken.AccessToken, ctx, profileEndpoint, WITEndpointUserProfile)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -626,7 +629,7 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 }
 
 // CreateOrUpdateKeycloakUser creates a user and a keycloak identity. If the user and identity already exist then update them.
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, *account.User, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, WITEndpointUserProfile string) (*account.Identity, *account.User, error) {
 	var identity *account.Identity
 	var user *account.User
 
@@ -666,8 +669,20 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 		if !approved {
 			return nil, nil, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
 		}
-		user = new(account.User)
-		identity = &account.Identity{}
+		isNewUser := true
+		user, identity, err = keycloak.fetchUserInfoFromRemoteService(ctx, WITEndpointUserProfile, &accessToken)
+		if user != nil && identity != nil {
+			isNewUser = false
+		}
+		if isNewUser {
+			// The user is neither present in Auth, but present in WIT.
+			user = new(account.User)
+			identity = &account.Identity{}
+		}
+
+		// Now that user/identity objects have been initialized, update it
+		// from the token claims info.
+
 		_, err = fillUser(claims, user, identity)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -676,6 +691,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			}, "unable to create user/identity")
 			return nil, nil, errors.New("failed to update user/identity from claims" + err.Error())
 		}
+
 		err = application.Transactional(keycloak.db, func(appl application.Application) error {
 			err := appl.Users().Create(ctx, user)
 			if err != nil {
@@ -747,7 +763,79 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			}
 		}
 	}
-	return identity, user, nil
+	err = keycloak.notifyWITService(ctx, user, identity, WITEndpointUserProfile, &accessToken)
+	return identity, user, err
+}
+
+func (keycloak *KeycloakOAuthProvider) notifyWITService(ctx context.Context, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken *string) error {
+	updateUserPayload := &witservice.UpdateUsersPayload{
+		Data: &witservice.UpdateUserData{
+			Attributes: &witservice.UpdateIdentityDataAttributes{
+				Bio:                   &user.Bio,
+				Company:               &user.Company,
+				ContextInformation:    user.ContextInformation,
+				Email:                 &user.Email,
+				FullName:              &user.FullName,
+				ImageURL:              &user.ImageURL,
+				RegistrationCompleted: &identity.RegistrationCompleted,
+				URL:      identity.ProfileURL,
+				Username: &identity.Username,
+			},
+			Type: "identities",
+		},
+	}
+	remoteWITService, err := remoteservice.CreateSecureRemoteWITClient(ctx, WITEndpointUserProfile, accessToken)
+	remoteUpdateUserAPIPath := witservice.UpdateUsersPath()
+	_, err = remoteWITService.UpdateUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
+	return err
+}
+
+// fetchUserInfoFromRemoteService calls WIT to check if user exists.
+func (keycloak *KeycloakOAuthProvider) fetchUserInfoFromRemoteService(ctx context.Context, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
+	/*
+	 Call WIT API to see if user is already present there.
+	*/
+	var user *account.User
+	var identity *account.Identity
+
+	remoteWITService, err := remoteservice.CreateSecureRemoteWITClient(ctx, WITEndpointUserProfile, accessToken)
+	res, err := remoteWITService.ShowUser(goasupport.ForwardContextRequestID(ctx), witservice.ShowUserPath(), nil, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusNotFound {
+			// This means its a new user who is logging in.
+			log.Error(ctx, map[string]interface{}{
+				"response_status": res.Status,
+				"response_body":   rest.ReadBody(res.Body),
+			}, "unable to fetch user via wit service, looks like a new user")
+		}
+	} else {
+		// The user is not present in Auth, but present in WIT.
+		witServiceUser, _ := keycloak.remoteWITService.DecodeUser(res)
+		id, _ := uuid.FromString(*witServiceUser.Data.ID)
+		user = &account.User{
+			FullName:           *witServiceUser.Data.Attributes.FullName,
+			ID:                 id,
+			Email:              *witServiceUser.Data.Attributes.Email,
+			ImageURL:           *witServiceUser.Data.Attributes.ImageURL,
+			Bio:                *witServiceUser.Data.Attributes.Bio,
+			URL:                *witServiceUser.Data.Attributes.URL,
+			Company:            *witServiceUser.Data.Attributes.Company,
+			ContextInformation: witServiceUser.Data.Attributes.ContextInformation,
+		}
+		identity = &account.Identity{
+			Username:              *witServiceUser.Data.Attributes.Username,
+			RegistrationCompleted: *witServiceUser.Data.Attributes.RegistrationCompleted,
+			ProfileURL:            witServiceUser.Data.Attributes.URL,
+			ProviderType:          *witServiceUser.Data.Attributes.ProviderType,
+			UserID:                account.NullUUID{UUID: user.ID, Valid: true},
+		}
+
+	}
+	return user, identity, nil
 }
 
 func checkApproved(ctx context.Context, profileService UserProfileService, accessToken string, profileEndpoint string) (bool, error) {
