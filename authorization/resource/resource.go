@@ -11,10 +11,10 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
 )
 
 type Resource struct {
@@ -84,7 +84,7 @@ func (m *GormResourceRepository) Load(ctx context.Context, id string) (*Resource
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) (error) {
+func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "exists"}, time.Now())
 
 	var exists bool
