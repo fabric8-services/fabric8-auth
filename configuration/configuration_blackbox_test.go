@@ -23,6 +23,7 @@ import (
 const (
 	varTokenPublicKey           = "token.publickey"
 	varTokenPrivateKey          = "token.privatekey"
+	varDeveloperModeEnabled     = "developer.mode.enabled"
 	defaultConfigFilePath       = "../config.yaml"
 	defaultValuesConfigFilePath = "" // when the code defaults are to be used, the path to config file is ""
 )
@@ -96,6 +97,7 @@ func TestGetKeycloakEndpointSetByUrlEnvVaribaleOK(t *testing.T) {
 func TestGetKeycloakEndpointAdminDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
+	os.Setenv(generateEnvKey(varDeveloperModeEnabled), "1")
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm(), config.GetKeycloakEndpointAdmin)
 }
 
