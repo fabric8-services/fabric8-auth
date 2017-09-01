@@ -110,7 +110,7 @@ func NewConfigurationData(configFilePath string) (*ConfigurationData, error) {
 	c := ConfigurationData{
 		v: viper.New(),
 	}
-	c.v.SetEnvPrefix("F8")
+	c.v.SetEnvPrefix("AUTH")
 	c.v.AutomaticEnv()
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	c.v.SetTypeByDefaultValue(true)
@@ -129,7 +129,7 @@ func NewConfigurationData(configFilePath string) (*ConfigurationData, error) {
 
 func getConfigFilePath() string {
 	// This was either passed as a env var Or, set inside main.go from --config
-	envConfigPath, ok := os.LookupEnv("F8_CONFIG_FILE_PATH")
+	envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH")
 	if !ok {
 		return ""
 	}
@@ -333,8 +333,8 @@ func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 }
 
 // IsAuthorizationEnabled returns true if space authorization enabled
-// By default athorization is disabled in Developer Mode only (if F8_AUTHZ_ENABLED us not set)
-// Set F8_AUTHZ_ENABLED env var to explictly disable or enable authorization regardless of Developer Mode settings
+// By default athorization is disabled in Developer Mode only (if AUTH_AUTHZ_ENABLED us not set)
+// Set AUTH_AUTHZ_ENABLED env var to explictly disable or enable authorization regardless of Developer Mode settings
 func (c *ConfigurationData) IsAuthorizationEnabled() bool {
 	if c.v.IsSet(varAuthorizationEnabled) {
 		return c.v.GetBool(varAuthorizationEnabled)
@@ -484,12 +484,7 @@ func (c *ConfigurationData) GetWITDomainPrefix() string {
 	return c.v.GetString(varAuthDomainPrefix)
 }
 
-// GetWITEndpointSpaces returns the <auth>/api/spaces endpoint
-// set via config file or environment variable.
-// If nothing set then in Dev environment the defualt endopoint will be returned.
-// In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
-// Example: api.service.domain.org -> auth.service.domain.org
-// or api.domain.org -> auth.domain.org
+// GetWITEndpointUserProfile returns the <wit>/api/users endpoint
 func (c *ConfigurationData) GetWITEndpointUserProfile(req *goa.RequestData) (string, error) {
 	return c.getWITEndpoint(req, "api/users")
 }
@@ -732,7 +727,7 @@ func (c *ConfigurationData) IsLogJSON() bool {
 }
 
 // GetValidRedirectURLs returns the RegEx of valid redirect URLs for auth requests
-// If the F8_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
+// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 // In prod mode the default regex will be returned
 func (c *ConfigurationData) GetValidRedirectURLs(req *goa.RequestData) (string, error) {
 	if c.v.IsSet(varValidRedirectURLs) {
@@ -821,7 +816,7 @@ vwIDAQAB
 	devModeWITURL = "https://auth.prod-preview.openshift.io"
 
 	defaultKeycloakClientID = "fabric8-online-platform"
-	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bdd"
 
 	defaultKeycloakDomainPrefix = "sso"
 	defaultKeycloakRealm        = "fabric8"
@@ -842,7 +837,7 @@ vwIDAQAB
 	defaultCheStarterURL            = "che-server"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
-	// If the F8_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
+	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 	// In prod mode the following regex will be used by default:
 	DefaultValidRedirectURLs = "^(https|http)://([^/]+[.])?(?i:openshift[.]io)(/.*)?$" // *.openshift.io/*
 	devModeValidRedirectURLs = ".*"

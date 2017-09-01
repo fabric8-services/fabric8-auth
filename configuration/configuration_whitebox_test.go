@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-wit/resource"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,7 +46,7 @@ func TestOpenIDConnectPathOK(t *testing.T) {
 	assert.Equal(t, "auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/somesufix", path)
 }
 
-func TestgetKeycloakURLOK(t *testing.T) {
+func TestGetKeycloakURLOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
@@ -54,7 +54,7 @@ func TestgetKeycloakURLOK(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "http://sso.service.domain.org/somepath", url)
 
-	url, err = config.getServiceURL(reqLong, config.GetKeycloakDomainPrefix(), "somepath")
+	url, err = config.getServiceURL(reqShort, config.GetKeycloakDomainPrefix(), "somepath2")
 	assert.Nil(t, err)
 	assert.Equal(t, "http://sso.domain.org/somepath2", url)
 }
@@ -63,16 +63,25 @@ func TestGetKeycloakHttpsURLOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
-	url, err := config.getServiceURL(reqLong, config.GetKeycloakDomainPrefix(), "somepath")
+	r, err := http.NewRequest("", "https://sso.domain.org", nil)
+	require.Nil(t, err)
+	req := &goa.RequestData{
+		Request: r,
+	}
+
+	url, err := config.getServiceURL(req, config.GetKeycloakDomainPrefix(), "somepath")
 	assert.Nil(t, err)
 	assert.Equal(t, "https://sso.domain.org/somepath", url)
 }
 
-func TestgetKeycloakURLForTooShortHostFails(t *testing.T) {
+func TestGetKeycloakURLForTooShortHostFails(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
-	_, err := config.getServiceURL(reqLong, config.GetKeycloakDomainPrefix(), "somepath")
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "org"},
+	}
+	_, err := config.getServiceURL(r, config.GetKeycloakDomainPrefix(), "somepath")
 	assert.NotNil(t, err)
 }
 
