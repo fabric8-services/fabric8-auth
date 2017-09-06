@@ -29,9 +29,7 @@ func NewManager() authtoken.Manager {
 	if err != nil {
 		panic("Failed: " + err.Error())
 	}
-	return &authtoken.TokenManager{
-		PublicKeysMap: map[string]*rsa.PublicKey{"test-key": rsaKey},
-	}
+	return &authtoken.NewManagerWithPublicKey("test-key", rsaKey)
 }
 
 // NewManagerWithPrivateKey returns a new token Manager
@@ -40,9 +38,7 @@ func NewManagerWithPrivateKey() authtoken.Manager {
 	if err != nil {
 		panic("Failed: " + err.Error())
 	}
-	return &authtoken.TokenManager{
-		PublicKeysMap: map[string]*rsa.PublicKey{"test-key": &rsaKey.PublicKey},
-	}
+	return &authtoken.NewManagerWithPublicKey("test-key", &rsaKey.PublicKey)
 }
 
 // RSAPrivateKey for signing JWT Tokens

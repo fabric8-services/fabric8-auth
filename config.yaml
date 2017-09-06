@@ -46,19 +46,19 @@ log.level: info
 # Authentication configuration
 # ----------------------------
 
-# Depricated private key to be used to verify service account tokens. Used for key rotation.
-#serviceaccount.privatekey.depricated : |
+# Deprecated private key to be used to verify service account tokens. Used for key rotation.
+#serviceaccount.privatekey.key.deprecated : |
 #                    -----BEGIN RSA PRIVATE KEY-----
 #                    MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
 #                    ...
 #                    OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 #                    -----END RSA PRIVATE KEY-----
 
-# Depricated service account private key ID.
-#serviceaccount.privatekey.id.depricated: bNq-BCOR3ev-E6buGSaPrU-0SXX8whhDlmZ6geenkTE
+# Deprecated service account private key ID.
+#serviceaccount.privatekey.id.deprecated: bNq-BCOR3ev-E6buGSaPrU-0SXX8whhDlmZ6geenkTE
 
 # Private key to be used to sign service account tokens
-serviceaccount.privatekey : |
+serviceaccount.privatekey.key : |
                     -----BEGIN RSA PRIVATE KEY-----
                     MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
                     DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT

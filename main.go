@@ -137,7 +137,6 @@ func main() {
 
 	appDB := gormapplication.NewGormDB(db)
 
-	// TODO
 	tokenManager, err := token.NewManager(configuration)
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 	service.Use(login.InjectTokenManager(tokenManager))

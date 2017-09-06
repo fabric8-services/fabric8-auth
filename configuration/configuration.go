@@ -66,9 +66,9 @@ const (
 	varKeycloakEndpointBroker               = "keycloak.endpoint.broker"
 	varKeycloakEndpointAccount              = "keycloak.endpoint.account"
 	varKeycloakEndpointLogout               = "keycloak.endpoint.logout"
-	varServiceAccountPrivateKeyDepricated   = "serviceaccount.privatekey.depricated"
-	varServiceAccountPrivateKeyIDDepricated = "serviceaccount.privatekey.id.depricated"
-	varServiceAccountPrivateKey             = "serviceaccount.privatekey"
+	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.key.deprecated"
+	varServiceAccountPrivateKeyIDDeprecated = "serviceaccount.privatekey.id.deprecated"
+	varServiceAccountPrivateKey             = "serviceaccount.privatekey.key"
 	varServiceAccountPrivateKeyID           = "serviceaccount.privatekey.id"
 	varNotApprovedRedirect                  = "notapproved.redirect"
 	varHeaderMaxLength                      = "header.maxlength"
@@ -293,10 +293,10 @@ func (c *ConfigurationData) GetCacheControlUser() string {
 	return c.v.GetString(varCacheControlUser)
 }
 
-// GetDepricatedServiceAccountPrivateKey returns the depricated service account private key (if any) and its ID
+// GetDeprecatedServiceAccountPrivateKey returns the deprecated service account private key (if any) and its ID
 // that is used to verify the service account authentication tokens during key rotation.
-func (c *ConfigurationData) GetDepricatedServiceAccountPrivateKey() ([]byte, string) {
-	return []byte(c.v.GetString(varServiceAccountPrivateKeyDepricated)), c.v.GetString(varServiceAccountPrivateKeyIDDepricated)
+func (c *ConfigurationData) GetDeprecatedServiceAccountPrivateKey() ([]byte, string) {
+	return []byte(c.v.GetString(varServiceAccountPrivateKeyDeprecated)), c.v.GetString(varServiceAccountPrivateKeyIDDeprecated)
 }
 
 // GetServiceAccountPrivateKey returns the service account private key and its ID
@@ -360,7 +360,7 @@ func (c *ConfigurationData) GetKeycloakTestUser2Secret() string {
 }
 
 func (c *ConfigurationData) GetKeycloakEndpointCerts() string {
-	return fmt.Sprintf("%s/%s", c.v.GetString(varKeycloakURL), "auth/realms/fabric8/protocol/openid-connect/certs")
+	return fmt.Sprintf("%s/auth/realms/%s/protocol/openid-connect/certs", c.v.GetString(varKeycloakURL), c.GetKeycloakRealm())
 }
 
 // GetKeycloakEndpointAuth returns the keycloak auth endpoint set via config file or environment variable.

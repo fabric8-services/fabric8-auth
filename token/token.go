@@ -1,24 +1,42 @@
 package token
 
 import (
-	"crypto/rsa"
-
 	"context"
-
+	"crypto/rsa"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/rest"
+
+	"crypto/x509"
+	"encoding/base64"
+	jwt "github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	jose "gopkg.in/square/go-jose.v2"
 )
 
 // configuration represents configuration needed to construct a token manager
 type configuration interface {
 	GetKeycloakEndpointCerts() string
 	GetServiceAccountPrivateKey() ([]byte, string)
-	GetDepricatedServiceAccountPrivateKey() ([]byte, string)
+	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
+}
+
+type rawKeys struct {
+	Keys []interface{} `json:"keys"`
+}
+
+type rawPemKeys struct {
+	Keys []rawPemKey `json:"keys"`
+}
+
+type rawPemKey struct {
+	Kid string `json:"kid"`
+	Key string `json:"key"`
 }
 
 // TokenClaims represents access token claims
@@ -51,6 +69,8 @@ type Manager interface {
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	PublicKey(kid string) *rsa.PublicKey
 	PublicKeys() []*rsa.PublicKey
+	JsonWebKeys() ([]byte, error)
+	PemKeys() ([]byte, error)
 }
 
 // Private Key represents an RSA private key with a Key ID
@@ -59,27 +79,206 @@ type PrivateKey struct {
 	Key *rsa.PrivateKey
 }
 
-type TokenManager struct {
-	PublicKeysMap             map[string]*rsa.PublicKey
-	serviceAccountPrivateKeys []*PrivateKey
+type publicKey struct {
+	KID string
+	Key *rsa.PublicKey
+}
+
+type tokenManager struct {
+	publicKeysMap            map[string]*rsa.PublicKey
+	serviceAccountPrivateKey *PrivateKey
+	jsonWebKeys              *[]byte
+	pemKeys                  *[]byte
+}
+
+func NewManagerWithPublicKey(id string, publicKey *rsa.PublicKey) (Manager, error) {
+	return &tokenManager{
+		publicKeysMap: map[string]*rsa.PublicKey{id: publicKey},
+	}, nil
 }
 
 // NewManager returns a new token Manager for handling tokens
 func NewManager(config configuration) (Manager, error) {
-	//TODO
-	publicKey := ""
-	kid := ""
-	rsaKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicKey))
+	// Load the service account private key and add it to the manager.
+	// Extract the public key from it and add it to the map of public keys.
+	key, kid := config.GetServiceAccountPrivateKey()
+	if len(key) == 0 || kid == "" {
+		log.Error(nil, map[string]interface{}{
+			"kid":        kid,
+			"key_length": len(key),
+		}, "Service account private key or its ID are not set up")
+		return nil, errors.New("Service account private key or its ID are not set up")
+	}
+	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
 	if err != nil {
 		return nil, err
 	}
-	return &TokenManager{
-		PublicKeysMap: map[string]*rsa.PublicKey{kid: rsaKey},
-	}, nil
+	tm := &tokenManager{
+		serviceAccountPrivateKey: &PrivateKey{KID: kid, Key: rsaServiceAccountKey},
+		publicKeysMap:            map[string]*rsa.PublicKey{kid: &rsaServiceAccountKey.PublicKey},
+	}
+	log.Info(nil, map[string]interface{}{
+		"kid": kid,
+	}, "Service account private key added")
+	// Extract public key from deprecated service account private key if any and add it the manager
+	key, kid = config.GetDeprecatedServiceAccountPrivateKey()
+	if len(key) == 0 || kid == "" {
+		log.Debug(nil, map[string]interface{}{
+			"kid":        kid,
+			"key_length": len(key),
+		}, "No deprecated service account private key found")
+	} else {
+		rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
+		if err != nil {
+			return nil, err
+		}
+		tm.publicKeysMap[kid] = &rsaServiceAccountKey.PublicKey
+		log.Info(nil, map[string]interface{}{
+			"kid": kid,
+		}, "Deprecated service account private key added")
+	}
+
+	// Load public keys from Keycloak and add them to the manager
+	keycloakKeys, err := loadKeysFromKeycloak(config)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{}, "unable to load Keycloak public keys")
+		return nil, errors.New("unable to load Keycloak public keys")
+	}
+	for _, keycloakKey := range keycloakKeys {
+		tm.publicKeysMap[keycloakKey.KID] = keycloakKey.Key
+		log.Info(nil, map[string]interface{}{
+			"kid": keycloakKey.KID,
+		}, "Public key added")
+	}
+
+	return tm, nil
+}
+
+func loadKeysFromKeycloak(config configuration) ([]*publicKey, error) {
+	req, err := http.NewRequest("GET", config.GetKeycloakEndpointCerts(), nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		log.Error(nil, map[string]interface{}{
+			"response_status": res.Status,
+			"response_body":   rest.ReadBody(res.Body),
+		}, "unable to obtain keycloak public keys")
+		return nil, errors.Errorf("unable to obtain keycloak public keys")
+	}
+	jsonString := rest.ReadBody(res.Body)
+	keys, err := unmarshalKeys([]byte(jsonString))
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info(nil, map[string]interface{}{
+		"url":            config.GetKeycloakEndpointCerts(),
+		"number_of_keys": len(keys),
+	}, "Public keys loaded")
+	return keys, nil
+}
+
+func unmarshalKeys(jsonData []byte) ([]*publicKey, error) {
+	var keys []*publicKey
+	var raw rawKeys
+	err := json.Unmarshal(jsonData, &raw)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range raw.Keys {
+		jsonKeyData, err := json.Marshal(key)
+		if err != nil {
+			return nil, err
+		}
+		publicKey, err := unmarshalKey(jsonKeyData)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, publicKey)
+	}
+	return keys, nil
+}
+
+func unmarshalKey(jsonData []byte) (*publicKey, error) {
+	var key *jose.JSONWebKey
+	key = &jose.JSONWebKey{}
+	err := key.UnmarshalJSON(jsonData)
+	if err != nil {
+		return nil, err
+	}
+	rsaKey, ok := key.Key.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("Key is not an *rsa.PublicKey")
+	}
+	return &publicKey{key.KeyID, rsaKey}, nil
+}
+
+func toPem(key *rsa.PublicKey) (string, error) {
+	pubASN1, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(pubASN1), nil
+}
+
+// JsonWebKeys returns a JSON that contains an array of all the public keys in JSON Web Keys format
+func (mgm *tokenManager) JsonWebKeys() ([]byte, error) {
+	if mgm.jsonWebKeys != nil {
+		return *mgm.jsonWebKeys, nil
+	}
+	var keys []interface{}
+	for kid, key := range mgm.publicKeysMap {
+		jwk := jose.JSONWebKey{Key: key, KeyID: kid, Algorithm: "RS256", Use: "sig"}
+		keyData, err := jwk.MarshalJSON()
+		if err != nil {
+			return nil, err
+		}
+		var raw interface{}
+		err = json.Unmarshal(keyData, &raw)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, raw)
+	}
+	keysData := rawKeys{Keys: keys}
+	data, err := json.Marshal(keysData)
+	if err != nil {
+		return nil, err
+	}
+	mgm.jsonWebKeys = &data
+	return data, nil
+}
+
+// PemKeys returns a JSON that contains an array of all the public keys in PEM format
+func (mgm *tokenManager) PemKeys() ([]byte, error) {
+	if mgm.pemKeys != nil {
+		return *mgm.pemKeys, nil
+	}
+	var pemKeys []interface{}
+	for kid, key := range mgm.publicKeysMap {
+		keyData, err := toPem(key)
+		if err != nil {
+			return nil, err
+		}
+		pemKeys = append(pemKeys, rawPemKey{Kid: kid, Key: keyData})
+	}
+	keysData := rawKeys{Keys: pemKeys}
+	data, err := json.Marshal(keysData)
+	if err != nil {
+		return nil, err
+	}
+	mgm.pemKeys = &data
+	return data, nil
 }
 
 // ParseToken parses token claims
-func (mgm TokenManager) ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error) {
+func (mgm *tokenManager) ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
@@ -105,7 +304,7 @@ func (mgm TokenManager) ParseToken(ctx context.Context, tokenString string) (*To
 	return nil, errors.WithStack(errors.New("token is not valid"))
 }
 
-func (mgm TokenManager) Locate(ctx context.Context) (uuid.UUID, error) {
+func (mgm *tokenManager) Locate(ctx context.Context) (uuid.UUID, error) {
 	token := goajwt.ContextJWT(ctx)
 	if token == nil {
 		return uuid.UUID{}, errors.New("Missing token") // TODO, make specific tokenErrors
@@ -122,14 +321,14 @@ func (mgm TokenManager) Locate(ctx context.Context) (uuid.UUID, error) {
 }
 
 // PublicKey returns the public key by the ID
-func (mgm TokenManager) PublicKey(kid string) *rsa.PublicKey {
-	return mgm.PublicKeysMap[kid]
+func (mgm *tokenManager) PublicKey(kid string) *rsa.PublicKey {
+	return mgm.publicKeysMap[kid]
 }
 
 // PublicKeys returns all the public keys
-func (mgm TokenManager) PublicKeys() []*rsa.PublicKey {
-	keys := make([]*rsa.PublicKey, 0, len(mgm.PublicKeysMap))
-	for _, key := range mgm.PublicKeysMap {
+func (mgm *tokenManager) PublicKeys() []*rsa.PublicKey {
+	keys := make([]*rsa.PublicKey, 0, len(mgm.publicKeysMap))
+	for _, key := range mgm.publicKeysMap {
 		keys = append(keys, key)
 	}
 	return keys
