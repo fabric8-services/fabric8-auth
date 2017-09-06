@@ -14,8 +14,11 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type TokenConfiguration interface {
-	// TODO
+// configuration represents configuration needed to construct a token manager
+type configuration interface {
+	GetKeycloakEndpointCerts() string
+	GetServiceAccountPrivateKey() ([]byte, string)
+	GetDepricatedServiceAccountPrivateKey() ([]byte, string)
 }
 
 // TokenClaims represents access token claims
@@ -62,7 +65,7 @@ type TokenManager struct {
 }
 
 // NewManager returns a new token Manager for handling tokens
-func NewManager(config TokenConfiguration) (Manager, error) {
+func NewManager(config configuration) (Manager, error) {
 	//TODO
 	publicKey := ""
 	kid := ""

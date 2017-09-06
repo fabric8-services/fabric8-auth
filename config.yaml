@@ -46,7 +46,19 @@ log.level: info
 # Authentication configuration
 # ----------------------------
 
-token.privatekey : |
+# Depricated private key to be used to verify service account tokens. Used for key rotation.
+#serviceaccount.privatekey.depricated : |
+#                    -----BEGIN RSA PRIVATE KEY-----
+#                    MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
+#                    ...
+#                    OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
+#                    -----END RSA PRIVATE KEY-----
+
+# Depricated service account private key ID.
+#serviceaccount.privatekey.id.depricated: bNq-BCOR3ev-E6buGSaPrU-0SXX8whhDlmZ6geenkTE
+
+# Private key to be used to sign service account tokens
+serviceaccount.privatekey : |
                     -----BEGIN RSA PRIVATE KEY-----
                     MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
                     DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
@@ -75,16 +87,8 @@ token.privatekey : |
                     OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
                     -----END RSA PRIVATE KEY-----
 
-token.publickey : |
-                    -----BEGIN PUBLIC KEY-----
-                    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArlscGA2NfO4ZkGzJgZE8
-                    e/WGHCFANE28DzU1aftOssKi4jCn++umFWPDWxTwLfQdiwc8Bbhn9/8udPMXrZ84
-                    L8OgVNbDXOle37QE0+GEAX/DnzkvOg2sm7F0IzKck9YNvo3ZUYj7dyW9s2zatCwu
-                    QyUsHJmbMdwtDOueHBHwXiAiU0kprtUjNsvK4SBvascBdCmLLIWkhj2lu5S6BGrH
-                    gDDTv2JaguNwlgbHLFWU08D03j2F5Yj4TO8LexRJwCYrKp1icQrvC+WGhRAlttbx
-                    51MKRiCnqhFJ8LYtCbPt5Xm5+FR2fHFCMyCqQsScu+dwsx+mb4JGAsdVEaUdcmOF
-                    ZwIDAQAB
-                    -----END PUBLIC KEY-----
+# Service account private key ID.
+serviceaccount.privatekey.id: 9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs
 
 #notapproved.redirect : https://manage.openshift.com/openshiftio
 
