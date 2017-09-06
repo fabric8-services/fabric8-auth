@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"testing"
 
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -14,12 +13,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/resource"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -41,10 +39,7 @@ func TestRunRecentSpacesREST(t *testing.T) {
 }
 
 func (rest *TestRecentSpacesREST) newTestKeycloakOAuthProvider(db application.DB) *login.KeycloakOAuthProvider {
-	publicKey, err := token.ParsePublicKey([]byte(rest.configuration.GetTokenPublicKey()))
-	require.Nil(rest.T(), err)
-	tokenManager := token.NewManager(publicKey)
-
+	tokenManager := testtoken.NewManager()
 	return login.NewKeycloakOAuthProvider(rest.identityRepository, rest.userRepository, tokenManager, db)
 }
 
@@ -54,9 +49,8 @@ func (rest *TestRecentSpacesREST) SetupTest() {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
 	rest.configuration = c
-	publicKey, err := token.ParsePublicKey([]byte(rest.configuration.GetTokenPublicKey()))
 	require.Nil(rest.T(), err)
-	rest.tokenManager = token.NewManager(publicKey)
+	rest.tokenManager = testtoken.NewManager()
 
 	identity := account.Identity{}
 	user := account.User{}
@@ -82,62 +76,6 @@ func (rest *TestRecentSpacesREST) SecuredController() (*goa.Service, *TokenContr
 		identityRepository: rest.identityRepository,
 	}
 	return svc, tokenController
-}
-
-func (rest *TestRecentSpacesREST) TestResourceRequestPayload() {
-	t := rest.T()
-	resource.Require(t, resource.Remote)
-	service, controller := rest.SecuredController()
-
-	// Generate an access token for a test identity
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "api.example.org"},
-	}
-	tokenEndpoint, err := rest.configuration.GetKeycloakEndpointToken(r)
-	require.Nil(t, err)
-
-	accessToken, err := GenerateUserToken(service.Context, tokenEndpoint, rest.configuration, rest.configuration.GetKeycloakTestUserName(), rest.configuration.GetKeycloakTestUserSecret())
-	require.Nil(t, err)
-
-	accessTokenString := accessToken.Token.AccessToken
-
-	require.Nil(t, err)
-	require.NotNil(t, accessTokenString)
-
-	require.Nil(t, err)
-
-	// Scenario 1 - Test user has a nil contextInformation, hence there are no recent spaces to
-	// add to the resource object
-
-	rest.identityRepository.testIdentity.User.ContextInformation = nil
-	resource, err := controller.getEntitlementResourceRequestPayload(service.Context, accessTokenString)
-	require.Nil(t, err)
-
-	// This will be nil because contextInformation for the test user is empty!
-	require.Nil(t, resource)
-
-	// Scenario 2 - Test user has 'some' contextInformation incl. 12 recent spaces.
-	identity := account.Identity{}
-	dummyRecentSpaces := []interface{}{}
-	for i := 1; i <= maxRecentSpacesForRPT+2; i++ {
-		dummyRecentSpaces = append(dummyRecentSpaces, uuid.NewV4().String())
-	}
-	user := account.User{
-		ContextInformation: account.ContextInformation{
-			"recentSpaces": dummyRecentSpaces,
-		},
-	}
-	identity.User = user
-	rest.identityRepository.testIdentity = &identity
-
-	//Use the same access token to retrieve
-	resource, err = controller.getEntitlementResourceRequestPayload(service.Context, accessTokenString)
-	require.Nil(t, err)
-
-	require.NotNil(t, resource)
-	require.NotNil(t, resource.Permissions)
-	assert.Len(t, resource.Permissions, maxRecentSpacesForRPT)
-
 }
 
 // Load returns a single Identity as a Database Model

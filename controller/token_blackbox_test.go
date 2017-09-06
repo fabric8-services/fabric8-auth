@@ -11,9 +11,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	almtoken "github.com/fabric8-services/fabric8-auth/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -41,18 +40,14 @@ func (rest *TestTokenREST) TearDownTest() {
 }
 
 func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController) {
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
-
-	svc := testsupport.ServiceAsUser("Token-Service", almtoken.NewManagerWithPrivateKey(priv), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Token-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
 	return svc, &TokenController{Controller: svc.NewController("token"), Auth: TestLoginService{}, Configuration: rest.Configuration}
 }
 
 func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) {
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
-
 	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
 
-	svc := testsupport.ServiceAsUser("Token-Service", almtoken.NewManagerWithPrivateKey(priv), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Token-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
 	return svc, NewTokenController(svc, loginService, loginService.TokenManager, rest.Configuration, rest.identityRepository)
 }
 
@@ -115,11 +110,4 @@ func validateToken(t *testing.T, token *app.AuthToken, controler *TokenControlle
 	assert.NotNil(t, token.Token.ExpiresIn, "Expires-in is nil")
 	assert.NotNil(t, token.Token.RefreshExpiresIn, "Refresh-expires-in is nil")
 	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
-	keyFunc := func(t *jwt.Token) (interface{}, error) {
-		return controler.TokenManager.PublicKey(), nil
-	}
-	_, err := jwt.Parse(*token.Token.AccessToken, keyFunc)
-	assert.Nil(t, err, "Invalid access token")
-	_, err = jwt.Parse(*token.Token.RefreshToken, keyFunc)
-	assert.Nil(t, err, "Invalid refresh token")
 }

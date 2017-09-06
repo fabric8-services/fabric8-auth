@@ -11,7 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	almtoken "github.com/fabric8-services/fabric8-auth/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/suite"
 )
@@ -35,9 +35,7 @@ func (rest *TestStatusREST) TearDownTest() {
 }
 
 func (rest *TestStatusREST) SecuredController() (*goa.Service, *StatusController) {
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
-
-	svc := testsupport.ServiceAsUser("Status-Service", almtoken.NewManagerWithPrivateKey(priv), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Status-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
 	return svc, NewStatusController(svc, rest.DB)
 }
 

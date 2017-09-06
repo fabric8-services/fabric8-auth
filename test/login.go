@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
@@ -36,9 +35,10 @@ func WithIdentity(ctx context.Context, ident account.Identity) context.Context {
 
 // WithAuthz fills the context with token
 // Token is filled using input Identity object and resource authorization information
-func WithAuthz(ctx context.Context, key interface{}, ident account.Identity, authz auth.AuthorizationPayload) context.Context {
+func WithAuthz(ctx context.Context, key interface{}, ident account.Identity, authz token.AuthorizationPayload) context.Context {
 	token := fillClaimsWithIdentity(ident)
 	token.Claims.(jwt.MapClaims)["authorization"] = authz
+	token.Header["kid"] = "test-key"
 	t, err := token.SignedString(key)
 	if err != nil {
 		panic(err.Error())
@@ -57,7 +57,7 @@ func fillClaimsWithIdentity(ident account.Identity) *jwt.Token {
 	return token
 }
 
-func service(serviceName string, tm token.Manager, key interface{}, u account.Identity, authz *auth.AuthorizationPayload) *goa.Service {
+func service(serviceName string, tm token.Manager, key interface{}, u account.Identity, authz *token.AuthorizationPayload) *goa.Service {
 	svc := goa.New(serviceName)
 	if authz == nil {
 		svc.Context = WithIdentity(svc.Context, u)
@@ -69,7 +69,7 @@ func service(serviceName string, tm token.Manager, key interface{}, u account.Id
 }
 
 // ServiceAsUserWithAuthz creates a new service and fill the context with input Identity and resource authorization information
-func ServiceAsUserWithAuthz(serviceName string, tm token.Manager, key interface{}, u account.Identity, authorizationPayload auth.AuthorizationPayload) *goa.Service {
+func ServiceAsUserWithAuthz(serviceName string, tm token.Manager, key interface{}, u account.Identity, authorizationPayload token.AuthorizationPayload) *goa.Service {
 	svc := service(serviceName, tm, key, u, &authorizationPayload)
 	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: &dummySpaceAuthzService{}})
 	return svc

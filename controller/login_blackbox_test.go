@@ -18,8 +18,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/token"
-	almtoken "github.com/fabric8-services/fabric8-auth/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -47,28 +46,19 @@ func (rest *TestLoginREST) TearDownTest() {
 }
 
 func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController) {
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
-
-	svc := testsupport.ServiceAsUser("Login-Service", almtoken.NewManagerWithPrivateKey(priv), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Login-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
 	return svc, &LoginController{Controller: svc.NewController("login"), Auth: TestLoginService{}, Configuration: rest.Configuration}
 }
 
 func (rest *TestLoginREST) SecuredController() (*goa.Service, *LoginController) {
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
-
 	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
 
-	svc := testsupport.ServiceAsUser("Login-Service", almtoken.NewManagerWithPrivateKey(priv), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Login-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
 	return svc, NewLoginController(svc, loginService, loginService.TokenManager, rest.Configuration)
 }
 
 func newTestKeycloakOAuthProvider(db application.DB, configuration LoginConfiguration) *login.KeycloakOAuthProvider {
-	publicKey, err := token.ParsePublicKey([]byte(token.RSAPublicKey))
-	if err != nil {
-		panic(err)
-	}
-
-	tokenManager := token.NewManager(publicKey)
+	tokenManager := testtoken.NewManager()
 	return login.NewKeycloakOAuthProvider(db.Identities(), db.Users(), tokenManager, db)
 }
 

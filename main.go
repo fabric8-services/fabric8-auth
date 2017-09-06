@@ -131,21 +131,15 @@ func main() {
 
 	service.WithLogger(goalogrus.New(log.Logger()))
 
-	publicKey, err := token.ParsePublicKey(configuration.GetTokenPublicKey())
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to parse public token")
-	}
-
 	// Setup Account/Login/Security
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
 
 	appDB := gormapplication.NewGormDB(db)
 
-	tokenManager := token.NewManager(publicKey)
-	app.UseJWTMiddleware(service, jwt.New(publicKey, nil, app.NewJWTSecurity()))
+	// TODO
+	tokenManager, err := token.NewManager(configuration)
+	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 	service.Use(login.InjectTokenManager(tokenManager))
 	spaceAuthzService := authz.NewAuthzService(configuration, appDB)
 	service.Use(authz.InjectAuthzService(spaceAuthzService))

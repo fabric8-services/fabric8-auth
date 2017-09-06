@@ -23,7 +23,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
@@ -79,12 +79,8 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 			TokenURL: tokenEndpoint,
 		},
 	}
-	privateKey, err := token.ParsePrivateKey([]byte(token.RSAPrivateKey))
-	if err != nil {
-		panic(err)
-	}
 
-	tokenManager := token.NewManagerWithPrivateKey(privateKey)
+	tokenManager := testtoken.NewManagerWithPrivateKey()
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
 	app := gormapplication.NewGormDB(s.DB)

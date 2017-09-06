@@ -20,7 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
-	almtoken "github.com/fabric8-services/fabric8-auth/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
@@ -51,8 +51,7 @@ func (rest *TestUserREST) SetupSuite() {
 }
 
 func (rest *TestUserREST) newUserController(identity *account.Identity, user *account.User) *UserController {
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
-	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), almtoken.NewManagerWithPrivateKey(priv), &rest.config)
+	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.NewManagerWithPrivateKey(), &rest.config)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingUUID() {
