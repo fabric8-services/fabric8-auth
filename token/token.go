@@ -12,6 +12,7 @@ import (
 
 	"crypto/x509"
 	"encoding/base64"
+
 	jwt "github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
@@ -73,7 +74,7 @@ type Manager interface {
 	PemKeys() ([]byte, error)
 }
 
-// Private Key represents an RSA private key with a Key ID
+// PrivateKey represents an RSA private key with a Key ID
 type PrivateKey struct {
 	KID string
 	Key *rsa.PrivateKey
@@ -91,14 +92,25 @@ type tokenManager struct {
 	pemKeys                  *[]byte
 }
 
-func NewManagerWithPublicKey(id string, publicKey *rsa.PublicKey) Manager {
-	return &tokenManager{
-		publicKeysMap: map[string]*rsa.PublicKey{id: publicKey},
-	}
-}
-
 // NewManager returns a new token Manager for handling tokens
 func NewManager(config configuration) (Manager, error) {
+	// Load public keys from Keycloak and add them to the manager
+	tm := &tokenManager{
+		publicKeysMap: map[string]*rsa.PublicKey{},
+	}
+
+	keycloakKeys, err := loadKeysFromKeycloak(config)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{}, "unable to load Keycloak public keys")
+		return nil, errors.New("unable to load Keycloak public keys")
+	}
+	for _, keycloakKey := range keycloakKeys {
+		tm.publicKeysMap[keycloakKey.KID] = keycloakKey.Key
+		log.Info(nil, map[string]interface{}{
+			"kid": keycloakKey.KID,
+		}, "Public key added")
+	}
+
 	// Load the service account private key and add it to the manager.
 	// Extract the public key from it and add it to the map of public keys.
 	key, kid := config.GetServiceAccountPrivateKey()
@@ -113,10 +125,8 @@ func NewManager(config configuration) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	tm := &tokenManager{
-		serviceAccountPrivateKey: &PrivateKey{KID: kid, Key: rsaServiceAccountKey},
-		publicKeysMap:            map[string]*rsa.PublicKey{kid: &rsaServiceAccountKey.PublicKey},
-	}
+	tm.serviceAccountPrivateKey = &PrivateKey{KID: kid, Key: rsaServiceAccountKey}
+	tm.publicKeysMap[kid] = &rsaServiceAccountKey.PublicKey
 	log.Info(nil, map[string]interface{}{
 		"kid": kid,
 	}, "Service account private key added")
@@ -138,20 +148,14 @@ func NewManager(config configuration) (Manager, error) {
 		}, "Deprecated service account private key added")
 	}
 
-	// Load public keys from Keycloak and add them to the manager
-	keycloakKeys, err := loadKeysFromKeycloak(config)
-	if err != nil {
-		log.Error(nil, map[string]interface{}{}, "unable to load Keycloak public keys")
-		return nil, errors.New("unable to load Keycloak public keys")
-	}
-	for _, keycloakKey := range keycloakKeys {
-		tm.publicKeysMap[keycloakKey.KID] = keycloakKey.Key
-		log.Info(nil, map[string]interface{}{
-			"kid": keycloakKey.KID,
-		}, "Public key added")
-	}
-
 	return tm, nil
+}
+
+// NewManagerWithPublicKey returns a new token Manager for handling tokens with the only public key
+func NewManagerWithPublicKey(id string, publicKey *rsa.PublicKey) Manager {
+	return &tokenManager{
+		publicKeysMap: map[string]*rsa.PublicKey{id: publicKey},
+	}
 }
 
 func loadKeysFromKeycloak(config configuration) ([]*publicKey, error) {
