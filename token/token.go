@@ -91,10 +91,10 @@ type tokenManager struct {
 	pemKeys                  *[]byte
 }
 
-func NewManagerWithPublicKey(id string, publicKey *rsa.PublicKey) (Manager, error) {
+func NewManagerWithPublicKey(id string, publicKey *rsa.PublicKey) Manager {
 	return &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{id: publicKey},
-	}, nil
+	}
 }
 
 // NewManager returns a new token Manager for handling tokens

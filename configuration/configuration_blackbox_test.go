@@ -229,8 +229,9 @@ func TestGetTokenPrivateKeyFromConfigFile(t *testing.T) {
 	resetConfiguration(defaultConfigFilePath)
 	// env variable NOT set, so we check with config.yaml's value
 
-	viperValue := config.GetServiceAccountPrivateKey()
-	assert.NotNil(t, viperValue)
+	viperValue, kid := config.GetServiceAccountPrivateKey()
+	assert.NotEqual(t, "", kid)
+	require.NotNil(t, viperValue)
 
 	parsedKey, err := jwt.ParseRSAPrivateKeyFromPEM(viperValue)
 	require.Nil(t, err)
