@@ -87,6 +87,7 @@ type publicKey struct {
 
 type tokenManager struct {
 	publicKeysMap            map[string]*rsa.PublicKey
+	publicKeys               []*publicKey
 	serviceAccountPrivateKey *PrivateKey
 	jsonWebKeys              *[]byte
 	pemKeys                  *[]byte
@@ -106,6 +107,7 @@ func NewManager(config configuration) (Manager, error) {
 	}
 	for _, keycloakKey := range keycloakKeys {
 		tm.publicKeysMap[keycloakKey.KID] = keycloakKey.Key
+		tm.publicKeys = append(tm.publicKeys, &publicKey{KID: keycloakKey.KID, Key: keycloakKey.Key})
 		log.Info(nil, map[string]interface{}{
 			"kid": keycloakKey.KID,
 		}, "Public key added")
@@ -126,7 +128,9 @@ func NewManager(config configuration) (Manager, error) {
 		return nil, err
 	}
 	tm.serviceAccountPrivateKey = &PrivateKey{KID: kid, Key: rsaServiceAccountKey}
-	tm.publicKeysMap[kid] = &rsaServiceAccountKey.PublicKey
+	pk := &rsaServiceAccountKey.PublicKey
+	tm.publicKeysMap[kid] = pk
+	tm.publicKeys = append(tm.publicKeys, &publicKey{KID: kid, Key: pk})
 	log.Info(nil, map[string]interface{}{
 		"kid": kid,
 	}, "Service account private key added")
@@ -142,7 +146,9 @@ func NewManager(config configuration) (Manager, error) {
 		if err != nil {
 			return nil, err
 		}
-		tm.publicKeysMap[kid] = &rsaServiceAccountKey.PublicKey
+		pk := &rsaServiceAccountKey.PublicKey
+		tm.publicKeysMap[kid] = pk
+		tm.publicKeys = append(tm.publicKeys, &publicKey{KID: kid, Key: pk})
 		log.Info(nil, map[string]interface{}{
 			"kid": kid,
 		}, "Deprecated service account private key added")
@@ -152,9 +158,10 @@ func NewManager(config configuration) (Manager, error) {
 }
 
 // NewManagerWithPublicKey returns a new token Manager for handling tokens with the only public key
-func NewManagerWithPublicKey(id string, publicKey *rsa.PublicKey) Manager {
+func NewManagerWithPublicKey(id string, key *rsa.PublicKey) Manager {
 	return &tokenManager{
-		publicKeysMap: map[string]*rsa.PublicKey{id: publicKey},
+		publicKeysMap: map[string]*rsa.PublicKey{id: key},
+		publicKeys:    []*publicKey{{KID: id, Key: key}},
 	}
 }
 
@@ -237,8 +244,8 @@ func (mgm *tokenManager) JsonWebKeys() ([]byte, error) {
 		return *mgm.jsonWebKeys, nil
 	}
 	var keys []interface{}
-	for kid, key := range mgm.publicKeysMap {
-		jwk := jose.JSONWebKey{Key: key, KeyID: kid, Algorithm: "RS256", Use: "sig"}
+	for _, key := range mgm.publicKeys {
+		jwk := jose.JSONWebKey{Key: key.Key, KeyID: key.KID, Algorithm: "RS256", Use: "sig"}
 		keyData, err := jwk.MarshalJSON()
 		if err != nil {
 			return nil, err
@@ -265,12 +272,12 @@ func (mgm *tokenManager) PemKeys() ([]byte, error) {
 		return *mgm.pemKeys, nil
 	}
 	var pemKeys []interface{}
-	for kid, key := range mgm.publicKeysMap {
-		keyData, err := toPem(key)
+	for _, key := range mgm.publicKeys {
+		keyData, err := toPem(key.Key)
 		if err != nil {
 			return nil, err
 		}
-		pemKeys = append(pemKeys, rawPemKey{Kid: kid, Key: keyData})
+		pemKeys = append(pemKeys, rawPemKey{Kid: key.KID, Key: keyData})
 	}
 	keysData := rawKeys{Keys: pemKeys}
 	data, err := json.Marshal(keysData)
@@ -332,8 +339,8 @@ func (mgm *tokenManager) PublicKey(kid string) *rsa.PublicKey {
 // PublicKeys returns all the public keys
 func (mgm *tokenManager) PublicKeys() []*rsa.PublicKey {
 	keys := make([]*rsa.PublicKey, 0, len(mgm.publicKeysMap))
-	for _, key := range mgm.publicKeysMap {
-		keys = append(keys, key)
+	for _, key := range mgm.publicKeys {
+		keys = append(keys, key.Key)
 	}
 	return keys
 }
