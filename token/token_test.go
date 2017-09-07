@@ -25,12 +25,8 @@ var (
 )
 
 func init() {
-	var err error
-	privateKey, err = jwt.ParseRSAPrivateKeyFromPEM([]byte(testtoken.RSAPrivateKey))
+	privateKey = testtoken.PrivateKey()
 	tokenManager = testtoken.NewManagerWithPrivateKey()
-	if err != nil {
-		panic(err)
-	}
 }
 
 func TestValidOAuthAccessToken(t *testing.T) {

@@ -71,13 +71,7 @@ func getValidAuthHeader(t *testing.T, key interface{}) string {
 func UnauthorizeCreateUpdateDeleteTest(t *testing.T, getDataFunc func(t *testing.T) []testSecureAPI, createServiceFunc func() *goa.Service, mountCtrlFunc func(service *goa.Service) error) {
 	resource.Require(t, resource.Database)
 
-	// This will be modified after merge PR for "Viper Environment configurations"
-	publickey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(testtoken.RSAPublicKey))
-	if err != nil {
-		t.Fatal("Could not parse Key ", err)
-	}
 	tokenTests := getDataFunc(t)
-
 	for _, testObject := range tokenTests {
 		// Build a request
 		var req *http.Request
@@ -107,7 +101,7 @@ func UnauthorizeCreateUpdateDeleteTest(t *testing.T, getDataFunc func(t *testing
 		service.Use(jsonapi.ErrorHandler(service, true))
 
 		// append a middleware to service. Use appropriate RSA keys
-		jwtMiddleware := goajwt.New(publickey, nil, app.NewJWTSecurity())
+		jwtMiddleware := goajwt.New(testtoken.PublicKey(), nil, app.NewJWTSecurity())
 		// Adding middleware via "app" is important
 		// Because it will check the design and accordingly apply the middleware if mentioned in design
 		// But if I use `service.Use(jwtMiddleware)` then middleware is applied for all the requests (without checking design)

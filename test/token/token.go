@@ -25,25 +25,33 @@ func GenerateToken(identityID string, identityUsername string, privateKey *rsa.P
 
 // NewManager returns a new token Manager for handling tokens
 func NewManager() authtoken.Manager {
-	rsaKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(RSAPublicKey))
-	if err != nil {
-		panic("Failed: " + err.Error())
-	}
-	return authtoken.NewManagerWithPublicKey("test-key", rsaKey)
+	return authtoken.NewManagerWithPublicKey("test-key", PublicKey())
 }
 
 // NewManagerWithPrivateKey returns a new token Manager
 func NewManagerWithPrivateKey() authtoken.Manager {
-	rsaKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(RSAPrivateKey))
+	return authtoken.NewManagerWithPublicKey("test-key", &PrivateKey().PublicKey)
+}
+
+func PublicKey() *rsa.PublicKey {
+	rsaKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(rsaPublicKey))
 	if err != nil {
 		panic("Failed: " + err.Error())
 	}
-	return authtoken.NewManagerWithPublicKey("test-key", &rsaKey.PublicKey)
+	return rsaKey
 }
 
-// RSAPrivateKey for signing JWT Tokens
+func PrivateKey() *rsa.PrivateKey {
+	rsaKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(rsaPrivateKey))
+	if err != nil {
+		panic("Failed: " + err.Error())
+	}
+	return rsaKey
+}
+
+// rsaPrivateKey for signing JWT Tokens
 // ssh-keygen -f alm_rsa
-var RSAPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+var rsaPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
 DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
 HlVUSBTAcwKEjNn4C9jtEpyOl+eSgxhMzRH3bwTIFlLlVMiZf7XVE7P3yuOCpqkk
@@ -71,9 +79,9 @@ BA/cKaLPqUF+08Tz/9MPBw51UH4GYfppA/x0ktc8998984FeIpfIFX6I2U9yUnoQ
 OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 -----END RSA PRIVATE KEY-----`
 
-// RSAPublicKey for verifying JWT Tokens
+// rsaPublicKey for verifying JWT Tokens
 // openssl rsa -in alm_rsa -pubout -out alm_rsa.pub
-var RSAPublicKey = `-----BEGIN PUBLIC KEY-----
+var rsaPublicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiRd6pdNjiwQFH2xmNugn
 TkVhkF+TdJw19Kpj3nRtsoUe4/6gIureVi7FWqcb+2t/E0dv8rAAs6vl+d7roz3R
 SkAzBjPxVW5+hi5AJjUbAxtFX/aYJpZePVhK0Dv8StCPSv9GC3T6bUSF3q3E9R9n

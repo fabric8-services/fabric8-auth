@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
@@ -75,10 +74,8 @@ func (s *TestAuthzSuite) TestUserIsNotAmongSpaceCollaboratorsFails() {
 func (s *TestAuthzSuite) checkPermissions(authzPayload token.AuthorizationPayload, spaceID string) bool {
 	resource := &space.Resource{}
 	authzService := authz.NewAuthzService(nil, &db{app{resource: resource}})
-	priv, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(testtoken.RSAPrivateKey))
-	require.Nil(s.T(), err)
 	testIdentity := testsupport.TestIdentity
-	svc := testsupport.ServiceAsUserWithAuthz("SpaceAuthz-Service", testtoken.NewManagerWithPrivateKey(), priv, testIdentity, authzPayload)
+	svc := testsupport.ServiceAsUserWithAuthz("SpaceAuthz-Service", testtoken.NewManagerWithPrivateKey(), testtoken.PrivateKey(), testIdentity, authzPayload)
 	resource.UpdatedAt = time.Now()
 
 	r := &goa.RequestData{
