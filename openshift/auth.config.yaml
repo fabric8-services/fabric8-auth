@@ -15,7 +15,8 @@ objects:
     db.password: bXlzZWNyZXRwYXNzd29yZA==
     keycloak.realm: ZmFicmljOAo=
     keycloak.secret: Cg==
-    token.publickey: Cg==
+    serviceaccount.privatekey: Cg==
+    serviceaccount.privatekeyid: Cg==
 - apiVersion: v1
   kind: ConfigMap
   metadata:
@@ -27,4 +28,5 @@ objects:
     postgres.connection.maxopen: "90"
     redirect.valid: ".*"
     notapproved_redirect: ""
+    keycloak.url: "https://sso.openshift.io"
   

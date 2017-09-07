@@ -47,7 +47,7 @@ log.level: info
 # ----------------------------
 
 # Deprecated private key to be used to verify service account tokens. Used for key rotation.
-#serviceaccount.privatekey.key.deprecated : |
+#serviceaccount.privatekey.deprecated : |
 #                    -----BEGIN RSA PRIVATE KEY-----
 #                    MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
 #                    ...
@@ -55,10 +55,10 @@ log.level: info
 #                    -----END RSA PRIVATE KEY-----
 
 # Deprecated service account private key ID.
-#serviceaccount.privatekey.id.deprecated: bNq-BCOR3ev-E6buGSaPrU-0SXX8whhDlmZ6geenkTE
+#serviceaccount.privatekeyid.deprecated: bNq-BCOR3ev-E6buGSaPrU-0SXX8whhDlmZ6geenkTE
 
 # Private key to be used to sign service account tokens
-serviceaccount.privatekey.key : |
+serviceaccount.privatekey : |
                     -----BEGIN RSA PRIVATE KEY-----
                     MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
                     DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
@@ -88,7 +88,7 @@ serviceaccount.privatekey.key : |
                     -----END RSA PRIVATE KEY-----
 
 # Service account private key ID.
-serviceaccount.privatekey.id: 9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs
+serviceaccount.privatekeyid: 9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs
 
 #notapproved.redirect : https://manage.openshift.com/openshiftio
 
@@ -105,5 +105,4 @@ keycloak.testuser.secret : testuser
 keycloak.testuser2.name : testuser2
 keycloak.testuser2.secret : testuser2
 
-# Uncomment if FQDN URL's should be used instead of relative URL's:
-# keycloak.url : https://sso.prod-preview.openshift.io
+keycloak.url : https://sso.prod-preview.openshift.io
