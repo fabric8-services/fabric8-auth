@@ -57,23 +57,3 @@ func TestKeycloakTokensLoaded(t *testing.T) {
 	require.Nil(t, err)
 	require.NotEmpty(t, pemKeys)
 }
-
-//
-//func TestPublicKeyMaps(t *testing.T) {
-//	tm, err := token.NewManager(config)
-//	require.Nil(t, err)
-//	require.NotNil(t, tm)
-//
-//	rasKeys := tm.PublicKeys()
-//	for _, k:= range rasKeys {
-//		k.
-//	}
-//
-//	_, serviceAccountKid := config.GetServiceAccountPrivateKey()
-//	require.NotEqual(t, "", serviceAccountKid)
-//	_, dServiceAccountKid := config.GetDeprecatedServiceAccountPrivateKey()
-//	if dServiceAccountKid != "" {
-//		minKeyNumber++
-//	}
-//	require.True(t, len(tm.PublicKeys()) >= minKeyNumber)
-//}
