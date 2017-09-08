@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"time"
@@ -83,8 +84,8 @@ func ServiceAsUser(serviceName string, tm token.Manager, u account.Identity) *go
 }
 
 // ServiceAsSpaceUser creates a new service and fill the context with input Identity and space authz service
-func ServiceAsSpaceUser(serviceName string, tm token.Manager, u account.Identity, authzSrv authz.AuthzService) *goa.Service {
-	svc := service(serviceName, tm, nil, u, nil)
+func ServiceAsSpaceUser(serviceName string, u account.Identity, authzSrv authz.AuthzService) *goa.Service {
+	svc := service(serviceName, testtoken.NewManagerWithPrivateKey(), nil, u, nil)
 	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: authzSrv})
 	return svc
 }
