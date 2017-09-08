@@ -80,11 +80,10 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 		},
 	}
 
-	tokenManager := testtoken.NewManagerWithPrivateKey()
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
 	app := gormapplication.NewGormDB(s.DB)
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, app)
+	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, app)
 }
 
 func (s *serviceBlackBoxTest) SetupTest() {

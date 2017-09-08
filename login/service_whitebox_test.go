@@ -42,14 +42,12 @@ func init() {
 }
 
 func setup() {
-
-	tokenManager := testtoken.NewManagerWithPrivateKey()
 	userRepository := account.NewUserRepository(nil)
 	identityRepository := account.NewIdentityRepository(nil)
 	loginService = &KeycloakOAuthProvider{
 		Identities:   identityRepository,
 		Users:        userRepository,
-		TokenManager: tokenManager,
+		TokenManager: testtoken.TokenManager,
 	}
 }
 

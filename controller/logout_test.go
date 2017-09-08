@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +35,7 @@ func (rest *TestLogoutREST) TearDownTest() {
 }
 
 func (rest *TestLogoutREST) UnSecuredController() (*goa.Service, *LogoutController) {
-	svc := testsupport.ServiceAsUser("Logout-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Logout-Service", testsupport.TestIdentity)
 	return svc, &LogoutController{Controller: svc.NewController("logout"), logoutService: &login.KeycloakLogoutService{}, configuration: rest.configuration}
 }
 

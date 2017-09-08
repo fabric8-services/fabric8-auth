@@ -14,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
@@ -27,7 +26,6 @@ import (
 type TestRecentSpacesREST struct {
 	gormtestsupport.RemoteTestSuite
 	configuration      *configuration.ConfigurationData
-	tokenManager       token.Manager
 	identityRepository *MockIdentityRepository
 	userRepository     *MockUserRepository
 
@@ -39,8 +37,7 @@ func TestRunRecentSpacesREST(t *testing.T) {
 }
 
 func (rest *TestRecentSpacesREST) newTestKeycloakOAuthProvider(db application.DB) *login.KeycloakOAuthProvider {
-	tokenManager := testtoken.NewManager()
-	return login.NewKeycloakOAuthProvider(rest.identityRepository, rest.userRepository, tokenManager, db)
+	return login.NewKeycloakOAuthProvider(rest.identityRepository, rest.userRepository, testtoken.TokenManager, db)
 }
 
 func (rest *TestRecentSpacesREST) SetupTest() {
@@ -50,7 +47,6 @@ func (rest *TestRecentSpacesREST) SetupTest() {
 	}
 	rest.configuration = c
 	require.Nil(rest.T(), err)
-	rest.tokenManager = testtoken.NewManager()
 
 	identity := account.Identity{}
 	user := account.User{}
@@ -58,7 +54,6 @@ func (rest *TestRecentSpacesREST) SetupTest() {
 
 	rest.identityRepository = &MockIdentityRepository{testIdentity: &identity}
 	rest.userRepository = &MockUserRepository{}
-
 }
 
 /* MockUserRepositoryService */
@@ -68,10 +63,10 @@ type MockIdentityRepository struct {
 }
 
 func (rest *TestRecentSpacesREST) SecuredController() (*goa.Service, *TokenController) {
-	svc := testsupport.ServiceAsUser("Login-Service", rest.tokenManager, testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
 	tokenController := &TokenController{
 		Controller:         svc.NewController("login"),
-		TokenManager:       rest.tokenManager,
+		TokenManager:       testtoken.TokenManager,
 		Configuration:      rest.configuration,
 		identityRepository: rest.identityRepository,
 	}

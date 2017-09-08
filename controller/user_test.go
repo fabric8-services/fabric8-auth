@@ -51,7 +51,7 @@ func (rest *TestUserREST) SetupSuite() {
 }
 
 func (rest *TestUserREST) newUserController(identity *account.Identity, user *account.User) *UserController {
-	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.NewManagerWithPrivateKey(), &rest.config)
+	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.TokenManager, &rest.config)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingUUID() {

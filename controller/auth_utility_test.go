@@ -101,7 +101,7 @@ func UnauthorizeCreateUpdateDeleteTest(t *testing.T, getDataFunc func(t *testing
 		service.Use(jsonapi.ErrorHandler(service, true))
 
 		// append a middleware to service. Use appropriate RSA keys
-		jwtMiddleware := goajwt.New(testtoken.PublicKey(), nil, app.NewJWTSecurity())
+		jwtMiddleware := goajwt.New(testtoken.PrivateKey().PublicKey, nil, app.NewJWTSecurity())
 		// Adding middleware via "app" is important
 		// Because it will check the design and accordingly apply the middleware if mentioned in design
 		// But if I use `service.Use(jwtMiddleware)` then middleware is applied for all the requests (without checking design)

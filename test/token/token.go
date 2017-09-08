@@ -4,9 +4,18 @@ import (
 	"crypto/rsa"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-auth/token"
 	authtoken "github.com/fabric8-services/fabric8-auth/token"
 	"github.com/pkg/errors"
 )
+
+var (
+	TokenManager token.Manager
+)
+
+func init() {
+	TokenManager = NewManager()
+}
 
 // GenerateToken generates a JWT token and signs it using the given private key
 func GenerateToken(identityID string, identityUsername string, privateKey *rsa.PrivateKey) (string, error) {
@@ -25,20 +34,7 @@ func GenerateToken(identityID string, identityUsername string, privateKey *rsa.P
 
 // NewManager returns a new token Manager for handling tokens
 func NewManager() authtoken.Manager {
-	return authtoken.NewManagerWithPublicKey("test-key", PublicKey())
-}
-
-// NewManagerWithPrivateKey returns a new token Manager
-func NewManagerWithPrivateKey() authtoken.Manager {
 	return authtoken.NewManagerWithPublicKey("test-key", &PrivateKey().PublicKey)
-}
-
-func PublicKey() *rsa.PublicKey {
-	rsaKey, err := jwt.ParseRSAPublicKeyFromPEM([]byte(rsaPublicKey))
-	if err != nil {
-		panic("Failed: " + err.Error())
-	}
-	return rsaKey
 }
 
 func PrivateKey() *rsa.PrivateKey {
@@ -78,15 +74,3 @@ ZzBJ0G5JHPtaub6sEC6/ZWe0F1nJYP2KLop57FxKRt0G2+fxeA0ahpMwa2oMMiQM
 BA/cKaLPqUF+08Tz/9MPBw51UH4GYfppA/x0ktc8998984FeIpfIFX6I2U9yUnoQ
 OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 -----END RSA PRIVATE KEY-----`
-
-// rsaPublicKey for verifying JWT Tokens
-// openssl rsa -in alm_rsa -pubout -out alm_rsa.pub
-var rsaPublicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAiRd6pdNjiwQFH2xmNugn
-TkVhkF+TdJw19Kpj3nRtsoUe4/6gIureVi7FWqcb+2t/E0dv8rAAs6vl+d7roz3R
-SkAzBjPxVW5+hi5AJjUbAxtFX/aYJpZePVhK0Dv8StCPSv9GC3T6bUSF3q3E9R9n
-G1SZFkN9m2DhL+45us4THzX2eau6s0bISjAUqEGNifPyYYUzKVmXmHS9fiZJR61h
-6TulPwxv68DUSk+7iIJvJfQ3lH/XNWlxWNMMehetcmdy8EDR2IkJCCAbjx9yxgKV
-JXdQ7zylRlpaLopock0FGiZrJhEaAh6BGuaoUWLiMEvqrLuyZnJYEg9f/vyxUJSD
-JwIDAQAB
------END PUBLIC KEY-----`

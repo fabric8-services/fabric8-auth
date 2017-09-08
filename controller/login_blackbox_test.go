@@ -46,20 +46,19 @@ func (rest *TestLoginREST) TearDownTest() {
 }
 
 func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController) {
-	svc := testsupport.ServiceAsUser("Login-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
 	return svc, &LoginController{Controller: svc.NewController("login"), Auth: TestLoginService{}, Configuration: rest.Configuration}
 }
 
 func (rest *TestLoginREST) SecuredController() (*goa.Service, *LoginController) {
 	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
 
-	svc := testsupport.ServiceAsUser("Login-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
 	return svc, NewLoginController(svc, loginService, loginService.TokenManager, rest.Configuration)
 }
 
 func newTestKeycloakOAuthProvider(db application.DB, configuration LoginConfiguration) *login.KeycloakOAuthProvider {
-	tokenManager := testtoken.NewManager()
-	return login.NewKeycloakOAuthProvider(db.Identities(), db.Users(), tokenManager, db)
+	return login.NewKeycloakOAuthProvider(db.Identities(), db.Users(), testtoken.TokenManager, db)
 }
 
 func (rest *TestLoginREST) TestLoginOK() {

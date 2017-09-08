@@ -10,7 +10,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -38,14 +37,14 @@ func (rest *TestLinkREST) TearDownTest() {
 }
 
 func (rest *TestLinkREST) UnSecuredController() (*goa.Service, *LinkController) {
-	svc := testsupport.ServiceAsUser("Link-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Link-Service", testsupport.TestIdentity)
 	return svc, &LinkController{Controller: svc.NewController("login"), Auth: TestLoginService{}, Configuration: rest.Configuration}
 }
 
 func (rest *TestLinkREST) SecuredController() (*goa.Service, *LinkController) {
 	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
 
-	svc := testsupport.ServiceAsUser("Login-Service", testtoken.NewManagerWithPrivateKey(), testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
 	return svc, NewLinkController(svc, loginService, loginService.TokenManager, rest.Configuration)
 }
 

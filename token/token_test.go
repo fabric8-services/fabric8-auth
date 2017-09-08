@@ -26,7 +26,7 @@ var (
 
 func init() {
 	privateKey = testtoken.PrivateKey()
-	tokenManager = testtoken.NewManagerWithPrivateKey()
+	tokenManager = testtoken.NewManager()
 }
 
 func TestValidOAuthAccessToken(t *testing.T) {
@@ -97,7 +97,6 @@ func TestCheckClaimsFails(t *testing.T) {
 }
 
 func TestLocateTokenInContex(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
 	id := uuid.NewV4()
 
 	tk := jwt.New(jwt.SigningMethodRS256)
@@ -110,7 +109,6 @@ func TestLocateTokenInContex(t *testing.T) {
 }
 
 func TestLocateMissingTokenInContext(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
 	ctx := context.Background()
 
 	_, err := tokenManager.Locate(ctx)
@@ -120,7 +118,6 @@ func TestLocateMissingTokenInContext(t *testing.T) {
 }
 
 func TestLocateMissingUUIDInTokenInContext(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
 	tk := jwt.New(jwt.SigningMethodRS256)
 	ctx := goajwt.WithJWT(context.Background(), tk)
 
@@ -129,7 +126,6 @@ func TestLocateMissingUUIDInTokenInContext(t *testing.T) {
 }
 
 func TestLocateInvalidUUIDInTokenInContext(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
 	tk := jwt.New(jwt.SigningMethodRS256)
 	tk.Claims.(jwt.MapClaims)["sub"] = "131"
 	ctx := goajwt.WithJWT(context.Background(), tk)
