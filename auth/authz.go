@@ -221,14 +221,16 @@ func CreateResource(ctx context.Context, resource KeycloakResource, authzEndpoin
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"resource": resource,
-			"err":      err.Error(),
+			"auth_endpoint": authzEndpoint,
+			"resource":      resource,
+			"err":           err.Error(),
 		}, "unable to create a Keycloak resource")
 		return "", errors.NewInternalError(ctx, errs.Wrap(err, "unable to create a Keycloak resource"))
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusCreated {
 		log.Error(ctx, map[string]interface{}{
+			"auth_endpoint":   authzEndpoint,
 			"resource":        resource,
 			"response_status": res.Status,
 			"response_body":   rest.ReadBody(res.Body),

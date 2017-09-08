@@ -1,0 +1,4 @@
+FROM fabric8/fabric8-auth:v6a56c54
+
+COPY fabric8-auth-linux /usr/local/auth/bin/auth
+RUN echo chmod +x /usr/local/auth/bin/auth
