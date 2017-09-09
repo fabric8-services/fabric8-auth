@@ -27,17 +27,8 @@ type configuration interface {
 	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
 }
 
-type rawKeys struct {
+type JsonKeys struct {
 	Keys []interface{} `json:"keys"`
-}
-
-type rawPemKeys struct {
-	Keys []rawPemKey `json:"keys"`
-}
-
-type rawPemKey struct {
-	Kid string `json:"kid"`
-	Key string `json:"key"`
 }
 
 // TokenClaims represents access token claims
@@ -70,8 +61,8 @@ type Manager interface {
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	PublicKey(kid string) *rsa.PublicKey
 	PublicKeys() []*rsa.PublicKey
-	JsonWebKeys() ([]byte, error)
-	PemKeys() ([]byte, error)
+	JsonWebKeys() JsonKeys
+	PemKeys() JsonKeys
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -80,17 +71,17 @@ type PrivateKey struct {
 	Key *rsa.PrivateKey
 }
 
-type publicKey struct {
+type PublicKey struct {
 	KID string
 	Key *rsa.PublicKey
 }
 
 type tokenManager struct {
 	publicKeysMap            map[string]*rsa.PublicKey
-	publicKeys               []*publicKey
+	publicKeys               []*PublicKey
 	serviceAccountPrivateKey *PrivateKey
-	jsonWebKeys              *[]byte
-	pemKeys                  *[]byte
+	jsonWebKeys              JsonKeys
+	pemKeys                  JsonKeys
 }
 
 // NewManager returns a new token Manager for handling tokens
@@ -100,14 +91,14 @@ func NewManager(config configuration) (Manager, error) {
 		publicKeysMap: map[string]*rsa.PublicKey{},
 	}
 
-	keycloakKeys, err := loadKeysFromKeycloak(config)
+	keycloakKeys, err := FetchKeys(config.GetKeycloakEndpointCerts())
 	if err != nil {
 		log.Error(nil, map[string]interface{}{}, "unable to load Keycloak public keys")
 		return nil, errors.New("unable to load Keycloak public keys")
 	}
 	for _, keycloakKey := range keycloakKeys {
 		tm.publicKeysMap[keycloakKey.KID] = keycloakKey.Key
-		tm.publicKeys = append(tm.publicKeys, &publicKey{KID: keycloakKey.KID, Key: keycloakKey.Key})
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KID: keycloakKey.KID, Key: keycloakKey.Key})
 		log.Info(nil, map[string]interface{}{
 			"kid": keycloakKey.KID,
 		}, "Public key added")
@@ -130,7 +121,7 @@ func NewManager(config configuration) (Manager, error) {
 	tm.serviceAccountPrivateKey = &PrivateKey{KID: kid, Key: rsaServiceAccountKey}
 	pk := &rsaServiceAccountKey.PublicKey
 	tm.publicKeysMap[kid] = pk
-	tm.publicKeys = append(tm.publicKeys, &publicKey{KID: kid, Key: pk})
+	tm.publicKeys = append(tm.publicKeys, &PublicKey{KID: kid, Key: pk})
 	log.Info(nil, map[string]interface{}{
 		"kid": kid,
 	}, "Service account private key added")
@@ -148,11 +139,29 @@ func NewManager(config configuration) (Manager, error) {
 		}
 		pk := &rsaServiceAccountKey.PublicKey
 		tm.publicKeysMap[kid] = pk
-		tm.publicKeys = append(tm.publicKeys, &publicKey{KID: kid, Key: pk})
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KID: kid, Key: pk})
 		log.Info(nil, map[string]interface{}{
 			"kid": kid,
 		}, "Deprecated service account private key added")
 	}
+
+	jsonKeys, err := toJsonWebKeys(tm.publicKeys)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{
+			"err": err,
+		}, "unable to convert public keys to JSON Web Keys")
+		return nil, errors.New("unable to convert public keys to JSON Web Keys")
+	}
+	tm.jsonWebKeys = jsonKeys
+
+	jsonKeys, err = toPemKeys(tm.publicKeys)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{
+			"err": err,
+		}, "unable to convert public keys to PEM Keys")
+		return nil, errors.New("unable to convert public keys to PEM Keys")
+	}
+	tm.pemKeys = jsonKeys
 
 	return tm, nil
 }
@@ -161,12 +170,13 @@ func NewManager(config configuration) (Manager, error) {
 func NewManagerWithPublicKey(id string, key *rsa.PublicKey) Manager {
 	return &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{id: key},
-		publicKeys:    []*publicKey{{KID: id, Key: key}},
+		publicKeys:    []*PublicKey{{KID: id, Key: key}},
 	}
 }
 
-func loadKeysFromKeycloak(config configuration) ([]*publicKey, error) {
-	req, err := http.NewRequest("GET", config.GetKeycloakEndpointCerts(), nil)
+// FetchKeys fetches public JSON WEB Keys from a remote service
+func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
+	req, err := http.NewRequest("GET", keysEndpointURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -179,8 +189,9 @@ func loadKeysFromKeycloak(config configuration) ([]*publicKey, error) {
 		log.Error(nil, map[string]interface{}{
 			"response_status": res.Status,
 			"response_body":   rest.ReadBody(res.Body),
-		}, "unable to obtain keycloak public keys")
-		return nil, errors.Errorf("unable to obtain keycloak public keys")
+			"url":             keysEndpointURL,
+		}, "unable to obtain public keys from remote service")
+		return nil, errors.Errorf("unable to obtain public keys from remote service")
 	}
 	jsonString := rest.ReadBody(res.Body)
 	keys, err := unmarshalKeys([]byte(jsonString))
@@ -189,15 +200,15 @@ func loadKeysFromKeycloak(config configuration) ([]*publicKey, error) {
 	}
 
 	log.Info(nil, map[string]interface{}{
-		"url":            config.GetKeycloakEndpointCerts(),
+		"url":            keysEndpointURL,
 		"number_of_keys": len(keys),
 	}, "Public keys loaded")
 	return keys, nil
 }
 
-func unmarshalKeys(jsonData []byte) ([]*publicKey, error) {
-	var keys []*publicKey
-	var raw rawKeys
+func unmarshalKeys(jsonData []byte) ([]*PublicKey, error) {
+	var keys []*PublicKey
+	var raw JsonKeys
 	err := json.Unmarshal(jsonData, &raw)
 	if err != nil {
 		return nil, err
@@ -216,7 +227,7 @@ func unmarshalKeys(jsonData []byte) ([]*publicKey, error) {
 	return keys, nil
 }
 
-func unmarshalKey(jsonData []byte) (*publicKey, error) {
+func unmarshalKey(jsonData []byte) (*PublicKey, error) {
 	var key *jose.JSONWebKey
 	key = &jose.JSONWebKey{}
 	err := key.UnmarshalJSON(jsonData)
@@ -227,7 +238,7 @@ func unmarshalKey(jsonData []byte) (*publicKey, error) {
 	if !ok {
 		return nil, errors.New("Key is not an *rsa.PublicKey")
 	}
-	return &publicKey{key.KeyID, rsaKey}, nil
+	return &PublicKey{key.KeyID, rsaKey}, nil
 }
 
 func toPem(key *rsa.PublicKey) (string, error) {
@@ -238,54 +249,45 @@ func toPem(key *rsa.PublicKey) (string, error) {
 	return base64.StdEncoding.EncodeToString(pubASN1), nil
 }
 
-// JsonWebKeys returns a JSON that contains an array of all the public keys in JSON Web Keys format
-func (mgm *tokenManager) JsonWebKeys() ([]byte, error) {
-	if mgm.jsonWebKeys != nil {
-		return *mgm.jsonWebKeys, nil
-	}
+func toJsonWebKeys(publicKeys []*PublicKey) (JsonKeys, error) {
 	var keys []interface{}
-	for _, key := range mgm.publicKeys {
+	for _, key := range publicKeys {
 		jwk := jose.JSONWebKey{Key: key.Key, KeyID: key.KID, Algorithm: "RS256", Use: "sig"}
 		keyData, err := jwk.MarshalJSON()
 		if err != nil {
-			return nil, err
+			return JsonKeys{}, err
 		}
 		var raw interface{}
 		err = json.Unmarshal(keyData, &raw)
 		if err != nil {
-			return nil, err
+			return JsonKeys{}, err
 		}
 		keys = append(keys, raw)
 	}
-	keysData := rawKeys{Keys: keys}
-	data, err := json.Marshal(keysData)
-	if err != nil {
-		return nil, err
-	}
-	mgm.jsonWebKeys = &data
-	return data, nil
+	return JsonKeys{Keys: keys}, nil
 }
 
-// PemKeys returns a JSON that contains an array of all the public keys in PEM format
-func (mgm *tokenManager) PemKeys() ([]byte, error) {
-	if mgm.pemKeys != nil {
-		return *mgm.pemKeys, nil
-	}
+// JsonWebKeys returns all the public keys in JSON Web Keys format
+func (mgm *tokenManager) JsonWebKeys() JsonKeys {
+	return mgm.jsonWebKeys
+}
+
+// PemKeys returns all the public keys in PEM-like format (PEM without header and footer)
+func (mgm *tokenManager) PemKeys() JsonKeys {
+	return mgm.pemKeys
+}
+
+func toPemKeys(publicKeys []*PublicKey) (JsonKeys, error) {
 	var pemKeys []interface{}
-	for _, key := range mgm.publicKeys {
+	for _, key := range publicKeys {
 		keyData, err := toPem(key.Key)
 		if err != nil {
-			return nil, err
+			return JsonKeys{}, err
 		}
-		pemKeys = append(pemKeys, rawPemKey{Kid: key.KID, Key: keyData})
+		rawPemKey := map[string]interface{}{"kid": key.KID, "key": keyData}
+		pemKeys = append(pemKeys, rawPemKey)
 	}
-	keysData := rawKeys{Keys: pemKeys}
-	data, err := json.Marshal(keysData)
-	if err != nil {
-		return nil, err
-	}
-	mgm.pemKeys = &data
-	return data, nil
+	return JsonKeys{Keys: pemKeys}, nil
 }
 
 // ParseToken parses token claims

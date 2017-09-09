@@ -8,14 +8,13 @@ import (
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/rest"
-
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
@@ -36,6 +35,20 @@ type TokenController struct {
 // NewTokenController creates a token controller.
 func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository) *TokenController {
 	return &TokenController{Controller: service.NewController("token"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository}
+}
+
+// Keys returns public keys which should be used to verify tokens
+func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
+	//fmt.Printf("!!!!! Starting....\r\n")
+	var publicKeys token.JsonKeys
+	if ctx.Format != nil && *ctx.Format == "pem" {
+		publicKeys = c.TokenManager.PemKeys()
+	} else {
+		publicKeys = c.TokenManager.JsonWebKeys()
+	}
+
+	//fmt.Printf("!!!!! Keys (type=%s): %v \r\n", ctx.Format, publicKeys)
+	return ctx.OK(&app.PublicKeys{Keys: publicKeys.Keys})
 }
 
 // Refresh obtains a new access token using the refresh token.

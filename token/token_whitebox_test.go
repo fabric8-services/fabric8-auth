@@ -49,11 +49,9 @@ func TestKeycloakTokensLoaded(t *testing.T) {
 		require.Equal(t, m.PublicKeys()[i], k.Key)
 	}
 
-	jwKeys, err := m.JsonWebKeys()
-	require.Nil(t, err)
-	require.NotEmpty(t, jwKeys)
+	jwKeys := m.JsonWebKeys()
+	require.NotEmpty(t, jwKeys.Keys)
 
-	pemKeys, err := m.PemKeys()
-	require.Nil(t, err)
-	require.NotEmpty(t, pemKeys)
+	pemKeys := m.PemKeys()
+	require.NotEmpty(t, pemKeys.Keys)
 }
