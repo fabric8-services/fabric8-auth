@@ -138,6 +138,11 @@ func main() {
 	appDB := gormapplication.NewGormDB(db)
 
 	tokenManager, err := token.NewManager(configuration)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create token manager")
+	}
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 	service.Use(login.InjectTokenManager(tokenManager))
 	spaceAuthzService := authz.NewAuthzService(configuration, appDB)
