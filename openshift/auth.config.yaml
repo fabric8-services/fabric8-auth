@@ -28,5 +28,5 @@ objects:
     postgres.connection.maxopen: "90"
     redirect.valid: ".*"
     notapproved_redirect: ""
-    keycloak.url: "https://sso.openshift.io"
+    keycloak.url: https://sso.openshift.io
   
