@@ -39,7 +39,6 @@ func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider,
 
 // Keys returns public keys which should be used to verify tokens
 func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
-	//fmt.Printf("!!!!! Starting....\r\n")
 	var publicKeys token.JsonKeys
 	if ctx.Format != nil && *ctx.Format == "pem" {
 		publicKeys = c.TokenManager.PemKeys()
@@ -47,7 +46,6 @@ func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
 		publicKeys = c.TokenManager.JsonWebKeys()
 	}
 
-	//fmt.Printf("!!!!! Keys (type=%s): %v \r\n", ctx.Format, publicKeys)
 	return ctx.OK(&app.PublicKeys{Keys: publicKeys.Keys})
 }
 
