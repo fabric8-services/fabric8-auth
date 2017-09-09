@@ -89,28 +89,6 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
-	entitlementEndpoint, err := c.Configuration.GetKeycloakEndpointEntitlement(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
-	}
-
-	rpt, err := auth.GetEntitlement(ctx, entitlementEndpoint, nil, *token.AccessToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to obtain entitlement during login")
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
-	}
-	if rpt != nil && int64(len(*rpt)) <= c.Configuration.GetHeaderMaxLength() {
-		// If the rpt token is not too long for using it as a Bearer in http requests because of header size limit
-		// the swap access token for the rpt token which contains all resources available to the user
-		token.AccessToken = rpt
-	}
-
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return ctx.OK(convertToken(*token))
 }
