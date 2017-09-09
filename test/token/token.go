@@ -5,7 +5,6 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/token"
-	authtoken "github.com/fabric8-services/fabric8-auth/token"
 	"github.com/pkg/errors"
 )
 
@@ -33,8 +32,8 @@ func GenerateToken(identityID string, identityUsername string, privateKey *rsa.P
 }
 
 // NewManager returns a new token Manager for handling tokens
-func NewManager() authtoken.Manager {
-	return authtoken.NewManagerWithPublicKey("test-key", &PrivateKey().PublicKey)
+func NewManager() token.Manager {
+	return token.NewManagerWithPublicKey("test-key", &PrivateKey().PublicKey)
 }
 
 func PrivateKey() *rsa.PrivateKey {
