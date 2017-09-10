@@ -14,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	authtoken "github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	//"github.com/stretchr/testify/assert"
 	"github.com/satori/go.uuid"
@@ -53,9 +52,7 @@ func (rest *TestResourceREST) TearDownTest() {
 }
 
 func (rest *TestResourceREST) SecuredController(identity account.Identity) (*goa.Service, *ResourceController) {
-	priv, _ := authtoken.ParsePrivateKey([]byte(authtoken.RSAPrivateKey))
-
-	svc := testsupport.ServiceAsUser("Resource-Service", authtoken.NewManagerWithPrivateKey(priv), identity)
+	svc := testsupport.ServiceAsUser("Resource-Service", identity)
 	return svc, NewResourceController(svc, rest.db)
 }
 
@@ -101,8 +98,6 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 	resourceID := ""
 	resourceScopes := []string{}
 	resourceOwnerID := testIdentity.ID
-
-	fmt.Printf("!!!!!! ID: %v\n", resourceOwnerID)
 
 	payload := &app.RegisterResourcePayload{
 		Description:      &resourceDescription,

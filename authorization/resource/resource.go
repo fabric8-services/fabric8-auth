@@ -29,7 +29,7 @@ type Resource struct {
 	// The resource type
 	ResourceType ResourceType
 	// Resource description
-	Description *string
+	Description string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
