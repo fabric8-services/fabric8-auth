@@ -1,10 +1,14 @@
 package controller
 
 import (
+	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
@@ -51,28 +55,48 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	err := application.Transactional(c.db, func(appl application.Application) error {
 
 		// Lookup or create the resource type
-		resourceType, err := appl.ResourceTypeRepository().LookupOrCreate(ctx, ctx.Payload.Name)
+		resourceType, err := appl.ResourceTypeRepository().LookupOrCreate(ctx, ctx.Payload.Type)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+			return err
 		}
 
 		// Lookup the parent resource if one has been specified
 		var parentResource *resource.Resource
+
 		if ctx.Payload.ParentResourceID != nil {
 			parentResource, err = appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
-
 			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, err)
+				log.Error(ctx, map[string]interface{}{
+					"err":                err,
+					"parent_resource_id": ctx.Payload.ParentResourceID,
+				}, "Parent resource could not be found")
+
+				return err
 			}
 		}
-
-		// TODO extract the owner identity from the PAT
-		var identityID uuid.UUID
-
-		identity, err := appl.Identities().Load(ctx, identityID)
+		// Extract the resource owner ID from the request
+		resourceOwnerID, err := uuid.FromString(ctx.Payload.ResourceOwnerID)
 		if err != nil {
-			// TODO raise an error if the identity could not be determined
+			log.Error(ctx, map[string]interface{}{
+				"err":               err,
+				"resource_owner_id": ctx.Payload.ResourceOwnerID,
+			}, "Resource owner ID is not valid")
+
+			return errors.NewConversionError(fmt.Sprintf("resource owner ID is not valida UUID %v", err.Error()))
 		}
+
+		// Lookup the identity record of the resource owner
+		identity, err := appl.Identities().Load(ctx, resourceOwnerID)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":               err,
+				"resource_owner_id": resourceOwnerID,
+			}, "Resource owner could not be found")
+
+			return err
+		}
+
+		// Create the new resource instance
 
 		res = &resource.Resource{
 			ResourceID:     uuid.NewV4().String(),
@@ -82,15 +106,21 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			Description:    *ctx.Payload.Description,
 		}
 
-		// Create the resource
-		appl.ResourceRepository().Create(ctx, res)
-
-		return err
+		// Persist the resource
+		return appl.ResourceRepository().Create(ctx, res)
 	})
 
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"resource_id":        res.ResourceID,
+		"parent_resource_id": res.ParentResource.ResourceID,
+		"owner_id":           res.Owner.ID,
+		"resource_type":      res.ResourceType.Name,
+		"description":        res.Description,
+	}, "resource registered")
 
 	return ctx.Created(&app.RegisterResource{ID: &res.ResourceID})
 }

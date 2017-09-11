@@ -95,12 +95,14 @@ func (m *GormResourceTypeRepository) LookupOrCreate(ctx context.Context, name st
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"resource_type_id": native.ResourceTypeID,
+				"name":             native.Name,
 				"err":              err,
 			}, "unable to create the resource type")
 			return nil, errs.WithStack(err)
 		}
 		log.Debug(ctx, map[string]interface{}{
 			"resource_type_id": native.ResourceTypeID,
+			"name":             native.Name,
 		}, "Resource Type created!")
 		return native, nil
 	} else {
