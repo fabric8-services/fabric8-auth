@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"fmt"
+
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/stretchr/testify/require"
@@ -44,8 +45,8 @@ func TestKeycloakTokensLoaded(t *testing.T) {
 	require.Equal(t, len(tm.publicKeys), len(m.PublicKeys()))
 	require.Equal(t, len(tm.publicKeys), len(tm.publicKeysMap))
 	for i, k := range tm.publicKeys {
-		require.NotEqual(t, "", k.KID)
-		require.NotNil(t, m.PublicKey(k.KID))
+		require.NotEqual(t, "", k.KeyID)
+		require.NotNil(t, m.PublicKey(k.KeyID))
 		require.Equal(t, m.PublicKeys()[i], k.Key)
 	}
 

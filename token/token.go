@@ -59,7 +59,7 @@ type Permissions struct {
 type Manager interface {
 	Locate(ctx context.Context) (uuid.UUID, error)
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
-	PublicKey(kid string) *rsa.PublicKey
+	PublicKey(keyID string) *rsa.PublicKey
 	PublicKeys() []*rsa.PublicKey
 	JsonWebKeys() JsonKeys
 	PemKeys() JsonKeys
@@ -67,13 +67,13 @@ type Manager interface {
 
 // PrivateKey represents an RSA private key with a Key ID
 type PrivateKey struct {
-	KID string
-	Key *rsa.PrivateKey
+	KeyID string
+	Key   *rsa.PrivateKey
 }
 
 type PublicKey struct {
-	KID string
-	Key *rsa.PublicKey
+	KeyID string
+	Key   *rsa.PublicKey
 }
 
 type tokenManager struct {
@@ -97,10 +97,10 @@ func NewManager(config configuration) (Manager, error) {
 		return nil, errors.New("unable to load Keycloak public keys")
 	}
 	for _, keycloakKey := range keycloakKeys {
-		tm.publicKeysMap[keycloakKey.KID] = keycloakKey.Key
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KID: keycloakKey.KID, Key: keycloakKey.Key})
+		tm.publicKeysMap[keycloakKey.KeyID] = keycloakKey.Key
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: keycloakKey.KeyID, Key: keycloakKey.Key})
 		log.Info(nil, map[string]interface{}{
-			"kid": keycloakKey.KID,
+			"kid": keycloakKey.KeyID,
 		}, "Public key added")
 	}
 
@@ -118,14 +118,14 @@ func NewManager(config configuration) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
-	tm.serviceAccountPrivateKey = &PrivateKey{KID: kid, Key: rsaServiceAccountKey}
+	tm.serviceAccountPrivateKey = &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
 	pk := &rsaServiceAccountKey.PublicKey
 	tm.publicKeysMap[kid] = pk
-	tm.publicKeys = append(tm.publicKeys, &PublicKey{KID: kid, Key: pk})
+	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
 	log.Info(nil, map[string]interface{}{
 		"kid": kid,
 	}, "Service account private key added")
-	// Extract public key from deprecated service account private key if any and add it the manager
+	// Extract public key from deprecated service account private key if any and add it to the manager
 	key, kid = config.GetDeprecatedServiceAccountPrivateKey()
 	if len(key) == 0 || kid == "" {
 		log.Debug(nil, map[string]interface{}{
@@ -139,7 +139,7 @@ func NewManager(config configuration) (Manager, error) {
 		}
 		pk := &rsaServiceAccountKey.PublicKey
 		tm.publicKeysMap[kid] = pk
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KID: kid, Key: pk})
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
 		log.Info(nil, map[string]interface{}{
 			"kid": kid,
 		}, "Deprecated service account private key added")
@@ -170,7 +170,7 @@ func NewManager(config configuration) (Manager, error) {
 func NewManagerWithPublicKey(id string, key *rsa.PublicKey) Manager {
 	return &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{id: key},
-		publicKeys:    []*PublicKey{{KID: id, Key: key}},
+		publicKeys:    []*PublicKey{{KeyID: id, Key: key}},
 	}
 }
 
@@ -252,7 +252,7 @@ func toPem(key *rsa.PublicKey) (string, error) {
 func toJsonWebKeys(publicKeys []*PublicKey) (JsonKeys, error) {
 	var keys []interface{}
 	for _, key := range publicKeys {
-		jwk := jose.JSONWebKey{Key: key.Key, KeyID: key.KID, Algorithm: "RS256", Use: "sig"}
+		jwk := jose.JSONWebKey{Key: key.Key, KeyID: key.KeyID, Algorithm: "RS256", Use: "sig"}
 		keyData, err := jwk.MarshalJSON()
 		if err != nil {
 			return JsonKeys{}, err
@@ -284,7 +284,7 @@ func toPemKeys(publicKeys []*PublicKey) (JsonKeys, error) {
 		if err != nil {
 			return JsonKeys{}, err
 		}
-		rawPemKey := map[string]interface{}{"kid": key.KID, "key": keyData}
+		rawPemKey := map[string]interface{}{"kid": key.KeyID, "key": keyData}
 		pemKeys = append(pemKeys, rawPemKey)
 	}
 	return JsonKeys{Keys: pemKeys}, nil
@@ -334,8 +334,8 @@ func (mgm *tokenManager) Locate(ctx context.Context) (uuid.UUID, error) {
 }
 
 // PublicKey returns the public key by the ID
-func (mgm *tokenManager) PublicKey(kid string) *rsa.PublicKey {
-	return mgm.publicKeysMap[kid]
+func (mgm *tokenManager) PublicKey(keyID string) *rsa.PublicKey {
+	return mgm.publicKeysMap[keyID]
 }
 
 // PublicKeys returns all the public keys
