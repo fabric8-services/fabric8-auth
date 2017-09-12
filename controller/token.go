@@ -142,7 +142,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		}, "unable to get Keycloak account endpoint URL")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
-	WITEndpointUserProfile, err := c.Configuration.GetWITEndpointUserProfile(ctx.RequestData)
+	WITEndpointUserProfile, err := c.Configuration.GetWITEndpoint(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,

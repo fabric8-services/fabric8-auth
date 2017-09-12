@@ -48,8 +48,8 @@ const (
 	varPopulateCommonTypes          = "populate.commontypes"
 	varHTTPAddress                  = "http.address"
 	varDeveloperModeEnabled         = "developer.mode.enabled"
-	varAuthDomainPrefix             = "auth.domain.prefix"
-	varAuthURL                      = "auth.url"
+	varWITDomainPrefix              = "wit.domain.prefix"
+	varWITURL                       = "wit.url"
 	varAuthorizationEnabled         = "authz.enabled"
 	varGithubAuthToken              = "github.auth.token"
 	varKeycloakSecret               = "keycloak.secret"
@@ -172,7 +172,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	//-----
 	// HTTP
 	//-----
-	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8080")
+	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8089")
 	c.v.SetDefault(varHeaderMaxLength, defaultHeaderMaxLength)
 
 	//-----
@@ -187,7 +187,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varPopulateCommonTypes, true)
 
 	// Auth-related defaults
-	c.v.SetDefault(varAuthDomainPrefix, "auth")
+	c.v.SetDefault(varWITDomainPrefix, "api")
 	c.v.SetDefault(varTokenPublicKey, defaultTokenPublicKey)
 	c.v.SetDefault(varTokenPrivateKey, defaultTokenPrivateKey)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
@@ -481,16 +481,12 @@ func (c *ConfigurationData) GetWITDevModeURL() string {
 
 // GetWITDomainPrefix returns the domain prefix which should be used in requests to the auth service
 func (c *ConfigurationData) GetWITDomainPrefix() string {
-	return c.v.GetString(varAuthDomainPrefix)
+	return c.v.GetString(varWITDomainPrefix)
 }
 
-// GetWITEndpointUserProfile returns the <wit>/api/users endpoint
-func (c *ConfigurationData) GetWITEndpointUserProfile(req *goa.RequestData) (string, error) {
-	return c.getWITEndpoint(req, "api/users")
-}
-
-func (c *ConfigurationData) getWITEndpoint(req *goa.RequestData, pathSufix string) (string, error) {
-	return c.getServiceEndpoint(req, varAuthURL, devModeWITURL, c.GetWITDomainPrefix(), pathSufix)
+// GetWITEndpoint returns the API endpoint where WIT is running.
+func (c *ConfigurationData) GetWITEndpoint(req *goa.RequestData) (string, error) {
+	return c.getServiceEndpoint(req, varWITURL, devModeWITURL, c.GetWITDomainPrefix(), "")
 }
 
 func (c *ConfigurationData) getServiceEndpoint(req *goa.RequestData, varServiceURL string, devModeURL string, serviceDomainPrefix string, pathSufix string) (string, error) {
@@ -812,11 +808,11 @@ vwIDAQAB
 
 	defaultLogLevel = "info"
 
-	// WIT service URL to be used in dev mode. Can be overridden by setting up auth.url
-	devModeWITURL = "https://auth.prod-preview.openshift.io"
+	// WIT service URL to be used in dev mode. Can be overridden by setting up wit.url
+	devModeWITURL = "http://localhost:8080"
 
 	defaultKeycloakClientID = "fabric8-online-platform"
-	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bdd"
+	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
 
 	defaultKeycloakDomainPrefix = "sso"
 	defaultKeycloakRealm        = "fabric8"

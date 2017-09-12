@@ -154,6 +154,41 @@ func TestGetKeycloakUserInfoEndpointOK(t *testing.T) {
 	checkGetServiceEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/account", config.GetKeycloakAccountEndpoint)
 }
 
+func TestGetWITEndpointDevModeOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	assert.Equal(t, "http://localhost:8080", config.GetWITDevModeURL())
+}
+
+func TestGetWITEndpointSetByEnvVariable(t *testing.T) {
+
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	existingWITURL := os.Getenv("AUTH_WIT_URL")
+	defer func() {
+		resetConfiguration(defaultValuesConfigFilePath)
+		os.Setenv("AUTH_WIT_URL", existingWITURL)
+	}()
+
+	sampleWitURL := "https://api.openshift.io"
+	os.Setenv("AUTH_WIT_URL", sampleWitURL)
+
+	// Ensure that what we set as env variable is actually what we get
+	computedWITEndpoint, err := config.GetWITEndpoint(reqShort)
+	assert.Nil(t, err)
+	assert.Equal(t, sampleWitURL+"/", computedWITEndpoint)
+
+	// To be doubly sure, we check with a url which
+	// couldn't have been lying around.
+	sampleWitURL = "https://api.google.com"
+	os.Setenv("AUTH_WIT_URL", sampleWitURL)
+	computedWITEndpoint, err = config.GetWITEndpoint(reqShort)
+	assert.Nil(t, err)
+	assert.Equal(t, sampleWitURL+"/", computedWITEndpoint)
+
+}
+
 func checkGetServiceEndpointOK(t *testing.T, expectedEndpoint string, getEndpoint func(req *goa.RequestData) (string, error)) {
 	url, err := getEndpoint(reqLong)
 	assert.Nil(t, err)

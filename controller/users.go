@@ -43,7 +43,7 @@ type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetCacheControlUser() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
-	GetWITEndpointUserProfile(*goa.RequestData) (string, error)
+	GetWITEndpoint(*goa.RequestData) (string, error)
 }
 
 // NewUsersController creates a users controller.
@@ -419,11 +419,11 @@ func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request 
 }
 
 func (c *UsersController) createRemoteWITClient(ctx context.Context, request *goa.RequestData) (*witservice.Client, error) {
-	authUserProfileEndpoint, err := c.config.GetWITEndpointUserProfile(request)
+	witEndpoint, err := c.config.GetWITEndpoint(request)
 	if err != nil {
 		return nil, err
 	}
-	WITClient, err := remoteservice.CreateSecureRemoteWITClient(ctx, authUserProfileEndpoint, nil)
+	WITClient, err := remoteservice.CreateSecureRemoteWITClient(ctx, witEndpoint, nil)
 	if err != nil {
 		return nil, err
 	}

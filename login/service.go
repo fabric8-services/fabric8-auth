@@ -765,15 +765,14 @@ func (keycloak *KeycloakOAuthProvider) notifyWITService(ctx context.Context, use
 	updateUserPayload := &witservice.UpdateUsersPayload{
 		Data: &witservice.UpdateUserData{
 			Attributes: &witservice.UpdateIdentityDataAttributes{
-				Bio:                   &user.Bio,
-				Company:               &user.Company,
-				ContextInformation:    user.ContextInformation,
-				Email:                 &user.Email,
-				FullName:              &user.FullName,
-				ImageURL:              &user.ImageURL,
-				RegistrationCompleted: &identity.RegistrationCompleted,
-				URL:      identity.ProfileURL,
-				Username: &identity.Username,
+				Bio:                &user.Bio,
+				Company:            &user.Company,
+				ContextInformation: user.ContextInformation,
+				Email:              &user.Email,
+				FullName:           &user.FullName,
+				ImageURL:           &user.ImageURL,
+				URL:                identity.ProfileURL,
+				Username:           &identity.Username,
 			},
 			Type: "identities",
 		},

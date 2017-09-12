@@ -33,7 +33,7 @@ type LoginConfiguration interface {
 	GetValidRedirectURLs(*goa.RequestData) (string, error)
 	GetHeaderMaxLength() int64
 	GetAuthNotApprovedRedirect() string
-	GetWITEndpointUserProfile(*goa.RequestData) (string, error)
+	GetWITEndpoint(*goa.RequestData) (string, error)
 }
 
 // LoginController implements the login resource.
@@ -97,6 +97,8 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	if ctx.Scope != nil {
 		authEndpoint = fmt.Sprintf("%s?scope=%s", authEndpoint, *ctx.Scope) // Offline token
 	}
+	fmt.Println(c.Configuration.GetKeycloakClientID())
+	fmt.Println(c.Configuration.GetKeycloakSecret())
 	oauth := &oauth2.Config{
 		ClientID:     c.Configuration.GetKeycloakClientID(),
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
@@ -104,7 +106,7 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login"),
 	}
-	remoteWITUserProfile, err := c.Configuration.GetWITEndpointUserProfile(ctx.RequestData)
+	remoteWITUserProfile, err := c.Configuration.GetWITEndpoint(ctx.RequestData)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
