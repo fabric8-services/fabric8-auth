@@ -312,6 +312,12 @@ func (c *ConfigurationData) GetServiceAccountPrivateKey() ([]byte, string) {
 	return []byte(c.v.GetString(varServiceAccountPrivateKey)), c.v.GetString(varServiceAccountPrivateKeyID)
 }
 
+// GetNotApprovedRedirect returns the URL to redirect to if the user is not approved
+// May return empty string which means an unauthorized error should be returned instead of redirecting the user
+func (c *ConfigurationData) GetNotApprovedRedirect() string {
+	return c.v.GetString(varNotApprovedRedirect)
+}
+
 // GetWITDevModeURL returns Auth Service URL used by default in Dev mode
 func (c *ConfigurationData) GetWITDevModeURL() string {
 	return devModeWITURL
