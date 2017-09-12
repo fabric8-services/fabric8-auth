@@ -137,7 +137,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	//---------
 	c.v.SetTypeByDefaultValue(true)
 	c.v.SetDefault(varPostgresHost, "localhost")
-	c.v.SetDefault(varPostgresPort, 5432)
+	c.v.SetDefault(varPostgresPort, 5433)
 	c.v.SetDefault(varPostgresUser, "postgres")
 	c.v.SetDefault(varPostgresDatabase, "postgres")
 	c.v.SetDefault(varPostgresPassword, "mysecretpassword")
@@ -274,6 +274,24 @@ func (c *ConfigurationData) GetHTTPAddress() string {
 // For example it can be used to limit the size of bearer tokens returned by the api service
 func (c *ConfigurationData) GetHeaderMaxLength() int64 {
 	return c.v.GetInt64(varHeaderMaxLength)
+}
+
+// GetCacheControlUsers returns the value to set in the "Cache-Control" HTTP response header
+// when returning users.
+func (c *ConfigurationData) GetCacheControlUsers() string {
+	return c.v.GetString(varCacheControlUsers)
+}
+
+// GetCacheControlCollaborators returns the value to set in the "Cache-Control" HTTP response header
+// when returning collaborators.
+func (c *ConfigurationData) GetCacheControlCollaborators() string {
+	return c.v.GetString(varCacheControlCollaborators)
+}
+
+// GetCacheControlUser returns the value to set in the "Cache-Control" HTTP response header
+// when data for the current user.
+func (c *ConfigurationData) GetCacheControlUser() string {
+	return c.v.GetString(varCacheControlUser)
 }
 
 // IsPostgresDeveloperModeEnabled returns if development related features (as set via default, config file, or environment variable),
