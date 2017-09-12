@@ -187,7 +187,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Cache control values for a single resource
 	// data returned from '/api/user' must not be cached by intermediate proxies,
 	// but can only be kept in the client's local cache.
-	c.v.SetDefault(varCacheControlUser, "private,max-age=120")
+	c.v.SetDefault(varCacheControlUser, "private,max-age=10")
 
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
