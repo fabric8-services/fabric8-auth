@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
-	"github.com/fabric8-services/fabric8-wit/goasupport"
 	goaclient "github.com/goadesign/goa/client"
 )
 

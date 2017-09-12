@@ -97,8 +97,6 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	if ctx.Scope != nil {
 		authEndpoint = fmt.Sprintf("%s?scope=%s", authEndpoint, *ctx.Scope) // Offline token
 	}
-	fmt.Println(c.Configuration.GetKeycloakClientID())
-	fmt.Println(c.Configuration.GetKeycloakSecret())
 	oauth := &oauth2.Config{
 		ClientID:     c.Configuration.GetKeycloakClientID(),
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
