@@ -80,7 +80,6 @@ const (
 	varLogLevel                             = "log.level"
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
-	varWITURL                               = "wit.url"
 )
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -168,7 +167,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
 	// WIT related defaults
-	c.v.SetDefault(varWITDomainPrefix, "api")
+	c.v.SetDefault(varWITDomainPrefix, defaultWITDomainPrefix)
 
 	// Auth-related defaults
 	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
@@ -183,8 +182,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// HTTP Cache-Control/max-age default
 	c.v.SetDefault(varCacheControlUsers, "max-age=2")
 	c.v.SetDefault(varCacheControlCollaborators, "max-age=2")
-
-	// Cache control values for a single resource
 	// data returned from '/api/user' must not be cached by intermediate proxies,
 	// but can only be kept in the client's local cache.
 	c.v.SetDefault(varCacheControlUser, "private,max-age=10")
@@ -265,7 +262,7 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or environment variable)
-// that the auth server binds to (e.g. "0.0.0.0:8089")
+// that the alm server binds to (e.g. "0.0.0.0:8089")
 func (c *ConfigurationData) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
 }
@@ -316,42 +313,6 @@ func (c *ConfigurationData) GetServiceAccountPrivateKey() ([]byte, string) {
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
 func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
-}
-
-// GetWITDevModeURL returns Auth Service URL used by default in Dev mode
-func (c *ConfigurationData) GetWITDevModeURL() string {
-	return devModeWITURL
-}
-
-// GetWITDomainPrefix returns the domain prefix which should be used in requests to the auth service
-func (c *ConfigurationData) GetWITDomainPrefix() string {
-	return c.v.GetString(varWITDomainPrefix)
-}
-
-// GetWITEndpoint returns the API endpoint where WIT is running.
-func (c *ConfigurationData) GetWITEndpoint(req *goa.RequestData) (string, error) {
-	return c.getServiceEndpoint(req, varWITURL, devModeWITURL, c.GetWITDomainPrefix(), "")
-}
-
-func (c *ConfigurationData) getServiceEndpoint(req *goa.RequestData, varServiceURL string, devModeURL string, serviceDomainPrefix string, pathSufix string) (string, error) {
-	var endpoint string
-	var err error
-	if c.v.IsSet(varServiceURL) {
-		// Service URL is set. Calculate the URL endpoint
-		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varServiceURL), pathSufix)
-	} else {
-		if c.IsPostgresDeveloperModeEnabled() {
-			// Devmode is enabled. Calculate the URL endopoint using the devmode Service URL
-			endpoint = fmt.Sprintf("%s/%s", devModeURL, pathSufix)
-		} else {
-			// Calculate relative URL based on request
-			endpoint, err = c.getServiceURL(req, serviceDomainPrefix, pathSufix)
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-	return endpoint, nil
 }
 
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
@@ -412,7 +373,7 @@ func (c *ConfigurationData) GetKeycloakEndpointCerts() string {
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointAuth(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, "auth")
+	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointAuth, "auth")
 }
 
 // GetKeycloakEndpointToken returns the keycloak token endpoint set via config file or environment variable.
@@ -421,7 +382,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuth(req *goa.RequestData) (strin
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, "token")
+	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointToken, "token")
 }
 
 // GetKeycloakEndpointUserInfo returns the keycloak userinfo endpoint set via config file or environment variable.
@@ -430,7 +391,7 @@ func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (stri
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointUserInfo(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, "userinfo")
+	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointUserinfo, "userinfo")
 }
 
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
@@ -440,7 +401,7 @@ func (c *ConfigurationData) GetKeycloakEndpointUserInfo(req *goa.RequestData) (s
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, "auth/admin/realms/"+c.GetKeycloakRealm())
+	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm())
 }
 
 // GetKeycloakEndpointAuthzResourceset returns the <keycloak>/realms/<realm>/authz/protection/resource_set endpoint
@@ -450,7 +411,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (stri
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointAuthzResourceset(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/authz/protection/resource_set")
+	return c.getKeycloakEndpoint(req, varKeycloakEndpointAuthzResourceset, "auth/realms/"+c.GetKeycloakRealm()+"/authz/protection/resource_set")
 }
 
 // GetKeycloakEndpointClients returns the <keycloak>/admin/realms/<realm>/clients endpoint
@@ -460,7 +421,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuthzResourceset(req *goa.Request
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointClients(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, "auth/admin/realms/"+c.GetKeycloakRealm()+"/clients")
+	return c.getKeycloakEndpoint(req, varKeycloakEndpointClients, "auth/admin/realms/"+c.GetKeycloakRealm()+"/clients")
 }
 
 // GetKeycloakEndpointEntitlement returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
@@ -470,7 +431,7 @@ func (c *ConfigurationData) GetKeycloakEndpointClients(req *goa.RequestData) (st
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointEntitlement(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/authz/entitlement/"+c.GetKeycloakClientID())
+	return c.getKeycloakEndpoint(req, varKeycloakEndpointEntitlement, "auth/realms/"+c.GetKeycloakRealm()+"/authz/entitlement/"+c.GetKeycloakClientID())
 }
 
 // GetKeycloakEndpointBroker returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
@@ -480,12 +441,12 @@ func (c *ConfigurationData) GetKeycloakEndpointEntitlement(req *goa.RequestData)
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointBroker(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/broker")
+	return c.getKeycloakEndpoint(req, varKeycloakEndpointBroker, "auth/realms/"+c.GetKeycloakRealm()+"/broker")
 }
 
 // GetKeycloakAccountEndpoint returns the API URL for Read and Update on Keycloak User Accounts.
 func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, "auth/realms/"+c.GetKeycloakRealm()+"/account")
+	return c.getKeycloakEndpoint(req, varKeycloakEndpointAccount, "auth/realms/"+c.GetKeycloakRealm()+"/account")
 }
 
 // GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.
@@ -494,7 +455,7 @@ func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (st
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointLogout(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, "logout")
+	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointLogout, "logout")
 }
 
 // GetKeycloakDevModeURL returns Keycloak URL used by default in Dev mode
@@ -502,19 +463,55 @@ func (c *ConfigurationData) GetKeycloakDevModeURL() string {
 	return devModeKeycloakURL
 }
 
-func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, pathSufix string) (string, error) {
-	return c.getKeycloakEndpoint(req, c.openIDConnectPath(pathSufix))
+// GetWITDomainPrefix returns the domain prefix which should be used in requests to the auth service
+func (c *ConfigurationData) GetWITDomainPrefix() string {
+	return c.v.GetString(varWITDomainPrefix)
 }
 
-func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, pathSufix string) (string, error) {
-	return c.getServiceEndpoint(req, varKeycloakURL, devModeKeycloakURL, c.GetKeycloakDomainPrefix(), pathSufix)
+// GetWITEndpoint returns the API endpoint where WIT is running.
+func (c *ConfigurationData) GetWITEndpoint(req *goa.RequestData) (string, error) {
+	if c.IsPostgresDeveloperModeEnabled() {
+		return devModeWITURL, nil
+	}
+	return c.getWITURL(req)
+}
+
+func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
+	return c.getKeycloakEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
+}
+
+func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
+	if c.v.IsSet(endpointVarName) {
+		return c.v.GetString(endpointVarName), nil
+	}
+	var endpoint string
+	var err error
+	if c.v.IsSet(varKeycloakURL) {
+		// Keycloak URL is set. Calculate the URL endpoint
+		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varKeycloakURL), pathSufix)
+	} else {
+		if c.IsPostgresDeveloperModeEnabled() {
+			// Devmode is enabled. Calculate the URL endopoint using the devmode Keycloak URL
+			endpoint = fmt.Sprintf("%s/%s", devModeKeycloakURL, pathSufix)
+		} else {
+			// Calculate relative URL based on request
+			endpoint, err = c.getKeycloakURL(req, pathSufix)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	// Can't set this variable because viper is not thread-safe. See https://github.com/spf13/viper/issues/268
+	// c.v.Set(endpointVarName, endpoint) // Set the variable, so, we don't have to recalculate it again the next time
+	return endpoint, nil
 }
 
 func (c *ConfigurationData) openIDConnectPath(suffix string) string {
 	return "auth/realms/" + c.GetKeycloakRealm() + "/protocol/openid-connect/" + suffix
 }
 
-func (c *ConfigurationData) getServiceURL(req *goa.RequestData, serviceDomainPrefix string, path string) (string, error) {
+func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (string, error) {
 	scheme := "http"
 	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
 		scheme = "https"
@@ -524,11 +521,30 @@ func (c *ConfigurationData) getServiceURL(req *goa.RequestData, serviceDomainPre
 		scheme = xForwardProto
 	}
 
-	newHost, err := rest.ReplaceDomainPrefix(req.Host, serviceDomainPrefix)
+	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetKeycloakDomainPrefix())
 	if err != nil {
 		return "", err
 	}
 	newURL := fmt.Sprintf("%s://%s/%s", scheme, newHost, path)
+
+	return newURL, nil
+}
+
+func (c *ConfigurationData) getWITURL(req *goa.RequestData) (string, error) {
+	scheme := "http"
+	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
+		scheme = "https"
+	}
+	xForwardProto := req.Header.Get("X-Forwarded-Proto")
+	if xForwardProto != "" {
+		scheme = xForwardProto
+	}
+
+	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetWITDomainPrefix())
+	if err != nil {
+		return "", err
+	}
+	newURL := fmt.Sprintf("%s://%s", scheme, newHost)
 
 	return newURL, nil
 }
@@ -613,14 +629,12 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 
 	defaultLogLevel = "info"
 
-	// WIT service URL to be used in dev mode. Can be overridden by setting up wit.url
-	devModeWITURL = "http://localhost:8080"
-
 	defaultKeycloakClientID = "fabric8-online-platform"
 	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
 
 	defaultKeycloakDomainPrefix = "sso"
 	defaultKeycloakRealm        = "fabric8"
+	defaultWITDomainPrefix      = "api"
 
 	// Github does not allow committing actual OAuth tokens no matter how less privilege the token has
 	camouflagedAccessToken = "751e16a8b39c0985066-AccessToken-4871777f2c13b32be8550"
@@ -633,6 +647,7 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
+	devModeWITURL        = "http://localhost:8080"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
