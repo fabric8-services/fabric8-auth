@@ -3,21 +3,27 @@ package token
 import (
 	"context"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	"crypto/x509"
-	"encoding/base64"
-
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
-	jose "gopkg.in/square/go-jose.v2"
+	"github.com/satori/go.uuid"
+	"gopkg.in/square/go-jose.v2"
+	"time"
+)
+
+const (
+	ServiceAccountID = "8f558668-4db7-4280-8e65-408bcb95f9d9"
 )
 
 // configuration represents configuration needed to construct a token manager
@@ -63,6 +69,7 @@ type Manager interface {
 	PublicKeys() []*rsa.PublicKey
 	JsonWebKeys() JsonKeys
 	PemKeys() JsonKeys
+	ServiceAccountToken(req *goa.RequestData) (string, error)
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -82,6 +89,8 @@ type tokenManager struct {
 	serviceAccountPrivateKey *PrivateKey
 	jsonWebKeys              JsonKeys
 	pemKeys                  JsonKeys
+	serviceAccountToken      string
+	serviceAccountLock       sync.RWMutex
 }
 
 // NewManager returns a new token Manager for handling tokens
@@ -345,6 +354,41 @@ func (mgm *tokenManager) PublicKeys() []*rsa.PublicKey {
 		keys = append(keys, key.Key)
 	}
 	return keys
+}
+
+// ServiceAccountToken returns the service account token which authenticates the Auth service
+func (mgm *tokenManager) ServiceAccountToken(req *goa.RequestData) (string, error) {
+	var token string
+	if token = mgm.getServiceAccountToken(); token == "" {
+		return mgm.initServiceAccountToken(req)
+	}
+	return token, nil
+}
+
+func (mgm *tokenManager) getServiceAccountToken() string {
+	mgm.serviceAccountLock.RLock()
+	defer mgm.serviceAccountLock.RUnlock()
+	return mgm.serviceAccountToken
+}
+
+func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, error) {
+	mgm.serviceAccountLock.Lock()
+	defer mgm.serviceAccountLock.Unlock()
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
+	token.Claims.(jwt.MapClaims)["service_accountname"] = "auth"
+	token.Claims.(jwt.MapClaims)["sub"] = ServiceAccountID
+	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
+	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
+
+	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	mgm.serviceAccountToken = tokenStr
+
+	return mgm.serviceAccountToken, nil
 }
 
 // CheckClaims checks if all the required claims are present in the access token

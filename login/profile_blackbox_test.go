@@ -12,44 +12,41 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/test"
-	"github.com/goadesign/goa"
-	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
-
 	"github.com/fabric8-services/fabric8-auth/login"
-
 	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/test"
+	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
+
+	"github.com/goadesign/goa"
 	_ "github.com/lib/pq"
+	errs "github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 type ProfileBlackBoxTest struct {
-	gormtestsupport.RemoteTestSuite
+	testsuite.RemoteTestSuite
 	clean          func()
 	profileService login.UserProfileService
-	configuration  *config.ConfigurationData
 	loginService   *login.KeycloakOAuthProvider
 	accessToken    *string
 	profileAPIURL  *string
 }
 
 func TestRunProfileBlackBoxTest(t *testing.T) {
-	resource.Require(t, resource.Remote)
-	suite.Run(t, &ProfileBlackBoxTest{RemoteTestSuite: gormtestsupport.NewRemoteTestSuite("../config.yaml")})
+	suite.Run(t, &ProfileBlackBoxTest{RemoteTestSuite: testsuite.NewRemoteTestSuite()})
 }
 
 // SetupSuite overrides the RemoteTestSuite's function but calls it before doing anything else
 // The SetupSuite method will run before the tests in the suite are run.
 func (s *ProfileBlackBoxTest) SetupSuite() {
-
+	resource.Require(s.T(), resource.Remote)
 	var err error
-	s.configuration, err = config.GetConfigurationData()
+	s.Config, err = configuration.GetConfigurationData()
 	if err != nil {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
@@ -61,7 +58,7 @@ func (s *ProfileBlackBoxTest) SetupSuite() {
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	profileAPIURL, err := s.configuration.GetKeycloakAccountEndpoint(r)
+	profileAPIURL, err := s.Config.GetKeycloakAccountEndpoint(r)
 	s.profileAPIURL = &profileAPIURL
 
 	// Get the access token ONCE which we will use for all profile related tests.
@@ -101,13 +98,13 @@ func (s *ProfileBlackBoxTest) generateAccessToken() (*string, error) {
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	tokenEndpoint, err := s.configuration.GetKeycloakEndpointToken(r)
+	tokenEndpoint, err := s.Config.GetKeycloakEndpointToken(r)
 
 	res, err := client.PostForm(tokenEndpoint, url.Values{
-		"client_id":     {s.configuration.GetKeycloakClientID()},
-		"client_secret": {s.configuration.GetKeycloakSecret()},
-		"username":      {s.configuration.GetKeycloakTestUserName()},
-		"password":      {s.configuration.GetKeycloakTestUserSecret()},
+		"client_id":     {s.Config.GetKeycloakClientID()},
+		"client_secret": {s.Config.GetKeycloakSecret()},
+		"username":      {s.Config.GetKeycloakTestUserName()},
+		"password":      {s.Config.GetKeycloakTestUserSecret()},
 		"grant_type":    {"password"},
 	})
 	if err != nil {
