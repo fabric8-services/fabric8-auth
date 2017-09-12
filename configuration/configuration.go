@@ -167,8 +167,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
-	c.v.SetDefault(varPopulateCommonTypes, true)
-
 	// WIT related defaults
 	c.v.SetDefault(varWITDomainPrefix, "api")
 
@@ -178,44 +176,21 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varServiceAccountPrivateKeyID, "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs")
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
-	c.v.SetDefault(varGithubAuthToken, defaultActualToken)
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 
-	// HTTP Cache-Control/max-age default for a list of resources
-	c.v.SetDefault(varCacheControlWorkItems, "max-age=2") // very short life in cache, to allow for quick, repetitive updates.
-	c.v.SetDefault(varCacheControlWorkItemTypes, "max-age=2")
-	c.v.SetDefault(varCacheControlWorkItemLinks, "max-age=2")
-	c.v.SetDefault(varCacheControlWorkItemLinkTypes, "max-age=2")
-	c.v.SetDefault(varCacheControlSpaces, "max-age=2")
-	c.v.SetDefault(varCacheControlIterations, "max-age=2")
-	c.v.SetDefault(varCacheControlAreas, "max-age=2")
-	c.v.SetDefault(varCacheControlComments, "max-age=2")
-	c.v.SetDefault(varCacheControlFilters, "max-age=86400")
+	// HTTP Cache-Control/max-age default
 	c.v.SetDefault(varCacheControlUsers, "max-age=2")
 	c.v.SetDefault(varCacheControlCollaborators, "max-age=2")
 
 	// Cache control values for a single resource
-	c.v.SetDefault(varCacheControlWorkItem, "private,max-age=2")
-	c.v.SetDefault(varCacheControlWorkItemType, "private,max-age=120")
-	c.v.SetDefault(varCacheControlWorkItemLink, "private,max-age=120")
-	c.v.SetDefault(varCacheControlWorkItemLinkType, "private,max-age=120")
-	c.v.SetDefault(varCacheControlSpace, "private,max-age=120")
-	c.v.SetDefault(varCacheControlIteration, "private,max-age=2")
-	c.v.SetDefault(varCacheControlArea, "private,max-age=120")
-	c.v.SetDefault(varCacheControlComment, "private,max-age=120")
 	// data returned from '/api/user' must not be cached by intermediate proxies,
 	// but can only be kept in the client's local cache.
 	c.v.SetDefault(varCacheControlUser, "private,max-age=120")
 
-	// Features
-	c.v.SetDefault(varFeatureWorkitemRemote, true)
-
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
-	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
-	c.v.SetDefault(varCheStarterURL, defaultCheStarterURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -226,11 +201,6 @@ func (c *ConfigurationData) GetPostgresHost() string {
 // GetPostgresPort returns the postgres port as set via default, config file, or environment variable
 func (c *ConfigurationData) GetPostgresPort() int64 {
 	return c.v.GetInt64(varPostgresPort)
-}
-
-// GetFeatureWorkitemRemote returns true if remote Work Item feaute is enabled
-func (c *ConfigurationData) GetFeatureWorkitemRemote() bool {
-	return c.v.GetBool(varFeatureWorkitemRemote)
 }
 
 // GetPostgresUser returns the postgres user as set via default, config file, or environment variable
@@ -294,12 +264,6 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 	)
 }
 
-// GetPopulateCommonTypes returns true if the (as set via default, config file, or environment variable)
-// the common work item types such as bug or feature shall be created.
-func (c *ConfigurationData) GetPopulateCommonTypes() bool {
-	return c.v.GetBool(varPopulateCommonTypes)
-}
-
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or environment variable)
 // that the wit server binds to (e.g. "0.0.0.0:8080")
 func (c *ConfigurationData) GetHTTPAddress() string {
@@ -316,136 +280,6 @@ func (c *ConfigurationData) GetHeaderMaxLength() int64 {
 // e.g. token generation endpoint are enabled
 func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
-}
-
-// IsAuthorizationEnabled returns true if space authorization enabled
-// By default athorization is disabled in Developer Mode only (if AUTH_AUTHZ_ENABLED us not set)
-// Set AUTH_AUTHZ_ENABLED env var to explictly disable or enable authorization regardless of Developer Mode settings
-func (c *ConfigurationData) IsAuthorizationEnabled() bool {
-	if c.v.IsSet(varAuthorizationEnabled) {
-		return c.v.GetBool(varAuthorizationEnabled)
-	}
-	return !c.IsPostgresDeveloperModeEnabled()
-}
-
-// GetCacheControlWorkItemTypes returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of work item types.
-func (c *ConfigurationData) GetCacheControlWorkItemTypes() string {
-	return c.v.GetString(varCacheControlWorkItemTypes)
-}
-
-// GetCacheControlWorkItemType returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item type.
-func (c *ConfigurationData) GetCacheControlWorkItemType() string {
-	return c.v.GetString(varCacheControlWorkItemType)
-}
-
-// GetCacheControlWorkItemLinkTypes returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of work item types.
-func (c *ConfigurationData) GetCacheControlWorkItemLinkTypes() string {
-	return c.v.GetString(varCacheControlWorkItemLinkTypes)
-}
-
-// GetCacheControlWorkItemLinkType returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item type.
-func (c *ConfigurationData) GetCacheControlWorkItemLinkType() string {
-	return c.v.GetString(varCacheControlWorkItemLinkType)
-}
-
-// GetCacheControlWorkItems returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of work items.
-func (c *ConfigurationData) GetCacheControlWorkItems() string {
-	return c.v.GetString(varCacheControlWorkItems)
-}
-
-// GetCacheControlWorkItem returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item.
-func (c *ConfigurationData) GetCacheControlWorkItem() string {
-	return c.v.GetString(varCacheControlWorkItem)
-}
-
-// GetCacheControlWorkItemLinks returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of work item links.
-func (c *ConfigurationData) GetCacheControlWorkItemLinks() string {
-	return c.v.GetString(varCacheControlWorkItemLinks)
-}
-
-// GetCacheControlWorkItemLink returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item.
-func (c *ConfigurationData) GetCacheControlWorkItemLink() string {
-	return c.v.GetString(varCacheControlWorkItemLink)
-}
-
-// GetCacheControlAreas returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of work items.
-func (c *ConfigurationData) GetCacheControlAreas() string {
-	return c.v.GetString(varCacheControlAreas)
-}
-
-// GetCacheControlArea returns the value to set in the "Cache-Control" HTTP response header
-// when returning a work item (or a list of).
-func (c *ConfigurationData) GetCacheControlArea() string {
-	return c.v.GetString(varCacheControlArea)
-}
-
-// GetCacheControlSpaces returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of spaces.
-func (c *ConfigurationData) GetCacheControlSpaces() string {
-	return c.v.GetString(varCacheControlSpaces)
-}
-
-// GetCacheControlSpace returns the value to set in the "Cache-Control" HTTP response header
-// when returning a space.
-func (c *ConfigurationData) GetCacheControlSpace() string {
-	return c.v.GetString(varCacheControlSpace)
-}
-
-// GetCacheControlIterations returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of iterations.
-func (c *ConfigurationData) GetCacheControlIterations() string {
-	return c.v.GetString(varCacheControlIterations)
-}
-
-// GetCacheControlIteration returns the value to set in the "Cache-Control" HTTP response header
-// when returning an iteration.
-func (c *ConfigurationData) GetCacheControlIteration() string {
-	return c.v.GetString(varCacheControlIteration)
-}
-
-// GetCacheControlComments returns the value to set in the "Cache-Control" HTTP response header
-// when returning a list of comments.
-func (c *ConfigurationData) GetCacheControlComments() string {
-	return c.v.GetString(varCacheControlComments)
-}
-
-// GetCacheControlComment returns the value to set in the "Cache-Control" HTTP response header
-// when returning a comment.
-func (c *ConfigurationData) GetCacheControlComment() string {
-	return c.v.GetString(varCacheControlComment)
-}
-
-// GetCacheControlFilters returns the value to set in the "Cache-Control" HTTP response header
-// when returning comments.
-func (c *ConfigurationData) GetCacheControlFilters() string {
-	return c.v.GetString(varCacheControlFilters)
-}
-
-// GetCacheControlUsers returns the value to set in the "Cache-Control" HTTP response header
-// when returning users.
-func (c *ConfigurationData) GetCacheControlUsers() string {
-	return c.v.GetString(varCacheControlUsers)
-}
-
-// GetCacheControlCollaborators returns the value to set in the "Cache-Control" HTTP response header
-// when returning collaborators.
-func (c *ConfigurationData) GetCacheControlCollaborators() string {
-	return c.v.GetString(varCacheControlCollaborators)
-}
-
-// GetCacheControlUser returns the value to set in the "Cache-Control" HTTP response header
-// when data for the current user.
-func (c *ConfigurationData) GetCacheControlUser() string {
-	return c.v.GetString(varCacheControlUser)
 }
 
 // GetDeprecatedServiceAccountPrivateKey returns the deprecated service account private key (if any) and its ID
@@ -494,17 +328,6 @@ func (c *ConfigurationData) getServiceEndpoint(req *goa.RequestData, varServiceU
 		}
 	}
 	return endpoint, nil
-}
-
-// GetAuthNotApprovedRedirect returns the URL to redirect to if the user is not approved
-// May return empty string which means an unauthorized error should be returned instead of redirecting the user
-func (c *ConfigurationData) GetAuthNotApprovedRedirect() string {
-	return c.v.GetString(varAuthNotApprovedRedirect)
-}
-
-// GetGithubAuthToken returns the actual Github OAuth Access Token
-func (c *ConfigurationData) GetGithubAuthToken() string {
-	return c.v.GetString(varGithubAuthToken)
 }
 
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
@@ -686,16 +509,6 @@ func (c *ConfigurationData) getServiceURL(req *goa.RequestData, serviceDomainPre
 	return newURL, nil
 }
 
-// GetCheStarterURL returns the URL for the Che Starter service used by codespaces to initiate code editing
-func (c *ConfigurationData) GetCheStarterURL() string {
-	return c.v.GetString(varCheStarterURL)
-}
-
-// GetOpenshiftTenantMasterURL returns the URL for the openshift cluster where the tenant services are running
-func (c *ConfigurationData) GetOpenshiftTenantMasterURL() string {
-	return c.v.GetString(varOpenshiftTenantMasterURL)
-}
-
 // GetLogLevel returns the loggging level (as set via config file or environment variable)
 func (c *ConfigurationData) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
@@ -737,16 +550,6 @@ func (c *ConfigurationData) checkLocalhostRedirectException(req *goa.RequestData
 		return localhostRedirectURLs, nil
 	}
 	return DefaultValidRedirectURLs, nil
-}
-
-// GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
-func (c *ConfigurationData) GetTenantServiceURL() string {
-	return c.v.GetString(varTenantServiceURL)
-}
-
-// GetNotificationServiceURL returns the URL for the Notification service used for event notification
-func (c *ConfigurationData) GetNotificationServiceURL() string {
-	return c.v.GetString(varNotificationServiceURL)
 }
 
 const (
