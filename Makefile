@@ -119,12 +119,12 @@ analyze-go-code: golint gocyclo govet
 ## Run gocyclo analysis over the code.
 golint: $(GOLINT_BIN)
 	$(info >>--- RESULTS: GOLINT CODE ANALYSIS ---<<)
-	@$(foreach d,$(GOANALYSIS_DIRS),$(GOLINT_BIN) $d 2>&1 | grep -vEf .golint_exclude;)
+	@$(foreach d,$(GOANALYSIS_DIRS),$(GOLINT_BIN) $d 2>&1 | grep -vEf .golint_exclude || true;)
 
 ## Run gocyclo analysis over the code.
 gocyclo: $(GOCYCLO_BIN)
 	$(info >>--- RESULTS: GOCYCLO CODE ANALYSIS ---<<)
-	@$(foreach d,$(GOANALYSIS_DIRS),$(GOCYCLO_BIN) -over 10 $d | grep -vEf .golint_exclude;)
+	@$(foreach d,$(GOANALYSIS_DIRS),$(GOCYCLO_BIN) -over 10 $d | grep -vEf .golint_exclude || true;)
 
 ## Run go vet analysis over the code.
 govet:
@@ -186,6 +186,8 @@ $(GO_BINDATA_ASSETFS_BIN): $(VENDOR_DIR)
 	cd $(VENDOR_DIR)/github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs && go build -v
 $(FRESH_BIN): $(VENDOR_DIR)
 	cd $(VENDOR_DIR)/github.com/pilu/fresh && go build -v
+$(GO_JUNIT_BIN): $(VENDOR_DIR)
+	cd $(VENDOR_DIR)/github.com/jstemmer/go-junit-report && go build -v
 
 CLEAN_TARGETS += clean-artifacts
 .PHONY: clean-artifacts
@@ -308,3 +310,17 @@ endif
 .PHONY: clean
 ## Runs all clean-* targets.
 clean: $(CLEAN_TARGETS)
+
+
+bin/docker: Dockerfile.dev
+	mkdir -p bin/docker
+	cp Dockerfile.dev bin/docker/Dockerfile
+
+bin/docker/fabric8-auth-linux: bin/docker $(SOURCES)
+	GO15VENDOREXPERIMENT=1 GOARCH=amd64 GOOS=linux go build -o bin/docker/fabric8-auth-linux
+
+fast-docker: bin/docker/fabric8-auth-linux
+	docker build -t fabric8/fabric8-auth:dev bin/docker
+
+kube-redeploy: fast-docker
+	kubectl delete pod -l service=auth

@@ -9,6 +9,22 @@ var _ = a.Resource("token", func() {
 
 	a.BasePath("/token")
 
+	a.Action("keys", func() {
+		a.Routing(
+			a.GET("keys"),
+		)
+		a.Params(func() {
+			a.Param("format", d.String, func() {
+				a.Enum("pem", "jwk")
+				a.Description("Key format. If set to \"jwk\" (used by default) then JSON Web Key format will be used. If \"pem\" then a PEM-like format (PEM without header and footer) will be used.")
+			})
+		})
+		a.Description("Returns public keys which should be used to verify tokens")
+		a.Response(d.OK, func() {
+			a.Media(PublicKeys)
+		})
+	})
+
 	a.Action("generate", func() {
 		a.Routing(
 			a.GET("generate"),
@@ -33,6 +49,19 @@ var _ = a.Resource("token", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
+	})
+})
+
+// PublicKeys represents an public keys payload
+var PublicKeys = a.MediaType("application/vnd.publickeys+json", func() {
+	a.TypeName("PublicKeys")
+	a.Description("Public Keys")
+	a.Attributes(func() {
+		a.Attribute("keys", a.ArrayOf(d.Any))
+		a.Required("keys")
+	})
+	a.View("default", func() {
+		a.Attribute("keys")
 	})
 })
 

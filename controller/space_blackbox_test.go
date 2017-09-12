@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	authtoken "github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -58,9 +57,7 @@ func (rest *TestSpaceREST) TearDownTest() {
 }
 
 func (rest *TestSpaceREST) SecuredController(identity account.Identity) (*goa.Service, *SpaceController) {
-	priv, _ := authtoken.ParsePrivateKey([]byte(authtoken.RSAPrivateKey))
-
-	svc := testsupport.ServiceAsUser("Space-Service", authtoken.NewManagerWithPrivateKey(priv), identity)
+	svc := testsupport.ServiceAsUser("Space-Service", identity)
 	return svc, NewSpaceController(svc, rest.db, spaceConfiguration, &DummyResourceManager{
 		ResourceID:   &rest.resourceID,
 		PermissionID: &rest.permissionID,

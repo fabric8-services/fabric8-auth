@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -164,23 +163,6 @@ type entitlementResult struct {
 	Rpt string `json:"rpt"`
 }
 
-// TokenPayload represents an rpt token
-type TokenPayload struct {
-	jwt.StandardClaims
-	Authorization *AuthorizationPayload `json:"authorization"`
-}
-
-// AuthorizationPayload represents an authz payload in the rpt token
-type AuthorizationPayload struct {
-	Permissions []Permissions `json:"permissions"`
-}
-
-// Permissions represents a "permissions" in the AuthorizationPayload
-type Permissions struct {
-	ResourceSetName *string `json:"resource_set_name"`
-	ResourceSetID   *string `json:"resource_set_id"`
-}
-
 // VerifyResourceUser returns true if the user among the resource collaborators
 func VerifyResourceUser(ctx context.Context, token string, resourceName string, entitlementEndpoint string) (bool, error) {
 	resource := EntitlementResource{
@@ -221,14 +203,16 @@ func CreateResource(ctx context.Context, resource KeycloakResource, authzEndpoin
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"resource": resource,
-			"err":      err.Error(),
+			"auth_endpoint": authzEndpoint,
+			"resource":      resource,
+			"err":           err.Error(),
 		}, "unable to create a Keycloak resource")
 		return "", errors.NewInternalError(ctx, errs.Wrap(err, "unable to create a Keycloak resource"))
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusCreated {
 		log.Error(ctx, map[string]interface{}{
+			"auth_endpoint":   authzEndpoint,
 			"resource":        resource,
 			"response_status": res.Status,
 			"response_body":   rest.ReadBody(res.Body),

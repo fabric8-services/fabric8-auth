@@ -1,5 +1,5 @@
-hash: 378d674999f7e01a1ab519f10383af8e4dbc798c52e3227c6b9780bf6239c2c1
-updated: 2017-06-12T16:35:16.128991846+02:00
+hash: d5617480373ee580544dcaa0b3836aec445c98cefbdca0f0ce02b74428592997
+updated: 2017-09-06T14:32:24.658504132-07:00
 imports:
 - name: github.com/andygrunwald/go-jira
   version: 9d1f282f93af41553ddb53b0116a8cdb75b4837a
@@ -138,6 +138,8 @@ imports:
   version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4
 - name: github.com/russross/blackfriday
   version: 5f33e7b7878355cd2b7e6b8eefc48a5472c69f70
+- name: github.com/jstemmer/go-junit-report
+  version: 15422cf504f9dc030386499a5c68053a38763e58
 - name: github.com/satori/go.uuid
   version: b061729afc07e77a8aa4fad0a2fd840958f1942a
 - name: github.com/sergi/go-diff
@@ -172,6 +174,12 @@ imports:
   - assert
   - require
   - suite
+- name: gopkg.in/square/go-jose.v2
+  version: b25e6cab129e4a54675b42ea49d38e9c33ade9e6
+- name: golang.org/x/crypto
+  version: 81e90905daefcd6fd217b62423c0908922eadb30
+  subpackages:
+  - ssh/terminal
 - name: github.com/trivago/tgo
   version: 4a656addb20609ba4cb4d20219a2f6c27aeb142c
   subpackages:

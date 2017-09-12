@@ -98,7 +98,7 @@ func TestCompareWithGolden(t *testing.T) {
 	t.Run("mismatch between expected and actual output", func(t *testing.T) {
 		t.Parallel()
 		// given
-		f := "test-files/codebase/show/ok_without_auth.golden.json"
+		f := "test-files/token/keys/ok_jwk.golden.json"
 		// when
 		err := testableCompareWithGolden(false, f, dummy)
 		// then
