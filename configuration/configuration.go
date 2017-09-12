@@ -265,7 +265,7 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 }
 
 // GetHTTPAddress returns the HTTP address (as set via default, config file, or environment variable)
-// that the wit server binds to (e.g. "0.0.0.0:8080")
+// that the auth server binds to (e.g. "0.0.0.0:8089")
 func (c *ConfigurationData) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
 }
