@@ -276,6 +276,12 @@ func (c *ConfigurationData) GetHeaderMaxLength() int64 {
 	return c.v.GetInt64(varHeaderMaxLength)
 }
 
+// IsPostgresDeveloperModeEnabled returns if development related features (as set via default, config file, or environment variable),
+// e.g. token generation endpoint are enabled
+func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
+	return c.v.GetBool(varDeveloperModeEnabled)
+}
+
 // GetCacheControlUsers returns the value to set in the "Cache-Control" HTTP response header
 // when returning users.
 func (c *ConfigurationData) GetCacheControlUsers() string {
@@ -292,12 +298,6 @@ func (c *ConfigurationData) GetCacheControlCollaborators() string {
 // when data for the current user.
 func (c *ConfigurationData) GetCacheControlUser() string {
 	return c.v.GetString(varCacheControlUser)
-}
-
-// IsPostgresDeveloperModeEnabled returns if development related features (as set via default, config file, or environment variable),
-// e.g. token generation endpoint are enabled
-func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
-	return c.v.GetBool(varDeveloperModeEnabled)
 }
 
 // GetDeprecatedServiceAccountPrivateKey returns the deprecated service account private key (if any) and its ID
@@ -633,9 +633,6 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
-
-	defaultOpenshiftTenantMasterURL = "https://tsrv.devshift.net:8443"
-	defaultCheStarterURL            = "che-server"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
