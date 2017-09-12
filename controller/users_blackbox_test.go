@@ -19,7 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	almtoken "github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
@@ -66,8 +65,7 @@ func (s *TestUsersSuite) TearDownTest() {
 }
 
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
-	pub, _ := almtoken.ParsePublicKey([]byte(almtoken.RSAPublicKey))
-	svc := testsupport.ServiceAsUser("Users-Service", almtoken.NewManager(pub), identity)
+	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	return svc, NewUsersController(svc, s.db, s.Configuration, s.profileService)
 }
 

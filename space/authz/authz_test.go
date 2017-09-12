@@ -15,7 +15,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	almtoken "github.com/fabric8-services/fabric8-auth/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 
 	uuid "github.com/satori/go.uuid"
@@ -57,7 +58,7 @@ func (s *TestAuthzSuite) TestFailsIfNoTokenInContext() {
 
 func (s *TestAuthzSuite) TestUserAmongSpaceCollaboratorsOK() {
 	spaceID := uuid.NewV4().String()
-	authzPayload := auth.AuthorizationPayload{Permissions: []auth.Permissions{{ResourceSetName: &spaceID}}}
+	authzPayload := token.AuthorizationPayload{Permissions: []token.Permissions{{ResourceSetName: &spaceID}}}
 	ok := s.checkPermissions(authzPayload, spaceID)
 	require.True(s.T(), ok)
 }
@@ -65,17 +66,16 @@ func (s *TestAuthzSuite) TestUserAmongSpaceCollaboratorsOK() {
 func (s *TestAuthzSuite) TestUserIsNotAmongSpaceCollaboratorsFails() {
 	spaceID1 := uuid.NewV4().String()
 	spaceID2 := uuid.NewV4().String()
-	authzPayload := auth.AuthorizationPayload{Permissions: []auth.Permissions{{ResourceSetName: &spaceID1}}}
+	authzPayload := token.AuthorizationPayload{Permissions: []token.Permissions{{ResourceSetName: &spaceID1}}}
 	ok := s.checkPermissions(authzPayload, spaceID2)
 	require.False(s.T(), ok)
 }
 
-func (s *TestAuthzSuite) checkPermissions(authzPayload auth.AuthorizationPayload, spaceID string) bool {
+func (s *TestAuthzSuite) checkPermissions(authzPayload token.AuthorizationPayload, spaceID string) bool {
 	resource := &space.Resource{}
 	authzService := authz.NewAuthzService(nil, &db{app{resource: resource}})
-	priv, _ := almtoken.ParsePrivateKey([]byte(almtoken.RSAPrivateKey))
 	testIdentity := testsupport.TestIdentity
-	svc := testsupport.ServiceAsUserWithAuthz("SpaceAuthz-Service", almtoken.NewManagerWithPrivateKey(priv), priv, testIdentity, authzPayload)
+	svc := testsupport.ServiceAsUserWithAuthz("SpaceAuthz-Service", testtoken.PrivateKey(), testIdentity, authzPayload)
 	resource.UpdatedAt = time.Now()
 
 	r := &goa.RequestData{

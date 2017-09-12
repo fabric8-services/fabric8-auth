@@ -229,33 +229,11 @@ func TestGetTokenPrivateKeyFromConfigFile(t *testing.T) {
 	resetConfiguration(defaultConfigFilePath)
 	// env variable NOT set, so we check with config.yaml's value
 
-	viperValue := config.GetTokenPrivateKey()
-	assert.NotNil(t, viperValue)
+	viperValue, kid := config.GetServiceAccountPrivateKey()
+	assert.NotEqual(t, "", kid)
+	require.NotNil(t, viperValue)
 
 	parsedKey, err := jwt.ParseRSAPrivateKeyFromPEM(viperValue)
-	require.Nil(t, err)
-	assert.NotNil(t, parsedKey)
-}
-
-func TestGetTokenPublicKeyFromConfigFile(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	envKey := generateEnvKey(varTokenPublicKey)
-	realEnvValue := os.Getenv(envKey) // could be "" as well.
-
-	os.Unsetenv(envKey)
-	defer func() {
-		os.Setenv(envKey, realEnvValue)
-		resetConfiguration(defaultValuesConfigFilePath)
-	}()
-
-	resetConfiguration(defaultConfigFilePath)
-
-	// env variable is now unset for sure, this will lead to the test looking up for
-	// value in config.yaml
-	viperValue := config.GetTokenPublicKey()
-	assert.NotNil(t, viperValue)
-
-	parsedKey, err := jwt.ParseRSAPublicKeyFromPEM(viperValue)
 	require.Nil(t, err)
 	assert.NotNil(t, parsedKey)
 }

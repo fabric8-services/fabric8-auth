@@ -101,3 +101,5 @@ import:
 - package: github.com/sergi/go-diff
   subpackages:
   - diffmatchpatch
+- package: gopkg.in/square/go-jose.v2
+  version: ^2.1.2

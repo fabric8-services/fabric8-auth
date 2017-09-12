@@ -57,11 +57,16 @@ objects:
               secretKeyRef:
                 name: auth
                 key: keycloak.realm
-          - name: AUTH_TOKEN_PUBLICKEY
+          - name: AUTH_SERVICEACCOUNT_PRIVATEKEY
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: token.publickey
+                key: serviceaccount.privatekey
+          - name: AUTH_SERVICEACCOUNT_PRIVATEKEYID
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: serviceaccount.privatekeyid
           - name: AUTH_KEYCLOAK_SECRET
             valueFrom:
               secretKeyRef:
@@ -92,6 +97,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: redirect.valid
+          - name: AUTH_KEYCLOAK_URL
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: keycloak.url
           imagePullPolicy: Always
           name: auth
           ports:
