@@ -45,7 +45,7 @@ var _ = a.API("auth", func() {
 
 	a.JWTSecurity("jwt", func() {
 		a.Description("JWT Token Auth")
-		a.TokenURL("/api/login/authorize")
+		a.TokenURL("/api/login")
 		a.Header("Authorization")
 	})
 
