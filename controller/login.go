@@ -66,34 +66,6 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 		}, "Unable to get Keycloak token endpoint URL")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
 	}
-
-	entitlementEndpoint, err := c.Configuration.GetKeycloakEndpointEntitlement(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak entitlement endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak entitlement endpoint URL")))
-	}
-
-	brokerEndpoint, err := c.Configuration.GetKeycloakEndpointBroker(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak broker endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
-	}
-	profileEndpoint, err := c.Configuration.GetKeycloakAccountEndpoint(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get Keycloak account endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-	whitelist, err := c.Configuration.GetValidRedirectURLs(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
 	if ctx.Scope != nil {
 		authEndpoint = fmt.Sprintf("%s?scope=%s", authEndpoint, *ctx.Scope) // Offline token
 	}
@@ -104,11 +76,7 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login"),
 	}
-	remoteWITUserProfile, err := c.Configuration.GetWITEndpoint(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.Perform(ctx, oauth, brokerEndpoint, entitlementEndpoint, profileEndpoint, whitelist, c.Configuration.GetNotApprovedRedirect(), remoteWITUserProfile)
+	return c.Auth.Perform(ctx, oauth, c.Configuration) // brokerEndpoint, entitlementEndpoint, profileEndpoint, whitelist, c.Configuration.GetNotApprovedRedirect(), remoteWITUserProfile)
 }

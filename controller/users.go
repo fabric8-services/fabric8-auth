@@ -10,24 +10,17 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/wit/witservice"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 
 	uuid "github.com/satori/go.uuid"
-)
-
-const (
-	delegationFlag = "isRequestDelegated"
-	usersEndpoint  = "/api/users"
 )
 
 // UsersController implements the users resource.
@@ -385,21 +378,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	return returnResponse
 }
 
-// addDelegationFlag adds information for WIT service to know that
-// this was forwarded from AUTH
-func addDelegationFlag(ctx *app.UpdateUsersContext) *app.UpdateUsersContext {
-	ctx.Context = context.WithValue(ctx.Context, delegationFlag, true)
-	return ctx
-}
-
 func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request *goa.RequestData) error {
-	remoteWITClient, err := c.createRemoteWITClient(ctx.Context, request)
-	if err != nil {
-		return err
-	}
-	updateUserPayload := &witservice.UpdateUsersPayload{
-		Data: &witservice.UpdateUserData{
-			Attributes: &witservice.UpdateIdentityDataAttributes{
+	updateUserPayload := &app.UpdateUsersPayload{
+		Data: &app.UpdateUserData{
+			Attributes: &app.UpdateIdentityDataAttributes{
 				Bio:                   ctx.Payload.Data.Attributes.Bio,
 				Company:               ctx.Payload.Data.Attributes.Company,
 				ContextInformation:    ctx.Payload.Data.Attributes.ContextInformation,
@@ -413,21 +395,11 @@ func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request 
 			Type: ctx.Payload.Data.Type,
 		},
 	}
-	ctx = addDelegationFlag(ctx)
-	_, err = remoteWITClient.UpdateUsers(goasupport.ForwardContextRequestID(ctx), "", updateUserPayload)
-	return err
-}
-
-func (c *UsersController) createRemoteWITClient(ctx context.Context, request *goa.RequestData) (*witservice.Client, error) {
-	witEndpoint, err := c.config.GetWITEndpoint(request)
+	WITEndpoint, err := c.config.GetWITEndpoint(ctx.RequestData)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	WITClient, err := remoteservice.CreateSecureRemoteWITClient(ctx, witEndpoint, nil)
-	if err != nil {
-		return nil, err
-	}
-	return WITClient, nil
+	return remoteservice.UpdateWITUser(ctx, updateUserPayload, WITEndpoint, nil)
 }
 
 func isEmailValid(email string) bool {

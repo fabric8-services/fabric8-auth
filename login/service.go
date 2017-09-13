@@ -24,19 +24,36 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	er "github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/wit/witservice"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 )
+
+type loginServiceConfiguration interface {
+	GetKeycloakEndpointAuth(*goa.RequestData) (string, error)
+	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
+	GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error)
+	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
+	GetKeycloakEndpointEntitlement(*goa.RequestData) (string, error)
+	GetKeycloakClientID() string
+	GetKeycloakSecret() string
+	IsPostgresDeveloperModeEnabled() bool
+	GetKeycloakTestUserName() string
+	GetKeycloakTestUserSecret() string
+	GetKeycloakTestUser2Name() string
+	GetKeycloakTestUser2Secret() string
+	GetValidRedirectURLs(*goa.RequestData) (string, error)
+	GetHeaderMaxLength() int64
+	GetNotApprovedRedirect() string
+	GetWITEndpoint(*goa.RequestData) (string, error)
+}
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
 func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB) *KeycloakOAuthProvider {
@@ -58,7 +75,7 @@ type KeycloakOAuthProvider struct {
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string, WITEndpointUserProfile string) error
+	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, serviceConfig loginServiceConfiguration) error
 	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, WITEndpointUserProfile string) (*account.Identity, *account.User, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
@@ -79,7 +96,36 @@ const (
 )
 
 // Perform performs authentication
-func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string, WITEndpointUserProfile string) error {
+func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config *oauth2.Config, serviceConfig loginServiceConfiguration) error {
+
+	/* Compute all the configuration urls */
+
+	brokerEndpoint, err := serviceConfig.GetKeycloakEndpointBroker(ctx.RequestData)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Unable to get Keycloak broker endpoint URL")
+		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
+	}
+	profileEndpoint, err := serviceConfig.GetKeycloakAccountEndpoint(ctx.RequestData)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to get Keycloak account endpoint URL")
+		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+	}
+	validRedirectURL, err := serviceConfig.GetValidRedirectURLs(ctx.RequestData)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+	}
+
+	WITEndpointUserProfile, err := serviceConfig.GetWITEndpoint(ctx.RequestData)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+	}
+
+	userNotApprovedRedirectURL := serviceConfig.GetNotApprovedRedirect()
+
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
 
@@ -126,6 +172,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"state":          state,
 			"known_referrer": knownReferrer,
 		}, "exchanged code to access token")
+
 		_, usr, err := keycloak.CreateOrUpdateKeycloakUser(keycloakToken.AccessToken, ctx, profileEndpoint, WITEndpointUserProfile)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -269,7 +316,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 		s := linkURL.String()
 		redirect = &s
 	}
-	err := keycloak.saveReferrer(ctx, stateID, *redirect, validRedirectURL)
+	err = keycloak.saveReferrer(ctx, stateID, *redirect, validRedirectURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state":    stateID,
@@ -651,7 +698,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			return nil, nil, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
 		}
 		isNewUser := true
-		user, identity, err = keycloak.fetchUserInfoFromRemoteService(ctx, WITEndpointUserProfile, &accessToken)
+		user, identity, err = remoteservice.GetWITUser(ctx, WITEndpointUserProfile, &accessToken)
 		if user != nil && identity != nil {
 			isNewUser = false
 		}
@@ -744,10 +791,28 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			}
 		}
 	}
-	err = keycloak.notifyWITService(ctx, user, identity, WITEndpointUserProfile, &accessToken)
+	err = keycloak.updateWITUser(ctx, user, identity, WITEndpointUserProfile, &accessToken)
 	return identity, user, err
 }
 
+func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken *string) error {
+	updateUserPayload := &app.UpdateUsersPayload{
+		Data: &app.UpdateUserData{
+			Attributes: &app.UpdateIdentityDataAttributes{
+				Bio:      &user.Bio,
+				Company:  &user.Company,
+				Email:    &user.Email,
+				FullName: &user.FullName,
+				ImageURL: &user.ImageURL,
+				URL:      &user.URL,
+				Username: &identity.Username,
+			},
+		},
+	}
+	return remoteservice.UpdateWITUser(ctx, updateUserPayload, WITEndpointUserProfile, accessToken)
+}
+
+/*
 func (keycloak *KeycloakOAuthProvider) notifyWITService(ctx context.Context, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken *string) error {
 	updateUserPayload := &witservice.UpdateUsersPayload{
 		Data: &witservice.UpdateUserData{
@@ -764,17 +829,17 @@ func (keycloak *KeycloakOAuthProvider) notifyWITService(ctx context.Context, use
 			Type: "identities",
 		},
 	}
+
 	remoteWITService, err := remoteservice.CreateSecureRemoteWITClient(ctx, WITEndpointUserProfile, accessToken)
 	remoteUpdateUserAPIPath := witservice.UpdateUsersPath()
 	_, err = remoteWITService.UpdateUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
 	return err
 }
 
+
 // fetchUserInfoFromRemoteService calls WIT to check if user exists.
 func (keycloak *KeycloakOAuthProvider) fetchUserInfoFromRemoteService(ctx context.Context, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
-	/*
-	 Call WIT API to see if user is already present there.
-	*/
+
 	var user *account.User
 	var identity *account.Identity
 
@@ -817,6 +882,7 @@ func (keycloak *KeycloakOAuthProvider) fetchUserInfoFromRemoteService(ctx contex
 	}
 	return user, identity, nil
 }
+*/
 
 func checkApproved(ctx context.Context, profileService UserProfileService, accessToken string, profileEndpoint string) (bool, error) {
 	profile, err := profileService.Get(ctx, accessToken, profileEndpoint)
