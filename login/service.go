@@ -37,20 +37,9 @@ import (
 )
 
 type loginServiceConfiguration interface {
-	GetKeycloakEndpointAuth(*goa.RequestData) (string, error)
-	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
 	GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error)
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
-	GetKeycloakEndpointEntitlement(*goa.RequestData) (string, error)
-	GetKeycloakClientID() string
-	GetKeycloakSecret() string
-	IsPostgresDeveloperModeEnabled() bool
-	GetKeycloakTestUserName() string
-	GetKeycloakTestUserSecret() string
-	GetKeycloakTestUser2Name() string
-	GetKeycloakTestUser2Secret() string
 	GetValidRedirectURLs(*goa.RequestData) (string, error)
-	GetHeaderMaxLength() int64
 	GetNotApprovedRedirect() string
 	GetWITEndpoint(*goa.RequestData) (string, error)
 }
