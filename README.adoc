@@ -83,6 +83,17 @@ type `make` in a freshly clone repository of this project.
 $ cd $GOPATH/src/github.com/fabric8-services/fabric8-auth
 $ make
 ----
+If you are getting the following error
+----
+[ERROR]	Failed to set references: Unable to update checked out version (Skip to cleanup)
+make: *** [vendor] Error 1
+----
+Try out this
+----
+$ glide cache-clear
+$ make clean deps
+$ make build
+----
 
 ==== Special make targets
 
