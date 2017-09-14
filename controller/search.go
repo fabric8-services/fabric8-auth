@@ -13,6 +13,7 @@ import (
 
 type searchConfiguration interface {
 	GetHTTPAddress() string
+	GetMaxUsersListLimit() int
 }
 
 // SearchController implements the search resource.
@@ -40,6 +41,10 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 	var err error
 
 	offset, limit := computePagingLimits(ctx.PageOffset, ctx.PageLimit)
+	if limit > c.configuration.GetMaxUsersListLimit() {
+		// Don't return more users then allowed by configuration
+		limit = c.configuration.GetMaxUsersListLimit()
+	}
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
 		result, count, err = appl.Identities().Search(ctx, q, offset, limit)
@@ -52,6 +57,10 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		ctx.InternalServerError()
 	}
 
+	if count > c.configuration.GetMaxUsersListLimit() {
+		// Hide the real count if it's more than the max allowed limit
+		count = c.configuration.GetMaxUsersListLimit()
+	}
 	var users []*app.UserData
 	for i := range result {
 		ident := result[i]

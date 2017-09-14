@@ -75,6 +75,7 @@ const (
 	varCacheControlUsers                    = "cachecontrol.users"
 	varCacheControlCollaborators            = "cachecontrol.collaborators"
 	varCacheControlUser                     = "cachecontrol.user"
+	varUsersListLimit                       = "users.listlimit"
 	defaultConfigFile                       = "config.yaml"
 	varValidRedirectURLs                    = "redirect.valid"
 	varLogLevel                             = "log.level"
@@ -175,6 +176,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 
+	// Max number of users returned when searching users
+	c.v.SetDefault(varUsersListLimit, 50)
+
 	// HTTP Cache-Control/max-age default
 	c.v.SetDefault(varCacheControlUsers, "max-age=2")
 	c.v.SetDefault(varCacheControlCollaborators, "max-age=2")
@@ -273,6 +277,11 @@ func (c *ConfigurationData) GetHeaderMaxLength() int64 {
 // e.g. token generation endpoint are enabled
 func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
+}
+
+// GetMaxUsersListLimit returns the max number of users returned when searching users
+func (c *ConfigurationData) GetMaxUsersListLimit() int {
+	return c.v.GetInt(varUsersListLimit)
 }
 
 // GetCacheControlUsers returns the value to set in the "Cache-Control" HTTP response header
