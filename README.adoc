@@ -371,7 +371,7 @@ NOTE: The CLI needs the API Server which was started on executing `make dev`  to
 
 Generate a token for future use.
 ----
-./bin/auth-cli generate login -H localhost:8089 --pp
+./bin/auth-cli generate token -H localhost:8089 --pp
 ----
 
 You should get Token in response, save this token in your favourite editor as you need to use this token for POST API calls
