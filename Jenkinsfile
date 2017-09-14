@@ -26,6 +26,16 @@ goTemplate{
         }
 
         initServiceGitHash = sh(script: 'git rev-parse HEAD', returnStdout: true).toString().trim()
+
+        pushPomPropertyChangePR{
+            propertyName = 'auth.version'
+            projects = [
+                    'fabric8io/fabric8-platform'
+            ]
+            version = v
+            containerName = 'go'
+            autoMerge = true
+        }
       }
 
       sh('mv /home/jenkins/go/src/github.com/fabric8-services/fabric8-auth/tmp/junit.xml `pwd`')
