@@ -42,7 +42,7 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
 	offset, limit := computePagingLimits(ctx.PageOffset, ctx.PageLimit)
 	if limit > c.configuration.GetMaxUsersListLimit() {
-		// Don't return more users then allowed by configuration
+		// Don't return more users than allowed by configuration
 		limit = c.configuration.GetMaxUsersListLimit()
 	}
 
