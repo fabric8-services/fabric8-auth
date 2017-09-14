@@ -17,7 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -92,6 +92,19 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 	}
 }
 
+func (s *TestSearchUserSearch) TestUsersSearchLimited() {
+
+	idents := s.createTestData()
+	defer s.cleanTestData(idents)
+
+	tt := okScenarioUserSearchTest{"With limited result", userSearchTestArgs{s.offset("0"), s.limit(s.Configuration.GetMaxUsersListLimit() + 1), "TEST_"}, userSearchTestExpects{s.totalCount(s.Configuration.GetMaxUsersListLimit())}}
+
+	_, result := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
+	for _, userSearchTestExpect := range tt.userSearchTestExpects {
+		userSearchTestExpect(s.T(), tt, result)
+	}
+}
+
 func (s *TestSearchUserSearch) TestUsersSearchBadRequest() {
 	t := s.T()
 	tests := []struct {
@@ -110,7 +123,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 	names := []string{"X_TEST_A", "X_TEST_AB", "X_TEST_B", "X_TEST_C"}
 	emails := []string{"email_x_test_ab@redhat.org", "email_x_test_a@redhat.org", "email_x_test_c@redhat.org", "email_x_test_b@redhat.org"}
 	usernames := []string{"x_test_b", "x_test_c", "x_test_a", "x_test_ab"}
-	for i := 0; i < 20; i++ {
+	for i := 0; i < s.Configuration.GetMaxUsersListLimit(); i++ {
 		names = append(names, "TEST_"+strconv.Itoa(i))
 		emails = append(emails, "myemail"+strconv.Itoa(i))
 		usernames = append(usernames, "myusernames"+strconv.Itoa(i))
