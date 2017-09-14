@@ -27,21 +27,15 @@ func NewResourceController(service *goa.Service, db application.DB) *ResourceCon
 
 // Delete runs the delete action.
 func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
-	// ResourceController_Delete: start_implement
+	// TODO validate the PAT here
 
-	// Put your logic here
-
-	// ResourceController_Delete: end_implement
 	return nil
 }
 
 // Read runs the read action.
 func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
-	// ResourceController_Read: start_implement
+	// TODO validate the PAT here
 
-	// Put your logic here
-
-	// ResourceController_Read: end_implement
 	return nil
 }
 
@@ -127,10 +121,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 // Update runs the update action.
 func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
-	// ResourceController_Update: start_implement
+	// TODO validate the PAT here
 
-	// Put your logic here
-
-	// ResourceController_Update: end_implement
 	return nil
 }
