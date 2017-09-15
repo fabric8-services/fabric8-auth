@@ -84,12 +84,12 @@ func (rest *TestLoginREST) TestOfflineAccessOK() {
 
 type TestLoginService struct{}
 
-func (t TestLoginService) Perform(ctx *app.LoginLoginContext, oauth *oauth2.Config, brokerEndpoint string, entitlementEndpoint string, profileEndpoint string, validRedirectURL string, userNotApprovedRedirectURL string, WITEndpointUserProfile string) error {
+func (t TestLoginService) Perform(ctx *app.LoginLoginContext, oauth *oauth2.Config, config login.LoginServiceConfiguration) error {
 	return ctx.TemporaryRedirect()
 }
 
-func (t TestLoginService) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, WITEndpointUserProfile string) (*account.Identity, *account.User, error) {
-	return nil, nil, nil
+func (t TestLoginService) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, user *account.User, identity *account.Identity) error {
+	return nil
 }
 
 func (t TestLoginService) Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {

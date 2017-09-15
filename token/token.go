@@ -11,7 +11,12 @@ import (
 	"sync"
 
 	"github.com/fabric8-services/fabric8-auth/log"
+	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
+	errs "github.com/pkg/errors"
+
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -19,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"gopkg.in/square/go-jose.v2"
-	"time"
 )
 
 const (
@@ -407,4 +411,17 @@ func CheckClaims(claims *TokenClaims) error {
 		return errors.New("email claim not found in token")
 	}
 	return nil
+}
+
+// ReadManagerFromContext extracts the token manager
+func ReadManagerFromContext(ctx context.Context) (*Manager, error) {
+	tm := logintokencontext.ReadTokenManagerFromContext(ctx)
+	if tm == nil {
+		log.Error(ctx, map[string]interface{}{
+			"token": tm,
+		}, "missing token manager")
+
+		return nil, errs.New("Missing token manager")
+	}
+	return tm.(*Manager), nil
 }

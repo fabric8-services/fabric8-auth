@@ -521,7 +521,7 @@ func (s *TestUsersSuite) TestPatchUserContextInformation() {
 	assert.True(s.T(), ok)
 	assert.Equal(s.T(), contextInformation["count"], int(countValue))
 
-	/** Usual stuff done, now lets PATCH only 1 contextInformation attribute **/
+	// Usual stuff done, now lets PATCH only 1 contextInformation attribute
 	patchedContextInformation := map[string]interface{}{
 		"count": 5,
 	}

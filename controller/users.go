@@ -399,7 +399,7 @@ func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request 
 	if err != nil {
 		return err
 	}
-	return remoteservice.UpdateWITUser(ctx, updateUserPayload, WITEndpoint, nil)
+	return remoteservice.UpdateWITUser(ctx, request, updateUserPayload, WITEndpoint, nil)
 }
 
 func isEmailValid(email string) bool {
