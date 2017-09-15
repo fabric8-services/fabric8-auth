@@ -102,6 +102,8 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 	resourceScopes := []string{}
 	resourceOwnerID := testIdentity.ID
 
+	fmt.Printf("!!!!!! ID: %v\n", resourceOwnerID)
+
 	payload := &app.RegisterResourcePayload{
 		Description:      &resourceDescription,
 		Name:             "My new resource",

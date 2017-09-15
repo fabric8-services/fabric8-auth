@@ -81,16 +81,16 @@ func (m *GormResourceTypeRepository) Load(ctx context.Context, id uuid.UUID) (*R
 func (m *GormResourceTypeRepository) LookupOrCreate(ctx context.Context, name string) (*ResourceType, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type", "lookupOrCreate"}, time.Now())
 
-	var native *ResourceType
-	err := m.db.Table(m.TableName()).Where("name = ?", name).Find(&native).Error
+	var native ResourceType
+	err := m.db.Table(m.TableName()).Where("name = ?", name).First(&native).Error
 
 	if err == gorm.ErrRecordNotFound {
-		native = &ResourceType{
+		native = ResourceType{
 			ResourceTypeID: uuid.NewV4(),
 			Name:           name,
 		}
 
-		err := m.db.Create(native).Error
+		err := m.db.Create(&native).Error
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -104,8 +104,9 @@ func (m *GormResourceTypeRepository) LookupOrCreate(ctx context.Context, name st
 			"resource_type_id": native.ResourceTypeID,
 			"name":             native.Name,
 		}, "Resource Type created!")
+		return &native, nil
 	}
-	return native, nil
+	return &native, err
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error

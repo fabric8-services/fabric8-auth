@@ -114,6 +114,9 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 	if resource.ResourceID == "" {
 		resource.ResourceID = uuid.NewV4().String()
 	}
+
+	fmt.Printf("!!!! Creating resource with id %v", resource.Owner.ID)
+
 	err := m.db.Create(resource).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
