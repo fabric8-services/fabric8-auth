@@ -17,6 +17,7 @@ import (
 	authtoken "github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	//"github.com/stretchr/testify/assert"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -66,7 +67,7 @@ func (rest *TestResourceREST) UnSecuredController() (*goa.Service, *ResourceCont
 /*
  * This test will attempt to register a resource with an invalid PAT
  */
-func (rest *TestResourceREST) TestFailRegisterResourceUnauthorized() {
+func (rest *TestResourceREST) TestFailRegisterResourceBadRequest() {
 
 	svc, ctrl := rest.UnSecuredController()
 
@@ -87,17 +88,19 @@ func (rest *TestResourceREST) TestFailRegisterResourceUnauthorized() {
 		Type:             "Area",
 	}
 
-	test.RegisterResourceUnauthorized(rest.T(), svc.Context, svc, ctrl, payload)
+	test.RegisterResourceBadRequest(rest.T(), svc.Context, svc, ctrl, payload)
 }
 
 func (rest *TestResourceREST) TestRegisterResourceCreated() {
 
-	svc, ctrl := rest.SecuredController(testsupport.TestIdentity)
+	testIdentity, err := testsupport.CreateTestIdentity(rest.DB, "TestRegisterResourceCreated-"+uuid.NewV4().String(), "TestRegisterResourceCreated")
+	require.Nil(rest.T(), err)
+	svc, ctrl := rest.SecuredController(testIdentity)
 
 	resourceDescription := "Resource description"
 	resourceID := ""
 	resourceScopes := []string{}
-	resourceOwnerID := ""
+	resourceOwnerID := testIdentity.ID
 
 	payload := &app.RegisterResourcePayload{
 		Description:      &resourceDescription,
@@ -105,11 +108,37 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 		ParentResourceID: nil,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
-		ResourceOwnerID:  resourceOwnerID,
+		ResourceOwnerID:  resourceOwnerID.String(),
 		Type:             "Area",
 	}
 
+	fmt.Println("Creating...")
 	_, created := test.RegisterResourceCreated(rest.T(), svc.Context, svc, ctrl, payload)
 	// then
+	fmt.Println("...Created")
+	require.NotNil(rest.T(), created)
 	require.NotNil(rest.T(), created.ID)
+}
+
+func (rest *TestResourceREST) TestRegisterResourceNotFound() {
+
+	svc, ctrl := rest.SecuredController(testsupport.TestIdentity)
+
+	resourceDescription := "Resource description"
+	resourceID := ""
+	resourceScopes := []string{}
+	resourceOwnerID := uuid.NewV4() // unknown identity
+
+	payload := &app.RegisterResourcePayload{
+		Description:      &resourceDescription,
+		Name:             "My new resource",
+		ParentResourceID: nil,
+		ResourceScopes:   resourceScopes,
+		ResourceID:       &resourceID,
+		ResourceOwnerID:  resourceOwnerID.String(),
+		Type:             "Area",
+	}
+
+	fmt.Println("Creating...")
+	test.RegisterResourceNotFound(rest.T(), svc.Context, svc, ctrl, payload)
 }

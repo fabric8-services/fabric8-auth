@@ -29,7 +29,7 @@ type Resource struct {
 	// The resource type
 	ResourceType ResourceType
 	// Resource description
-	Description string
+	Description *string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -120,6 +120,7 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 			"resource_id": resource.ResourceID,
 			"err":         err,
 		}, "unable to create the resource")
+		fmt.Printf("Failed!!!! %v\n", err)
 		return errs.WithStack(err)
 	}
 	log.Info(ctx, map[string]interface{}{

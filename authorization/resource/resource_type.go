@@ -104,10 +104,8 @@ func (m *GormResourceTypeRepository) LookupOrCreate(ctx context.Context, name st
 			"resource_type_id": native.ResourceTypeID,
 			"name":             native.Name,
 		}, "Resource Type created!")
-		return native, nil
-	} else {
-		return native, nil
 	}
+	return native, nil
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error

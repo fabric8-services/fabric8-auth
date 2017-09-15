@@ -11,7 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/goadesign/goa"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // ResourceController implements the resource resource.
@@ -97,7 +97,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			ParentResource: parentResource, //ctx.Payload.ParentResourceID,
 			Owner:          *identity,
 			ResourceType:   *resourceType,
-			Description:    *ctx.Payload.Description,
+			Description:    ctx.Payload.Description,
 		}
 
 		// Persist the resource

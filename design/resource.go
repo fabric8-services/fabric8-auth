@@ -21,6 +21,7 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.Created, RegisterResourceMedia)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
 	})
 
 	a.Action("read", func() {
