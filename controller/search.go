@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/goadesign/goa"
@@ -13,6 +14,7 @@ import (
 
 type searchConfiguration interface {
 	GetHTTPAddress() string
+	GetMaxUsersListLimit() int
 }
 
 // SearchController implements the search resource.
@@ -39,17 +41,34 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 	var count int
 	var err error
 
+	exceeded := false
 	offset, limit := computePagingLimits(ctx.PageOffset, ctx.PageLimit)
 
+	searchLimit := limit
+	// Don't return more users than allowed by configuration
+	if offset >= c.configuration.GetMaxUsersListLimit() {
+		exceeded = true
+	} else if offset+limit > c.configuration.GetMaxUsersListLimit() {
+		searchLimit = c.configuration.GetMaxUsersListLimit() - offset
+	}
+
 	err = application.Transactional(c.db, func(appl application.Application) error {
-		result, count, err = appl.Identities().Search(ctx, q, offset, limit)
+		result, count, err = appl.Identities().Search(ctx, q, offset, searchLimit)
 		return err
 	})
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to run search query on users.")
-		ctx.InternalServerError()
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	if exceeded {
+		result = []account.Identity{}
+	}
+	if count > c.configuration.GetMaxUsersListLimit() {
+		// Hide the real count if it's more than the max allowed limit
+		count = c.configuration.GetMaxUsersListLimit()
 	}
 
 	var users []*app.UserData
