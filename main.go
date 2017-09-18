@@ -26,7 +26,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
-	goalogrus "github.com/goadesign/goa/logging/logrus"
+	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
 	"github.com/goadesign/goa/middleware/security/jwt"
@@ -145,7 +145,7 @@ func main() {
 	}
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 	service.Use(login.InjectTokenManager(tokenManager))
-	spaceAuthzService := authz.NewAuthzService(configuration, appDB)
+	spaceAuthzService := authz.NewAuthzService(configuration)
 	service.Use(authz.InjectAuthzService(spaceAuthzService))
 
 	// Mount "login" controller
