@@ -376,11 +376,11 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 	}
-	c.notifyWITService(ctx, ctx.RequestData, identity.ID.String()) // TODO: Dont ignore error
+	c.updateWITUser(ctx, ctx.RequestData, identity.ID.String()) // TODO: Dont ignore error
 	return returnResponse
 }
 
-func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
+func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{

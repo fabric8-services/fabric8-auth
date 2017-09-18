@@ -832,7 +832,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 	return err
 }
 
-func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken string) error {
+func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, identityID string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
@@ -846,7 +846,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 			},
 		},
 	}
-	return remoteservice.UpdateWITUser(ctx, request, updateUserPayload, WITEndpointUserProfile, accessToken)
+	return remoteservice.UpdateWITUser(ctx, request, updateUserPayload, WITEndpointUserProfile, identityID)
 }
 
 func (keycloak *KeycloakOAuthProvider) createWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken string) error {

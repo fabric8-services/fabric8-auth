@@ -83,10 +83,7 @@ func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.Requ
 // UpdateWITUser updates user in WIT
 func UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
 
-	// Designed this method to accept the payload object instead of user/identity objects as arguments
-	// so that it's more seamless when we pass it on to WIT. but might be a good idea to pass on
-	// user/identity objects just like it's done for CreateWITUser(...)
-
+	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
 		Data: &witservice.UpdateUserData{
 			Attributes: &witservice.UpdateIdentityDataAttributes{
