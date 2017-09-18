@@ -17,71 +17,17 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// CreateSecureRemoteWITClient creates a client for sending requests to the remote WIT service.
-func CreateSecureRemoteWITClient(ctx context.Context, req *goa.RequestData, remoteEndpoint string, accessToken *string) (*witservice.Client, error) {
-	u, err := url.Parse(remoteEndpoint)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"remote_endpoint": remoteEndpoint,
-		}, "unable to parse remote endpoint")
-		return nil, err
-	}
-	witclient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
-	witclient.Host = u.Host
-	witclient.Scheme = u.Scheme
-
-	if accessToken == nil {
-		// if the accessToken is not passed into this function, use the context as is ( which should have the token in it )
-		witclient.SetJWTSigner(goasupport.NewForwardSigner(ctx))
-		return witclient, nil
-	}
-
-	staticToken := goaclient.StaticToken{
-		Value: *accessToken,
-	}
-	jwtSigner := goaclient.JWTSigner{
-		TokenSource: &goaclient.StaticTokenSource{
-			StaticToken: &staticToken,
-		},
-	}
-	witclient.SetJWTSigner(&jwtSigner)
-	return witclient, nil
+// RemoteWITServiceCaller specifies the behaviour of a remote WIT caller
+type RemoteWITServiceCaller interface {
+	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error
+	GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error)
+	CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error
 }
 
-// CreateSecureRemoteClientAsServiceAccount creates a client that would communicate with WIT service using a service account token.
-func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.RequestData, remoteEndpoint string) (*witservice.Client, error) {
-	u, err := url.Parse(remoteEndpoint)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"remote_endpoint": remoteEndpoint,
-		}, "unable to parse remote endpoint")
-		return nil, err
-	}
-	witclient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
-	witclient.Host = u.Host
-	witclient.Scheme = u.Scheme
-
-	serviceAccountToken, err := getServiceAccountToken(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	log.Info(ctx, map[string]interface{}{
-		"remote_endpoint": remoteEndpoint,
-	}, "service token generated, will be used to call WIT")
-	staticToken := goaclient.StaticToken{
-		Value: serviceAccountToken,
-	}
-	jwtSigner := goaclient.JWTSigner{
-		TokenSource: &goaclient.StaticTokenSource{
-			StaticToken: &staticToken,
-		},
-	}
-	witclient.SetJWTSigner(&jwtSigner)
-	return witclient, nil
-}
+type RemoteWITServiceConfig struct{}
 
 // UpdateWITUser updates user in WIT
-func UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
+func (r *RemoteWITServiceConfig) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
 
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
@@ -108,7 +54,7 @@ func UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app
 }
 
 // CreateWITUser updates user in WIT
-func CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
+func (r *RemoteWITServiceConfig) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
@@ -132,7 +78,7 @@ func CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User
 }
 
 // GetWITUser calls WIT to check if user exists and uses the user's token for authorization and identity ID discovery
-func GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
+func (r *RemoteWITServiceConfig) GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
 
 	var user *account.User
 	var identity *account.Identity
@@ -203,6 +149,69 @@ func GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfil
 
 	}
 	return user, identity, nil
+}
+
+// CreateSecureRemoteWITClient creates a client for sending requests to the remote WIT service.
+func CreateSecureRemoteWITClient(ctx context.Context, req *goa.RequestData, remoteEndpoint string, accessToken *string) (*witservice.Client, error) {
+	u, err := url.Parse(remoteEndpoint)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"remote_endpoint": remoteEndpoint,
+		}, "unable to parse remote endpoint")
+		return nil, err
+	}
+	witclient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
+	witclient.Host = u.Host
+	witclient.Scheme = u.Scheme
+
+	if accessToken == nil {
+		// if the accessToken is not passed into this function, use the context as is ( which should have the token in it )
+		witclient.SetJWTSigner(goasupport.NewForwardSigner(ctx))
+		return witclient, nil
+	}
+
+	staticToken := goaclient.StaticToken{
+		Value: *accessToken,
+	}
+	jwtSigner := goaclient.JWTSigner{
+		TokenSource: &goaclient.StaticTokenSource{
+			StaticToken: &staticToken,
+		},
+	}
+	witclient.SetJWTSigner(&jwtSigner)
+	return witclient, nil
+}
+
+// CreateSecureRemoteClientAsServiceAccount creates a client that would communicate with WIT service using a service account token.
+func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.RequestData, remoteEndpoint string) (*witservice.Client, error) {
+	u, err := url.Parse(remoteEndpoint)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"remote_endpoint": remoteEndpoint,
+		}, "unable to parse remote endpoint")
+		return nil, err
+	}
+	witclient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
+	witclient.Host = u.Host
+	witclient.Scheme = u.Scheme
+
+	serviceAccountToken, err := getServiceAccountToken(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(ctx, map[string]interface{}{
+		"remote_endpoint": remoteEndpoint,
+	}, "service token generated, will be used to call WIT")
+	staticToken := goaclient.StaticToken{
+		Value: serviceAccountToken,
+	}
+	jwtSigner := goaclient.JWTSigner{
+		TokenSource: &goaclient.StaticTokenSource{
+			StaticToken: &staticToken,
+		},
+	}
+	witclient.SetJWTSigner(&jwtSigner)
+	return witclient, nil
 }
 
 func getServiceAccountToken(ctx context.Context, request *goa.RequestData) (string, error) {

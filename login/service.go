@@ -47,19 +47,21 @@ type LoginServiceConfiguration interface {
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
 func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:   identities,
-		Users:        users,
-		TokenManager: tokenManager,
-		db:           db,
+		Identities:       identities,
+		Users:            users,
+		TokenManager:     tokenManager,
+		db:               db,
+		remoteWITService: &remoteservice.RemoteWITServiceConfig{},
 	}
 }
 
 // KeycloakOAuthProvider represents a keycloak IDP
 type KeycloakOAuthProvider struct {
-	Identities   account.IdentityRepository
-	Users        account.UserRepository
-	TokenManager token.Manager
-	db           application.DB
+	Identities       account.IdentityRepository
+	Users            account.UserRepository
+	TokenManager     token.Manager
+	db               application.DB
+	remoteWITService remoteservice.RemoteWITServiceCaller
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
@@ -162,7 +164,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"known_referrer": knownReferrer,
 		}, "exchanged code to access token")
 
-		usr, identity, err := remoteservice.GetWITUser(ctx, ctx.RequestData, WITEndpointUserProfile, &keycloakToken.AccessToken)
+		usr, identity, err := keycloak.remoteWITService.GetWITUser(ctx, ctx.RequestData, WITEndpointUserProfile, &keycloakToken.AccessToken)
 		newUser := false
 
 		if usr == nil {
@@ -200,7 +202,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 		// new user for WIT
 		if newUser {
-			err = remoteservice.CreateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, identity.ID.String())
+			err = keycloak.remoteWITService.CreateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, identity.ID.String())
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err":         err,
@@ -846,11 +848,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 			},
 		},
 	}
-	return remoteservice.UpdateWITUser(ctx, request, updateUserPayload, WITEndpointUserProfile, identityID)
-}
-
-func (keycloak *KeycloakOAuthProvider) createWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken string) error {
-	return remoteservice.CreateWITUser(ctx, request, user, identity, WITEndpointUserProfile, accessToken)
+	return keycloak.remoteWITService.UpdateWITUser(ctx, request, updateUserPayload, WITEndpointUserProfile, identityID)
 }
 
 func checkApproved(ctx context.Context, profileService UserProfileService, accessToken string, profileEndpoint string) (bool, error) {
