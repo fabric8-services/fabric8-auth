@@ -29,7 +29,7 @@ type UsersController struct {
 	db                 application.DB
 	config             UsersControllerConfiguration
 	userProfileService login.UserProfileService
-	remoteWITService   remoteservice.RemoteWITServiceCaller
+	RemoteWITService   remoteservice.RemoteWITServiceCaller
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -47,7 +47,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 		db:                 db,
 		config:             config,
 		userProfileService: userProfileService,
-		remoteWITService:   &remoteservice.RemoteWITServiceConfig{},
+		RemoteWITService:   &remoteservice.RemoteWITServiceConfig{},
 	}
 }
 
@@ -398,7 +398,7 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *go
 	if err != nil {
 		return err
 	}
-	return c.remoteWITService.UpdateWITUser(ctx, request, updateUserPayload, WITEndpoint, identityID)
+	return c.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, WITEndpoint, identityID)
 }
 
 func isEmailValid(email string) bool {

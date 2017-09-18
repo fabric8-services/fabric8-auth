@@ -54,6 +54,7 @@ func (s *TestUsersSuite) SetupSuite() {
 	s.controller = NewUsersController(s.svc, s.db, s.Configuration, s.profileService)
 	s.userRepo = s.db.Users()
 	s.identityRepo = s.db.Identities()
+	s.controller.RemoteWITService = &dummyRemoteWITService{}
 }
 
 func (s *TestUsersSuite) SetupTest() {
@@ -66,7 +67,9 @@ func (s *TestUsersSuite) TearDownTest() {
 
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	return svc, NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller := NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller.RemoteWITService = &dummyRemoteWITService{}
+	return svc, controller
 }
 
 func (s *TestUsersSuite) TestUpdateUserOK() {
@@ -963,6 +966,20 @@ func (s *TestUsersSuite) generateUsersTag(allUsers app.UserArray) string {
 	}
 	log.Info(nil, map[string]interface{}{"users": len(allUsers.Data), "etag": app.GenerateEntitiesTag(entities)}, "generate users tag")
 	return app.GenerateEntitiesTag(entities)
+}
+
+type dummyRemoteWITService struct{}
+
+func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
+	return nil
+}
+
+func (r *dummyRemoteWITService) GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
+	return nil, nil, nil
+}
+
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
+	return nil
 }
 
 type dummyUserProfileService struct {
