@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	"context"
@@ -190,6 +191,20 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails() {
+
+	// since we no longer pass the valid redirect urls as a parameter,
+	DefaultValidRedirectURLs := "^(https|http)://([^/]+[.])?(?i:openshift[.]io)(/.*)?$" // *.openshift.io/*
+	existingValidRedirects := os.Getenv("AUTH_REDIRECT_VALID")
+	defer func() {
+		os.Setenv("AUTH_REDIRECT_VALID", existingValidRedirects)
+		config, err := config.GetConfigurationData()
+		assert.Nil(s.T(), err)
+		s.configuration = config
+	}()
+	os.Setenv("AUTH_REDIRECT_VALID", DefaultValidRedirectURLs)
+
+	// Start running the actual test in Non-dev mode.
+
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -230,13 +245,23 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 
+}
+func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
 	// Any redirects pass in Dev mode.
-	rw = httptest.NewRecorder()
-	prms = url.Values{}
+	u := &url.URL{
+		Path: fmt.Sprintf("/api/login"),
+	}
+	rw := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		panic("invalid test " + err.Error()) // bug
+	}
+	prms := url.Values{}
 	prms.Add("redirect", "https://anydoamin.io/somepath")
 
-	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
+	ctx := context.Background()
+	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
+	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	if err != nil {
 		panic("invalid test data " + err.Error()) // bug
 	}
