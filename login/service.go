@@ -163,16 +163,20 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 		}, "exchanged code to access token")
 
 		usr, identity, err := remoteservice.GetWITUser(ctx, ctx.RequestData, WITEndpointUserProfile, &keycloakToken.AccessToken)
+		newUser := false
+
 		if usr == nil {
-			usr = new(account.User)
+			usr = &account.User{}
 			identity = &account.Identity{}
+			newUser = true
 		}
 
 		err = keycloak.CreateOrUpdateKeycloakUser(keycloakToken.AccessToken, ctx, profileEndpoint, usr, identity)
+
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
-			}, "failed to create a user and KeyCloak identity using the access token")
+			}, "failed to create a user and keycloak identity ")
 			switch err.(type) {
 			case autherrors.UnauthorizedError:
 				if userNotApprovedRedirectURL != "" {
@@ -194,13 +198,27 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"user_name":      usr.Email,
 		}, "local user created/updated")
 
-		err = keycloak.updateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, &keycloakToken.AccessToken)
-
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err": err,
-			}, "unable to update user in WIT ")
-			// let's carry on instead of erroring out.
+		// new user for WIT
+		if newUser {
+			err = remoteservice.CreateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, identity.ID.String())
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":         err,
+					"identity_id": identity.ID,
+					"username":    identity.Username,
+				}, "unable to create user in WIT ")
+				// let's carry on instead of erroring out ?
+			}
+		} else {
+			err = keycloak.updateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, identity.ID.String())
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"identity_id": identity.ID,
+					"username":    identity.Username,
+					"err":         err,
+				}, "unable to update user in WIT ")
+				// let's carry on instead of erroring out ?
+			}
 		}
 
 		// redirect back to original referrel
@@ -660,26 +678,6 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	return nil
 }
 
-// generateUser generates the user and identity objects from the token.
-func (keycloak *KeycloakOAuthProvider) generateUser(ctx context.Context, accessToken string) (*account.Identity, *account.User, error) {
-
-	var identity *account.Identity
-	var user *account.User
-
-	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
-
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"token": accessToken,
-			"err":   err,
-		}, "unable to parse the token")
-		return nil, nil, errors.New("unable to parse the token " + err.Error())
-	}
-	_, err = fillUser(claims, user, identity)
-
-	return identity, user, nil
-}
-
 // CreateOrUpdateKeycloakUser creates a user and a keycloak identity. If the user and identity already exist then update them.
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, user *account.User, identity *account.Identity) error {
 
@@ -705,6 +703,11 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 	// TODO : Check this only if UUID is not null
 	// If identity already existed in WIT, then IDs should match !
 	if identity.Username != "" && keycloakIdentityID.String() != identity.ID.String() {
+		log.Error(ctx, map[string]interface{}{
+			"keycloak_identity_id": keycloakIdentityID,
+			"wit_identity_id":      identity.ID,
+			"err":                  err,
+		}, "keycloak identity id and existing identity id in wit service does not match")
 		return errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
 	}
 
@@ -763,8 +766,24 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 		}
 
 	} else {
-		identity = &identities[0]
-		user = &identity.User
+		// identity = &identities[0]  - this wont work because we need pass-by-reference to work
+		identity.ID = identities[0].ID
+		identity.ProfileURL = identities[0].ProfileURL
+		identity.ProviderType = identities[0].ProviderType
+		identity.RegistrationCompleted = identities[0].RegistrationCompleted
+		identity.Username = identities[0].Username
+		identity.UserID = identities[0].UserID
+		identity.User = identities[0].User
+
+		user.Bio = identity.User.Bio
+		user.Company = identity.User.Company
+		user.ContextInformation = identity.User.ContextInformation
+		user.Email = identity.User.Email
+		user.FullName = identity.User.FullName
+		user.ID = identity.User.ID
+		user.URL = identity.User.URL
+		user.ImageURL = identity.User.ImageURL
+
 		if user.ID == uuid.Nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": keycloakIdentityID,
@@ -813,7 +832,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 	return err
 }
 
-func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken *string) error {
+func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
@@ -830,77 +849,9 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 	return remoteservice.UpdateWITUser(ctx, request, updateUserPayload, WITEndpointUserProfile, accessToken)
 }
 
-/*
-func (keycloak *KeycloakOAuthProvider) notifyWITService(ctx context.Context, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken *string) error {
-	updateUserPayload := &witservice.UpdateUsersPayload{
-		Data: &witservice.UpdateUserData{
-			Attributes: &witservice.UpdateIdentityDataAttributes{
-				Bio:                &user.Bio,
-				Company:            &user.Company,
-				ContextInformation: user.ContextInformation,
-				Email:              &user.Email,
-				FullName:           &user.FullName,
-				ImageURL:           &user.ImageURL,
-				URL:                identity.ProfileURL,
-				Username:           &identity.Username,
-			},
-			Type: "identities",
-		},
-	}
-
-	remoteWITService, err := remoteservice.CreateSecureRemoteWITClient(ctx, WITEndpointUserProfile, accessToken)
-	remoteUpdateUserAPIPath := witservice.UpdateUsersPath()
-	_, err = remoteWITService.UpdateUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
-	return err
+func (keycloak *KeycloakOAuthProvider) createWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, accessToken string) error {
+	return remoteservice.CreateWITUser(ctx, request, user, identity, WITEndpointUserProfile, accessToken)
 }
-
-
-// fetchUserInfoFromRemoteService calls WIT to check if user exists.
-func (keycloak *KeycloakOAuthProvider) fetchUserInfoFromRemoteService(ctx context.Context, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
-
-	var user *account.User
-	var identity *account.Identity
-
-	remoteWITService, err := remoteservice.CreateSecureRemoteWITClient(ctx, WITEndpointUserProfile, accessToken)
-	res, err := remoteWITService.ShowUser(goasupport.ForwardContextRequestID(ctx), witservice.ShowUserPath(), nil, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusNotFound {
-			// This means its a new user who is logging in.
-			log.Error(ctx, map[string]interface{}{
-				"response_status": res.Status,
-				"response_body":   rest.ReadBody(res.Body),
-			}, "unable to fetch user via wit service, looks like a new user")
-		}
-	} else {
-		// The user is not present in Auth, but present in WIT.
-		witServiceUser, _ := remoteWITService.DecodeUser(res)
-		id, _ := uuid.FromString(*witServiceUser.Data.ID)
-		user = &account.User{
-			FullName:           *witServiceUser.Data.Attributes.FullName,
-			ID:                 id,
-			Email:              *witServiceUser.Data.Attributes.Email,
-			ImageURL:           *witServiceUser.Data.Attributes.ImageURL,
-			Bio:                *witServiceUser.Data.Attributes.Bio,
-			URL:                *witServiceUser.Data.Attributes.URL,
-			Company:            *witServiceUser.Data.Attributes.Company,
-			ContextInformation: witServiceUser.Data.Attributes.ContextInformation,
-		}
-		identity = &account.Identity{
-			Username:              *witServiceUser.Data.Attributes.Username,
-			RegistrationCompleted: *witServiceUser.Data.Attributes.RegistrationCompleted,
-			ProfileURL:            witServiceUser.Data.Attributes.URL,
-			ProviderType:          *witServiceUser.Data.Attributes.ProviderType,
-			UserID:                account.NullUUID{UUID: user.ID, Valid: true},
-		}
-
-	}
-	return user, identity, nil
-}
-*/
 
 func checkApproved(ctx context.Context, profileService UserProfileService, accessToken string, profileEndpoint string) (bool, error) {
 	profile, err := profileService.Get(ctx, accessToken, profileEndpoint)

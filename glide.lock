@@ -16,7 +16,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/fabric8-services/fabric8-wit
-  version: 968d6f9369c231b4f48a276e7820b14eabcdbbce
+  version: 4419b9ea51938829dfdf18aad659ac34c7d01488
 - name: github.com/dgrijalva/jwt-go
   version: d2709f9f1f31ebcda9651b03077758c1f3a0018c
 - name: github.com/dimfeld/httppath

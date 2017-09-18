@@ -10,7 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	tokenmanager "github.com/fabric8-services/fabric8-auth/token/manager"
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
 	"github.com/goadesign/goa"
 	goaclient "github.com/goadesign/goa/client"
@@ -21,6 +21,9 @@ import (
 func CreateSecureRemoteWITClient(ctx context.Context, req *goa.RequestData, remoteEndpoint string, accessToken *string) (*witservice.Client, error) {
 	u, err := url.Parse(remoteEndpoint)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"remote_endpoint": remoteEndpoint,
+		}, "unable to parse remote endpoint")
 		return nil, err
 	}
 	witclient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
@@ -49,6 +52,9 @@ func CreateSecureRemoteWITClient(ctx context.Context, req *goa.RequestData, remo
 func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.RequestData, remoteEndpoint string) (*witservice.Client, error) {
 	u, err := url.Parse(remoteEndpoint)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"remote_endpoint": remoteEndpoint,
+		}, "unable to parse remote endpoint")
 		return nil, err
 	}
 	witclient := witservice.New(goaclient.HTTPClientDoer(http.DefaultClient))
@@ -59,6 +65,9 @@ func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.Requ
 	if err != nil {
 		return nil, err
 	}
+	log.Info(ctx, map[string]interface{}{
+		"remote_endpoint": remoteEndpoint,
+	}, "service token generated, will be used to call WIT")
 	staticToken := goaclient.StaticToken{
 		Value: serviceAccountToken,
 	}
@@ -72,8 +81,13 @@ func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.Requ
 }
 
 // UpdateWITUser updates user in WIT
-func UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, accessToken *string) error {
-	updateUserPayload := &witservice.UpdateUsersPayload{
+func UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
+
+	// Designed this method to accept the payload object instead of user/identity objects as arguments
+	// so that it's more seamless when we pass it on to WIT. but might be a good idea to pass on
+	// user/identity objects just like it's done for CreateWITUser(...)
+
+	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
 		Data: &witservice.UpdateUserData{
 			Attributes: &witservice.UpdateIdentityDataAttributes{
 				Bio:                   updatePayload.Data.Attributes.Bio,
@@ -91,12 +105,36 @@ func UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app
 	}
 
 	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, WITEndpoint)
-	remoteUpdateUserAPIPath := witservice.UpdateUsersPath()
-	_, err = remoteWITService.UpdateUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
+	remoteUpdateUserAPIPath := witservice.UpdateUserAsServiceAccountUsersPath(identityID)
+	_, err = remoteWITService.UpdateUserAsServiceAccountUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
 	return err
 }
 
-// GetWITUser calls WIT to check if user exists.
+// CreateWITUser updates user in WIT
+func CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
+	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
+		Data: &witservice.CreateUserData{
+			Attributes: &witservice.CreateIdentityDataAttributes{
+				Bio:      &user.Bio,
+				Company:  &user.Company,
+				Email:    user.Email,
+				FullName: &user.FullName,
+				ImageURL: &user.ImageURL,
+				URL:      &user.URL,
+				Username: identity.Username,
+				UserID:   identity.User.ID.String(),
+			},
+			Type: "identities",
+		},
+	}
+
+	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, WITEndpoint)
+	remoteCreateUserAPIPath := witservice.CreateUserAsServiceAccountUsersPath(identityID)
+	_, err = remoteWITService.CreateUserAsServiceAccountUsers(goasupport.ForwardContextRequestID(ctx), remoteCreateUserAPIPath, createUserPayload)
+	return err
+}
+
+// GetWITUser calls WIT to check if user exists and uses the user's token for authorization and identity ID discovery
 func GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
 
 	var user *account.User
@@ -116,26 +154,54 @@ func GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfil
 				"response_body":   rest.ReadBody(res.Body),
 			}, "unable to fetch user via wit service, looks like a new user")
 		}
+		return nil, nil, nil
 	} else {
 		// The user is not present in Auth, but present in WIT.
 		witServiceUser, _ := remoteWITService.DecodeUser(res)
 		id, _ := uuid.FromString(*witServiceUser.Data.ID)
 		user = &account.User{
-			FullName:           *witServiceUser.Data.Attributes.FullName,
 			ID:                 id,
-			Email:              *witServiceUser.Data.Attributes.Email,
-			ImageURL:           *witServiceUser.Data.Attributes.ImageURL,
-			Bio:                *witServiceUser.Data.Attributes.Bio,
-			URL:                *witServiceUser.Data.Attributes.URL,
-			Company:            *witServiceUser.Data.Attributes.Company,
 			ContextInformation: witServiceUser.Data.Attributes.ContextInformation,
 		}
+		if witServiceUser.Data.Attributes.FullName != nil {
+			user.FullName = *witServiceUser.Data.Attributes.FullName
+		}
+		if witServiceUser.Data.Attributes.Email != nil {
+			user.Email = *witServiceUser.Data.Attributes.Email
+		}
+		if witServiceUser.Data.Attributes.ImageURL != nil {
+			user.ImageURL = *witServiceUser.Data.Attributes.ImageURL
+		}
+		if witServiceUser.Data.Attributes.Bio != nil {
+			user.Bio = *witServiceUser.Data.Attributes.Bio
+		}
+		if witServiceUser.Data.Attributes.URL != nil {
+			user.URL = *witServiceUser.Data.Attributes.URL
+		}
+		if witServiceUser.Data.Attributes.Company != nil {
+			user.Company = *witServiceUser.Data.Attributes.Company
+		}
+
 		identity = &account.Identity{
-			Username:              *witServiceUser.Data.Attributes.Username,
-			RegistrationCompleted: *witServiceUser.Data.Attributes.RegistrationCompleted,
-			ProfileURL:            witServiceUser.Data.Attributes.URL,
-			ProviderType:          *witServiceUser.Data.Attributes.ProviderType,
-			UserID:                account.NullUUID{UUID: user.ID, Valid: true},
+			ProfileURL: witServiceUser.Data.Attributes.URL,
+			UserID:     account.NullUUID{UUID: user.ID, Valid: true},
+		}
+
+		if witServiceUser.Data.Attributes.IdentityID != nil {
+			identity.ID, err = uuid.FromString(*witServiceUser.Data.Attributes.IdentityID)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
+		if witServiceUser.Data.Attributes.Username != nil {
+			identity.Username = *witServiceUser.Data.Attributes.Username
+		}
+		if witServiceUser.Data.Attributes.RegistrationCompleted != nil {
+			identity.RegistrationCompleted = *witServiceUser.Data.Attributes.RegistrationCompleted
+		}
+		if witServiceUser.Data.Attributes.ProviderType != nil {
+			identity.ProviderType = *witServiceUser.Data.Attributes.ProviderType
 		}
 
 	}
@@ -143,8 +209,11 @@ func GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfil
 }
 
 func getServiceAccountToken(ctx context.Context, request *goa.RequestData) (string, error) {
-	manager, err := tokenmanager.ReadManagerFromContext(ctx)
+	manager, err := token.ReadManagerFromContext(ctx)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"error": err,
+		}, "unable to obtain service token")
 		return "", err
 	}
 	return (*manager).ServiceAccountToken(request)

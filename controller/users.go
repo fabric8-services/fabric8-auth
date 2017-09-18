@@ -169,8 +169,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	tokenString := goajwt.ContextJWT(ctx).Raw
 	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
 
+	var identity *account.Identity
+
 	returnResponse := application.Transactional(c.db, func(appl application.Application) error {
-		identity, err := appl.Identities().Load(ctx, *id)
+		identity, err = appl.Identities().Load(ctx, *id)
 		if err != nil || identity == nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
@@ -374,11 +376,11 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 	}
-	c.notifyWITService(ctx, ctx.RequestData) // TODO: Dont ignore error
+	c.notifyWITService(ctx, ctx.RequestData, identity.ID.String()) // TODO: Dont ignore error
 	return returnResponse
 }
 
-func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request *goa.RequestData) error {
+func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
@@ -399,7 +401,7 @@ func (c *UsersController) notifyWITService(ctx *app.UpdateUsersContext, request 
 	if err != nil {
 		return err
 	}
-	return remoteservice.UpdateWITUser(ctx, request, updateUserPayload, WITEndpoint, nil)
+	return remoteservice.UpdateWITUser(ctx, request, updateUserPayload, WITEndpoint, identityID)
 }
 
 func isEmailValid(email string) bool {
