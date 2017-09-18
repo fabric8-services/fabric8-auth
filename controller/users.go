@@ -180,21 +180,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
 			}, "Auth token contains id %s of unknown Identity", *id)
-			/*
-				TODO:
-
-				Idenity/User not found --
-
-				This might be because it's an old user whose info is not present
-				with AUTH, but probably present with WIT.
-				So, call WIT and check if the user exists.
-
-				If Yes, use it to create the new user/identity in the Auth DB,
-				and then proceed with updating it in both places.
-
-				Else, throw Error.
-
-			*/
 			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", *id)))
 			return ctx.Unauthorized(jerrors)
 		}
