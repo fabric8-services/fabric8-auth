@@ -371,6 +371,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			"username":    identity.Username,
 			"err":         err,
 		}, "failed to update WIT user/identity")
+		// Let's not disrupt the response if there was an issue with updating WIT.
 	}
 
 	return returnResponse
