@@ -172,6 +172,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
 
 	var identity *account.Identity
+	var user *account.User
 
 	returnResponse := application.Transactional(c.db, func(appl application.Application) error {
 		identity, err = appl.Identities().Load(ctx, *id)
@@ -198,7 +199,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			return ctx.Unauthorized(jerrors)
 		}
 
-		var user *account.User
 		if identity.UserID.Valid {
 			user, err = appl.Users().Load(ctx.Context, identity.UserID.UUID)
 			if err != nil {
@@ -378,7 +378,16 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 	}
-	c.updateWITUser(ctx, ctx.RequestData, identity.ID.String()) // TODO: Dont ignore error
+	err = c.updateWITUser(ctx, ctx.RequestData, identity.ID.String())
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"user_id":     user.ID,
+			"identity_id": identity.ID,
+			"username":    identity.Username,
+			"err":         err,
+		}, "failed to update WIT user/identity")
+	}
+
 	return returnResponse
 }
 
