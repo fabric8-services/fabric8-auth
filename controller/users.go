@@ -333,6 +333,11 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
 	})
 
+	// returnResponse is the error returned upon doing the above transaction.
+	if returnResponse != nil {
+		return jsonapi.JSONErrorResponse(ctx, returnResponse)
+	}
+
 	if isKeycloakUserProfileUpdateNeeded {
 		keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
 		if err != nil {
