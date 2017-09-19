@@ -174,7 +174,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	var identity *account.Identity
 	var user *account.User
 
-	returnResponse := application.Transactional(c.db, func(appl application.Application) error {
+	err = application.Transactional(c.db, func(appl application.Application) error {
 		identity, err = appl.Identities().Load(ctx, *id)
 		if err != nil || identity == nil {
 			log.Error(ctx, map[string]interface{}{
@@ -329,9 +329,13 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
 	})
 
-	// returnResponse is the error returned upon doing the above transaction.
-	if returnResponse != nil {
-		return jsonapi.JSONErrorResponse(ctx, returnResponse)
+	log.Error(ctx, map[string]interface{}{
+		"user_name": identity.ID,
+		"err":       err,
+	}, "failed to update user/identity")
+
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	if isKeycloakUserProfileUpdateNeeded {
