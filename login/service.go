@@ -681,7 +681,7 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 }
 
 // CreateOrUpdateKeycloakUser creates a user and a keycloak identity. If the user and identity already exist then update them.
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, user *account.User, identity *account.Identity) (*account.User, *account.Identity, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, witUser *account.User, witIdentity *account.Identity) (*account.User, *account.Identity, error) {
 
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
 	if err != nil {
@@ -702,6 +702,16 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 
 	keycloakIdentityID, _ := uuid.FromString(claims.Subject)
 
+	if witUser == nil {
+		user = &account.User{}
+	} else {
+		user = witUser
+	}
+	if witIdentity == nil {
+		identity = &account.Identity{}
+	} else {
+		identity = witIdentity
+	}
 	// TODO : Check this only if UUID is not null
 	// If identity already existed in WIT, then IDs should match !
 	if identity.Username != "" && keycloakIdentityID.String() != identity.ID.String() {
