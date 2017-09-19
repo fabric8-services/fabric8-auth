@@ -270,7 +270,7 @@ func (s *TestUsersSuite) TestUpdateExistingUsernameForbidden() {
 
 	newUserName := identity.Username
 	updateUsersPayload := createUpdateUsersPayload(nil, nil, nil, nil, nil, nil, &newUserName, nil, contextInformation)
-	test.UpdateUsersConflict(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+	test.UpdateUsersBadRequest(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
 func (s *TestUsersSuite) TestUpdateExistingEmailForbidden() {
@@ -294,7 +294,7 @@ func (s *TestUsersSuite) TestUpdateExistingEmailForbidden() {
 
 	newEmail := user.Email
 	updateUsersPayload := createUpdateUsersPayload(&newEmail, nil, nil, nil, nil, nil, nil, nil, contextInformation)
-	test.UpdateUsersConflict(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+	test.UpdateUsersBadRequest(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
 func (s *TestUsersSuite) TestUpdateUserVariableSpacesInNameOK() {
