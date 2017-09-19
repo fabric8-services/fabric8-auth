@@ -17,17 +17,17 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// RemoteWITServiceCaller specifies the behaviour of a remote WIT caller
-type RemoteWITServiceCaller interface {
+// RemoteWITService specifies the behaviour of a remote WIT caller
+type RemoteWITService interface {
 	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error
 	GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error)
 	CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error
 }
 
-type RemoteWITServiceConfig struct{}
+type RemoteWITServiceCaller struct{}
 
 // UpdateWITUser updates user in WIT
-func (r *RemoteWITServiceConfig) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
+func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
 
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
@@ -54,7 +54,7 @@ func (r *RemoteWITServiceConfig) UpdateWITUser(ctx context.Context, req *goa.Req
 }
 
 // CreateWITUser updates user in WIT
-func (r *RemoteWITServiceConfig) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
+func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
@@ -78,7 +78,7 @@ func (r *RemoteWITServiceConfig) CreateWITUser(ctx context.Context, req *goa.Req
 }
 
 // GetWITUser calls WIT to check if user exists and uses the user's token for authorization and identity ID discovery
-func (r *RemoteWITServiceConfig) GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
+func (r *RemoteWITServiceCaller) GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
 
 	var user *account.User
 	var identity *account.Identity

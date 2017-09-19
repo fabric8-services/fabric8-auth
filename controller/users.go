@@ -29,7 +29,7 @@ type UsersController struct {
 	db                 application.DB
 	config             UsersControllerConfiguration
 	userProfileService login.UserProfileService
-	RemoteWITService   remoteservice.RemoteWITServiceCaller
+	RemoteWITService   remoteservice.RemoteWITService
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController

@@ -61,7 +61,7 @@ type KeycloakOAuthProvider struct {
 	Users            account.UserRepository
 	TokenManager     token.Manager
 	db               application.DB
-	remoteWITService remoteservice.RemoteWITServiceCaller
+	remoteWITService remoteservice.RemoteWITService
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
