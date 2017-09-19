@@ -15,12 +15,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // UsersController implements the users resource.
@@ -160,7 +160,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	id, err := login.ContextIdentity(ctx)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
 	keycloakUserProfile := &login.KeycloakUserProfile{}
@@ -176,11 +176,8 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
 		identity, err = appl.Identities().Load(ctx, *id)
-		if err != nil || identity == nil {
-			log.Error(ctx, map[string]interface{}{
-				"identity_id": id,
-			}, "Auth token contains id %s of unknown Identity", *id)
-			return errors.NewUnauthorizedError(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", *id))
+		if err != nil {
+			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", *id))
 		}
 
 		if identity.UserID.Valid {
@@ -194,7 +191,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if updatedEmail != nil && *updatedEmail != user.Email {
 			isValid := isEmailValid(*updatedEmail)
 			if !isValid {
-				return errors.NewBadParameterError("email", "required")
+				return errors.NewBadParameterError("email", *updatedEmail).Expected("valid email")
 			}
 			isUnique, err := isEmailUnique(appl, *updatedEmail, *user)
 			if err != nil {
@@ -250,10 +247,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedBio := ctx.Payload.Data.Attributes.Bio
 		if updatedBio != nil && *updatedBio != user.Bio {
 			user.Bio = *updatedBio
-			keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, err)
-			}
 			isKeycloakUserProfileUpdateNeeded = true
 			(*keycloakUserProfile.Attributes)[login.BioAttributeName] = []string{*updatedBio}
 		}
@@ -290,7 +283,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedCompany := ctx.Payload.Data.Attributes.Company
 		if updatedCompany != nil && *updatedCompany != user.Company {
 			user.Company = *updatedCompany
-			keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
 			isKeycloakUserProfileUpdateNeeded = true
 			(*keycloakUserProfile.Attributes)[login.CompanyAttributeName] = []string{*updatedCompany}
 		}
@@ -318,23 +310,22 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 		err = appl.Users().Save(ctx, user)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+			return err
 		}
 
 		err = appl.Identities().Save(ctx, identity)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+			return err
 		}
 
-		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+		return nil
 	})
 
-	log.Error(ctx, map[string]interface{}{
-		"user_name": identity.ID,
-		"err":       err,
-	}, "failed to update user/identity")
-
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"user_name": identity.ID,
+			"err":       err,
+		}, "failed to update user/identity")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -379,7 +370,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		// Let's not disrupt the response if there was an issue with updating WIT.
 	}
 
-	return returnResponse
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
