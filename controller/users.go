@@ -180,14 +180,13 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
 			}, "Auth token contains id %s of unknown Identity", *id)
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", *id)))
-			return ctx.Unauthorized(jerrors)
+			return errors.NewUnauthorizedError(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", *id))
 		}
 
 		if identity.UserID.Valid {
 			user, err = appl.Users().Load(ctx.Context, identity.UserID.UUID)
 			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, fmt.Sprintf("Can't load user with id %s", identity.UserID.UUID)))
+				return errs.Wrap(err, fmt.Sprintf("Can't load user with id %s", identity.UserID.UUID))
 			}
 		}
 
@@ -195,14 +194,14 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if updatedEmail != nil && *updatedEmail != user.Email {
 			isValid := isEmailValid(*updatedEmail)
 			if !isValid {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("invalid value assigned to email for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
-				return ctx.BadRequest(jerrors)
+				return errors.NewBadParameterError("email", "required")
 			}
 			isUnique, err := isEmailUnique(appl, *updatedEmail, *user)
 			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
+				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if !isUnique {
+				// TODO: Add errors.NewConflictError(..)
 				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("email address: %s is already in use", *updatedEmail)))
 				return ctx.Conflict(jerrors)
 			}
@@ -215,18 +214,17 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if updatedUserName != nil && *updatedUserName != identity.Username {
 			isValid := isUsernameValid(*updatedUserName)
 			if !isValid {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("invalid value assigned to username for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
-				return ctx.BadRequest(jerrors)
+				return errs.Wrap(errors.NewBadParameterError("username", "required"), fmt.Sprintf("invalid value assigned to username for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if identity.RegistrationCompleted {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id)))
-				return ctx.Forbidden(jerrors)
+				return errors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id))
 			}
 			isUnique, err := isUsernameUnique(appl, *updatedUserName, *identity)
 			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
+				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if !isUnique {
+				// TODO : Add errors.NewConflictError(..)
 				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("username : %s is already in use", *updatedUserName)))
 				return ctx.Conflict(jerrors)
 			}
@@ -238,14 +236,13 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedRegistratedCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
 		if updatedRegistratedCompleted != nil {
 			if !*updatedRegistratedCompleted {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("invalid value assigned to registration_completed for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
 				log.Error(ctx, map[string]interface{}{
 					"registration_completed": *updatedRegistratedCompleted,
 					"user_id":                identity.UserID.UUID,
 					"identity_id":            identity.ID,
 				}, "invalid parameter assignment")
 
-				return ctx.BadRequest(jerrors)
+				return errs.Wrap(errors.NewBadParameterError("registration_completed", "nil"), fmt.Sprintf("invalid value assigned to registration_completed for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			identity.RegistrationCompleted = true
 		}
@@ -264,7 +261,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if updatedFullName != nil && *updatedFullName != user.FullName {
 			*updatedFullName = standardizeSpaces(*updatedFullName)
 			user.FullName = *updatedFullName
-
 			// In KC, we store as first name and last name.
 			nameComponents := strings.Split(*updatedFullName, " ")
 			firstName := nameComponents[0]
