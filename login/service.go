@@ -51,7 +51,7 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		Users:            users,
 		TokenManager:     tokenManager,
 		db:               db,
-		remoteWITService: &remoteservice.RemoteWITServiceConfig{},
+		remoteWITService: &remoteservice.RemoteWITServiceCaller{},
 	}
 }
 

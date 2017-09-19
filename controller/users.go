@@ -47,7 +47,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 		db:                 db,
 		config:             config,
 		userProfileService: userProfileService,
-		RemoteWITService:   &remoteservice.RemoteWITServiceConfig{},
+		RemoteWITService:   &remoteservice.RemoteWITServiceCaller{},
 	}
 }
 
