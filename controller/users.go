@@ -199,8 +199,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 			if !isUnique {
 				// TODO: Add errors.NewConflictError(..)
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("email address: %s is already in use", *updatedEmail)))
-				return ctx.Conflict(jerrors)
+				return errs.Wrap(errors.NewBadParameterError("email", *updatedEmail).Expected("unique email"), fmt.Sprintf("email : %s is already in use", *updatedEmail))
 			}
 			user.Email = *updatedEmail
 			isKeycloakUserProfileUpdateNeeded = true
@@ -222,8 +221,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 			if !isUnique {
 				// TODO : Add errors.NewConflictError(..)
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("username : %s is already in use", *updatedUserName)))
-				return ctx.Conflict(jerrors)
+				return errs.Wrap(errors.NewBadParameterError("username", *updatedUserName).Expected("unique username"), fmt.Sprintf("username : %s is already in use", *updatedUserName))
 			}
 			identity.Username = *updatedUserName
 			isKeycloakUserProfileUpdateNeeded = true
