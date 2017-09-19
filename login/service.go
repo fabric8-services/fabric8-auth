@@ -768,27 +768,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 		}
 
 	} else {
-		identity = &identities[0] //  - this wont work because we need pass-by-reference to work
-		user = &identity.User
-		/*
-			identity.ID = identities[0].ID
-			identity.ProfileURL = identities[0].ProfileURL
-			identity.ProviderType = identities[0].ProviderType
-			identity.RegistrationCompleted = identities[0].RegistrationCompleted
-			identity.Username = identities[0].Username
-			identity.UserID = identities[0].UserID
-			identity.User = identities[0].User
-
-			user.Bio = identity.User.Bio
-			user.Company = identity.User.Company
-			user.ContextInformation = identity.User.ContextInformation
-			user.Email = identity.User.Email
-			user.FullName = identity.User.FullName
-			user.ID = identity.User.ID
-			user.URL = identity.User.URL
-			user.ImageURL = identity.User.ImageURL
-		*/
-
+		identity = &identities[0]
 		if user.ID == uuid.Nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": keycloakIdentityID,
