@@ -683,6 +683,9 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 // CreateOrUpdateKeycloakUser creates a user and a keycloak identity. If the user and identity already exist then update them.
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, witUser *account.User, witIdentity *account.Identity) (*account.User, *account.Identity, error) {
 
+	var identity *account.Identity
+	var user *account.User
+
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
