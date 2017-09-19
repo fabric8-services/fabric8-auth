@@ -67,7 +67,7 @@ type KeycloakOAuthProvider struct {
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
 	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, serviceConfig LoginServiceConfiguration) error
-	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, user *account.User, identity *account.Identity) error
+	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, user *account.User, identity *account.Identity) (*account.User, *account.Identity, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -173,7 +173,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			newUser = true
 		}
 
-		err = keycloak.CreateOrUpdateKeycloakUser(keycloakToken.AccessToken, ctx, profileEndpoint, usr, identity)
+		usr, identity, err = keycloak.CreateOrUpdateKeycloakUser(keycloakToken.AccessToken, ctx, profileEndpoint, usr, identity)
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -681,7 +681,7 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 }
 
 // CreateOrUpdateKeycloakUser creates a user and a keycloak identity. If the user and identity already exist then update them.
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, user *account.User, identity *account.Identity) error {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string, user *account.User, identity *account.Identity) (*account.User, *account.Identity, error) {
 
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
 	if err != nil {
@@ -689,7 +689,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			"token": accessToken,
 			"err":   err,
 		}, "unable to parse the token")
-		return errors.New("unable to parse the token " + err.Error())
+		return nil, nil, errors.New("unable to parse the token " + err.Error())
 	}
 
 	if err := token.CheckClaims(claims); err != nil {
@@ -697,7 +697,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			"token": accessToken,
 			"err":   err,
 		}, "invalid keycloak token claims")
-		return errors.New("invalid keycloak token claims " + err.Error())
+		return nil, nil, errors.New("invalid keycloak token claims " + err.Error())
 	}
 
 	keycloakIdentityID, _ := uuid.FromString(claims.Subject)
@@ -710,7 +710,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			"wit_identity_id":      identity.ID,
 			"err":                  err,
 		}, "keycloak identity id and existing identity id in wit service does not match")
-		return errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
+		return nil, nil, errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
 	}
 
 	identities, err := keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
@@ -719,17 +719,17 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			"keycloak_identity_id": keycloakIdentityID,
 			"err": err,
 		}, "unable to  query for an identity by ID")
-		return errors.New("Error during querying for an identity by ID " + err.Error())
+		return nil, nil, errors.New("Error during querying for an identity by ID " + err.Error())
 	}
 
 	if len(identities) == 0 {
 		// No Identity found, create a new Identity and User
 		approved, err := checkApproved(ctx, NewKeycloakUserProfileClient(), accessToken, profileEndpoint)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		if !approved {
-			return autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
+			return nil, nil, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
 		}
 
 		// Now that user/identity objects have been initialized, update it
@@ -741,7 +741,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 				"keycloak_identity_id": keycloakIdentityID,
 				"err": err,
 			}, "unable to create user/identity")
-			return errors.New("failed to update user/identity from claims" + err.Error())
+			return nil, nil, errors.New("failed to update user/identity from claims" + err.Error())
 		}
 
 		err = application.Transactional(keycloak.db, func(appl application.Application) error {
@@ -764,33 +764,36 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 				"username":             claims.Username,
 				"err":                  err,
 			}, "unable to create user/identity")
-			return errors.New("failed to create user/identity " + err.Error())
+			return nil, nil, errors.New("failed to create user/identity " + err.Error())
 		}
 
 	} else {
-		// identity = &identities[0]  - this wont work because we need pass-by-reference to work
-		identity.ID = identities[0].ID
-		identity.ProfileURL = identities[0].ProfileURL
-		identity.ProviderType = identities[0].ProviderType
-		identity.RegistrationCompleted = identities[0].RegistrationCompleted
-		identity.Username = identities[0].Username
-		identity.UserID = identities[0].UserID
-		identity.User = identities[0].User
+		identity = &identities[0] //  - this wont work because we need pass-by-reference to work
+		user = &identity.User
+		/*
+			identity.ID = identities[0].ID
+			identity.ProfileURL = identities[0].ProfileURL
+			identity.ProviderType = identities[0].ProviderType
+			identity.RegistrationCompleted = identities[0].RegistrationCompleted
+			identity.Username = identities[0].Username
+			identity.UserID = identities[0].UserID
+			identity.User = identities[0].User
 
-		user.Bio = identity.User.Bio
-		user.Company = identity.User.Company
-		user.ContextInformation = identity.User.ContextInformation
-		user.Email = identity.User.Email
-		user.FullName = identity.User.FullName
-		user.ID = identity.User.ID
-		user.URL = identity.User.URL
-		user.ImageURL = identity.User.ImageURL
+			user.Bio = identity.User.Bio
+			user.Company = identity.User.Company
+			user.ContextInformation = identity.User.ContextInformation
+			user.Email = identity.User.Email
+			user.FullName = identity.User.FullName
+			user.ID = identity.User.ID
+			user.URL = identity.User.URL
+			user.ImageURL = identity.User.ImageURL
+		*/
 
 		if user.ID == uuid.Nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": keycloakIdentityID,
 			}, "Found Keycloak identity is not linked to any User")
-			return errors.New("found Keycloak identity is not linked to any User")
+			return nil, nil, errors.New("found Keycloak identity is not linked to any User")
 		}
 		// let's update the existing user with the fullname, email and avatar from Keycloak,
 		// in case the user changed them since the last time he/she logged in
@@ -800,7 +803,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 				"keycloak_identity_id": keycloakIdentityID,
 				"err": err,
 			}, "unable to create user/identity")
-			return errors.New("failed to update user/identity from claims" + err.Error())
+			return nil, nil, errors.New("failed to update user/identity from claims" + err.Error())
 		} else if isChanged {
 			err = application.Transactional(keycloak.db, func(appl application.Application) error {
 				err = appl.Users().Save(ctx, user)
@@ -827,11 +830,11 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 					"username":             claims.Username,
 					"err":                  err,
 				}, "unable to update user/identity")
-				return errors.New("failed to update user/identity " + err.Error())
+				return nil, nil, errors.New("failed to update user/identity " + err.Error())
 			}
 		}
 	}
-	return err
+	return user, identity, err
 }
 
 func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, identityID string) error {

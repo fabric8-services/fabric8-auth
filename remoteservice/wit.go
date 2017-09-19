@@ -92,7 +92,7 @@ func (r *RemoteWITServiceConfig) GetWITUser(ctx context.Context, req *goa.Reques
 	if res.StatusCode != http.StatusOK {
 		if res.StatusCode == http.StatusNotFound {
 			// This means its a new user who is logging in.
-			log.Error(ctx, map[string]interface{}{
+			log.Warn(ctx, map[string]interface{}{
 				"response_status": res.Status,
 				"response_body":   rest.ReadBody(res.Body),
 			}, "unable to fetch user via wit service, looks like a new user")
@@ -188,6 +188,7 @@ func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.Requ
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"remote_endpoint": remoteEndpoint,
+			"err":             err,
 		}, "unable to parse remote endpoint")
 		return nil, err
 	}
