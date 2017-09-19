@@ -421,7 +421,7 @@ func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
 			"token": tm,
 		}, "missing token manager")
 
-		return nil, errs.New("Missing token manager")
+		return nil, errs.New("missing token manager")
 	}
 	return tm.(*tokenManager), nil
 }
