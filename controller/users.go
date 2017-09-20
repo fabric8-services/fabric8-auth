@@ -237,7 +237,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 					"identity_id":            identity.ID,
 				}, "invalid parameter assignment")
 
-				return errs.Wrap(errors.NewBadParameterError("registration_completed", "nil"), fmt.Sprintf("invalid value assigned to registration_completed for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
+				return errs.Wrap(errors.NewBadParameterError("registration_completed", *updatedRegistratedCompleted).Expected("should be true or nil"), fmt.Sprintf("invalid value assigned to registration_completed for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			identity.RegistrationCompleted = true
 		}
