@@ -54,6 +54,7 @@ func (s *TestUsersSuite) SetupSuite() {
 	s.controller = NewUsersController(s.svc, s.db, s.Configuration, s.profileService)
 	s.userRepo = s.db.Users()
 	s.identityRepo = s.db.Identities()
+	s.controller.RemoteWITService = &dummyRemoteWITService{}
 }
 
 func (s *TestUsersSuite) SetupTest() {
@@ -66,7 +67,9 @@ func (s *TestUsersSuite) TearDownTest() {
 
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	return svc, NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller := NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller.RemoteWITService = &dummyRemoteWITService{}
+	return svc, controller
 }
 
 func (s *TestUsersSuite) TestUpdateUserOK() {
@@ -267,7 +270,7 @@ func (s *TestUsersSuite) TestUpdateExistingUsernameForbidden() {
 
 	newUserName := identity.Username
 	updateUsersPayload := createUpdateUsersPayload(nil, nil, nil, nil, nil, nil, &newUserName, nil, contextInformation)
-	test.UpdateUsersConflict(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+	test.UpdateUsersBadRequest(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
 func (s *TestUsersSuite) TestUpdateExistingEmailForbidden() {
@@ -291,7 +294,7 @@ func (s *TestUsersSuite) TestUpdateExistingEmailForbidden() {
 
 	newEmail := user.Email
 	updateUsersPayload := createUpdateUsersPayload(&newEmail, nil, nil, nil, nil, nil, nil, nil, contextInformation)
-	test.UpdateUsersConflict(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+	test.UpdateUsersBadRequest(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
 func (s *TestUsersSuite) TestUpdateUserVariableSpacesInNameOK() {
@@ -521,7 +524,7 @@ func (s *TestUsersSuite) TestPatchUserContextInformation() {
 	assert.True(s.T(), ok)
 	assert.Equal(s.T(), contextInformation["count"], int(countValue))
 
-	/** Usual stuff done, now lets PATCH only 1 contextInformation attribute **/
+	// Usual stuff done, now lets PATCH only 1 contextInformation attribute
 	patchedContextInformation := map[string]interface{}{
 		"count": 5,
 	}
@@ -963,6 +966,20 @@ func (s *TestUsersSuite) generateUsersTag(allUsers app.UserArray) string {
 	}
 	log.Info(nil, map[string]interface{}{"users": len(allUsers.Data), "etag": app.GenerateEntitiesTag(entities)}, "generate users tag")
 	return app.GenerateEntitiesTag(entities)
+}
+
+type dummyRemoteWITService struct{}
+
+func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
+	return nil
+}
+
+func (r *dummyRemoteWITService) GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
+	return nil, nil, nil
+}
+
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
+	return nil
 }
 
 type dummyUserProfileService struct {

@@ -203,6 +203,47 @@ func TestGetKeycloakUserInfoEndpointOKrSetByEnvVaribaleOK(t *testing.T) {
 	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_ACCOUNT", config.GetKeycloakAccountEndpoint)
 }
 
+func TestGetWITEndpointNotDevModeOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	existingWITURL := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
+	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
+	defer func() {
+		resetConfiguration(defaultValuesConfigFilePath)
+		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITURL)
+		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
+	}()
+
+	os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", "false")
+
+	// Ensure that what we set as env variable is actually what we get
+	computedWITEndpoint, err := config.GetWITEndpoint(reqShort)
+	assert.Nil(t, err)
+	assert.Equal(t, "http://api.domain.org", computedWITEndpoint)
+
+	os.Setenv("AUTH_WIT_DOMAIN_PREFIX", "myauthsubdomain")
+	computedWITEndpoint, err = config.GetWITEndpoint(reqLong)
+	assert.Nil(t, err)
+	assert.Equal(t, "http://myauthsubdomain.service.domain.org", computedWITEndpoint)
+}
+
+func TestGetWITEndpointDevModeOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	existingWITURL := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
+	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
+	defer func() {
+		resetConfiguration(defaultValuesConfigFilePath)
+		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITURL)
+		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
+	}()
+
+	os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", "true")
+
+	// Ensure that what we set as env variable is actually what we get
+	computedWITEndpoint, err := config.GetWITEndpoint(reqShort)
+	assert.Nil(t, err)
+	assert.Equal(t, "http://localhost:8080", computedWITEndpoint)
+}
+
 func checkGetKeycloakEndpointOK(t *testing.T, expectedEndpoint string, getEndpoint func(req *goa.RequestData) (string, error)) {
 	url, err := getEndpoint(reqLong)
 	assert.Nil(t, err)
