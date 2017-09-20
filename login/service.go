@@ -789,6 +789,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 
 	} else {
 		identity = &identities[0]
+		identity.User = *user
 		if user.ID == uuid.Nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": keycloakIdentityID,
