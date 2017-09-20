@@ -17,7 +17,7 @@ import (
 
 	"context"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -26,13 +26,13 @@ import (
 	er "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
+	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -789,7 +789,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 
 	} else {
 		identity = &identities[0]
-		identity.User = *user
 		if user.ID == uuid.Nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": keycloakIdentityID,
@@ -799,6 +798,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 		// let's update the existing user with the fullname, email and avatar from Keycloak,
 		// in case the user changed them since the last time he/she logged in
 		isChanged, err := fillUser(claims, user, identity)
+		identity.User = *user
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,
