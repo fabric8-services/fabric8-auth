@@ -160,8 +160,7 @@ func (r *RemoteWITServiceCaller) GetWITUser(ctx context.Context, req *goa.Reques
 		}
 
 		identity = &account.Identity{
-			ProfileURL: witServiceUser.Data.Attributes.URL,
-			UserID:     account.NullUUID{UUID: user.ID, Valid: true},
+			UserID: account.NullUUID{UUID: user.ID, Valid: true},
 		}
 
 		if witServiceUser.Data.Attributes.IdentityID != nil {
