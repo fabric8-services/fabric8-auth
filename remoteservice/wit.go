@@ -14,7 +14,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
 	"github.com/goadesign/goa"
 	goaclient "github.com/goadesign/goa/client"
-	uuid "github.com/satori/go.uuid"
+	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 )
 
 // RemoteWITService specifies the behaviour of a remote WIT caller
@@ -48,9 +49,25 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 	}
 
 	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, WITEndpoint)
+	if err != nil {
+		return err
+	}
 	remoteUpdateUserAPIPath := witservice.UpdateUserAsServiceAccountUsersPath(identityID)
-	_, err = remoteWITService.UpdateUserAsServiceAccountUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
-	return err
+	res, err := remoteWITService.UpdateUserAsServiceAccountUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id":     identityID,
+			"username":        updatePayload.Data.Attributes.Username,
+			"response_status": res.Status,
+			"response_body":   rest.ReadBody(res.Body),
+		}, "unable to update user in WIT")
+		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, rest.ReadBody(res.Body))
+	}
+	return nil
 }
 
 // CreateWITUser updates user in WIT
@@ -72,9 +89,26 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 	}
 
 	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, WITEndpoint)
+	if err != nil {
+		return err
+	}
 	remoteCreateUserAPIPath := witservice.CreateUserAsServiceAccountUsersPath(identityID)
-	_, err = remoteWITService.CreateUserAsServiceAccountUsers(goasupport.ForwardContextRequestID(ctx), remoteCreateUserAPIPath, createUserPayload)
-	return err
+	res, err := remoteWITService.CreateUserAsServiceAccountUsers(goasupport.ForwardContextRequestID(ctx), remoteCreateUserAPIPath, createUserPayload)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id":     identityID,
+			"username":        identity.Username,
+			"response_status": res.Status,
+			"response_body":   rest.ReadBody(res.Body),
+		}, "unable to create user in WIT")
+		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, rest.ReadBody(res.Body))
+	}
+	return nil
+
 }
 
 // GetWITUser calls WIT to check if user exists and uses the user's token for authorization and identity ID discovery
