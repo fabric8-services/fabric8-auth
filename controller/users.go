@@ -13,17 +13,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-
-	uuid "github.com/satori/go.uuid"
-)
-
-const (
-	usersEndpoint = "/api/users"
+	"github.com/satori/go.uuid"
 )
 
 // UsersController implements the users resource.
@@ -32,6 +29,7 @@ type UsersController struct {
 	db                 application.DB
 	config             UsersControllerConfiguration
 	userProfileService login.UserProfileService
+	RemoteWITService   remoteservice.RemoteWITService
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -39,6 +37,7 @@ type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetCacheControlUser() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
+	GetWITEndpoint(*goa.RequestData) (string, error)
 }
 
 // NewUsersController creates a users controller.
@@ -48,6 +47,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 		db:                 db,
 		config:             config,
 		userProfileService: userProfileService,
+		RemoteWITService:   &remoteservice.RemoteWITServiceCaller{},
 	}
 }
 
@@ -160,7 +160,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	id, err := login.ContextIdentity(ctx)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
 	keycloakUserProfile := &login.KeycloakUserProfile{}
@@ -171,21 +171,19 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	tokenString := goajwt.ContextJWT(ctx).Raw
 	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
 
-	returnResponse := application.Transactional(c.db, func(appl application.Application) error {
-		identity, err := appl.Identities().Load(ctx, *id)
-		if err != nil || identity == nil {
-			log.Error(ctx, map[string]interface{}{
-				"identity_id": id,
-			}, "Auth token contains id %s of unknown Identity", *id)
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", *id)))
-			return ctx.Unauthorized(jerrors)
+	var identity *account.Identity
+	var user *account.User
+
+	err = application.Transactional(c.db, func(appl application.Application) error {
+		identity, err = appl.Identities().Load(ctx, *id)
+		if err != nil {
+			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", *id))
 		}
 
-		var user *account.User
 		if identity.UserID.Valid {
 			user, err = appl.Users().Load(ctx.Context, identity.UserID.UUID)
 			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, fmt.Sprintf("Can't load user with id %s", identity.UserID.UUID)))
+				return errs.Wrap(err, fmt.Sprintf("Can't load user with id %s", identity.UserID.UUID))
 			}
 		}
 
@@ -193,16 +191,15 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if updatedEmail != nil && *updatedEmail != user.Email {
 			isValid := isEmailValid(*updatedEmail)
 			if !isValid {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("invalid value assigned to email for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
-				return ctx.BadRequest(jerrors)
+				return errors.NewBadParameterError("email", *updatedEmail).Expected("valid email")
 			}
 			isUnique, err := isEmailUnique(appl, *updatedEmail, *user)
 			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
+				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if !isUnique {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("email address: %s is already in use", *updatedEmail)))
-				return ctx.Conflict(jerrors)
+				// TODO: Add errors.NewConflictError(..)
+				return errs.Wrap(errors.NewBadParameterError("email", *updatedEmail).Expected("unique email"), fmt.Sprintf("email : %s is already in use", *updatedEmail))
 			}
 			user.Email = *updatedEmail
 			isKeycloakUserProfileUpdateNeeded = true
@@ -213,20 +210,18 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if updatedUserName != nil && *updatedUserName != identity.Username {
 			isValid := isUsernameValid(*updatedUserName)
 			if !isValid {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("invalid value assigned to username for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
-				return ctx.BadRequest(jerrors)
+				return errs.Wrap(errors.NewBadParameterError("username", "required"), fmt.Sprintf("invalid value assigned to username for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if identity.RegistrationCompleted {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id)))
-				return ctx.Forbidden(jerrors)
+				return errors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id))
 			}
 			isUnique, err := isUsernameUnique(appl, *updatedUserName, *identity)
 			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
+				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if !isUnique {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("username : %s is already in use", *updatedUserName)))
-				return ctx.Conflict(jerrors)
+				// TODO : Add errors.NewConflictError(..)
+				return errs.Wrap(errors.NewBadParameterError("username", *updatedUserName).Expected("unique username"), fmt.Sprintf("username : %s is already in use", *updatedUserName))
 			}
 			identity.Username = *updatedUserName
 			isKeycloakUserProfileUpdateNeeded = true
@@ -236,14 +231,13 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedRegistratedCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
 		if updatedRegistratedCompleted != nil {
 			if !*updatedRegistratedCompleted {
-				jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInvalidRequest(fmt.Sprintf("invalid value assigned to registration_completed for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID)))
 				log.Error(ctx, map[string]interface{}{
 					"registration_completed": *updatedRegistratedCompleted,
 					"user_id":                identity.UserID.UUID,
 					"identity_id":            identity.ID,
 				}, "invalid parameter assignment")
 
-				return ctx.BadRequest(jerrors)
+				return errs.Wrap(errors.NewBadParameterError("registration_completed", *updatedRegistratedCompleted).Expected("should be true or nil"), fmt.Sprintf("invalid value assigned to registration_completed for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			identity.RegistrationCompleted = true
 		}
@@ -251,10 +245,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedBio := ctx.Payload.Data.Attributes.Bio
 		if updatedBio != nil && *updatedBio != user.Bio {
 			user.Bio = *updatedBio
-			keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, err)
-			}
 			isKeycloakUserProfileUpdateNeeded = true
 			(*keycloakUserProfile.Attributes)[login.BioAttributeName] = []string{*updatedBio}
 		}
@@ -262,7 +252,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if updatedFullName != nil && *updatedFullName != user.FullName {
 			*updatedFullName = standardizeSpaces(*updatedFullName)
 			user.FullName = *updatedFullName
-
 			// In KC, we store as first name and last name.
 			nameComponents := strings.Split(*updatedFullName, " ")
 			firstName := nameComponents[0]
@@ -292,7 +281,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedCompany := ctx.Payload.Data.Attributes.Company
 		if updatedCompany != nil && *updatedCompany != user.Company {
 			user.Company = *updatedCompany
-			keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
 			isKeycloakUserProfileUpdateNeeded = true
 			(*keycloakUserProfile.Attributes)[login.CompanyAttributeName] = []string{*updatedCompany}
 		}
@@ -320,16 +308,24 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 		err = appl.Users().Save(ctx, user)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+			return err
 		}
 
 		err = appl.Identities().Save(ctx, identity)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+			return err
 		}
 
-		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+		return nil
 	})
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"user_name": identity.ID,
+			"err":       err,
+		}, "failed to update user/identity")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	if isKeycloakUserProfileUpdateNeeded {
 		keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
@@ -361,7 +357,42 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 	}
-	return returnResponse
+	err = c.updateWITUser(ctx, ctx.RequestData, identity.ID.String())
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"user_id":     user.ID,
+			"identity_id": identity.ID,
+			"username":    identity.Username,
+			"err":         err,
+		}, "failed to update WIT user/identity")
+		// Let's not disrupt the response if there was an issue with updating WIT.
+	}
+
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+}
+
+func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
+	updateUserPayload := &app.UpdateUsersPayload{
+		Data: &app.UpdateUserData{
+			Attributes: &app.UpdateIdentityDataAttributes{
+				Bio:                   ctx.Payload.Data.Attributes.Bio,
+				Company:               ctx.Payload.Data.Attributes.Company,
+				ContextInformation:    ctx.Payload.Data.Attributes.ContextInformation,
+				Email:                 ctx.Payload.Data.Attributes.Email,
+				FullName:              ctx.Payload.Data.Attributes.FullName,
+				ImageURL:              ctx.Payload.Data.Attributes.ImageURL,
+				RegistrationCompleted: ctx.Payload.Data.Attributes.RegistrationCompleted,
+				URL:      ctx.Payload.Data.Attributes.URL,
+				Username: ctx.Payload.Data.Attributes.Username,
+			},
+			Type: ctx.Payload.Data.Type,
+		},
+	}
+	WITEndpoint, err := c.config.GetWITEndpoint(ctx.RequestData)
+	if err != nil {
+		return err
+	}
+	return c.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, WITEndpoint, identityID)
 }
 
 func isEmailValid(email string) bool {

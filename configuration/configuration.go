@@ -80,6 +80,7 @@ const (
 	varValidRedirectURLs                    = "redirect.valid"
 	varLogLevel                             = "log.level"
 	varLogJSON                              = "log.json"
+	varWITDomainPrefix                      = "wit.domain.prefix"
 )
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -165,6 +166,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varDeveloperModeEnabled, false)
 
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
+
+	// WIT related defaults
+	c.v.SetDefault(varWITDomainPrefix, defaultWITDomainPrefix)
 
 	// Auth-related defaults
 	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
@@ -468,6 +472,19 @@ func (c *ConfigurationData) GetKeycloakDevModeURL() string {
 	return devModeKeycloakURL
 }
 
+// GetWITDomainPrefix returns the domain prefix which should be used in requests to the auth service
+func (c *ConfigurationData) GetWITDomainPrefix() string {
+	return c.v.GetString(varWITDomainPrefix)
+}
+
+// GetWITEndpoint returns the API endpoint where WIT is running.
+func (c *ConfigurationData) GetWITEndpoint(req *goa.RequestData) (string, error) {
+	if c.IsPostgresDeveloperModeEnabled() {
+		return devModeWITURL, nil
+	}
+	return c.getWITURL(req)
+}
+
 func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
 	return c.getKeycloakEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
 }
@@ -518,6 +535,25 @@ func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (s
 		return "", err
 	}
 	newURL := fmt.Sprintf("%s://%s/%s", scheme, newHost, path)
+
+	return newURL, nil
+}
+
+func (c *ConfigurationData) getWITURL(req *goa.RequestData) (string, error) {
+	scheme := "http"
+	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
+		scheme = "https"
+	}
+	xForwardProto := req.Header.Get("X-Forwarded-Proto")
+	if xForwardProto != "" {
+		scheme = xForwardProto
+	}
+
+	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetWITDomainPrefix())
+	if err != nil {
+		return "", err
+	}
+	newURL := fmt.Sprintf("%s://%s", scheme, newHost)
 
 	return newURL, nil
 }
@@ -607,6 +643,7 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 
 	defaultKeycloakDomainPrefix = "sso"
 	defaultKeycloakRealm        = "fabric8"
+	defaultWITDomainPrefix      = "api"
 
 	// Github does not allow committing actual OAuth tokens no matter how less privilege the token has
 	camouflagedAccessToken = "751e16a8b39c0985066-AccessToken-4871777f2c13b32be8550"
@@ -619,6 +656,7 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
+	devModeWITURL        = "http://localhost:8080"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
