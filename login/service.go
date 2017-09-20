@@ -165,6 +165,13 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 		}, "exchanged code to access token")
 
 		usr, identity, err := keycloak.remoteWITService.GetWITUser(ctx, ctx.RequestData, WITEndpointUserProfile, &keycloakToken.AccessToken)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+				"wit_user_profile_endpoint": WITEndpointUserProfile,
+			}, "unable to get user from WIT")
+			// Unable to connect to wit but it's not a fatal error. Proceed with login.
+		}
 		newUser := false
 
 		if usr == nil {
