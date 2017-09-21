@@ -321,7 +321,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"user_name": identity.ID,
+			"user_name": id.String(),
 			"err":       err,
 		}, "failed to update user/identity")
 		return jsonapi.JSONErrorResponse(ctx, err)
