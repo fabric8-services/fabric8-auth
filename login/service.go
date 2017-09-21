@@ -789,7 +789,12 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 
 	} else {
 		identity = &identities[0]
-		if user.ID == uuid.Nil {
+
+		// we had done a
+		// keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
+		// so, identity.user should have been populated.
+
+		if identity.User.ID == uuid.Nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": keycloakIdentityID,
 			}, "Found Keycloak identity is not linked to any User")
