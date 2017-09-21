@@ -75,14 +75,15 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
-				Bio:      &user.Bio,
-				Company:  &user.Company,
-				Email:    user.Email,
-				FullName: &user.FullName,
-				ImageURL: &user.ImageURL,
-				URL:      &user.URL,
-				Username: identity.Username,
-				UserID:   identity.User.ID.String(),
+				Bio:          &user.Bio,
+				Company:      &user.Company,
+				Email:        user.Email,
+				FullName:     &user.FullName,
+				ImageURL:     &user.ImageURL,
+				URL:          &user.URL,
+				Username:     identity.Username,
+				UserID:       identity.User.ID.String(),
+				ProviderType: identity.ProviderType,
 			},
 			Type: "identities",
 		},
