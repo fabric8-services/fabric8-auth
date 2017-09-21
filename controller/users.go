@@ -477,9 +477,6 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 	if ctx.FilterUsername != nil {
 		identityFilters = append(identityFilters, account.IdentityFilterByUsername(*ctx.FilterUsername))
 	}
-	if ctx.FilterRegistrationCompleted != nil {
-		identityFilters = append(identityFilters, account.IdentityFilterByRegistrationCompleted(*ctx.FilterRegistrationCompleted))
-	}
 	// Add more filters when needed , here. ..
 	if len(identityFilters) != 0 {
 		identityFilters = append(identityFilters, account.IdentityFilterByProviderType(account.KeycloakIDP))
