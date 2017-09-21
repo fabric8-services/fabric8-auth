@@ -350,8 +350,8 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			switch err.(type) {
 			default:
 				return ctx.BadRequest(jerrors)
-			case errors.BadParameterError:
-				return ctx.Conflict(jerrors)
+			// case errors.BadParameterError:
+			// 	return ctx.Conflict(jerrors)
 			case errors.UnauthorizedError:
 				return ctx.Unauthorized(jerrors)
 			}
@@ -476,9 +476,6 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 	/*** Start filtering on Identities table ****/
 	if ctx.FilterUsername != nil {
 		identityFilters = append(identityFilters, account.IdentityFilterByUsername(*ctx.FilterUsername))
-	}
-	if ctx.FilterRegistrationCompleted != nil {
-		identityFilters = append(identityFilters, account.IdentityFilterByRegistrationCompleted(*ctx.FilterRegistrationCompleted))
 	}
 	// Add more filters when needed , here. ..
 	if len(identityFilters) != 0 {
