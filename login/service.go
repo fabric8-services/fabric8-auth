@@ -212,9 +212,10 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			err = keycloak.remoteWITService.CreateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, identity.ID.String())
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
-					"err":         err,
-					"identity_id": identity.ID,
-					"username":    identity.Username,
+					"err":                       err,
+					"identity_id":               identity.ID,
+					"username":                  identity.Username,
+					"wit_user_profile_endpoint": WITEndpointUserProfile,
 				}, "unable to create user in WIT ")
 				// let's carry on instead of erroring out ?
 			}
@@ -225,6 +226,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 					"identity_id": identity.ID,
 					"username":    identity.Username,
 					"err":         err,
+					"wit_user_profile_endpoint": WITEndpointUserProfile,
 				}, "unable to update user in WIT ")
 				// let's carry on instead of erroring out ?
 			}
