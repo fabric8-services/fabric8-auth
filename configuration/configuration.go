@@ -81,6 +81,7 @@ const (
 	varLogLevel                             = "log.level"
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
+	varWITURL                               = "wit.url"
 )
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -477,6 +478,11 @@ func (c *ConfigurationData) GetWITDomainPrefix() string {
 	return c.v.GetString(varWITDomainPrefix)
 }
 
+// GetWITURL returns the optional WIT URL - if not specified we calculate from the domain
+func (c *ConfigurationData) GetWITURL() string {
+	return c.v.GetString(varWITURL)
+}
+
 // GetWITEndpoint returns the API endpoint where WIT is running.
 func (c *ConfigurationData) GetWITEndpoint(req *goa.RequestData) (string, error) {
 	if c.IsPostgresDeveloperModeEnabled() {
@@ -549,6 +555,10 @@ func (c *ConfigurationData) getWITURL(req *goa.RequestData) (string, error) {
 		scheme = xForwardProto
 	}
 
+	configURL := c.GetWITURL()
+	if len(configURL) > 0 {
+		return configURL, nil
+	}
 	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetWITDomainPrefix())
 	if err != nil {
 		return "", err
