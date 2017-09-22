@@ -20,15 +20,15 @@ import (
 
 // RemoteWITService specifies the behaviour of a remote WIT caller
 type RemoteWITService interface {
-	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error
-	GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error)
-	CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error
+	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error
+	GetWITUser(ctx context.Context, req *goa.RequestData, witURL string, accessToken *string) (*account.User, *account.Identity, error)
+	CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error
 }
 
 type RemoteWITServiceCaller struct{}
 
 // UpdateWITUser updates user in WIT
-func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
+func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
 
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
@@ -48,7 +48,7 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 		},
 	}
 
-	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, WITEndpoint)
+	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, witURL)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 }
 
 // CreateWITUser updates user in WIT
-func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
+func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
@@ -89,7 +89,7 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 		},
 	}
 
-	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, WITEndpoint)
+	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, witURL)
 	if err != nil {
 		return err
 	}
@@ -113,12 +113,12 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 }
 
 // GetWITUser calls WIT to check if user exists and uses the user's token for authorization and identity ID discovery
-func (r *RemoteWITServiceCaller) GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
+func (r *RemoteWITServiceCaller) GetWITUser(ctx context.Context, req *goa.RequestData, witURL string, accessToken *string) (*account.User, *account.Identity, error) {
 
 	var user *account.User
 	var identity *account.Identity
 
-	remoteWITService, err := CreateSecureRemoteWITClient(ctx, req, WITEndpointUserProfile, accessToken)
+	remoteWITService, err := CreateSecureRemoteWITClient(ctx, req, witURL, accessToken)
 	res, err := remoteWITService.ShowUser(goasupport.ForwardContextRequestID(ctx), witservice.ShowUserPath(), nil, nil)
 	if err != nil {
 		return nil, nil, err
@@ -217,12 +217,12 @@ func CreateSecureRemoteWITClient(ctx context.Context, req *goa.RequestData, remo
 }
 
 // CreateSecureRemoteClientAsServiceAccount creates a client that would communicate with WIT service using a service account token.
-func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.RequestData, remoteEndpoint string) (*witservice.Client, error) {
-	u, err := url.Parse(remoteEndpoint)
+func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.RequestData, remoteURL string) (*witservice.Client, error) {
+	u, err := url.Parse(remoteURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"remote_endpoint": remoteEndpoint,
-			"err":             err,
+			"remote_url": remoteURL,
+			"err":        err,
 		}, "unable to parse remote endpoint")
 		return nil, err
 	}
@@ -235,7 +235,7 @@ func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.Requ
 		return nil, err
 	}
 	log.Info(ctx, map[string]interface{}{
-		"remote_endpoint": remoteEndpoint,
+		"remote_url": remoteURL,
 	}, "service token generated, will be used to call WIT")
 	staticToken := goaclient.StaticToken{
 		Value: serviceAccountToken,

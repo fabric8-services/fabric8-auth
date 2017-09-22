@@ -37,7 +37,7 @@ type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetCacheControlUser() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
-	GetWITEndpoint(*goa.RequestData) (string, error)
+	GetWITURL(*goa.RequestData) (string, error)
 }
 
 // NewUsersController creates a users controller.
@@ -388,11 +388,11 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *go
 			Type: ctx.Payload.Data.Type,
 		},
 	}
-	WITEndpoint, err := c.config.GetWITEndpoint(ctx.RequestData)
+	witURL, err := c.config.GetWITURL(ctx.RequestData)
 	if err != nil {
 		return err
 	}
-	return c.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, WITEndpoint, identityID)
+	return c.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
 }
 
 func isEmailValid(email string) bool {
