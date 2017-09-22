@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
-
 	"github.com/fabric8-services/fabric8-auth/rest"
+
+	log "github.com/Sirupsen/logrus"
 	"github.com/goadesign/goa"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 // String returns the current configuration as a string
@@ -55,7 +55,6 @@ const (
 	varKeycloakTesUser2Name                 = "keycloak.testuser2.name"
 	varKeycloakTesUser2Secret               = "keycloak.testuser2.secret"
 	varKeycloakURL                          = "keycloak.url"
-	varKeycloakEndpoingCerts                = "keycloak.endpoing.certs"
 	varKeycloakEndpointAdmin                = "keycloak.endpoint.admin"
 	varKeycloakEndpointAuth                 = "keycloak.endpoint.auth"
 	varKeycloakEndpointToken                = "keycloak.endpoint.token"
@@ -81,6 +80,7 @@ const (
 	varLogLevel                             = "log.level"
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
+	varWITURL                               = "wit.url"
 )
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -477,12 +477,16 @@ func (c *ConfigurationData) GetWITDomainPrefix() string {
 	return c.v.GetString(varWITDomainPrefix)
 }
 
-// GetWITEndpoint returns the API endpoint where WIT is running.
-func (c *ConfigurationData) GetWITEndpoint(req *goa.RequestData) (string, error) {
+// GetWITURL returns the WIT URL where WIT is running
+// If AUTH_WIT_URL is not set and Auth in not in Dev Mode then we calculate the URL from the domain
+func (c *ConfigurationData) GetWITURL(req *goa.RequestData) (string, error) {
+	if c.v.IsSet(varWITURL) {
+		return c.v.GetString(varWITURL), nil
+	}
 	if c.IsPostgresDeveloperModeEnabled() {
 		return devModeWITURL, nil
 	}
-	return c.getWITURL(req)
+	return c.calculateWITURL(req)
 }
 
 func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
@@ -539,7 +543,7 @@ func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (s
 	return newURL, nil
 }
 
-func (c *ConfigurationData) getWITURL(req *goa.RequestData) (string, error) {
+func (c *ConfigurationData) calculateWITURL(req *goa.RequestData) (string, error) {
 	scheme := "http"
 	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
 		scheme = "https"

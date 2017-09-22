@@ -93,7 +93,7 @@ serviceaccount.privatekeyid: 9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs
 #notapproved.redirect : https://manage.openshift.com/openshiftio
 
 # ----------------------------
-# Keycloak OAuth2.0 configuration
+# Keycloak configuration
 # ----------------------------
 
 keycloak.client.id : fabric8-online-platform
@@ -105,4 +105,5 @@ keycloak.testuser.secret : testuser
 keycloak.testuser2.name : testuser2
 keycloak.testuser2.secret : testuser2
 
-keycloak.url : https://sso.prod-preview.openshift.io
+#keycloak.url : https://sso.prod-preview.openshift.io
+#wit.url : https://api.prod-preview.openshift.io

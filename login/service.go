@@ -41,7 +41,7 @@ type LoginServiceConfiguration interface {
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
 	GetValidRedirectURLs(*goa.RequestData) (string, error)
 	GetNotApprovedRedirect() string
-	GetWITEndpoint(*goa.RequestData) (string, error)
+	GetWITURL(*goa.RequestData) (string, error)
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
@@ -110,7 +110,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
 	}
 
-	WITEndpointUserProfile, err := serviceConfig.GetWITEndpoint(ctx.RequestData)
+	witURL, err := serviceConfig.GetWITURL(ctx.RequestData)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
 	}
@@ -164,11 +164,11 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"known_referrer": knownReferrer,
 		}, "exchanged code to access token")
 
-		usr, identity, err := keycloak.remoteWITService.GetWITUser(ctx, ctx.RequestData, WITEndpointUserProfile, &keycloakToken.AccessToken)
+		usr, identity, err := keycloak.remoteWITService.GetWITUser(ctx, ctx.RequestData, witURL, &keycloakToken.AccessToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
-				"err": err,
-				"wit_user_profile_endpoint": WITEndpointUserProfile,
+				"err":     err,
+				"wit_url": witURL,
 			}, "unable to get user from WIT")
 			// Unable to connect to wit but it's not a fatal error. Proceed with login.
 		}
@@ -209,24 +209,24 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 		// new user for WIT
 		if newUser {
-			err = keycloak.remoteWITService.CreateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, identity.ID.String())
+			err = keycloak.remoteWITService.CreateWITUser(ctx, ctx.RequestData, usr, identity, witURL, identity.ID.String())
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
-					"err":                       err,
-					"identity_id":               identity.ID,
-					"username":                  identity.Username,
-					"wit_user_profile_endpoint": WITEndpointUserProfile,
+					"err":         err,
+					"identity_id": identity.ID,
+					"username":    identity.Username,
+					"wit_url":     witURL,
 				}, "unable to create user in WIT ")
 				// let's carry on instead of erroring out ?
 			}
 		} else {
-			err = keycloak.updateWITUser(ctx, ctx.RequestData, usr, identity, WITEndpointUserProfile, identity.ID.String())
+			err = keycloak.updateWITUser(ctx, ctx.RequestData, usr, identity, witURL, identity.ID.String())
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"identity_id": identity.ID,
 					"username":    identity.Username,
 					"err":         err,
-					"wit_user_profile_endpoint": WITEndpointUserProfile,
+					"wit_url":     witURL,
 				}, "unable to update user in WIT ")
 				// let's carry on instead of erroring out ?
 			}
@@ -845,7 +845,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 	return user, identity, err
 }
 
-func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, WITEndpointUserProfile string, identityID string) error {
+func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
@@ -859,7 +859,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 			},
 		},
 	}
-	return keycloak.remoteWITService.UpdateWITUser(ctx, request, updateUserPayload, WITEndpointUserProfile, identityID)
+	return keycloak.remoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
 }
 
 func checkApproved(ctx context.Context, profileService UserProfileService, accessToken string, profileEndpoint string) (bool, error) {

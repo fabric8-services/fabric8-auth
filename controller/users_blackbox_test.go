@@ -951,15 +951,15 @@ func (s *TestUsersSuite) generateUsersTag(allUsers app.UserArray) string {
 
 type dummyRemoteWITService struct{}
 
-func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, WITEndpoint string, identityID string) error {
+func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
 	return nil
 }
 
-func (r *dummyRemoteWITService) GetWITUser(ctx context.Context, req *goa.RequestData, WITEndpointUserProfile string, accessToken *string) (*account.User, *account.Identity, error) {
+func (r *dummyRemoteWITService) GetWITUser(ctx context.Context, req *goa.RequestData, witURL string, accessToken *string) (*account.User, *account.Identity, error) {
 	return nil, nil, nil
 }
 
-func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, WITEndpoint string, identityID string) error {
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error {
 	return nil
 }
 

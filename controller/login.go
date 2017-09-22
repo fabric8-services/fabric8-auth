@@ -33,7 +33,7 @@ type LoginConfiguration interface {
 	GetValidRedirectURLs(*goa.RequestData) (string, error)
 	GetHeaderMaxLength() int64
 	GetNotApprovedRedirect() string
-	GetWITEndpoint(*goa.RequestData) (string, error)
+	GetWITURL(*goa.RequestData) (string, error)
 }
 
 // LoginController implements the login resource.
