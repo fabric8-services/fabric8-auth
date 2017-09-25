@@ -26,7 +26,6 @@ objects:
     postgres.sslmode: require
     postgres.connection.maxidle: "90"
     postgres.connection.maxopen: "90"
-    redirect.valid: ".*"
     notapproved_redirect: ""
     keycloak.url: https://sso.openshift.io
   
