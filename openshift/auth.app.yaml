@@ -92,11 +92,6 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: notapproved_redirect
-          - name: AUTH_REDIRECT_VALID
-            valueFrom:
-              configMapKeyRef:
-                name: auth
-                key: redirect.valid
           - name: AUTH_KEYCLOAK_URL
             valueFrom:
               configMapKeyRef:
