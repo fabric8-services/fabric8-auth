@@ -126,15 +126,6 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) getValidRedirectURLs() string {
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "domain.com"},
-	}
-	whitelist, err := s.configuration.GetValidRedirectURLs(r)
-	require.Nil(s.T(), err)
-	return whitelist
-}
-
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam() {
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
@@ -316,7 +307,7 @@ func keycloakLinkRedirect(s *serviceBlackBoxTest, provider string, redirect stri
 	require.Nil(s.T(), err)
 	clientID := s.configuration.GetKeycloakClientID()
 
-	err = s.loginService.Link(linkCtx, brokerEndpoint, clientID, s.getValidRedirectURLs())
+	err = s.loginService.Link(linkCtx, brokerEndpoint, clientID, s.configuration.GetValidRedirectURLs())
 	require.Nil(s.T(), err)
 
 	assert.Equal(s.T(), 307, rw.Code)

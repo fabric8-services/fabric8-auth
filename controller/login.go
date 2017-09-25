@@ -30,7 +30,7 @@ type LoginConfiguration interface {
 	GetKeycloakTestUserSecret() string
 	GetKeycloakTestUser2Name() string
 	GetKeycloakTestUser2Secret() string
-	GetValidRedirectURLs(*goa.RequestData) (string, error)
+	GetValidRedirectURLs() string
 	GetHeaderMaxLength() int64
 	GetNotApprovedRedirect() string
 	GetWITURL(*goa.RequestData) (string, error)

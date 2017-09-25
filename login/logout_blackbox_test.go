@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/app"
-	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa"
@@ -22,16 +22,16 @@ import (
 
 func TestLogout(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	configuration, err := config.GetConfigurationData()
+	config, err := configuration.GetConfigurationData()
 	if err != nil {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
-	suite.Run(t, &TestLogoutSuite{configuration: configuration, logoutService: &login.KeycloakLogoutService{}})
+	suite.Run(t, &TestLogoutSuite{config: config, logoutService: &login.KeycloakLogoutService{}})
 }
 
 type TestLogoutSuite struct {
 	suite.Suite
-	configuration *config.ConfigurationData
+	config        *configuration.ConfigurationData
 	logoutService *login.KeycloakLogoutService
 }
 
@@ -42,11 +42,27 @@ func (s *TestLogoutSuite) TearDownSuite() {
 }
 
 func (s *TestLogoutSuite) TestLogoutRedirectsToKeycloakWithRedirectParam() {
-	s.checkRedirects("", "https://url.example.org/path", "https%3A%2F%2Furl.example.org%2Fpath")
+	s.checkRedirects("https://openshift.io/home", "", "https%3A%2F%2Fopenshift.io%2Fhome")
 }
 
 func (s *TestLogoutSuite) TestLogoutRedirectsToKeycloakWithReferrer() {
-	s.checkRedirects("http://openshift.io/home", "https://url.example.org/path", "http%3A%2F%2Fopenshift.io%2Fhome")
+	s.checkRedirects("", "https://openshift.io/home", "https%3A%2F%2Fopenshift.io%2Fhome")
+}
+
+func (s *TestLogoutSuite) TestLogoutRedirectsToKeycloakWithReferrerAndRedirect() {
+	s.checkRedirects("https://prod-preview.openshift.io/home", "https://url.example.org/path", "https%3A%2F%2Fprod-preview.openshift.io%2Fhome")
+}
+
+func (s *TestLogoutSuite) TestLogoutRedirectsToKeycloakWithInvalidRedirectParamBadRequest() {
+	s.checkRedirects("https://url.example.org/path", "", "")
+}
+
+func (s *TestLogoutSuite) TestLogoutRedirectsToKeycloakWithInvalidReferrerParamBadRequest() {
+	s.checkRedirects("", "https://url.example.org/path", "")
+}
+
+func (s *TestLogoutSuite) TestLogoutRedirectsToKeycloakWithReferrerAndInvalidRedirectBadRequest() {
+	s.checkRedirects("https://url.example.org/path", "https://openshift.io/home", "")
 }
 
 func (s *TestLogoutSuite) checkRedirects(redirectParam string, referrerURL string, expectedRedirectParam string) {
@@ -56,7 +72,9 @@ func (s *TestLogoutSuite) checkRedirects(redirectParam string, referrerURL strin
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	require.Nil(s.T(), err)
-	req.Header.Add("referer", referrerURL)
+	if referrerURL != "" {
+		req.Header.Add("referer", referrerURL)
+	}
 
 	prms := url.Values{}
 	if redirectParam != "" {
@@ -70,13 +88,16 @@ func (s *TestLogoutSuite) checkRedirects(redirectParam string, referrerURL strin
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.domain.io"},
 	}
-	logoutEndpoint, err := s.configuration.GetKeycloakEndpointLogout(r)
+	logoutEndpoint, err := s.config.GetKeycloakEndpointLogout(r)
 	require.Nil(s.T(), err)
-	validURLs, err := s.configuration.GetValidRedirectURLs(r)
-	require.Nil(s.T(), err)
+	validURLs := configuration.DefaultValidRedirectURLs
 
 	err = s.logoutService.Logout(logoutCtx, logoutEndpoint, validURLs)
 
-	assert.Equal(s.T(), 307, rw.Code)
-	assert.Equal(s.T(), fmt.Sprintf("%s?redirect_uri=%s", logoutEndpoint, expectedRedirectParam), rw.Header().Get("Location"))
+	if expectedRedirectParam == "" {
+		assert.Equal(s.T(), 400, rw.Code)
+	} else {
+		assert.Equal(s.T(), 307, rw.Code)
+		assert.Equal(s.T(), fmt.Sprintf("%s?redirect_uri=%s", logoutEndpoint, expectedRedirectParam), rw.Header().Get("Location"))
+	}
 }

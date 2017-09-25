@@ -39,7 +39,7 @@ import (
 type LoginServiceConfiguration interface {
 	GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error)
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
-	GetValidRedirectURLs(*goa.RequestData) (string, error)
+	GetValidRedirectURLs() string
 	GetNotApprovedRedirect() string
 	GetWITURL(*goa.RequestData) (string, error)
 }
@@ -105,10 +105,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 		}, "unable to get Keycloak account endpoint URL")
 		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
 	}
-	validRedirectURL, err := serviceConfig.GetValidRedirectURLs(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
-	}
+	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
 	witURL, err := serviceConfig.GetWITURL(ctx.RequestData)
 	if err != nil {
