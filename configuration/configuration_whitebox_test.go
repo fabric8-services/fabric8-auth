@@ -151,49 +151,46 @@ func TestValidRedirectURLsInDevModeCanBeOverridden(t *testing.T) {
 	key := "AUTH_REDIRECT_VALID"
 	realEnvValue := os.Getenv(key)
 
-	os.Unsetenv(key)
 	defer func() {
-		os.Setenv(key, realEnvValue)
+		if realEnvValue != "" {
+			os.Setenv(key, realEnvValue)
+		} else {
+			os.Unsetenv(key)
+		}
 		resetConfiguration()
 	}()
-
-	whitelist, err := config.GetValidRedirectURLs(nil)
-	require.Nil(t, err)
-	assert.Equal(t, devModeValidRedirectURLs, whitelist)
+	os.Unsetenv(key)
+	assert.Equal(t, devModeValidRedirectURLs, config.GetValidRedirectURLs())
 
 	os.Setenv(key, "https://someDomain.org/redirect")
 	resetConfiguration()
+	assert.Equal(t, "https://someDomain.org/redirect", config.GetValidRedirectURLs())
 }
 
-func TestRedirectURLsForLocalhostRequestAreExcepted(t *testing.T) {
+func TestDefaultRedirectURLs(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
 	// Valid if requesting prod-preview to redirect to localhost or to openshift.io
 	// OR if requesting openshift to redirect to openshift.io
 	// Invalid otherwise
-	assert.True(t, validateRedirectURL(t, "https://api.prod-preview.openshift.io/api", "http://localhost:3000/home"))
-	assert.True(t, validateRedirectURL(t, "https://api.prod-preview.openshift.io/api", "https://127.0.0.1"))
-	assert.True(t, validateRedirectURL(t, "https://api.prod-preview.openshift.io:8080/api", "https://127.0.0.1"))
-	assert.True(t, validateRedirectURL(t, "https://api.prod-preview.openshift.io/api", "https://prod-preview.openshift.io/home"))
-	assert.True(t, validateRedirectURL(t, "https://api.openshift.io/api", "https://openshift.io/home"))
-	assert.True(t, validateRedirectURL(t, "https://api.openshift.io:8080/api", "https://openshift.io/home"))
-	assert.False(t, validateRedirectURL(t, "https://api.openshift.io/api", "http://localhost:3000/api"))
-	assert.False(t, validateRedirectURL(t, "https://api.prod-preview.openshift.io/api", "http://domain.com"))
-	assert.False(t, validateRedirectURL(t, "https://api.openshift.io/api", "http://domain.com"))
+	assert.True(t, validateRedirectURL(t, "https://api.prod-preview.openshift.io/api"))
+	assert.True(t, validateRedirectURL(t, "http://api.prod-preview.openshift.io/api"))
+	assert.True(t, validateRedirectURL(t, "https://api.prod-preview.openshift.io:8080/api"))
+	assert.True(t, validateRedirectURL(t, "https://api.openshift.io/api"))
+	assert.True(t, validateRedirectURL(t, "https://api.openshift.io:8080/api"))
+	assert.True(t, validateRedirectURL(t, "http://api.openshift.io/api"))
+	assert.False(t, validateRedirectURL(t, "https://api.prod-preview.domain.io/api"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io?redirect=openshift.io"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io?redirect=api.openshift.io"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io/api.openshift.io"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io?api.openshift.io"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io#api.openshift.io"))
+	assert.False(t, validateRedirectURL(t, "https://api.openshift.io.domain/api"))
 }
 
-func validateRedirectURL(t *testing.T, request string, redirect string) bool {
-	r, err := http.NewRequest("", request, nil)
-	require.Nil(t, err)
-	req := &goa.RequestData{
-		Request: r,
-	}
-
-	whitelist, err := config.checkLocalhostRedirectException(req)
-	require.Nil(t, err)
-
-	matched, err := regexp.MatchString(whitelist, redirect)
+func validateRedirectURL(t *testing.T, redirect string) bool {
+	matched, err := regexp.MatchString(DefaultValidRedirectURLs, redirect)
 	require.Nil(t, err)
 	return matched
 }

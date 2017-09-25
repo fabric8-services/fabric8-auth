@@ -34,10 +34,7 @@ func (c *LinkController) Link(ctx *app.LinkLinkContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
 	}
 	clientID := c.Configuration.GetKeycloakClientID()
-	whitelist, err := c.Configuration.GetValidRedirectURLs(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
+	whitelist := c.Configuration.GetValidRedirectURLs()
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return c.Auth.Link(ctx, brokerEndpoint, clientID, whitelist)
@@ -53,10 +50,7 @@ func (c *LinkController) Session(ctx *app.SessionLinkContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
 	}
 	clientID := c.Configuration.GetKeycloakClientID()
-	whitelist, err := c.Configuration.GetValidRedirectURLs(ctx.RequestData)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
+	whitelist := c.Configuration.GetValidRedirectURLs()
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return c.Auth.LinkSession(ctx, brokerEndpoint, clientID, whitelist)

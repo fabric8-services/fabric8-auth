@@ -3,7 +3,6 @@ package configuration
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -579,30 +578,16 @@ func (c *ConfigurationData) IsLogJSON() bool {
 }
 
 // GetValidRedirectURLs returns the RegEx of valid redirect URLs for auth requests
-// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
-// In prod mode the default regex will be returned
-func (c *ConfigurationData) GetValidRedirectURLs(req *goa.RequestData) (string, error) {
+// If AUTH_REDIRECT_VALID is not set then in Dev Mode all redirects allowed - *
+// Otherwise only *.openshift.io URLs are considered valid
+func (c *ConfigurationData) GetValidRedirectURLs() string {
 	if c.v.IsSet(varValidRedirectURLs) {
-		return c.v.GetString(varValidRedirectURLs), nil
+		return c.v.GetString(varValidRedirectURLs)
 	}
 	if c.IsPostgresDeveloperModeEnabled() {
-		return devModeValidRedirectURLs, nil
+		return devModeValidRedirectURLs
 	}
-	return c.checkLocalhostRedirectException(req)
-}
-
-func (c *ConfigurationData) checkLocalhostRedirectException(req *goa.RequestData) (string, error) {
-	if req.Request == nil || req.Request.URL == nil {
-		return DefaultValidRedirectURLs, nil
-	}
-	matched, err := regexp.MatchString(localhostRedirectException, req.Request.URL.String())
-	if err != nil {
-		return "", err
-	}
-	if matched {
-		return localhostRedirectURLs, nil
-	}
-	return DefaultValidRedirectURLs, nil
+	return DefaultValidRedirectURLs
 }
 
 const (
@@ -665,12 +650,8 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 	// In prod mode the following regex will be used by default:
-	DefaultValidRedirectURLs = "^(https|http)://([^/]+[.])?(?i:openshift[.]io)(/.*)?$" // *.openshift.io/*
+	DefaultValidRedirectURLs = "^(https|http)://([^/?#]+[.])?(?i:openshift[.]io)((/|:).*)?$" // *.openshift.io/*
 	devModeValidRedirectURLs = ".*"
-	// Allow redirects to localhost when running in prod-preveiw
-	localhostRedirectURLs      = "(" + DefaultValidRedirectURLs + "|^(https|http)://([^/]+[.])?(localhost|127[.]0[.]0[.]1)(:\\d+)?(/.*)?$)" // *.openshift.io/* or localhost/* or 127.0.0.1/*
-	localhostRedirectException = "^(https|http)://([^/]+[.])?(?i:prod-preview[.]openshift[.]io)(:\\d+)?(/.*)?$"                             // *.prod-preview.openshift.io/*
-
 )
 
 // ActualToken is actual OAuth access token of github
