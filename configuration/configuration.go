@@ -650,7 +650,7 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 	// In prod mode the following regex will be used by default:
-	DefaultValidRedirectURLs = "^(https|http)://([^/?#]+[.])?(?i:openshift[.]io)((/|:).*)?$" // *.openshift.io/*
+	DefaultValidRedirectURLs = "^(https|http)://(([^/?#]+[.])?(?i:openshift[.]io)|localhost)((/|:).*)?$" // *.openshift.io/* and localhost
 	devModeValidRedirectURLs = ".*"
 )
 
