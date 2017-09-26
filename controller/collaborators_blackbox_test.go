@@ -421,7 +421,7 @@ func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsUnauthorizedIfCurr
 	test.RemoveManyCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, payload)
 }
 
-func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsFailsIfTryToRemoveLastCollaborator() {
+func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsFailsIfTryToRemoveSpaceOwner() {
 	// given
 	svc, ctrl := rest.SecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
@@ -431,7 +431,7 @@ func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsFailsIfTryToRemoveLast
 	test.RemoveCollaboratorsBadRequest(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity1.ID.String())
 }
 
-func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsFailsIfTryToRemoveLastCollaborator() {
+func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsFailsIfTryToRemoveSpaceOwner() {
 	// given
 	svc, ctrl := rest.SecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
