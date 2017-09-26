@@ -20,7 +20,7 @@ import (
 // RemoteWITService specifies the behaviour of a remote WIT caller
 type RemoteWITService interface {
 	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error
-	CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error
+	CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error
 }
 
 type RemoteWITServiceCaller struct{}
@@ -69,16 +69,16 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 }
 
 // CreateWITUser creates a new user in WIT
-func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error {
+func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
-				Bio:          &user.Bio,
-				Company:      &user.Company,
-				Email:        user.Email,
-				FullName:     &user.FullName,
-				ImageURL:     &user.ImageURL,
-				URL:          &user.URL,
+				Bio:          &identity.User.Bio,
+				Company:      &identity.User.Company,
+				Email:        identity.User.Email,
+				FullName:     &identity.User.FullName,
+				ImageURL:     &identity.User.ImageURL,
+				URL:          &identity.User.URL,
 				Username:     identity.Username,
 				UserID:       identity.User.ID.String(),
 				ProviderType: identity.ProviderType,

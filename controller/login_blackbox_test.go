@@ -88,8 +88,8 @@ func (t TestLoginService) Perform(ctx *app.LoginLoginContext, oauth *oauth2.Conf
 	return ctx.TemporaryRedirect()
 }
 
-func (t TestLoginService) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.User, *account.Identity, bool, error) {
-	return nil, nil, false, nil
+func (t TestLoginService) CreateOrUpdateIdentity(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, bool, error) {
+	return nil, false, nil
 }
 
 func (t TestLoginService) Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {

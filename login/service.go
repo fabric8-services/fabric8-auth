@@ -65,7 +65,7 @@ type KeycloakOAuthProvider struct {
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
 	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, serviceConfig LoginServiceConfiguration) error
-	CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.User, *account.Identity, bool, error)
+	CreateOrUpdateIdentity(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, bool, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -159,7 +159,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"known_referrer": knownReferrer,
 		}, "exchanged code to access token")
 
-		usr, identity, newUser, err := keycloak.CreateOrUpdateKeycloakUser(keycloakToken.AccessToken, ctx, profileEndpoint)
+		identity, newUser, err := keycloak.CreateOrUpdateIdentity(keycloakToken.AccessToken, ctx, profileEndpoint)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -182,12 +182,12 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"code":           code,
 			"state":          state,
 			"known_referrer": knownReferrer,
-			"user_name":      usr.Email,
+			"user_name":      identity.User.Email,
 		}, "local user created/updated")
 
 		// new user for WIT
 		if newUser {
-			err = keycloak.remoteWITService.CreateWITUser(ctx, ctx.RequestData, usr, identity, witURL, identity.ID.String())
+			err = keycloak.remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err":         err,
@@ -198,7 +198,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 				// let's carry on instead of erroring out ?
 			}
 		} else {
-			err = keycloak.updateWITUser(ctx, ctx.RequestData, usr, identity, witURL, identity.ID.String())
+			err = keycloak.updateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"identity_id": identity.ID,
@@ -233,7 +233,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"code":           code,
 			"state":          state,
 			"known_referrer": knownReferrer,
-			"user_name":      usr.Email,
+			"user_name":      identity.User.Email,
 		}, "token encoded")
 
 		referrerStr := referrerURL.String()
@@ -244,7 +244,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 				"code":           code,
 				"state":          state,
 				"known_referrer": knownReferrer,
-				"user_name":      usr.Email,
+				"user_name":      identity.User.Email,
 				"referrer_str":   referrerStr,
 			}, "all good; redirecting back to referrer")
 			return ctx.TemporaryRedirect()
@@ -262,7 +262,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"code":           code,
 			"state":          state,
 			"known_referrer": knownReferrer,
-			"user_name":      usr.Email,
+			"user_name":      identity.User.Email,
 			"linked":         linked,
 		}, "identities links checked")
 
@@ -274,7 +274,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 				"code":           code,
 				"state":          state,
 				"known_referrer": knownReferrer,
-				"user_name":      usr.Email,
+				"user_name":      identity.User.Email,
 				"linked":         linked,
 				"referrer_str":   referrerStr,
 			}, "all good; redirecting back to referrer")
@@ -286,7 +286,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"code":           code,
 			"state":          state,
 			"known_referrer": knownReferrer,
-			"user_name":      usr.Email,
+			"user_name":      identity.User.Email,
 			"linked":         linked,
 		}, "linking identities...")
 		return keycloak.autoLinkProvidersDuringLogin(ctx, keycloakToken.AccessToken, referrerStr)
@@ -663,18 +663,18 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	return nil
 }
 
-// CreateOrUpdateKeycloakUser creates a user and a keycloak identity. If the user and identity already exist then update them.
+// CreateOrUpdateIdentity creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken string, ctx context.Context, profileEndpoint string) (*account.User, *account.Identity, bool, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, bool, error) {
 
-	newUserCreated := false
+	newIdentityCreated := false
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"token": accessToken,
 			"err":   err,
 		}, "unable to parse the token")
-		return nil, nil, false, errors.New("unable to parse the token " + err.Error())
+		return nil, false, errors.New("unable to parse the token " + err.Error())
 	}
 
 	if err := token.CheckClaims(claims); err != nil {
@@ -682,12 +682,11 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			"token": accessToken,
 			"err":   err,
 		}, "invalid keycloak token claims")
-		return nil, nil, false, errors.New("invalid keycloak token claims " + err.Error())
+		return nil, false, errors.New("invalid keycloak token claims " + err.Error())
 	}
 
 	keycloakIdentityID, _ := uuid.FromString(claims.Subject)
 
-	user := &account.User{}
 	identity := &account.Identity{}
 	// TODO : Check this only if UUID is not null
 	// If identity already existed in WIT, then IDs should match !
@@ -697,7 +696,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			"wit_identity_id":      identity.ID,
 			"err":                  err,
 		}, "keycloak identity id and existing identity id in wit service does not match")
-		return nil, nil, false, errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
+		return nil, false, errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
 	}
 
 	identities, err := keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
@@ -706,32 +705,33 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			"keycloak_identity_id": keycloakIdentityID,
 			"err": err,
 		}, "unable to  query for an identity by ID")
-		return nil, nil, false, errors.New("Error during querying for an identity by ID " + err.Error())
+		return nil, false, errors.New("Error during querying for an identity by ID " + err.Error())
 	}
 
 	if len(identities) == 0 {
 		// No Identity found, create a new Identity and User
 		approved, err := checkApproved(ctx, NewKeycloakUserProfileClient(), accessToken, profileEndpoint)
 		if err != nil {
-			return nil, nil, false, err
+			return nil, false, err
 		}
 		if !approved {
-			return nil, nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
+			return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
 		}
 
 		// Now that user/identity objects have been initialized, update it
 		// from the token claims info.
 
-		_, err = fillUser(claims, user, identity)
+		_, err = fillUser(claims, identity)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,
 				"err": err,
 			}, "unable to create user/identity")
-			return nil, nil, false, errors.New("failed to update user/identity from claims" + err.Error())
+			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
 		}
 
 		err = application.Transactional(keycloak.db, func(appl application.Application) error {
+			user := &identity.User
 			err := appl.Users().Create(ctx, user)
 			if err != nil {
 				return err
@@ -751,9 +751,9 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 				"username":             claims.Username,
 				"err":                  err,
 			}, "unable to create user/identity")
-			return nil, nil, false, errors.New("failed to create user/identity " + err.Error())
+			return nil, false, errors.New("failed to create user/identity " + err.Error())
 		}
-		newUserCreated = true
+		newIdentityCreated = true
 	} else {
 		identity = &identities[0]
 
@@ -765,18 +765,18 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": keycloakIdentityID,
 			}, "Found Keycloak identity is not linked to any User")
-			return nil, nil, false, errors.New("found Keycloak identity is not linked to any User")
+			return nil, false, errors.New("found Keycloak identity is not linked to any User")
 		}
 		// let's update the existing user with the fullname, email and avatar from Keycloak,
 		// in case the user changed them since the last time he/she logged in
-		isChanged, err := fillUser(claims, user, identity)
-		identity.User = *user
+		isChanged, err := fillUser(claims, identity)
+		user := &identity.User
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,
 				"err": err,
 			}, "unable to create user/identity")
-			return nil, nil, false, errors.New("failed to update user/identity from claims" + err.Error())
+			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
 		} else if isChanged {
 			err = application.Transactional(keycloak.db, func(appl application.Application) error {
 				err = appl.Users().Save(ctx, user)
@@ -803,23 +803,23 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateKeycloakUser(accessToken st
 					"username":             claims.Username,
 					"err":                  err,
 				}, "unable to update user/identity")
-				return nil, nil, false, errors.New("failed to update user/identity " + err.Error())
+				return nil, false, errors.New("failed to update user/identity " + err.Error())
 			}
 		}
 	}
-	return user, identity, newUserCreated, err
+	return identity, newIdentityCreated, err
 }
 
-func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error {
+func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
-				Bio:      &user.Bio,
-				Company:  &user.Company,
-				Email:    &user.Email,
-				FullName: &user.FullName,
-				ImageURL: &user.ImageURL,
-				URL:      &user.URL,
+				Bio:      &identity.User.Bio,
+				Company:  &identity.User.Company,
+				Email:    &identity.User.Email,
+				FullName: &identity.User.FullName,
+				ImageURL: &identity.User.ImageURL,
+				URL:      &identity.User.URL,
 				Username: &identity.Username,
 			},
 		},
@@ -890,28 +890,28 @@ func generateGravatarURL(email string) (string, error) {
 	return urlStr, nil
 }
 
-func fillUser(claims *token.TokenClaims, user *account.User, identity *account.Identity) (bool, error) {
+func fillUser(claims *token.TokenClaims, identity *account.Identity) (bool, error) {
 	isChanged := false
-	if user.FullName != claims.Name || user.Email != claims.Email || user.Company != claims.Company || identity.Username != claims.Username || user.ImageURL == "" {
+	if identity.User.FullName != claims.Name || identity.User.Email != claims.Email || identity.User.Company != claims.Company || identity.Username != claims.Username || identity.User.ImageURL == "" {
 		isChanged = true
 	} else {
 		return isChanged, nil
 	}
-	user.FullName = claims.Name
-	user.Email = claims.Email
-	user.Company = claims.Company
+	identity.User.FullName = claims.Name
+	identity.User.Email = claims.Email
+	identity.User.Company = claims.Company
 	identity.Username = claims.Username
-	if user.ImageURL == "" {
+	if identity.User.ImageURL == "" {
 		image, err := generateGravatarURL(claims.Email)
 		if err != nil {
 			log.Warn(nil, map[string]interface{}{
-				"user_full_name": user.FullName,
+				"user_full_name": identity.User.FullName,
 				"err":            err,
 			}, "error when generating gravatar")
 			// if there is an error, we will qualify the identity/user as unchanged.
 			return false, errors.New("Error when generating gravatar " + err.Error())
 		}
-		user.ImageURL = image
+		identity.User.ImageURL = image
 	}
 	return isChanged, nil
 }

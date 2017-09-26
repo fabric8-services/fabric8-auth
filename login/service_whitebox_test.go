@@ -67,7 +67,7 @@ func TestEncodeTokenOK(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
-	referelURL, _ := url.Parse("https://example.domain.com")
+	referrerURL, _ := url.Parse("https://example.domain.com")
 	accessToken := "accessToken%@!/\\&?"
 	refreshToken := "refreshToken%@!/\\&?"
 	tokenType := "tokenType%@!/\\&?"
@@ -84,12 +84,12 @@ func TestEncodeTokenOK(t *testing.T) {
 		"expires_in":         expiresIn,
 		"refresh_expires_in": refreshExpiresIn,
 	}
-	err := encodeToken(context.Background(), referelURL, outhToken.WithExtra(extra))
+	err := encodeToken(context.Background(), referrerURL, outhToken.WithExtra(extra))
 	assert.Nil(t, err)
-	encoded := referelURL.String()
+	encoded := referrerURL.String()
 
-	referelURL, _ = url.Parse(encoded)
-	values := referelURL.Query()
+	referrerURL, _ = url.Parse(encoded)
+	values := referrerURL.Query()
 	tJSON := values["token_json"]
 	b := []byte(tJSON[0])
 	tokenData := &auth.Token{}
@@ -188,17 +188,16 @@ func TestFillUserDoesntOverwriteExistingImageURL(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
-	user := &account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", ImageURL: "http://vpupkin.io/image.jpg"}
-	identity := &account.Identity{Username: "vaysa"}
+	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", ImageURL: "http://vpupkin.io/image.jpg"}}
 	claims := &token.TokenClaims{Username: "new username", Name: "new name", Company: "new company", Email: "new email"}
-	isChanged, err := fillUser(claims, user, identity)
+	isChanged, err := fillUser(claims, identity)
 	require.Nil(t, err)
 	require.True(t, isChanged)
-	assert.Equal(t, "new name", user.FullName)
-	assert.Equal(t, "new company", user.Company)
-	assert.Equal(t, "new email", user.Email)
+	assert.Equal(t, "new name", identity.User.FullName)
+	assert.Equal(t, "new company", identity.User.Company)
+	assert.Equal(t, "new email", identity.User.Email)
 	assert.Equal(t, "new username", identity.Username)
-	assert.Equal(t, "http://vpupkin.io/image.jpg", user.ImageURL)
+	assert.Equal(t, "http://vpupkin.io/image.jpg", identity.User.ImageURL)
 }
 
 type dummyUserProfileService struct {
