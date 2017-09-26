@@ -180,6 +180,8 @@ func TestDefaultRedirectURLs(t *testing.T) {
 	assert.True(t, validateRedirectURL(t, "https://api.openshift.io/api"))
 	assert.True(t, validateRedirectURL(t, "https://api.openshift.io:8080/api"))
 	assert.True(t, validateRedirectURL(t, "http://api.openshift.io/api"))
+	assert.True(t, validateRedirectURL(t, "http://localhost/api"))
+	assert.True(t, validateRedirectURL(t, "http://localhost"))
 	assert.False(t, validateRedirectURL(t, "https://api.prod-preview.domain.io/api"))
 	assert.False(t, validateRedirectURL(t, "https://api.domain.io?redirect=openshift.io"))
 	assert.False(t, validateRedirectURL(t, "https://api.domain.io?redirect=api.openshift.io"))
@@ -187,6 +189,12 @@ func TestDefaultRedirectURLs(t *testing.T) {
 	assert.False(t, validateRedirectURL(t, "https://api.domain.io?api.openshift.io"))
 	assert.False(t, validateRedirectURL(t, "https://api.domain.io#api.openshift.io"))
 	assert.False(t, validateRedirectURL(t, "https://api.openshift.io.domain/api"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io?redirect=localhost"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io?redirect=localhost"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io/localhost"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io?localhost"))
+	assert.False(t, validateRedirectURL(t, "https://api.domain.io#localhost"))
+	assert.False(t, validateRedirectURL(t, "https://localhost.domain/api"))
 }
 
 func validateRedirectURL(t *testing.T, redirect string) bool {
