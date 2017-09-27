@@ -9,9 +9,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
+
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
 )
@@ -183,31 +185,37 @@ func (c *CollaboratorsController) updatePolicy(ctx collaboratorContext, req *goa
 				return goa.ErrBadRequest(err.Error())
 			}
 			var identity *account.Identity
+			var ownerID uuid.UUID
 			err = application.Transactional(c.db, func(appl application.Application) error {
 				identities, err := appl.Identities().Query(account.IdentityFilterByID(identityUUID), account.IdentityWithUser())
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{
 						"identity_id": identityID,
 						"err":         err,
-					}, "unable to find the identity")
+					}, "unable to query for the identity")
 					return err
 				}
 				if len(identities) == 0 {
 					log.Error(ctx, map[string]interface{}{
 						"identity_id": identityID,
 					}, "unable to find the identity")
-					return errors.New("Identity not found")
+					return autherrors.NewNotFoundError("identity", identityID)
 				}
 				identity = &identities[0]
+				resource, err := appl.SpaceResources().LoadBySpace(ctx, &spaceID)
+				if err != nil {
+					return err
+				}
+				ownerID = resource.OwnerID
 				return nil
 			})
 			if err != nil {
-				return goa.ErrNotFound(err.Error())
+				return err
 			}
 			updated = update(policy, identityID) || updated
-			if !strings.Contains(policy.Config.UserIDs, "\"") {
+			if !strings.Contains(policy.Config.UserIDs, ownerID.String()) {
 				// Updated policy has no User IDs
-				return goa.ErrBadRequest("space should have at least one collaborator")
+				return autherrors.NewBadParameterError("identity", identityID).Expected("not the space owner")
 			}
 		}
 	}
