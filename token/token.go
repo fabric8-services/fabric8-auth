@@ -19,11 +19,15 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
+	"net/url"
+	"strconv"
 )
 
 const (
@@ -50,6 +54,7 @@ type TokenClaims struct {
 	Email         string                `json:"email"`
 	Company       string                `json:"company"`
 	SessionState  string                `json:"session_state"`
+	Approved      bool                  `json:"approved"`
 	Authorization *AuthorizationPayload `json:"authorization"`
 	jwt.StandardClaims
 }
@@ -69,6 +74,7 @@ type Permissions struct {
 type Manager interface {
 	Locate(ctx context.Context) (uuid.UUID, error)
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
+	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
 	PublicKeys() []*rsa.PublicKey
 	JsonWebKeys() JsonKeys
@@ -305,7 +311,32 @@ func toPemKeys(publicKeys []*PublicKey) (JsonKeys, error) {
 
 // ParseToken parses token claims
 func (mgm *tokenManager) ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, mgm.keyFunction(ctx))
+	if err != nil {
+		return nil, err
+	}
+	claims := token.Claims.(*TokenClaims)
+	if token.Valid {
+		return claims, nil
+	}
+	return nil, errors.WithStack(errors.New("token is not valid"))
+}
+
+// ParseTokenWithMapClaims parses token claims
+func (mgm *tokenManager) ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, mgm.keyFunction(ctx))
+	if err != nil {
+		return nil, err
+	}
+	claims := token.Claims.(jwt.MapClaims)
+	if token.Valid {
+		return claims, nil
+	}
+	return nil, errors.WithStack(errors.New("token is not valid"))
+}
+
+func (mgm *tokenManager) keyFunction(ctx context.Context) jwt.Keyfunc {
+	return func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
 			log.Error(ctx, map[string]interface{}{}, "There is no 'kid' header in the token")
@@ -319,15 +350,7 @@ func (mgm *tokenManager) ParseToken(ctx context.Context, tokenString string) (*T
 			return nil, errors.New(fmt.Sprintf("There is no public key with such ID: %s", kid))
 		}
 		return key, nil
-	})
-	if err != nil {
-		return nil, err
 	}
-	claims := token.Claims.(*TokenClaims)
-	if token.Valid {
-		return claims, nil
-	}
-	return nil, errors.WithStack(errors.New("token is not valid"))
 }
 
 func (mgm *tokenManager) Locate(ctx context.Context) (uuid.UUID, error) {
@@ -424,4 +447,65 @@ func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
 		return nil, errs.New("missing token manager")
 	}
 	return tm.(*tokenManager), nil
+}
+
+// NumberToInt convert interface{} to int64
+func NumberToInt(number interface{}) (int64, error) {
+	switch v := number.(type) {
+	case int32:
+		return int64(v), nil
+	case int64:
+		return v, nil
+	case float32:
+		return int64(v), nil
+	case float64:
+		return int64(v), nil
+	}
+	result, err := strconv.ParseInt(fmt.Sprintf("%v", number), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}
+
+// EncodeToken encodes token
+func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token) error {
+	str := outhToken.Extra("expires_in")
+	var expiresIn interface{}
+	var refreshExpiresIn interface{}
+	var err error
+	expiresIn, err = NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"expires_in": str,
+			"err":        err,
+		}, "unable to parse expires_in claim")
+		return errs.WithStack(errors.New("unable to parse expires_in claim to integer: " + err.Error()))
+	}
+	str = outhToken.Extra("refresh_expires_in")
+	refreshExpiresIn, err = NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"refresh_expires_in": str,
+			"err":                err,
+		}, "unable to parse expires_in claim")
+		return errs.WithStack(errors.New("unable to parse refresh_expires_in claim to integer: " + err.Error()))
+	}
+	tokenData := &app.TokenData{
+		AccessToken:      &outhToken.AccessToken,
+		RefreshToken:     &outhToken.RefreshToken,
+		TokenType:        &outhToken.TokenType,
+		ExpiresIn:        &expiresIn,
+		RefreshExpiresIn: &refreshExpiresIn,
+	}
+	b, err := json.Marshal(tokenData)
+	if err != nil {
+		return errs.WithStack(errors.New("cant marshal token data struct " + err.Error()))
+	}
+
+	parameters := referrer.Query()
+	parameters.Add("token_json", string(b))
+	referrer.RawQuery = parameters.Encode()
+
+	return nil
 }

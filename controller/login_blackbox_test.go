@@ -88,7 +88,7 @@ func (t TestLoginService) Perform(ctx *app.LoginLoginContext, oauth *oauth2.Conf
 	return ctx.TemporaryRedirect()
 }
 
-func (t TestLoginService) CreateOrUpdateIdentity(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, bool, error) {
+func (t TestLoginService) CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
 	return nil, false, nil
 }
 

@@ -3,9 +3,13 @@ package token
 import (
 	"crypto/rsa"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"context"
+	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/pkg/errors"
+	"github.com/satori/go.uuid"
+	"time"
 )
 
 var (
@@ -25,6 +29,72 @@ func GenerateToken(identityID string, identityUsername string, privateKey *rsa.P
 
 	token.Header["kid"] = "test-key"
 	tokenStr, err := token.SignedString(privateKey)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	return tokenStr, nil
+}
+
+// GenerateTokenWithClaims generates a JWT token with additional claims
+func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+
+	token.Claims.(jwt.MapClaims)["uuid"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["preferred_username"] = fmt.Sprintf("testUser-%s", uuid.NewV4().String())
+	token.Claims.(jwt.MapClaims)["sub"] = uuid.NewV4().String()
+
+	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["session_state"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
+	token.Claims.(jwt.MapClaims)["exp"] = time.Now().Unix() + 60*60*24*30
+
+	token.Claims.(jwt.MapClaims)["nbf"] = 0
+	token.Claims.(jwt.MapClaims)["iss"] = "fabric8-auth"
+	token.Claims.(jwt.MapClaims)["typ"] = "Bearer"
+
+	token.Claims.(jwt.MapClaims)["approved"] = true
+	token.Claims.(jwt.MapClaims)["name"] = "Test User"
+	token.Claims.(jwt.MapClaims)["company"] = "Company Inc."
+	token.Claims.(jwt.MapClaims)["given_name"] = "Test"
+	token.Claims.(jwt.MapClaims)["family_name"] = "User"
+	token.Claims.(jwt.MapClaims)["email"] = fmt.Sprintf("testuser+%s@email.com", uuid.NewV4().String())
+
+	for key, value := range claims {
+		token.Claims.(jwt.MapClaims)[key] = value
+	}
+	token.Header["kid"] = "test-key"
+	tokenStr, err := token.SignedString(PrivateKey())
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	return tokenStr, nil
+}
+
+// UpdateToken generates a new token based on the existing one with additional claims
+func UpdateToken(tokenString string, claims map[string]interface{}) (string, error) {
+	newToken := jwt.New(jwt.SigningMethodRS256)
+
+	oldTokenClaims, err := TokenManager.ParseTokenWithMapClaims(context.Background(), tokenString)
+	if err != nil {
+		return "", err
+	}
+	for key, value := range oldTokenClaims {
+		switch value.(type) {
+		case float64:
+			number, err := token.NumberToInt(value)
+			if err != nil {
+				return "", err
+			}
+			newToken.Claims.(jwt.MapClaims)[key] = number
+		default:
+			newToken.Claims.(jwt.MapClaims)[key] = value
+		}
+	}
+	for key, value := range claims {
+		newToken.Claims.(jwt.MapClaims)[key] = value
+	}
+	newToken.Header["kid"] = "test-key"
+	tokenStr, err := newToken.SignedString(PrivateKey())
 	if err != nil {
 		return "", errors.WithStack(err)
 	}

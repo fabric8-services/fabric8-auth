@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -35,7 +34,6 @@ import (
 )
 
 type LoginServiceConfiguration interface {
-	GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error)
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
 	GetValidRedirectURLs() string
 	GetNotApprovedRedirect() string
@@ -65,7 +63,7 @@ type KeycloakOAuthProvider struct {
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
 	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, serviceConfig LoginServiceConfiguration) error
-	CreateOrUpdateIdentity(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, bool, error)
+	CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -95,13 +93,6 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"err": err,
 		}, "Unable to get Keycloak broker endpoint URL")
 		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL")))
-	}
-	profileEndpoint, err := serviceConfig.GetKeycloakAccountEndpoint(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get Keycloak account endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
 	}
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
@@ -159,7 +150,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"known_referrer": knownReferrer,
 		}, "exchanged code to access token")
 
-		identity, newUser, err := keycloak.CreateOrUpdateIdentity(keycloakToken.AccessToken, ctx, profileEndpoint)
+		identity, newUser, err := keycloak.CreateOrUpdateIdentity(ctx, keycloakToken.AccessToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -222,7 +213,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			return redirectWithError(ctx, knownReferrer, err.Error())
 		}
 
-		err = encodeToken(ctx, referrerURL, keycloakToken)
+		err = token.EncodeToken(ctx, referrerURL, keycloakToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -604,68 +595,9 @@ func getProviderURL(req *goa.RequestData, state string, sessionState string, pro
 	return linkingURL.String(), nil
 }
 
-func numberToInt(number interface{}) (int64, error) {
-	switch v := number.(type) {
-	case int32:
-		return int64(v), nil
-	case int64:
-		return v, nil
-	case float32:
-		return int64(v), nil
-	case float64:
-		return int64(v), nil
-	}
-	result, err := strconv.ParseInt(fmt.Sprintf("%v", number), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return result, nil
-}
-
-func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token) error {
-	str := outhToken.Extra("expires_in")
-	var expiresIn interface{}
-	var refreshExpiresIn interface{}
-	var err error
-	expiresIn, err = numberToInt(str)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"expires_in": str,
-			"err":        err,
-		}, "unable to parse expires_in claim")
-		return errs.WithStack(errors.New("unable to parse expires_in claim to integer: " + err.Error()))
-	}
-	str = outhToken.Extra("refresh_expires_in")
-	refreshExpiresIn, err = numberToInt(str)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"refresh_expires_in": str,
-			"err":                err,
-		}, "unable to parse expires_in claim")
-		return errs.WithStack(errors.New("unable to parse refresh_expires_in claim to integer: " + err.Error()))
-	}
-	tokenData := &app.TokenData{
-		AccessToken:      &outhToken.AccessToken,
-		RefreshToken:     &outhToken.RefreshToken,
-		TokenType:        &outhToken.TokenType,
-		ExpiresIn:        &expiresIn,
-		RefreshExpiresIn: &refreshExpiresIn,
-	}
-	b, err := json.Marshal(tokenData)
-	if err != nil {
-		return errs.WithStack(errors.New("cant marshal token data struct " + err.Error()))
-	}
-
-	parameters := referrer.Query()
-	parameters.Add("token_json", string(b))
-	referrer.RawQuery = parameters.Encode()
-
-	return nil
-}
-
 // CreateOrUpdateIdentity creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(accessToken string, ctx context.Context, profileEndpoint string) (*account.Identity, bool, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
@@ -683,6 +615,10 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(accessToken string
 			"err":   err,
 		}, "invalid keycloak token claims")
 		return nil, false, errors.New("invalid keycloak token claims " + err.Error())
+	}
+
+	if !claims.Approved {
+		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
 	}
 
 	keycloakIdentityID, _ := uuid.FromString(claims.Subject)
@@ -710,13 +646,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(accessToken string
 
 	if len(identities) == 0 {
 		// No Identity found, create a new Identity and User
-		approved, err := checkApproved(ctx, NewKeycloakUserProfileClient(), accessToken, profileEndpoint)
-		if err != nil {
-			return nil, false, err
-		}
-		if !approved {
-			return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
-		}
 
 		// Now that user/identity objects have been initialized, update it
 		// from the token claims info.
@@ -825,42 +754,6 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 		},
 	}
 	return keycloak.remoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
-}
-
-func checkApproved(ctx context.Context, profileService UserProfileService, accessToken string, profileEndpoint string) (bool, error) {
-	profile, err := profileService.Get(ctx, accessToken, profileEndpoint)
-	if err != nil {
-		return false, err
-	}
-	if profile.Attributes == nil {
-		log.Warn(ctx, map[string]interface{}{
-			"username": profile.Username,
-		}, "no attributes found in the user's profile")
-		return false, nil
-	}
-	attributes := *profile.Attributes
-	approved := attributes[ApprovedAttributeName]
-	if approved == nil || len(approved) == 0 {
-		log.Warn(ctx, map[string]interface{}{
-			"username": profile.Username,
-		}, "no approved attribute found in the user's profile or the value is empty")
-		return false, nil
-	}
-	b, err := strconv.ParseBool(approved[0])
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":      err,
-			"username": profile.Username,
-			"approved": approved[0],
-		}, "unable to parse 'approved' attribute of the user's profile")
-		return false, err
-	}
-	if !b {
-		log.Warn(ctx, map[string]interface{}{
-			"username": profile.Username,
-		}, "approved attribute found but set to false")
-	}
-	return b, nil
 }
 
 func redirectWithError(ctx *app.LoginLoginContext, knownReferrer string, errorString string) error {

@@ -14,12 +14,15 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-auth/auth"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"net/url"
 )
 
 func TestToken(t *testing.T) {
@@ -35,7 +38,6 @@ type TestTokenSuite struct {
 }
 
 func (s *TestTokenSuite) SetupSuite() {
-	resource.Require(s.T(), resource.UnitTest)
 	var err error
 	s.config, err = configuration.GetConfigurationData()
 	if err != nil {
@@ -144,4 +146,80 @@ func (s *TestTokenSuite) TestLocateInvalidUUIDInTokenInContext() {
 
 	_, err := s.tokenManager.Locate(ctx)
 	require.NotNil(s.T(), err)
+}
+
+func (s *TestTokenSuite) TestEncodeTokenOK() {
+	referrerURL, _ := url.Parse("https://example.domain.com")
+	accessToken := "accessToken%@!/\\&?"
+	refreshToken := "refreshToken%@!/\\&?"
+	tokenType := "tokenType%@!/\\&?"
+	expiresIn := 1800
+	var refreshExpiresIn float64
+	refreshExpiresIn = 2.59e6
+
+	outhToken := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    tokenType,
+	}
+	extra := map[string]interface{}{
+		"expires_in":         expiresIn,
+		"refresh_expires_in": refreshExpiresIn,
+	}
+	err := token.EncodeToken(context.Background(), referrerURL, outhToken.WithExtra(extra))
+	assert.Nil(s.T(), err)
+	encoded := referrerURL.String()
+
+	referrerURL, _ = url.Parse(encoded)
+	values := referrerURL.Query()
+	tJSON := values["token_json"]
+	b := []byte(tJSON[0])
+	tokenData := &auth.Token{}
+	err = json.Unmarshal(b, tokenData)
+	assert.Nil(s.T(), err)
+
+	assert.Equal(s.T(), accessToken, *tokenData.AccessToken)
+	assert.Equal(s.T(), refreshToken, *tokenData.RefreshToken)
+	assert.Equal(s.T(), tokenType, *tokenData.TokenType)
+	assert.Equal(s.T(), int64(expiresIn), *tokenData.ExpiresIn)
+	assert.Equal(s.T(), int64(refreshExpiresIn), *tokenData.RefreshExpiresIn)
+}
+
+func (s *TestTokenSuite) TestInt32ToInt64OK() {
+	var i32 int32
+	i32 = 60
+	i, err := token.NumberToInt(i32)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), int64(i32), i)
+}
+
+func (s *TestTokenSuite) TestInt64ToInt64OK() {
+	var i64 int64
+	i64 = 6000000000000000000
+	i, err := token.NumberToInt(i64)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), i64, i)
+}
+
+func (s *TestTokenSuite) TestFloat32ToInt64OK() {
+	var f32 float32
+	f32 = 0.1e1
+	i, err := token.NumberToInt(f32)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), int64(f32), i)
+}
+
+func (s *TestTokenSuite) TestFloat64ToInt64OK() {
+	var f64 float64
+	f64 = 0.1e10
+	i, err := token.NumberToInt(f64)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), int64(f64), i)
+}
+
+func (s *TestTokenSuite) TestStringToInt64OK() {
+	str := "2590000"
+	i, err := token.NumberToInt(str)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), int64(2590000), i)
 }
