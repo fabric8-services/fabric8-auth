@@ -955,11 +955,7 @@ func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.Requ
 	return nil
 }
 
-func (r *dummyRemoteWITService) GetWITUser(ctx context.Context, req *goa.RequestData, witURL string, accessToken *string) (*account.User, *account.Identity, error) {
-	return nil, nil, nil
-}
-
-func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, user *account.User, identity *account.Identity, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
 	return nil
 }
 
