@@ -30,6 +30,7 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -62,7 +63,7 @@ type KeycloakOAuthProvider struct {
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Perform(ctx *app.LoginLoginContext, config *oauth2.Config, serviceConfig LoginServiceConfiguration) error
+	Perform(ctx *app.LoginLoginContext, config OauthConfig, serviceConfig LoginServiceConfiguration) error
 	CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
@@ -83,9 +84,13 @@ const (
 	apiTokenParam        = "api_token"
 )
 
-// Perform performs authentication
-func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config *oauth2.Config, serviceConfig LoginServiceConfiguration) error {
+type OauthConfig interface {
+	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
+	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
+}
 
+// Perform performs authentication
+func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config OauthConfig, serviceConfig LoginServiceConfiguration) error {
 	/* Compute all the configuration urls */
 
 	brokerEndpoint, err := serviceConfig.GetKeycloakEndpointBroker(ctx.RequestData)

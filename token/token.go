@@ -18,6 +18,7 @@ import (
 
 	"time"
 
+	"bytes"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/goadesign/goa"
@@ -26,8 +27,10 @@ import (
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
+	"io"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -508,4 +511,33 @@ func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	referrer.RawQuery = parameters.Encode()
 
 	return nil
+}
+
+// TokenSet represents a set of Access and Refresh tokens
+type TokenSet struct {
+	AccessToken      *string `json:"access_token,omitempty"`
+	ExpiresIn        *int64  `json:"expires_in,omitempty"`
+	NotBeforePolicy  *int64  `json:"not-before-policy,omitempty"`
+	RefreshExpiresIn *int64  `json:"refresh_expires_in,omitempty"`
+	RefreshToken     *string `json:"refresh_token,omitempty"`
+	TokenType        *string `json:"token_type,omitempty"`
+}
+
+// ReadTokenSet extracts json with token data from the response
+func ReadTokenSet(ctx context.Context, res *http.Response) (*TokenSet, error) {
+	// Read the json out of the response body
+	buf := new(bytes.Buffer)
+	io.Copy(buf, res.Body)
+	jsonString := strings.TrimSpace(buf.String())
+	return ReadTokenSetFromJson(ctx, jsonString)
+}
+
+// ReadTokenSetFromJson parses json with a token set
+func ReadTokenSetFromJson(ctx context.Context, jsonString string) (*TokenSet, error) {
+	var token TokenSet
+	err := json.Unmarshal([]byte(jsonString), &token)
+	if err != nil {
+		return nil, errs.Wrapf(err, "error when unmarshal json with access token %s ", jsonString)
+	}
+	return &token, nil
 }

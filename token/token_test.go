@@ -3,10 +3,10 @@ package token_test
 import (
 	"context"
 	"crypto/rsa"
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"testing"
-
-	"golang.org/x/oauth2"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -14,15 +14,13 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
-	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"net/url"
+	"golang.org/x/oauth2"
 )
 
 func TestToken(t *testing.T) {
@@ -174,7 +172,7 @@ func (s *TestTokenSuite) TestEncodeTokenOK() {
 	values := referrerURL.Query()
 	tJSON := values["token_json"]
 	b := []byte(tJSON[0])
-	tokenData := &auth.Token{}
+	tokenData := &token.TokenSet{}
 	err = json.Unmarshal(b, tokenData)
 	assert.Nil(s.T(), err)
 

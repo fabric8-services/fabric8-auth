@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/fabric8-services/fabric8-auth/token"
 	_ "github.com/lib/pq"
 )
 
@@ -245,12 +246,12 @@ func (s *TestAuthSuite) TestGetProtectedAPITokenOK() {
 func (s *TestAuthSuite) TestReadTokenOK() {
 	b := closer{bytes.NewBufferString("{\"access_token\":\"accToken\", \"expires_in\":3000000, \"refresh_expires_in\":2, \"refresh_token\":\"refToken\"}")}
 	response := http.Response{Body: b}
-	token, err := auth.ReadToken(context.Background(), &response)
+	t, err := token.ReadTokenSet(context.Background(), &response)
 	require.Nil(s.T(), err)
-	assert.Equal(s.T(), "accToken", *token.AccessToken)
-	assert.Equal(s.T(), int64(3000000), *token.ExpiresIn)
-	assert.Equal(s.T(), int64(2), *token.RefreshExpiresIn)
-	assert.Equal(s.T(), "refToken", *token.RefreshToken)
+	assert.Equal(s.T(), "accToken", *t.AccessToken)
+	assert.Equal(s.T(), int64(3000000), *t.ExpiresIn)
+	assert.Equal(s.T(), int64(2), *t.RefreshExpiresIn)
+	assert.Equal(s.T(), "refToken", *t.RefreshToken)
 }
 
 func (s *TestAuthSuite) TestUpdateUserToPolicyOK() {
