@@ -81,7 +81,7 @@ var allProvidersToLink = []string{"github", "openshift-v3"}
 
 const (
 	initiateLinkingParam = "initlinking"
-	apiTokenParam        = "api_token"
+	apiClientParam       = "api_client"
 )
 
 type OauthConfig interface {
@@ -172,8 +172,8 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			}, "failed to create a user and keycloak identity ")
 			switch err.(type) {
 			case autherrors.UnauthorizedError:
-				apiToken := referrerURL.Query().Get(apiTokenParam)
-				if apiToken != "" {
+				apiClient := referrerURL.Query().Get(apiClientParam)
+				if apiClient != "" {
 					// Return the token even for unapproved users
 					err = encodeToken(ctx, referrerURL, keycloakToken)
 					if err != nil {
@@ -184,7 +184,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 					}
 					log.Info(ctx, map[string]interface{}{
 						"known_referrer": knownReferrer,
-						"api_token":      ctx.APIToken,
+						"api_client":     ctx.APIClient,
 					}, "return api token for unapproved user")
 					ctx.ResponseData.Header().Set("Location", referrerURL.String())
 					return ctx.TemporaryRedirect()
@@ -254,7 +254,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 				"known_referrer": knownReferrer,
 				"user_name":      identity.Username,
 				"referrer_str":   referrerURL.String(),
-				"api_token":      ctx.APIToken,
+				"api_client":     ctx.APIClient,
 			}, "all good; redirecting back to referrer")
 			return ctx.TemporaryRedirect()
 		}
@@ -284,7 +284,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 				"user_name":      identity.Username,
 				"linked":         linked,
 				"referrer_str":   referrerStr,
-				"api_token":      ctx.APIToken,
+				"api_client":     ctx.APIClient,
 			}, "all good; redirecting back to referrer")
 			return ctx.TemporaryRedirect()
 		}
@@ -353,8 +353,8 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 }
 
 func (keycloak *KeycloakOAuthProvider) saveParams(ctx *app.LoginLoginContext, redirect string) (*string, error) {
-	if ctx.APIToken != nil || (ctx.Link != nil && *ctx.Link) {
-		// We need to save the "link" param so we don't lose it when redirect to sso for auth and back to auth.
+	if ctx.APIClient != nil || (ctx.Link != nil && *ctx.Link) {
+		// We need to save the "link" and "api_client" params so we don't lose them when redirect to sso for auth and back to auth.
 		linkURL, err := url.Parse(redirect)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -367,8 +367,8 @@ func (keycloak *KeycloakOAuthProvider) saveParams(ctx *app.LoginLoginContext, re
 		if ctx.Link != nil && *ctx.Link {
 			parameters.Add(initiateLinkingParam, strconv.FormatBool(*ctx.Link))
 		}
-		if ctx.APIToken != nil {
-			parameters.Add("api_token", *ctx.APIToken)
+		if ctx.APIClient != nil {
+			parameters.Add("api_client", *ctx.APIClient)
 		}
 		linkURL.RawQuery = parameters.Encode()
 		s := linkURL.String()

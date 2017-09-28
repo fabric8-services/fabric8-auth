@@ -571,9 +571,9 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
 	assert.Equal(s.T(), 0, len(rw.HeaderMap["Location"]))
 }
 
-func (s *serviceBlackBoxTest) TestAPITokenForApprovedUsersReturnOK() {
+func (s *serviceBlackBoxTest) TestAPIClientForApprovedUsersReturnOK() {
 	extra := make(map[string]string)
-	extra["api_token"] = "vscode"
+	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
 
 	claims := make(map[string]interface{})
@@ -588,9 +588,9 @@ func (s *serviceBlackBoxTest) TestAPITokenForApprovedUsersReturnOK() {
 	s.checkLoginCallback(dummyOauth, rw, authorizeCtx)
 }
 
-func (s *serviceBlackBoxTest) TestAPITokenForUnapprovedUsersReturnOK() {
+func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
 	extra := make(map[string]string)
-	extra["api_token"] = "vscode"
+	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
 
 	claims := make(map[string]interface{})
