@@ -12,20 +12,20 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	. "github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-
-	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -43,6 +43,7 @@ type serviceBlackBoxTest struct {
 }
 
 func TestRunServiceBlackBoxTest(t *testing.T) {
+	resource.Require(t, resource.Database)
 	suite.Run(t, &serviceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
 }
 
@@ -124,6 +125,55 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	assert.Equal(s.T(), 307, rw.Code)
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
+}
+
+func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
+	claims := make(map[string]interface{})
+	token, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	identity, ok, err := s.loginService.CreateOrUpdateIdentity(context.Background(), token)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), identity)
+	assert.True(s.T(), ok)
+	s.checkIfTokenMatchesIdentity(token, *identity)
+
+	updatedClaims := make(map[string]interface{})
+	updatedClaims["company"] = "Updated company"
+	updatedClaims["preferred_username"] = uuid.NewV4().String()
+	updatedClaims["name"] = "Updated Name"
+	updatedClaims["given_name"] = "Updated"
+	updatedClaims["family_name"] = "Name"
+
+	token, err = testtoken.UpdateToken(token, updatedClaims)
+	require.Nil(s.T(), err)
+
+	identity, ok, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), identity)
+	assert.False(s.T(), ok)
+	s.checkIfTokenMatchesIdentity(token, *identity)
+}
+
+func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
+	claims := make(map[string]interface{})
+	claims["approved"] = false
+	token, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	_, _, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token)
+	require.NotNil(s.T(), err)
+	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+}
+
+func (s *serviceBlackBoxTest) checkIfTokenMatchesIdentity(tokenString string, identity account.Identity) {
+	claims, err := testtoken.TokenManager.ParseToken(context.Background(), tokenString)
+	require.Nil(s.T(), err)
+	assert.Equal(s.T(), claims.Company, identity.User.Company)
+	assert.Equal(s.T(), claims.Username, identity.Username)
+	assert.Equal(s.T(), claims.Email, identity.User.Email)
+	assert.Equal(s.T(), claims.Subject, identity.ID.String())
+	assert.Equal(s.T(), claims.Name, identity.User.FullName)
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam() {
@@ -399,8 +449,6 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	// fails. In such a scenario, there is response redirection
 	// to the valid referer, ie, the URL where the request originated from.
 	// Currently, this should be something like https://demo.openshift.io/somepage/
-
-	resource.Require(s.T(), resource.Database)
 
 	// Setup request context
 	rw := httptest.NewRecorder()
