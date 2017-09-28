@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -147,7 +146,6 @@ func (s *TestTokenSuite) TestLocateInvalidUUIDInTokenInContext() {
 }
 
 func (s *TestTokenSuite) TestEncodeTokenOK() {
-	referrerURL, _ := url.Parse("https://example.domain.com")
 	accessToken := "accessToken%@!/\\&?"
 	refreshToken := "refreshToken%@!/\\&?"
 	tokenType := "tokenType%@!/\\&?"
@@ -164,14 +162,9 @@ func (s *TestTokenSuite) TestEncodeTokenOK() {
 		"expires_in":         expiresIn,
 		"refresh_expires_in": refreshExpiresIn,
 	}
-	err := token.EncodeToken(context.Background(), referrerURL, outhToken.WithExtra(extra))
+	tokenJson, err := token.TokenToJson(context.Background(), outhToken.WithExtra(extra))
 	assert.Nil(s.T(), err)
-	encoded := referrerURL.String()
-
-	referrerURL, _ = url.Parse(encoded)
-	values := referrerURL.Query()
-	tJSON := values["token_json"]
-	b := []byte(tJSON[0])
+	b := []byte(tokenJson)
 	tokenData := &token.TokenSet{}
 	err = json.Unmarshal(b, tokenData)
 	assert.Nil(s.T(), err)

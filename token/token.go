@@ -28,7 +28,6 @@ import (
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
 	"io"
-	"net/url"
 	"strconv"
 	"strings"
 )
@@ -471,8 +470,8 @@ func NumberToInt(number interface{}) (int64, error) {
 	return result, nil
 }
 
-// EncodeToken encodes token
-func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token) error {
+// TokenToJson marshals an oauth2 token to a json string
+func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
 	str := outhToken.Extra("expires_in")
 	var expiresIn interface{}
 	var refreshExpiresIn interface{}
@@ -483,7 +482,7 @@ func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 			"expires_in": str,
 			"err":        err,
 		}, "unable to parse expires_in claim")
-		return errs.WithStack(errors.New("unable to parse expires_in claim to integer: " + err.Error()))
+		return "", errs.WithStack(err)
 	}
 	str = outhToken.Extra("refresh_expires_in")
 	refreshExpiresIn, err = NumberToInt(str)
@@ -492,7 +491,7 @@ func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 			"refresh_expires_in": str,
 			"err":                err,
 		}, "unable to parse expires_in claim")
-		return errs.WithStack(errors.New("unable to parse refresh_expires_in claim to integer: " + err.Error()))
+		return "", errs.WithStack(err)
 	}
 	tokenData := &app.TokenData{
 		AccessToken:      &outhToken.AccessToken,
@@ -503,14 +502,10 @@ func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	}
 	b, err := json.Marshal(tokenData)
 	if err != nil {
-		return errs.WithStack(errors.New("cant marshal token data struct " + err.Error()))
+		return "", errs.WithStack(err)
 	}
 
-	parameters := referrer.Query()
-	parameters.Add("token_json", string(b))
-	referrer.RawQuery = parameters.Encode()
-
-	return nil
+	return string(b), nil
 }
 
 // TokenSet represents a set of Access and Refresh tokens

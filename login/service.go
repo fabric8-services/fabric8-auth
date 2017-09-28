@@ -175,12 +175,12 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 				apiToken := referrerURL.Query().Get(apiTokenParam)
 				if apiToken != "" {
 					// Return the token even for unapproved users
-					err = token.EncodeToken(ctx, referrerURL, keycloakToken)
+					err = encodeToken(ctx, referrerURL, keycloakToken)
 					if err != nil {
 						log.Error(ctx, map[string]interface{}{
 							"err": err,
 						}, "failed to encode token")
-						return redirectWithError(ctx, knownReferrer, err.Error())
+						return jsonapi.JSONErrorResponse(ctx, err)
 					}
 					log.Info(ctx, map[string]interface{}{
 						"known_referrer": knownReferrer,
@@ -198,9 +198,8 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 					ctx.ResponseData.Header().Set("Location", userNotApprovedRedirectURL)
 					return ctx.TemporaryRedirect()
 				}
-				return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
 			}
-			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
+			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 
 		log.Debug(ctx, map[string]interface{}{
@@ -235,7 +234,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			}
 		}
 
-		err = token.EncodeToken(ctx, referrerURL, keycloakToken)
+		err = encodeToken(ctx, referrerURL, keycloakToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -340,6 +339,17 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
+}
+
+func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token) error {
+	tokenJson, err := token.TokenToJson(ctx, outhToken)
+	if err != nil {
+		return err
+	}
+	parameters := referrer.Query()
+	parameters.Add("token_json", tokenJson)
+	referrer.RawQuery = parameters.Encode()
+	return nil
 }
 
 func (keycloak *KeycloakOAuthProvider) saveParams(ctx *app.LoginLoginContext, redirect string) (*string, error) {
