@@ -20,6 +20,7 @@ var _ = a.Resource("login", func() {
 				a.Enum("offline_access")
 				a.Description("If scope=offline_access then an offline token will be issued instead of a regular refresh token")
 			})
+			a.Param("api_token", d.String, "If not an empty string then return a token for accessing API")
 		})
 		a.Description("Login user")
 		a.Response(d.Unauthorized, JSONAPIErrors)
