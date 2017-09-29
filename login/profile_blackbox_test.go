@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/login"
@@ -19,6 +18,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	_ "github.com/lib/pq"
 	errs "github.com/pkg/errors"
@@ -111,9 +111,9 @@ func (s *ProfileBlackBoxTest) generateAccessToken() (*string, error) {
 		return nil, errors.NewInternalError(context.Background(), errs.Wrap(err, "error when obtaining token"))
 	}
 
-	token, err := auth.ReadToken(context.Background(), res)
+	t, err := token.ReadTokenSet(context.Background(), res)
 	require.Nil(s.T(), err)
-	return token.AccessToken, err
+	return t.AccessToken, err
 }
 
 func (s *ProfileBlackBoxTest) TestKeycloakUserProfileUpdate() {
