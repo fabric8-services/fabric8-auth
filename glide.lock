@@ -1,5 +1,5 @@
-hash: b0ac946fc96bea77464c8d56044f479f7d0265d346b4a62133ce5d0e5d8102a2
-updated: 2017-09-29T17:07:14.477697973+02:00
+hash: abbe98619e040ef910c300bf1e873c2347a2e18efe47b758502fc7c84b1cad15
+updated: 2017-09-29T16:13:02.108418892+02:00
 imports:
 - name: github.com/andygrunwald/go-jira
   version: 9d1f282f93af41553ddb53b0116a8cdb75b4837a
@@ -27,6 +27,20 @@ imports:
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
   subpackages:
   - go-bindata-assetfs
+- name: github.com/fabric8-services/fabric8-wit
+  version: 4419b9ea51938829dfdf18aad659ac34c7d01488
+  subpackages:
+  - account
+  - account/tenant
+  - application/repository
+  - configuration
+  - convert
+  - design
+  - errors
+  - goasupport
+  - gormsupport
+  - log
+  - rest
 - name: github.com/fsnotify/fsnotify
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: github.com/fzipp/gocyclo
