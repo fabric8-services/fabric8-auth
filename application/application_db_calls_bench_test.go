@@ -15,7 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/almighty/almighty-core/account"
+	"github.com/fabric8-services/fabric8-wit/account"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )

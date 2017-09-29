@@ -1,12 +1,10 @@
-hash: d5617480373ee580544dcaa0b3836aec445c98cefbdca0f0ce02b74428592997
-updated: 2017-09-06T14:32:24.658504132-07:00
+hash: abbe98619e040ef910c300bf1e873c2347a2e18efe47b758502fc7c84b1cad15
+updated: 2017-09-29T16:13:02.108418892+02:00
 imports:
 - name: github.com/andygrunwald/go-jira
   version: 9d1f282f93af41553ddb53b0116a8cdb75b4837a
 - name: github.com/armon/go-metrics
   version: 97c69685293dce4c0a2d0b19535179bbc976e4d2
-- name: github.com/asaskevich/govalidator
-  version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
 - name: github.com/axw/gocov
   version: c77561ca0c0cb1ed5d4ce4a912a75f5532566422
   subpackages:
@@ -15,8 +13,6 @@ imports:
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
   subpackages:
   - spew
-- name: github.com/fabric8-services/fabric8-wit
-  version: 4419b9ea51938829dfdf18aad659ac34c7d01488
 - name: github.com/dgrijalva/jwt-go
   version: d2709f9f1f31ebcda9651b03077758c1f3a0018c
 - name: github.com/dimfeld/httppath
@@ -26,20 +22,31 @@ imports:
 - name: github.com/dnaeon/go-vcr
   version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
   subpackages:
-  - cassette
   - recorder
 - name: github.com/elazarl/go-bindata-assetfs
   version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
   subpackages:
   - go-bindata-assetfs
-- name: github.com/fatih/structs
-  version: dc3312cb1a4513a366c4c9e622ad55c32df12ed3
+- name: github.com/fabric8-services/fabric8-wit
+  version: 4419b9ea51938829dfdf18aad659ac34c7d01488
+  subpackages:
+  - account
+  - account/tenant
+  - application/repository
+  - configuration
+  - convert
+  - design
+  - errors
+  - goasupport
+  - gormsupport
+  - log
+  - rest
 - name: github.com/fsnotify/fsnotify
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: github.com/fzipp/gocyclo
   version: 6acd4345c835499920e8426c7e4e8d7a34f1bb83
 - name: github.com/goadesign/goa
-  version: 58f3177f36f2c50ee6119da92795e48bac6d6243
+  version: 5646a430cdeb66983d5ace3384e0a667c185abc7
   vcs: git
   subpackages:
   - client
@@ -94,6 +101,8 @@ imports:
   version: c1b9cf186e4bcd8e5d566ef43f2ae2dfe22dc34e
 - name: github.com/jinzhu/inflection
   version: 74387dc39a75e970e7a3ae6a3386b5bd2e5c5cff
+- name: github.com/jstemmer/go-junit-report
+  version: 15422cf504f9dc030386499a5c68053a38763e58
 - name: github.com/jteeuwen/go-bindata
   version: bbd0c6e271208dce66d8fda4bc536453cd27fc4a
   subpackages:
@@ -109,13 +118,13 @@ imports:
 - name: github.com/lsegal/gucumber
   version: 71608e2f6e76fd4da5b09a376aeec7a5c0b5edbc
 - name: github.com/magiconair/properties
-  version: f917359f079a3759162704eaa8caeec3d01d9f91
+  version: be5ece7dd465ab0765a9682137865547526d1dfb
 - name: github.com/manveru/faker
   version: 717f7cf83fb78669bfab612749c2e8ff63d5be11
 - name: github.com/mattn/go-colorable
   version: d228849504861217f796da67fae4f6e347643f15
 - name: github.com/mattn/go-isatty
-  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
+  version: 0360b2af4f38e8d38c7fce2a9f4e702702d73a39
 - name: github.com/microcosm-cc/bluemonday
   version: e79763773ab6222ca1d5a7cbd9d62d83c1f77081
 - name: github.com/mitchellh/mapstructure
@@ -138,8 +147,6 @@ imports:
   version: b024fc5ea0e34bc3f83d9941c8d60b0622bfaca4
 - name: github.com/russross/blackfriday
   version: 5f33e7b7878355cd2b7e6b8eefc48a5472c69f70
-- name: github.com/jstemmer/go-junit-report
-  version: 15422cf504f9dc030386499a5c68053a38763e58
 - name: github.com/satori/go.uuid
   version: b061729afc07e77a8aa4fad0a2fd840958f1942a
 - name: github.com/sergi/go-diff
@@ -174,26 +181,19 @@ imports:
   - assert
   - require
   - suite
-- name: gopkg.in/square/go-jose.v2
-  version: b25e6cab129e4a54675b42ea49d38e9c33ade9e6
-- name: golang.org/x/crypto
-  version: 81e90905daefcd6fd217b62423c0908922eadb30
-  subpackages:
-  - ssh/terminal
-- name: github.com/trivago/tgo
-  version: 4a656addb20609ba4cb4d20219a2f6c27aeb142c
-  subpackages:
-  - tcontainer
 - name: github.com/wadey/gocovmerge
   version: b5bfa59ec0adc420475f97f89b58045c721d761c
 - name: github.com/zach-klippenstein/goregen
   version: 795b5e3961ea1912fde60af417ad85e86acc0d6a
+- name: golang.org/x/crypto
+  version: 81e90905daefcd6fd217b62423c0908922eadb30
+  subpackages:
+  - ed25519
+  - ed25519/internal/edwards25519
 - name: golang.org/x/net
   version: b1a2d6e8c8b5fc8f601ead62536f02a8e1b6217d
   subpackages:
   - context
-  - html
-  - html/atom
   - websocket
 - name: golang.org/x/oauth2
   version: da3ce8d62a7f77aadfda06cb82bd604d6469c645
@@ -224,6 +224,11 @@ imports:
   - urlfetch
 - name: gopkg.in/asaskevich/govalidator.v4
   version: 7664702784775e51966f0885f5cd27435916517b
+- name: gopkg.in/square/go-jose.v2
+  version: f8f38de21b4dcd69d0413faf231983f5fd6634b1
+  subpackages:
+  - cipher
+  - json
 - name: gopkg.in/yaml.v2
   version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []
