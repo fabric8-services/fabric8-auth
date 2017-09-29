@@ -18,6 +18,7 @@ import (
 
 	"time"
 
+	"bytes"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/goadesign/goa"
@@ -26,8 +27,9 @@ import (
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
-	"net/url"
+	"io"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -468,8 +470,8 @@ func NumberToInt(number interface{}) (int64, error) {
 	return result, nil
 }
 
-// EncodeToken encodes token
-func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token) error {
+// TokenToJson marshals an oauth2 token to a json string
+func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
 	str := outhToken.Extra("expires_in")
 	var expiresIn interface{}
 	var refreshExpiresIn interface{}
@@ -480,7 +482,7 @@ func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 			"expires_in": str,
 			"err":        err,
 		}, "unable to parse expires_in claim")
-		return errs.WithStack(errors.New("unable to parse expires_in claim to integer: " + err.Error()))
+		return "", errs.WithStack(err)
 	}
 	str = outhToken.Extra("refresh_expires_in")
 	refreshExpiresIn, err = NumberToInt(str)
@@ -489,7 +491,7 @@ func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 			"refresh_expires_in": str,
 			"err":                err,
 		}, "unable to parse expires_in claim")
-		return errs.WithStack(errors.New("unable to parse refresh_expires_in claim to integer: " + err.Error()))
+		return "", errs.WithStack(err)
 	}
 	tokenData := &app.TokenData{
 		AccessToken:      &outhToken.AccessToken,
@@ -500,12 +502,37 @@ func EncodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	}
 	b, err := json.Marshal(tokenData)
 	if err != nil {
-		return errs.WithStack(errors.New("cant marshal token data struct " + err.Error()))
+		return "", errs.WithStack(err)
 	}
 
-	parameters := referrer.Query()
-	parameters.Add("token_json", string(b))
-	referrer.RawQuery = parameters.Encode()
+	return string(b), nil
+}
 
-	return nil
+// TokenSet represents a set of Access and Refresh tokens
+type TokenSet struct {
+	AccessToken      *string `json:"access_token,omitempty"`
+	ExpiresIn        *int64  `json:"expires_in,omitempty"`
+	NotBeforePolicy  *int64  `json:"not-before-policy,omitempty"`
+	RefreshExpiresIn *int64  `json:"refresh_expires_in,omitempty"`
+	RefreshToken     *string `json:"refresh_token,omitempty"`
+	TokenType        *string `json:"token_type,omitempty"`
+}
+
+// ReadTokenSet extracts json with token data from the response
+func ReadTokenSet(ctx context.Context, res *http.Response) (*TokenSet, error) {
+	// Read the json out of the response body
+	buf := new(bytes.Buffer)
+	io.Copy(buf, res.Body)
+	jsonString := strings.TrimSpace(buf.String())
+	return ReadTokenSetFromJson(ctx, jsonString)
+}
+
+// ReadTokenSetFromJson parses json with a token set
+func ReadTokenSetFromJson(ctx context.Context, jsonString string) (*TokenSet, error) {
+	var token TokenSet
+	err := json.Unmarshal([]byte(jsonString), &token)
+	if err != nil {
+		return nil, errs.Wrapf(err, "error when unmarshal json with access token %s ", jsonString)
+	}
+	return &token, nil
 }

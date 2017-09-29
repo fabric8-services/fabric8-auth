@@ -9,7 +9,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -85,22 +84,22 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New(res.Status+" "+rest.ReadBody(res.Body))))
 	}
 
-	token, err := auth.ReadToken(ctx, res)
+	t, err := token.ReadTokenSet(ctx, res)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return ctx.OK(convertToken(*token))
+	return ctx.OK(convertToken(*t))
 }
 
-func convertToken(token auth.Token) *app.AuthToken {
+func convertToken(t token.TokenSet) *app.AuthToken {
 	return &app.AuthToken{Token: &app.TokenData{
-		AccessToken:      token.AccessToken,
-		ExpiresIn:        token.ExpiresIn,
-		NotBeforePolicy:  token.NotBeforePolicy,
-		RefreshExpiresIn: token.RefreshExpiresIn,
-		RefreshToken:     token.RefreshToken,
-		TokenType:        token.TokenType,
+		AccessToken:      t.AccessToken,
+		ExpiresIn:        t.ExpiresIn,
+		NotBeforePolicy:  t.NotBeforePolicy,
+		RefreshExpiresIn: t.RefreshExpiresIn,
+		RefreshToken:     t.RefreshToken,
+		TokenType:        t.TokenType,
 	}}
 }
 
@@ -179,7 +178,7 @@ func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration 
 		}, "unable to obtain token")
 		return nil, errors.NewInternalError(ctx, errs.Errorf("unable to obtain toke. Response status: %s. Responce body: %s", res.Status, rest.ReadBody(res.Body)))
 	}
-	token, err := auth.ReadToken(ctx, res)
+	t, err := token.ReadTokenSet(ctx, res)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"token_endpoint": res,
@@ -188,5 +187,5 @@ func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration 
 		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "error when unmarshal json with access token"))
 	}
 
-	return convertToken(*token), nil
+	return convertToken(*t), nil
 }

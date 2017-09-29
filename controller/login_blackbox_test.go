@@ -5,8 +5,6 @@ import (
 
 	"context"
 
-	"golang.org/x/oauth2"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
@@ -66,7 +64,7 @@ func (rest *TestLoginREST) TestLoginOK() {
 	resource.Require(t, resource.UnitTest)
 	svc, ctrl := rest.UnSecuredController()
 
-	test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, nil)
+	test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, nil, nil)
 }
 
 func (rest *TestLoginREST) TestOfflineAccessOK() {
@@ -75,16 +73,16 @@ func (rest *TestLoginREST) TestOfflineAccessOK() {
 	svc, ctrl := rest.UnSecuredController()
 
 	offline := "offline_access"
-	resp := test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, &offline)
+	resp := test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, nil, &offline)
 	assert.Contains(t, resp.Header().Get("Location"), "scope=offline_access")
 
-	resp = test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, nil)
+	resp = test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, nil, nil)
 	assert.NotContains(t, resp.Header().Get("Location"), "scope=offline_access")
 }
 
 type TestLoginService struct{}
 
-func (t TestLoginService) Perform(ctx *app.LoginLoginContext, oauth *oauth2.Config, config login.LoginServiceConfiguration) error {
+func (t TestLoginService) Perform(ctx *app.LoginLoginContext, config login.OauthConfig, serviceConfig login.LoginServiceConfiguration) error {
 	return ctx.TemporaryRedirect()
 }
 

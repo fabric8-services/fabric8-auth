@@ -1,11 +1,9 @@
 package auth
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/token"
 	errs "github.com/pkg/errors"
 )
 
@@ -66,16 +65,6 @@ type KeycloakPolicy struct {
 type PolicyConfigData struct {
 	//"users":"[\"<ID>\",\"<ID>\"]"
 	UserIDs string `json:"users"`
-}
-
-// Token represents a Keycloak token response
-type Token struct {
-	AccessToken      *string `json:"access_token,omitempty"`
-	ExpiresIn        *int64  `json:"expires_in,omitempty"`
-	NotBeforePolicy  *int64  `json:"not-before-policy,omitempty"`
-	RefreshExpiresIn *int64  `json:"refresh_expires_in,omitempty"`
-	RefreshToken     *string `json:"refresh_token,omitempty"`
-	TokenType        *string `json:"token_type,omitempty"`
 }
 
 // AddUserToPolicy adds the user ID to the policy
@@ -780,24 +769,9 @@ func GetProtectedAPIToken(ctx context.Context, openidConnectTokenURL string, cli
 		return "", errors.NewInternalError(ctx, errs.New(res.Status+" "+rest.ReadBody(res.Body)))
 	}
 
-	token, err := ReadToken(ctx, res)
+	t, err := token.ReadTokenSet(ctx, res)
 	if err != nil {
 		return "", err
 	}
-	return *token.AccessToken, nil
-}
-
-// ReadToken extracts json with token data from the response
-func ReadToken(ctx context.Context, res *http.Response) (*Token, error) {
-	// Read the json out of the response body
-	buf := new(bytes.Buffer)
-	io.Copy(buf, res.Body)
-	jsonString := strings.TrimSpace(buf.String())
-
-	var token Token
-	err := json.Unmarshal([]byte(jsonString), &token)
-	if err != nil {
-		return nil, errors.NewInternalError(ctx, errs.Wrapf(err, "error when unmarshal json with access token %s ", jsonString))
-	}
-	return &token, nil
+	return *t.AccessToken, nil
 }

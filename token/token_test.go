@@ -3,10 +3,9 @@ package token_test
 import (
 	"context"
 	"crypto/rsa"
+	"encoding/json"
 	"fmt"
 	"testing"
-
-	"golang.org/x/oauth2"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -14,15 +13,13 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
-	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"net/url"
+	"golang.org/x/oauth2"
 )
 
 func TestToken(t *testing.T) {
@@ -149,7 +146,6 @@ func (s *TestTokenSuite) TestLocateInvalidUUIDInTokenInContext() {
 }
 
 func (s *TestTokenSuite) TestEncodeTokenOK() {
-	referrerURL, _ := url.Parse("https://example.domain.com")
 	accessToken := "accessToken%@!/\\&?"
 	refreshToken := "refreshToken%@!/\\&?"
 	tokenType := "tokenType%@!/\\&?"
@@ -166,15 +162,10 @@ func (s *TestTokenSuite) TestEncodeTokenOK() {
 		"expires_in":         expiresIn,
 		"refresh_expires_in": refreshExpiresIn,
 	}
-	err := token.EncodeToken(context.Background(), referrerURL, outhToken.WithExtra(extra))
+	tokenJson, err := token.TokenToJson(context.Background(), outhToken.WithExtra(extra))
 	assert.Nil(s.T(), err)
-	encoded := referrerURL.String()
-
-	referrerURL, _ = url.Parse(encoded)
-	values := referrerURL.Query()
-	tJSON := values["token_json"]
-	b := []byte(tJSON[0])
-	tokenData := &auth.Token{}
+	b := []byte(tokenJson)
+	tokenData := &token.TokenSet{}
 	err = json.Unmarshal(b, tokenData)
 	assert.Nil(s.T(), err)
 
