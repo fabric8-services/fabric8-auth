@@ -28,7 +28,7 @@ imports:
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-wit
-  version: 97f0b184866f7f6cdf89d4fcc3c06c04d5837755
+  version: 296f01addee8a560c9bb43fb291cf93ccd35ee8e
   subpackages:
   - account
   - account/tenant
