@@ -1,10 +1,10 @@
-hash: abbe98619e040ef910c300bf1e873c2347a2e18efe47b758502fc7c84b1cad15
-updated: 2017-09-29T16:13:02.108418892+02:00
+hash: 905eff0b6e3bd1dc48bb151f625c989c3468088728df1a357f58d00f7231305e
+updated: 2017-09-29T17:41:30.504994916+02:00
 imports:
 - name: github.com/andygrunwald/go-jira
   version: 9d1f282f93af41553ddb53b0116a8cdb75b4837a
 - name: github.com/armon/go-metrics
-  version: 97c69685293dce4c0a2d0b19535179bbc976e4d2
+  version: 0a12dc6f6b9da6da644031a1b9b5a85478c5ee27
 - name: github.com/axw/gocov
   version: c77561ca0c0cb1ed5d4ce4a912a75f5532566422
   subpackages:
@@ -28,7 +28,7 @@ imports:
   subpackages:
   - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-wit
-  version: 4419b9ea51938829dfdf18aad659ac34c7d01488
+  version: 97f0b184866f7f6cdf89d4fcc3c06c04d5837755
   subpackages:
   - account
   - account/tenant
@@ -82,6 +82,12 @@ imports:
   version: 9235644dd9e52eeae6fa48efd539fdc351a0af53
   subpackages:
   - query
+- name: github.com/hashicorp/go-immutable-radix
+  version: 8aac2701530899b64bdea735a1de8da899815220
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
 - name: github.com/hashicorp/hcl
   version: 37ab263305aaeb501a60eb16863e808d426e37f2
   subpackages:

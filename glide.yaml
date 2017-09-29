@@ -4,7 +4,7 @@ license: Apache-2.0
 import:
 - package: github.com/fabric8-services/fabric8-wit
   subpackages:
-   - design
+  - design
 - package: github.com/dgrijalva/jwt-go
   version: ^3.0.0
 - package: github.com/goadesign/goa
@@ -106,3 +106,4 @@ import:
   - diffmatchpatch
 - package: gopkg.in/square/go-jose.v2
   version: ^2.1.2
+- package: github.com/armon/go-metrics
