@@ -82,6 +82,8 @@ var allProvidersToLink = []string{"github", "openshift-v3"}
 const (
 	initiateLinkingParam = "initlinking"
 	apiClientParam       = "api_client"
+	apiTokenParam        = "api_token"
+	tokenJSONParam       = "token_json"
 )
 
 type OauthConfig interface {
@@ -165,6 +167,8 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			return redirectWithError(ctx, knownReferrer, err.Error())
 		}
 
+		apiClient := referrerURL.Query().Get(apiClientParam)
+
 		identity, newUser, err := keycloak.CreateOrUpdateIdentity(ctx, keycloakToken.AccessToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -172,10 +176,9 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			}, "failed to create a user and keycloak identity ")
 			switch err.(type) {
 			case autherrors.UnauthorizedError:
-				apiClient := referrerURL.Query().Get(apiClientParam)
 				if apiClient != "" {
-					// Return the token even for unapproved users
-					err = encodeToken(ctx, referrerURL, keycloakToken)
+					// Return the api token
+					err = encodeToken(ctx, referrerURL, keycloakToken, apiClient)
 					if err != nil {
 						log.Error(ctx, map[string]interface{}{
 							"err": err,
@@ -234,7 +237,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			}
 		}
 
-		err = encodeToken(ctx, referrerURL, keycloakToken)
+		err = encodeToken(ctx, referrerURL, keycloakToken, apiClient)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -341,13 +344,17 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 	return ctx.TemporaryRedirect()
 }
 
-func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token) error {
+func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
 	tokenJson, err := token.TokenToJson(ctx, outhToken)
 	if err != nil {
 		return err
 	}
 	parameters := referrer.Query()
-	parameters.Add("token_json", tokenJson)
+	if apiClient != "" {
+		parameters.Add(apiTokenParam, tokenJson)
+	} else {
+		parameters.Add(tokenJSONParam, tokenJson)
+	}
 	referrer.RawQuery = parameters.Encode()
 	return nil
 }

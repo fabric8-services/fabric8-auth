@@ -547,7 +547,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 
 func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCode() {
 	rw, authorizeCtx := s.loginCallback(make(map[string]string))
-	s.checkLoginCallback(s.dummyOauth, rw, authorizeCtx)
+	s.checkLoginCallback(s.dummyOauth, rw, authorizeCtx, "token_json")
 }
 
 func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
@@ -585,7 +585,7 @@ func (s *serviceBlackBoxTest) TestAPIClientForApprovedUsersReturnOK() {
 		accessToken: accessToken,
 	}
 
-	s.checkLoginCallback(dummyOauth, rw, authorizeCtx)
+	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "api_token")
 }
 
 func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
@@ -603,7 +603,7 @@ func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
 		accessToken: accessToken,
 	}
 
-	s.checkLoginCallback(dummyOauth, rw, authorizeCtx)
+	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "api_token")
 }
 
 func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
@@ -665,7 +665,7 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	return rw, authorizeCtx
 }
 
-func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext) {
+func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
 
 	err := s.loginService.Perform(authorizeCtx, dummyOauth, s.configuration)
 	require.Nil(s.T(), err)
@@ -679,7 +679,7 @@ func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, 
 	assert.Equal(s.T(), 307, rw.Code) // redirect to the original redirect page
 
 	assert.NotNil(s.T(), allQueryParameters)
-	tokenJson := allQueryParameters["token_json"]
+	tokenJson := allQueryParameters[tokenParam]
 	require.NotNil(s.T(), tokenJson)
 	require.True(s.T(), len(tokenJson) > 0)
 
