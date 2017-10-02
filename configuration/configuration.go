@@ -8,9 +8,9 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )

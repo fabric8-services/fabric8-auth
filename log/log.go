@@ -10,8 +10,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/goadesign/goa"
+	log "github.com/sirupsen/logrus"
 )
 
 const defaultPackageName = "github.com/fabric8-services/fabric8-auth/"
