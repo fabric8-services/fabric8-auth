@@ -20,8 +20,3 @@ CREATE TABLE external_provider_tokens (
     token text,
     scope text
 );
-
-
--- Add a foreign key constraints
---ALTER TABLE external_provider_tokens add foreign key (external_provider_id) REFERENCES external_providers (id);
---ALTER TABLE external_provider_tokens add foreign key (identity_id) REFERENCES identitiesidentitiesidentities (id);

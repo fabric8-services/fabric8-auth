@@ -107,6 +107,7 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByIden
 	for _, t := range tokens {
 		require.Equal(s.T(), externalProvideToken.ID, t.ID)
 		require.Equal(s.T(), externalProvideToken.Token, t.Token)
+		require.Equal(s.T(), externalProvideToken.IdentityID, t.IdentityID)
 	}
 
 }
@@ -122,6 +123,7 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByProv
 	for _, t := range tokens {
 		require.Equal(s.T(), externalProvideToken.ID, t.ID)
 		require.Equal(s.T(), externalProvideToken.Token, t.Token)
+		require.Equal(s.T(), externalProvideToken.IdentityID, t.IdentityID)
 	}
 
 }
