@@ -97,14 +97,14 @@ func (m *GormExternalProviderRepository) Create(ctx context.Context, model *Exte
 	err := m.db.Create(model).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"ExternalProvider_id": model.ID,
+			"external_provider_id": model.ID,
 			"err": err,
 		}, "unable to create the ExternalProvider")
 		return errs.WithStack(err)
 	}
 	log.Info(ctx, map[string]interface{}{
-		"ExternalProvider_id": model.ID,
-	}, "ExternalProvider created!")
+		"external_provider_id": model.ID,
+	}, "external_provider created!")
 	return nil
 }
 
@@ -115,7 +115,7 @@ func (m *GormExternalProviderRepository) Save(ctx context.Context, model *Extern
 	obj, err := m.Load(ctx, model.ID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"ExternalProvider_id": model.ID,
+			"external_provider_id": model.ID,
 			"ctx": ctx,
 			"err": err,
 		}, "unable to update the ExternalProvider")
@@ -124,8 +124,8 @@ func (m *GormExternalProviderRepository) Save(ctx context.Context, model *Extern
 	err = m.db.Model(obj).Updates(model).Error
 
 	log.Debug(ctx, map[string]interface{}{
-		"ExternalProvider_id": model.ID,
-	}, "ExternalProvider saved!")
+		"external_provider_id": model.ID,
+	}, "external_provider saved!")
 
 	return errs.WithStack(err)
 }
@@ -139,7 +139,7 @@ func (m *GormExternalProviderRepository) Delete(ctx context.Context, id uuid.UUI
 
 	if db.Error != nil {
 		log.Error(ctx, map[string]interface{}{
-			"ExternalProvider_id": id,
+			"external_provider_id": id,
 			"err": db.Error,
 		}, "unable to delete the ExternalProvider")
 		return errs.WithStack(db.Error)
@@ -149,8 +149,8 @@ func (m *GormExternalProviderRepository) Delete(ctx context.Context, id uuid.UUI
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"ExternalProvider_id": id,
-	}, "ExternalProvider deleted!")
+		"external_provider_id": id,
+	}, "external_provider deleted!")
 
 	return nil
 }
@@ -164,8 +164,8 @@ func (m *GormExternalProviderRepository) Query(funcs ...func(*gorm.DB) *gorm.DB)
 		return nil, errs.WithStack(err)
 	}
 	log.Debug(nil, map[string]interface{}{
-		"ExternalProvider_query": externalProviders,
-	}, "ExternalProvider query executed successfully!")
+		"external_provider_query": externalProviders,
+	}, "external_provider query executed successfully!")
 
 	return externalProviders, nil
 }

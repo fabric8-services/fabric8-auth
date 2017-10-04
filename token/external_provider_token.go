@@ -84,7 +84,7 @@ func (m *GormExternalProviderTokenRepository) Load(ctx context.Context, id uuid.
 	var native ExternalProviderToken
 	err := m.db.Table(m.TableName()).Where("id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(errors.NewNotFoundError("ExternalProviderToken", id.String()))
+		return nil, errs.WithStack(errors.NewNotFoundError("external_provider_token", id.String()))
 	}
 
 	return &native, errs.WithStack(err)
@@ -105,14 +105,14 @@ func (m *GormExternalProviderTokenRepository) Create(ctx context.Context, model 
 	err := m.db.Create(model).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"ExternalProviderToken_id": model.ID,
+			"external_provider_token_id": model.ID,
 			"err": err,
-		}, "unable to create the ExternalProviderToken")
+		}, "unable to create the external_provider_token")
 		return errs.WithStack(err)
 	}
 	log.Info(ctx, map[string]interface{}{
-		"ExternalProviderToken_id": model.ID,
-	}, "ExternalProviderToken created!")
+		"external_provider_token_id": model.ID,
+	}, "external_provider_token created!")
 	return nil
 }
 
@@ -123,17 +123,17 @@ func (m *GormExternalProviderTokenRepository) Save(ctx context.Context, model *E
 	obj, err := m.Load(ctx, model.ID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"ExternalProviderToken_id": model.ID,
+			"external_provider_token_id": model.ID,
 			"ctx": ctx,
 			"err": err,
-		}, "unable to update the ExternalProviderToken")
+		}, "unable to update the external_provider_token")
 		return errs.WithStack(err)
 	}
 	err = m.db.Model(obj).Updates(model).Error
 
 	log.Debug(ctx, map[string]interface{}{
-		"ExternalProviderToken_id": model.ID,
-	}, "ExternalProviderToken saved!")
+		"external_provider_token_id": model.ID,
+	}, "external_provider_token saved!")
 
 	return errs.WithStack(err)
 }
@@ -147,18 +147,18 @@ func (m *GormExternalProviderTokenRepository) Delete(ctx context.Context, id uui
 
 	if db.Error != nil {
 		log.Error(ctx, map[string]interface{}{
-			"ExternalProviderToken_id": id,
+			"external_provider_token_id": id,
 			"err": db.Error,
-		}, "unable to delete the ExternalProviderToken")
+		}, "unable to delete the external_provider_token")
 		return errs.WithStack(db.Error)
 	}
 	if db.RowsAffected == 0 {
-		return errors.NewNotFoundError("ExternalProviderToken", id.String())
+		return errors.NewNotFoundError("external_provider_token", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"ExternalProviderToken_id": id,
-	}, "ExternalProviderToken deleted!")
+		"external_provider_token_id": id,
+	}, "external_provider_token deleted!")
 
 	return nil
 }
@@ -172,8 +172,8 @@ func (m *GormExternalProviderTokenRepository) Query(funcs ...func(*gorm.DB) *gor
 		return nil, errs.WithStack(err)
 	}
 	log.Debug(nil, map[string]interface{}{
-		"ExternalProviderToken_query": externalProviderTokens,
-	}, "ExternalProviderToken query executed successfully!")
+		"external_provider_token_query": externalProviderTokens,
+	}, "external_provider_token query executed successfully!")
 
 	return externalProviderTokens, nil
 }
