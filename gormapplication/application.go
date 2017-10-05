@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/space"
-	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/provider"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -79,13 +79,8 @@ func (g *GormBase) OauthStates() auth.OauthStateReferenceRepository {
 }
 
 // ExternalProviderTokens returns an ExternalProviderTokens repository
-func (g *GormBase) ExternalProviderTokens() token.ExternalProviderTokenRepository {
-	return token.NewExternalProviderTokenRepository(g.db)
-}
-
-// ExternalProviders returns an ExternalProviders repository
-func (g *GormBase) ExternalProviders() token.ExternalProviderRepository {
-	return token.NewExternalProviderRepository(g.db)
+func (g *GormBase) ExternalProviderTokens() provider.ExternalProviderTokenRepository {
+	return provider.NewExternalProviderTokenRepository(g.db)
 }
 
 func (g *GormBase) DB() *gorm.DB {

@@ -1,4 +1,4 @@
-package token
+package provider
 
 import (
 	"context"
@@ -20,12 +20,12 @@ import (
 // ExternalProviderToken describes a single ExternalProviderToken
 type ExternalProviderToken struct {
 	gormsupport.Lifecycle
-	ID                  uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
-	ExternalProvideType string
-	Token               string
-	Scope               string
-	IdentityID          uuid.UUID `sql:"type:uuid"` // use NullUUID ?
-	Identity            account.Identity
+	ID                   uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
+	ExternalProviderType string
+	Token                string
+	Scope                string
+	IdentityID           uuid.UUID `sql:"type:uuid"` // use NullUUID ?
+	Identity             account.Identity
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name

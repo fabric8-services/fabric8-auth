@@ -1,4 +1,4 @@
-package token_test
+package provider_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -21,14 +21,13 @@ import (
 
 type externalProviderTokenBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo         token.ExternalProviderTokenRepository
-	providerRepo token.ExternalProviderRepository
-	clean        func()
-	ctx          context.Context
+	repo  provider.ExternalProviderTokenRepository
+	clean func()
+	ctx   context.Context
 }
 
 func TestRunExternalProviderTokenBlackboxTest(t *testing.T) {
-	suite.Run(t, &externalProviderTokenBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &externalProviderTokenBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("")})
 }
 
 func (s *externalProviderTokenBlackboxTest) SetupSuite() {
@@ -38,8 +37,7 @@ func (s *externalProviderTokenBlackboxTest) SetupSuite() {
 }
 
 func (s *externalProviderTokenBlackboxTest) SetupTest() {
-	s.repo = token.NewExternalProviderTokenRepository(s.DB)
-	s.providerRepo = token.NewExternalProviderRepository(s.DB)
+	s.repo = provider.NewExternalProviderTokenRepository(s.DB)
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 }
 
@@ -100,7 +98,7 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByIden
 	// given
 	externalProvideToken := createAndLoadExternalProviderToken(s)
 	// when
-	tokens, err := s.repo.Query(token.ExternalProviderTokenFilterByIdentityID(externalProvideToken.IdentityID))
+	tokens, err := s.repo.Query(provider.ExternalProviderTokenFilterByIdentityID(externalProvideToken.IdentityID))
 
 	// then
 	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
@@ -116,7 +114,7 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByProv
 	// given
 	externalProvideToken := createAndLoadExternalProviderToken(s)
 	// when
-	tokens, err := s.repo.Query(token.ExternalProviderTokenFilterByExternalProviderType(externalProvideToken.ExternalProvideType))
+	tokens, err := s.repo.Query(provider.ExternalProviderTokenFilterByExternalProviderType(externalProvideToken.ExternalProviderType))
 
 	// then
 	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
@@ -128,17 +126,17 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByProv
 
 }
 
-func createAndLoadExternalProviderToken(s *externalProviderTokenBlackboxTest) *token.ExternalProviderToken {
+func createAndLoadExternalProviderToken(s *externalProviderTokenBlackboxTest) *provider.ExternalProviderToken {
 
 	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
 	require.Nil(s.T(), err)
 
-	externalProviderToken := token.ExternalProviderToken{
-		ID:                  uuid.NewV4(),
-		ExternalProvideType: "github",
-		Token:               uuid.NewV4().String(),
-		Scope:               "user:full",
-		IdentityID:          identity.ID,
+	externalProviderToken := provider.ExternalProviderToken{
+		ID:                   uuid.NewV4(),
+		ExternalProviderType: "github",
+		Token:                uuid.NewV4().String(),
+		Scope:                "user:full",
+		IdentityID:           identity.ID,
 	}
 	fmt.Println(externalProviderToken)
 
