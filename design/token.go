@@ -5,9 +5,63 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
+// externalProviderTokenData represents a token object
+var externalProviderTokenData = a.Type("ExternalProviderTokenData", func() {
+	a.Attribute("id", d.String, "unique id for the token")
+	a.Attribute("type", d.String, "type of the data")
+	a.Attribute("attributes", externalProviderTokenDataAttributes, "Attributes of the token")
+	a.Attribute("links", genericLinks)
+	a.Required("type", "attributes")
+})
+
+// externalProviderTokenDataAttributes represents a token object attributes
+var externalProviderTokenDataAttributes = a.Type("ExternalProviderTokenDataAttributes", func() {
+	a.Attribute("identityID", d.String, "The id of the corresponding Identity")
+	a.Attribute("created-at", d.DateTime, "The date of creation of the  external provider token")
+	a.Attribute("updated-at", d.DateTime, "The date of update of the external provider token")
+	a.Attribute("externalProviderType", d.String, "The name or url of the external provider type")
+	a.Attribute("token", d.String, "The token associated with the identity for the specific external provider")
+	a.Attribute("scope", d.String, "The scope associated with the token")
+})
+
+// externalProviderToken represents a token object
+var externalProviderToken = a.MediaType("application/vnd.externalProviderToken+json", func() {
+	a.UseTrait("jsonapi-media-type")
+	a.TypeName("ExternalProviderToken")
+	a.Description("External Provider Token")
+	a.Attributes(func() {
+		a.Attribute("data", externalProviderTokenData)
+		a.Required("data")
+
+	})
+	a.View("default", func() {
+		a.Attribute("data")
+		a.Required("data")
+	})
+})
+
 var _ = a.Resource("token", func() {
 
 	a.BasePath("/token")
+
+	a.Action("Retrieve", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET(""),
+		)
+		a.Params(func() {
+			a.Param("for", d.String, "The resource for which the external provider token is being fetched")
+			a.Param("scope", d.String, "The scope for which the token is being fetched") // #428
+			a.Required("for")
+		})
+		a.Description("Get the external provider token")
+		//a.UseTrait("conditional")
+		a.Response(d.OK, externalProviderToken)
+		a.Response(d.NotModified)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 
 	a.Action("keys", func() {
 		a.Routing(

@@ -145,6 +145,12 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	return ctx.OK(tokens)
 }
 
+// Retrieve fetches the stored external provider token.
+func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
+
+	return nil
+}
+
 // GenerateUserToken obtains the access token from Keycloak for the user
 func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration LoginConfiguration, username string, userSecret string) (*app.AuthToken, error) {
 	if !configuration.IsPostgresDeveloperModeEnabled() {
