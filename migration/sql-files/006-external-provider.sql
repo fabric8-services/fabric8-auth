@@ -17,6 +17,6 @@ CREATE TABLE external_provider_tokens (
     deleted_at timestamp with time zone,
     external_provider_id uuid  REFERENCES external_providers (id),
     identity_id uuid REFERENCES identities(id),
-    token text,
+    token text not null,
     scope text
 );
