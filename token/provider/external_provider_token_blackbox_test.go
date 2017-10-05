@@ -91,8 +91,10 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToSave() {
 	externalProvideToken.Token = uuid.NewV4().String()
 	err := s.repo.Save(s.ctx, externalProvideToken)
 	// then
-	require.Nil(s.T(), err, "Could not update externalProvider")
+	require.Nil(s.T(), err, "Could not update externalProvideToken")
 	externalProviderTokenLoaded, err := s.repo.Load(s.ctx, externalProvideToken.ID)
+
+	require.Nil(s.T(), err, "Could not retrieve externalProviderToken")
 	require.Equal(s.T(), externalProvideToken.Token, externalProviderTokenLoaded.Token)
 }
 
