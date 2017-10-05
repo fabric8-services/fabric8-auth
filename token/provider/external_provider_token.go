@@ -20,12 +20,12 @@ import (
 // ExternalProviderToken describes a single ExternalProviderToken
 type ExternalProviderToken struct {
 	gormsupport.Lifecycle
-	ID                   uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
-	ExternalProviderType uuid.UUID
-	Token                string
-	Scope                string
-	IdentityID           uuid.UUID `sql:"type:uuid"` // use NullUUID ?
-	Identity             account.Identity
+	ID         uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
+	ProviderID uuid.UUID
+	Token      string
+	Scope      string
+	IdentityID uuid.UUID `sql:"type:uuid"` // use NullUUID ?
+	Identity   account.Identity
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -184,10 +184,10 @@ func ExternalProviderTokenFilterByIdentityID(identityID uuid.UUID) func(db *gorm
 	}
 }
 
-// ExternalProviderTokenFilterByExternalProviderType is a gorm filter by 'external_provider_type'
-func ExternalProviderTokenFilterByExternalProviderType(externalProviderType uuid.UUID) func(db *gorm.DB) *gorm.DB {
+// ExternalProviderTokenFilterByProviderID is a gorm filter by 'external_provider_type'
+func ExternalProviderTokenFilterByProviderID(providerID uuid.UUID) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("external_provider_type = ?", externalProviderType)
+		return db.Where("provider_id = ?", providerID)
 	}
 }
 

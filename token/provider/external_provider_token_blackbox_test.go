@@ -118,7 +118,7 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByProv
 	// given
 	externalProvideToken := createAndLoadExternalProviderToken(s)
 	// when
-	tokens, err := s.repo.Query(provider.ExternalProviderTokenFilterByExternalProviderType(externalProvideToken.ExternalProviderType))
+	tokens, err := s.repo.Query(provider.ExternalProviderTokenFilterByProviderID(externalProvideToken.ProviderID))
 
 	// then
 	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
@@ -136,11 +136,11 @@ func createAndLoadExternalProviderToken(s *externalProviderTokenBlackboxTest) *p
 	require.Nil(s.T(), err)
 
 	externalProviderToken := provider.ExternalProviderToken{
-		ID:                   uuid.NewV4(),
-		ExternalProviderType: uuid.NewV4(),
-		Token:                uuid.NewV4().String(),
-		Scope:                "user:full",
-		IdentityID:           identity.ID,
+		ID:         uuid.NewV4(),
+		ProviderID: uuid.NewV4(),
+		Token:      uuid.NewV4().String(),
+		Scope:      "user:full",
+		IdentityID: identity.ID,
 	}
 	fmt.Println(externalProviderToken)
 
