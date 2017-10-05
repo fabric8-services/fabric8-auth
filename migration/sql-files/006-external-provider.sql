@@ -11,3 +11,6 @@ CREATE TABLE external_provider_tokens (
     token text not null,
     scope text
 );
+
+CREATE INDEX idx_external_provider_type ON external_provider_tokens (lower(external_provider_type));
+CREATE INDEX idx_external_provider_identity_id ON external_provider_tokens (identity_id);
