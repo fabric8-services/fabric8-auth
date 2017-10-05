@@ -133,7 +133,7 @@ func createAndLoadExternalProviderToken(s *externalProviderTokenBlackboxTest) *p
 
 	externalProviderToken := provider.ExternalProviderToken{
 		ID:                   uuid.NewV4(),
-		ExternalProviderType: "github",
+		ExternalProviderType: uuid.NewV4(),
 		Token:                uuid.NewV4().String(),
 		Scope:                "user:full",
 		IdentityID:           identity.ID,

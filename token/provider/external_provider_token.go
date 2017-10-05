@@ -21,7 +21,7 @@ import (
 type ExternalProviderToken struct {
 	gormsupport.Lifecycle
 	ID                   uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
-	ExternalProviderType string
+	ExternalProviderType uuid.UUID
 	Token                string
 	Scope                string
 	IdentityID           uuid.UUID `sql:"type:uuid"` // use NullUUID ?
@@ -186,7 +186,7 @@ func ExternalProviderTokenFilterByIdentityID(identityID uuid.UUID) func(db *gorm
 }
 
 // ExternalProviderTokenFilterByExternalProviderType is a gorm filter by 'external_provider_type'
-func ExternalProviderTokenFilterByExternalProviderType(externalProviderType string) func(db *gorm.DB) *gorm.DB {
+func ExternalProviderTokenFilterByExternalProviderType(externalProviderType uuid.UUID) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("external_provider_type = ?", externalProviderType)
 	}
