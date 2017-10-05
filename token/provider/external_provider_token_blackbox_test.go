@@ -54,7 +54,7 @@ func (s *externalProviderTokenBlackboxTest) TestOKToDelete() {
 	assert.Nil(s.T(), err)
 	externalProviderTokenLoaded, err := s.repo.Load(s.ctx, externalProviderToken.ID)
 	require.Nil(s.T(), externalProviderTokenLoaded, "should have been deleted")
-	require.NotNil(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
 
 func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToLoad() {

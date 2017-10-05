@@ -84,7 +84,7 @@ func (m *GormExternalProviderTokenRepository) Load(ctx context.Context, id uuid.
 	var native ExternalProviderToken
 	err := m.db.Table(m.TableName()).Where("id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(errors.NewNotFoundError("external_provider_token", id.String()))
+		return nil, errors.NewNotFoundError("external_provider_token", id.String())
 	}
 
 	return &native, errs.WithStack(err)
