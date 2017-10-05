@@ -63,6 +63,7 @@ type ExternalProviderTokenRepository interface {
 	Create(ctx context.Context, ExternalProviderToken *ExternalProviderToken) error
 	Save(ctx context.Context, ExternalProviderToken *ExternalProviderToken) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	LoadByProviderIDAndIdentityID(ctx context.Context, providerID uuid.UUID, identityID uuid.UUID) ([]ExternalProviderToken, error)
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ExternalProviderToken, error)
 }
 
@@ -174,6 +175,17 @@ func (m *GormExternalProviderTokenRepository) Query(funcs ...func(*gorm.DB) *gor
 		"external_provider_token_query": externalProviderTokens,
 	}, "external_provider_token query executed successfully!")
 
+	return externalProviderTokens, nil
+}
+
+// LoadByProviderIDAndIdentityID loads tokens by IdentityID and ProviderID
+func (m *GormExternalProviderTokenRepository) LoadByProviderIDAndIdentityID(ctx context.Context, providerID uuid.UUID, identityID uuid.UUID) ([]ExternalProviderToken, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "ExternalProviderToken", "LoadByProviderIDAndIdentityID"}, time.Now())
+	var externalProviderTokens []ExternalProviderToken
+	externalProviderTokens, err := m.Query(ExternalProviderTokenFilterByIdentityID(identityID), ExternalProviderTokenFilterByProviderID(providerID), ExternalProviderTokenWithIdentity())
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
 	return externalProviderTokens, nil
 }
 

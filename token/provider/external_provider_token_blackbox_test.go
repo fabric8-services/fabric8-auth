@@ -106,6 +106,8 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByIden
 
 	// then
 	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
+
+	require.NotZero(s.T(), len(tokens))
 	for _, t := range tokens {
 		require.Equal(s.T(), externalProvideToken.ID, t.ID)
 		require.Equal(s.T(), externalProvideToken.Token, t.Token)
@@ -122,6 +124,24 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByProv
 
 	// then
 	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
+	for _, t := range tokens {
+		require.Equal(s.T(), externalProvideToken.ID, t.ID)
+		require.Equal(s.T(), externalProvideToken.Token, t.Token)
+		require.Equal(s.T(), externalProvideToken.IdentityID, t.IdentityID)
+	}
+
+}
+
+func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAndProviderID() {
+	// given
+	externalProvideToken := createAndLoadExternalProviderToken(s)
+	// when
+	tokens, err := s.repo.LoadByProviderIDAndIdentityID(s.ctx, externalProvideToken.ProviderID, externalProvideToken.IdentityID)
+
+	// then
+	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
+
+	require.NotZero(s.T(), len(tokens))
 	for _, t := range tokens {
 		require.Equal(s.T(), externalProvideToken.ID, t.ID)
 		require.Equal(s.T(), externalProvideToken.Token, t.Token)
