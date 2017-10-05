@@ -92,6 +92,8 @@ func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToSave() {
 	err := s.repo.Save(s.ctx, externalProvideToken)
 	// then
 	require.Nil(s.T(), err, "Could not update externalProvider")
+	externalProviderTokenLoaded, err := s.repo.Load(s.ctx, externalProvideToken.ID)
+	require.Equal(s.T(), externalProvideToken.Token, externalProviderTokenLoaded.Token)
 }
 
 func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityID() {

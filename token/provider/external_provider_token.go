@@ -64,7 +64,6 @@ type ExternalProviderTokenRepository interface {
 	Save(ctx context.Context, ExternalProviderToken *ExternalProviderToken) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ExternalProviderToken, error)
-	IsValid(context.Context, uuid.UUID) bool
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -197,13 +196,4 @@ func ExternalProviderTokenWithIdentity() func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Preload("Identity")
 	}
-}
-
-// IsValid returns true if the ExternalProviderToken exists
-func (m *GormExternalProviderTokenRepository) IsValid(ctx context.Context, id uuid.UUID) bool {
-	_, err := m.Load(ctx, id)
-	if err != nil {
-		return false
-	}
-	return true
 }
