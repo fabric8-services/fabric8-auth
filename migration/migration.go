@@ -121,6 +121,9 @@ func GetMigrations() Migrations {
 	// Version 5
 	m = append(m, steps{ExecuteSQLFile("005-authorization.sql")})
 
+	// Version 6
+	m = append(m, steps{ExecuteSQLFile("006-external-provider.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
