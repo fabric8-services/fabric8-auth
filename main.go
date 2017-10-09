@@ -24,6 +24,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -134,6 +135,7 @@ func main() {
 	// Setup Account/Login/Security
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
+	externalProviderTokenRepository := provider.NewExternalProviderTokenRepository(db)
 
 	appDB := gormapplication.NewGormDB(db)
 
@@ -158,7 +160,7 @@ func main() {
 	app.MountLogoutController(service, logoutCtrl)
 
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration, identityRepository)
+	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration, identityRepository, externalProviderTokenRepository)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "link" controller

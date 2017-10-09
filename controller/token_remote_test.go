@@ -10,10 +10,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	"path/filepath"
+
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"path/filepath"
 )
 
 type TestTokenRemoteREST struct {
@@ -42,7 +43,7 @@ func (rest *TestTokenRemoteREST) UnSecuredController() (*goa.Service, *TokenCont
 	svc := goa.New("Token-Service")
 	manager, err := token.NewManager(rest.config)
 	require.Nil(rest.T(), err)
-	return svc, NewTokenController(svc, nil, manager, rest.config, nil)
+	return svc, NewTokenController(svc, nil, manager, rest.config, nil, nil)
 }
 
 func (rest *TestTokenRemoteREST) TestPublicKeys() {

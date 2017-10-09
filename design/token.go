@@ -22,6 +22,7 @@ var externalProviderTokenDataAttributes = a.Type("ExternalProviderTokenDataAttri
 	a.Attribute("externalProviderType", d.String, "The name or url of the external provider type")
 	a.Attribute("token", d.String, "The token associated with the identity for the specific external provider")
 	a.Attribute("scope", d.String, "The scope associated with the token")
+	a.Required("token", "scope", "externalProviderType", "identityID")
 })
 
 // externalProviderToken represents a token object
@@ -55,7 +56,6 @@ var _ = a.Resource("token", func() {
 			a.Required("for")
 		})
 		a.Description("Get the external provider token")
-		//a.UseTrait("conditional")
 		a.Response(d.OK, externalProviderToken)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)

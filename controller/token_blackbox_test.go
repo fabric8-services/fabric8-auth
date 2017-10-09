@@ -51,7 +51,7 @@ func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) 
 	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
 
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	return svc, NewTokenController(svc, loginService, loginService.TokenManager, rest.Configuration, rest.identityRepository)
+	return svc, NewTokenController(svc, loginService, loginService.TokenManager, rest.Configuration, rest.identityRepository, nil)
 }
 
 func (rest *TestTokenREST) TestTestUserTokenObtainedFromKeycloakOK() {

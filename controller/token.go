@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/token/provider"
+
 	"net/http"
 	"net/url"
 
@@ -25,15 +27,16 @@ const maxRecentSpacesForRPT = 10
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
-	Auth               login.KeycloakOAuthService
-	TokenManager       token.Manager
-	Configuration      LoginConfiguration
-	identityRepository account.IdentityRepository
+	Auth                            login.KeycloakOAuthService
+	TokenManager                    token.Manager
+	Configuration                   LoginConfiguration
+	identityRepository              account.IdentityRepository
+	externalProviderTokenRepository provider.ExternalProviderTokenRepository
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository) *TokenController {
-	return &TokenController{Controller: service.NewController("token"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository}
+func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository, externalProviderTokenRepository provider.ExternalProviderTokenRepository) *TokenController {
+	return &TokenController{Controller: service.NewController("token"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository, externalProviderTokenRepository: externalProviderTokenRepository}
 }
 
 // Keys returns public keys which should be used to verify tokens
@@ -148,7 +151,51 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
-	return nil
+	currentIdentity, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+	}
+
+	if ctx.For == "" {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("github or openshift-v3 resource"))
+	}
+	externalProviderType, error := provider.GetExternalProvider(ctx.For)
+	if error != nil {
+		return jsonapi.JSONErrorResponse(ctx, error)
+	}
+
+	// no clue why I have this now - but definitely won't be using SCOPE to query at the moment.
+	scope := ctx.Scope
+	if scope == nil || *scope == "" {
+		scope = &externalProviderType.DefaultScope
+	}
+	externalProviderTokens, err := c.externalProviderTokenRepository.LoadByProviderIDAndIdentityID(ctx, externalProviderType.ID, *currentIdentity)
+
+	if len(externalProviderTokens) > 0 {
+		// not sure if we'll need more than 1 tokens in future.
+
+		//TODO: move transformation to a different method.
+
+		ID := externalProviderTokens[0].ID.String()
+		return ctx.OK(&app.ExternalProviderToken{
+			Data: &app.ExternalProviderTokenData{
+				Attributes: &app.ExternalProviderTokenDataAttributes{
+					CreatedAt:            &externalProviderTokens[0].CreatedAt,
+					ExternalProviderType: externalProviderType.Type,
+					IdentityID:           currentIdentity.String(),
+					Scope:                externalProviderTokens[0].Scope,
+					UpdatedAt:            &externalProviderTokens[0].UpdatedAt,
+					Token:                externalProviderTokens[0].Token,
+				},
+				Type: "external_provider_token",
+				ID:   &ID,
+			},
+		})
+	}
+
+	// TODO: return the www-authenticate response header.
+	return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("external_provider_token", ctx.For))
+
 }
 
 // GenerateUserToken obtains the access token from Keycloak for the user
