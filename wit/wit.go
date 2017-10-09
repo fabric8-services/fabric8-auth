@@ -1,4 +1,4 @@
-package remoteservice
+package wit
 
 import (
 	"context"
