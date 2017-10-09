@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -345,7 +346,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 }
 
 func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
-	tokenJson, err := token.TokenToJson(ctx, outhToken)
+	tokenJson, err := TokenToJson(ctx, outhToken)
 	if err != nil {
 		return err
 	}
@@ -897,4 +898,42 @@ func InjectTokenManager(tokenManager token.Manager) goa.Middleware {
 			return h(ctxWithTM, rw, req)
 		}
 	}
+}
+
+// TokenToJson marshals an oauth2 token to a json string
+func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
+	str := outhToken.Extra("expires_in")
+	var expiresIn interface{}
+	var refreshExpiresIn interface{}
+	var err error
+	expiresIn, err = token.NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"expires_in": str,
+			"err":        err,
+		}, "unable to parse expires_in claim")
+		return "", errs.WithStack(err)
+	}
+	str = outhToken.Extra("refresh_expires_in")
+	refreshExpiresIn, err = token.NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"refresh_expires_in": str,
+			"err":                err,
+		}, "unable to parse expires_in claim")
+		return "", errs.WithStack(err)
+	}
+	tokenData := &app.TokenData{
+		AccessToken:      &outhToken.AccessToken,
+		RefreshToken:     &outhToken.RefreshToken,
+		TokenType:        &outhToken.TokenType,
+		ExpiresIn:        &expiresIn,
+		RefreshExpiresIn: &refreshExpiresIn,
+	}
+	b, err := json.Marshal(tokenData)
+	if err != nil {
+		return "", errs.WithStack(err)
+	}
+
+	return string(b), nil
 }

@@ -19,17 +19,16 @@ import (
 	"time"
 
 	"bytes"
+	"io"
+	"strconv"
+	"strings"
+
 	"github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
-	"io"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -468,44 +467,6 @@ func NumberToInt(number interface{}) (int64, error) {
 		return 0, err
 	}
 	return result, nil
-}
-
-// TokenToJson marshals an oauth2 token to a json string
-func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
-	str := outhToken.Extra("expires_in")
-	var expiresIn interface{}
-	var refreshExpiresIn interface{}
-	var err error
-	expiresIn, err = NumberToInt(str)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"expires_in": str,
-			"err":        err,
-		}, "unable to parse expires_in claim")
-		return "", errs.WithStack(err)
-	}
-	str = outhToken.Extra("refresh_expires_in")
-	refreshExpiresIn, err = NumberToInt(str)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"refresh_expires_in": str,
-			"err":                err,
-		}, "unable to parse expires_in claim")
-		return "", errs.WithStack(err)
-	}
-	tokenData := &app.TokenData{
-		AccessToken:      &outhToken.AccessToken,
-		RefreshToken:     &outhToken.RefreshToken,
-		TokenType:        &outhToken.TokenType,
-		ExpiresIn:        &expiresIn,
-		RefreshExpiresIn: &refreshExpiresIn,
-	}
-	b, err := json.Marshal(tokenData)
-	if err != nil {
-		return "", errs.WithStack(err)
-	}
-
-	return string(b), nil
 }
 
 // TokenSet represents a set of Access and Refresh tokens

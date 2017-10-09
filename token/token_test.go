@@ -3,7 +3,6 @@ package token_test
 import (
 	"context"
 	"crypto/rsa"
-	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -144,38 +143,6 @@ func (s *TestTokenSuite) TestLocateInvalidUUIDInTokenInContext() {
 	_, err := s.tokenManager.Locate(ctx)
 	require.NotNil(s.T(), err)
 }
-
-func (s *TestTokenSuite) TestEncodeTokenOK() {
-	accessToken := "accessToken%@!/\\&?"
-	refreshToken := "refreshToken%@!/\\&?"
-	tokenType := "tokenType%@!/\\&?"
-	expiresIn := 1800
-	var refreshExpiresIn float64
-	refreshExpiresIn = 2.59e6
-
-	outhToken := &oauth2.Token{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    tokenType,
-	}
-	extra := map[string]interface{}{
-		"expires_in":         expiresIn,
-		"refresh_expires_in": refreshExpiresIn,
-	}
-	tokenJson, err := token.TokenToJson(context.Background(), outhToken.WithExtra(extra))
-	assert.Nil(s.T(), err)
-	b := []byte(tokenJson)
-	tokenData := &token.TokenSet{}
-	err = json.Unmarshal(b, tokenData)
-	assert.Nil(s.T(), err)
-
-	assert.Equal(s.T(), accessToken, *tokenData.AccessToken)
-	assert.Equal(s.T(), refreshToken, *tokenData.RefreshToken)
-	assert.Equal(s.T(), tokenType, *tokenData.TokenType)
-	assert.Equal(s.T(), int64(expiresIn), *tokenData.ExpiresIn)
-	assert.Equal(s.T(), int64(refreshExpiresIn), *tokenData.RefreshExpiresIn)
-}
-
 func (s *TestTokenSuite) TestInt32ToInt64OK() {
 	var i32 int32
 	i32 = 60
