@@ -308,7 +308,7 @@ func (g *GormTestBase) SpaceResources() space.ResourceRepository {
 	return nil
 }
 
-func (g *GormTestBase) ExternalProviderTokens() provider.ExternalProviderTokenRepository {
+func (g *GormTestBase) ExternalTokens() provider.ExternalTokenRepository {
 	return nil
 }
 

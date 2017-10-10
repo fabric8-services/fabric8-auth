@@ -126,6 +126,9 @@ func GetMigrations() Migrations {
 	// Version 7
 	m = append(m, steps{ExecuteSQLFile("007-external-provider-id-index.sql")})
 
+	// Version 8
+	m = append(m, steps{ExecuteSQLFile("008-rename-token-table.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

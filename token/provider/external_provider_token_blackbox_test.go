@@ -19,63 +19,63 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type externalProviderTokenBlackboxTest struct {
+type externalTokenBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo  provider.ExternalProviderTokenRepository
+	repo  provider.ExternalTokenRepository
 	clean func()
 	ctx   context.Context
 }
 
-func TestRunExternalProviderTokenBlackboxTest(t *testing.T) {
-	suite.Run(t, &externalProviderTokenBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("")})
+func TestRunExternalTokenBlackboxTest(t *testing.T) {
+	suite.Run(t, &externalTokenBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("")})
 }
 
-func (s *externalProviderTokenBlackboxTest) SetupSuite() {
+func (s *externalTokenBlackboxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.ctx = migration.NewMigrationContext(context.Background())
 	s.DBTestSuite.PopulateDBTestSuite(s.ctx)
 }
 
-func (s *externalProviderTokenBlackboxTest) SetupTest() {
-	s.repo = provider.NewExternalProviderTokenRepository(s.DB)
+func (s *externalTokenBlackboxTest) SetupTest() {
+	s.repo = provider.NewExternalTokenRepository(s.DB)
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 }
 
-func (s *externalProviderTokenBlackboxTest) TearDownTest() {
+func (s *externalTokenBlackboxTest) TearDownTest() {
 	s.clean()
 }
 
-func (s *externalProviderTokenBlackboxTest) TestOKToDelete() {
+func (s *externalTokenBlackboxTest) TestOKToDelete() {
 	// given
-	externalProviderToken := createAndLoadExternalProviderToken(s)
+	externalToken := createAndLoadExternalToken(s)
 
-	err := s.repo.Delete(s.ctx, externalProviderToken.ID)
+	err := s.repo.Delete(s.ctx, externalToken.ID)
 	// then
 	assert.Nil(s.T(), err)
-	externalProviderTokenLoaded, err := s.repo.Load(s.ctx, externalProviderToken.ID)
-	require.Nil(s.T(), externalProviderTokenLoaded, "should have been deleted")
+	externalTokenLoaded, err := s.repo.Load(s.ctx, externalToken.ID)
+	require.Nil(s.T(), externalTokenLoaded, "should have been deleted")
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
 
-func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToLoad() {
-	createAndLoadExternalProviderToken(s)
+func (s *externalTokenBlackboxTest) TestExternalProviderOKToLoad() {
+	createAndLoadExternalToken(s)
 }
 
-func (s *externalProviderTokenBlackboxTest) TestExistsExternalProvider() {
+func (s *externalTokenBlackboxTest) TestExistsExternalProvider() {
 	t := s.T()
 	resource.Require(t, resource.Database)
 
-	t.Run("externalProviderToken exists", func(t *testing.T) {
+	t.Run("externalToken exists", func(t *testing.T) {
 		//t.Parallel()
 		// given
-		externalProviderToken := createAndLoadExternalProviderToken(s)
+		externalToken := createAndLoadExternalToken(s)
 		// when
-		err := s.repo.CheckExists(s.ctx, externalProviderToken.ID.String())
+		err := s.repo.CheckExists(s.ctx, externalToken.ID.String())
 		// then
 		require.Nil(t, err)
 	})
 
-	t.Run("externalProviderToken doesn't exist", func(t *testing.T) {
+	t.Run("externalToken doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
 		// then
@@ -84,92 +84,92 @@ func (s *externalProviderTokenBlackboxTest) TestExistsExternalProvider() {
 
 }
 
-func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToSave() {
+func (s *externalTokenBlackboxTest) TestExternalProviderOKToSave() {
 	// given
-	externalProvideToken := createAndLoadExternalProviderToken(s)
+	externalToken := createAndLoadExternalToken(s)
 	// when
-	externalProvideToken.Token = uuid.NewV4().String()
-	err := s.repo.Save(s.ctx, externalProvideToken)
+	externalToken.Token = uuid.NewV4().String()
+	err := s.repo.Save(s.ctx, externalToken)
 	// then
-	require.Nil(s.T(), err, "Could not update externalProvideToken")
-	externalProviderTokenLoaded, err := s.repo.Load(s.ctx, externalProvideToken.ID)
+	require.Nil(s.T(), err, "Could not update externalToken")
+	externalTokenLoaded, err := s.repo.Load(s.ctx, externalToken.ID)
 
-	require.Nil(s.T(), err, "Could not retrieve externalProviderToken")
-	require.Equal(s.T(), externalProvideToken.Token, externalProviderTokenLoaded.Token)
+	require.Nil(s.T(), err, "Could not retrieve externalToken")
+	require.Equal(s.T(), externalToken.Token, externalTokenLoaded.Token)
 }
 
-func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityID() {
+func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityID() {
 	// given
-	externalProvideToken := createAndLoadExternalProviderToken(s)
+	externalToken := createAndLoadExternalToken(s)
 	// when
-	tokens, err := s.repo.Query(provider.ExternalProviderTokenFilterByIdentityID(externalProvideToken.IdentityID))
+	tokens, err := s.repo.Query(provider.ExternalTokenFilterByIdentityID(externalToken.IdentityID))
 
 	// then
-	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
+	require.Nil(s.T(), err, "Could not filter out externalTokens")
 
 	require.NotZero(s.T(), len(tokens))
 	for _, t := range tokens {
-		require.Equal(s.T(), externalProvideToken.ID, t.ID)
-		require.Equal(s.T(), externalProvideToken.Token, t.Token)
-		require.Equal(s.T(), externalProvideToken.IdentityID, t.IdentityID)
+		require.Equal(s.T(), externalToken.ID, t.ID)
+		require.Equal(s.T(), externalToken.Token, t.Token)
+		require.Equal(s.T(), externalToken.IdentityID, t.IdentityID)
 	}
 
 }
 
-func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByProviderID() {
+func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByProviderID() {
 	// given
-	externalProvideToken := createAndLoadExternalProviderToken(s)
+	externalToken := createAndLoadExternalToken(s)
 	// when
-	tokens, err := s.repo.Query(provider.ExternalProviderTokenFilterByProviderID(externalProvideToken.ProviderID))
+	tokens, err := s.repo.Query(provider.ExternalTokenFilterByProviderID(externalToken.ProviderID))
 
 	// then
-	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
+	require.Nil(s.T(), err, "Could not filter out externalTokens")
 	for _, t := range tokens {
-		require.Equal(s.T(), externalProvideToken.ID, t.ID)
-		require.Equal(s.T(), externalProvideToken.Token, t.Token)
-		require.Equal(s.T(), externalProvideToken.IdentityID, t.IdentityID)
+		require.Equal(s.T(), externalToken.ID, t.ID)
+		require.Equal(s.T(), externalToken.Token, t.Token)
+		require.Equal(s.T(), externalToken.IdentityID, t.IdentityID)
 	}
 
 }
 
-func (s *externalProviderTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAndProviderID() {
+func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAndProviderID() {
 	// given
-	externalProvideToken := createAndLoadExternalProviderToken(s)
+	externalToken := createAndLoadExternalToken(s)
 	// when
-	tokens, err := s.repo.LoadByProviderIDAndIdentityID(s.ctx, externalProvideToken.ProviderID, externalProvideToken.IdentityID)
+	tokens, err := s.repo.LoadByProviderIDAndIdentityID(s.ctx, externalToken.ProviderID, externalToken.IdentityID)
 
 	// then
-	require.Nil(s.T(), err, "Could not filter out externalProviderTokens")
+	require.Nil(s.T(), err, "Could not filter out externalTokens")
 
 	require.NotZero(s.T(), len(tokens))
 	for _, t := range tokens {
-		require.Equal(s.T(), externalProvideToken.ID, t.ID)
-		require.Equal(s.T(), externalProvideToken.Token, t.Token)
-		require.Equal(s.T(), externalProvideToken.IdentityID, t.IdentityID)
+		require.Equal(s.T(), externalToken.ID, t.ID)
+		require.Equal(s.T(), externalToken.Token, t.Token)
+		require.Equal(s.T(), externalToken.IdentityID, t.IdentityID)
 	}
 
 }
 
-func createAndLoadExternalProviderToken(s *externalProviderTokenBlackboxTest) *provider.ExternalProviderToken {
+func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.ExternalToken {
 
 	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
 	require.Nil(s.T(), err)
 
-	externalProviderToken := provider.ExternalProviderToken{
+	externalToken := provider.ExternalToken{
 		ID:         uuid.NewV4(),
 		ProviderID: uuid.NewV4(),
 		Token:      uuid.NewV4().String(),
 		Scope:      "user:full",
 		IdentityID: identity.ID,
 	}
-	fmt.Println(externalProviderToken)
+	fmt.Println(externalToken)
 
-	err = s.repo.Create(s.ctx, &externalProviderToken)
-	require.Nil(s.T(), err, "Could not create externalProviderToken")
+	err = s.repo.Create(s.ctx, &externalToken)
+	require.Nil(s.T(), err, "Could not create externalToken")
 	// when
-	externalProviderTokenRetrieved, err := s.repo.Load(s.ctx, externalProviderToken.ID)
+	externalTokenRetrieved, err := s.repo.Load(s.ctx, externalToken.ID)
 	// then
-	require.Nil(s.T(), err, "Could not load externalProviderToken")
-	require.Equal(s.T(), externalProviderToken.ID, externalProviderTokenRetrieved.ID)
-	return externalProviderTokenRetrieved
+	require.Nil(s.T(), err, "Could not load externalToken")
+	require.Equal(s.T(), externalToken.ID, externalTokenRetrieved.ID)
+	return externalTokenRetrieved
 }
