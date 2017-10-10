@@ -78,9 +78,9 @@ func (g *GormBase) OauthStates() auth.OauthStateReferenceRepository {
 	return auth.NewOauthStateReferenceRepository(g.db)
 }
 
-// ExternalProviderTokens returns an ExternalProviderTokens repository
-func (g *GormBase) ExternalProviderTokens() provider.ExternalProviderTokenRepository {
-	return provider.NewExternalProviderTokenRepository(g.db)
+// ExternalTokens returns an ExternalTokens repository
+func (g *GormBase) ExternalTokens() provider.ExternalTokenRepository {
+	return provider.NewExternalTokenRepository(g.db)
 }
 
 func (g *GormBase) DB() *gorm.DB {
