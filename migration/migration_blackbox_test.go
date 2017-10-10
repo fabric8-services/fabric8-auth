@@ -98,6 +98,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration01", testMigration01)
 	t.Run("TestMigration02", testMigration02)
 	t.Run("TestMigration04", testMigration04)
+	t.Run("TestMigration07", testMigration07)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName); err != nil {
@@ -139,6 +140,12 @@ func testMigration04(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(5)], (5))
 
 	assert.NotNil(t, runSQLscript(sqlDB, "004-insert-duplicate-space-resource.sql"))
+}
+
+func testMigration07(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(8)], (8))
+
+	assert.True(t, dialect.HasIndex("external_provider_tokens", "idx_provider_id"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
