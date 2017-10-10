@@ -16,7 +16,7 @@ import (
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -51,7 +51,8 @@ func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) 
 	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
 
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	return svc, NewTokenController(svc, loginService, loginService.TokenManager, rest.Configuration, rest.identityRepository)
+
+	return svc, NewTokenController(svc, loginService, nil, loginService.TokenManager, rest.Configuration, rest.identityRepository)
 }
 
 func (rest *TestTokenREST) TestTestUserTokenObtainedFromKeycloakOK() {

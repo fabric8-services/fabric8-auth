@@ -42,7 +42,7 @@ func (rest *TestTokenRemoteREST) UnSecuredController() (*goa.Service, *TokenCont
 	svc := goa.New("Token-Service")
 	manager, err := token.NewManager(rest.config)
 	require.Nil(rest.T(), err)
-	return svc, NewTokenController(svc, nil, manager, rest.config, nil)
+	return svc, NewTokenController(svc, nil, nil, manager, rest.config, nil)
 }
 
 func (rest *TestTokenRemoteREST) TestPublicKeys() {
