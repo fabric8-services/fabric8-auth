@@ -126,7 +126,7 @@ func GetMigrations() Migrations {
 	// Version 7
 	m = append(m, steps{ExecuteSQLFile("007-external-provider-id-index.sql")})
 
-	// Version 8 008-rename-token-table.sql
+	// Version 8
 	m = append(m, steps{ExecuteSQLFile("008-rename-token-table.sql")})
 
 	// Version N
