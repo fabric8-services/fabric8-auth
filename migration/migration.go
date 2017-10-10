@@ -250,7 +250,7 @@ func MigrateToNextVersion(tx *sql.Tx, nextVersion *int64, m Migrations, catalog 
 // in -1 + 1 = 0 which is exactly what we want as the first version.
 func getCurrentVersion(db *sql.Tx, catalog string) (int64, error) {
 	query := `SELECT EXISTS(
-				SELECT 1 FROM information_schema.tables 
+				SELECT 1 FROM information_schema.tables
 				WHERE table_catalog=$1
 				AND table_name='version')`
 	row := db.QueryRow(query, catalog)

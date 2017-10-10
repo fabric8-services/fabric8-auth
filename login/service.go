@@ -11,19 +11,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/dgrijalva/jwt-go"
@@ -31,7 +30,6 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -64,7 +62,7 @@ type KeycloakOAuthProvider struct {
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Perform(ctx *app.LoginLoginContext, config OauthConfig, serviceConfig LoginServiceConfiguration) error
+	Perform(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
 	CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
@@ -87,13 +85,8 @@ const (
 	tokenJSONParam       = "token_json"
 )
 
-type OauthConfig interface {
-	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
-	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
-}
-
 // Perform performs authentication
-func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config OauthConfig, serviceConfig LoginServiceConfiguration) error {
+func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
 	/* Compute all the configuration urls */
 
 	brokerEndpoint, err := serviceConfig.GetKeycloakEndpointBroker(ctx.RequestData)
@@ -376,7 +369,7 @@ func (keycloak *KeycloakOAuthProvider) saveParams(ctx *app.LoginLoginContext, re
 			parameters.Add(initiateLinkingParam, strconv.FormatBool(*ctx.Link))
 		}
 		if ctx.APIClient != nil {
-			parameters.Add("api_client", *ctx.APIClient)
+			parameters.Add(apiClientParam, *ctx.APIClient)
 		}
 		linkURL.RawQuery = parameters.Encode()
 		s := linkURL.String()
@@ -550,73 +543,15 @@ func (keycloak *KeycloakOAuthProvider) linkProvider(ctx linkInterface, req *goa.
 }
 
 func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx linkInterface, state uuid.UUID, referrer string, validReferrerURL string) error {
-	matched, err := regexp.MatchString(validReferrerURL, referrer)
+	err := oauth.SaveReferrer(ctx, keycloak.db, state, referrer, validReferrerURL)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"referrer":           referrer,
-			"valid_referrer_url": validReferrerURL,
-			"err":                err,
-		}, "Can't match referrer and whitelist regex")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInternal(err.Error()))
-		return ctx.InternalServerError(jerrors)
-	}
-	if !matched {
-		log.Error(ctx, map[string]interface{}{
-			"referrer":           referrer,
-			"valid_referrer_url": validReferrerURL,
-		}, "Referrer not valid")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("Not valid redirect URL"))
-		return ctx.BadRequest(jerrors)
-	}
-	// TODO The state reference table will be collecting dead states left from some failed login attempts.
-	// We need to clean up the old states from time to time.
-	ref := auth.OauthStateReference{
-		ID:       state,
-		Referrer: referrer,
-	}
-	err = application.Transactional(keycloak.db, func(appl application.Application) error {
-		_, err := appl.OauthStates().Create(ctx, &ref)
-		return err
-	})
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state":    state,
-			"referrer": referrer,
-			"err":      err,
-		}, "unable to create oauth state reference")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrInternal("Unable to create oauth state reference "+err.Error()))
-		return ctx.InternalServerError(jerrors)
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return nil
 }
 
 func (keycloak *KeycloakOAuthProvider) getReferrer(ctx context.Context, state string) (string, error) {
-	var referrer string
-	stateID, err := uuid.FromString(state)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-			"err":   err,
-		}, "unable to convert oauth state to uuid")
-		return "", errors.New("Unable to convert oauth state to uuid. " + err.Error())
-	}
-	err = application.Transactional(keycloak.db, func(appl application.Application) error {
-		ref, err := appl.OauthStates().Load(ctx, stateID)
-		if err != nil {
-			return err
-		}
-		referrer = ref.Referrer
-		err = appl.OauthStates().Delete(ctx, stateID)
-		return err
-	})
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-			"err":   err,
-		}, "unable to delete oauth state reference")
-		return "", errors.New("Unable to delete oauth state reference " + err.Error())
-	}
-	return referrer, nil
+	return oauth.LoadReferrer(ctx, keycloak.db, state)
 }
 
 func getProviderURL(req *goa.RequestData, state string, sessionState string, provider string, nextProvider *string, brokerEndpoint string, clientID string) (string, error) {

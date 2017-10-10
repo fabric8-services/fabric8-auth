@@ -26,6 +26,8 @@ type LoginConfiguration interface {
 	GetKeycloakClientID() string
 	GetKeycloakSecret() string
 	IsPostgresDeveloperModeEnabled() bool
+	IsOpenShiftLinkingEnabled() bool
+	GetOpenShiftClientHost() string
 	GetKeycloakTestUserName() string
 	GetKeycloakTestUserSecret() string
 	GetKeycloakTestUser2Name() string

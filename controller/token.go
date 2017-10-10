@@ -2,10 +2,9 @@ package controller
 
 import (
 	"context"
-	"time"
-
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -16,24 +15,26 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/link"
+
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
+	"strings"
 )
-
-const maxRecentSpacesForRPT = 10
 
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
 	Auth               login.KeycloakOAuthService
+	LinkService        link.LinkOAuthService
 	TokenManager       token.Manager
 	Configuration      LoginConfiguration
 	identityRepository account.IdentityRepository
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository) *TokenController {
-	return &TokenController{Controller: service.NewController("token"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository}
+func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, linkService link.LinkOAuthService, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository) *TokenController {
+	return &TokenController{Controller: service.NewController("token"), Auth: auth, LinkService: linkService, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository}
 }
 
 // Keys returns public keys which should be used to verify tokens
@@ -188,4 +189,47 @@ func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration 
 	}
 
 	return convertToken(*t), nil
+}
+
+// Link links the user account to an external resource provider such as GitHub
+func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
+	tokenClaims, err := c.TokenManager.ParseToken(ctx, ctx.Payload.Token)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	identityID := tokenClaims.StandardClaims.Subject
+
+	var redirectURL string
+	if ctx.Payload.Redirect == nil {
+		redirectURL = ctx.RequestData.Header.Get("Referer")
+		if redirectURL == "" {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect", "empty").Expected("redirect param or Referer header should be specified"))
+		}
+	} else {
+		redirectURL = *ctx.Payload.Redirect
+	}
+
+	if !c.Configuration.IsOpenShiftLinkingEnabled() && strings.Contains(ctx.Payload.For, c.Configuration.GetOpenShiftClientHost()) {
+		// OSO account linking is disabled by default in Dev Mode.
+		ctx.ResponseData.Header().Set("Location", redirectURL)
+		return ctx.SeeOther()
+	}
+
+	redirectLocation, err := c.LinkService.ProviderLocation(ctx, ctx.RequestData, identityID, ctx.Payload.For, redirectURL)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	ctx.ResponseData.Header().Set("Location", redirectLocation)
+	return ctx.SeeOther()
+}
+
+// Callback is called by an external oauth2 resource provider such as GitHub as part of user's account linking flow
+func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
+	redirectLocation, err := c.LinkService.Callback(ctx, ctx.RequestData, ctx.State, ctx.Code)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	ctx.ResponseData.Header().Set("Location", redirectLocation)
+	return ctx.TemporaryRedirect()
 }

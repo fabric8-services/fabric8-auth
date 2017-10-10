@@ -17,6 +17,11 @@ objects:
     keycloak.secret: Cg==
     serviceaccount.privatekey: Cg==
     serviceaccount.privatekeyid: Cg==
+    github.client.id: Cg==
+    github.client.secret: Cg==
+    oso.client.host: Cg==
+    oso.client.id: Cg==
+    oso.client.secret: Cg==
 - apiVersion: v1
   kind: ConfigMap
   metadata:

@@ -57,6 +57,11 @@ objects:
               secretKeyRef:
                 name: auth
                 key: keycloak.realm
+          - name: AUTH_KEYCLOAK_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: keycloak.secret
           - name: AUTH_SERVICEACCOUNT_PRIVATEKEY
             valueFrom:
               secretKeyRef:
@@ -67,11 +72,31 @@ objects:
               secretKeyRef:
                 name: auth
                 key: serviceaccount.privatekeyid
-          - name: AUTH_KEYCLOAK_SECRET
+          - name: AUTH_GITHUB_CLIENT_ID
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: keycloak.secret
+                key: github.client.id
+          - name: AUTH_GITHUB_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: github.client.secret
+          - name: AUTH_OSO_CLIENT_HOST
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: oso.client.host
+          - name: AUTH_OSO_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: oso.client.id
+          - name: AUTH_OSO_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: oso.client.secret
           - name: AUTH_POSTGRES_SSLMODE
             valueFrom:
               configMapKeyRef:

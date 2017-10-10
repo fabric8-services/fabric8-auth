@@ -68,6 +68,14 @@ const (
 	varServiceAccountPrivateKeyIDDeprecated = "serviceaccount.privatekeyid.deprecated"
 	varServiceAccountPrivateKey             = "serviceaccount.privatekey"
 	varServiceAccountPrivateKeyID           = "serviceaccount.privatekeyid"
+	varGitHubClientID                       = "github.client.id"
+	varGitHubClientSecret                   = "github.client.secret"
+	varGitHubClientDefaultScopes            = "github.client.defaultscopes"
+	varOSOClientHost                        = "oso.client.host"
+	varOSOClientID                          = "oso.client.id"
+	varOSOClientSecret                      = "oso.client.secret"
+	varOSOClientDefaultScopes               = "oso.client.defaultscopes"
+	varOSOLinkingEnabled                    = "oso.linking.enabled"
 	varNotApprovedRedirect                  = "notapproved.redirect"
 	varHeaderMaxLength                      = "header.maxlength"
 	varCacheControlUsers                    = "cachecontrol.users"
@@ -178,6 +186,13 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
+	c.v.SetDefault(varGitHubClientID, "c6a3a6280e9650ba27d8")
+	c.v.SetDefault(varGitHubClientSecret, "48d1498c849616dfecf83cf74f22dfb361ee2511")
+	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org repo user gist")
+	c.v.SetDefault(varOSOClientHost, "starter-us-east-2.openshift.com")
+	c.v.SetDefault(varOSOClientID, "oso-id")
+	c.v.SetDefault(varOSOClientSecret, "oso-secret")
+	c.v.SetDefault(varOSOClientDefaultScopes, "user:full")
 
 	// Max number of users returned when searching users
 	c.v.SetDefault(varUsersListLimit, 50)
@@ -315,6 +330,49 @@ func (c *ConfigurationData) GetDeprecatedServiceAccountPrivateKey() ([]byte, str
 // that is used to sign the service account authentication tokens.
 func (c *ConfigurationData) GetServiceAccountPrivateKey() ([]byte, string) {
 	return []byte(c.v.GetString(varServiceAccountPrivateKey)), c.v.GetString(varServiceAccountPrivateKeyID)
+}
+
+// GetGitHubClientID return GitHub client ID used to link GitHub accounts
+func (c *ConfigurationData) GetGitHubClientID() string {
+	return c.v.GetString(varGitHubClientID)
+}
+
+// GetGitHubClientSecret return GitHub client secret used to link GitHub accounts
+func (c *ConfigurationData) GetGitHubClientSecret() string {
+	return c.v.GetString(varGitHubClientSecret)
+}
+
+// GetGitHubClientDefaultScopes return default scopes used to link GitHub accounts
+func (c *ConfigurationData) GetGitHubClientDefaultScopes() string {
+	return c.v.GetString(varGitHubClientDefaultScopes)
+}
+
+// GetOpenShiftClientHost return OpenShift client host used to link OpenShift accounts
+func (c *ConfigurationData) GetOpenShiftClientHost() string {
+	return c.v.GetString(varOSOClientHost)
+}
+
+// GetOpenShiftClientID return OpenShift client ID used to link OpenShift accounts
+func (c *ConfigurationData) GetOpenShiftClientID() string {
+	return c.v.GetString(varOSOClientID)
+}
+
+// GetGitHubClientSecret return OpenShift client secret used to link OpenShift accounts
+func (c *ConfigurationData) GetOpenShiftClientSecret() string {
+	return c.v.GetString(varOSOClientSecret)
+}
+
+// GetOpenShiftClientDefaultScopes return default scopes used to link OpenShift accounts
+func (c *ConfigurationData) GetOpenShiftClientDefaultScopes() string {
+	return c.v.GetString(varOSOClientDefaultScopes)
+}
+
+// IsOpenShiftLinkingEnabled returns true if OpenShift account linking is enabled
+func (c *ConfigurationData) IsOpenShiftLinkingEnabled() bool {
+	if c.v.IsSet(varOSOLinkingEnabled) {
+		return c.v.GetBool(varOSOLinkingEnabled)
+	}
+	return !c.IsPostgresDeveloperModeEnabled()
 }
 
 // GetNotApprovedRedirect returns the URL to redirect to if the user is not approved
