@@ -3,6 +3,7 @@ package migration
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"database/sql"
 	"net/http"
 	"net/url"
@@ -10,8 +11,6 @@ import (
 	"text/template"
 
 	"github.com/fabric8-services/fabric8-auth/log"
-
-	"context"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
@@ -123,6 +122,9 @@ func GetMigrations() Migrations {
 
 	// Version 6
 	m = append(m, steps{ExecuteSQLFile("006-external-provider.sql")})
+
+	// Version 7
+	m = append(m, steps{ExecuteSQLFile("007-external-provider-id-index.sql")})
 
 	// Version N
 	//
