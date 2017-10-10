@@ -150,7 +150,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 	}
 
 	err = application.Transactional(service.db, func(appl application.Application) error {
-		tokens, err := appl.ExternalProviderTokens().LoadByProviderIDAndIdentityID(ctx, config.ID(), identityUUID)
+		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, config.ID(), identityUUID)
 		if err != nil {
 			return err
 		}
@@ -158,15 +158,15 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			// It was re-linking. Overwrite the existing link.
 			externalToken := tokens[0]
 			externalToken.Token = providerToken.AccessToken
-			return appl.ExternalProviderTokens().Save(ctx, &externalToken)
+			return appl.ExternalTokens().Save(ctx, &externalToken)
 		}
-		externalToken := provider.ExternalProviderToken{
+		externalToken := provider.ExternalToken{
 			Token:      providerToken.AccessToken,
 			IdentityID: identityUUID,
 			Scope:      config.Scopes(),
 			ProviderID: config.ID(),
 		}
-		return appl.ExternalProviderTokens().Create(ctx, &externalToken)
+		return appl.ExternalTokens().Create(ctx, &externalToken)
 	})
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
