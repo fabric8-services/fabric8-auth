@@ -22,9 +22,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
-	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -49,7 +49,7 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		Users:            users,
 		TokenManager:     tokenManager,
 		db:               db,
-		remoteWITService: &remoteservice.RemoteWITServiceCaller{},
+		remoteWITService: &wit.RemoteWITServiceCaller{},
 	}
 }
 
@@ -59,7 +59,7 @@ type KeycloakOAuthProvider struct {
 	Users            account.UserRepository
 	TokenManager     token.Manager
 	db               application.DB
-	remoteWITService remoteservice.RemoteWITService
+	remoteWITService wit.RemoteWITService
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface

@@ -13,8 +13,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -29,7 +29,7 @@ type UsersController struct {
 	db                 application.DB
 	config             UsersControllerConfiguration
 	userProfileService login.UserProfileService
-	RemoteWITService   remoteservice.RemoteWITService
+	RemoteWITService   wit.RemoteWITService
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -47,7 +47,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 		db:                 db,
 		config:             config,
 		userProfileService: userProfileService,
-		RemoteWITService:   &remoteservice.RemoteWITServiceCaller{},
+		RemoteWITService:   &wit.RemoteWITServiceCaller{},
 	}
 }
 
