@@ -135,7 +135,7 @@ func main() {
 	// Setup Account/Login/Security
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
-	externalProviderTokenRepository := provider.NewExternalProviderTokenRepository(db)
+	externalProviderTokenRepository := provider.NewExternalTokenRepository(db)
 
 	appDB := gormapplication.NewGormDB(db)
 

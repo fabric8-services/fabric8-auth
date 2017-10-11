@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/token/provider"
@@ -27,15 +28,17 @@ const maxRecentSpacesForRPT = 10
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
-	Auth                            login.KeycloakOAuthService
-	TokenManager                    token.Manager
-	Configuration                   LoginConfiguration
+	Auth          login.KeycloakOAuthService
+	TokenManager  token.Manager
+	Configuration LoginConfiguration
+
+	// Wouldn't need this once we start using the link service.
 	identityRepository              account.IdentityRepository
-	externalProviderTokenRepository provider.ExternalProviderTokenRepository
+	externalProviderTokenRepository provider.ExternalTokenRepository
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository, externalProviderTokenRepository provider.ExternalProviderTokenRepository) *TokenController {
+func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository, externalProviderTokenRepository provider.ExternalTokenRepository) *TokenController {
 	return &TokenController{Controller: service.NewController("token"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository, externalProviderTokenRepository: externalProviderTokenRepository}
 }
 
@@ -159,17 +162,23 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("github or openshift-v3 resource"))
 	}
-	externalProviderType, error := provider.GetExternalProvider(ctx.For)
+
+	// TODO: use linkService.NewOauthProvider() to get GitHubConfig or OpenShiftConfig
+	externalProviderConfig, error := provider.GetExternalProvider(ctx.For)
 	if error != nil {
 		return jsonapi.JSONErrorResponse(ctx, error)
 	}
+	providerName := externalProviderConfig.Type
 
-	// no clue why I have this now - but definitely won't be using SCOPE to query at the moment.
+	// should expect clients to not use the 'scope' parameter.
+	// if they use something which doesn't match the default, we shall return the usual 401 response
 	scope := ctx.Scope
 	if scope == nil || *scope == "" {
-		scope = &externalProviderType.DefaultScope
+		scope = &externalProviderConfig.DefaultScope
 	}
-	externalProviderTokens, err := c.externalProviderTokenRepository.LoadByProviderIDAndIdentityID(ctx, externalProviderType.ID, *currentIdentity)
+
+	// TODO: use application.transactional when linkService is merged.
+	externalProviderTokens, err := c.externalProviderTokenRepository.LoadByProviderIDAndIdentityID(ctx, externalProviderConfig.ID, *currentIdentity)
 
 	if len(externalProviderTokens) > 0 {
 		// not sure if we'll need more than 1 tokens in future.
@@ -177,15 +186,15 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		//TODO: move transformation to a different method.
 
 		ID := externalProviderTokens[0].ID.String()
-		return ctx.OK(&app.ExternalProviderToken{
-			Data: &app.ExternalProviderTokenData{
-				Attributes: &app.ExternalProviderTokenDataAttributes{
-					CreatedAt:            &externalProviderTokens[0].CreatedAt,
-					ExternalProviderType: externalProviderType.Type,
-					IdentityID:           currentIdentity.String(),
-					Scope:                externalProviderTokens[0].Scope,
-					UpdatedAt:            &externalProviderTokens[0].UpdatedAt,
-					Token:                externalProviderTokens[0].Token,
+		return ctx.OK(&app.ExternalToken{
+			Data: &app.ExternalTokenData{
+				Attributes: &app.ExternalTokenDataAttributes{
+					CreatedAt:  &externalProviderTokens[0].CreatedAt,
+					For:        ctx.For,
+					IdentityID: currentIdentity.String(),
+					Scope:      externalProviderTokens[0].Scope,
+					UpdatedAt:  &externalProviderTokens[0].UpdatedAt,
+					Token:      externalProviderTokens[0].Token,
 				},
 				Type: "external_provider_token",
 				ID:   &ID,
@@ -193,8 +202,12 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		})
 	}
 
-	// TODO: return the www-authenticate response header.
-	return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("external_provider_token", ctx.For))
+	redirect := ctx.RequestData.Referer()
+	linkURL := rest.AbsoluteURL(ctx.RequestData, "/api/link?redirect="+redirect+"&scope="+*scope)
+	errorResponse := fmt.Sprintf("LINK provider=%s, url=%s, description=”%s”", providerName, linkURL, "Link account")
+
+	ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
+	return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(errorResponse))
 
 }
 

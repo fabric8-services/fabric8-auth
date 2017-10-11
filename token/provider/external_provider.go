@@ -18,7 +18,7 @@ type ExternalProvider struct {
 
 // GithubProvider is a representation of the Github external provider.
 var GithubProvider = ExternalProvider{
-	ID:           uuid.FromStringOrNil("0c50fbe-f5de-4111-8a4e-ec5b25cc79fd"),
+	ID:           uuid.FromStringOrNil("2f6b7176-8f4b-4204-962d-606033275397"),
 	URL:          "github.com",
 	Type:         "github",
 	DefaultScope: "user:full", // TODO: move this out to constants.
@@ -26,7 +26,7 @@ var GithubProvider = ExternalProvider{
 
 // OpenShiftv3Provider is a respresentation of the OpenShiftv3 provider.
 var OpenShiftv3Provider = ExternalProvider{
-	ID:           uuid.FromStringOrNil("e024e0eb-15da-4775-b823-cc11c51f7f8e"),
+	ID:           uuid.FromStringOrNil("f867ac10-5e05-4359-a0c6-b855ece59090"),
 	URL:          "openshift.com",
 	Type:         "openshift-v3",
 	DefaultScope: "admin:repo_hook read:org repo user gist", // TODO: move this out to constants.

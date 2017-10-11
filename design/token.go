@@ -5,33 +5,33 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
-// externalProviderTokenData represents a token object
-var externalProviderTokenData = a.Type("ExternalProviderTokenData", func() {
+// externalTokenData represents a token object
+var externalTokenData = a.Type("ExternalTokenData", func() {
 	a.Attribute("id", d.String, "unique id for the token")
 	a.Attribute("type", d.String, "type of the data")
-	a.Attribute("attributes", externalProviderTokenDataAttributes, "Attributes of the token")
+	a.Attribute("attributes", externalTokenDataAttributes, "Attributes of the token")
 	a.Attribute("links", genericLinks)
 	a.Required("type", "attributes")
 })
 
-// externalProviderTokenDataAttributes represents a token object attributes
-var externalProviderTokenDataAttributes = a.Type("ExternalProviderTokenDataAttributes", func() {
+// externalTokenDataAttributes represents a token object attributes
+var externalTokenDataAttributes = a.Type("ExternalTokenDataAttributes", func() {
 	a.Attribute("identityID", d.String, "The id of the corresponding Identity")
 	a.Attribute("created-at", d.DateTime, "The date of creation of the  external provider token")
 	a.Attribute("updated-at", d.DateTime, "The date of update of the external provider token")
-	a.Attribute("externalProviderType", d.String, "The name or url of the external provider type")
+	a.Attribute("for", d.String, "The name or url of the external provider type")
 	a.Attribute("token", d.String, "The token associated with the identity for the specific external provider")
 	a.Attribute("scope", d.String, "The scope associated with the token")
-	a.Required("token", "scope", "externalProviderType", "identityID")
+	a.Required("token", "scope", "for", "identityID")
 })
 
-// externalProviderToken represents a token object
-var externalProviderToken = a.MediaType("application/vnd.externalProviderToken+json", func() {
+// externalToken represents a token object
+var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 	a.UseTrait("jsonapi-media-type")
-	a.TypeName("ExternalProviderToken")
+	a.TypeName("ExternalToken")
 	a.Description("External Provider Token")
 	a.Attributes(func() {
-		a.Attribute("data", externalProviderTokenData)
+		a.Attribute("data", externalTokenData)
 		a.Required("data")
 
 	})
@@ -56,7 +56,7 @@ var _ = a.Resource("token", func() {
 			a.Required("for")
 		})
 		a.Description("Get the external provider token")
-		a.Response(d.OK, externalProviderToken)
+		a.Response(d.OK, externalToken)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
