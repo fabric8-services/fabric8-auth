@@ -71,7 +71,7 @@ const (
 	varGitHubClientID                       = "github.client.id"
 	varGitHubClientSecret                   = "github.client.secret"
 	varGitHubClientDefaultScopes            = "github.client.defaultscopes"
-	varOSOClientHost                        = "oso.client.host"
+	varOSOClientApiUrl                      = "oso.client.apiurl"
 	varOSOClientID                          = "oso.client.id"
 	varOSOClientSecret                      = "oso.client.secret"
 	varOSOClientDefaultScopes               = "oso.client.defaultscopes"
@@ -189,7 +189,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varGitHubClientID, "c6a3a6280e9650ba27d8")
 	c.v.SetDefault(varGitHubClientSecret, "48d1498c849616dfecf83cf74f22dfb361ee2511")
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org repo user gist")
-	c.v.SetDefault(varOSOClientHost, "starter-us-east-2.openshift.com")
+	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
 	c.v.SetDefault(varOSOClientID, "oso-id")
 	c.v.SetDefault(varOSOClientSecret, "oso-secret")
 	c.v.SetDefault(varOSOClientDefaultScopes, "user:full")
@@ -347,9 +347,9 @@ func (c *ConfigurationData) GetGitHubClientDefaultScopes() string {
 	return c.v.GetString(varGitHubClientDefaultScopes)
 }
 
-// GetOpenShiftClientHost return OpenShift client host used to link OpenShift accounts
-func (c *ConfigurationData) GetOpenShiftClientHost() string {
-	return c.v.GetString(varOSOClientHost)
+// GetOpenShiftClientApiUrl return OpenShift client API URL used to link OpenShift accounts
+func (c *ConfigurationData) GetOpenShiftClientApiUrl() string {
+	return c.v.GetString(varOSOClientApiUrl)
 }
 
 // GetOpenShiftClientID return OpenShift client ID used to link OpenShift accounts

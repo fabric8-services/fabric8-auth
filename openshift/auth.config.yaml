@@ -19,7 +19,7 @@ objects:
     serviceaccount.privatekeyid: Cg==
     github.client.id: Cg==
     github.client.secret: Cg==
-    oso.client.host: Cg==
+    oso.client.apiurl: aHR0cHM6Ly9hcGkuY29uc29sZS5zdGFydGVyLXVzLWVhc3QtMi5vcGVuc2hpZnQuY29t
     oso.client.id: Cg==
     oso.client.secret: Cg==
 - apiVersion: v1

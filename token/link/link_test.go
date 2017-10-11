@@ -92,9 +92,9 @@ func (s *LinkTestSuite) TestGitHubProviderRedirectsToAuthorize() {
 }
 
 func (s *LinkTestSuite) TestOSOProviderRedirectsToAuthorize() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://api."+s.Configuration.GetOpenShiftClientHost(), "https://openshift.io/home")
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), s.Configuration.GetOpenShiftClientApiUrl(), "https://openshift.io/home")
 	require.Nil(s.T(), err)
-	require.Contains(s.T(), location, fmt.Sprintf("https://api.%s/oauth/authorize", s.Configuration.GetOpenShiftClientHost()))
+	require.Contains(s.T(), location, fmt.Sprintf("%s/oauth/authorize", s.Configuration.GetOpenShiftClientApiUrl()))
 	require.NotEmpty(s.T(), s.stateParam(location))
 }
 

@@ -82,11 +82,11 @@ objects:
               secretKeyRef:
                 name: auth
                 key: github.client.secret
-          - name: AUTH_OSO_CLIENT_HOST
+          - name: AUTH_OSO_CLIENT_APIURL
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: oso.client.host
+                key: oso.client.apiurl
           - name: AUTH_OSO_CLIENT_ID
             valueFrom:
               secretKeyRef:

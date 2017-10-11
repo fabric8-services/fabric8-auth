@@ -20,13 +20,13 @@ type OpenShiftConfig struct {
 	scopeStr   string
 }
 
-func NewOpenShiftConfig(clientHost string, clientID string, clientSecret string, scopes string, authURL string) *GitHubConfig {
+func NewOpenShiftConfig(apiUrl string, clientID string, clientSecret string, scopes string, authURL string) *GitHubConfig {
 	provider := &GitHubConfig{}
 	provider.ClientID = clientID
 	provider.ClientSecret = clientSecret
 	provider.Endpoint = oauth2.Endpoint{
-		AuthURL:  fmt.Sprintf("https://api.%s/oauth/authorize", clientHost),
-		TokenURL: fmt.Sprintf("https://api.%s/oauth/access_token", clientHost),
+		AuthURL:  fmt.Sprintf("%s/oauth/authorize", apiUrl),
+		TokenURL: fmt.Sprintf("%s/oauth/access_token", apiUrl),
 	}
 	provider.RedirectURL = authURL + client.CallbackTokenPath()
 	provider.scopeStr = scopes

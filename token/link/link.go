@@ -41,7 +41,7 @@ type LinkConfig interface {
 	GetGitHubClientID() string
 	GetGitHubClientDefaultScopes() string
 	GetGitHubClientSecret() string
-	GetOpenShiftClientHost() string
+	GetOpenShiftClientApiUrl() string
 	GetOpenShiftClientID() string
 	GetOpenShiftClientSecret() string
 	GetOpenShiftClientDefaultScopes() string
@@ -207,8 +207,8 @@ func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.Reque
 	}
 	if resourceURL.Host == "github.com" {
 		return NewGitHubConfig(config.GetGitHubClientID(), config.GetGitHubClientSecret(), config.GetGitHubClientDefaultScopes(), authURL), nil
-	} else if strings.HasSuffix(resourceURL.Host, config.GetOpenShiftClientHost()) {
-		return NewOpenShiftConfig(config.GetOpenShiftClientHost(), config.GetOpenShiftClientID(), config.GetOpenShiftClientSecret(), config.GetOpenShiftClientDefaultScopes(), authURL), nil
+	} else if strings.HasPrefix(forResource, config.GetOpenShiftClientApiUrl()) {
+		return NewOpenShiftConfig(config.GetOpenShiftClientApiUrl(), config.GetOpenShiftClientID(), config.GetOpenShiftClientSecret(), config.GetOpenShiftClientDefaultScopes(), authURL), nil
 	}
 	log.Error(ctx, map[string]interface{}{
 		"for": forResource,

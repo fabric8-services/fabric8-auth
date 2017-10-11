@@ -17,9 +17,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
+	"strings"
+
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
-	"strings"
 )
 
 // TokenController implements the login resource.
@@ -213,7 +214,7 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 		redirectURL = *ctx.Payload.Redirect
 	}
 
-	if !c.Configuration.IsOpenShiftLinkingEnabled() && strings.Contains(ctx.Payload.For, c.Configuration.GetOpenShiftClientHost()) {
+	if !c.Configuration.IsOpenShiftLinkingEnabled() && strings.HasPrefix(ctx.Payload.For, c.Configuration.GetOpenShiftClientApiUrl()) {
 		// OSO account linking is disabled by default in Dev Mode.
 		ctx.ResponseData.Header().Set("Location", redirectURL)
 		return ctx.SeeOther()
