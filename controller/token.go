@@ -195,7 +195,11 @@ func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration 
 func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 	tokenClaims, err := c.TokenManager.ParseToken(ctx, ctx.Payload.Token)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		log.Error(ctx, map[string]interface{}{
+			"err":   err,
+			"token": ctx.Payload.Token,
+		}, "unable to parse token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 	identityID := tokenClaims.StandardClaims.Subject
 

@@ -112,11 +112,7 @@ func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	linkServiceWithDummyProviderFactory := &LinkService{
-		config: s.Configuration,
-		db:     gormapplication.NewGormDB(s.DB),
-	}
-	linkServiceWithDummyProviderFactory.providerFactory = &DummyProviderFactory{uuid.NewV4().String()}
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{uuid.NewV4().String()})
 
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -128,12 +124,8 @@ func (s *LinkTestSuite) TestProviderSavesToken() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	linkServiceWithDummyProviderFactory := &LinkService{
-		config: s.Configuration,
-		db:     gormapplication.NewGormDB(s.DB),
-	}
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory.providerFactory = &DummyProviderFactory{token}
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token})
 
 	code := uuid.NewV4().String()
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)

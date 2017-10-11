@@ -68,6 +68,15 @@ func NewLinkService(config LinkConfig, db application.DB) LinkOAuthService {
 	return service
 }
 
+func NewLinkServiceWithFactory(config LinkConfig, db application.DB, factory OauthProviderFactory) LinkOAuthService {
+	service := &LinkService{
+		config: config,
+		db:     db,
+	}
+	service.providerFactory = factory
+	return service
+}
+
 // ProviderLocation returns a URL to OAuth 2.0 provider's consent page to be used to initiate account linking
 func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error) {
 	// We need to save the "identityID" and "for" as params in the redirect location URL so we don't lose them when redirect to the provider for auth and back to auth.
