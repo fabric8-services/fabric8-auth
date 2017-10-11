@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -21,9 +22,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
-	"github.com/fabric8-services/fabric8-auth/remoteservice"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -48,7 +49,7 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		Users:            users,
 		TokenManager:     tokenManager,
 		db:               db,
-		remoteWITService: &remoteservice.RemoteWITServiceCaller{},
+		remoteWITService: &wit.RemoteWITServiceCaller{},
 	}
 }
 
@@ -58,7 +59,7 @@ type KeycloakOAuthProvider struct {
 	Users            account.UserRepository
 	TokenManager     token.Manager
 	db               application.DB
-	remoteWITService remoteservice.RemoteWITService
+	remoteWITService wit.RemoteWITService
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
@@ -345,7 +346,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 }
 
 func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
-	tokenJson, err := token.TokenToJson(ctx, outhToken)
+	tokenJson, err := TokenToJson(ctx, outhToken)
 	if err != nil {
 		return err
 	}
@@ -897,4 +898,42 @@ func InjectTokenManager(tokenManager token.Manager) goa.Middleware {
 			return h(ctxWithTM, rw, req)
 		}
 	}
+}
+
+// TokenToJson marshals an oauth2 token to a json string
+func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
+	str := outhToken.Extra("expires_in")
+	var expiresIn interface{}
+	var refreshExpiresIn interface{}
+	var err error
+	expiresIn, err = token.NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"expires_in": str,
+			"err":        err,
+		}, "unable to parse expires_in claim")
+		return "", errs.WithStack(err)
+	}
+	str = outhToken.Extra("refresh_expires_in")
+	refreshExpiresIn, err = token.NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"refresh_expires_in": str,
+			"err":                err,
+		}, "unable to parse expires_in claim")
+		return "", errs.WithStack(err)
+	}
+	tokenData := &app.TokenData{
+		AccessToken:      &outhToken.AccessToken,
+		RefreshToken:     &outhToken.RefreshToken,
+		TokenType:        &outhToken.TokenType,
+		ExpiresIn:        &expiresIn,
+		RefreshExpiresIn: &refreshExpiresIn,
+	}
+	b, err := json.Marshal(tokenData)
+	if err != nil {
+		return "", errs.WithStack(err)
+	}
+
+	return string(b), nil
 }

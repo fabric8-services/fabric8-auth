@@ -13,7 +13,7 @@ type Application interface {
 	SpaceResources() space.ResourceRepository
 	Users() account.UserRepository
 	OauthStates() auth.OauthStateReferenceRepository
-	ExternalProviderTokens() provider.ExternalProviderTokenRepository
+	ExternalTokens() provider.ExternalTokenRepository
 }
 
 // A Transaction abstracts a database transaction. The repositories created for the transaction object make changes inside the the transaction

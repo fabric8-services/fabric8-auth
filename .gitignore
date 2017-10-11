@@ -80,7 +80,7 @@ swagger/
 tool/cli/
 migration/sqlbindata.go
 migration/sqlbindata_test.go
-wit/
+wit/witservice
 
 # Ignore artifacts directory
 bin/
