@@ -47,17 +47,25 @@ type LinkConfig interface {
 	GetOpenShiftClientDefaultScopes() string
 }
 
+// OauthProviderFactory represents oauth provider factory
+type OauthProviderFactory interface {
+	NewOauthProvider(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error)
+}
+
 // LinkService represents service for linking accounts
 type LinkService struct {
-	config LinkConfig
-	db     application.DB
+	config          LinkConfig
+	db              application.DB
+	providerFactory OauthProviderFactory
 }
 
 func NewLinkService(config LinkConfig, db application.DB) LinkOAuthService {
-	return &LinkService{
+	service := &LinkService{
 		config: config,
 		db:     db,
 	}
+	service.providerFactory = service
+	return service
 }
 
 // ProviderLocation returns a URL to OAuth 2.0 provider's consent page to be used to initiate account linking
@@ -77,7 +85,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	linkURL.RawQuery = parameters.Encode()
 	redirectURL = linkURL.String()
 
-	config, err := NewOauthConfig(ctx, req, service.config, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, service.config, forResource)
 	if err != nil {
 		return "", err
 	}
@@ -91,8 +99,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 		return "", err
 	}
 
-	redirectLocation := config.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline)
-	return redirectLocation, nil
+	return oauthProvider.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline), nil
 }
 
 // Callback returns a redirect URL after callback from an external oauth2 resource provider such as GitHub during user's account linking
@@ -126,12 +133,12 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	config, err := NewOauthConfig(ctx, req, service.config, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, service.config, forResource)
 	if err != nil {
 		return "", err
 	}
 
-	providerToken, err := config.Exchange(ctx, code)
+	providerToken, err := oauthProvider.Exchange(ctx, code)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state": state,
@@ -144,13 +151,13 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 		log.Error(ctx, map[string]interface{}{
 			"state":       state,
 			"code":        code,
-			"provider_id": config.ID(),
+			"provider_id": oauthProvider.ID(),
 		}, "access token return by provider is empty")
 		return "", errors.New("access token return by provider is empty")
 	}
 
 	err = application.Transactional(service.db, func(appl application.Application) error {
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, config.ID(), identityUUID)
+		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, oauthProvider.ID(), identityUUID)
 		if err != nil {
 			return err
 		}
@@ -163,8 +170,8 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 		externalToken := provider.ExternalToken{
 			Token:      providerToken.AccessToken,
 			IdentityID: identityUUID,
-			Scope:      config.Scopes(),
-			ProviderID: config.ID(),
+			Scope:      oauthProvider.Scopes(),
+			ProviderID: oauthProvider.ID(),
 		}
 		return appl.ExternalTokens().Create(ctx, &externalToken)
 	})
@@ -172,7 +179,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 		log.Error(ctx, map[string]interface{}{
 			"state":       state,
 			"code":        code,
-			"provider_id": config.ID(),
+			"provider_id": oauthProvider.ID(),
 			"identity_id": identityID,
 		}, "failed to save token")
 		return "", err
@@ -181,7 +188,8 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 	return knownReferrer, nil
 }
 
-func NewOauthConfig(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error) {
+// NewOauthProvider creates a new oauth provider for the given resource URL
+func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error) {
 	authURL := rest.AbsoluteURL(req, "")
 
 	resourceURL, err := url.Parse(forResource)
