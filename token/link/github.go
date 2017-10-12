@@ -33,7 +33,7 @@ func NewGitHubConfig(clientID string, clientSecret string, scopes string, authUR
 }
 
 func (config *GitHubConfig) ID() uuid.UUID {
-	return config.ID()
+	return config.providerID
 }
 
 func (config *GitHubConfig) Scopes() string {

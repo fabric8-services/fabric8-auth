@@ -250,7 +250,6 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			log.Info(ctx, map[string]interface{}{
 				"known_referrer": knownReferrer,
 				"user_name":      identity.Username,
-				"referrer_str":   referrerURL.String(),
 				"api_client":     ctx.APIClient,
 			}, "all good; redirecting back to referrer")
 			return ctx.TemporaryRedirect()
@@ -280,7 +279,6 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 				"known_referrer": knownReferrer,
 				"user_name":      identity.Username,
 				"linked":         linked,
-				"referrer_str":   referrerStr,
 				"api_client":     ctx.APIClient,
 			}, "all good; redirecting back to referrer")
 			return ctx.TemporaryRedirect()

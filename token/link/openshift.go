@@ -36,7 +36,7 @@ func NewOpenShiftConfig(apiUrl string, clientID string, clientSecret string, sco
 }
 
 func (config *OpenShiftConfig) ID() uuid.UUID {
-	return config.ID()
+	return config.providerID
 }
 
 func (config *OpenShiftConfig) Scopes() string {
