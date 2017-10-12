@@ -174,7 +174,15 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			// It was re-linking. Overwrite the existing link.
 			externalToken := tokens[0]
 			externalToken.Token = providerToken.AccessToken
-			return appl.ExternalTokens().Save(ctx, &externalToken)
+			err = appl.ExternalTokens().Save(ctx, &externalToken)
+			if err == nil {
+				log.Info(ctx, map[string]interface{}{
+					"provider_id":       oauthProvider.ID(),
+					"identity_id":       identityID,
+					"external_token_id": externalToken.ID,
+				}, "An existing token found. Account re-linked & new token saved.")
+			}
+			return err
 		}
 		externalToken := provider.ExternalToken{
 			Token:      providerToken.AccessToken,
@@ -182,7 +190,15 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			Scope:      oauthProvider.Scopes(),
 			ProviderID: oauthProvider.ID(),
 		}
-		return appl.ExternalTokens().Create(ctx, &externalToken)
+		err = appl.ExternalTokens().Create(ctx, &externalToken)
+		if err == nil {
+			log.Info(ctx, map[string]interface{}{
+				"provider_id":       oauthProvider.ID(),
+				"identity_id":       identityID,
+				"external_token_id": externalToken.ID,
+			}, "No old token found. Account linked & new token saved.")
+		}
+		return err
 	})
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
