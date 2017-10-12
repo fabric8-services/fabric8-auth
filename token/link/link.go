@@ -28,6 +28,7 @@ type ProviderConfig interface {
 	oauth.OauthConfig
 	ID() uuid.UUID
 	Scopes() string
+	TypeName() string
 }
 
 // LinkService represents OAuth service interface for linking accounts

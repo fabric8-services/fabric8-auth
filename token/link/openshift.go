@@ -42,3 +42,7 @@ func (config *OpenShiftConfig) ID() uuid.UUID {
 func (config *OpenShiftConfig) Scopes() string {
 	return config.scopeStr
 }
+
+func (config *OpenShiftConfig) TypeName() string {
+	return "OpenShift"
+}

@@ -39,3 +39,7 @@ func (config *GitHubConfig) ID() uuid.UUID {
 func (config *GitHubConfig) Scopes() string {
 	return config.scopeStr
 }
+
+func (config *GitHubConfig) TypeName() string {
+	return "GitHub"
+}
