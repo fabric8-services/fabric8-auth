@@ -24,7 +24,7 @@ const (
 // LogRequest creates a request logger for the goa middleware.
 // This goa middleware is aware of the RequestID middleware and identity id
 // if registered after it leverages the request and identity ID for logging.
-// If verbose is true then the middlware logs the request and response bodies.
+// If verbose is true then the middleware logs the request and response bodies.
 func LogRequest(verbose bool) goa.Middleware {
 	return func(h goa.Handler) goa.Handler {
 		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) error {
