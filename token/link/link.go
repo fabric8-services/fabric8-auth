@@ -13,9 +13,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"crypto/tls"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
+	"net/http"
 )
 
 const (
@@ -46,6 +48,7 @@ type LinkConfig interface {
 	GetOpenShiftClientID() string
 	GetOpenShiftClientSecret() string
 	GetOpenShiftClientDefaultScopes() string
+	IsTLSInsecureSkipVerify() bool
 }
 
 // OauthProviderFactory represents oauth provider factory
@@ -146,6 +149,21 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, service.config, forResource)
 	if err != nil {
 		return "", err
+	}
+
+	if service.config.IsTLSInsecureSkipVerify() {
+		// For testing only.
+		log.Warn(ctx, map[string]interface{}{
+			"code":        code,
+			"state":       state,
+			"provider_id": oauthProvider.ID(),
+			"identity_id": identityID,
+		}, "TLS verification is disabled!")
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		sslcli := &http.Client{Transport: tr}
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, sslcli)
 	}
 
 	providerToken, err := oauthProvider.Exchange(ctx, code)

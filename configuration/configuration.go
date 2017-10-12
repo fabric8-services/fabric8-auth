@@ -76,6 +76,7 @@ const (
 	varOSOClientSecret                      = "oso.client.secret"
 	varOSOClientDefaultScopes               = "oso.client.defaultscopes"
 	varOSOLinkingEnabled                    = "oso.linking.enabled"
+	varTLSInsecureSkipVerify                = "tls.insecureskipverify"
 	varNotApprovedRedirect                  = "notapproved.redirect"
 	varHeaderMaxLength                      = "header.maxlength"
 	varCacheControlUsers                    = "cachecontrol.users"
@@ -193,6 +194,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varOSOClientID, "oso-id")
 	c.v.SetDefault(varOSOClientSecret, "oso-secret")
 	c.v.SetDefault(varOSOClientDefaultScopes, "user:full")
+	c.v.SetDefault(varTLSInsecureSkipVerify, false) // Do not set to true in production! True can be used only for testing.
 
 	// Max number of users returned when searching users
 	c.v.SetDefault(varUsersListLimit, 50)
@@ -373,6 +375,12 @@ func (c *ConfigurationData) IsOpenShiftLinkingEnabled() bool {
 		return c.v.GetBool(varOSOLinkingEnabled)
 	}
 	return !c.IsPostgresDeveloperModeEnabled()
+}
+
+// IsTLSInsecureSkipVerify returns true the client should not verify the
+// server's certificate chain and host name. This mode should be used only for testing.
+func (c *ConfigurationData) IsTLSInsecureSkipVerify() bool {
+	return c.v.GetBool(varTLSInsecureSkipVerify)
 }
 
 // GetNotApprovedRedirect returns the URL to redirect to if the user is not approved
