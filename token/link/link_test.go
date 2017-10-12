@@ -172,3 +172,7 @@ func (provider *DummyProvider) ID() uuid.UUID {
 func (provider *DummyProvider) Scopes() string {
 	return ""
 }
+
+func (config *DummyProvider) TypeName() string {
+	return "DummyProvider"
+}
