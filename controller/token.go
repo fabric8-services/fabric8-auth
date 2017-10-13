@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -188,24 +189,24 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("github or openshift-v3 resource"))
 	}
 
-	// TODO: use linkService.NewOauthProvider() to get GitHubConfig or OpenShiftConfig
 	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
 	if err != nil {
+
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	providerName := providerConfig.TypeName()
 
-	log.Info(nil, map[string]interface{}{
-		"provider_name": providerConfig.TypeName(),
-		"Scope":         providerConfig.Scopes(),
-	}, "...computing type name")
-
 	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if err != nil {
+		if reflect.TypeOf(err) == reflect.TypeOf(errors.UnauthorizedError{}) {
+			redirect := ctx.RequestData.Referer()
+			linkURL := rest.AbsoluteURL(ctx.RequestData, "/api/link?redirect="+redirect)
+			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
+			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
+		}
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	/* Persist if absent */
 	err = application.Transactional(c.db, func(appl application.Application) error {
 
 		err := appl.Identities().CheckExists(ctx, (*currentIdentity).String())
