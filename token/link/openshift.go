@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/client"
 
 	"fmt"
+
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 )
@@ -20,8 +21,8 @@ type OpenShiftConfig struct {
 	scopeStr   string
 }
 
-func NewOpenShiftConfig(apiUrl string, clientID string, clientSecret string, scopes string, authURL string) *GitHubConfig {
-	provider := &GitHubConfig{}
+func NewOpenShiftConfig(apiUrl string, clientID string, clientSecret string, scopes string, authURL string) *OpenShiftConfig {
+	provider := &OpenShiftConfig{}
 	provider.ClientID = clientID
 	provider.ClientSecret = clientSecret
 	provider.Endpoint = oauth2.Endpoint{
@@ -44,5 +45,5 @@ func (config *OpenShiftConfig) Scopes() string {
 }
 
 func (config *OpenShiftConfig) TypeName() string {
-	return "OpenShift"
+	return "openshift-v3"
 }

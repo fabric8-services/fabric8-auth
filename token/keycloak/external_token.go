@@ -41,6 +41,10 @@ func NewKeycloakTokenServiceClient() *KeycloakExternalTokenServiceClient {
 //Get gets the external token information from Keycloak
 func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Get(ctx context.Context, accessToken string, keycloakExternalTokenURL string) (*KeycloakExternalTokenResponse, error) {
 
+	log.Info(nil, map[string]interface{}{
+		"keycloak_external_token_url": keycloakExternalTokenURL,
+	}, "fetching token..")
+
 	keycloakExternalTokenResponse := KeycloakExternalTokenResponse{}
 
 	req, err := http.NewRequest("GET", keycloakExternalTokenURL, nil)

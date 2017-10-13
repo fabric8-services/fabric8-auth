@@ -157,8 +157,9 @@ func main() {
 	app.MountLogoutController(service, logoutCtrl)
 
 	linkService := link.NewLinkService(configuration, appDB)
+	providerFactory := link.NewOauthProviderFactory(configuration, appDB)
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, loginService, linkService, tokenManager, configuration, identityRepository)
+	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, configuration)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "link" controller

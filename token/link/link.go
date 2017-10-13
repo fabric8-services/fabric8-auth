@@ -14,10 +14,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"crypto/tls"
+	"net/http"
+
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"net/http"
 )
 
 const (
@@ -53,7 +54,17 @@ type LinkConfig interface {
 
 // OauthProviderFactory represents oauth provider factory
 type OauthProviderFactory interface {
-	NewOauthProvider(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error)
+	NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error)
+}
+
+// NewOauthProviderFactory returns the default Oauth provider factory.
+func NewOauthProviderFactory(config LinkConfig, db application.DB) OauthProviderFactory {
+	service := &LinkService{
+		config: config,
+		db:     db,
+	}
+	service.providerFactory = service
+	return service
 }
 
 // LinkService represents service for linking accounts
@@ -98,7 +109,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	linkURL.RawQuery = parameters.Encode()
 	redirectURL = linkURL.String()
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, service.config, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResource)
 	if err != nil {
 		return "", err
 	}
@@ -146,7 +157,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, service.config, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResource)
 	if err != nil {
 		return "", err
 	}
@@ -233,9 +244,9 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 }
 
 // NewOauthProvider creates a new oauth provider for the given resource URL
-func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error) {
+func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
 	authURL := rest.AbsoluteURL(req, "")
-
+	config := service.config
 	resourceURL, err := url.Parse(forResource)
 	if err != nil {
 		return nil, err
@@ -248,5 +259,5 @@ func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.Reque
 	log.Error(ctx, map[string]interface{}{
 		"for": forResource,
 	}, "unable to find oauth config for resource")
-	return nil, errs.NewBadParameterError("for", forResource).Expected("URL to a github or openshift.com resource")
+	return nil, errs.NewBadParameterError("for", forResource).Expected("URL to a github.com or openshift.com resource")
 }

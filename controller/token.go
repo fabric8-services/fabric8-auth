@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
+	"github.com/fabric8-services/fabric8-auth/application"
 
+	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"net/http"
@@ -33,18 +34,27 @@ import (
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
+	db                                 application.DB
 	Auth                               login.KeycloakOAuthService
 	LinkService                        link.LinkOAuthService
 	TokenManager                       token.Manager
 	Configuration                      LoginConfiguration
-	identityRepository                 account.IdentityRepository
 	keycloakExternalTokenServiceClient *keycloak.KeycloakExternalTokenServiceClient
+	providerConfigFactory              link.OauthProviderFactory
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, linkService link.LinkOAuthService, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository) *TokenController {
-	return &TokenController{Controller: service.NewController("token"), Auth: auth, LinkService: linkService, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository,
-		keycloakExternalTokenServiceClient: keycloak.NewKeycloakTokenServiceClient()}
+func NewTokenController(service *goa.Service, db application.DB, auth *login.KeycloakOAuthProvider, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
+	return &TokenController{
+		Controller:                         service.NewController("token"),
+		Auth:                               auth,
+		LinkService:                        linkService,
+		TokenManager:                       tokenManager,
+		Configuration:                      configuration,
+		keycloakExternalTokenServiceClient: keycloak.NewKeycloakTokenServiceClient(),
+		providerConfigFactory:              providerConfigFactory,
+		db: db,
+	}
 }
 
 // Keys returns public keys which should be used to verify tokens
@@ -166,12 +176,11 @@ func (c *TokenController) convertToAppToken(resp keycloak.KeycloakExternalTokenR
 
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
-	/*
-		currentIdentity, err := login.ContextIdentity(ctx)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
-		}
-	*/
+
+	currentIdentity, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+	}
 
 	tokenString := goajwt.ContextJWT(ctx).Raw
 
@@ -180,36 +189,70 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	}
 
 	// TODO: use linkService.NewOauthProvider() to get GitHubConfig or OpenShiftConfig
-	externalProviderConfig, error := provider.GetExternalProvider(ctx.For)
-	if error != nil {
-		return jsonapi.JSONErrorResponse(ctx, error)
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	providerName := externalProviderConfig.Type
+	providerName := providerConfig.TypeName()
 
-	// should expect clients to not use the 'scope' parameter.
-	// if they use something which doesn't match the default, we shall return the usual 401 response
-	scope := ctx.Scope
-	if scope == nil || *scope == "" {
-		scope = &externalProviderConfig.DefaultScope
-	}
+	log.Info(nil, map[string]interface{}{
+		"provider_name": providerConfig.TypeName(),
+		"Scope":         providerConfig.Scopes(),
+	}, "...computing type name")
 
 	keycloakTokenResponse, err := c.keycloakExternalTokenServiceClient.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	appResponse := appExternalToken(*keycloakTokenResponse)
+	/* Persist if absent */
+	err = application.Transactional(c.db, func(appl application.Application) error {
 
-	//ctx.ResponseData.Header().Set("Content-Type", "application/json")
-	if providerName == "github" {
-		return ctx.OK(&appResponse)
+		err := appl.Identities().CheckExists(ctx, (*currentIdentity).String())
+		if err != nil {
+			return errors.NewUnauthorizedError(err.Error())
+		}
+
+		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
+		if err != nil {
+			return err
+		}
+		if len(tokens) > 0 {
+			// It was re-linking. Overwrite the existing link.
+			externalToken := tokens[0]
+			externalToken.Token = keycloakTokenResponse.AccessToken
+			err = appl.ExternalTokens().Save(ctx, &externalToken)
+			if err == nil {
+				log.Info(ctx, map[string]interface{}{
+					"provider_id":       providerConfig.ID(),
+					"identity_id":       *currentIdentity,
+					"external_token_id": externalToken.ID,
+				}, "An existing token found. Account re-linked & new token saved.")
+			}
+			return err
+		}
+		externalToken := provider.ExternalToken{
+			Token:      keycloakTokenResponse.AccessToken,
+			IdentityID: *currentIdentity,
+			Scope:      providerConfig.Scopes(),
+			ProviderID: providerConfig.ID(),
+		}
+		err = appl.ExternalTokens().Create(ctx, &externalToken)
+		if err == nil {
+			log.Info(ctx, map[string]interface{}{
+				"provider_id":       providerConfig.ID(),
+				"identity_id":       *currentIdentity,
+				"external_token_id": externalToken.ID,
+			}, "No old token found. Account linked & new token saved.")
+		}
+		return err
+	})
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	appResponse := appExternalToken(*keycloakTokenResponse)
 	return ctx.OK(&appResponse)
-
-	// TODO: use application.transactional when linkService is merged.
-
-	//externalProviderTokens, err := c.externalProviderTokenRepository.LoadByProviderIDAndIdentityID(ctx, externalProviderConfig.ID, *currentIdentity)
-
 }
 
 func appExternalToken(k keycloak.KeycloakExternalTokenResponse) app.ExternalToken {

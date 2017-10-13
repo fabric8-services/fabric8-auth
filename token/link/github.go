@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -41,5 +42,7 @@ func (config *GitHubConfig) Scopes() string {
 }
 
 func (config *GitHubConfig) TypeName() string {
-	return "GitHub"
+	log.Info(nil, nil, "I shouldn't be here!")
+
+	return "github"
 }
