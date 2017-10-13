@@ -20,8 +20,8 @@ type OpenShiftConfig struct {
 	scopeStr   string
 }
 
-func NewOpenShiftConfig(apiUrl string, clientID string, clientSecret string, scopes string, authURL string) *GitHubConfig {
-	provider := &GitHubConfig{}
+func NewOpenShiftConfig(apiUrl string, clientID string, clientSecret string, scopes string, authURL string) *OpenShiftConfig {
+	provider := &OpenShiftConfig{}
 	provider.ClientID = clientID
 	provider.ClientSecret = clientSecret
 	provider.Endpoint = oauth2.Endpoint{
