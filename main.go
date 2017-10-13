@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/token/keycloak"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -158,8 +160,9 @@ func main() {
 
 	linkService := link.NewLinkService(configuration, appDB)
 	providerFactory := link.NewOauthProviderFactory(configuration, appDB)
+	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient()
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, configuration)
+	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, configuration)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "link" controller

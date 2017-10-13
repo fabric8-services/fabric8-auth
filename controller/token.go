@@ -34,25 +34,25 @@ import (
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
-	db                                 application.DB
-	Auth                               login.KeycloakOAuthService
-	LinkService                        link.LinkOAuthService
-	TokenManager                       token.Manager
-	Configuration                      LoginConfiguration
-	keycloakExternalTokenServiceClient *keycloak.KeycloakExternalTokenServiceClient
-	providerConfigFactory              link.OauthProviderFactory
+	db                           application.DB
+	Auth                         login.KeycloakOAuthService
+	LinkService                  link.LinkOAuthService
+	TokenManager                 token.Manager
+	Configuration                LoginConfiguration
+	keycloakExternalTokenService keycloak.KeycloakExternalTokenService
+	providerConfigFactory        link.OauthProviderFactory
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, db application.DB, auth *login.KeycloakOAuthProvider, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
+func NewTokenController(service *goa.Service, db application.DB, auth *login.KeycloakOAuthProvider, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, kclient keycloak.KeycloakExternalTokenService, configuration LoginConfiguration) *TokenController {
 	return &TokenController{
-		Controller:                         service.NewController("token"),
-		Auth:                               auth,
-		LinkService:                        linkService,
-		TokenManager:                       tokenManager,
-		Configuration:                      configuration,
-		keycloakExternalTokenServiceClient: keycloak.NewKeycloakTokenServiceClient(),
-		providerConfigFactory:              providerConfigFactory,
+		Controller:                   service.NewController("token"),
+		Auth:                         auth,
+		LinkService:                  linkService,
+		TokenManager:                 tokenManager,
+		Configuration:                configuration,
+		keycloakExternalTokenService: kclient,
+		providerConfigFactory:        providerConfigFactory,
 		db: db,
 	}
 }
@@ -200,7 +200,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		"Scope":         providerConfig.Scopes(),
 	}, "...computing type name")
 
-	keycloakTokenResponse, err := c.keycloakExternalTokenServiceClient.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
+	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

@@ -32,8 +32,8 @@ type KeycloakExternalTokenServiceClient struct {
 }
 
 // NewKeycloakTokenServiceClient creates a new KeycloakTokenServiceClient
-func NewKeycloakTokenServiceClient() *KeycloakExternalTokenServiceClient {
-	return &KeycloakExternalTokenServiceClient{
+func NewKeycloakTokenServiceClient() KeycloakExternalTokenServiceClient {
+	return KeycloakExternalTokenServiceClient{
 		client: http.DefaultClient,
 	}
 }

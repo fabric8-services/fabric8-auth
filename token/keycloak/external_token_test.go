@@ -47,7 +47,7 @@ func (s *KeycloakExternakTokenTest) SetupSuite() {
 	}
 
 	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient()
-	s.KeycloakExternalTokenService = keycloakExternalTokenService
+	s.KeycloakExternalTokenService = &keycloakExternalTokenService
 	token, err := s.generateAccessToken()
 	assert.Nil(s.T(), err)
 	s.accessToken = token

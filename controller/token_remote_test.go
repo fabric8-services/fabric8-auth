@@ -49,15 +49,14 @@ func (rest *TestTokenRemoteREST) UnSecuredController() (*goa.Service, *TokenCont
 	svc := goa.New("Token-Service")
 	manager, err := token.NewManager(rest.config)
 	require.Nil(rest.T(), err)
-	return svc, NewTokenController(svc, nil, nil, manager, rest.config, nil)
+	return svc, NewTokenController(svc, nil, nil, nil, nil, manager, nil, rest.config)
 }
 
 func (rest *TestTokenRemoteREST) UnSecuredControllerWithDummyDB() (*goa.Service, *TokenController) {
 	loginService := newTestKeycloakOAuthProvider(&gormapplication.GormDB{}, rest.config)
 
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	repo := &MockIdentityRepository{&testsupport.TestIdentity}
-	return svc, NewTokenController(svc, loginService, nil, loginService.TokenManager, rest.config, repo)
+	return svc, NewTokenController(svc, nil, loginService, nil, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.config)
 }
 
 func (rest *TestTokenRemoteREST) TestPublicKeys() {
