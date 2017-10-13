@@ -1,9 +1,8 @@
 package controller_test
 
 import (
-	"testing"
-
 	"context"
+	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -17,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -82,7 +82,7 @@ func (rest *TestLoginREST) TestOfflineAccessOK() {
 
 type TestLoginService struct{}
 
-func (t TestLoginService) Perform(ctx *app.LoginLoginContext, config login.OauthConfig, serviceConfig login.LoginServiceConfiguration) error {
+func (t TestLoginService) Perform(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig login.LoginServiceConfiguration) error {
 	return ctx.TemporaryRedirect()
 }
 

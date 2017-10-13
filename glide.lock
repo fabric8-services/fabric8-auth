@@ -1,6 +1,8 @@
-hash: 905eff0b6e3bd1dc48bb151f625c989c3468088728df1a357f58d00f7231305e
-updated: 2017-09-29T17:41:30.504994916+02:00
+hash: abb495c04964ea616d823098ed7529a7a277084832c5f17fa60400a739fdb830
+updated: 2017-10-09T22:58:38.041172816-07:00
 imports:
+- name: github.com/ajg/form
+  version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
 - name: github.com/andygrunwald/go-jira
   version: 9d1f282f93af41553ddb53b0116a8cdb75b4837a
 - name: github.com/armon/go-metrics
@@ -30,17 +32,7 @@ imports:
 - name: github.com/fabric8-services/fabric8-wit
   version: 296f01addee8a560c9bb43fb291cf93ccd35ee8e
   subpackages:
-  - account
-  - account/tenant
-  - application/repository
-  - configuration
-  - convert
   - design
-  - errors
-  - goasupport
-  - gormsupport
-  - log
-  - rest
 - name: github.com/fsnotify/fsnotify
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: github.com/fzipp/gocyclo
@@ -53,18 +45,19 @@ imports:
   - cors
   - design
   - design/apidsl
-  - dslengine
   - goagen
   - goagen/codegen
   - goagen/gen_app
   - goagen/gen_controller
   - goagen/utils
   - goatest
-  - logging/logrus
   - middleware
-  - middleware/gzip
   - middleware/security/jwt
+  - logging/logrus
+  - middleware/gzip
+  - encoding/form
   - uuid
+  - dslengine
   - version
 - name: github.com/golang/lint
   version: c7bacac2b21ca01afa1dee0acf64df3ce047c28f
@@ -93,10 +86,10 @@ imports:
   subpackages:
   - hcl/ast
   - hcl/parser
-  - hcl/scanner
-  - hcl/strconv
   - hcl/token
   - json/parser
+  - hcl/scanner
+  - hcl/strconv
   - json/scanner
   - json/token
 - name: github.com/howeyc/fsnotify
@@ -185,8 +178,8 @@ imports:
   version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
-  - require
   - suite
+  - require
 - name: github.com/wadey/gocovmerge
   version: b5bfa59ec0adc420475f97f89b58045c721d761c
 - name: github.com/zach-klippenstein/goregen
@@ -204,6 +197,7 @@ imports:
 - name: golang.org/x/oauth2
   version: da3ce8d62a7f77aadfda06cb82bd604d6469c645
   subpackages:
+  - github
   - internal
 - name: golang.org/x/sys
   version: 478fcf54317e52ab69f40bb4c7a1520288d7f7ea
@@ -221,13 +215,13 @@ imports:
 - name: google.golang.org/appengine
   version: ca59ef35f409df61fa4a5f8290ff289b37eccfb8
   subpackages:
+  - urlfetch
   - internal
+  - internal/urlfetch
   - internal/base
   - internal/datastore
   - internal/log
   - internal/remote_api
-  - internal/urlfetch
-  - urlfetch
 - name: gopkg.in/asaskevich/govalidator.v4
   version: 7664702784775e51966f0885f5cd27435916517b
 - name: gopkg.in/square/go-jose.v2

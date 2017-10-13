@@ -92,4 +92,3 @@ var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 		a.Attribute("resource_id")
 	})
 })
-
