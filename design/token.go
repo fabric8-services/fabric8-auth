@@ -7,7 +7,6 @@ import (
 
 // externalToken represents a token object
 var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
-	//a.UseTrait("jsonapi-media-type")
 	a.TypeName("ExternalToken")
 	a.Description("External Provider Token")
 	a.Attributes(func() {

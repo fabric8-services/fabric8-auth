@@ -246,15 +246,14 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 // NewOauthProvider creates a new oauth provider for the given resource URL
 func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
 	authURL := rest.AbsoluteURL(req, "")
-	config := service.config
 	resourceURL, err := url.Parse(forResource)
 	if err != nil {
 		return nil, err
 	}
 	if resourceURL.Host == "github.com" {
-		return NewGitHubConfig(config.GetGitHubClientID(), config.GetGitHubClientSecret(), config.GetGitHubClientDefaultScopes(), authURL), nil
-	} else if strings.HasPrefix(forResource, config.GetOpenShiftClientApiUrl()) {
-		return NewOpenShiftConfig(config.GetOpenShiftClientApiUrl(), config.GetOpenShiftClientID(), config.GetOpenShiftClientSecret(), config.GetOpenShiftClientDefaultScopes(), authURL), nil
+		return NewGitHubConfig(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
+	} else if strings.HasPrefix(forResource, service.config.GetOpenShiftClientApiUrl()) {
+		return NewOpenShiftConfig(service.config.GetOpenShiftClientApiUrl(), service.config.GetOpenShiftClientID(), service.config.GetOpenShiftClientSecret(), service.config.GetOpenShiftClientDefaultScopes(), authURL), nil
 	}
 	log.Error(ctx, map[string]interface{}{
 		"for": forResource,

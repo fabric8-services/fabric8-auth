@@ -168,11 +168,8 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 }
 
 func (c *TokenController) getKeycloakExternalTokenURL(providerName string) string {
+	// not moving this to config because this is temporary.
 	return fmt.Sprintf("%s/auth/realms/%s/broker/%s/token", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), providerName)
-}
-
-func (c *TokenController) convertToAppToken(resp keycloak.KeycloakExternalTokenResponse) string {
-	return ""
 }
 
 // Retrieve fetches the stored external provider token.
