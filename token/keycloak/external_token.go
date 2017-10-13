@@ -3,7 +3,6 @@ package keycloak
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -20,21 +19,6 @@ type KeycloakExternalTokenResponse struct {
 	Scope       string `json:"scope,omitempty" form:"scope,omniempty"`
 	TokenType   string `json:"token_type,omitempty" form:"token_type,omniempty"`
 	ExpiresIn   int64  `json:"expires_in,omitempty" form:"expires_in,omniempty"`
-}
-
-type TokenAppResponse interface {
-	ToParameterString() string
-	ToJSONString() (string, error)
-}
-
-func ToParameterString(r KeycloakExternalTokenResponse) string {
-	//access_token=f75c6_token_ceea0&scope=admin%3Arepo_hook%2Cgist%2Cread%3Aorg%2Crepo%2Cuser&token_type=bearer
-	return fmt.Sprintf("access_token=%s&scope=%s&token_type=%s", r.AccessToken, r.Scope, r.TokenType)
-}
-
-func ToJSONString(r KeycloakExternalTokenResponse) (string, error) {
-	jsonByte, err := json.Marshal(r)
-	return string(jsonByte), err
 }
 
 // KeycloakExternalTokenService describes what the services need to be capable of doing.

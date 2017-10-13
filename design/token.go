@@ -6,30 +6,6 @@ import (
 )
 
 // externalToken represents a token object
-var externalTokenJSON = a.MediaType("application/vnd.externalTokenJSON+json", func() {
-	//a.UseTrait("jsonapi-media-type")
-	a.TypeName("ExternalTokenJSON")
-	a.Description("External Provider Token")
-	a.Attributes(func() {
-		a.Attribute("access_token", d.String, "The token associated with the identity for the specific external provider")
-		a.Attribute("scope", d.String, "The scope associated with the token")
-		a.Attribute("token_type", d.String, "The type of the toke, example : bearer")
-		a.Required("access_token", "scope", "token_type")
-
-	})
-
-	a.View("default", func() {
-		a.Attribute("access_token")
-		a.Attribute("scope")
-		a.Attribute("token_type")
-		a.Required("access_token", "scope", "token_type")
-	})
-
-})
-
-//+x-www-form-urlencoded+json
-
-// externalToken represents a token object
 var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 	//a.UseTrait("jsonapi-media-type")
 	a.TypeName("ExternalToken")
@@ -65,7 +41,7 @@ var _ = a.Resource("token", func() {
 			a.Required("for")
 		})
 		a.Description("Get the external provider token")
-		a.Response(d.OK, externalToken) // externalTokenJSON)
+		a.Response(d.OK, externalToken)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
