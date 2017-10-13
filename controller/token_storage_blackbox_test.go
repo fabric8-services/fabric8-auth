@@ -1,5 +1,10 @@
 package controller_test
 
+/*
+
+These tests will be applicable ( after modifications ) when we switch over to using the new account linking.
+
+
 import (
 	"context"
 	"fmt"
@@ -207,3 +212,4 @@ func (rest *TestTokenStorageREST) validateTokenResponse(externalToken provider.E
 	require.Equal(rest.T(), externalToken.IdentityID.String(), result.Data.Attributes.IdentityID)
 	require.Equal(rest.T(), providerType, result.Data.Attributes.For)
 }
+*/

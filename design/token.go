@@ -5,40 +5,49 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
-// externalTokenData represents a token object
-var externalTokenData = a.Type("ExternalTokenData", func() {
-	a.Attribute("id", d.String, "unique id for the token")
-	a.Attribute("type", d.String, "type of the data")
-	a.Attribute("attributes", externalTokenDataAttributes, "Attributes of the token")
-	a.Attribute("links", genericLinks)
-	a.Required("type", "attributes")
+// externalToken represents a token object
+var externalTokenJSON = a.MediaType("application/vnd.externalTokenJSON+json", func() {
+	//a.UseTrait("jsonapi-media-type")
+	a.TypeName("ExternalTokenJSON")
+	a.Description("External Provider Token")
+	a.Attributes(func() {
+		a.Attribute("access_token", d.String, "The token associated with the identity for the specific external provider")
+		a.Attribute("scope", d.String, "The scope associated with the token")
+		a.Attribute("token_type", d.String, "The type of the toke, example : bearer")
+		a.Required("access_token", "scope", "token_type")
+
+	})
+
+	a.View("default", func() {
+		a.Attribute("access_token")
+		a.Attribute("scope")
+		a.Attribute("token_type")
+		a.Required("access_token", "scope", "token_type")
+	})
+
 })
 
-// externalTokenDataAttributes represents a token object attributes
-var externalTokenDataAttributes = a.Type("ExternalTokenDataAttributes", func() {
-	a.Attribute("identityID", d.String, "The id of the corresponding Identity")
-	a.Attribute("created-at", d.DateTime, "The date of creation of the  external provider token")
-	a.Attribute("updated-at", d.DateTime, "The date of update of the external provider token")
-	a.Attribute("for", d.String, "The name or url of the external provider type")
-	a.Attribute("token", d.String, "The token associated with the identity for the specific external provider")
-	a.Attribute("scope", d.String, "The scope associated with the token")
-	a.Required("token", "scope", "for", "identityID")
-})
+//+x-www-form-urlencoded+json
 
 // externalToken represents a token object
 var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
-	a.UseTrait("jsonapi-media-type")
+	//a.UseTrait("jsonapi-media-type")
 	a.TypeName("ExternalToken")
 	a.Description("External Provider Token")
 	a.Attributes(func() {
-		a.Attribute("data", externalTokenData)
-		a.Required("data")
+		a.Attribute("access_token", d.String, "The token associated with the identity for the specific external provider")
+		a.Attribute("scope", d.String, "The scope associated with the token")
+		a.Attribute("token_type", d.String, "The type of the toke, example : bearer")
+		a.Required("access_token", "scope", "token_type")
+	})
 
-	})
 	a.View("default", func() {
-		a.Attribute("data")
-		a.Required("data")
+		a.Attribute("access_token")
+		a.Attribute("scope")
+		a.Attribute("token_type")
+		a.Required("access_token", "scope", "token_type")
 	})
+
 })
 
 var _ = a.Resource("token", func() {
@@ -56,11 +65,12 @@ var _ = a.Resource("token", func() {
 			a.Required("for")
 		})
 		a.Description("Get the external provider token")
-		a.Response(d.OK, d.String)
+		a.Response(d.OK, externalToken) // externalTokenJSON)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+
 	})
 
 	a.Action("keys", func() {

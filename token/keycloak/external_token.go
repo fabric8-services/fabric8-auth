@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
+	"github.com/ajg/form"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -16,10 +16,10 @@ import (
 
 // KeycloakExternalTokenResponse represents standard Keycloak external token response payload
 type KeycloakExternalTokenResponse struct {
-	AccessToken string `json:"access_token,omitempty"`
-	Scope       string `json:"scope,omitempty"`
-	TokenType   string `json:"token_type,omitempty"`
-	ExpiresIn   int64  `json:"expires_in,omitempty"`
+	AccessToken string `json:"access_token,omitempty" form:"access_token,omniempty"`
+	Scope       string `json:"scope,omitempty" form:"scope,omniempty"`
+	TokenType   string `json:"token_type,omitempty" form:"token_type,omniempty"`
+	ExpiresIn   int64  `json:"expires_in,omitempty" form:"expires_in,omniempty"`
 }
 
 type TokenAppResponse interface {
@@ -95,23 +95,9 @@ func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Ge
 
 		// The format for github response is
 		// access_token=f75c6_token_ceea0&scope=admin%3Arepo_hook%2Cgist%2Cread%3Aorg%2Crepo%2Cuser&token_type=bearer
-		// wish there was some other way to do this!
-
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		bodyString := string(bodyBytes)
-		allParamsValues := strings.Split(bodyString, "&")
-		for _, pvString := range allParamsValues {
-			pv := strings.Split(pvString, "=")
-			if pv[0] == "access_token" {
-				keycloakExternalTokenResponse.AccessToken = pv[1]
-			}
-			if pv[0] == "token_type" {
-				keycloakExternalTokenResponse.TokenType = pv[1]
-			}
-			if pv[0] == "scope" {
-				keycloakExternalTokenResponse.Scope = pv[1]
-			}
-			// "expires_in" is not present for github
+		d := form.NewDecoder(resp.Body)
+		if err := d.Decode(&keycloakExternalTokenResponse); err != nil {
+			return nil, err
 		}
 	}
 	return &keycloakExternalTokenResponse, err

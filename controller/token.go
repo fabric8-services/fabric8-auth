@@ -43,7 +43,8 @@ type TokenController struct {
 
 // NewTokenController creates a token controller.
 func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, linkService link.LinkOAuthService, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository) *TokenController {
-	return &TokenController{Controller: service.NewController("token"), Auth: auth, LinkService: linkService, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository}
+	return &TokenController{Controller: service.NewController("token"), Auth: auth, LinkService: linkService, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository,
+		keycloakExternalTokenServiceClient: keycloak.NewKeycloakTokenServiceClient()}
 }
 
 // Keys returns public keys which should be used to verify tokens
@@ -197,21 +198,26 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	ctx.ResponseData.Header().Set("Content-Type", "application/json")
-	if providerName == "github" {
-		return ctx.OK(keycloak.ToParameterString(*keycloakTokenResponse))
-	}
-	jsonStringResponse, err := keycloak.ToJSONString(*keycloakTokenResponse)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
+	appResponse := appExternalToken(*keycloakTokenResponse)
 
-	return ctx.OK(jsonStringResponse)
+	//ctx.ResponseData.Header().Set("Content-Type", "application/json")
+	if providerName == "github" {
+		return ctx.OK(&appResponse)
+	}
+	return ctx.OK(&appResponse)
 
 	// TODO: use application.transactional when linkService is merged.
 
 	//externalProviderTokens, err := c.externalProviderTokenRepository.LoadByProviderIDAndIdentityID(ctx, externalProviderConfig.ID, *currentIdentity)
 
+}
+
+func appExternalToken(k keycloak.KeycloakExternalTokenResponse) app.ExternalToken {
+	return app.ExternalToken{
+		Scope:       k.Scope,
+		AccessToken: k.AccessToken,
+		TokenType:   k.TokenType,
+	}
 }
 
 // GenerateUserToken obtains the access token from Keycloak for the user

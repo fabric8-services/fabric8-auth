@@ -16,6 +16,9 @@ var _ = a.API("auth", func() {
 	a.Consumes("application/x-www-form-urlencoded", func() {
 		a.Package("github.com/goadesign/goa/encoding/form")
 	})
+	a.Produces("application/x-www-form-urlencoded", func() {
+		a.Package("github.com/goadesign/goa/encoding/form")
+	})
 	a.Produces("application/json")
 
 	a.License(func() {

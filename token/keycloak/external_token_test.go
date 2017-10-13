@@ -51,7 +51,6 @@ func (s *KeycloakExternakTokenTest) SetupSuite() {
 	token, err := s.generateAccessToken()
 	assert.Nil(s.T(), err)
 	s.accessToken = token
-
 }
 
 func (s *KeycloakExternakTokenTest) generateAccessToken() (*string, error) {
@@ -89,6 +88,6 @@ func (s *KeycloakExternakTokenTest) TestKeycloakTokenGetGithubToken() {
 		// github
 		require.Len(s.T(), externalToken.AccessToken, 40)
 		require.Equal(s.T(), "bearer", externalToken.TokenType)
-		require.Equal(s.T(), "admin%3Arepo_hook%2Cgist%2Cread%3Aorg%2Crepo%2Cuser", externalToken.Scope)
+		require.Equal(s.T(), "admin:repo_hook,gist,read:org,repo,user", externalToken.Scope)
 	}
 }
