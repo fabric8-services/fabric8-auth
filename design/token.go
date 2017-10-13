@@ -56,7 +56,7 @@ var _ = a.Resource("token", func() {
 			a.Required("for")
 		})
 		a.Description("Get the external provider token")
-		a.Response(d.OK, externalToken)
+		a.Response(d.OK, d.String)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)

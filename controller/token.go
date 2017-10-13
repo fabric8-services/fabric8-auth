@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/token/keycloak"
+
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"net/http"
@@ -20,6 +22,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 )
 
@@ -28,9 +31,10 @@ const maxRecentSpacesForRPT = 10
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
-	Auth          login.KeycloakOAuthService
-	TokenManager  token.Manager
-	Configuration LoginConfiguration
+	Auth                               login.KeycloakOAuthService
+	TokenManager                       token.Manager
+	Configuration                      LoginConfiguration
+	keycloakExternalTokenServiceClient *keycloak.KeycloakExternalTokenServiceClient
 
 	// Wouldn't need this once we start using the link service.
 	identityRepository              account.IdentityRepository
@@ -39,7 +43,8 @@ type TokenController struct {
 
 // NewTokenController creates a token controller.
 func NewTokenController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration, identityRepository account.IdentityRepository, externalProviderTokenRepository provider.ExternalTokenRepository) *TokenController {
-	return &TokenController{Controller: service.NewController("token"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository, externalProviderTokenRepository: externalProviderTokenRepository}
+	return &TokenController{
+		Controller: service.NewController("token"), Auth: auth, TokenManager: tokenManager, Configuration: configuration, identityRepository: identityRepository, externalProviderTokenRepository: externalProviderTokenRepository, keycloakExternalTokenServiceClient: keycloak.NewKeycloakTokenServiceClient()}
 }
 
 // Keys returns public keys which should be used to verify tokens
@@ -151,6 +156,14 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	return ctx.OK(tokens)
 }
 
+func (c *TokenController) getKeycloakExternalTokenURL(providerName string) string {
+	return fmt.Sprintf("%s/auth/realms/%s/broker/%s/token", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), providerName)
+}
+
+func (c *TokenController) convertToAppToken(resp keycloak.KeycloakExternalTokenResponse) string {
+	return ""
+}
+
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
@@ -158,6 +171,8 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
 	}
+
+	tokenString := goajwt.ContextJWT(ctx).Raw
 
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("github or openshift-v3 resource"))
@@ -177,37 +192,25 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		scope = &externalProviderConfig.DefaultScope
 	}
 
-	// TODO: use application.transactional when linkService is merged.
-	externalProviderTokens, err := c.externalProviderTokenRepository.LoadByProviderIDAndIdentityID(ctx, externalProviderConfig.ID, *currentIdentity)
-
-	if len(externalProviderTokens) > 0 {
-		// not sure if we'll need more than 1 tokens in future.
-
-		//TODO: move transformation to a different method.
-
-		ID := externalProviderTokens[0].ID.String()
-		return ctx.OK(&app.ExternalToken{
-			Data: &app.ExternalTokenData{
-				Attributes: &app.ExternalTokenDataAttributes{
-					CreatedAt:  &externalProviderTokens[0].CreatedAt,
-					For:        ctx.For,
-					IdentityID: currentIdentity.String(),
-					Scope:      externalProviderTokens[0].Scope,
-					UpdatedAt:  &externalProviderTokens[0].UpdatedAt,
-					Token:      externalProviderTokens[0].Token,
-				},
-				Type: "external_provider_token",
-				ID:   &ID,
-			},
-		})
+	keycloakTokenResponse, err := c.keycloakExternalTokenServiceClient.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	redirect := ctx.RequestData.Referer()
-	linkURL := rest.AbsoluteURL(ctx.RequestData, "/api/link?redirect="+redirect+"&scope="+*scope)
-	errorResponse := fmt.Sprintf("LINK provider=%s, url=%s, description=”%s”", providerName, linkURL, "Link account")
+	ctx.ResponseData.Header().Set("Content-Type", "application/json")
+	if providerName == "github" {
+		return ctx.OK(keycloak.ToParameterString(*keycloakTokenResponse))
+	}
+	jsonStringResponse, err := keycloak.ToJSONString(*keycloakTokenResponse)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
-	ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
-	return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(errorResponse))
+	return ctx.OK(jsonStringResponse)
+
+	// TODO: use application.transactional when linkService is merged.
+
+	externalProviderTokens, err := c.externalProviderTokenRepository.LoadByProviderIDAndIdentityID(ctx, externalProviderConfig.ID, *currentIdentity)
 
 }
 
