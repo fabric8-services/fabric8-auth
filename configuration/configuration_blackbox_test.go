@@ -324,6 +324,11 @@ func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 	assert.Equal(t, envValue, viperValue)
 }
 
+func TestIsTLSInsecureSkipVerifySetToFalse(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	require.False(t, config.IsTLSInsecureSkipVerify())
+}
+
 func generateEnvKey(yamlKey string) string {
 	return "AUTH_" + strings.ToUpper(strings.Replace(yamlKey, ".", "_", -1))
 }

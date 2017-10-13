@@ -8,9 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	_ "github.com/lib/pq"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -24,13 +21,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
+	"github.com/fabric8-services/fabric8-auth/token/link"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
 	"github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/jinzhu/gorm"
 )
 
 func main() {
@@ -135,7 +133,6 @@ func main() {
 	// Setup Account/Login/Security
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
-	externalProviderTokenRepository := provider.NewExternalTokenRepository(db)
 
 	appDB := gormapplication.NewGormDB(db)
 
@@ -159,8 +156,9 @@ func main() {
 	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, configuration)
 	app.MountLogoutController(service, logoutCtrl)
 
+	linkService := link.NewLinkService(configuration, appDB)
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, loginService, tokenManager, configuration, identityRepository, externalProviderTokenRepository)
+	tokenCtrl := controller.NewTokenController(service, loginService, linkService, tokenManager, configuration, identityRepository)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "link" controller

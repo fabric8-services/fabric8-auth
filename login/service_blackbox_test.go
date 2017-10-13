@@ -254,7 +254,6 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails() {
 
 	// since we no longer pass the valid redirect urls as a parameter,
-	DefaultValidRedirectURLs := "^(https|http)://([^/]+[.])?(?i:openshift[.]io)(/.*)?$" // *.openshift.io/*
 	existingValidRedirects := os.Getenv("AUTH_REDIRECT_VALID")
 	defer func() {
 		os.Setenv("AUTH_REDIRECT_VALID", existingValidRedirects)
@@ -262,7 +261,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 		assert.Nil(s.T(), err)
 		s.configuration = config
 	}()
-	os.Setenv("AUTH_REDIRECT_VALID", DefaultValidRedirectURLs)
+	os.Setenv("AUTH_REDIRECT_VALID", config.DefaultValidRedirectURLs)
 
 	// Start running the actual test in Non-dev mode.
 
