@@ -21,12 +21,12 @@ type KeycloakExternalTokenResponse struct {
 	ExpiresIn   int64  `json:"expires_in,omitempty" form:"expires_in,omniempty"`
 }
 
-// KeycloakExternalTokenService describes what the services need to be capable of doing.
+// KeycloakExternalTokenService describes what the service can do with respect to external tokens from Keycloak.
 type KeycloakExternalTokenService interface {
 	Get(ctx context.Context, accessToken string, keycloakExternalTokenURL string) (*KeycloakExternalTokenResponse, error)
 }
 
-// KeycloakExternalTokenServiceClient describes the interface between platform and Keycloak token service.
+// KeycloakExternalTokenServiceClient is an implementation of KeycloakExternalTokenService and serves as an interface to the Keycloak token service.
 type KeycloakExternalTokenServiceClient struct {
 	client *http.Client
 }
@@ -41,7 +41,7 @@ func NewKeycloakTokenServiceClient() KeycloakExternalTokenServiceClient {
 //Get gets the external token information from Keycloak
 func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Get(ctx context.Context, accessToken string, keycloakExternalTokenURL string) (*KeycloakExternalTokenResponse, error) {
 
-	log.Info(nil, map[string]interface{}{
+	log.Info(ctx, map[string]interface{}{
 		"keycloak_external_token_url": keycloakExternalTokenURL,
 	}, "fetching token..")
 
@@ -52,13 +52,12 @@ func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Ge
 		return nil, errors.NewInternalError(ctx, err)
 	}
 	req.Header.Add("Authorization", "Bearer "+accessToken)
-	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Accept", "application/json, text/plain, */*")
 
 	resp, err := keycloakExternalTokenServiceClient.client.Do(req)
 
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"keycloak_external_token_url": keycloakExternalTokenURL,
 			"err": err,
 		}, "Unable to fetch external keycloak token")
@@ -67,7 +66,7 @@ func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Ge
 		defer resp.Body.Close()
 	}
 	if resp.StatusCode != http.StatusOK {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"response_status":             resp.Status,
 			"response_body":               rest.ReadBody(resp.Body),
 			"keycloak_external_token_url": keycloakExternalTokenURL,

@@ -8,7 +8,7 @@ import (
 // externalToken represents a token object
 var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 	a.TypeName("ExternalToken")
-	a.Description("External Provider Token")
+	a.Description("Tokens from external providers such as GitHub or OpenShift")
 	a.Attributes(func() {
 		a.Attribute("access_token", d.String, "The token associated with the identity for the specific external provider")
 		a.Attribute("scope", d.String, "The scope associated with the token")
@@ -35,13 +35,11 @@ var _ = a.Resource("token", func() {
 			a.GET(""),
 		)
 		a.Params(func() {
-			a.Param("for", d.String, "The resource for which the external provider token is being fetched")
-			a.Param("scope", d.String, "The scope for which the token is being fetched") // #428
+			a.Param("for", d.String, "The resource for which the external token is being fetched, example https://github.com/fabric8-services/fabric8-auth or https://console.starter-us-east-2.openshift.com/console/project/shbose-che/")
 			a.Required("for")
 		})
-		a.Description("Get the external provider token")
+		a.Description("Get the external token for resources belonging to external providers like Github and OpenShift")
 		a.Response(d.OK, externalToken)
-		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
