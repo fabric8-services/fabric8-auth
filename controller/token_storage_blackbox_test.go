@@ -12,11 +12,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
@@ -40,7 +40,6 @@ type TestTokenStorageREST struct {
 	userRepository                         account.UserRepository
 	mockKeycloakExternalTokenServiceClient mockKeycloakExternalTokenServiceClient
 
-	Configuration         *configuration.ConfigurationData
 	providerConfigFactory link.OauthProviderFactory
 	clean                 func()
 }
@@ -155,7 +154,9 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() 
 // Not present in keycloak but present in DB.
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
 	resource.Require(rest.T(), resource.Database)
-	identity := rest.createRandomUserAndIdentityForStorage()
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	require.Nil(rest.T(), err)
+
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 
