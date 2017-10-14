@@ -537,12 +537,9 @@ func (c *ConfigurationData) GetKeycloakDevModeURL() string {
 	return devModeKeycloakURL
 }
 
-// GetKeycloakURL returns Keycloak URL used by default in Dev mode
+// GetKeycloakURL returns Keycloak URL used by default
 func (c *ConfigurationData) GetKeycloakURL() string {
-	if c.v.IsSet(varKeycloakURL) {
-		return c.v.GetString(varKeycloakURL)
-	}
-	return c.GetKeycloakDevModeURL()
+	return c.v.GetString(varKeycloakURL)
 }
 
 // GetWITDomainPrefix returns the domain prefix which should be used in requests to the auth service
