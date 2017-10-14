@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"net/http"
 	"net/url"
@@ -174,11 +173,12 @@ func (c *TokenController) getKeycloakExternalTokenURL(providerName string) strin
 
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
-
-	currentIdentity, err := login.ContextIdentity(ctx)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
-	}
+	/*
+		currentIdentity, err := login.ContextIdentity(ctx)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		}
+	*/
 
 	tokenString := goajwt.ContextJWT(ctx).Raw
 
@@ -203,51 +203,51 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		}
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+	/*
+		err = application.Transactional(c.db, func(appl application.Application) error {
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
+			err := appl.Identities().CheckExists(ctx, (*currentIdentity).String())
+			if err != nil {
+				return errors.NewUnauthorizedError(err.Error())
+			}
 
-		err := appl.Identities().CheckExists(ctx, (*currentIdentity).String())
-		if err != nil {
-			return errors.NewUnauthorizedError(err.Error())
-		}
-
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
-		if err != nil {
-			return err
-		}
-		if len(tokens) > 0 {
-			// It was re-linking. Overwrite the existing link.
-			externalToken := tokens[0]
-			externalToken.Token = keycloakTokenResponse.AccessToken
-			err = appl.ExternalTokens().Save(ctx, &externalToken)
+			tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
+			if err != nil {
+				return err
+			}
+			if len(tokens) > 0 {
+				// It was re-linking. Overwrite the existing link.
+				externalToken := tokens[0]
+				externalToken.Token = keycloakTokenResponse.AccessToken
+				err = appl.ExternalTokens().Save(ctx, &externalToken)
+				if err == nil {
+					log.Info(ctx, map[string]interface{}{
+						"provider_id":       providerConfig.ID(),
+						"identity_id":       *currentIdentity,
+						"external_token_id": externalToken.ID,
+					}, "An existing token found. Account re-linked & new token saved.")
+				}
+				return err
+			}
+			externalToken := provider.ExternalToken{
+				Token:      keycloakTokenResponse.AccessToken,
+				IdentityID: *currentIdentity,
+				Scope:      providerConfig.Scopes(),
+				ProviderID: providerConfig.ID(),
+			}
+			err = appl.ExternalTokens().Create(ctx, &externalToken)
 			if err == nil {
 				log.Info(ctx, map[string]interface{}{
 					"provider_id":       providerConfig.ID(),
 					"identity_id":       *currentIdentity,
 					"external_token_id": externalToken.ID,
-				}, "An existing token found. Account re-linked & new token saved.")
+				}, "No old token found. Account linked & new token saved.")
 			}
 			return err
-		}
-		externalToken := provider.ExternalToken{
-			Token:      keycloakTokenResponse.AccessToken,
-			IdentityID: *currentIdentity,
-			Scope:      providerConfig.Scopes(),
-			ProviderID: providerConfig.ID(),
-		}
-		err = appl.ExternalTokens().Create(ctx, &externalToken)
-		if err == nil {
-			log.Info(ctx, map[string]interface{}{
-				"provider_id":       providerConfig.ID(),
-				"identity_id":       *currentIdentity,
-				"external_token_id": externalToken.ID,
-			}, "No old token found. Account linked & new token saved.")
-		}
-		return err
-	})
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
+		})
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}*/
 
 	appResponse := appExternalToken(*keycloakTokenResponse)
 	return ctx.OK(&appResponse)

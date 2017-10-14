@@ -158,8 +158,9 @@ func main() {
 	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, configuration)
 	app.MountLogoutController(service, logoutCtrl)
 
-	linkService := link.NewLinkService(configuration, appDB)
-	providerFactory := link.NewOauthProviderFactory(configuration, appDB)
+	providerFactory := link.NewOauthProviderFactory(configuration)
+	linkService := link.NewLinkServiceWithFactory(configuration, appDB, providerFactory)
+	//providerFactory := link.NewOauthProviderFactory(configuration, appDB)
 	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient()
 	// Mount "token" controller
 	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, configuration)

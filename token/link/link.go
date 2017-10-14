@@ -58,13 +58,15 @@ type OauthProviderFactory interface {
 }
 
 // NewOauthProviderFactory returns the default Oauth provider factory.
-func NewOauthProviderFactory(config LinkConfig, db application.DB) OauthProviderFactory {
-	service := &LinkService{
+func NewOauthProviderFactory(config LinkConfig) *OauthProviderFactoryService {
+	service := &OauthProviderFactoryService{
 		config: config,
-		db:     db,
 	}
-	service.providerFactory = service
 	return service
+}
+
+type OauthProviderFactoryService struct {
+	config LinkConfig
 }
 
 // LinkService represents service for linking accounts
@@ -74,15 +76,7 @@ type LinkService struct {
 	providerFactory OauthProviderFactory
 }
 
-func NewLinkService(config LinkConfig, db application.DB) LinkOAuthService {
-	service := &LinkService{
-		config: config,
-		db:     db,
-	}
-	service.providerFactory = service
-	return service
-}
-
+// NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
 func NewLinkServiceWithFactory(config LinkConfig, db application.DB, factory OauthProviderFactory) LinkOAuthService {
 	service := &LinkService{
 		config: config,
@@ -244,7 +238,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 }
 
 // NewOauthProvider creates a new oauth provider for the given resource URL
-func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
+func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
 	authURL := rest.AbsoluteURL(req, "")
 	resourceURL, err := url.Parse(forResource)
 	if err != nil {

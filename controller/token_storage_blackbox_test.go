@@ -63,7 +63,7 @@ func (rest *TestTokenStorageREST) SetupTest() {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
 	rest.Configuration = config
-	rest.providerConfigFactory = link.NewOauthProviderFactory(config, rest.db)
+	rest.providerConfigFactory = link.NewOauthProviderFactory(config)
 }
 
 func (rest *TestTokenStorageREST) TearDownTest() {
