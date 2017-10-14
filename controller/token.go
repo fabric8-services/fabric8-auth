@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
@@ -196,6 +197,14 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if err != nil {
 		if reflect.TypeOf(err) == reflect.TypeOf(errors.UnauthorizedError{}) {
+			externalToken, err := c.retrieveToken(ctx, providerConfig, *currentIdentity)
+			if err != nil {
+				return jsonapi.JSONErrorResponse(ctx, err)
+			}
+			if externalToken != nil {
+				appResponse := modelToAppExternalToken(*externalToken)
+				return ctx.OK(&appResponse)
+			}
 			linkURL := rest.AbsoluteURL(ctx.RequestData, "/api/link")
 			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
@@ -203,14 +212,22 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
+	err = c.createOrUpdateToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
-		err := appl.Identities().CheckExists(ctx, (*currentIdentity).String())
+	appResponse := appExternalToken(*keycloakTokenResponse)
+	return ctx.OK(&appResponse)
+}
+
+func (c *TokenController) createOrUpdateToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) error {
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
 			return errors.NewUnauthorizedError(err.Error())
 		}
-
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
+		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
 		if err != nil {
 			return err
 		}
@@ -221,35 +238,58 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 			err = appl.ExternalTokens().Save(ctx, &externalToken)
 			if err == nil {
 				log.Info(ctx, map[string]interface{}{
-					"provider_id":       providerConfig.ID(),
-					"identity_id":       *currentIdentity,
+					"provider_name":     providerConfig.TypeName(),
+					"identity_id":       currentIdentity,
 					"external_token_id": externalToken.ID,
-				}, "An existing token found. Account re-linked & new token saved.")
+				}, "an existing token found, token from keycloak saved.")
 			}
 			return err
 		}
 		externalToken := provider.ExternalToken{
 			Token:      keycloakTokenResponse.AccessToken,
-			IdentityID: *currentIdentity,
+			IdentityID: currentIdentity,
 			Scope:      providerConfig.Scopes(),
 			ProviderID: providerConfig.ID(),
 		}
 		err = appl.ExternalTokens().Create(ctx, &externalToken)
 		if err == nil {
 			log.Info(ctx, map[string]interface{}{
-				"provider_id":       providerConfig.ID(),
-				"identity_id":       *currentIdentity,
+				"provider_name":     providerConfig.TypeName(),
+				"identity_id":       currentIdentity,
 				"external_token_id": externalToken.ID,
-			}, "No old token found. Account linked & new token saved.")
+			}, "no old token found. account linked & new token saved.")
 		}
 		return err
 	})
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
+	return err
+}
 
-	appResponse := appExternalToken(*keycloakTokenResponse)
-	return ctx.OK(&appResponse)
+func (c *TokenController) retrieveToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
+
+	var externalToken *provider.ExternalToken
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
+		if err != nil {
+			return errors.NewUnauthorizedError(err.Error())
+		}
+		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
+		if err != nil {
+			return err
+		}
+		if len(tokens) > 0 {
+			externalToken = &tokens[0]
+		}
+		return nil
+	})
+	return externalToken, err
+}
+
+func modelToAppExternalToken(externalToken provider.ExternalToken) app.ExternalToken {
+	return app.ExternalToken{
+		Scope:       externalToken.Scope,
+		AccessToken: externalToken.Token,
+		TokenType:   "bearer", // We aren't saving the token_type in the database
+	}
 }
 
 func appExternalToken(k keycloak.KeycloakExternalTokenResponse) app.ExternalToken {

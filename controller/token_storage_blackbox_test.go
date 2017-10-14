@@ -87,12 +87,11 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	identity := rest.createRandomUserAndIdentityForStorage()
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "http://github.com/a/b", nil)
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
 	expectedToken := positiveKCResponseGithub()
 	require.Equal(rest.T(), expectedToken.AccessToken, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.TokenType, tokenResponse.TokenType)
-
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
@@ -106,12 +105,12 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	require.Equal(rest.T(), expectedToken.AccessToken, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.TokenType, tokenResponse.TokenType)
-
 }
 
+// Not present in keycloak and not present in DB
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 	resource.Require(rest.T(), resource.Database)
-	identity := testsupport.TestIdentity
+	identity := rest.createRandomUserAndIdentityForStorage()
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
 
 	service, controller := rest.SecuredControllerWithIdentity(identity)
@@ -127,11 +126,11 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 		panic("invalid test " + err.Error()) // bug
 	}
 
-	referrerClientURL := "http://localhost.example.ui/home"
+	referrerClientURL := "https://localhost.example.ui/home"
 	req.Header.Add("referer", referrerClientURL)
 
 	prms := url.Values{
-		"for": {"http://github.com/sbose78"},
+		"for": {"https://github.com/sbose78"},
 	}
 
 	goaCtx := goa.NewContext(service.Context, rw, req, prms)
@@ -142,6 +141,43 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 	require.NotNil(rest.T(), err)
 	expectedHeaderValue := "LINK url=https://auth.localhost.io/api/link, description=\"github token is missing. Link github account\""
 	assert.Contains(rest.T(), rw.Header().Get("WWW-Authenticate"), expectedHeaderValue)
+}
+
+// Not present in keycloak and identity is not the system.
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() {
+	resource.Require(rest.T(), resource.Database)
+	identity := testsupport.TestIdentity // using an Identity which has no existence the database.
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithIdentity(identity)
+	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+}
+
+// Not present in keycloak but present in DB.
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
+	resource.Require(rest.T(), resource.Database)
+	identity := rest.createRandomUserAndIdentityForStorage()
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithIdentity(identity)
+
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "api.example.org"},
+	}
+	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), r, "https://github.com/a/b")
+	require.Nil(rest.T(), err)
+
+	expectedToken := provider.ExternalToken{
+		ProviderID: providerConfig.ID(),
+		Scope:      providerConfig.Scopes(),
+		IdentityID: identity.ID,
+		Token:      "1234-from-db",
+	}
+	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
+
+	// This call should end up in a failed KC response , but a positive retrieval from the database.
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+	require.Equal(rest.T(), expectedToken.Token, tokenResponse.AccessToken)
+	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
+	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenBadRequest() {
