@@ -140,7 +140,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 
 	err = controller.Retrieve(tokenCtx)
 	require.NotNil(rest.T(), err)
-	expectedHeaderValue := "LINK url=https://auth.localhost.io/api/link?redirect=http://localhost.example.ui/home, description=\"github token is missing. Link github account\""
+	expectedHeaderValue := "LINK url=https://auth.localhost.io/api/link, description=\"github token is missing. Link github account\""
 	assert.Contains(rest.T(), rw.Header().Get("WWW-Authenticate"), expectedHeaderValue)
 }
 

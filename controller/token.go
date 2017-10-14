@@ -196,8 +196,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if err != nil {
 		if reflect.TypeOf(err) == reflect.TypeOf(errors.UnauthorizedError{}) {
-			redirect := ctx.RequestData.Referer()
-			linkURL := rest.AbsoluteURL(ctx.RequestData, "/api/link?redirect="+redirect)
+			linkURL := rest.AbsoluteURL(ctx.RequestData, "/api/link")
 			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
 		}
