@@ -178,7 +178,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
 	currentIdentity, err := login.ContextIdentity(ctx)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	tokenString := goajwt.ContextJWT(ctx).Raw
