@@ -86,7 +86,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	identity := rest.createRandomUserAndIdentityForStorage()
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
 	expectedToken := positiveKCResponseGithub()
 	require.Equal(rest.T(), expectedToken.AccessToken, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
@@ -98,7 +98,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	identity := rest.createRandomUserAndIdentityForStorage()
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com", nil)
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com")
 
 	expectedToken := positiveKCResponseOpenShift()
 	require.Equal(rest.T(), expectedToken.AccessToken, tokenResponse.AccessToken)
@@ -148,7 +148,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() 
 	identity := testsupport.TestIdentity // using an Identity which has no existence the database.
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b")
 }
 
 // Not present in keycloak but present in DB.
@@ -175,7 +175,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
 	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
 
 	// This call should end up in a failed KC response , but a positive retrieval from the database.
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
 	require.Equal(rest.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
@@ -185,7 +185,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenBadRequest() {
 	resource.Require(rest.T(), resource.Database)
 	identity := testsupport.TestIdentity
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "", nil)
+	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "")
 }
 
 func (rest *TestTokenStorageREST) createRandomUserAndIdentityForStorage() account.Identity {
