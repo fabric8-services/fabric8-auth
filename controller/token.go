@@ -184,7 +184,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	tokenString := goajwt.ContextJWT(ctx).Raw
 
 	if ctx.For == "" {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("github or openshift-v3 resource"))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
 
 	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
