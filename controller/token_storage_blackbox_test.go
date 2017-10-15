@@ -83,7 +83,8 @@ func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	resource.Require(rest.T(), resource.Database)
-	identity := rest.createRandomUserAndIdentityForStorage()
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
@@ -95,7 +96,8 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	resource.Require(rest.T(), resource.Database)
-	identity := rest.createRandomUserAndIdentityForStorage()
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com")
@@ -109,7 +111,8 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 // Not present in keycloak and not present in DB
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 	resource.Require(rest.T(), resource.Database)
-	identity := rest.createRandomUserAndIdentityForStorage()
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
 
 	service, controller := rest.SecuredControllerWithIdentity(identity)
@@ -138,7 +141,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 
 	err = controller.Retrieve(tokenCtx)
 	require.NotNil(rest.T(), err)
-	expectedHeaderValue := "LINK url=https://auth.localhost.io/api/link, description=\"github token is missing. Link github account\""
+	expectedHeaderValue := "LINK url=https://auth.localhost.io/api/token/link, description=\"github token is missing. Link github account\""
 	assert.Contains(rest.T(), rw.Header().Get("WWW-Authenticate"), expectedHeaderValue)
 }
 
@@ -186,31 +189,6 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenBadRequest() {
 	identity := testsupport.TestIdentity
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "")
-}
-
-func (rest *TestTokenStorageREST) createRandomUserAndIdentityForStorage() account.Identity {
-
-	user := account.User{
-		Email:    uuid.NewV4().String() + "primaryForUpdat7e@example.com",
-		FullName: "fullname",
-		ImageURL: "someURLForUpdate",
-		ID:       uuid.NewV4(),
-		Company:  uuid.NewV4().String() + "company",
-	}
-	err := rest.userRepository.Create(context.Background(), &user)
-	require.Nil(rest.T(), err)
-
-	profile := "foobarforupdate.com" + uuid.NewV4().String()
-	identity := account.Identity{
-		Username:     "TestUpdateUserIntegration123" + uuid.NewV4().String(),
-		ProviderType: "KC",
-		ProfileURL:   &profile,
-		User:         user,
-		UserID:       account.NullUUID{UUID: user.ID, Valid: true},
-	}
-	err = rest.identityRepository.Create(context.Background(), &identity)
-	require.Nil(rest.T(), err)
-	return identity
 }
 
 type mockKeycloakExternalTokenServiceClient struct {

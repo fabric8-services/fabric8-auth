@@ -35,7 +35,7 @@ var _ = a.Resource("token", func() {
 			a.GET(""),
 		)
 		a.Params(func() {
-			a.Param("for", d.String, "The resource for which the external token is being fetched, example https://github.com/fabric8-services/fabric8-auth or https://console.starter-us-east-2.openshift.com/console/project/shbose-che/")
+			a.Param("for", d.String, "The resource for which the external token is being fetched, example https://github.com/fabric8-services/fabric8-auth or https://api.starter-us-east-2.openshift.com")
 			a.Required("for")
 		})
 		a.Description("Get the external token for resources belonging to external providers like Github and OpenShift")

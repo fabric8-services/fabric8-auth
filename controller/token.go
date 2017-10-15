@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/client"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
@@ -205,7 +206,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 				appResponse := modelToAppExternalToken(*externalToken)
 				return ctx.OK(&appResponse)
 			}
-			linkURL := rest.AbsoluteURL(ctx.RequestData, "/api/link")
+			linkURL := rest.AbsoluteURL(ctx.RequestData, client.LinkTokenPath())
 			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
 		}
