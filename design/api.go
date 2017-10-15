@@ -17,6 +17,9 @@ var _ = a.API("auth", func() {
 		a.Package("github.com/goadesign/goa/encoding/form")
 	})
 	a.Produces("application/json")
+	a.Produces("application/x-www-form-urlencoded", func() {
+		a.Package("github.com/goadesign/goa/encoding/form")
+	})
 
 	a.License(func() {
 		a.Name("Apache License Version 2.0")

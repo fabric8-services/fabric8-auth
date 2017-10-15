@@ -36,6 +36,8 @@ type LoginConfiguration interface {
 	GetHeaderMaxLength() int64
 	GetNotApprovedRedirect() string
 	GetWITURL(*goa.RequestData) (string, error)
+	GetKeycloakURL() string
+	GetKeycloakRealm() string
 }
 
 // LoginController implements the login resource.

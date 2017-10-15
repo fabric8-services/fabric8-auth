@@ -41,5 +41,5 @@ func (config *GitHubConfig) Scopes() string {
 }
 
 func (config *GitHubConfig) TypeName() string {
-	return "GitHub"
+	return "github"
 }

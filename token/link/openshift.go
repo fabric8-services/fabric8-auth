@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/client"
 
 	"fmt"
+
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 )
@@ -44,5 +45,5 @@ func (config *OpenShiftConfig) Scopes() string {
 }
 
 func (config *OpenShiftConfig) TypeName() string {
-	return "OpenShift"
+	return "openshift-v3"
 }

@@ -14,10 +14,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"crypto/tls"
+	"net/http"
+
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"net/http"
 )
 
 const (
@@ -53,7 +54,19 @@ type LinkConfig interface {
 
 // OauthProviderFactory represents oauth provider factory
 type OauthProviderFactory interface {
-	NewOauthProvider(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error)
+	NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error)
+}
+
+// NewOauthProviderFactory returns the default Oauth provider factory.
+func NewOauthProviderFactory(config LinkConfig) *OauthProviderFactoryService {
+	service := &OauthProviderFactoryService{
+		config: config,
+	}
+	return service
+}
+
+type OauthProviderFactoryService struct {
+	config LinkConfig
 }
 
 // LinkService represents service for linking accounts
@@ -63,15 +76,7 @@ type LinkService struct {
 	providerFactory OauthProviderFactory
 }
 
-func NewLinkService(config LinkConfig, db application.DB) LinkOAuthService {
-	service := &LinkService{
-		config: config,
-		db:     db,
-	}
-	service.providerFactory = service
-	return service
-}
-
+// NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
 func NewLinkServiceWithFactory(config LinkConfig, db application.DB, factory OauthProviderFactory) LinkOAuthService {
 	service := &LinkService{
 		config: config,
@@ -98,7 +103,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	linkURL.RawQuery = parameters.Encode()
 	redirectURL = linkURL.String()
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, service.config, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResource)
 	if err != nil {
 		return "", err
 	}
@@ -146,7 +151,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, service.config, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResource)
 	if err != nil {
 		return "", err
 	}
@@ -233,20 +238,19 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 }
 
 // NewOauthProvider creates a new oauth provider for the given resource URL
-func (service *LinkService) NewOauthProvider(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error) {
+func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
 	authURL := rest.AbsoluteURL(req, "")
-
 	resourceURL, err := url.Parse(forResource)
 	if err != nil {
 		return nil, err
 	}
 	if resourceURL.Host == "github.com" {
-		return NewGitHubConfig(config.GetGitHubClientID(), config.GetGitHubClientSecret(), config.GetGitHubClientDefaultScopes(), authURL), nil
-	} else if strings.HasPrefix(forResource, config.GetOpenShiftClientApiUrl()) {
-		return NewOpenShiftConfig(config.GetOpenShiftClientApiUrl(), config.GetOpenShiftClientID(), config.GetOpenShiftClientSecret(), config.GetOpenShiftClientDefaultScopes(), authURL), nil
+		return NewGitHubConfig(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
+	} else if strings.HasPrefix(forResource, service.config.GetOpenShiftClientApiUrl()) {
+		return NewOpenShiftConfig(service.config.GetOpenShiftClientApiUrl(), service.config.GetOpenShiftClientID(), service.config.GetOpenShiftClientSecret(), service.config.GetOpenShiftClientDefaultScopes(), authURL), nil
 	}
 	log.Error(ctx, map[string]interface{}{
 		"for": forResource,
 	}, "unable to find oauth config for resource")
-	return nil, errs.NewBadParameterError("for", forResource).Expected("URL to a github or openshift.com resource")
+	return nil, errs.NewBadParameterError("for", forResource).Expected("URL to a github.com or openshift.com resource")
 }

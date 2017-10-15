@@ -48,7 +48,7 @@ func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) 
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
 
 	linkService := &DummyLinkService{}
-	return svc, NewTokenController(svc, loginService, linkService, loginService.TokenManager, rest.config, nil)
+	return svc, NewTokenController(svc, nil, loginService, linkService, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.config)
 }
 
 func (rest *TestTokenREST) TestRefreshTokenUsingNilTokenFails() {

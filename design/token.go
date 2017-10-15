@@ -5,9 +5,46 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
+// externalToken represents a token object
+var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
+	a.TypeName("ExternalToken")
+	a.Description("Tokens from external providers such as GitHub or OpenShift")
+	a.Attributes(func() {
+		a.Attribute("access_token", d.String, "The token associated with the identity for the specific external provider")
+		a.Attribute("scope", d.String, "The scope associated with the token")
+		a.Attribute("token_type", d.String, "The type of the toke, example : bearer")
+		a.Required("access_token", "scope", "token_type")
+	})
+
+	a.View("default", func() {
+		a.Attribute("access_token")
+		a.Attribute("scope")
+		a.Attribute("token_type")
+		a.Required("access_token", "scope", "token_type")
+	})
+
+})
+
 var _ = a.Resource("token", func() {
 
 	a.BasePath("/token")
+
+	a.Action("Retrieve", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET(""),
+		)
+		a.Params(func() {
+			a.Param("for", d.String, "The resource for which the external token is being fetched, example https://github.com/fabric8-services/fabric8-auth or https://api.starter-us-east-2.openshift.com")
+			a.Required("for")
+		})
+		a.Description("Get the external token for resources belonging to external providers like Github and OpenShift")
+		a.Response(d.OK, externalToken)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+
+	})
 
 	a.Action("keys", func() {
 		a.Routing(

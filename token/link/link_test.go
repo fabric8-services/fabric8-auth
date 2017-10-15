@@ -17,13 +17,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"os"
+
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"os"
 )
 
 type LinkTestSuite struct {
@@ -43,7 +44,8 @@ func TestRunLinkTestSuite(t *testing.T) {
 func (s *LinkTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.application = gormapplication.NewGormDB(s.DB)
-	s.linkService = NewLinkService(s.Configuration, s.application)
+	providerFactory := NewOauthProviderFactory(s.Configuration)
+	s.linkService = NewLinkServiceWithFactory(s.Configuration, s.application, providerFactory)
 	var err error
 	s.testIdentity, err = test.CreateTestIdentity(s.DB, "TestLinkSuite user", "test provider")
 	require.Nil(s.T(), err)
@@ -103,6 +105,7 @@ func (s *LinkTestSuite) stateParam(location string) string {
 	require.Nil(s.T(), err)
 	allQueryParameters := locationURL.Query()
 	require.NotNil(s.T(), allQueryParameters)
+	require.NotNil(s.T(), allQueryParameters["state"])
 	require.NotNil(s.T(), allQueryParameters["state"][0])
 	return allQueryParameters["state"][0]
 }
@@ -148,7 +151,7 @@ type DummyProviderFactory struct {
 	token string
 }
 
-func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, req *goa.RequestData, config LinkConfig, forResource string) (ProviderConfig, error) {
+func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
 	return &DummyProvider{factory}, nil
 }
 
