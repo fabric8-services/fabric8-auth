@@ -19,7 +19,7 @@ import (
 
 // ExternalToken describes a single ExternalToken
 type ExternalToken struct {
-	gormsupport.Lifecycle
+	gormsupport.LifecycleHardDelete
 	ID         uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
 	ProviderID uuid.UUID
 	Token      string
@@ -71,7 +71,6 @@ type ExternalTokenRepository interface {
 // in the database.
 func (m *GormExternalTokenRepository) TableName() string {
 	return "external_tokens"
-
 }
 
 // CRUD Functions
@@ -93,7 +92,7 @@ func (m *GormExternalTokenRepository) Load(ctx context.Context, id uuid.UUID) (*
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormExternalTokenRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "ExternalToken", "exists"}, time.Now())
-	return repository.CheckExists(ctx, m.db, m.TableName(), id)
+	return repository.CheckHardDeletableExists(ctx, m.db, m.TableName(), id)
 }
 
 // Create creates a new record.
@@ -138,7 +137,7 @@ func (m *GormExternalTokenRepository) Save(ctx context.Context, model *ExternalT
 	return errs.WithStack(err)
 }
 
-// Delete removes a single record.
+// Delete removes a single record. This is a hard delete!
 func (m *GormExternalTokenRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "ExternalToken", "delete"}, time.Now())
 

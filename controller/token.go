@@ -3,21 +3,16 @@ package controller
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"time"
-
-	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/client"
-	uuid "github.com/satori/go.uuid"
-
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
-
 	"net/http"
 	"net/url"
+	"reflect"
+	"strings"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -25,13 +20,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
-
-	"strings"
+	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 )
 
 // TokenController implements the login resource.

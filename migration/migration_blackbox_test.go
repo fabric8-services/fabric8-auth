@@ -99,6 +99,8 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration02", testMigration02)
 	t.Run("TestMigration04", testMigration04)
 	t.Run("TestMigration07", testMigration07)
+	t.Run("TestMigration08", testMigration08)
+	t.Run("TestMigration09", testMigration09)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName); err != nil {
@@ -146,6 +148,18 @@ func testMigration07(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(8)], (8))
 
 	assert.True(t, dialect.HasIndex("external_provider_tokens", "idx_provider_id"))
+}
+
+func testMigration08(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(9)], (9))
+
+	assert.True(t, dialect.HasTable("external_tokens"))
+}
+
+func testMigration09(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(10)], (10))
+
+	assert.False(t, dialect.HasColumn("external_tokens", "deleted_at"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

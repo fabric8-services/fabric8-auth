@@ -13,7 +13,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,7 +22,7 @@ import (
 
 type externalTokenBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo  provider.ExternalTokenRepository
+	repo  *provider.GormExternalTokenRepository
 	clean func()
 	ctx   context.Context
 }
@@ -55,6 +56,25 @@ func (s *externalTokenBlackboxTest) TestOKToDelete() {
 	externalTokenLoaded, err := s.repo.Load(s.ctx, externalToken.ID)
 	require.Nil(s.T(), externalTokenLoaded, "should have been deleted")
 	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
+func (s *externalTokenBlackboxTest) TestTokenIsHardDeleted() {
+	// create token
+	externalToken := createAndLoadExternalToken(s)
+
+	// check token exists
+	var native provider.ExternalToken
+	err := s.DB.Unscoped().Table(s.repo.TableName()).Where("id = ?", externalToken.ID).Find(&native).Error
+	require.Nil(s.T(), err)
+
+	// delete
+	err = s.repo.Delete(s.ctx, externalToken.ID)
+	assert.Nil(s.T(), err)
+
+	// load all records including soft deleted and check if the deleted record is among them
+	err = s.DB.Unscoped().Table(s.repo.TableName()).Where("id = ?", externalToken.ID).Find(&native).Error
+	require.NotNil(s.T(), err)
+	require.Equal(s.T(), gorm.ErrRecordNotFound, err)
 }
 
 func (s *externalTokenBlackboxTest) TestExternalProviderOKToLoad() {
