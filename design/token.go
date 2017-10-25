@@ -43,7 +43,22 @@ var _ = a.Resource("token", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 
+	a.Action("Delete", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.DELETE(""),
+		)
+		a.Params(func() {
+			a.Param("for", d.String, "The resource for which the external token is being deleted, example https://github.com/fabric8-services/fabric8-auth or https://api.starter-us-east-2.openshift.com")
+			a.Required("for")
+		})
+		a.Description("Delete the external token for resources belonging to external providers like Github and OpenShift")
+		a.Response(d.OK)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
 	a.Action("keys", func() {

@@ -218,6 +218,41 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	return ctx.OK(&appResponse)
 }
 
+// Delete deletes the stored external provider token.
+func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
+	currentIdentity, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	if ctx.For == "" {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
+	}
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	err = application.Transactional(c.db, func(appl application.Application) error {
+		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
+		if err != nil {
+			return errors.NewUnauthorizedError(err.Error())
+		}
+		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
+		if err != nil {
+			return err
+		}
+		if len(tokens) > 0 {
+			return appl.ExternalTokens().Delete(ctx, tokens[0].ID)
+		}
+		return nil
+	})
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.OK([]byte{})
+}
+
 func (c *TokenController) createOrUpdateToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) error {
 	err := application.Transactional(c.db, func(appl application.Application) error {
 		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
