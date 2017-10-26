@@ -9,14 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/app/test"
-	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -80,6 +79,7 @@ func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account
 	return svc, NewTokenController(svc, rest.db, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
 }
 
+// Not present in DB but present in keycloak
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
@@ -92,6 +92,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	require.Equal(rest.T(), expectedToken.TokenType, tokenResponse.TokenType)
 }
 
+// Not present in DB but present in keycloak
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
@@ -198,37 +199,52 @@ func (rest *TestTokenStorageREST) TestDeleteExternalTokenIdentityNotPresent() {
 }
 
 func (rest *TestTokenStorageREST) TestDeleteExternalTokenGithubOK() {
-	rest.deleteExternalToken("https://github.com/a/b")
+	rest.deleteExternalTokenOK("https://github.com/a/b")
 }
 
 func (rest *TestTokenStorageREST) TestDeleteExternalTokenOSOOK() {
-	rest.deleteExternalToken("https://api.starter-us-east-2.openshift.com")
+	rest.deleteExternalTokenOK("https://api.starter-us-east-2.openshift.com")
 }
 
-func (rest *TestTokenStorageREST) deleteExternalToken(forResource string) {
+func (rest *TestTokenStorageREST) deleteExternalTokenOK(forResource string) {
+	rest.deleteExternalToken(forResource, 1, "unlinked")
+	rest.deleteExternalToken(forResource, 1, "positive")
+	rest.deleteExternalToken(forResource, 3, "unlinked")
+	rest.deleteExternalToken(forResource, 3, "positive")
+}
+
+func (rest *TestTokenStorageREST) deleteExternalToken(forResource string, numberOfTokens int, scenario string) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
+	rest.mockKeycloakExternalTokenServiceClient.scenario = scenario
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
 	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), r, forResource)
 	require.Nil(rest.T(), err)
 
-	expectedToken := provider.ExternalToken{
-		ProviderID: providerConfig.ID(),
-		Scope:      providerConfig.Scopes(),
-		IdentityID: identity.ID,
-		Token:      "1234-from-db",
-	}
 	// OK is returned even if there is nothing to delete
 	test.DeleteTokenOK(rest.T(), service.Context, service, controller, forResource)
 
-	err = rest.externalTokenRepository.Create(context.Background(), &expectedToken)
+	for i := 0; i < numberOfTokens; i++ {
+		expectedToken := provider.ExternalToken{
+			ProviderID: providerConfig.ID(),
+			Scope:      providerConfig.Scopes(),
+			IdentityID: identity.ID,
+			Token:      "1234-from-db",
+		}
+		err = rest.externalTokenRepository.Create(context.Background(), &expectedToken)
+		require.Nil(rest.T(), err)
+	}
+	tokens, err := rest.db.ExternalTokens().LoadByProviderIDAndIdentityID(service.Context, providerConfig.ID(), identity.ID)
 	require.Nil(rest.T(), err)
+	require.Equal(rest.T(), numberOfTokens, len(tokens))
 
 	test.DeleteTokenOK(rest.T(), service.Context, service, controller, forResource)
+	tokens, err = rest.db.ExternalTokens().LoadByProviderIDAndIdentityID(service.Context, providerConfig.ID(), identity.ID)
+	require.Nil(rest.T(), err)
+	require.Empty(rest.T(), tokens)
 }
 
 type mockKeycloakExternalTokenServiceClient struct {
@@ -248,6 +264,13 @@ func (client mockKeycloakExternalTokenServiceClient) Get(ctx context.Context, ac
 		return positiveKCResponseOpenShift(), nil
 	}
 	return nil, errors.NewUnauthorizedError("user not linked")
+}
+
+func (client mockKeycloakExternalTokenServiceClient) Delete(ctx context.Context, keycloakExternalTokenURL string) error {
+	if client.scenario == "positive" {
+		return nil
+	}
+	return errors.NewUnauthorizedError("user not linked")
 }
 
 func positiveKCResponseGithub() *keycloak.KeycloakExternalTokenResponse {
