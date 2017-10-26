@@ -23,10 +23,6 @@ func init() {
 	}
 }
 
-// Ensure Lifecyle implements the Equaler interface
-var _ convert.Equaler = Lifecycle{}
-var _ convert.Equaler = (*Lifecycle)(nil)
-
 // Equal returns true if two Lifecycle objects are equal; otherwise false is returned.
 func (lc Lifecycle) Equal(u convert.Equaler) bool {
 	other, ok := u.(Lifecycle)

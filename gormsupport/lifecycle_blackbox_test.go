@@ -10,9 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLifecycle_Equal(t *testing.T) {
+func TestLifecycleEqual(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
+
+	// Ensure Lifecyle implements the Equaler interface
+	var _ convert.Equaler = gormsupport.Lifecycle{}
+	var _ convert.Equaler = (*gormsupport.Lifecycle)(nil)
 
 	now := time.Now()
 	nowPlus := time.Now().Add(time.Duration(1000))
@@ -63,4 +67,12 @@ func TestLifecycle_Equal(t *testing.T) {
 		DeletedAt: &nowPlus,
 	}
 	assert.False(t, g.Equal(h))
+
+	// Test two lifecycles are equal
+	i := gormsupport.Lifecycle{
+		CreatedAt: now,
+		UpdatedAt: now,
+		DeletedAt: nil,
+	}
+	assert.True(t, a.Equal(i))
 }
