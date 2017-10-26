@@ -170,6 +170,11 @@ func (c *TokenController) getKeycloakExternalTokenURL(providerName string) strin
 	return fmt.Sprintf("%s/auth/realms/%s/broker/%s/token", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), providerName)
 }
 
+func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, providerName string) string {
+	// not moving this to config because this is temporary.
+	return fmt.Sprintf("%s/auth/admin/realms/%s/users/%s/federated-identity/%s", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), identityID, providerName)
+}
+
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
@@ -186,22 +191,26 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
 	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
 	if err != nil {
-
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	providerName := providerConfig.TypeName()
 
+	externalToken, err := c.retrieveToken(ctx, providerConfig, *currentIdentity)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	if externalToken != nil {
+		appResponse := modelToAppExternalToken(*externalToken)
+		return ctx.OK(&appResponse)
+	}
+
+	providerName := providerConfig.TypeName()
+	log.Info(ctx, map[string]interface{}{
+		"provider_name": providerName,
+		"identity_id":   currentIdentity,
+	}, "External token not found. Will try to load from Keycloak.")
 	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if err != nil {
 		if reflect.TypeOf(err) == reflect.TypeOf(errors.UnauthorizedError{}) {
-			externalToken, err := c.retrieveToken(ctx, providerConfig, *currentIdentity)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, err)
-			}
-			if externalToken != nil {
-				appResponse := modelToAppExternalToken(*externalToken)
-				return ctx.OK(&appResponse)
-			}
 			linkURL := rest.AbsoluteURL(ctx.RequestData, client.LinkTokenPath())
 			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
@@ -209,7 +218,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	err = c.createOrUpdateToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
+	err = c.saveKeycloakToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -232,6 +241,18 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	// Delete from Keycloak
+	err = c.keycloakExternalTokenService.Delete(ctx, c.getKeycloakIdentityProviderURL(currentIdentity.String(), providerConfig.TypeName()))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"error":         err,
+			"provider_name": providerConfig.TypeName(),
+			"identity_id":   currentIdentity,
+		}, "Unable to remove Identity Provider link from Keycloak.")
+		// Not critical. Log the error and proceed.
+	}
+
+	// Delete from local DB
 	err = application.Transactional(c.db, func(appl application.Application) error {
 		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
@@ -242,7 +263,12 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 			return err
 		}
 		if len(tokens) > 0 {
-			return appl.ExternalTokens().Delete(ctx, tokens[0].ID)
+			for _, token := range tokens {
+				err = appl.ExternalTokens().Delete(ctx, token.ID)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	})
@@ -253,37 +279,15 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	return ctx.OK([]byte{})
 }
 
-func (c *TokenController) createOrUpdateToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) error {
+func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) error {
 	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
-		if err != nil {
-			return errors.NewUnauthorizedError(err.Error())
-		}
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
-		if err != nil {
-			return err
-		}
-		if len(tokens) > 0 {
-			// It was re-linking. Overwrite the existing link.
-			externalToken := tokens[0]
-			externalToken.Token = keycloakTokenResponse.AccessToken
-			err = appl.ExternalTokens().Save(ctx, &externalToken)
-			if err == nil {
-				log.Info(ctx, map[string]interface{}{
-					"provider_name":     providerConfig.TypeName(),
-					"identity_id":       currentIdentity,
-					"external_token_id": externalToken.ID,
-				}, "an existing token found, token from keycloak saved.")
-			}
-			return err
-		}
 		externalToken := provider.ExternalToken{
 			Token:      keycloakTokenResponse.AccessToken,
 			IdentityID: currentIdentity,
 			Scope:      providerConfig.Scopes(),
 			ProviderID: providerConfig.ID(),
 		}
-		err = appl.ExternalTokens().Create(ctx, &externalToken)
+		err := appl.ExternalTokens().Create(ctx, &externalToken)
 		if err == nil {
 			log.Info(ctx, map[string]interface{}{
 				"provider_name":     providerConfig.TypeName(),
@@ -297,7 +301,6 @@ func (c *TokenController) createOrUpdateToken(ctx context.Context, keycloakToken
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
-
 	var externalToken *provider.ExternalToken
 	err := application.Transactional(c.db, func(appl application.Application) error {
 		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
