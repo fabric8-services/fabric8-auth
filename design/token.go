@@ -132,8 +132,8 @@ var _ = a.Resource("token", func() {
 })
 
 var linkPayload = a.Type("LinkPayload", func() {
-	a.Attribute("for", d.String, "Resource we need to link accounts for", func() {
-		a.Example("https://github.com/somecoolrepo")
+	a.Attribute("for", d.String, "Resource we need to link accounts for. Multiple resources should be separated by comma.", func() {
+		a.Example("https://github.com/somecoolrepo,https://api.openshift.com")
 	})
 	a.Attribute("token", d.String, "User's access token")
 	a.Attribute("redirect", d.String, "URL to be redirected to after successful account linking. If not set then will redirect to the referrer instead.")
