@@ -21,10 +21,11 @@ import (
 )
 
 const (
-	varTokenPublicKey           = "token.publickey"
-	varTokenPrivateKey          = "token.privatekey"
-	defaultConfigFilePath       = "../config.yaml"
-	defaultValuesConfigFilePath = "" // when the code defaults are to be used, the path to config file is ""
+	varTokenPublicKey               = "token.publickey"
+	varTokenPrivateKey              = "token.privatekey"
+	defaultConfigFile               = "../config.yaml"
+	defaultServiceAccountConfigFile = "conf/service-account-secrets.conf"
+	defaultValuesConfigFile         = "" // when the code defaults are to be used, the path to config file is ""
 )
 
 var reqLong *goa.RequestData
@@ -32,7 +33,7 @@ var reqShort *goa.RequestData
 var config *configuration.ConfigurationData
 
 func TestMain(m *testing.M) {
-	resetConfiguration(defaultConfigFilePath)
+	resetConfiguration(defaultConfigFile, defaultServiceAccountConfigFile)
 
 	reqLong = &goa.RequestData{
 		Request: &http.Request{Host: "api.service.domain.org"},
@@ -43,11 +44,11 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func resetConfiguration(configPath string) {
+func resetConfiguration(configFile string, serviceAccountConfigFile string) {
 	var err error
 
 	// calling NewConfigurationData("") is same as GetConfigurationData()
-	config, err = configuration.NewConfigurationData(configPath)
+	config, err = configuration.NewConfigurationData(configFile, serviceAccountConfigFile)
 	if err != nil {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
@@ -58,11 +59,11 @@ func TestGetKeycloakEndpointSetByUrlEnvVaribaleOK(t *testing.T) {
 	env := os.Getenv("AUTH_KEYCLOAK_URL")
 	defer func() {
 		os.Setenv("AUTH_KEYCLOAK_URL", env)
-		resetConfiguration(defaultValuesConfigFilePath)
+		resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 	}()
 
 	os.Setenv("AUTH_KEYCLOAK_URL", "http://xyz.io")
-	resetConfiguration(defaultValuesConfigFilePath)
+	resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 
 	url, err := config.GetKeycloakEndpointAuth(reqLong)
 	require.Nil(t, err)
@@ -208,7 +209,7 @@ func TestGetWITURLNotDevModeOK(t *testing.T) {
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
 	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
 	defer func() {
-		resetConfiguration(defaultValuesConfigFilePath)
+		resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITprefix)
 		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
 	}()
@@ -231,7 +232,7 @@ func TestGetWITURLDevModeOK(t *testing.T) {
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
 	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
 	defer func() {
-		resetConfiguration(defaultValuesConfigFilePath)
+		resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITprefix)
 		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
 	}()
@@ -248,7 +249,7 @@ func TestGetWITURLSetViaEnvVarOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	existingWITURL := os.Getenv("AUTH_WIT_URL")
 	defer func() {
-		resetConfiguration(defaultValuesConfigFilePath)
+		resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 		if existingWITURL != "" {
 			os.Setenv("AUTH_WIT_URL", existingWITURL)
 		} else {
@@ -284,10 +285,10 @@ func TestGetTokenPrivateKeyFromConfigFile(t *testing.T) {
 	os.Unsetenv(envKey)
 	defer func() {
 		os.Setenv(envKey, realEnvValue)
-		resetConfiguration(defaultValuesConfigFilePath)
+		resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 	}()
 
-	resetConfiguration(defaultConfigFilePath)
+	resetConfiguration(defaultConfigFile, defaultServiceAccountConfigFile)
 	// env variable NOT set, so we check with config.yaml's value
 
 	viperValue, kid := config.GetServiceAccountPrivateKey()
@@ -313,15 +314,26 @@ func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 	env := os.Getenv(envName)
 	defer func() {
 		os.Setenv(envName, env)
-		resetConfiguration(defaultValuesConfigFilePath)
+		resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 	}()
 
 	os.Setenv(envName, strconv.FormatInt(envValue, 10))
-	resetConfiguration(defaultValuesConfigFilePath)
+	resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 
 	viperValue := config.GetHeaderMaxLength()
 	require.NotNil(t, viperValue)
 	assert.Equal(t, envValue, viperValue)
+}
+
+func TestLoadServiceAccountConfiguration(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	var conf, _ = config.GetServiceAccounts()
+	acct := conf.Accounts[0]
+
+	require.Equal(t, acct.Id, "wit-userid")
+	require.Equal(t, acct.Name, "Work Item Tracker")
+	require.Equal(t, len(acct.Secrets), 1)
 }
 
 func TestIsTLSInsecureSkipVerifySetToFalse(t *testing.T) {
@@ -338,11 +350,11 @@ func checkGetKeycloakEndpointSetByEnvVaribaleOK(t *testing.T, envName string, ge
 	env := os.Getenv(envName)
 	defer func() {
 		os.Setenv(envName, env)
-		resetConfiguration(defaultValuesConfigFilePath)
+		resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 	}()
 
 	os.Setenv(envName, envValue)
-	resetConfiguration(defaultValuesConfigFilePath)
+	resetConfiguration(defaultValuesConfigFile, defaultServiceAccountConfigFile)
 
 	url, err := getEndpoint(reqLong)
 	require.Nil(t, err)

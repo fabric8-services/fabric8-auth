@@ -25,15 +25,16 @@ func NewDBTestSuite(configFilePath string) DBTestSuite {
 // DBTestSuite is a base for tests using a gorm db
 type DBTestSuite struct {
 	suite.Suite
-	configFile    string
-	Configuration *config.ConfigurationData
-	DB            *gorm.DB
+	configFile               string
+	serviceAccountConfigFile string
+	Configuration            *config.ConfigurationData
+	DB                       *gorm.DB
 }
 
 // SetupSuite implements suite.SetupAllSuite
 func (s *DBTestSuite) SetupSuite() {
 	resource.Require(s.T(), resource.Database)
-	configuration, err := config.NewConfigurationData(s.configFile)
+	configuration, err := config.NewConfigurationData(s.configFile, s.serviceAccountConfigFile)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,

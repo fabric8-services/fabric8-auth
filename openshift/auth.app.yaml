@@ -153,6 +153,14 @@ objects:
             successThreshold: 1
             timeoutSeconds: 1
           terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /etc/auth/serviceaccounts.conf
+            subPath: serviceaccounts.conf
+            name: configmap-volume
+        volumes:
+        - name: configmap-volume
+          configMap:
+            name: auth-serviceaccounts
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
