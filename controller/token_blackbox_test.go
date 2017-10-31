@@ -88,6 +88,15 @@ func (rest *TestTokenREST) TestLinkRedirects() {
 	location := response.Header()["Location"]
 	require.Equal(rest.T(), 1, len(location))
 	require.Equal(rest.T(), "providerLocation", location[0])
+
+	// Multiple "for" resources
+	payload = &app.LinkPayload{Token: token, For: "https://github.com/org/repo," + rest.config.GetOpenShiftClientApiUrl(), Redirect: &redirect}
+	response = test.LinkTokenSeeOther(rest.T(), service.Context, service, controller, payload)
+	require.NotNil(rest.T(), response)
+	location = response.Header()["Location"]
+	require.Equal(rest.T(), 1, len(location))
+	require.Equal(rest.T(), "providerLocation", location[0])
+
 }
 
 func (rest *TestTokenREST) TestLinkCallbackRedirects() {
