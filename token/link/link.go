@@ -24,6 +24,7 @@ import (
 const (
 	identityIDParam = "identity_id"
 	forParam        = "for"
+	nextParam       = "link_next"
 )
 
 // ProviderConfig represents OAuth2 config for linking accounts
@@ -98,12 +99,20 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 		return "", errs.NewBadParameterError("redirect", redirectURL).Expected("valid URL")
 	}
 	parameters := linkURL.Query()
-	parameters.Add(identityIDParam, identityID)
-	parameters.Add(forParam, forResource)
+	parameters.Set(identityIDParam, identityID)
+
+	// If "for" contains multiple resources then do linking one by one
+	forResources := strings.Split(forResource, ",")
+	if len(forResources) > 1 {
+		parameters.Set(nextParam, strings.Join(forResources[1:], ","))
+	} else {
+		parameters.Del(nextParam)
+	}
+	parameters.Set(forParam, forResources[0])
 	linkURL.RawQuery = parameters.Encode()
 	redirectURL = linkURL.String()
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResources[0])
 	if err != nil {
 		return "", err
 	}
@@ -112,6 +121,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url": redirectURL,
+			"for":          forResource,
 			"err":          err,
 		}, "unable to save the state")
 		return "", err
@@ -232,6 +242,11 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			"identity_id": identityID,
 		}, "failed to save token")
 		return "", err
+	}
+
+	nextResource := referrerURL.Query().Get(nextParam)
+	if nextResource != "" {
+		return service.ProviderLocation(ctx, req, identityID, nextResource, knownReferrer)
 	}
 
 	return knownReferrer, nil
