@@ -177,6 +177,15 @@ migration/sqlbindata_test.go: $(GO_BINDATA_BIN) $(wildcard migration/sql-test-fi
 		-nocompress \
 		migration/sql-test-files
 
+# Pack configuration files into a compilable Go file
+configuration/confbindata.go: $(GO_BINDATA_BIN) $(wildcard configuration/conf-files/*.conf)
+	$(GO_BINDATA_BIN) \
+		-o configuration/confbindata.go \
+		-pkg configuration \
+		-prefix configuration/conf-files \
+		-nocompress \
+		configuration/conf-files
+
 # These are binary tools from our vendored packages
 $(GOAGEN_BIN): $(VENDOR_DIR)
 	cd $(VENDOR_DIR)/github.com/goadesign/goa/goagen && go build -v
@@ -213,6 +222,7 @@ clean-generated:
 	-rm -f ./bindata_assetfs.go
 	-rm -f ./migration/sqlbindata.go
 	-rm -f ./migration/sqlbindata_test.go
+	-rm -f ./configuration/confbindata.go
 	-rm -rf wit/witservice
 
 CLEAN_TARGETS += clean-vendor
@@ -256,7 +266,7 @@ migrate-database: $(BINARY_SERVER_BIN)
 
 .PHONY: generate
 ## Generate GOA sources. Only necessary after clean of if changed `design` folder.
-generate: app/controllers.go assets/js/client.js bindata_assetfs.go migration/sqlbindata.go
+generate: app/controllers.go assets/js/client.js bindata_assetfs.go migration/sqlbindata.go configuration/confbindata.go
 
 .PHONY: regenerate
 ## Runs the "clean-generated" and the "generate" target

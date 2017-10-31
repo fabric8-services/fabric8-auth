@@ -8,12 +8,12 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"bytes"
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"path/filepath"
 )
 
 // String returns the current configuration as a string
@@ -90,9 +90,6 @@ const (
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
 	varWITURL                               = "wit.url"
-
-	varServiceAccountConfigName    = "service-account-secrets.conf"
-	varDefaultServiceAccountConfig = "/etc/fabric8/" + varServiceAccountConfigName
 )
 
 type ServiceAccountConfig struct {
@@ -128,9 +125,6 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	c.v.SetTypeByDefaultValue(true)
 	c.setConfigDefaults()
 
-	// Set up the service account configuration (stored in a separate config file)
-	c.sa.SetTypeByDefaultValue(true)
-
 	if mainConfigFile != "" {
 		c.v.SetConfigType("yaml")
 		c.v.SetConfigFile(mainConfigFile)
@@ -140,61 +134,47 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		}
 	}
 
-	// If a service account configuration file has been specified, check that it exists
+	// Set up the service account configuration (stored in a separate config file)
+	c.sa.SetTypeByDefaultValue(true)
+
+	var err error
 	if serviceAccountConfigFile != "" {
-		if _, err := os.Stat(serviceAccountConfigFile); os.IsNotExist(err) {
-			// If it does not exist, return an error
-			return nil, errors.Errorf("Specified service account configuration file does not exist: %s \n", err)
+		// If a service account configuration file has been specified, check that it exists
+		if _, err := os.Stat(serviceAccountConfigFile); err != nil {
+			return nil, err
+		}
+	} else {
+		// If the service account configuration file has not been specified
+		// then we default to /etc/fabric8/service-account-secrets.conf
+		serviceAccountConfigFile, err = pathExists(defaultServiceAccountConfigPath)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	// If the service account configuration file has not been specified
-	// then we default to /etc/fabric8/service-account-secrets.conf
+	c.sa.SetConfigType("json")
 	if serviceAccountConfigFile == "" {
-		if _, err := os.Stat(varDefaultServiceAccountConfig); !os.IsNotExist(err) {
-			serviceAccountConfigFile = varDefaultServiceAccountConfig
+		// Load the default config
+		data, err := Asset(serviceAccountConfigFileName)
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	ex, err := os.Executable()
-	if err != nil {
-		panic(err)
-	}
-	exPath := filepath.Dir(ex)
-
-	// If we can't find it in the /etc/fabric8 directory, check the running directory
-	if serviceAccountConfigFile == "" {
-		checkPath := exPath + "/" + varServiceAccountConfigName
-		if _, err := os.Stat(checkPath); !os.IsNotExist(err) {
-			serviceAccountConfigFile = checkPath
-		}
-	}
-
-	// Otherwise check the /conf subdirectory of the running directory
-	if serviceAccountConfigFile == "" {
-		checkPath := exPath + "/conf/" + varServiceAccountConfigName
-		if _, err := os.Stat(checkPath); !os.IsNotExist(err) {
-			serviceAccountConfigFile = checkPath
-		}
-	}
-
-	// Otherwise as a last ditch attempt to locate the configuration, check the /conf subdirectory
-	// of the running directory's parent directory (../conf)
-	if serviceAccountConfigFile == "" {
-		checkPath := exPath + "/../conf/" + varServiceAccountConfigName
-		if _, err := os.Stat(checkPath); !os.IsNotExist(err) {
-			serviceAccountConfigFile = checkPath
-		}
-	}
-
-	// If the service account configuration file has not been specified
-	if serviceAccountConfigFile == "" {
-		c.sa.SetConfigType("json")
-
+		c.sa.ReadConfig(bytes.NewBuffer(data))
+	} else {
 		c.sa.SetConfigFile(serviceAccountConfigFile)
 	}
 
 	return &c, nil
+}
+
+func pathExists(pathToCheck string) (string, error) {
+	_, err := os.Stat(pathToCheck)
+	if err == nil {
+		return pathToCheck, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return "", nil
 }
 
 func getMainConfigFile() string {
@@ -819,6 +799,9 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	// In prod mode the following regex will be used by default:
 	DefaultValidRedirectURLs = "^(https|http)://(([^/?#]+[.])?(?i:openshift[.]io)|localhost)((/|:).*)?$" // *.openshift.io/* and localhost
 	devModeValidRedirectURLs = ".*"
+
+	serviceAccountConfigFileName    = "service-account-secrets.conf"
+	defaultServiceAccountConfigPath = "/etc/fabric8/" + serviceAccountConfigFileName
 )
 
 // ActualToken is actual OAuth access token of github

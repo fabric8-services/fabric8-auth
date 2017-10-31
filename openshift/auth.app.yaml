@@ -154,8 +154,8 @@ objects:
             timeoutSeconds: 1
           terminationMessagePath: /dev/termination-log
           volumeMounts:
-          - mountPath: /etc/auth/serviceaccounts.conf
-            subPath: serviceaccounts.conf
+          - mountPath: /etc/fabric8/service-account-secrets.conf
+            subPath: service-account-secrets.conf
             name: configmap-volume
         volumes:
         - name: configmap-volume
