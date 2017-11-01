@@ -324,13 +324,20 @@ func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 func TestLoadServiceAccountConfiguration(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	var conf, _ = config.GetServiceAccounts()
-	acct := conf.Accounts[0]
+	accounts := config.GetServiceAccounts()
+	checkServiceAccount(t, accounts, configuration.ServiceAccount{
+		ID:      "5dec5fdb-09e3-4453-b73f-5c828832b28e",
+		Name:    "fabric8-wit",
+		Secrets: []string{"witsecret"}})
+	checkServiceAccount(t, accounts, configuration.ServiceAccount{
+		ID:      "c211f1bd-17a7-4f8c-9f80-0917d167889d",
+		Name:    "fabric8-tenant",
+		Secrets: []string{"tenantsecretOld", "tenantsecretNew"}})
+}
 
-	require.Equal(t, acct.Id, "5dec5fdb-09e3-4453-b73f-5c828832b28e")
-	require.Equal(t, acct.Name, "fabric8-wit")
-	require.Equal(t, len(acct.Secrets), 1)
-	require.Equal(t, "witsecret", acct.Secrets[0])
+func checkServiceAccount(t *testing.T, accounts map[string]configuration.ServiceAccount, expected configuration.ServiceAccount) {
+	assert.Contains(t, accounts, expected.ID)
+	assert.Equal(t, expected, accounts[expected.ID])
 }
 
 func TestIsTLSInsecureSkipVerifySetToFalse(t *testing.T) {

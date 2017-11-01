@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	"bytes"
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -92,13 +92,13 @@ const (
 	varWITURL                               = "wit.url"
 )
 
-type ServiceAccountConfig struct {
+type serviceAccountConfig struct {
 	Accounts []ServiceAccount
 }
 
 type ServiceAccount struct {
 	Name    string   `mapstructure:"name"`
-	Id      string   `mapstructure:"id"`
+	ID      string   `mapstructure:"id"`
 	Secrets []string `mapstructure:"secrets"`
 }
 
@@ -107,15 +107,14 @@ type ConfigurationData struct {
 	// Main Configuration
 	v *viper.Viper
 
-	// Service Account Configuration
-	sa *viper.Viper
+	// Service Account Configuration is a map of service accounts where the key == the service account ID
+	sa map[string]ServiceAccount
 }
 
 // NewConfigurationData creates a configuration reader object using a configurable configuration file path
 func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string) (*ConfigurationData, error) {
 	c := ConfigurationData{
-		v:  viper.New(),
-		sa: viper.New(),
+		v: viper.New(),
 	}
 
 	// Set up the main configuration
@@ -135,7 +134,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	// Set up the service account configuration (stored in a separate config file)
-	c.sa.SetTypeByDefaultValue(true)
+	saViper := viper.New()
+	saViper.SetTypeByDefaultValue(true)
 
 	var err error
 	if serviceAccountConfigFile != "" {
@@ -152,16 +152,26 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		}
 	}
 
-	c.sa.SetConfigType("json")
+	saViper.SetConfigType("json")
 	if serviceAccountConfigFile == "" {
 		// Load the default config
 		data, err := Asset(serviceAccountConfigFileName)
 		if err != nil {
 			return nil, err
 		}
-		c.sa.ReadConfig(bytes.NewBuffer(data))
+		saViper.ReadConfig(bytes.NewBuffer(data))
 	} else {
-		c.sa.SetConfigFile(serviceAccountConfigFile)
+		saViper.SetConfigFile(serviceAccountConfigFile)
+	}
+
+	var conf serviceAccountConfig
+	err = saViper.UnmarshalExact(&conf)
+	if err != nil {
+		return nil, err
+	}
+	c.sa = map[string]ServiceAccount{}
+	for _, account := range conf.Accounts {
+		c.sa[account.ID] = account
 	}
 
 	return &c, nil
@@ -194,6 +204,10 @@ func getServiceAccountConfigFile() string {
 	return envServiceAccountConfigFile
 }
 
+func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
+	return c.sa
+}
+
 // GetDefaultConfigurationFile returns the default configuration file.
 func (c *ConfigurationData) GetDefaultConfigurationFile() string {
 	return defaultConfigFile
@@ -202,8 +216,7 @@ func (c *ConfigurationData) GetDefaultConfigurationFile() string {
 // GetConfigurationData is a wrapper over NewConfigurationData which reads configuration file path
 // from the environment variable.
 func GetConfigurationData() (*ConfigurationData, error) {
-	cd, err := NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile())
-	return cd, err
+	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile())
 }
 
 func (c *ConfigurationData) setConfigDefaults() {
@@ -702,7 +715,7 @@ func (c *ConfigurationData) calculateWITURL(req *goa.RequestData) (string, error
 	return newURL, nil
 }
 
-// GetLogLevel returns the loggging level (as set via config file or environment variable)
+// GetLogLevel returns the logging level (as set via config file or environment variable)
 func (c *ConfigurationData) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
 }
@@ -729,12 +742,6 @@ func (c *ConfigurationData) GetValidRedirectURLs() string {
 		return devModeValidRedirectURLs
 	}
 	return DefaultValidRedirectURLs
-}
-
-func (c *ConfigurationData) GetServiceAccounts() (ServiceAccountConfig, error) {
-	var conf ServiceAccountConfig
-	err := c.sa.Unmarshal(&conf)
-	return conf, err
 }
 
 const (
