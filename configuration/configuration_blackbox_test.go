@@ -321,10 +321,23 @@ func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
 	assert.Equal(t, envValue, viperValue)
 }
 
-func TestLoadServiceAccountConfiguration(t *testing.T) {
+func TestLoadDefaultServiceAccountConfiguration(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
 	accounts := config.GetServiceAccounts()
+	checkServiceAccountConfiguration(t, accounts)
+}
+
+func TestLoadServiceAccountConfigurationFromFile(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	saConfig, err := configuration.NewConfigurationData("", "./conf-files/service-account-secrets.conf")
+	require.Nil(t, err)
+	accounts := saConfig.GetServiceAccounts()
+	checkServiceAccountConfiguration(t, accounts)
+}
+
+func checkServiceAccountConfiguration(t *testing.T, accounts map[string]configuration.ServiceAccount) {
 	checkServiceAccount(t, accounts, configuration.ServiceAccount{
 		ID:      "5dec5fdb-09e3-4453-b73f-5c828832b28e",
 		Name:    "fabric8-wit",

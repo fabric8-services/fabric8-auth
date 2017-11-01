@@ -138,6 +138,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	saViper.SetTypeByDefaultValue(true)
 
 	var err error
+	var etcSAConfigUsed bool
 	if serviceAccountConfigFile != "" {
 		// If a service account configuration file has been specified, check that it exists
 		if _, err := os.Stat(serviceAccountConfigFile); err != nil {
@@ -150,6 +151,13 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		if err != nil {
 			return nil, err
 		}
+		etcSAConfigUsed = serviceAccountConfigFile != ""
+	}
+
+	if !etcSAConfigUsed {
+		log.WithFields(map[string]interface{}{
+			"default_sa_conf_path": defaultServiceAccountConfigPath,
+		}).Warningln("Default service account config file path is not used!")
 	}
 
 	saViper.SetConfigType("json")
@@ -162,6 +170,10 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		saViper.ReadConfig(bytes.NewBuffer(data))
 	} else {
 		saViper.SetConfigFile(serviceAccountConfigFile)
+		err := saViper.ReadInConfig()
+		if err != nil {
+			return nil, errors.Errorf("failed to load the sa config file: %s \n", err)
+		}
 	}
 
 	var conf serviceAccountConfig
