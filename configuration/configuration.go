@@ -96,6 +96,7 @@ type serviceAccountConfig struct {
 	Accounts []ServiceAccount
 }
 
+// ServiceAccount represents a service account configuration
 type ServiceAccount struct {
 	Name    string   `mapstructure:"name"`
 	ID      string   `mapstructure:"id"`
@@ -216,6 +217,7 @@ func getServiceAccountConfigFile() string {
 	return envServiceAccountConfigFile
 }
 
+// GetServiceAccounts returns a map of service account configurations by service account ID
 func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
