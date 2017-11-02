@@ -1,6 +1,7 @@
 package configuration
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -91,40 +92,134 @@ const (
 	varWITURL                               = "wit.url"
 )
 
+type serviceAccountConfig struct {
+	Accounts []ServiceAccount
+}
+
+// ServiceAccount represents a service account configuration
+type ServiceAccount struct {
+	Name    string   `mapstructure:"name"`
+	ID      string   `mapstructure:"id"`
+	Secrets []string `mapstructure:"secrets"`
+}
+
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
 type ConfigurationData struct {
+	// Main Configuration
 	v *viper.Viper
+
+	// Service Account Configuration is a map of service accounts where the key == the service account ID
+	sa map[string]ServiceAccount
 }
 
 // NewConfigurationData creates a configuration reader object using a configurable configuration file path
-func NewConfigurationData(configFilePath string) (*ConfigurationData, error) {
+func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string) (*ConfigurationData, error) {
 	c := ConfigurationData{
 		v: viper.New(),
 	}
+
+	// Set up the main configuration
 	c.v.SetEnvPrefix("AUTH")
 	c.v.AutomaticEnv()
 	c.v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	c.v.SetTypeByDefaultValue(true)
 	c.setConfigDefaults()
 
-	if configFilePath != "" {
+	if mainConfigFile != "" {
 		c.v.SetConfigType("yaml")
-		c.v.SetConfigFile(configFilePath)
+		c.v.SetConfigFile(mainConfigFile)
 		err := c.v.ReadInConfig() // Find and read the config file
 		if err != nil {           // Handle errors reading the config file
 			return nil, errors.Errorf("Fatal error config file: %s \n", err)
 		}
 	}
+
+	// Set up the service account configuration (stored in a separate config file)
+	saViper := viper.New()
+	saViper.SetTypeByDefaultValue(true)
+
+	var err error
+	var etcSAConfigUsed bool
+	if serviceAccountConfigFile != "" {
+		// If a service account configuration file has been specified, check that it exists
+		if _, err := os.Stat(serviceAccountConfigFile); err != nil {
+			return nil, err
+		}
+	} else {
+		// If the service account configuration file has not been specified
+		// then we default to /etc/fabric8/service-account-secrets.conf
+		serviceAccountConfigFile, err = pathExists(defaultServiceAccountConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		etcSAConfigUsed = serviceAccountConfigFile != ""
+	}
+
+	if !etcSAConfigUsed {
+		log.WithFields(map[string]interface{}{
+			"default_sa_conf_path": defaultServiceAccountConfigPath,
+		}).Warningln("Default service account config file path is not used!")
+	}
+
+	saViper.SetConfigType("json")
+	if serviceAccountConfigFile == "" {
+		// Load the default config
+		data, err := Asset(serviceAccountConfigFileName)
+		if err != nil {
+			return nil, err
+		}
+		saViper.ReadConfig(bytes.NewBuffer(data))
+	} else {
+		saViper.SetConfigFile(serviceAccountConfigFile)
+		err := saViper.ReadInConfig()
+		if err != nil {
+			return nil, errors.Errorf("failed to load the sa config file: %s \n", err)
+		}
+	}
+
+	var conf serviceAccountConfig
+	err = saViper.UnmarshalExact(&conf)
+	if err != nil {
+		return nil, err
+	}
+	c.sa = map[string]ServiceAccount{}
+	for _, account := range conf.Accounts {
+		c.sa[account.ID] = account
+	}
+
 	return &c, nil
 }
 
-func getConfigFilePath() string {
+func pathExists(pathToCheck string) (string, error) {
+	_, err := os.Stat(pathToCheck)
+	if err == nil {
+		return pathToCheck, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return "", nil
+}
+
+func getMainConfigFile() string {
 	// This was either passed as a env var Or, set inside main.go from --config
 	envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH")
 	if !ok {
 		return ""
 	}
 	return envConfigPath
+}
+
+func getServiceAccountConfigFile() string {
+	envServiceAccountConfigFile, ok := os.LookupEnv("AUTH_SERVICE_ACCOUNT_CONFIG_FILE")
+	if !ok {
+		return ""
+	}
+	return envServiceAccountConfigFile
+}
+
+// GetServiceAccounts returns a map of service account configurations by service account ID
+func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
+	return c.sa
 }
 
 // GetDefaultConfigurationFile returns the default configuration file.
@@ -135,15 +230,17 @@ func (c *ConfigurationData) GetDefaultConfigurationFile() string {
 // GetConfigurationData is a wrapper over NewConfigurationData which reads configuration file path
 // from the environment variable.
 func GetConfigurationData() (*ConfigurationData, error) {
-	cd, err := NewConfigurationData(getConfigFilePath())
-	return cd, err
+	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile())
 }
 
 func (c *ConfigurationData) setConfigDefaults() {
 	//---------
 	// Postgres
 	//---------
+
+	// We already call this in NewConfigurationData() - do we need it again??
 	c.v.SetTypeByDefaultValue(true)
+
 	c.v.SetDefault(varPostgresHost, "localhost")
 	c.v.SetDefault(varPostgresPort, 5433)
 	c.v.SetDefault(varPostgresUser, "postgres")
@@ -632,7 +729,7 @@ func (c *ConfigurationData) calculateWITURL(req *goa.RequestData) (string, error
 	return newURL, nil
 }
 
-// GetLogLevel returns the loggging level (as set via config file or environment variable)
+// GetLogLevel returns the logging level (as set via config file or environment variable)
 func (c *ConfigurationData) GetLogLevel() string {
 	return c.v.GetString(varLogLevel)
 }
@@ -723,6 +820,9 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	// In prod mode the following regex will be used by default:
 	DefaultValidRedirectURLs = "^(https|http)://(([^/?#]+[.])?(?i:openshift[.]io)|localhost)((/|:).*)?$" // *.openshift.io/* and localhost
 	devModeValidRedirectURLs = ".*"
+
+	serviceAccountConfigFileName    = "service-account-secrets.conf"
+	defaultServiceAccountConfigPath = "/etc/fabric8/" + serviceAccountConfigFileName
 )
 
 // ActualToken is actual OAuth access token of github
