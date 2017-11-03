@@ -23,6 +23,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
+	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -142,8 +143,28 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		}, "unable to get Generate User token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token ")))
 	}
-	_, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
+
+	identity, _, err := c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to persist user properly")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to persist user properly")))
+	}
 	tokens = append(tokens, testuser)
+
+	var remoteWITService wit.RemoteWITServiceCaller
+	witURL, err := c.Configuration.GetWITURL(ctx.RequestData)
+	err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
+	if err != nil {
+		log.Warn(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": identity.ID,
+			"username":    identity.Username,
+			"wit_url":     witURL,
+		}, "unable to create user in WIT ")
+		//return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to create user in WIT ")))
+	}
 
 	testuser, err = GenerateUserToken(ctx, tokenEndpoint, c.Configuration, c.Configuration.GetKeycloakTestUser2Name(), c.Configuration.GetKeycloakTestUser2Secret())
 	if err != nil {
@@ -153,13 +174,26 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token")))
 	}
 	// Creates the testuser2 user and identity if they don't yet exist
-	_, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
+	identity, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to persist user properly")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to persist user properly")))
 	}
 	tokens = append(tokens, testuser)
+
+	witURL, err = c.Configuration.GetWITURL(ctx.RequestData)
+	err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
+	if err != nil {
+		log.Warn(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": identity.ID,
+			"username":    identity.Username,
+			"wit_url":     witURL,
+		}, "unable to create user in WIT ")
+		//return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to create user in WIT ")))
+	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return ctx.OK(tokens)
