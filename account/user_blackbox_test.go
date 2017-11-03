@@ -105,12 +105,14 @@ func (s *userBlackBoxTest) TestOKToSave() {
 	user := createAndLoadUser(s)
 
 	user.FullName = "newusernameTestUser"
+	user.Cluster = "NewCluster" + uuid.NewV4().String()
 	err := s.repo.Save(s.ctx, user)
 	require.Nil(s.T(), err, "Could not update user")
 
 	updatedUser, err := s.repo.Load(s.ctx, user.ID)
 	require.Nil(s.T(), err, "Could not load user")
 	assert.Equal(s.T(), user.FullName, updatedUser.FullName)
+	assert.Equal(s.T(), user.Cluster, updatedUser.Cluster)
 	fields := user.ContextInformation
 	assert.Equal(s.T(), fields["last_visited"], "http://www.google.com")
 	assert.Equal(s.T(), fields["myid"], "71f343e3-2bfa-4ec6-86d4-79b91476acfc")
@@ -125,6 +127,7 @@ func createAndLoadUser(s *userBlackBoxTest) *account.User {
 		ImageURL: "someImageUrl" + uuid.NewV4().String(),
 		Bio:      "somebio" + uuid.NewV4().String(),
 		URL:      "someurl" + uuid.NewV4().String(),
+		Cluster:  "somecluster" + uuid.NewV4().String(),
 		ContextInformation: account.ContextInformation{
 			"space":        uuid.NewV4(),
 			"last_visited": "http://www.google.com",
