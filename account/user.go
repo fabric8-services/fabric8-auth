@@ -30,6 +30,7 @@ type User struct {
 	Bio                string             // The bio of the User
 	URL                string             // The URL of the User
 	Company            string             // The (optional) Company of the User
+	Cluster            string             // The OpenShift cluster allocted to the user.
 	Identities         []Identity         // has many Identities from different IDPs
 	ContextInformation ContextInformation `sql:"type:jsonb"` // context information of the user activity
 }

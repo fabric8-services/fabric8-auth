@@ -132,6 +132,9 @@ func GetMigrations() Migrations {
 	// Version 9
 	m = append(m, steps{ExecuteSQLFile("009-external-token-hard-delete.sql")})
 
+	// Version 10
+	m = append(m, steps{ExecuteSQLFile("010-add-cluster-to-user.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
