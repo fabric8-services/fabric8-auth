@@ -140,42 +140,42 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUserAsServiceAccountUser
 
 		// Optional Attributes
 
-		updatedRegistratedCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
-		if updatedRegistratedCompleted != nil {
+		registratedCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
+		if registratedCompleted != nil {
 			identity.RegistrationCompleted = true
 		}
 
-		updatedBio := ctx.Payload.Data.Attributes.Bio
-		if updatedBio != nil {
-			user.Bio = *updatedBio
+		bio := ctx.Payload.Data.Attributes.Bio
+		if bio != nil {
+			user.Bio = *bio
 		}
 
-		updatedFullName := ctx.Payload.Data.Attributes.FullName
-		if updatedFullName != nil {
-			user.FullName = *updatedFullName
+		fullName := ctx.Payload.Data.Attributes.FullName
+		if fullName != nil {
+			user.FullName = *fullName
 		}
 
-		updatedImageURL := ctx.Payload.Data.Attributes.ImageURL
-		if updatedImageURL != nil {
-			user.ImageURL = *updatedImageURL
+		imageURL := ctx.Payload.Data.Attributes.ImageURL
+		if imageURL != nil {
+			user.ImageURL = *imageURL
 		}
 
-		updateURL := ctx.Payload.Data.Attributes.URL
-		if updateURL != nil {
-			user.URL = *updateURL
+		url := ctx.Payload.Data.Attributes.URL
+		if url != nil {
+			user.URL = *url
 		}
 
-		updatedCompany := ctx.Payload.Data.Attributes.Company
-		if updatedCompany != nil {
-			user.Company = *updatedCompany
+		company := ctx.Payload.Data.Attributes.Company
+		if company != nil {
+			user.Company = *company
 		}
 
-		updatedContextInformation := ctx.Payload.Data.Attributes.ContextInformation
-		if updatedContextInformation != nil {
+		contextInformation := ctx.Payload.Data.Attributes.ContextInformation
+		if contextInformation != nil {
 			if user.ContextInformation == nil {
 				user.ContextInformation = account.ContextInformation{}
 			}
-			for fieldName, fieldValue := range updatedContextInformation {
+			for fieldName, fieldValue := range contextInformation {
 				user.ContextInformation[fieldName] = fieldValue
 			}
 		}

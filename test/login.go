@@ -2,8 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
