@@ -130,20 +130,20 @@ var _ = a.Resource("users", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
 
-	a.Action("createUserAsServiceAccount", func() {
+	a.Action("Create", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.POST("/:id"),
+			a.POST(""),
 		)
 		a.Description("create a user using a service account")
 		a.Payload(createUser)
 		a.Response(d.OK, func() {
 			a.Media(user)
 		})
-		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
+
 	})
 
 	a.Action("update", func() {
@@ -245,7 +245,6 @@ var identityDataAttributes = a.Type("IdentityDataAttributes", func() {
 })
 
 var createUserDataAttributes = a.Type("CreateIdentityDataAttributes", func() {
-	a.Attribute("userID", d.String, "The id of the corresponding User")
 	a.Attribute("fullName", d.String, "The user's full name")
 	a.Attribute("imageURL", d.String, "The avatar image for the user")
 	a.Attribute("username", d.String, "The username")
@@ -258,5 +257,5 @@ var createUserDataAttributes = a.Type("CreateIdentityDataAttributes", func() {
 	a.Attribute("contextInformation", a.HashOf(d.String, d.Any), "User context information of any type as a json", func() {
 		a.Example(map[string]interface{}{"last_visited_url": "https://a.openshift.io", "space": "3d6dab8d-f204-42e8-ab29-cdb1c93130ad"})
 	})
-	a.Required("userID", "username", "email", "providerType")
+	a.Required("username", "email", "providerType")
 })

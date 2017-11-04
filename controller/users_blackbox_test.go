@@ -865,6 +865,17 @@ func findUser(id uuid.UUID, userData []*app.UserData) *app.UserData {
 	return nil
 }
 
+func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser account.User, expectedIdentity account.Identity) {
+	require.NotNil(t, actual)
+	assert.Equal(t, expectedIdentity.Username, *actual.Attributes.Username)
+	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
+	assert.Equal(t, expectedUser.FullName, *actual.Attributes.FullName)
+	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
+	assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
+	assert.Equal(t, expectedUser.Company, *actual.Attributes.Company)
+}
+
 func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, expectedIdentity account.Identity) {
 	require.NotNil(t, actual)
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.ID)
@@ -1010,13 +1021,8 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountOK() {
 
 	// when
 	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
-	_, appUser := test.CreateUserAsServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), createUserPayload)
-
-	identityID, err := uuid.FromString(*appUser.Data.ID)
-	assert.Nil(s.T(), err)
-	identity.ID = identityID
-
-	assertUser(s.T(), appUser.Data, user, identity)
+	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	assertCreatedUser(s.T(), appUser.Data, user, identity)
 }
 
 func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnAuthorized() {
@@ -1038,38 +1044,16 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnAuthorized() {
 
 	// then
 	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
-	test.CreateUserAsServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), createUserPayload)
+	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 }
 
-func (s *TestUsersSuite) TestCreateUserAsServiceAccountBadRequest() {
+func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}, userID string) *app.CreateUsersPayload {
 
-	// given
-
-	user := testsupport.TestUser
-	identity := testsupport.TestIdentity
-	identity.User = user
-	identity.ProviderType = "KC"
-
-	user.ContextInformation = map[string]interface{}{
-		"last_visited": "yesterday",
-		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
-		"rate":         100.00,
-		"count":        3,
-	}
-	secureService, secureController := s.SecuredServiceAccountController(identity)
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
-
-	// then
-	test.CreateUserAsServiceAccountUsersBadRequest(s.T(), secureService.Context, secureService, secureController, "invalid-uuid", createUserPayload)
-}
-
-func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}, userID string) *app.CreateUserAsServiceAccountUsersPayload {
-
-	return &app.CreateUserAsServiceAccountUsersPayload{
+	return &app.CreateUsersPayload{
 		Data: &app.CreateUserData{
 			Type: "identities",
 			Attributes: &app.CreateIdentityDataAttributes{
-				UserID:                userID,
+				//UserID:                userID,
 				Email:                 *email,
 				FullName:              fullName,
 				Bio:                   bio,

@@ -86,8 +86,8 @@ func isServiceAccount(ctx context.Context) (bool, error) {
 	return (*tokenManager).IsServiceAccount(ctx), nil
 }
 
-// CreateUserAsServiceAccount creates a user when requested using a service account token
-func (c *UsersController) CreateUserAsServiceAccount(ctx *app.CreateUserAsServiceAccountUsersContext) error {
+// Create creates a user when requested using a service account token
+func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	isSvcAccount, err := isServiceAccount(ctx)
 	if err != nil {
@@ -98,26 +98,18 @@ func (c *UsersController) CreateUserAsServiceAccount(ctx *app.CreateUserAsServic
 
 	}
 	if !isSvcAccount {
-		log.Error(ctx, map[string]interface{}{
-			"identity_id": ctx.ID,
-		}, "account used to call create api is not a service account")
+		log.Error(ctx, nil, "account used to call create api is not a service account")
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(errs.New("a non-service account tried to create a user.")))
 	}
 
 	return c.createUserInDB(ctx)
 }
 
-func (c *UsersController) createUserInDB(ctx *app.CreateUserAsServiceAccountUsersContext) error {
+func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 
-	userID, err := uuid.FromString(ctx.Payload.Data.Attributes.UserID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest(errs.New("invalid user id")))
-	}
-
-	id, err := uuid.FromString(ctx.ID)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest(errs.New("incorrect identity id")))
-	}
+	identityID := uuid.NewV4()
+	userID := uuid.NewV4()
+	var err error
 
 	returnResponse := application.Transactional(c.db, func(appl application.Application) error {
 
@@ -131,7 +123,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUserAsServiceAccountUser
 			Email: ctx.Payload.Data.Attributes.Email,
 		}
 		identity = &account.Identity{
-			ID:           id,
+			ID:           identityID,
 			Username:     ctx.Payload.Data.Attributes.Username,
 			ProviderType: ctx.Payload.Data.Attributes.ProviderType,
 		}
