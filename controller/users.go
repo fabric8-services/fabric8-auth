@@ -99,7 +99,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 	if !isSvcAccount {
 		log.Error(ctx, nil, "account used to call create api is not a service account")
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(errs.New("a non-service account tried to create a user.")))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("account not authorized to create users."))
 	}
 
 	return c.createUserInDB(ctx)
@@ -107,6 +107,9 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 
+	// can we specify what the identityID of a user can be , in keycloak?
+	// if not, then maybe we should first create the user in keycloak
+	// and then use that identityID here.
 	identityID := uuid.NewV4()
 	userID := uuid.NewV4()
 	var err error
