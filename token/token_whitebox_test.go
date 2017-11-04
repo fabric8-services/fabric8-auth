@@ -96,7 +96,7 @@ func (s *TokenWhiteBoxTest) TestServiceAccount() {
 	claims := token.Claims.(jwt.MapClaims)
 	require.Equal(s.T(), AuthServiceAccountID, claims["sub"])
 	require.Equal(s.T(), "auth", claims["service_accountname"])
-	require.Equal(s.T(), []string{"uma_protection"}, claims["scopes"])
+	require.Equal(s.T(), []interface{}{"uma_protection"}, claims["scopes"])
 	jti, ok := claims["jti"].(string)
 	require.True(s.T(), ok)
 	_, err = uuid.FromString(jti)
