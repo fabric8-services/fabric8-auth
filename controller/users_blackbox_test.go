@@ -1023,53 +1023,41 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnAuthorized() {
 
 	// given
 
-	newEmail := "T" + uuid.NewV4().String() + "@email.com"
-	newFullName := "TesTCreateUserOK"
-	newImageURL := "http://new.image.io/imageurl"
-	newBio := "new bio"
-	newProfileURL := "http://new.profile.url/url"
-	newCompany := "u" + uuid.NewV4().String()
-	username := "T" + uuid.NewV4().String()
-	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
-	registrationCompleted := false
-	identityId := uuid.NewV4()
-	userID := uuid.NewV4()
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = "KC"
 
-	contextInformation := map[string]interface{}{
+	user.ContextInformation = map[string]interface{}{
 		"last_visited": "yesterday",
 		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
 		"rate":         100.00,
 		"count":        3,
 	}
+	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
 
 	// then
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, &newCompany, &username, &registrationCompleted, contextInformation, userID.String())
-	test.CreateUserAsServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identityId.String(), createUserPayload)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
+	test.CreateUserAsServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), createUserPayload)
 }
 
 func (s *TestUsersSuite) TestCreateUserAsServiceAccountBadRequest() {
 
 	// given
 
-	newEmail := "T" + uuid.NewV4().String() + "@email.com"
-	newFullName := "TesTCreateUserOK"
-	newImageURL := "http://new.image.io/imageurl"
-	newBio := "new bio"
-	newProfileURL := "http://new.profile.url/url"
-	newCompany := "u" + uuid.NewV4().String()
-	username := "T" + uuid.NewV4().String()
-	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
-	registrationCompleted := false
-	userID := uuid.NewV4()
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = "KC"
 
-	contextInformation := map[string]interface{}{
+	user.ContextInformation = map[string]interface{}{
 		"last_visited": "yesterday",
 		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
 		"rate":         100.00,
 		"count":        3,
 	}
-
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, &newCompany, &username, &registrationCompleted, contextInformation, userID.String())
+	secureService, secureController := s.SecuredServiceAccountController(identity)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
 
 	// then
 	test.CreateUserAsServiceAccountUsersBadRequest(s.T(), secureService.Context, secureService, secureController, "invalid-uuid", createUserPayload)

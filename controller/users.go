@@ -86,7 +86,7 @@ func isServiceAccount(ctx context.Context) (bool, error) {
 	return (*tokenManager).IsServiceAccount(ctx), nil
 }
 
-// CreateUserAsServiceAccount updates a user when requested using a service account token
+// CreateUserAsServiceAccount creates a user when requested using a service account token
 func (c *UsersController) CreateUserAsServiceAccount(ctx *app.CreateUserAsServiceAccountUsersContext) error {
 
 	isSvcAccount, err := isServiceAccount(ctx)
