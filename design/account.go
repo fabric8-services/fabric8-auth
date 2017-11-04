@@ -144,8 +144,6 @@ var _ = a.Resource("users", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.Forbidden, JSONAPIErrors)
-		a.Response(d.Conflict, JSONAPIErrors)
 	})
 
 	a.Action("update", func() {
