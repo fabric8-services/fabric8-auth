@@ -74,7 +74,7 @@ func (s *TokenWhiteBoxTest) TestServiceAccount() {
 		Request: &http.Request{Host: "example.com"},
 	}
 
-	tokenString, err := s.manager.ServiceAccountToken(r)
+	tokenString, err := s.manager.AuthServiceAccountToken(r)
 	require.Nil(s.T(), err)
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -94,8 +94,9 @@ func (s *TokenWhiteBoxTest) TestServiceAccount() {
 	require.Nil(s.T(), err)
 
 	claims := token.Claims.(jwt.MapClaims)
-	require.Equal(s.T(), ServiceAccountID, claims["sub"])
+	require.Equal(s.T(), AuthServiceAccountID, claims["sub"])
 	require.Equal(s.T(), "auth", claims["service_accountname"])
+	require.Equal(s.T(), []string{"uma_protection"}, claims["scopes"])
 	jti, ok := claims["jti"].(string)
 	require.True(s.T(), ok)
 	_, err = uuid.FromString(jti)

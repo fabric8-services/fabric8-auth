@@ -16,12 +16,12 @@ import (
 
 	errs "github.com/pkg/errors"
 
-	"time"
-
 	"bytes"
 	"io"
 	"strconv"
 	"strings"
+
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	ServiceAccountID = "8f558668-4db7-4280-8e65-408bcb95f9d9"
+	AuthServiceAccountID = "8f558668-4db7-4280-8e65-408bcb95f9d9"
 )
 
 // configuration represents configuration needed to construct a token manager
@@ -80,7 +80,8 @@ type Manager interface {
 	PublicKeys() []*rsa.PublicKey
 	JsonWebKeys() JsonKeys
 	PemKeys() JsonKeys
-	ServiceAccountToken(req *goa.RequestData) (string, error)
+	AuthServiceAccountToken(req *goa.RequestData) (string, error)
+	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -384,8 +385,8 @@ func (mgm *tokenManager) PublicKeys() []*rsa.PublicKey {
 	return keys
 }
 
-// ServiceAccountToken returns the service account token which authenticates the Auth service
-func (mgm *tokenManager) ServiceAccountToken(req *goa.RequestData) (string, error) {
+// AuthServiceAccountToken returns the service account token which authenticates the Auth service
+func (mgm *tokenManager) AuthServiceAccountToken(req *goa.RequestData) (string, error) {
 	var token string
 	if token = mgm.getServiceAccountToken(); token == "" {
 		return mgm.initServiceAccountToken(req)
@@ -402,21 +403,32 @@ func (mgm *tokenManager) getServiceAccountToken() string {
 func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, error) {
 	mgm.serviceAccountLock.Lock()
 	defer mgm.serviceAccountLock.Unlock()
-	token := jwt.New(jwt.SigningMethodRS256)
-	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
-	token.Claims.(jwt.MapClaims)["service_accountname"] = "auth"
-	token.Claims.(jwt.MapClaims)["sub"] = ServiceAccountID
-	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
-	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
-	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
 
-	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
+	tokenStr, err := mgm.GenerateServiceAccountToken(req, AuthServiceAccountID, "auth")
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
 	mgm.serviceAccountToken = tokenStr
 
 	return mgm.serviceAccountToken, nil
+}
+
+// GenerateServiceAccountToken generates a new Service Account Token (Protection API Token)
+func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
+	token.Claims.(jwt.MapClaims)["service_accountname"] = saName
+	token.Claims.(jwt.MapClaims)["sub"] = saID
+	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
+	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
+	token.Claims.(jwt.MapClaims)["scopes"] = []string{"uma_protection"}
+
+	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	return tokenStr, nil
 }
 
 // CheckClaims checks if all the required claims are present in the access token

@@ -28,6 +28,7 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // TokenController implements the login resource.
@@ -251,6 +252,48 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	}
 
 	return ctx.OK([]byte{})
+}
+
+func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
+	payload := ctx.Payload
+	if payload == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("payload", "nil").Expected("not empty payload"))
+	}
+	if payload.ClientID == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Service Account ID"))
+	}
+	if payload.ClientSecret == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_secret", "nil").Expected("Service Account secret"))
+	}
+
+	sa, found := c.Configuration.GetServiceAccounts()[*payload.ClientID]
+	if !found {
+		log.Error(ctx, map[string]interface{}{
+			"client_id":     *payload.ClientID,
+			"client_secret": *payload.ClientSecret,
+		}, "Unknown Service Account ID")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
+	}
+	secret := []byte(*payload.ClientSecret)
+	for _, hash := range sa.Secrets {
+		if bcrypt.CompareHashAndPassword([]byte(hash), secret) == nil {
+			tokenType := "bearer"
+			accessToken, err := c.TokenManager.GenerateServiceAccountToken(ctx.RequestData, sa.ID, sa.Name)
+			if err != nil {
+				return jsonapi.JSONErrorResponse(ctx, err)
+			}
+			pat := &app.OauthToken{
+				AccessToken: &accessToken,
+				TokenType:   &tokenType,
+			}
+			return ctx.OK(pat)
+		}
+	}
+	log.Error(ctx, map[string]interface{}{
+		"client_id":     *payload.ClientID,
+		"client_secret": *payload.ClientSecret,
+	}, "Service Account secret doesn't match")
+	return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
 }
 
 func (c *TokenController) createOrUpdateToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) error {
