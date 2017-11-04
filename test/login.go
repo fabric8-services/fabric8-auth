@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
@@ -88,4 +89,30 @@ func ServiceAsSpaceUser(serviceName string, u account.Identity, authzSrv authz.A
 	svc := service(serviceName, nil, u, nil)
 	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: authzSrv})
 	return svc
+}
+
+// ServiceAsServiceAccountUser generates the minimal service needed to satisfy the condition of being a service account.
+func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Service {
+	svc := goa.New(serviceName)
+	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
+	fmt.Printf("**************************** %s ***********************", u.User.FullName)
+	svc.Context = WithServiceAccountAuthz(svc.Context, testtoken.PrivateKey(), u)
+
+	return svc
+}
+
+// WithServiceAccountAuthz fills the context with token
+// Token is filled using input Identity object and resource authorization information
+func WithServiceAccountAuthz(ctx context.Context, key interface{}, ident account.Identity) context.Context {
+	token := fillClaimsWithIdentity(ident) // irrelavant for service account , but keeping it anyway.
+
+	fmt.Println("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+	token.Claims.(jwt.MapClaims)["service_accountname"] = "registration-app"
+	token.Header["kid"] = "test-key"
+	t, err := token.SignedString(key)
+	if err != nil {
+		panic(err.Error())
+	}
+	token.Raw = t
+	return goajwt.WithJWT(ctx, token)
 }

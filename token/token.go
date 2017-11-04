@@ -419,6 +419,19 @@ func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, 
 	return mgm.serviceAccountToken, nil
 }
 
+func (mgm *tokenManager) IsServiceAccount(ctx context.Context) bool {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {		
+		return false
+	}
+	accountName := token.Claims.(jwt.MapClaims)["service_accountname"]
+	if accountName == nil {
+		return false
+	}
+	_, isString := accountName.(string)
+	return isString
+}
+
 // CheckClaims checks if all the required claims are present in the access token
 func CheckClaims(claims *TokenClaims) error {
 	if claims.Subject == "" {

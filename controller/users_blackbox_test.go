@@ -72,6 +72,11 @@ func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Serv
 	return svc, controller
 }
 
+func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identity) (*goa.Service, *UsersController) {
+	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
+	return svc, NewUsersController(svc, s.db, s.Configuration, s.profileService)
+}
+
 func (s *TestUsersSuite) TestUpdateUserOK() {
 	// given
 	user := s.createRandomUser("TestUpdateUserOK")
@@ -394,7 +399,7 @@ func (s *TestUsersSuite) TestUpdateUserUnsetVariableInContextInfo() {
 	updatedContextInformation := result.Data.Attributes.ContextInformation
 	assert.Equal(s.T(), contextInformation["last_visited"], updatedContextInformation["last_visited"])
 
-	/** Usual stuff done, now lets unset **/
+	// Usual stuff done, now lets unset
 	contextInformation = map[string]interface{}{
 		"last_visited": nil,
 		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
@@ -419,10 +424,8 @@ func (s *TestUsersSuite) TestUpdateUserUnsetVariableInContextInfo() {
 	assert.Equal(s.T(), false, ok)
 }
 
-/*
-	Pass no contextInformation and no one complains.
-	This is as per general service behaviour.
-*/
+//Pass no contextInformation and no one complains.
+//This is as per general service behaviour.
 
 func (s *TestUsersSuite) TestUpdateUserOKWithoutContextInfo() {
 	// given
@@ -446,9 +449,7 @@ func (s *TestUsersSuite) TestUpdateUserOKWithoutContextInfo() {
 	test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
-/*
-	Pass " " as email in HTTP PATCH  /api/Users
-*/
+//Pass " " as email in HTTP PATCH  /api/Users
 
 func (s *TestUsersSuite) TestUpdateUserWithInvalidEmail() {
 	// given
@@ -469,9 +470,7 @@ func (s *TestUsersSuite) TestUpdateUserWithInvalidEmail() {
 	test.UpdateUsersBadRequest(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
-/*
-	Pass " " as username in HTTP PATCH  /api/Users
-*/
+//Pass " " as username in HTTP PATCH  /api/Users
 
 func (s *TestUsersSuite) TestUpdateUserWithInvalidUsername() {
 	// given
@@ -991,4 +990,109 @@ func createDummyUserProfileResponse(updatedBio, updatedImageURL, updatedURL *str
 
 	return profile
 
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountOK() {
+
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = "KC"
+
+	user.ContextInformation = map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+	secureService, secureController := s.SecuredServiceAccountController(identity)
+
+	// when
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
+	_, appUser := test.CreateUserAsServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), createUserPayload)
+
+	identityID, err := uuid.FromString(*appUser.Data.ID)
+	assert.Nil(s.T(), err)
+	identity.ID = identityID
+
+	assertUser(s.T(), appUser.Data, user, identity)
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnAuthorized() {
+
+	// given
+
+	newEmail := "T" + uuid.NewV4().String() + "@email.com"
+	newFullName := "TesTCreateUserOK"
+	newImageURL := "http://new.image.io/imageurl"
+	newBio := "new bio"
+	newProfileURL := "http://new.profile.url/url"
+	newCompany := "u" + uuid.NewV4().String()
+	username := "T" + uuid.NewV4().String()
+	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
+	registrationCompleted := false
+	identityId := uuid.NewV4()
+	userID := uuid.NewV4()
+
+	contextInformation := map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+
+	// then
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, &newCompany, &username, &registrationCompleted, contextInformation, userID.String())
+	test.CreateUserAsServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identityId.String(), createUserPayload)
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountBadRequest() {
+
+	// given
+
+	newEmail := "T" + uuid.NewV4().String() + "@email.com"
+	newFullName := "TesTCreateUserOK"
+	newImageURL := "http://new.image.io/imageurl"
+	newBio := "new bio"
+	newProfileURL := "http://new.profile.url/url"
+	newCompany := "u" + uuid.NewV4().String()
+	username := "T" + uuid.NewV4().String()
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
+	registrationCompleted := false
+	userID := uuid.NewV4()
+
+	contextInformation := map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, &newCompany, &username, &registrationCompleted, contextInformation, userID.String())
+
+	// then
+	test.CreateUserAsServiceAccountUsersBadRequest(s.T(), secureService.Context, secureService, secureController, "invalid-uuid", createUserPayload)
+}
+
+func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}, userID string) *app.CreateUserAsServiceAccountUsersPayload {
+
+	return &app.CreateUserAsServiceAccountUsersPayload{
+		Data: &app.CreateUserData{
+			Type: "identities",
+			Attributes: &app.CreateIdentityDataAttributes{
+				UserID:                userID,
+				Email:                 *email,
+				FullName:              fullName,
+				Bio:                   bio,
+				ImageURL:              imageURL,
+				URL:                   profileURL,
+				Company:               company,
+				ContextInformation:    contextInformation,
+				Username:              *username,
+				RegistrationCompleted: registrationCompleted,
+				ProviderType:          "KC",
+			},
+		},
+	}
 }
