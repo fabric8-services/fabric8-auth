@@ -183,7 +183,6 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	}
 	tokens = append(tokens, testuser)
 
-	witURL, err = c.Configuration.GetWITURL(ctx.RequestData)
 	err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
 	if err != nil {
 		log.Warn(ctx, map[string]interface{}{
