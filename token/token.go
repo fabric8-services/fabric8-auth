@@ -421,7 +421,7 @@ func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, 
 
 func (mgm *tokenManager) IsServiceAccount(ctx context.Context) bool {
 	token := goajwt.ContextJWT(ctx)
-	if token == nil {		
+	if token == nil {
 		return false
 	}
 	accountName := token.Claims.(jwt.MapClaims)["service_accountname"]
