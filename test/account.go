@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
 
@@ -46,6 +47,12 @@ var TestIdentity2 = account.Identity{
 	ID:       uuid.NewV4(),
 	Username: "TestDeveloper2",
 	User:     TestUser2,
+}
+
+var TestOnlineRegistrationAppIdentity = account.Identity{
+	ID:       uuid.NewV4(),
+	Username: auth.OnlineRegistrationServiceAccount,
+	User:     TestUser,
 }
 
 // CreateTestIdentity creates an identity with the given `username` in the database. For testing purpose only.

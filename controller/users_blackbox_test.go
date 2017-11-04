@@ -1017,7 +1017,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountOK() {
 		"rate":         100.00,
 		"count":        3,
 	}
-	secureService, secureController := s.SecuredServiceAccountController(identity)
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	// when
 	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
@@ -1025,7 +1025,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountOK() {
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
 }
 
-func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnAuthorized() {
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnauthorized() {
 
 	// given
 
@@ -1040,11 +1040,33 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnAuthorized() {
 		"rate":         100.00,
 		"count":        3,
 	}
-	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
 
 	// then
 	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
-	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	test.CreateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, createUserPayload)
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountForbidden() {
+
+	// given
+
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = "KC"
+
+	user.ContextInformation = map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
+
+	// then
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.ID.String())
+	test.CreateUsersForbidden(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 }
 
 func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}, userID string) *app.CreateUsersPayload {

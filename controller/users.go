@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -78,18 +79,18 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 	})
 }
 
-func isServiceAccount(ctx context.Context) (bool, error) {
+func isServiceAccount(ctx context.Context, serviceAccountUser string) (bool, error) {
 	tokenManager, err := token.ReadManagerFromContext(ctx)
 	if err != nil {
 		return false, err
 	}
-	return (*tokenManager).IsServiceAccount(ctx), nil
+	return (*tokenManager).IsServiceAccount(ctx, serviceAccountUser), nil
 }
 
 // Create creates a user when requested using a service account token
 func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
-	isSvcAccount, err := isServiceAccount(ctx)
+	isSvcAccount, err := isServiceAccount(ctx, auth.OnlineRegistrationServiceAccount)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -114,66 +115,66 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 	userID := uuid.NewV4()
 	var err error
 
+	var user *account.User
+	var identity *account.Identity
+
+	// Mandatory attributes
+
+	user = &account.User{
+		ID:    userID,
+		Email: ctx.Payload.Data.Attributes.Email,
+	}
+	identity = &account.Identity{
+		ID:           identityID,
+		Username:     ctx.Payload.Data.Attributes.Username,
+		ProviderType: ctx.Payload.Data.Attributes.ProviderType,
+	}
+	// associate foreign key
+	identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
+
+	// Optional Attributes
+
+	registratedCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
+	if registratedCompleted != nil {
+		identity.RegistrationCompleted = true
+	}
+
+	bio := ctx.Payload.Data.Attributes.Bio
+	if bio != nil {
+		user.Bio = *bio
+	}
+
+	fullName := ctx.Payload.Data.Attributes.FullName
+	if fullName != nil {
+		user.FullName = *fullName
+	}
+
+	imageURL := ctx.Payload.Data.Attributes.ImageURL
+	if imageURL != nil {
+		user.ImageURL = *imageURL
+	}
+
+	url := ctx.Payload.Data.Attributes.URL
+	if url != nil {
+		user.URL = *url
+	}
+
+	company := ctx.Payload.Data.Attributes.Company
+	if company != nil {
+		user.Company = *company
+	}
+
+	contextInformation := ctx.Payload.Data.Attributes.ContextInformation
+	if contextInformation != nil {
+		if user.ContextInformation == nil {
+			user.ContextInformation = account.ContextInformation{}
+		}
+		for fieldName, fieldValue := range contextInformation {
+			user.ContextInformation[fieldName] = fieldValue
+		}
+	}
+
 	returnResponse := application.Transactional(c.db, func(appl application.Application) error {
-
-		var user *account.User
-		var identity *account.Identity
-
-		// Mandatory attributes
-
-		user = &account.User{
-			ID:    userID,
-			Email: ctx.Payload.Data.Attributes.Email,
-		}
-		identity = &account.Identity{
-			ID:           identityID,
-			Username:     ctx.Payload.Data.Attributes.Username,
-			ProviderType: ctx.Payload.Data.Attributes.ProviderType,
-		}
-		// associate foreign key
-		identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
-
-		// Optional Attributes
-
-		registratedCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
-		if registratedCompleted != nil {
-			identity.RegistrationCompleted = true
-		}
-
-		bio := ctx.Payload.Data.Attributes.Bio
-		if bio != nil {
-			user.Bio = *bio
-		}
-
-		fullName := ctx.Payload.Data.Attributes.FullName
-		if fullName != nil {
-			user.FullName = *fullName
-		}
-
-		imageURL := ctx.Payload.Data.Attributes.ImageURL
-		if imageURL != nil {
-			user.ImageURL = *imageURL
-		}
-
-		url := ctx.Payload.Data.Attributes.URL
-		if url != nil {
-			user.URL = *url
-		}
-
-		company := ctx.Payload.Data.Attributes.Company
-		if company != nil {
-			user.Company = *company
-		}
-
-		contextInformation := ctx.Payload.Data.Attributes.ContextInformation
-		if contextInformation != nil {
-			if user.ContextInformation == nil {
-				user.ContextInformation = account.ContextInformation{}
-			}
-			for fieldName, fieldValue := range contextInformation {
-				user.ContextInformation[fieldName] = fieldValue
-			}
-		}
 
 		err = appl.Users().Create(ctx, user)
 		if err != nil {

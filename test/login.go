@@ -103,7 +103,7 @@ func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Se
 func WithServiceAccountAuthz(ctx context.Context, key interface{}, ident account.Identity) context.Context {
 	token := fillClaimsWithIdentity(ident) // irrelavant for service account , but keeping it anyway.
 
-	token.Claims.(jwt.MapClaims)["service_accountname"] = "registration-app" // just an example.
+	token.Claims.(jwt.MapClaims)["service_accountname"] = ident.Username // pass the name of the service account user here.
 	token.Header["kid"] = "test-key"
 	t, err := token.SignedString(key)
 	if err != nil {
