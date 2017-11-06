@@ -155,6 +155,10 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 
 	var remoteWITService wit.RemoteWITServiceCaller
 	witURL, err := c.Configuration.GetWITURL(ctx.RequestData)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
 	if err != nil {
 		log.Warn(ctx, map[string]interface{}{
@@ -163,7 +167,6 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 			"username":    identity.Username,
 			"wit_url":     witURL,
 		}, "unable to create user in WIT ")
-		//return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to create user in WIT ")))
 	}
 
 	testuser, err = GenerateUserToken(ctx, tokenEndpoint, c.Configuration, c.Configuration.GetKeycloakTestUser2Name(), c.Configuration.GetKeycloakTestUser2Secret())
@@ -173,6 +176,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		}, "unable to generate test token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token")))
 	}
+
 	// Creates the testuser2 user and identity if they don't yet exist
 	identity, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
 	if err != nil {
@@ -191,7 +195,6 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 			"username":    identity.Username,
 			"wit_url":     witURL,
 		}, "unable to create user in WIT ")
-		//return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to create user in WIT ")))
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
