@@ -1,5 +1,6 @@
 bindata_assetfs\.go
 sqlbindata
+confbindata
 design/.*
 vendor/.*
 app/.*

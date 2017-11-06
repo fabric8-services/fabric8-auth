@@ -153,6 +153,17 @@ objects:
             successThreshold: 1
             timeoutSeconds: 1
           terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /etc/fabric8/
+            name: auth-serviceaccounts
+            readOnly: true
+        volumes:
+        - name: auth-serviceaccounts
+          secret:
+            secretName: fabric8-auth-service-accounts
+            items:
+            - key: service-account-secrets
+              path: service-account-secrets.conf
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}

@@ -33,7 +33,7 @@ type DBTestSuite struct {
 // SetupSuite implements suite.SetupAllSuite
 func (s *DBTestSuite) SetupSuite() {
 	resource.Require(s.T(), resource.Database)
-	configuration, err := config.NewConfigurationData(s.configFile)
+	configuration, err := config.NewConfigurationData(s.configFile, "")
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,

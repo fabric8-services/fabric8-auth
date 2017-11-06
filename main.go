@@ -37,10 +37,12 @@ func main() {
 	// --------------------------------------------------------------------
 	// Parse flags
 	// --------------------------------------------------------------------
-	var configFilePath string
+	var configFile string
+	var serviceAccountConfigFile string
 	var printConfig bool
 	var migrateDB bool
-	flag.StringVar(&configFilePath, "config", "", "Path to the config file to read")
+	flag.StringVar(&configFile, "config", "", "Path to the config file to read")
+	flag.StringVar(&serviceAccountConfigFile, "serviceAccountConfig", "", "Path to the service account configuration file")
 	flag.BoolVar(&printConfig, "printConfig", false, "Prints the config (including merged environment variables) and exits")
 	flag.BoolVar(&migrateDB, "migrateDatabase", false, "Migrates the database to the newest version and exits.")
 	flag.Parse()
@@ -55,15 +57,28 @@ func main() {
 	})
 	if !configSwitchIsSet {
 		if envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH"); ok {
-			configFilePath = envConfigPath
+			configFile = envConfigPath
 		}
 	}
 
-	configuration, err := config.NewConfigurationData(configFilePath)
+	serviceAccountConfigSwitchIsSet := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "serviceAccountConfig" {
+			serviceAccountConfigSwitchIsSet = true
+		}
+	})
+	if !serviceAccountConfigSwitchIsSet {
+		if envServiceAccountConfig, ok := os.LookupEnv("AUTH_SERVICE_ACCOUNT_CONFIG_FILE"); ok {
+			serviceAccountConfigFile = envServiceAccountConfig
+		}
+	}
+
+	configuration, err := config.NewConfigurationData(configFile, serviceAccountConfigFile)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
-			"config_file_path": configFilePath,
-			"err":              err,
+			"config_file":                 configFile,
+			"service_account_config_file": serviceAccountConfigFile,
+			"err": err,
 		}, "failed to setup the configuration")
 	}
 
@@ -118,6 +133,9 @@ func main() {
 	if migrateDB {
 		os.Exit(0)
 	}
+
+	// Load service accounts
+	//	application.s
 
 	// Create service
 	service := goa.New("auth")
