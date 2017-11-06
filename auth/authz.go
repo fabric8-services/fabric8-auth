@@ -206,7 +206,7 @@ func CreateResource(ctx context.Context, resource KeycloakResource, authzEndpoin
 			"response_status": res.Status,
 			"response_body":   rest.ReadBody(res.Body),
 		}, "unable to create a Keycloak resource")
-		return "", errors.NewInternalError(ctx, errs.Errorf("unable to create a Keycloak resource. Response status: "+res.Status+". Responce body: "+rest.ReadBody(res.Body)))
+		return "", errors.NewInternalError(ctx, errs.Errorf("unable to create a Keycloak resource. Response status: "+res.Status+". Response body: "+rest.ReadBody(res.Body)))
 	}
 	jsonString := rest.ReadBody(res.Body)
 
