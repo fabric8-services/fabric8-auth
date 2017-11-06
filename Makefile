@@ -12,6 +12,8 @@ SOURCE_DIR ?= .
 SOURCES := $(shell find $(SOURCE_DIR) -path $(SOURCE_DIR)/vendor -prune -o -name '*.go' -print)
 DESIGN_DIR=design
 DESIGNS := $(shell find $(SOURCE_DIR)/$(DESIGN_DIR) -path $(SOURCE_DIR)/vendor -prune -o -name '*.go' -print)
+DOCS_DIR=docs
+DOCS_SOURCE_DIR=$(DOCS_DIR)/source
 
 # Find all required tools:
 GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)
@@ -20,6 +22,7 @@ GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
 HG_BIN := $(shell command -v $(HG_BIN_NAME) 2> /dev/null)
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
 DOCKER_BIN := $(shell command -v $(DOCKER_BIN_NAME) 2> /dev/null)
+ASCIIDOCTOR_BIN := $(shell command -v $(ASCIIDOCTOR_BIN_NAME) 2> /dev/null)
 
 # This is a fix for a non-existing user in passwd file when running in a docker
 # container and trying to clone repos of dependencies
@@ -315,6 +318,22 @@ ifeq ($(OS),Windows_NT)
 else
 	@go build -o $(CHECK_GOPATH_BIN) .make/check_gopath.go
 endif
+
+.PHONY: docs
+docs: asciidoctorbin-check
+	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/index.html $(DOCS_SOURCE_DIR)/index.adoc
+	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/reference.html $(DOCS_SOURCE_DIR)/reference.adoc
+	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/developer.html $(DOCS_SOURCE_DIR)/developer.adoc
+	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/getting-started-win.html $(DOCS_SOURCE_DIR)/getting-started-win.adoc
+	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/ide-setup.html $(DOCS_SOURCE_DIR)/ide-setup.adoc
+	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/debugging.html $(DOCS_SOURCE_DIR)/debugging.adoc
+
+.PHONY: asciidoctorbin-check
+asciidoctorbin-check:
+# Check that the asciidoctor tool is found
+ifndef ASCIIDOCTOR_BIN
+	$(error The "$(ASCIIDOCTOR_BIN_NAME)" executable could not be found in your PATH)
+endif	
 
 # Keep this "clean" target here at the bottom
 .PHONY: clean
