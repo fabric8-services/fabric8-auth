@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
 
@@ -51,7 +50,7 @@ var TestIdentity2 = account.Identity{
 
 var TestOnlineRegistrationAppIdentity = account.Identity{
 	ID:       uuid.NewV4(),
-	Username: auth.OnlineRegistrationServiceAccount,
+	Username: "online-registration",
 	User:     TestUser,
 }
 

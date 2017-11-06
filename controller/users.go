@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -90,7 +89,7 @@ func isServiceAccount(ctx context.Context, serviceAccountUser string) (bool, err
 // Create creates a user when requested using a service account token
 func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
-	isSvcAccount, err := isServiceAccount(ctx, auth.OnlineRegistrationServiceAccount)
+	isSvcAccount, err := isServiceAccount(ctx, "online-registration")
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
