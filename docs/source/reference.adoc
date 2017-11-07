@@ -1,0 +1,3 @@
+= Reference Documentation
+
+This is the Reference documentation for fabric8-auth.
