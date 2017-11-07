@@ -14,6 +14,7 @@ import (
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
+	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 )
 
@@ -298,4 +299,9 @@ func NewMigrationContext(ctx context.Context) context.Context {
 	log.Debug(ctx, nil, "Initialized the migration context with Request ID: %v", reqID)
 
 	return ctx
+}
+
+// UpdateUsersWithDefaultCluster assigns the default cluster if nothing is assigned.
+func UpdateUsersWithDefaultCluster(db *gorm.DB, defaultCluster string) error {
+	return db.Table("users").Where("cluster is null or cluster = ''").Updates(map[string]interface{}{"cluster": defaultCluster}).Error
 }

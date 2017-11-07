@@ -152,11 +152,12 @@ func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	identity, ok, err := s.loginService.CreateOrUpdateIdentity(context.Background(), token)
+	identity, ok, err := s.loginService.CreateOrUpdateIdentity(context.Background(), token, s.configuration)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), identity)
 	assert.True(s.T(), ok)
 	s.checkIfTokenMatchesIdentity(token, *identity)
+	assert.Equal(s.T(), s.configuration.GetOpenShiftClientApiUrl(), identity.User.Cluster)
 
 	updatedClaims := make(map[string]interface{})
 	updatedClaims["company"] = "Updated company"
@@ -168,7 +169,7 @@ func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
 	token, err = testtoken.UpdateToken(token, updatedClaims)
 	require.Nil(s.T(), err)
 
-	identity, ok, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token)
+	identity, ok, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token, s.configuration)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), identity)
 	assert.False(s.T(), ok)
@@ -181,7 +182,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	_, _, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token)
+	_, _, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token, s.configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 }

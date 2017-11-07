@@ -133,6 +133,12 @@ func main() {
 	if migrateDB {
 		os.Exit(0)
 	}
+	err = migration.UpdateUsersWithDefaultCluster(db, configuration.GetOpenShiftClientApiUrl())
+	if err != nil {
+		log.Error(nil, map[string]interface{}{
+			"err": err,
+		}, "failed migration : error assigning the default clusters to existing users")
+	}
 
 	// Load service accounts
 	//	application.s

@@ -142,7 +142,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		}, "unable to get Generate User token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token ")))
 	}
-	_, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
+	_, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
 	tokens = append(tokens, testuser)
 
 	testuser, err = GenerateUserToken(ctx, tokenEndpoint, c.Configuration, c.Configuration.GetKeycloakTestUser2Name(), c.Configuration.GetKeycloakTestUser2Secret())
@@ -153,7 +153,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token")))
 	}
 	// Creates the testuser2 user and identity if they don't yet exist
-	_, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
+	_, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
