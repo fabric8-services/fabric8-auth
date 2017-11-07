@@ -1,0 +1,19 @@
+= fabric8-auth Documentation
+
+The *fabric8-auth* project provides authentication and authorization services for the fabric8 platform.
+
+Please refer to the following documentation for more information:
+
+link:reference.html[Reference documentation]
+
+
+link:developer.html[Developer documentation]
+
+== Legacy documentation
+(these will eventually be refactored and/or removed)
+
+link:getting-started-win.html[Getting Started]
+
+link:ide-setup.html[IDE Setup]
+
+link:debugging.html[Debugging guide]

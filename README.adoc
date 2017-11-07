@@ -9,6 +9,12 @@ image:https://goreportcard.com/badge/github.com/fabric8-services/fabric8-auth[Go
 image:https://godoc.org/github.com/fabric8-services/fabric8-auth?status.png[GoDoc,link="https://godoc.org/github.com/fabric8-services/fabric8-auth"]
 image:https://codecov.io/gh/fabric8-services/fabric8-auth/branch/master/graph/badge.svg[Codecov.io,link="https://codecov.io/gh/fabric8-services/fabric8-auth"]
 
+== Documentation [[docs]]
+
+You can find both reference documentation and developer documentation in the following location:
+
+link:https://fabric8-services.github.io/fabric8-auth/index.html[fabric8-auth docs].
+
 == Building from source [[building]]
 
 The following guide is mainly targeted towards a Linux or Mac OSX development
