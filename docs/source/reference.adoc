@@ -1,3 +1,13 @@
 = Reference Documentation
+:imagesdir: ./assets
 
 This is the Reference documentation for fabric8-auth.
+
+== Service Accounts
+
+Service accounts are used to authenticate resource servers in order for them to interact with the fabric8-auth permission endpoints.
+
+Credentials for service accounts are stored in Openshift using link:https://docs.openshift.com/enterprise/3.0/dev_guide/secrets.html[secrets], 
+which enable the credentials to be stored outside of the project source code and only available after deployment.
+
+image::reference_service_account_secrets_os.png[]

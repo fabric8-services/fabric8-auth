@@ -422,13 +422,34 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <h1>Reference Documentation</h1>
 </div>
 <div id="content">
+<div id="preamble">
+<div class="sectionbody">
 <div class="paragraph">
 <p>This is the Reference documentation for fabric8-auth.</p>
 </div>
 </div>
+</div>
+<div class="sect1">
+<h2 id="_service_accounts">Service Accounts</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Service accounts are used to authenticate resource servers in order for them to interact with the fabric8-auth permission endpoints.</p>
+</div>
+<div class="paragraph">
+<p>Credentials for service accounts are stored in Openshift using <a href="https://docs.openshift.com/enterprise/3.0/dev_guide/secrets.html">secrets</a>,
+which enable the credentials to be stored outside of the project source code and only available after deployment.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/reference_service_account_secrets_os.png" alt="reference service account secrets os">
+</div>
+</div>
+</div>
+</div>
+</div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-11-07 10:00:22 AEST
+Last updated 2017-11-07 22:41:00 AEST
 </div>
 </div>
 </body>
