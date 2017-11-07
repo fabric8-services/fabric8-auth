@@ -321,12 +321,7 @@ endif
 
 .PHONY: docs
 docs: asciidoctorbin-check
-	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/index.html $(DOCS_SOURCE_DIR)/index.adoc
-	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/reference.html $(DOCS_SOURCE_DIR)/reference.adoc
-	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/developer.html $(DOCS_SOURCE_DIR)/developer.adoc
-	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/getting-started-win.html $(DOCS_SOURCE_DIR)/getting-started-win.adoc
-	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/ide-setup.html $(DOCS_SOURCE_DIR)/ide-setup.adoc
-	@$(ASCIIDOCTOR_BIN) -o $(DOCS_DIR)/debugging.html $(DOCS_SOURCE_DIR)/debugging.adoc
+	@$(ASCIIDOCTOR_BIN) "$(DOCS_DIR)/source/**/*.adoc" -D $(DOCS_DIR)
 
 .PHONY: asciidoctorbin-check
 asciidoctorbin-check:
