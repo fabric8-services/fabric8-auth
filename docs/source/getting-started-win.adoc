@@ -14,7 +14,7 @@ Whenever you have problems with this setup you might find an answer in the <<tro
 toc::[]
 
 [[introduction]]
-=== Introduction
+== Introduction
 
 To start developing on Windows you must:
 
