@@ -149,7 +149,6 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to persist user properly")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to persist user properly")))
 	}
 	tokens = append(tokens, testuser)
 
@@ -159,14 +158,16 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
-	if err != nil {
-		log.Warn(ctx, map[string]interface{}{
-			"err":         err,
-			"identity_id": identity.ID,
-			"username":    identity.Username,
-			"wit_url":     witURL,
-		}, "unable to create user in WIT ")
+	if identity != nil {
+		err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
+		if err != nil {
+			log.Warn(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": identity.ID,
+				"username":    identity.Username,
+				"wit_url":     witURL,
+			}, "unable to create user in WIT ")
+		}
 	}
 
 	testuser, err = GenerateUserToken(ctx, tokenEndpoint, c.Configuration, c.Configuration.GetKeycloakTestUser2Name(), c.Configuration.GetKeycloakTestUser2Secret())
@@ -183,18 +184,19 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to persist user properly")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to persist user properly")))
 	}
 	tokens = append(tokens, testuser)
 
-	err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
-	if err != nil {
-		log.Warn(ctx, map[string]interface{}{
-			"err":         err,
-			"identity_id": identity.ID,
-			"username":    identity.Username,
-			"wit_url":     witURL,
-		}, "unable to create user in WIT ")
+	if identity != nil {
+		err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
+		if err != nil {
+			log.Warn(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": identity.ID,
+				"username":    identity.Username,
+				"wit_url":     witURL,
+			}, "unable to create user in WIT ")
+		}
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
