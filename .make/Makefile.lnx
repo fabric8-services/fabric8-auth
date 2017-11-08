@@ -22,5 +22,6 @@ GIT_BIN_NAME := git
 GLIDE_BIN_NAME := glide
 GO_BIN_NAME := go
 HG_BIN_NAME := hg
+ASCIIDOCTOR_BIN_NAME := asciidoctor
 
 CHECK_GOPATH_BIN := $(INSTALL_PREFIX)/check_gopath
