@@ -188,10 +188,12 @@ func NewManager(config configuration) (Manager, error) {
 }
 
 // NewManagerWithPublicKey returns a new token Manager for handling tokens with the only public key
-func NewManagerWithPublicKey(id string, key *rsa.PublicKey) Manager {
+func NewManagerWithPublicKey(key *PublicKey, serviceAccountKey *PrivateKey) Manager {
+	saPublicKey := &serviceAccountKey.Key.PublicKey
 	return &tokenManager{
-		publicKeysMap: map[string]*rsa.PublicKey{id: key},
-		publicKeys:    []*PublicKey{{KeyID: id, Key: key}},
+		publicKeysMap:            map[string]*rsa.PublicKey{key.KeyID: key.Key, serviceAccountKey.KeyID: saPublicKey},
+		publicKeys:               []*PublicKey{key, {KeyID: serviceAccountKey.KeyID, Key: saPublicKey}},
+		serviceAccountPrivateKey: serviceAccountKey,
 	}
 }
 
