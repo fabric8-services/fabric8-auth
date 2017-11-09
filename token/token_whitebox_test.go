@@ -1,17 +1,21 @@
 package token
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 	"net/http"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -43,7 +47,7 @@ func (s *TestWhiteboxTokenSuite) TearDownSuite() {
 func newTestTokenManager() *tokenManager {
 	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(config.DefaultServiceAccountPrivateKey))
 	if err != nil {
-		panic(fmt.Errorf("failed to setup parse priviate key: %s", err.Error()))
+		panic(fmt.Errorf("failed to parse priviate key: %s", err.Error()))
 	}
 	serviceAccountKey := &PrivateKey{KeyID: "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs", Key: rsaServiceAccountKey}
 	saPublicKey := &serviceAccountKey.Key.PublicKey
@@ -55,7 +59,7 @@ func newTestTokenManager() *tokenManager {
 	}
 }
 
-func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
+func (s *TestWhiteboxTokenSuite) TestAuthServiceAccountGeneratedOK() {
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "example.com"},
 	}
@@ -63,7 +67,28 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 	tokenString, err := s.tokenManager.AuthServiceAccountToken(r)
 	require.Nil(s.T(), err)
 
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	s.checkServiceAccountToken(tokenString, AuthServiceAccountID, "auth")
+}
+
+func (s *TestWhiteboxTokenSuite) TestServiceAccountGeneratedOK() {
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "example.com"},
+	}
+
+	saID := uuid.NewV4().String()
+	tokenString, err := s.tokenManager.GenerateServiceAccountToken(r, saID, "test-token")
+	require.Nil(s.T(), err)
+	s.checkServiceAccountToken(tokenString, saID, "test-token")
+}
+
+func (s *TestWhiteboxTokenSuite) TestNotAServiceAccountFails() {
+	ctx := createInvalidSAContext()
+	assert.False(s.T(), IsServiceAccount(ctx))
+	assert.False(s.T(), IsSpecificServiceAccount(ctx, "someName"))
+}
+
+func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken string, saID string, saName string) {
+	token, err := jwt.Parse(rawToken, func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
 			return nil, errors.New("There is no 'kid' header in the token")
@@ -80,8 +105,8 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 	require.Nil(s.T(), err)
 
 	claims := token.Claims.(jwt.MapClaims)
-	require.Equal(s.T(), AuthServiceAccountID, claims["sub"])
-	require.Equal(s.T(), "auth", claims["service_accountname"])
+	require.Equal(s.T(), saID, claims["sub"])
+	require.Equal(s.T(), saName, claims["service_accountname"])
 	require.Equal(s.T(), []interface{}{"uma_protection"}, claims["scopes"])
 	jti, ok := claims["jti"].(string)
 	require.True(s.T(), ok)
@@ -89,4 +114,15 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 	require.Nil(s.T(), err)
 	require.NotEmpty(s.T(), claims["iat"])
 	require.Equal(s.T(), "http://example.com", claims["iss"])
+
+	ctx := goajwt.WithJWT(context.Background(), token)
+	assert.True(s.T(), IsServiceAccount(ctx))
+	assert.True(s.T(), IsSpecificServiceAccount(ctx, saName))
+	assert.False(s.T(), IsSpecificServiceAccount(ctx, saName+"wrongName"))
+}
+
+func createInvalidSAContext() context.Context {
+	claims := jwt.MapClaims{}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+	return goajwt.WithJWT(context.Background(), token)
 }

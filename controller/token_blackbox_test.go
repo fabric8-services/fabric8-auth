@@ -109,6 +109,36 @@ func (rest *TestTokenREST) TestLinkCallbackRedirects() {
 	require.Equal(rest.T(), "originalLocation", location[0])
 }
 
+func (rest *TestTokenREST) TestExchangeFailsWithIncompletePayload() {
+	service, controller := rest.SecuredController()
+
+	someRandomString := "someString"
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials"})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: &someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString})
+}
+
+func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
+	service, controller := rest.SecuredController()
+
+	someRandomString := "someString"
+	witID := "fabric8-wit"
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &someRandomString})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &witID})
+}
+
+func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
+	rest.checkServiceAccountCredentials("5dec5fdb-09e3-4453-b73f-5c828832b28e", "witsecret")
+	rest.checkServiceAccountCredentials("c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretOld")
+	rest.checkServiceAccountCredentials("c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretNew")
+}
+
+func (rest *TestTokenREST) checkServiceAccountCredentials(id string, secret string) {
+	service, controller := rest.SecuredController()
+
+	test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: &id})
+}
+
 func validateToken(t *testing.T, token *app.AuthToken, controler *TokenController) {
 	assert.NotNil(t, token, "Token data is nil")
 	assert.NotEmpty(t, token.Token.AccessToken, "Access token is empty")
