@@ -1,16 +1,13 @@
 package role_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/migration"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,35 +26,20 @@ type identityRoleBlackBoxTest struct {
 	resourceTypeRepo      resource.ResourceTypeRepository
 	resourceTypeScopeRepo resource.ResourceTypeScopeRepository
 	roleRepo              role.RoleRepository
-	clean                 func()
-	ctx                   context.Context
 }
 
 func TestRunIdentityRoleBlackBoxTest(t *testing.T) {
 	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
 }
 
-// SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
-// The SetupSuite method will run before the tests in the suite are run.
-// It sets up a database connection for all the tests in this suite without polluting global space.
-func (s *identityRoleBlackBoxTest) SetupSuite() {
-	s.DBTestSuite.SetupSuite()
-	s.ctx = migration.NewMigrationContext(context.Background())
-	s.DBTestSuite.PopulateDBTestSuite(s.ctx)
-}
-
 func (s *identityRoleBlackBoxTest) SetupTest() {
+	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
 	s.repo = role.NewIdentityRoleRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = resource.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-}
-
-func (s *identityRoleBlackBoxTest) TearDownTest() {
-	s.clean()
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToDelete() {
@@ -65,11 +47,11 @@ func (s *identityRoleBlackBoxTest) TestOKToDelete() {
 	identityRole := createAndLoadIdentityRole(s)
 	createAndLoadIdentityRole(s)
 
-	err := s.repo.Delete(s.ctx, identityRole.IdentityRoleID)
+	err := s.repo.Delete(s.Ctx, identityRole.IdentityRoleID)
 	assert.Nil(s.T(), err)
 
 	// lets see how many are present.
-	identityRoles, err := s.repo.List(s.ctx)
+	identityRoles, err := s.repo.List(s.Ctx)
 	require.Nil(s.T(), err, "Could not list identity roles")
 	require.True(s.T(), len(identityRoles) > 0)
 
@@ -95,7 +77,7 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 		//t.Parallel()
 		identityRole := createAndLoadIdentityRole(s)
 		// when
-		err := s.repo.CheckExists(s.ctx, identityRole.IdentityRoleID.String())
+		err := s.repo.CheckExists(s.Ctx, identityRole.IdentityRoleID.String())
 		// then
 		require.Nil(t, err)
 	})
@@ -103,7 +85,7 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 	t.Run("identity role doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		// Check not existing
-		err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
 	})
@@ -130,7 +112,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		Username:     "identity_role_blackbox_test_someuserTestIdentity2",
 		ProviderType: account.KeycloakIDP}
 
-	err := s.identityRepo.Create(s.ctx, identity)
+	err := s.identityRepo.Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
 
 	resourceType := &resource.ResourceType{
@@ -139,7 +121,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		Description:    "An area is a logical grouping within a space",
 	}
 
-	err = s.resourceTypeRepo.Create(s.ctx, resourceType)
+	err = s.resourceTypeRepo.Create(s.Ctx, resourceType)
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resourceTypeScope := &resource.ResourceTypeScope{
@@ -150,7 +132,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		Description:         "Collaborators may perform many operations within an area",
 	}
 
-	err = s.resourceTypeScopeRepo.Create(s.ctx, resourceTypeScope)
+	err = s.resourceTypeScopeRepo.Create(s.Ctx, resourceTypeScope)
 	require.Nil(s.T(), err, "Could not create resource type scope")
 
 	res := &resource.Resource{
@@ -161,7 +143,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		Description:    "identity_role_blackbox_test_A description of the created resource",
 	}
 
-	err = s.resourceRepo.Create(s.ctx, res)
+	err = s.resourceRepo.Create(s.Ctx, res)
 	require.Nil(s.T(), err, "Could not create resource")
 
 	r := &role.Role{
@@ -172,7 +154,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		//Scopes:         []resource.ResourceTypeScope{*resourceTypeScope},
 	}
 
-	err = s.roleRepo.Create(s.ctx, r)
+	err = s.roleRepo.Create(s.Ctx, r)
 	require.Nil(s.T(), err, "Could not create role")
 
 	identityRole := &role.IdentityRole{
@@ -182,7 +164,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		Role:           *r,
 	}
 
-	createdIdentityRole, err := s.repo.Load(s.ctx, identityRole.IdentityRoleID)
+	createdIdentityRole, err := s.repo.Load(s.Ctx, identityRole.IdentityRoleID)
 	require.Nil(s.T(), err, "Could not load identity role")
 	require.Equal(s.T(), identityRole.Identity.Username, createdIdentityRole.Identity.Username)
 	require.Equal(s.T(), identityRole.Resource.ResourceID, createdIdentityRole.Resource.ResourceID)

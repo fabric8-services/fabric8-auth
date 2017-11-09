@@ -6,7 +6,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
@@ -17,8 +16,7 @@ import (
 
 type TestTransaction struct {
 	gormtestsupport.DBTestSuite
-	db    *gormapplication.GormDB
-	clean func()
+	db *gormapplication.GormDB
 }
 
 func TestRunTransaction(t *testing.T) {
@@ -27,12 +25,8 @@ func TestRunTransaction(t *testing.T) {
 }
 
 func (test *TestTransaction) SetupTest() {
+	test.DBTestSuite.SetupTest()
 	test.db = gormapplication.NewGormDB(test.DB)
-	test.clean = cleaner.DeleteCreatedEntities(test.DB)
-}
-
-func (test *TestTransaction) TearDownTest() {
-	test.clean()
 }
 
 func (test *TestTransaction) TestTransactionInTime() {

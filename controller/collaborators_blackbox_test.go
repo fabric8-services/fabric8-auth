@@ -16,7 +16,6 @@ import (
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
@@ -75,7 +74,6 @@ type TestCollaboratorsREST struct {
 	gormtestsupport.DBTestSuite
 
 	db            *gormapplication.GormDB
-	clean         func()
 	policy        *auth.KeycloakPolicy
 	testIdentity1 account.Identity
 	testIdentity2 account.Identity
@@ -89,8 +87,8 @@ func TestRunCollaboratorsREST(t *testing.T) {
 }
 
 func (rest *TestCollaboratorsREST) SetupTest() {
+	rest.DBTestSuite.SetupTest()
 	rest.db = gormapplication.NewGormDB(rest.DB)
-	rest.clean = cleaner.DeleteCreatedEntities(rest.DB)
 
 	rest.policy = &auth.KeycloakPolicy{
 		Name:             "TestCollaborators-" + uuid.NewV4().String(),
@@ -108,10 +106,6 @@ func (rest *TestCollaboratorsREST) SetupTest() {
 	require.Nil(rest.T(), err)
 	rest.testIdentity3 = testIdentity
 	rest.spaceID = rest.createSpace()
-}
-
-func (rest *TestCollaboratorsREST) TearDownTest() {
-	rest.clean()
 }
 
 func (rest *TestCollaboratorsREST) SecuredController() (*goa.Service, *CollaboratorsController) {

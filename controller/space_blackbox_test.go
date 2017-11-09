@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -36,7 +35,6 @@ type TestSpaceREST struct {
 	resourceID   string
 	permissionID string
 	policyID     string
-	clean        func()
 }
 
 func TestRunSpaceREST(t *testing.T) {
@@ -45,15 +43,11 @@ func TestRunSpaceREST(t *testing.T) {
 }
 
 func (rest *TestSpaceREST) SetupTest() {
+	rest.DBTestSuite.SetupTest()
 	rest.db = gormapplication.NewGormDB(rest.DB)
-	rest.clean = cleaner.DeleteCreatedEntities(rest.DB)
 	rest.resourceID = uuid.NewV4().String()
 	rest.permissionID = uuid.NewV4().String()
 	rest.policyID = uuid.NewV4().String()
-}
-
-func (rest *TestSpaceREST) TearDownTest() {
-	rest.clean()
 }
 
 func (rest *TestSpaceREST) SecuredController(identity account.Identity) (*goa.Service, *SpaceController) {
