@@ -11,13 +11,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"os"
+
+	"strings"
 
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
@@ -26,7 +27,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"strings"
 )
 
 type LinkTestSuite struct {
@@ -35,7 +35,6 @@ type LinkTestSuite struct {
 	linkService  LinkOAuthService
 	testIdentity account.Identity
 	requestData  *goa.RequestData
-	clean        func()
 }
 
 func TestRunLinkTestSuite(t *testing.T) {
@@ -54,14 +53,6 @@ func (s *LinkTestSuite) SetupSuite() {
 	s.requestData = &goa.RequestData{Request: &http.Request{
 		URL: &url.URL{Scheme: "https", Host: "auth.openshift.io"},
 	}}
-}
-
-func (s *LinkTestSuite) SetupTest() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-}
-
-func (s *LinkTestSuite) TearDownTest() {
-	s.clean()
 }
 
 func (s *LinkTestSuite) TestInvalidRedirectFails() {
