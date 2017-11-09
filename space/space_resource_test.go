@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
@@ -31,17 +30,12 @@ func TestRunResourceRepoBBTest(t *testing.T) {
 
 type resourceRepoBBTest struct {
 	gormtestsupport.DBTestSuite
-	repo  space.ResourceRepository
-	clean func()
+	repo space.ResourceRepository
 }
 
 func (test *resourceRepoBBTest) SetupTest() {
+	test.DBTestSuite.SetupTest()
 	test.repo = space.NewResourceRepository(test.DB)
-	test.clean = cleaner.DeleteCreatedEntities(test.DB)
-}
-
-func (test *resourceRepoBBTest) TearDownTest() {
-	test.clean()
 }
 
 func (test *resourceRepoBBTest) TestCreate() {
