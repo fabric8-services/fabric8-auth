@@ -420,15 +420,126 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <body class="article">
 <div id="header">
 <h1>Developer Documentation</h1>
+<div id="toc" class="toc">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#_source_code">Source code</a></li>
+<li><a href="#_issue_tracking">Issue Tracking</a></li>
+<li><a href="#_development_workflow">Development workflow</a></li>
+<li><a href="#_service_accounts">Service Accounts</a></li>
+</ul>
+</div>
 </div>
 <div id="content">
+<div id="preamble">
+<div class="sectionbody">
 <div class="paragraph">
-<p>This is the developer documentation for fabric8-auth.</p>
+<p>This is the developer documentation for fabric8-auth. It is useful if you wish to contribute to the fabric8-auth project in some way.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_source_code">Source code</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The latest source code for fabric8-auth can be found at GitHub <a href="https://github.com/fabric8-services/fabric8-auth">here</a>.  The repository is configured to perform automatic, continual releases from the <strong>master</strong> branch any time a new pull request is merged.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_issue_tracking">Issue Tracking</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="https://github.com/fabric8-services/fabric8-auth/issues">GitHub issues</a> are used for tracking the development of new features and service issues.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_development_workflow">Development workflow</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Basically, all work done to the fabric8-auth code base must have a corresponding issue, whether it be a complex new feature, major or minor bug or simply correcting a typo in the code, readme file or documentation.  This allows the project team to carefully manage and audit the changes made to such a critical piece of the fabric8 platform.  If you wish to contribute any code or other changes to the project, here are the steps to follow:</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Pick an existing issue to work with (or create a new one)</p>
+</li>
+<li>
+<p>Fork the fabric8-auth repository to your own GitHub account</p>
+</li>
+<li>
+<p>Check out the forked repository in your development environment</p>
+</li>
+<li>
+<p>Create a new branch representing the issue you will work on (<strong>git checkout -b ISSUE-XXX</strong>)</p>
+</li>
+<li>
+<p>Make your changes, commit them to the issue branch</p>
+</li>
+<li>
+<p>Push the changes to your forked repository</p>
+</li>
+<li>
+<p>In Github, browse to the issue branch in your forked repository</p>
+</li>
+<li>
+<p>Create a pull request for your issue branch, making sure to clearly link the issue that the PR is for</p>
+</li>
+<li>
+<p>Update the issue with a link to the pull request</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_service_accounts">Service Accounts</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Service accounts are used by resource servers to interact with the fabric8-auth protection API.  This API requires a PAT (Protection API Token) in order for the resource servers to register newly created resources, and query the access rights for clients attempting to access resources that they don&#8217;t own.</p>
+</div>
+<div class="paragraph">
+<p>Service account configuration is expected to be found in <strong>/etc/fabric8/service-account-secrets.conf</strong>, in JSON format.  Here&#8217;s an example configuration:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+    "accounts": [
+        {
+            "name":"fabric8-wit",
+            "id":"5dec5fdb-09e3-4453-b73f-5c828832b28e",
+            "secrets":["witsecret"]
+        },
+        {
+            "name":"fabric8-tenant",
+            "id":"c211f1bd-17a7-4f8c-9f80-0917d167889d",
+            "secrets":["tenantsecretOld", "tenantsecretNew"]
+        },
+        {
+            "name":"fabric8-jenkins-idler",
+            "id":"341c283f-0cd7-48a8-9281-4583aceb3617",
+            "secrets":["jenkinsidlersecret"]
+        }
+    ]
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>At deployment time this configuration file is provided by the container, via a pre-configured secret (see the reference docs for details). The configuration file is loaded in <strong>/configuration/configuration.go</strong> as part of the call to <strong>NewConfigurationData</strong>.</p>
+</div>
+<div class="paragraph">
+<p>This method loads the service account configuration and stores it in the <strong>ConfigurationData.sa</strong> type variable.</p>
+</div>
+<div class="paragraph">
+<p>The path of the configuration file can be overridden by either setting a command line parameter (<strong>serviceAccountConfig</strong>) or setting an environment variable (<strong>AUTH_SERVICE_ACCOUNT_CONFIG_FILE</strong>) to point to a new file location (see the <strong>main()</strong> function in <strong>/main.go</strong>).</p>
+</div>
+</div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-11-07 22:18:00 AEST
+Last updated 2017-11-09 20:28:19 AEST
 </div>
 </div>
 </body>
