@@ -122,7 +122,7 @@ func main() {
 	application.SetDatabaseTransactionTimeout(configuration.GetPostgresTransactionTimeout())
 
 	// Migrate the schema
-	err = migration.Migrate(db.DB(), configuration.GetPostgresDatabase())
+	err = migration.Migrate(db.DB(), configuration.GetPostgresDatabase(), configuration)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -132,12 +132,6 @@ func main() {
 	// Nothing to here except exit, since the migration is already performed.
 	if migrateDB {
 		os.Exit(0)
-	}
-	err = migration.UpdateUsersWithDefaultCluster(db, configuration.GetOpenShiftClientApiUrl())
-	if err != nil {
-		log.Error(nil, map[string]interface{}{
-			"err": err,
-		}, "failed migration : error assigning the default clusters to existing users")
 	}
 
 	// Load service accounts

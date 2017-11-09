@@ -14,7 +14,6 @@ import (
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
-	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 )
 
@@ -34,17 +33,21 @@ type Migrations []steps
 // mutex variable to lock/unlock the population of common types
 var populateLocker = &sync.Mutex{}
 
+type MigrationConfiguration interface {
+	GetOpenShiftClientApiUrl() string
+}
+
 // Migrate executes the required migration of the database on startup.
 // For each successful migration, an entry will be written into the "version"
 // table, that states when a certain version was reached.
-func Migrate(db *sql.DB, catalog string) error {
-	var err error
+func Migrate(db *sql.DB, catalog string, configuration MigrationConfiguration) error {
 
+	var err error
 	if db == nil {
 		return errs.Errorf("Database handle is nil\n")
 	}
 
-	m := GetMigrations()
+	m := GetMigrations(configuration)
 
 	var tx *sql.Tx
 	for nextVersion := int64(0); nextVersion < int64(len(m)) && err == nil; nextVersion++ {
@@ -99,7 +102,7 @@ func Migrate(db *sql.DB, catalog string) error {
 // GetMigrations returns the migrations all the migrations we have.
 // Add your own migration to the end of this function.
 // IMPORTANT: ALWAYS APPEND AT THE END AND DON'T CHANGE THE ORDER OF MIGRATIONS!
-func GetMigrations() Migrations {
+func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m := Migrations{}
 
 	// Version 0
@@ -133,8 +136,9 @@ func GetMigrations() Migrations {
 	// Version 9
 	m = append(m, steps{ExecuteSQLFile("009-external-token-hard-delete.sql")})
 
-	// Version 10
-	m = append(m, steps{ExecuteSQLFile("010-add-cluster-to-user.sql")})
+	// version 10
+	defaultCluster := configuration.GetOpenShiftClientApiUrl()
+	m = append(m, steps{ExecuteSQLFile("010-add-cluster-to-user.sql", defaultCluster)})
 
 	// Version N
 	//
@@ -180,16 +184,21 @@ func ExecuteSQLFile(filename string, args ...string) fn {
 			}
 			var sqlScript bytes.Buffer
 			writer := bufio.NewWriter(&sqlScript)
-			err = tmpl.Execute(writer, args)
-			if err != nil {
-				return errs.Wrap(err, "failed to execute SQL template")
+
+			for i := 0; i < len(args); i++ {
+				err = tmpl.Execute(writer, args)
+				if err != nil {
+					return errs.Wrap(err, "failed to execute SQL template")
+				}
+				// We need to flush the content of the writer
+				writer.Flush()
+
+				_, err = db.Exec(sqlScript.String())
+				if err != nil {
+					log.Error(context.Background(), map[string]interface{}{}, "failed to execute this query: \n\n%s\n\n", sqlScript.String())
+				}
 			}
-			// We need to flush the content of the writer
-			writer.Flush()
-			_, err = db.Exec(sqlScript.String())
-			if err != nil {
-				log.Error(context.Background(), map[string]interface{}{}, "failed to execute this query: \n\n%s\n\n", sqlScript.String())
-			}
+
 		} else {
 			_, err = db.Exec(string(data))
 			if err != nil {
@@ -299,9 +308,4 @@ func NewMigrationContext(ctx context.Context) context.Context {
 	log.Debug(ctx, nil, "Initialized the migration context with Request ID: %v", reqID)
 
 	return ctx
-}
-
-// UpdateUsersWithDefaultCluster assigns the default cluster if nothing is assigned.
-func UpdateUsersWithDefaultCluster(db *gorm.DB, defaultCluster string) error {
-	return db.Table("users").Where("cluster is null or cluster = ''").Updates(map[string]interface{}{"cluster": defaultCluster}).Error
 }

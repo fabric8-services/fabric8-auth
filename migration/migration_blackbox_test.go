@@ -64,7 +64,7 @@ func setupTest() {
 		panic(err)
 	}
 
-	migrations = migration.GetMigrations()
+	migrations = migration.GetMigrations(conf)
 }
 
 func TestMigrations(t *testing.T) {
@@ -104,7 +104,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration10", testMigration10)
 
 	// Perform the migration
-	if err := migration.Migrate(sqlDB, databaseName); err != nil {
+	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
 		t.Fatalf("Failed to execute the migration: %s\n", err)
 	}
 }
@@ -209,13 +209,16 @@ func executeSQLTestFile(filename string, args ...string) fn {
 			}
 			var sqlScript bytes.Buffer
 			writer := bufio.NewWriter(&sqlScript)
-			err = tmpl.Execute(writer, args)
-			if err != nil {
-				return errs.WithStack(err)
+			for i := 0; i < len(args); i++ {
+
+				err = tmpl.Execute(writer, args)
+				if err != nil {
+					return errs.WithStack(err)
+				}
+				// We need to flush the content of the writer
+				writer.Flush()
+				_, err = db.Exec(sqlScript.String())
 			}
-			// We need to flush the content of the writer
-			writer.Flush()
-			_, err = db.Exec(sqlScript.String())
 		} else {
 			_, err = db.Exec(string(data))
 		}
