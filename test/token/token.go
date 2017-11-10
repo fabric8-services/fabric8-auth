@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -103,7 +104,14 @@ func UpdateToken(tokenString string, claims map[string]interface{}) (string, err
 
 // NewManager returns a new token Manager for handling tokens
 func NewManager() token.Manager {
-	return token.NewManagerWithPublicKey("test-key", &PrivateKey().PublicKey)
+	publicKey := &token.PublicKey{KeyID: "test-key", Key: &PrivateKey().PublicKey}
+	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(configuration.DefaultServiceAccountPrivateKey))
+	if err != nil {
+		panic(fmt.Errorf("failed to setup parse priviate key: %s", err.Error()))
+	}
+	serviceAccountKey := &token.PrivateKey{KeyID: "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs", Key: rsaServiceAccountKey}
+
+	return token.NewManagerWithPublicKey(publicKey, serviceAccountKey)
 }
 
 func PrivateKey() *rsa.PrivateKey {
