@@ -292,6 +292,10 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	return ctx.OK([]byte{})
 }
 
+// Exchange provides OAuth2 token exchange. Currently only grant_type="client_credentials" is supported
+// allowing clients to authenticate using a service account ID and secret value.
+// A service account token is returned as the result of successful exchange.
+// May be expanded in the future to support other exchange types.
 func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	payload := ctx.Payload
 	if payload == nil {
