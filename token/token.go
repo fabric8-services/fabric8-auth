@@ -406,7 +406,7 @@ func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, 
 	mgm.serviceAccountLock.Lock()
 	defer mgm.serviceAccountLock.Unlock()
 
-	tokenStr, err := mgm.GenerateServiceAccountToken(req, AuthServiceAccountID, "auth")
+	tokenStr, err := mgm.GenerateServiceAccountToken(req, AuthServiceAccountID, "fabric8-auth")
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
