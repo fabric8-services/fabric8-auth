@@ -13,8 +13,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-auth/token"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -107,6 +110,45 @@ func (rest *TestTokenREST) TestLinkCallbackRedirects() {
 	location := response.Header()["Location"]
 	require.Equal(rest.T(), 1, len(location))
 	require.Equal(rest.T(), "originalLocation", location[0])
+}
+
+func (rest *TestTokenREST) TestExchangeFailsWithIncompletePayload() {
+	service, controller := rest.SecuredController()
+
+	someRandomString := "someString"
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials"})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: &someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString})
+}
+
+func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
+	service, controller := rest.SecuredController()
+
+	someRandomString := "someString"
+	witID := "fabric8-wit"
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &someRandomString})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &witID})
+}
+
+func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
+	rest.checkServiceAccountCredentials("fabric8-wit", "5dec5fdb-09e3-4453-b73f-5c828832b28e", "witsecret")
+	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretOld")
+	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretNew")
+}
+
+func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
+	service, controller := rest.SecuredController()
+
+	_, saToken := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: &id})
+	assert.NotNil(rest.T(), saToken.TokenType)
+	assert.Equal(rest.T(), "bearer", *saToken.TokenType)
+	assert.NotNil(rest.T(), saToken.AccessToken)
+	claims, err := testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), *saToken.AccessToken)
+	require.Nil(rest.T(), err)
+
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+	ctx := goajwt.WithJWT(context.Background(), jwtToken)
+	assert.True(rest.T(), token.IsSpecificServiceAccount(ctx, name))
 }
 
 func validateToken(t *testing.T, token *app.AuthToken, controler *TokenController) {

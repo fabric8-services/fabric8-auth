@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa"
@@ -34,7 +33,6 @@ type TestSearchUserSearch struct {
 	db         *gormapplication.GormDB
 	svc        *goa.Service
 	controller *SearchController
-	clean      func()
 }
 
 func (s *TestSearchUserSearch) SetupSuite() {
@@ -42,14 +40,6 @@ func (s *TestSearchUserSearch) SetupSuite() {
 	s.svc = goa.New("test")
 	s.db = gormapplication.NewGormDB(s.DB)
 	s.controller = NewSearchController(s.svc, s.db, s.Configuration)
-}
-
-func (s *TestSearchUserSearch) SetupTest() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-}
-
-func (s *TestSearchUserSearch) TearDownTest() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 }
 
 type userSearchTestArgs struct {

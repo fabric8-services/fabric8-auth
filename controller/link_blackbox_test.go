@@ -6,7 +6,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -19,8 +18,7 @@ import (
 type TestLinkREST struct {
 	gormtestsupport.DBTestSuite
 
-	db    *gormapplication.GormDB
-	clean func()
+	db *gormapplication.GormDB
 }
 
 func TestRunLinkREST(t *testing.T) {
@@ -28,12 +26,8 @@ func TestRunLinkREST(t *testing.T) {
 }
 
 func (rest *TestLinkREST) SetupTest() {
+	rest.DBTestSuite.SetupTest()
 	rest.db = gormapplication.NewGormDB(rest.DB)
-	rest.clean = cleaner.DeleteCreatedEntities(rest.DB)
-}
-
-func (rest *TestLinkREST) TearDownTest() {
-	rest.clean()
 }
 
 func (rest *TestLinkREST) UnSecuredController() (*goa.Service, *LinkController) {

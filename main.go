@@ -8,8 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -23,7 +21,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -223,6 +223,23 @@ func main() {
 	http.Handle("/api/", service.Mux)
 	http.Handle("/", http.FileServer(assetFS()))
 	http.Handle("/favicon.ico", http.NotFoundHandler())
+
+	// Start/mount metrics http
+	if configuration.GetHTTPAddress() == configuration.GetMetricsHTTPAddress() {
+		http.Handle("/metrics", prometheus.Handler())
+	} else {
+		go func(metricAddress string) {
+			mx := http.NewServeMux()
+			mx.Handle("/metrics", prometheus.Handler())
+			if err := http.ListenAndServe(metricAddress, mx); err != nil {
+				log.Error(nil, map[string]interface{}{
+					"addr": metricAddress,
+					"err":  err,
+				}, "unable to connect to metrics server")
+				service.LogError("startup", "err", err)
+			}
+		}(configuration.GetMetricsHTTPAddress())
+	}
 
 	// Start http
 	if err := http.ListenAndServe(configuration.GetHTTPAddress(), nil); err != nil {

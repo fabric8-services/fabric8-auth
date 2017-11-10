@@ -341,11 +341,11 @@ func checkServiceAccountConfiguration(t *testing.T, accounts map[string]configur
 	checkServiceAccount(t, accounts, configuration.ServiceAccount{
 		ID:      "5dec5fdb-09e3-4453-b73f-5c828832b28e",
 		Name:    "fabric8-wit",
-		Secrets: []string{"witsecret"}})
+		Secrets: []string{"$2a$04$nI7z7Re4pbx.V5vwm14n5.velhB.nbMgxdZ0vSomWVxcct34zbH9e"}})
 	checkServiceAccount(t, accounts, configuration.ServiceAccount{
 		ID:      "c211f1bd-17a7-4f8c-9f80-0917d167889d",
 		Name:    "fabric8-tenant",
-		Secrets: []string{"tenantsecretOld", "tenantsecretNew"}})
+		Secrets: []string{"$2a$04$ynqM/syKMYowMIn5cyqHuevWnfzIQqtyY4m.61B02qltY5SOyGIOe", "$2a$04$sbC/AfW2c33hv8orGA.1D.LXa/.IY76VWhsfqxCVhrhFkDfL0/XGK"}})
 }
 
 func checkServiceAccount(t *testing.T, accounts map[string]configuration.ServiceAccount, expected configuration.ServiceAccount) {

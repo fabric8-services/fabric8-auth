@@ -15,10 +15,8 @@ import (
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	. "github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
@@ -37,8 +35,6 @@ import (
 
 type serviceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	clean         func()
-	ctx           context.Context
 	loginService  KeycloakOAuthService
 	oauth         *oauth2.Config
 	dummyOauth    *dummyOauth2Config
@@ -55,8 +51,6 @@ func TestRunServiceBlackBoxTest(t *testing.T) {
 // It sets up a database connection for all the tests in this suite without polluting global space.
 func (s *serviceBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.ctx = migration.NewMigrationContext(context.Background())
-	s.DBTestSuite.PopulateDBTestSuite(s.ctx)
 
 	var err error
 	s.configuration, err = config.GetConfigurationData()
@@ -106,14 +100,6 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	identityRepository := account.NewIdentityRepository(s.DB)
 	app := gormapplication.NewGormDB(s.DB)
 	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, app)
-}
-
-func (s *serviceBlackBoxTest) SetupTest() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-}
-
-func (s *serviceBlackBoxTest) TearDownTest() {
-	s.clean()
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {

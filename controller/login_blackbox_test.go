@@ -10,7 +10,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
@@ -26,8 +25,7 @@ import (
 type TestLoginREST struct {
 	gormtestsupport.DBTestSuite
 
-	db    *gormapplication.GormDB
-	clean func()
+	db *gormapplication.GormDB
 }
 
 func TestRunLoginREST(t *testing.T) {
@@ -35,12 +33,8 @@ func TestRunLoginREST(t *testing.T) {
 }
 
 func (rest *TestLoginREST) SetupTest() {
+	rest.DBTestSuite.SetupTest()
 	rest.db = gormapplication.NewGormDB(rest.DB)
-	rest.clean = cleaner.DeleteCreatedEntities(rest.DB)
-}
-
-func (rest *TestLoginREST) TearDownTest() {
-	rest.clean()
 }
 
 func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController) {

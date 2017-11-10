@@ -61,6 +61,20 @@ var _ = a.Resource("token", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
+	a.Action("Exchange", func() {
+		a.Routing(
+			a.POST(""),
+		)
+		a.Payload(tokenExchange)
+		a.Description("Obtain a security token")
+		a.Response(d.OK, func() {
+			a.Media(OauthToken)
+		})
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+	})
+
 	a.Action("keys", func() {
 		a.Routing(
 			a.GET("keys"),
@@ -158,6 +172,16 @@ var refreshToken = a.Type("RefreshToken", func() {
 	a.Attribute("refresh_token", d.String, "Refresh token")
 })
 
+var tokenExchange = a.Type("TokenExchange", func() {
+	a.Attribute("grant_type", d.String, func() {
+		a.Enum("client_credentials")
+		a.Description("Grant type. If set to \"client_credentials\" then this token exchange request is for a Protection API Token (PAT). PAT can be used to authenticate the corresponding Service Account.")
+	})
+	a.Attribute("client_id", d.String, "Service Account ID. Used to obtain a PAT for this service account.")
+	a.Attribute("client_secret", d.String, "Service Account secret. Used to obtain a PAT for this service account.")
+	a.Required("grant_type")
+})
+
 // AuthToken represents an authentication JWT Token
 var AuthToken = a.MediaType("application/vnd.authtoken+json", func() {
 	a.TypeName("AuthToken")
@@ -181,4 +205,18 @@ var tokenData = a.Type("TokenData", func() {
 	a.Required("expires_in")
 	a.Required("refresh_expires_in")
 	a.Required("not-before-policy")
+})
+
+// OauthToken represents an Oauth 2.0 token payload
+var OauthToken = a.MediaType("application/vnd.oauthtoken+json", func() {
+	a.TypeName("OauthToken")
+	a.Description("Oauth 2.0 token payload")
+	a.Attributes(func() {
+		a.Attribute("access_token", d.String, "Access token")
+		a.Attribute("token_type", d.String, "Token type")
+	})
+	a.View("default", func() {
+		a.Attribute("access_token")
+		a.Attribute("token_type")
+	})
 })
