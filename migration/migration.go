@@ -185,20 +185,18 @@ func ExecuteSQLFile(filename string, args ...string) fn {
 			var sqlScript bytes.Buffer
 			writer := bufio.NewWriter(&sqlScript)
 
-			for i := 0; i < len(args); i++ {
-				err = tmpl.Execute(writer, args)
-				if err != nil {
-					return errs.Wrap(err, "failed to execute SQL template")
-				}
-				// We need to flush the content of the writer
-				writer.Flush()
+			err = tmpl.Execute(writer, args)
+			if err != nil {
+				return errs.Wrap(err, "failed to execute SQL template")
+			}
+			// We need to flush the content of the writer
+			writer.Flush()
 
-				_, err = db.Exec(sqlScript.String())
-				if err != nil {
-					log.Error(context.Background(), map[string]interface{}{
-						"err": err,
-					}, "failed to execute this query: \n\n%s\n\n", sqlScript.String())
-				}
+			_, err = db.Exec(sqlScript.String())
+			if err != nil {
+				log.Error(context.Background(), map[string]interface{}{
+					"err": err,
+				}, "failed to execute this query: \n\n%s\n\n", sqlScript.String())
 			}
 
 		} else {

@@ -209,16 +209,13 @@ func executeSQLTestFile(filename string, args ...string) fn {
 			}
 			var sqlScript bytes.Buffer
 			writer := bufio.NewWriter(&sqlScript)
-			for i := 0; i < len(args); i++ {
-
-				err = tmpl.Execute(writer, args)
-				if err != nil {
-					return errs.WithStack(err)
-				}
-				// We need to flush the content of the writer
-				writer.Flush()
-				_, err = db.Exec(sqlScript.String())
+			err = tmpl.Execute(writer, args)
+			if err != nil {
+				return errs.WithStack(err)
 			}
+			// We need to flush the content of the writer
+			writer.Flush()
+			_, err = db.Exec(sqlScript.String())
 		} else {
 			_, err = db.Exec(string(data))
 		}
