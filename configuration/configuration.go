@@ -45,6 +45,7 @@ const (
 	varPostgresConnectionMaxIdle            = "postgres.connection.maxidle"
 	varPostgresConnectionMaxOpen            = "postgres.connection.maxopen"
 	varHTTPAddress                          = "http.address"
+	varMetricsHTTPAddress                   = "metrics.http.address"
 	varDeveloperModeEnabled                 = "developer.mode.enabled"
 	varKeycloakSecret                       = "keycloak.secret"
 	varKeycloakClientID                     = "keycloak.client.id"
@@ -261,6 +262,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// HTTP
 	//-----
 	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8089")
+	c.v.SetDefault(varMetricsHTTPAddress, "0.0.0.0:8089")
 	c.v.SetDefault(varHeaderMaxLength, defaultHeaderMaxLength)
 
 	//-----
@@ -277,7 +279,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Auth-related defaults
 	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
-	c.v.SetDefault(varServiceAccountPrivateKey, defaultServiceAccountPrivateKey)
+	c.v.SetDefault(varServiceAccountPrivateKey, DefaultServiceAccountPrivateKey)
 	c.v.SetDefault(varServiceAccountPrivateKeyID, "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs")
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
@@ -382,6 +384,12 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 // that the alm server binds to (e.g. "0.0.0.0:8089")
 func (c *ConfigurationData) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
+}
+
+// GetMetricsHTTPAddress returns the address the /metrics endpoing will be mounted.
+// By default GetMetricsHTTPAddress is the same as GetHTTPAddress
+func (c *ConfigurationData) GetMetricsHTTPAddress() string {
+	return c.v.GetString(varMetricsHTTPAddress)
 }
 
 // GetHeaderMaxLength returns the max length of HTTP headers allowed in the system
@@ -765,7 +773,7 @@ const (
 
 	// RSAPrivateKey for signing JWT Tokens for service accounts
 	// ssh-keygen -f alm_rsa
-	defaultServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+	DefaultServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
 DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
 HlVUSBTAcwKEjNn4C9jtEpyOl+eSgxhMzRH3bwTIFlLlVMiZf7XVE7P3yuOCpqkk

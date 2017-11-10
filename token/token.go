@@ -16,12 +16,12 @@ import (
 
 	errs "github.com/pkg/errors"
 
-	"time"
-
 	"bytes"
 	"io"
 	"strconv"
 	"strings"
+
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	ServiceAccountID = "8f558668-4db7-4280-8e65-408bcb95f9d9"
+	AuthServiceAccountID = "8f558668-4db7-4280-8e65-408bcb95f9d9"
 )
 
 // configuration represents configuration needed to construct a token manager
@@ -80,7 +80,8 @@ type Manager interface {
 	PublicKeys() []*rsa.PublicKey
 	JsonWebKeys() JsonKeys
 	PemKeys() JsonKeys
-	ServiceAccountToken(req *goa.RequestData) (string, error)
+	AuthServiceAccountToken(req *goa.RequestData) (string, error)
+	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -187,10 +188,12 @@ func NewManager(config configuration) (Manager, error) {
 }
 
 // NewManagerWithPublicKey returns a new token Manager for handling tokens with the only public key
-func NewManagerWithPublicKey(id string, key *rsa.PublicKey) Manager {
+func NewManagerWithPublicKey(key *PublicKey, serviceAccountKey *PrivateKey) Manager {
+	saPublicKey := &serviceAccountKey.Key.PublicKey
 	return &tokenManager{
-		publicKeysMap: map[string]*rsa.PublicKey{id: key},
-		publicKeys:    []*PublicKey{{KeyID: id, Key: key}},
+		publicKeysMap:            map[string]*rsa.PublicKey{key.KeyID: key.Key, serviceAccountKey.KeyID: saPublicKey},
+		publicKeys:               []*PublicKey{key, {KeyID: serviceAccountKey.KeyID, Key: saPublicKey}},
+		serviceAccountPrivateKey: serviceAccountKey,
 	}
 }
 
@@ -384,8 +387,8 @@ func (mgm *tokenManager) PublicKeys() []*rsa.PublicKey {
 	return keys
 }
 
-// ServiceAccountToken returns the service account token which authenticates the Auth service
-func (mgm *tokenManager) ServiceAccountToken(req *goa.RequestData) (string, error) {
+// AuthServiceAccountToken returns the service account token which authenticates the Auth service
+func (mgm *tokenManager) AuthServiceAccountToken(req *goa.RequestData) (string, error) {
 	var token string
 	if token = mgm.getServiceAccountToken(); token == "" {
 		return mgm.initServiceAccountToken(req)
@@ -402,21 +405,62 @@ func (mgm *tokenManager) getServiceAccountToken() string {
 func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, error) {
 	mgm.serviceAccountLock.Lock()
 	defer mgm.serviceAccountLock.Unlock()
-	token := jwt.New(jwt.SigningMethodRS256)
-	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
-	token.Claims.(jwt.MapClaims)["service_accountname"] = "auth"
-	token.Claims.(jwt.MapClaims)["sub"] = ServiceAccountID
-	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
-	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
-	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
 
-	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
+	tokenStr, err := mgm.GenerateServiceAccountToken(req, AuthServiceAccountID, "fabric8-auth")
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
 	mgm.serviceAccountToken = tokenStr
 
 	return mgm.serviceAccountToken, nil
+}
+
+// GenerateServiceAccountToken generates a new Service Account Token (Protection API Token)
+func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
+	token.Claims.(jwt.MapClaims)["service_accountname"] = saName
+	token.Claims.(jwt.MapClaims)["sub"] = saID
+	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
+	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
+	token.Claims.(jwt.MapClaims)["scopes"] = []string{"uma_protection"}
+
+	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	return tokenStr, nil
+}
+
+// IsSpecificServiceAccount checks if the request is done by a given
+// Service account based on the JWT Token provided in context
+func IsSpecificServiceAccount(ctx context.Context, name string) bool {
+	accountName, ok := extractServiceAccountName(ctx)
+	if !ok {
+		return false
+	}
+	return accountName == name
+}
+
+// IsServiceAccount checks if the request is done by a
+// Service account based on the JWT Token provided in context
+func IsServiceAccount(ctx context.Context) bool {
+	_, ok := extractServiceAccountName(ctx)
+	return ok
+}
+
+func extractServiceAccountName(ctx context.Context) (string, bool) {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return "", false
+	}
+	accountName := token.Claims.(jwt.MapClaims)["service_accountname"]
+	if accountName == nil {
+		return "", false
+	}
+	accountNameTyped, isString := accountName.(string)
+	return accountNameTyped, isString
 }
 
 func (mgm *tokenManager) IsServiceAccount(ctx context.Context, serviceAccountUser string) bool {

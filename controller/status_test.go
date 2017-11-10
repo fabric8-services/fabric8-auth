@@ -7,7 +7,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -17,20 +16,10 @@ import (
 
 type TestStatusREST struct {
 	gormtestsupport.DBTestSuite
-
-	clean func()
 }
 
 func TestRunStatusREST(t *testing.T) {
 	suite.Run(t, &TestStatusREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
-}
-
-func (rest *TestStatusREST) SetupTest() {
-	rest.clean = cleaner.DeleteCreatedEntities(rest.DB)
-}
-
-func (rest *TestStatusREST) TearDownTest() {
-	rest.clean()
 }
 
 func (rest *TestStatusREST) SecuredController() (*goa.Service, *StatusController) {

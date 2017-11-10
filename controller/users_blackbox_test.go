@@ -13,7 +13,6 @@ import (
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
@@ -36,7 +35,6 @@ type TestUsersSuite struct {
 	gormtestsupport.DBTestSuite
 	db             *gormapplication.GormDB
 	svc            *goa.Service
-	clean          func()
 	controller     *UsersController
 	userRepo       account.UserRepository
 	identityRepo   account.IdentityRepository
@@ -55,14 +53,6 @@ func (s *TestUsersSuite) SetupSuite() {
 	s.userRepo = s.db.Users()
 	s.identityRepo = s.db.Identities()
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
-}
-
-func (s *TestUsersSuite) SetupTest() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-}
-
-func (s *TestUsersSuite) TearDownTest() {
-	s.clean()
 }
 
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
