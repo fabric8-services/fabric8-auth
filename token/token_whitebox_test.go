@@ -67,7 +67,7 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccountGeneratedOK() {
 	tokenString, err := s.tokenManager.AuthServiceAccountToken(r)
 	require.Nil(s.T(), err)
 
-	s.checkServiceAccountToken(tokenString, AuthServiceAccountID, "auth")
+	s.checkServiceAccountToken(tokenString, AuthServiceAccountID, "fabric8-auth")
 }
 
 func (s *TestWhiteboxTokenSuite) TestServiceAccountGeneratedOK() {
