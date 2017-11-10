@@ -1,11 +1,7 @@
 package account_test
 
 import (
-<<<<<<< HEAD
-	"context"
 	"fmt"
-=======
->>>>>>> upstream/master
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -122,7 +118,7 @@ func (s *userBlackBoxTest) TestCreateUserFail() {
 			"myid":         "71f343e3-2bfa-4ec6-86d4-79b91476acfc",
 		},
 	}
-	err := s.repo.Create(s.ctx, user)
+	err := s.repo.Create(s.Ctx, user)
 	require.NotNil(t, err)
 }
 
