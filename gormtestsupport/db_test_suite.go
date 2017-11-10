@@ -5,10 +5,12 @@ import (
 
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
 	"context"
 
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq" // need to import postgres driver
 	"github.com/stretchr/testify/suite"
@@ -28,6 +30,8 @@ type DBTestSuite struct {
 	configFile    string
 	Configuration *config.ConfigurationData
 	DB            *gorm.DB
+	clean         func()
+	Ctx           context.Context
 }
 
 // SetupSuite implements suite.SetupAllSuite
@@ -49,6 +53,18 @@ func (s *DBTestSuite) SetupSuite() {
 			}, "failed to connect to the database")
 		}
 	}
+	s.Ctx = migration.NewMigrationContext(context.Background())
+	s.PopulateDBTestSuite(s.Ctx)
+}
+
+// SetupTest implements suite.SetupTest
+func (s *DBTestSuite) SetupTest() {
+	s.clean = cleaner.DeleteCreatedEntities(s.DB)
+}
+
+// TearDownTest implements suite.TearDownTest
+func (s *DBTestSuite) TearDownTest() {
+	s.clean()
 }
 
 // PopulateDBTestSuite populates the DB with common values

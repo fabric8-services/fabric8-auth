@@ -277,7 +277,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Auth-related defaults
 	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
-	c.v.SetDefault(varServiceAccountPrivateKey, defaultServiceAccountPrivateKey)
+	c.v.SetDefault(varServiceAccountPrivateKey, DefaultServiceAccountPrivateKey)
 	c.v.SetDefault(varServiceAccountPrivateKeyID, "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs")
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
@@ -765,7 +765,7 @@ const (
 
 	// RSAPrivateKey for signing JWT Tokens for service accounts
 	// ssh-keygen -f alm_rsa
-	defaultServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+	DefaultServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
 DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
 HlVUSBTAcwKEjNn4C9jtEpyOl+eSgxhMzRH3bwTIFlLlVMiZf7XVE7P3yuOCpqkk

@@ -1,15 +1,12 @@
 package resource_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/migration"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,32 +22,17 @@ type resourceBlackBoxTest struct {
 	repo             resource.ResourceRepository
 	identityRepo     account.IdentityRepository
 	resourceTypeRepo resource.ResourceTypeRepository
-	clean            func()
-	ctx              context.Context
 }
 
 func TestRunResourceBlackBoxTest(t *testing.T) {
 	suite.Run(t, &resourceTypeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
 }
 
-// SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
-// The SetupSuite method will run before the tests in the suite are run.
-// It sets up a database connection for all the tests in this suite without polluting global space.
-func (s *resourceBlackBoxTest) SetupSuite() {
-	s.DBTestSuite.SetupSuite()
-	s.ctx = migration.NewMigrationContext(context.Background())
-	s.DBTestSuite.PopulateDBTestSuite(s.ctx)
-}
-
 func (s *resourceBlackBoxTest) SetupTest() {
+	s.DBTestSuite.SetupTest()
 	s.repo = resource.NewResourceRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
-}
-
-func (s *resourceBlackBoxTest) TearDownTest() {
-	s.clean()
 }
 
 func (s *resourceBlackBoxTest) TestOKToDelete() {
@@ -60,15 +42,15 @@ func (s *resourceBlackBoxTest) TestOKToDelete() {
 	resource := createAndLoadResource(s)
 	createAndLoadResource(s)
 
-	loadedResource, err := s.repo.Load(s.ctx, resource.ResourceID)
+	loadedResource, err := s.repo.Load(s.Ctx, resource.ResourceID)
 	require.NotNil(s.T(), loadedResource, "Created resource should be loaded")
 	require.Nil(s.T(), err, "Should be no error when loading existing resource")
 
-	err = s.repo.Delete(s.ctx, resource.ResourceID)
+	err = s.repo.Delete(s.Ctx, resource.ResourceID)
 	assert.Nil(s.T(), err, "Should be no error when deleting resource")
 
 	// Check the resource is deleted correctly
-	loadedResource, err = s.repo.Load(s.ctx, resource.ResourceID)
+	loadedResource, err = s.repo.Load(s.Ctx, resource.ResourceID)
 	require.Nil(s.T(), loadedResource, "Deleted resource should not be possible to load")
 	require.NotNil(s.T(), err, "Should be error when loading non-existing resource")
 }
@@ -88,7 +70,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 		//t.Parallel()
 		resource := createAndLoadResource(s)
 		// when
-		err := s.repo.CheckExists(s.ctx, resource.ResourceID)
+		err := s.repo.CheckExists(s.Ctx, resource.ResourceID)
 		// then
 		require.Nil(t, err)
 	})
@@ -96,7 +78,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 	t.Run("resource doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		// Check not existing
-		err := s.repo.CheckExists(s.ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
 	})
@@ -109,10 +91,10 @@ func (s *resourceBlackBoxTest) TestOKToSave() {
 	resource := createAndLoadResource(s)
 
 	resource.Description = "foo"
-	err := s.repo.Save(s.ctx, resource)
+	err := s.repo.Save(s.Ctx, resource)
 	require.Nil(s.T(), err, "Could not update resource")
 
-	updatedResource, err := s.repo.Load(s.ctx, resource.ResourceID)
+	updatedResource, err := s.repo.Load(s.Ctx, resource.ResourceID)
 	require.Nil(s.T(), err, "Could not load resource")
 	assert.Equal(s.T(), updatedResource.Description, "foo")
 }
@@ -123,7 +105,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 		Username:     "resource_blackbox_test_someuserTestIdentity2",
 		ProviderType: account.KeycloakIDP}
 
-	err := s.identityRepo.Create(s.ctx, identity)
+	err := s.identityRepo.Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
 
 	resourceType := &resource.ResourceType{
@@ -132,7 +114,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 		Description:    "An area is a logical grouping within a space",
 	}
 
-	err = s.resourceTypeRepo.Create(s.ctx, resourceType)
+	err = s.resourceTypeRepo.Create(s.Ctx, resourceType)
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resource := &resource.Resource{
@@ -143,10 +125,10 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 		Description:    "resource_blackbox_test_A description of the created resource",
 	}
 
-	err = s.repo.Create(s.ctx, resource)
+	err = s.repo.Create(s.Ctx, resource)
 	require.Nil(s.T(), err, "Could not create resource")
 
-	createdResource, err := s.repo.Load(s.ctx, resource.ResourceID)
+	createdResource, err := s.repo.Load(s.Ctx, resource.ResourceID)
 	require.Nil(s.T(), err, "Could not load resource")
 
 	require.Equal(s.T(), resource.Description, createdResource.Description)

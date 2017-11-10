@@ -16,7 +16,6 @@ import (
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
@@ -39,7 +38,6 @@ type TestTokenStorageREST struct {
 	mockKeycloakExternalTokenServiceClient mockKeycloakExternalTokenServiceClient
 
 	providerConfigFactory link.OauthProviderFactory
-	clean                 func()
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
@@ -47,24 +45,19 @@ func TestRunTokenStorageREST(t *testing.T) {
 }
 
 func (rest *TestTokenStorageREST) SetupTest() {
-	rest.DBTestSuite.SetupSuite()
+	rest.DBTestSuite.SetupTest()
 	rest.mockKeycloakExternalTokenServiceClient = newMockKeycloakExternalTokenServiceClient()
 	rest.db = gormapplication.NewGormDB(rest.DB)
 	rest.identityRepository = account.NewIdentityRepository(rest.DB)
 	rest.externalTokenRepository = provider.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
 
-	rest.clean = cleaner.DeleteCreatedEntities(rest.DB)
 	config, err := configuration.GetConfigurationData()
 	if err != nil {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
 	rest.Configuration = config
 	rest.providerConfigFactory = link.NewOauthProviderFactory(config)
-}
-
-func (rest *TestTokenStorageREST) TearDownTest() {
-	rest.clean()
 }
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
@@ -140,6 +133,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 	require.NotNil(rest.T(), err)
 	expectedHeaderValue := "LINK url=https://auth.localhost.io/api/token/link, description=\"github token is missing. Link github account\""
 	assert.Contains(rest.T(), rw.Header().Get("WWW-Authenticate"), expectedHeaderValue)
+	assert.Contains(rest.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
 
 // Not present in keycloak and identity is not the system.

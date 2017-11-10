@@ -151,5 +151,5 @@ func getServiceAccountToken(ctx context.Context, request *goa.RequestData) (stri
 		}, "unable to obtain service token")
 		return "", err
 	}
-	return (*manager).ServiceAccountToken(request)
+	return (*manager).AuthServiceAccountToken(request)
 }

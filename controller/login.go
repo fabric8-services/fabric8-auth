@@ -1,20 +1,20 @@
 package controller
 
 import (
-	"golang.org/x/oauth2"
-
-	"github.com/fabric8-services/fabric8-auth/rest"
-
 	"fmt"
 
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 type LoginConfiguration interface {
@@ -38,6 +38,7 @@ type LoginConfiguration interface {
 	GetWITURL(*goa.RequestData) (string, error)
 	GetKeycloakURL() string
 	GetKeycloakRealm() string
+	GetServiceAccounts() map[string]configuration.ServiceAccount
 }
 
 // LoginController implements the login resource.
