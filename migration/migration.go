@@ -195,14 +195,18 @@ func ExecuteSQLFile(filename string, args ...string) fn {
 
 				_, err = db.Exec(sqlScript.String())
 				if err != nil {
-					log.Error(context.Background(), map[string]interface{}{}, "failed to execute this query: \n\n%s\n\n", sqlScript.String())
+					log.Error(context.Background(), map[string]interface{}{
+						"err": err,
+					}, "failed to execute this query: \n\n%s\n\n", sqlScript.String())
 				}
 			}
 
 		} else {
 			_, err = db.Exec(string(data))
 			if err != nil {
-				log.Error(context.Background(), map[string]interface{}{}, "failed to execute this query: \n\n%s\n\n", string(data))
+				log.Error(context.Background(), map[string]interface{}{
+					"err": err,
+				}, "failed to execute this query: \n\n%s\n\n", string(data))
 			}
 		}
 
