@@ -132,6 +132,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 	require.NotNil(rest.T(), err)
 	expectedHeaderValue := "LINK url=https://auth.localhost.io/api/token/link, description=\"github token is missing. Link github account\""
 	assert.Contains(rest.T(), rw.Header().Get("WWW-Authenticate"), expectedHeaderValue)
+	assert.Contains(rest.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
 
 // Not present in keycloak and identity is not the system.

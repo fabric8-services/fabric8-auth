@@ -47,12 +47,16 @@ func (s *LinkTestSuite) SetupSuite() {
 	s.application = gormapplication.NewGormDB(s.DB)
 	providerFactory := NewOauthProviderFactory(s.Configuration)
 	s.linkService = NewLinkServiceWithFactory(s.Configuration, s.application, providerFactory)
-	var err error
-	s.testIdentity, err = test.CreateTestIdentity(s.DB, "TestLinkSuite user", "test provider")
-	require.Nil(s.T(), err)
 	s.requestData = &goa.RequestData{Request: &http.Request{
 		URL: &url.URL{Scheme: "https", Host: "auth.openshift.io"},
 	}}
+}
+
+func (s *LinkTestSuite) SetupTest() {
+	s.DBTestSuite.SetupTest()
+	var err error
+	s.testIdentity, err = test.CreateTestIdentity(s.DB, "TestLinkSuite user", "test provider")
+	require.Nil(s.T(), err)
 }
 
 func (s *LinkTestSuite) TestInvalidRedirectFails() {

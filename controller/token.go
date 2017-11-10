@@ -243,6 +243,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 			}
 			linkURL := rest.AbsoluteURL(ctx.RequestData, client.LinkTokenPath())
 			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
+			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
 			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
 		}
 		return jsonapi.JSONErrorResponse(ctx, err)
