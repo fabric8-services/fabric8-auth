@@ -78,25 +78,10 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 	})
 }
 
-func isServiceAccount(ctx context.Context, serviceAccountUser string) (bool, error) {
-	tokenManager, err := token.ReadManagerFromContext(ctx)
-	if err != nil {
-		return false, err
-	}
-	return (*tokenManager).IsServiceAccount(ctx, serviceAccountUser), nil
-}
-
 // Create creates a user when requested using a service account token
 func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
-	isSvcAccount, err := isServiceAccount(ctx, "online-registration")
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to determine if account is a service account")
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err))
-
-	}
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, "online-registration")
 	if !isSvcAccount {
 		log.Error(ctx, nil, "account used to call create api is not a service account")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("account not authorized to create users."))

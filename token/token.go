@@ -443,13 +443,6 @@ func IsSpecificServiceAccount(ctx context.Context, name string) bool {
 	return accountName == name
 }
 
-// IsServiceAccount checks if the request is done by a
-// Service account based on the JWT Token provided in context
-func IsServiceAccount(ctx context.Context) bool {
-	_, ok := extractServiceAccountName(ctx)
-	return ok
-}
-
 func extractServiceAccountName(ctx context.Context) (string, bool) {
 	token := goajwt.ContextJWT(ctx)
 	if token == nil {
@@ -461,20 +454,6 @@ func extractServiceAccountName(ctx context.Context) (string, bool) {
 	}
 	accountNameTyped, isString := accountName.(string)
 	return accountNameTyped, isString
-}
-
-func (mgm *tokenManager) IsServiceAccount(ctx context.Context, serviceAccountUser string) bool {
-	token := goajwt.ContextJWT(ctx)
-	if token == nil {
-		return false
-	}
-	accountName := token.Claims.(jwt.MapClaims)["service_accountname"]
-	if accountName == nil {
-		return false
-	}
-	accountNameString, isString := accountName.(string)
-
-	return isString && accountNameString == serviceAccountUser
 }
 
 // CheckClaims checks if all the required claims are present in the access token
