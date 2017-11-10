@@ -131,6 +131,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 				FullName: name,
 				ImageURL: "http://example.org/" + name + ".png",
 				Email:    emails[i],
+				Cluster:  "default Cluster",
 			}
 			err := app.Users().Create(context.Background(), &user)
 			require.Nil(s.T(), err)
