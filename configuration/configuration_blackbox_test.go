@@ -355,7 +355,7 @@ func checkServiceAccountConfiguration(t *testing.T, accounts map[string]configur
 	checkServiceAccount(t, accounts, configuration.ServiceAccount{
 		ID:      "f867ec72-3171-4b8f-8eec-90a32eab6e0b",
 		Name:    "online-registration",
-		Secrets: []string{"registrationsecret"}})
+		Secrets: []string{"jIR5FpYq0QUUzMEKqiAIVloNBCL3v1nOPxq9Wm07vTsJhKGNBRWWsdknK4x4el3"}})
 }
 
 func checkServiceAccount(t *testing.T, accounts map[string]configuration.ServiceAccount, expected configuration.ServiceAccount) {
