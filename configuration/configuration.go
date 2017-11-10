@@ -45,6 +45,7 @@ const (
 	varPostgresConnectionMaxIdle            = "postgres.connection.maxidle"
 	varPostgresConnectionMaxOpen            = "postgres.connection.maxopen"
 	varHTTPAddress                          = "http.address"
+	varMetricsHTTPAddress                   = "metrics.http.address"
 	varDeveloperModeEnabled                 = "developer.mode.enabled"
 	varKeycloakSecret                       = "keycloak.secret"
 	varKeycloakClientID                     = "keycloak.client.id"
@@ -261,6 +262,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// HTTP
 	//-----
 	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8089")
+	c.v.SetDefault(varMetricsHTTPAddress, "0.0.0.0:8089")
 	c.v.SetDefault(varHeaderMaxLength, defaultHeaderMaxLength)
 
 	//-----
@@ -382,6 +384,12 @@ func (c *ConfigurationData) GetPostgresConfigString() string {
 // that the alm server binds to (e.g. "0.0.0.0:8089")
 func (c *ConfigurationData) GetHTTPAddress() string {
 	return c.v.GetString(varHTTPAddress)
+}
+
+// GetMetricsHTTPAddress returns the address the /metrics endpoing will be mounted.
+// By default GetMetricsHTTPAddress is the same as GetHTTPAddress
+func (c *ConfigurationData) GetMetricsHTTPAddress() string {
+	return c.v.GetString(varMetricsHTTPAddress)
 }
 
 // GetHeaderMaxLength returns the max length of HTTP headers allowed in the system
