@@ -445,7 +445,7 @@ able to build and/or develop the project, please refer to the <a href="developer
 <h2 id="_service_accounts">Service Accounts</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Service accounts are used to authenticate resource servers in order for them to interact with the fabric8-auth permission (and other) endpoints.</p>
+<p>Service accounts are used to authenticate other services in order for them to interact with the fabric8-auth permission (and other) endpoints.</p>
 </div>
 <div class="paragraph">
 <p>Credentials for service accounts are stored in Openshift using <a href="https://docs.openshift.com/enterprise/3.0/dev_guide/secrets.html">secrets</a>,
@@ -484,18 +484,23 @@ the new value.</p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code class="language-json" data-lang="json">{
-  "accounts": [
-      {
-          "name":"fabric8-wit",
-          "id":"5dec5fdb-09e3-4453-b73f-5c828832b28e",
-          "secrets":["witsecret"]
-      },
-      {
-          "name":"fabric8-tenant",
-          "id":"c211f1bd-17a7-4f8c-9f80-0917d167889d",
-          "secrets":["tenantsecretOld", "tenantsecretNew"]
-      }
-  ]
+    "accounts": [
+        {
+            "name":"fabric8-wit",
+            "id":"5dec5fdb-09e3-4453-b73f-5c828832b28e",
+            "secrets":["$2a$04$nI7z7Re4pbx.V5vwm14n5.velhB.nbMgxdZ0vSomWVxcct34zbH9e"]
+        },
+        {
+            "name":"fabric8-tenant",
+            "id":"c211f1bd-17a7-4f8c-9f80-0917d167889d",
+            "secrets":["$2a$04$ynqM/syKMYowMIn5cyqHuevWnfzIQqtyY4m.61B02qltY5SOyGIOe", "$2a$04$sbC/AfW2c33hv8orGA.1D.LXa/.IY76VWhsfqxCVhrhFkDfL0/XGK"]
+        },
+        {
+            "name":"fabric8-jenkins-idler",
+            "id":"341c283f-0cd7-48a8-9281-4583aceb3617",
+            "secrets":["$2a$04$hbGHAVKohpeDgHzafnLwdO4ZzhEn9ukVP/6CaOtf5o3Btp.r6tXTG"]
+        }
+    ]
 }</code></pre>
 </div>
 </div>
@@ -504,7 +509,7 @@ the new value.</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code class="language-base64" data-lang="base64">ewogICJhY2NvdW50cyI6IFsKICAgICAgewogICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXdpdCIsCiAgICAgICAgICAiaWQiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUiLAogICAgICAgICAgInNlY3JldHMiOlsid2l0c2VjcmV0Il0KICAgICAgfSwKICAgICAgewogICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXRlbmFudCIsCiAgICAgICAgICAiaWQiOiJjMjExZjFiZC0xN2E3LTRmOGMtOWY4MC0wOTE3ZDE2Nzg4OWQiLAogICAgICAgICAgInNlY3JldHMiOlsidGVuYW50c2VjcmV0T2xkIiwgInRlbmFudHNlY3JldE5ldyJdCiAgICAgIH0KICBdCn0=</code></pre>
+<pre class="highlight"><code class="language-base64" data-lang="base64">ew0KICAgICJhY2NvdW50cyI6IFsNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXdpdCIsDQogICAgICAgICAgICAiaWQiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JG5JN3o3UmU0cGJ4LlY1dndtMTRuNS52ZWxoQi5uYk1neGRaMHZTb21XVnhjY3QzNHpiSDllIl0NCiAgICAgICAgfSwNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXRlbmFudCIsDQogICAgICAgICAgICAiaWQiOiJjMjExZjFiZC0xN2E3LTRmOGMtOWY4MC0wOTE3ZDE2Nzg4OWQiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JHlucU0vc3lLTVlvd01JbjVjeXFIdWV2V25meklRcXR5WTRtLjYxQjAycWx0WTVTT3lHSU9lIiwgIiQyYSQwNCRzYkMvQWZXMmMzM2h2OG9yR0EuMUQuTFhhLy5JWTc2Vldoc2ZxeENWaHJoRmtEZkwwL1hHSyJdDQogICAgICAgIH0sDQogICAgICAgIHsNCiAgICAgICAgICAgICJuYW1lIjoiZmFicmljOC1qZW5raW5zLWlkbGVyIiwNCiAgICAgICAgICAgICJpZCI6IjM0MWMyODNmLTBjZDctNDhhOC05MjgxLTQ1ODNhY2ViMzYxNyIsDQogICAgICAgICAgICAic2VjcmV0cyI6WyIkMmEkMDQkaGJHSEFWS29ocGVEZ0h6YWZuTHdkTzRaemhFbjl1a1ZQLzZDYU90ZjVvM0J0cC5yNnRYVEciXQ0KICAgICAgICB9DQogICAgXQ0KfQ==</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -520,7 +525,7 @@ the new value.</p>
   },
   "namespace": "developer",
   "data": {
-    "service-account-secrets": "ewogICJhY2NvdW50cyI6IFsKICAgICAgewogICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXdpdCIsCiAgICAgICAgICAiaWQiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUiLAogICAgICAgICAgInNlY3JldHMiOlsid2l0c2VjcmV0Il0KICAgICAgfSwKICAgICAgewogICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXRlbmFudCIsCiAgICAgICAgICAiaWQiOiJjMjExZjFiZC0xN2E3LTRmOGMtOWY4MC0wOTE3ZDE2Nzg4OWQiLAogICAgICAgICAgInNlY3JldHMiOlsidGVuYW50c2VjcmV0T2xkIiwgInRlbmFudHNlY3JldE5ldyJdCiAgICAgIH0KICBdCn0="
+    "service-account-secrets": "ew0KICAgICJhY2NvdW50cyI6IFsNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXdpdCIsDQogICAgICAgICAgICAiaWQiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JG5JN3o3UmU0cGJ4LlY1dndtMTRuNS52ZWxoQi5uYk1neGRaMHZTb21XVnhjY3QzNHpiSDllIl0NCiAgICAgICAgfSwNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXRlbmFudCIsDQogICAgICAgICAgICAiaWQiOiJjMjExZjFiZC0xN2E3LTRmOGMtOWY4MC0wOTE3ZDE2Nzg4OWQiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JHlucU0vc3lLTVlvd01JbjVjeXFIdWV2V25meklRcXR5WTRtLjYxQjAycWx0WTVTT3lHSU9lIiwgIiQyYSQwNCRzYkMvQWZXMmMzM2h2OG9yR0EuMUQuTFhhLy5JWTc2Vldoc2ZxeENWaHJoRmtEZkwwL1hHSyJdDQogICAgICAgIH0sDQogICAgICAgIHsNCiAgICAgICAgICAgICJuYW1lIjoiZmFicmljOC1qZW5raW5zLWlkbGVyIiwNCiAgICAgICAgICAgICJpZCI6IjM0MWMyODNmLTBjZDctNDhhOC05MjgxLTQ1ODNhY2ViMzYxNyIsDQogICAgICAgICAgICAic2VjcmV0cyI6WyIkMmEkMDQkaGJHSEFWS29ocGVEZ0h6YWZuTHdkTzRaemhFbjl1a1ZQLzZDYU90ZjVvM0J0cC5yNnRYVEciXQ0KICAgICAgICB9DQogICAgXQ0KfQ=="
     }
 }</code></pre>
 </div>
@@ -576,7 +581,7 @@ The secret value must be mounted as <strong>/etc/fabric8/service-account-secrets
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-11-08 23:22:14 AEST
+Last updated 2017-11-12 19:36:14 AEST
 </div>
 </div>
 </body>
