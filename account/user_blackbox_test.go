@@ -9,7 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -102,7 +102,7 @@ func (s *userBlackBoxTest) TestOKToSave() {
 
 }
 
-func (s *userBlackBoxTest) TestCreateUserFail() {
+func (s *userBlackBoxTest) TestCreateUserWithoutClusterFails() {
 	t := s.T()
 	resource.Require(t, resource.Database)
 	user := &account.User{
@@ -119,19 +119,41 @@ func (s *userBlackBoxTest) TestCreateUserFail() {
 		},
 	}
 	err := s.repo.Create(s.Ctx, user)
+	// No cluster set. Should fail.
 	require.NotNil(t, err)
+
+	user.Cluster = "someClusterForTest"
+	err = s.repo.Create(s.Ctx, user)
+	// Cluster is set now. Should be OK.
+	require.Nil(t, err)
 }
 
-func (s *userBlackBoxTest) TestUpdateUserFail() {
+func (s *userBlackBoxTest) TestUpdateUserWithoutClusterFails() {
 	t := s.T()
 	resource.Require(t, resource.Database)
 	user := createAndLoadUser(s)
+
+	// If we try to set an empty cluster for an existing user it should fail.
 	err := s.DB.Exec(fmt.Sprintf("update users set cluster = '' where id = '%s'", user.ID.String())).Error
 	require.NotNil(t, err)
 
 	err = s.DB.Exec(fmt.Sprintf("update users set cluster = NULL where id = '%s'", user.ID.String())).Error
 	require.NotNil(t, err)
 
+	// Check that Save(user) doesn't update the cluster if it's empty
+	// TODO we should switch to db.Save(&user) instead of db.Model(&user).Updates(model) in userRepo.Save(user). Otherwise we can't really set empty values to User's fields
+	require.NotEmpty(t, user.Cluster)
+	user.Cluster = ""
+	err = s.repo.Save(s.Ctx, user)
+	require.Nil(t, err)
+	u, err := s.repo.Load(s.Ctx, user.ID)
+	require.Nil(t, err)
+	require.NotEmpty(t, u.Cluster)
+
+	// OK. Let's now try with setting a not empty cluster. Should pass this time.
+	user.Cluster = "someClusterForTest"
+	err = s.repo.Save(s.Ctx, user)
+	require.Nil(t, err)
 }
 
 func createAndLoadUser(s *userBlackBoxTest) *account.User {
