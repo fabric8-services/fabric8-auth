@@ -38,6 +38,7 @@ type LoginServiceConfiguration interface {
 	GetValidRedirectURLs() string
 	GetNotApprovedRedirect() string
 	GetWITURL(*goa.RequestData) (string, error)
+	GetOpenShiftClientApiUrl() string
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
@@ -63,7 +64,7 @@ type KeycloakOAuthProvider struct {
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
 	Perform(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
-	CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error)
+	CreateOrUpdateIdentity(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -163,7 +164,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 		apiClient := referrerURL.Query().Get(apiClientParam)
 
-		identity, newUser, err := keycloak.CreateOrUpdateIdentity(ctx, keycloakToken.AccessToken)
+		identity, newUser, err := keycloak.CreateOrUpdateIdentity(ctx, keycloakToken.AccessToken, serviceConfig)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -584,7 +585,7 @@ func getProviderURL(req *goa.RequestData, state string, sessionState string, pro
 
 // CreateOrUpdateIdentity creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
@@ -638,6 +639,9 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(ctx context.Contex
 		// from the token claims info.
 
 		_, err = fillUser(claims, identity)
+		if identity.User.Cluster == "" {
+			identity.User.Cluster = configuration.GetOpenShiftClientApiUrl()
+		}
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,
