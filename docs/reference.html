@@ -420,15 +420,168 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <body class="article">
 <div id="header">
 <h1>Reference Documentation</h1>
+<div id="toc" class="toc">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li><a href="#_service_accounts">Service Accounts</a>
+<ul class="sectlevel2">
+<li><a href="#_adding_a_service_account">Adding a service account</a></li>
+</ul>
+</li>
+</ul>
+</div>
 </div>
 <div id="content">
+<div id="preamble">
+<div class="sectionbody">
 <div class="paragraph">
-<p>This is the Reference documentation for fabric8-auth.</p>
+<p>This is the Reference documentation for fabric8-auth. You may find it useful if you wish to deploy and configure the service, or to interact
+with its authentication and authorization services via its REST endpoints.  If you wish to understand more about the inner workings of fabric8-auth and be
+able to build and/or develop the project, please refer to the <a href="developer.html">Developer documentation</a> instead.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_service_accounts">Service Accounts</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Service accounts are used to authenticate other services in order for them to interact with the fabric8-auth permission (and other) endpoints.</p>
+</div>
+<div class="paragraph">
+<p>Credentials for service accounts are stored in Openshift using <a href="https://docs.openshift.com/enterprise/3.0/dev_guide/secrets.html">secrets</a>,
+which enable the credentials to be stored outside of the project source code and only made available to fabric8-auth at runtime.</p>
+</div>
+<div class="paragraph">
+<p>The service account credentials are defined in a JSON document, with each account having the following attributes:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>name</strong> This field is used to describe the account, and has no bearing on authentication logic</p>
+</li>
+<li>
+<p><strong>id</strong> The unique identifier of the service account</p>
+</li>
+<li>
+<p><strong>secrets</strong> An array of credential values.  Use of an array allows new credentials to be added while retaining older credentials.  This strategy allows
+for a smoother deployment process, eliminating the need to "juggle" the deployment of various services in order to ensure synchronized credentials between
+systems.  Simply add a new credential value, and then only remove expired credentials at a later time once all dependent services have been updated to use
+the new value.</p>
+</li>
+</ul>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/reference_service_account_secrets_os.png" alt="reference service account secrets os">
+</div>
+<div class="title">Figure 1. An example secrets value in the Openshift console</div>
+</div>
+<div class="sect2">
+<h3 id="_adding_a_service_account">Adding a service account</h3>
+<div class="paragraph">
+<p>When defining secrets for service account credentials, start by creating a JSON document with the account name, id and secrets values:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+    "accounts": [
+        {
+            "name":"fabric8-wit",
+            "id":"5dec5fdb-09e3-4453-b73f-5c828832b28e",
+            "secrets":["$2a$04$nI7z7Re4pbx.V5vwm14n5.velhB.nbMgxdZ0vSomWVxcct34zbH9e"]
+        },
+        {
+            "name":"fabric8-tenant",
+            "id":"c211f1bd-17a7-4f8c-9f80-0917d167889d",
+            "secrets":["$2a$04$ynqM/syKMYowMIn5cyqHuevWnfzIQqtyY4m.61B02qltY5SOyGIOe", "$2a$04$sbC/AfW2c33hv8orGA.1D.LXa/.IY76VWhsfqxCVhrhFkDfL0/XGK"]
+        },
+        {
+            "name":"fabric8-jenkins-idler",
+            "id":"341c283f-0cd7-48a8-9281-4583aceb3617",
+            "secrets":["$2a$04$hbGHAVKohpeDgHzafnLwdO4ZzhEn9ukVP/6CaOtf5o3Btp.r6tXTG"]
+        }
+    ]
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Next, convert the entire document to a base64 value, this will be used in the secrets configuration:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-base64" data-lang="base64">ew0KICAgICJhY2NvdW50cyI6IFsNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXdpdCIsDQogICAgICAgICAgICAiaWQiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JG5JN3o3UmU0cGJ4LlY1dndtMTRuNS52ZWxoQi5uYk1neGRaMHZTb21XVnhjY3QzNHpiSDllIl0NCiAgICAgICAgfSwNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXRlbmFudCIsDQogICAgICAgICAgICAiaWQiOiJjMjExZjFiZC0xN2E3LTRmOGMtOWY4MC0wOTE3ZDE2Nzg4OWQiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JHlucU0vc3lLTVlvd01JbjVjeXFIdWV2V25meklRcXR5WTRtLjYxQjAycWx0WTVTT3lHSU9lIiwgIiQyYSQwNCRzYkMvQWZXMmMzM2h2OG9yR0EuMUQuTFhhLy5JWTc2Vldoc2ZxeENWaHJoRmtEZkwwL1hHSyJdDQogICAgICAgIH0sDQogICAgICAgIHsNCiAgICAgICAgICAgICJuYW1lIjoiZmFicmljOC1qZW5raW5zLWlkbGVyIiwNCiAgICAgICAgICAgICJpZCI6IjM0MWMyODNmLTBjZDctNDhhOC05MjgxLTQ1ODNhY2ViMzYxNyIsDQogICAgICAgICAgICAic2VjcmV0cyI6WyIkMmEkMDQkaGJHSEFWS29ocGVEZ0h6YWZuTHdkTzRaemhFbjl1a1ZQLzZDYU90ZjVvM0J0cC5yNnRYVEciXQ0KICAgICAgICB9DQogICAgXQ0KfQ==</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This value should then be placed into a JSON document in a new file which will contain the secrets configuration - in this example we use the name <strong>fabric8-auth-service-accounts</strong> for the secret, which will be used in the next step to reference this secret value.  You can call this file anything, but let&#8217;s assume it&#8217;s called <strong>service-account-secrets.json</strong>.  Also make sure you modify the namespace value to suit your environment:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "metadata": {
+    "name": "fabric8-auth-service-accounts"
+  },
+  "namespace": "developer",
+  "data": {
+    "service-account-secrets": "ew0KICAgICJhY2NvdW50cyI6IFsNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXdpdCIsDQogICAgICAgICAgICAiaWQiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JG5JN3o3UmU0cGJ4LlY1dndtMTRuNS52ZWxoQi5uYk1neGRaMHZTb21XVnhjY3QzNHpiSDllIl0NCiAgICAgICAgfSwNCiAgICAgICAgew0KICAgICAgICAgICAgIm5hbWUiOiJmYWJyaWM4LXRlbmFudCIsDQogICAgICAgICAgICAiaWQiOiJjMjExZjFiZC0xN2E3LTRmOGMtOWY4MC0wOTE3ZDE2Nzg4OWQiLA0KICAgICAgICAgICAgInNlY3JldHMiOlsiJDJhJDA0JHlucU0vc3lLTVlvd01JbjVjeXFIdWV2V25meklRcXR5WTRtLjYxQjAycWx0WTVTT3lHSU9lIiwgIiQyYSQwNCRzYkMvQWZXMmMzM2h2OG9yR0EuMUQuTFhhLy5JWTc2Vldoc2ZxeENWaHJoRmtEZkwwL1hHSyJdDQogICAgICAgIH0sDQogICAgICAgIHsNCiAgICAgICAgICAgICJuYW1lIjoiZmFicmljOC1qZW5raW5zLWlkbGVyIiwNCiAgICAgICAgICAgICJpZCI6IjM0MWMyODNmLTBjZDctNDhhOC05MjgxLTQ1ODNhY2ViMzYxNyIsDQogICAgICAgICAgICAic2VjcmV0cyI6WyIkMmEkMDQkaGJHSEFWS29ocGVEZ0h6YWZuTHdkTzRaemhFbjl1a1ZQLzZDYU90ZjVvM0J0cC5yNnRYVEciXQ0KICAgICAgICB9DQogICAgXQ0KfQ=="
+    }
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>You can use the OpenShift command line client to create the secret value:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>shane@shane-ThinkPad-W541:~$ oc create -f service-account-secrets.json
+secret "fabric8-auth-service-accounts" created</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>After the secret is created, its value must be mounted as a file in the fabric8-auth deployment&#8217;s file system so that fabric8-auth can read the service account configuration.  This is done in two steps; first we add a volume with the <strong>secretName</strong> set to the name of our secret.  Secondly, we mount that volume in a specific path so that our secret value will be exposed to the fabric8-auth service as a file.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<div class="title">Important</div>
+</td>
+<td class="content">
+The secret value must be mounted as <strong>/etc/fabric8/service-account-secrets.conf</strong>
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>Here is an example configuration snippet:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>          volumeMounts:
+          - mountPath: /etc/fabric8/
+            name: auth-serviceaccounts
+            readOnly: true
+        volumes:
+        - name: auth-serviceaccounts
+          secret:
+            secretName: fabric8-auth-service-accounts
+            items:
+            - key: service-account-secrets
+              path: service-account-secrets.conf</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>For more information about using secrets as files, refer to the <a href="https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod">Kubernetes documentation</a>.</p>
+</div>
+</div>
+</div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-11-07 10:00:22 AEST
+Last updated 2017-11-12 19:36:14 AEST
 </div>
 </div>
 </body>
