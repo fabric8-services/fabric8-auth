@@ -58,3 +58,12 @@ At deployment time this configuration file is provided by the container, via a p
 This method loads the service account configuration and stores it in the *ConfigurationData.sa* type variable.  
 
 The path of the configuration file can be overridden by either setting a command line parameter (*serviceAccountConfig*) or setting an environment variable (*AUTH_SERVICE_ACCOUNT_CONFIG_FILE*) to point to a new file location (see the *main()* function in */main.go*).
+
+__Authentication__
+
+Service account authentication is handled by the `Exchange` function in `/controller/token.go`:
+
+[source]
+func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
+
+

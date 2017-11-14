@@ -534,12 +534,23 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="paragraph">
 <p>The path of the configuration file can be overridden by either setting a command line parameter (<strong>serviceAccountConfig</strong>) or setting an environment variable (<strong>AUTH_SERVICE_ACCOUNT_CONFIG_FILE</strong>) to point to a new file location (see the <strong>main()</strong> function in <strong>/main.go</strong>).</p>
 </div>
+<div class="paragraph">
+<p><em>Authentication</em></p>
+</div>
+<div class="paragraph">
+<p>Service account authentication is handled by the <code>Exchange</code> function in <code>/controller/token.go</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {</code></pre>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-11-09 20:28:19 AEST
+Last updated 2017-11-12 22:34:57 AEST
 </div>
 </div>
 </body>

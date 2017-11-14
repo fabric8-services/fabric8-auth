@@ -426,6 +426,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_service_accounts">Service Accounts</a>
 <ul class="sectlevel2">
 <li><a href="#_adding_a_service_account">Adding a service account</a></li>
+<li><a href="#_service_account_authentication">Service Account Authentication</a></li>
 </ul>
 </li>
 </ul>
@@ -576,12 +577,66 @@ The secret value must be mounted as <strong>/etc/fabric8/service-account-secrets
 <p>For more information about using secrets as files, refer to the <a href="https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-files-from-a-pod">Kubernetes documentation</a>.</p>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_service_account_authentication">Service Account Authentication</h3>
+<div class="paragraph">
+<p>To authenticate a service account, use the following endpoint:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>POST /api/token</code></pre>
+</div>
+</div>
+<table class="tableblock frame-all grid-all spread">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Request Parameter</strong></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><strong>Description</strong></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">grant_type</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set to <code>client_credentials</code></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">client_id</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The client ID</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">client_secret</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Client credentials</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p><em>Request:</em></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>POST /api/token
+    grant_type=client_credentials&amp;
+    client_id=5dec5fdb-09e3-4453-b73f-5c828832b28e&amp;
+    client_secret=witsecret</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><em>Response:</em></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-json" data-lang="json">{"access_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13aXQiLCJzdWIiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw","token_type":"bearer"}</code></pre>
+</div>
+</div>
+</div>
 </div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-11-12 19:36:14 AEST
+Last updated 2017-11-12 22:17:53 AEST
 </div>
 </div>
 </body>
