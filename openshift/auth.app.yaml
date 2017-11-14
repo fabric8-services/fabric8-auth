@@ -102,11 +102,6 @@ objects:
               secretKeyRef:
                 name: auth
                 key: tenantsvc.url
-          - name: AUTH_OPENSHIFT_TENANT_MASTERURL
-            valueFrom:
-              configMapKeyRef:
-                name: auth
-                key: openshift.tenant.masterurl
           - name: AUTH_POSTGRES_SSLMODE
             valueFrom:
               configMapKeyRef:

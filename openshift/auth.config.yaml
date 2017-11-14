@@ -43,5 +43,4 @@ objects:
     redirect.valid: ".*"
     notapproved_redirect: ""
     keycloak.url: https://sso.openshift.io
-    openshift.tenant.masterurl: https://openshift.local/
   
