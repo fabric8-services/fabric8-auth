@@ -64,7 +64,7 @@ func setupTest() {
 		panic(err)
 	}
 
-	migrations = migration.GetMigrations()
+	migrations = migration.GetMigrations(conf)
 }
 
 func TestMigrations(t *testing.T) {
@@ -101,9 +101,10 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration07", testMigration07)
 	t.Run("TestMigration08", testMigration08)
 	t.Run("TestMigration09", testMigration09)
+	t.Run("TestMigration10", testMigration10)
 
 	// Perform the migration
-	if err := migration.Migrate(sqlDB, databaseName); err != nil {
+	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
 		t.Fatalf("Failed to execute the migration: %s\n", err)
 	}
 }
@@ -160,6 +161,12 @@ func testMigration09(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(10)], (10))
 
 	assert.False(t, dialect.HasColumn("external_tokens", "deleted_at"))
+}
+
+func testMigration10(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(11)], (11))
+
+	assert.True(t, dialect.HasColumn("users", "cluster"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
