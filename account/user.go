@@ -131,7 +131,7 @@ func (m *GormUserRepository) Save(ctx context.Context, model *User) error {
 		}, "unable to update user")
 		return errs.WithStack(err)
 	}
-	err = m.db.Model(obj).Updates(model).Error
+	err = m.db.Save(obj).Error
 	if err != nil {
 		return errs.WithStack(err)
 	}
