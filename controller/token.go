@@ -145,7 +145,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token ")))
 	}
 
-	identity, _, err := c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
+	identity, _, err := c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -180,7 +180,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	}
 
 	// Creates the testuser2 user and identity if they don't yet exist
-	identity, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken)
+	identity, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,

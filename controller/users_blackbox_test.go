@@ -827,6 +827,7 @@ func (s *TestUsersSuite) createRandomUser(fullname string) account.User {
 		ImageURL: "someURLForUpdate",
 		ID:       uuid.NewV4(),
 		Company:  uuid.NewV4().String() + "company",
+		Cluster:  "My OSO cluster url",
 	}
 	err := s.userRepo.Create(context.Background(), &user)
 	require.Nil(s.T(), err)
@@ -878,6 +879,7 @@ func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, e
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.Attributes.IdentityID)
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	assert.Equal(t, expectedUser.Company, *actual.Attributes.Company)
+	assert.Equal(t, expectedUser.Cluster, *actual.Attributes.Cluster)
 }
 
 func assertSingleUserResponseHeaders(t *testing.T, res http.ResponseWriter, appUser *app.User, modelUser account.User) {

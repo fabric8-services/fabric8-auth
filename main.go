@@ -122,7 +122,7 @@ func main() {
 	application.SetDatabaseTransactionTimeout(configuration.GetPostgresTransactionTimeout())
 
 	// Migrate the schema
-	err = migration.Migrate(db.DB(), configuration.GetPostgresDatabase())
+	err = migration.Migrate(db.DB(), configuration.GetPostgresDatabase(), configuration)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,

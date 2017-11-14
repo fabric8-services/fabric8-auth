@@ -671,6 +671,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
+	var cluster string
 	var contextInformation map[string]interface{}
 
 	if user != nil {
@@ -681,6 +682,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		email = user.Email
 		company = user.Company
 		contextInformation = user.ContextInformation
+		cluster = user.Cluster
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
@@ -703,6 +705,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				ProviderType:          &providerType,
 				Email:                 &email,
 				Company:               &company,
+				Cluster:               &cluster,
 				ContextInformation:    make(map[string]interface{}),
 				RegistrationCompleted: &registrationCompleted,
 			},
