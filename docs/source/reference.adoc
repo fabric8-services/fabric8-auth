@@ -8,7 +8,7 @@ able to build and/or develop the project, please refer to the link:developer.htm
 
 == Service Accounts
 
-Service accounts are used to authenticate other services in order for them to interact with the fabric8-auth permission (and other) endpoints.
+Service accounts are used to authenticate other services in order for them to participate in service-to-service interactions.
 
 Credentials for service accounts are stored in Openshift using link:https://docs.openshift.com/enterprise/3.0/dev_guide/secrets.html[secrets], 
 which enable the credentials to be stored outside of the project source code and only made available to fabric8-auth at runtime.

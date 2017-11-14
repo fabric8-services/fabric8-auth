@@ -28,7 +28,7 @@ Basically, all work done to the fabric8-auth code base must have a corresponding
 
 == Service Accounts
 
-Service accounts are used by resource servers to interact with the fabric8-auth protection API.  This API requires a PAT (Protection API Token) in order for the resource servers to register newly created resources, and query the access rights for clients attempting to access resources that they don't own.
+Service accounts are used by other services to allow secure service-to-service interaction.  One example of this is the auth service's protection API, which requires a PAT (Protection API Token) in order for the resource servers to register newly created resources, and query the access rights for clients attempting to access resources that they don't own.
 
 Service account configuration is expected to be found in */etc/fabric8/service-account-secrets.conf*, in JSON format.  Here's an example configuration:
 
