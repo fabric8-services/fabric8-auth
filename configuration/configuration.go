@@ -91,6 +91,9 @@ const (
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
 	varWITURL                               = "wit.url"
+
+	varOpenshiftTenantMasterURL = "openshift.tenant.masterurl"
+	varTenantServiceURL         = "tenant.serviceurl"
 )
 
 type serviceAccountConfig struct {
@@ -307,6 +310,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
+
+	c.v.SetDefault(varOpenshiftTenantMasterURL, defaultOpenshiftTenantMasterURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -664,6 +669,16 @@ func (c *ConfigurationData) GetWITURL(req *goa.RequestData) (string, error) {
 	return c.calculateWITURL(req)
 }
 
+// GetOpenshiftTenantMasterURL returns the URL for the OpenShift cluster where the tenant services are running
+func (c *ConfigurationData) GetOpenshiftTenantMasterURL() string {
+	return c.v.GetString(varOpenshiftTenantMasterURL)
+}
+
+// GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
+func (c *ConfigurationData) GetTenantServiceURL() string {
+	return c.v.GetString(varTenantServiceURL)
+}
+
 func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
 	return c.getKeycloakEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
 }
@@ -822,6 +837,8 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
 	devModeKeycloakRealm = "fabric8-test"
 	devModeWITURL        = "http://localhost:8080"
+
+	defaultOpenshiftTenantMasterURL = "https://tsrv.devshift.net:8443"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
