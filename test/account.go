@@ -16,6 +16,7 @@ var TestUser = account.User{
 	ID:       uuid.NewV4(),
 	Email:    "testdeveloper@testalm.io",
 	FullName: "Test Developer",
+	Cluster:  "Test Cluster",
 }
 
 // TestUser2 only creates in memory obj for testing purposes.

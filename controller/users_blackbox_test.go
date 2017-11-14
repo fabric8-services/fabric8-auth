@@ -1012,7 +1012,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountOK() {
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	// when
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.Cluster)
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
 }
@@ -1036,11 +1036,11 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnauthorized() {
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
 
 	// then
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &identity.RegistrationCompleted, user.ContextInformation, user.Cluster)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 }
 
-func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {
+func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}, cluster string) *app.CreateUsersPayload {
 
 	return &app.CreateUsersPayload{
 		Data: &app.CreateUserData{
@@ -1057,6 +1057,7 @@ func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, pr
 				Username:              *username,
 				RegistrationCompleted: registrationCompleted,
 				ProviderType:          "KC",
+				Cluster:               cluster,
 			},
 		},
 	}

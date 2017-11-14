@@ -105,14 +105,16 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 	// Mandatory attributes
 
 	user = &account.User{
-		ID:    userID,
-		Email: ctx.Payload.Data.Attributes.Email,
+		ID:      userID,
+		Email:   ctx.Payload.Data.Attributes.Email,
+		Cluster: ctx.Payload.Data.Attributes.Cluster,
 	}
 	identity = &account.Identity{
 		ID:           identityID,
 		Username:     ctx.Payload.Data.Attributes.Username,
 		ProviderType: ctx.Payload.Data.Attributes.ProviderType,
 	}
+
 	// associate foreign key
 	identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
 
