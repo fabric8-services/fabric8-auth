@@ -123,7 +123,7 @@ func (m *GormUserRepository) Create(ctx context.Context, u *User) error {
 func (m *GormUserRepository) Save(ctx context.Context, model *User) error {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, model.ID)
+	_, err := m.Load(ctx, model.ID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"user_id": model.ID,
@@ -131,7 +131,7 @@ func (m *GormUserRepository) Save(ctx context.Context, model *User) error {
 		}, "unable to update user")
 		return errs.WithStack(err)
 	}
-	err = m.db.Save(obj).Error
+	err = m.db.Save(model).Error
 	if err != nil {
 		return errs.WithStack(err)
 	}
