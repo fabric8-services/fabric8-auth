@@ -97,6 +97,11 @@ objects:
               secretKeyRef:
                 name: auth
                 key: oso.client.secret
+          - name: AUTH_TENANT_SERVICEURL
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: tenantsvc.url
           - name: AUTH_POSTGRES_SSLMODE
             valueFrom:
               configMapKeyRef:

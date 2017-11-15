@@ -37,6 +37,10 @@ imports:
   version: 296f01addee8a560c9bb43fb291cf93ccd35ee8e
   subpackages:
   - design
+- name: github.com/fabric8-services/fabric8-tenant
+  version: 7dc3e8b5b1cd36469d6081d21b5273e2106047ae
+  subpackages:
+  - design
 - name: github.com/fsnotify/fsnotify
   version: 629574ca2a5df945712d3079857300b5e4da0236
 - name: github.com/fzipp/gocyclo
