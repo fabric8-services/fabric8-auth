@@ -22,6 +22,7 @@ objects:
     oso.client.apiurl: aHR0cHM6Ly9hcGkuY29uc29sZS5zdGFydGVyLXVzLWVhc3QtMi5vcGVuc2hpZnQuY29t
     oso.client.id: Cg==
     oso.client.secret: Cg==
+    tenantsvc.url: aHR0cDovL2Y4dGVuYW50Ojgw
 - apiVersion: v1
   kind: Secret
   metadata:

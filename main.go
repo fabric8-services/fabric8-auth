@@ -198,6 +198,10 @@ func main() {
 
 	// Mount "user" controller
 	userCtrl := controller.NewUserController(service, appDB, tokenManager, configuration)
+	if configuration.GetTenantServiceURL() != "" {
+		log.Logger().Infof("Enabling Init Tenant service %v", configuration.GetTenantServiceURL())
+		userCtrl.InitTenant = account.NewInitTenant(configuration)
+	}
 	app.MountUserController(service, userCtrl)
 
 	// Mount "search" controller

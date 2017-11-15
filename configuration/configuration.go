@@ -91,6 +91,8 @@ const (
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
 	varWITURL                               = "wit.url"
+
+	varTenantServiceURL = "tenant.serviceurl"
 )
 
 type serviceAccountConfig struct {
@@ -662,6 +664,11 @@ func (c *ConfigurationData) GetWITURL(req *goa.RequestData) (string, error) {
 		return devModeWITURL, nil
 	}
 	return c.calculateWITURL(req)
+}
+
+// GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
+func (c *ConfigurationData) GetTenantServiceURL() string {
+	return c.v.GetString(varTenantServiceURL)
 }
 
 func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
