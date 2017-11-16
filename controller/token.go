@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 
@@ -230,23 +229,32 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	}
 	providerName := providerConfig.TypeName()
 
-	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
-	if err != nil {
-		if reflect.TypeOf(err) == reflect.TypeOf(errors.UnauthorizedError{}) {
-			externalToken, err := c.retrieveToken(ctx, providerConfig, *currentIdentity)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, err)
-			}
-			if externalToken != nil {
-				appResponse := modelToAppExternalToken(*externalToken)
-				return ctx.OK(&appResponse)
-			}
-			linkURL := rest.AbsoluteURL(ctx.RequestData, client.LinkTokenPath())
-			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
-			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
-			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
+	keycloakTokenResponse, kcErr := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
+	if kcErr != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": kcErr,
+			"for": ctx.For,
+		}, "Unable to obtain external token from Keycloak. Trying to obtain the token from Auth DB...")
+		externalToken, err := c.retrieveToken(ctx, providerConfig, *currentIdentity)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+				"for": ctx.For,
+			}, "Unable to obtain external token from Auth DB")
+			return jsonapi.JSONErrorResponse(ctx, err)
 		}
-		return jsonapi.JSONErrorResponse(ctx, err)
+		if externalToken != nil {
+			appResponse := modelToAppExternalToken(*externalToken)
+			return ctx.OK(&appResponse)
+		}
+		log.Info(ctx, map[string]interface{}{
+			"for": ctx.For,
+		}, "External token is missing in Auth DB")
+		linkURL := rest.AbsoluteURL(ctx.RequestData, client.LinkTokenPath())
+		errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
+		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+		ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
+		return jsonapi.JSONErrorResponse(ctx, kcErr)
 	}
 
 	err = c.createOrUpdateToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)

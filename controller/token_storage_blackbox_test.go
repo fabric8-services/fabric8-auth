@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/errors"
+	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -145,10 +146,19 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() 
 
 // Not present in keycloak but present in DB.
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
+	rest.retrieveExternalTokenFailedInKeycloak("unlinked")
+}
+
+// Failed to get token from keycloak for any reason but token present in DB.
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenFailedInKeycloak() {
+	rest.retrieveExternalTokenFailedInKeycloak("internalError")
+}
+
+func (rest *TestTokenStorageREST) retrieveExternalTokenFailedInKeycloak(scenario string) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 
-	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	rest.mockKeycloakExternalTokenServiceClient.scenario = scenario
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 
 	r := &goa.RequestData{
@@ -241,7 +251,10 @@ func (client mockKeycloakExternalTokenServiceClient) Get(ctx context.Context, ac
 	} else if client.scenario == "positive" {
 		return positiveKCResponseOpenShift(), nil
 	}
-	return nil, errors.NewUnauthorizedError("user not linked")
+	if client.scenario == "internalError" {
+		return nil, errs.NewInternalError(ctx, errors.New("Internal Server Error"))
+	}
+	return nil, errs.NewUnauthorizedError("user not linked")
 }
 
 func positiveKCResponseGithub() *keycloak.KeycloakExternalTokenResponse {
