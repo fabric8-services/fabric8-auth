@@ -8,7 +8,7 @@ import (
 var createUser = a.MediaType("application/vnd.createuser+json", func() {
 	a.UseTrait("jsonapi-media-type")
 	a.TypeName("CreateUser")
-	a.Description("WIT User Create")
+	a.Description("User Create")
 	a.Attributes(func() {
 		a.Attribute("data", createUserData)
 		a.Required("data")
