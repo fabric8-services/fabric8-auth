@@ -12,8 +12,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/goamiddleware"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -23,7 +24,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -31,6 +31,7 @@ import (
 	"github.com/goadesign/goa/middleware/gzip"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func main() {
@@ -73,7 +74,7 @@ func main() {
 		}
 	}
 
-	configuration, err := config.NewConfigurationData(configFile, serviceAccountConfigFile)
+	config, err := configuration.NewConfigurationData(configFile, serviceAccountConfigFile)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"config_file":                 configFile,
@@ -87,42 +88,42 @@ func main() {
 	}
 
 	// Initialized developer mode flag and log level for the logger
-	log.InitializeLogger(configuration.IsLogJSON(), configuration.GetLogLevel())
+	log.InitializeLogger(config.IsLogJSON(), config.GetLogLevel())
 
 	printUserInfo()
 
 	var db *gorm.DB
 	for {
-		db, err = gorm.Open("postgres", configuration.GetPostgresConfigString())
+		db, err = gorm.Open("postgres", config.GetPostgresConfigString())
 		if err != nil {
 			db.Close()
 			log.Logger().Errorf("ERROR: Unable to open connection to database %v", err)
-			log.Logger().Infof("Retrying to connect in %v...", configuration.GetPostgresConnectionRetrySleep())
-			time.Sleep(configuration.GetPostgresConnectionRetrySleep())
+			log.Logger().Infof("Retrying to connect in %v...", config.GetPostgresConnectionRetrySleep())
+			time.Sleep(config.GetPostgresConnectionRetrySleep())
 		} else {
 			defer db.Close()
 			break
 		}
 	}
 
-	if configuration.IsPostgresDeveloperModeEnabled() && log.IsDebug() {
+	if config.IsPostgresDeveloperModeEnabled() && log.IsDebug() {
 		db = db.Debug()
 	}
 
-	if configuration.GetPostgresConnectionMaxIdle() > 0 {
-		log.Logger().Infof("Configured connection pool max idle %v", configuration.GetPostgresConnectionMaxIdle())
-		db.DB().SetMaxIdleConns(configuration.GetPostgresConnectionMaxIdle())
+	if config.GetPostgresConnectionMaxIdle() > 0 {
+		log.Logger().Infof("Configured connection pool max idle %v", config.GetPostgresConnectionMaxIdle())
+		db.DB().SetMaxIdleConns(config.GetPostgresConnectionMaxIdle())
 	}
-	if configuration.GetPostgresConnectionMaxOpen() > 0 {
-		log.Logger().Infof("Configured connection pool max open %v", configuration.GetPostgresConnectionMaxOpen())
-		db.DB().SetMaxOpenConns(configuration.GetPostgresConnectionMaxOpen())
+	if config.GetPostgresConnectionMaxOpen() > 0 {
+		log.Logger().Infof("Configured connection pool max open %v", config.GetPostgresConnectionMaxOpen())
+		db.DB().SetMaxOpenConns(config.GetPostgresConnectionMaxOpen())
 	}
 
 	// Set the database transaction timeout
-	application.SetDatabaseTransactionTimeout(configuration.GetPostgresTransactionTimeout())
+	application.SetDatabaseTransactionTimeout(config.GetPostgresTransactionTimeout())
 
 	// Migrate the schema
-	err = migration.Migrate(db.DB(), configuration.GetPostgresDatabase(), configuration)
+	err = migration.Migrate(db.DB(), config.GetPostgresDatabase(), config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -143,7 +144,7 @@ func main() {
 	// Mount middleware
 	service.Use(middleware.RequestID())
 	// Use our own log request to inject identity id and modify other properties
-	service.Use(log.LogRequest(configuration.IsPostgresDeveloperModeEnabled()))
+	service.Use(log.LogRequest(config.IsPostgresDeveloperModeEnabled()))
 	service.Use(gzip.Middleware(9))
 	service.Use(jsonapi.ErrorHandler(service, true))
 	service.Use(middleware.Recover())
@@ -156,36 +157,42 @@ func main() {
 
 	appDB := gormapplication.NewGormDB(db)
 
-	tokenManager, err := token.NewManager(configuration)
+	tokenManager, err := token.NewManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
 		}, "failed to create token manager")
 	}
-	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
+	// Middleware that extracts and stores the token in the context
+	jwtMiddlewareTokenContext := goamiddleware.TokenContext(tokenManager.PublicKeys(), nil, app.NewJWTSecurity())
+	service.Use(jwtMiddlewareTokenContext)
+
 	service.Use(login.InjectTokenManager(tokenManager))
-	spaceAuthzService := authz.NewAuthzService(configuration)
+	service.Use(log.LogRequest(config.IsPostgresDeveloperModeEnabled()))
+	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
+
+	spaceAuthzService := authz.NewAuthzService(config)
 	service.Use(authz.InjectAuthzService(spaceAuthzService))
 
 	// Mount "login" controller
 	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB)
-	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, configuration)
+	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
 	// Mount "logout" controller
-	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, configuration)
+	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, config)
 	app.MountLogoutController(service, logoutCtrl)
 
-	providerFactory := link.NewOauthProviderFactory(configuration)
-	linkService := link.NewLinkServiceWithFactory(configuration, appDB, providerFactory)
+	providerFactory := link.NewOauthProviderFactory(config)
+	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
 	//providerFactory := link.NewOauthProviderFactory(configuration, appDB)
 	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient(configuration)
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, configuration)
+	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, config)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "link" controller
-	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, configuration)
+	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, config)
 	app.MountLinkController(service, linkCtrl)
 
 	// Mount "status" controller
@@ -193,34 +200,34 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "space" controller
-	spaceCtrl := controller.NewSpaceController(service, appDB, configuration, auth.NewKeycloakResourceManager(configuration))
+	spaceCtrl := controller.NewSpaceController(service, appDB, config, auth.NewKeycloakResourceManager(config))
 	app.MountSpaceController(service, spaceCtrl)
 
 	// Mount "user" controller
-	userCtrl := controller.NewUserController(service, appDB, tokenManager, configuration)
-	if configuration.GetTenantServiceURL() != "" {
-		log.Logger().Infof("Enabling Init Tenant service %v", configuration.GetTenantServiceURL())
-		userCtrl.InitTenant = account.NewInitTenant(configuration)
+	userCtrl := controller.NewUserController(service, appDB, tokenManager, config)
+	if config.GetTenantServiceURL() != "" {
+		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
+		userCtrl.InitTenant = account.NewInitTenant(config)
 	}
 	app.MountUserController(service, userCtrl)
 
 	// Mount "search" controller
-	searchCtrl := controller.NewSearchController(service, appDB, configuration)
+	searchCtrl := controller.NewSearchController(service, appDB, config)
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
-	usersCtrl := controller.NewUsersController(service, appDB, configuration, keycloakProfileService)
+	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService)
 	app.MountUsersController(service, usersCtrl)
 
 	// Mount "collaborators" controller
-	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, configuration, auth.NewKeycloakPolicyManager(configuration))
+	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, config, auth.NewKeycloakPolicyManager(config))
 	app.MountCollaboratorsController(service, collaboratorsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
-	log.Logger().Infoln("Dev mode:       ", configuration.IsPostgresDeveloperModeEnabled())
+	log.Logger().Infoln("Dev mode:       ", config.IsPostgresDeveloperModeEnabled())
 	log.Logger().Infoln("GOMAXPROCS:     ", runtime.GOMAXPROCS(-1))
 	log.Logger().Infoln("NumCPU:         ", runtime.NumCPU())
 
@@ -229,7 +236,7 @@ func main() {
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 
 	// Start/mount metrics http
-	if configuration.GetHTTPAddress() == configuration.GetMetricsHTTPAddress() {
+	if config.GetHTTPAddress() == config.GetMetricsHTTPAddress() {
 		http.Handle("/metrics", prometheus.Handler())
 	} else {
 		go func(metricAddress string) {
@@ -242,13 +249,13 @@ func main() {
 				}, "unable to connect to metrics server")
 				service.LogError("startup", "err", err)
 			}
-		}(configuration.GetMetricsHTTPAddress())
+		}(config.GetMetricsHTTPAddress())
 	}
 
 	// Start http
-	if err := http.ListenAndServe(configuration.GetHTTPAddress(), nil); err != nil {
+	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
 		log.Error(nil, map[string]interface{}{
-			"addr": configuration.GetHTTPAddress(),
+			"addr": config.GetHTTPAddress(),
 			"err":  err,
 		}, "unable to connect to server")
 		service.LogError("startup", "err", err)
