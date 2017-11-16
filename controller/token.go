@@ -208,6 +208,11 @@ func (c *TokenController) getKeycloakExternalTokenURL(providerName string) strin
 	return fmt.Sprintf("%s/auth/realms/%s/broker/%s/token", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), providerName)
 }
 
+func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, providerName string) string {
+	// not moving this to config because this is temporary.
+	return fmt.Sprintf("%s/auth/admin/realms/%s/users/%s/federated-identity/%s", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), identityID, providerName)
+}
+
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
@@ -224,7 +229,6 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
 	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
 	if err != nil {
-
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	providerName := providerConfig.TypeName()
@@ -280,6 +284,18 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	// Delete from Keycloak
+	err = c.keycloakExternalTokenService.Delete(ctx, c.getKeycloakIdentityProviderURL(currentIdentity.String(), providerConfig.TypeName()))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"error":         err,
+			"provider_name": providerConfig.TypeName(),
+			"identity_id":   currentIdentity,
+		}, "Unable to remove Identity Provider link from Keycloak.")
+		// Not critical. Log the error and proceed.
+	}
+	// Delete from local DB
+
 	err = application.Transactional(c.db, func(appl application.Application) error {
 		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
@@ -290,7 +306,12 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 			return err
 		}
 		if len(tokens) > 0 {
-			return appl.ExternalTokens().Delete(ctx, tokens[0].ID)
+			for _, token := range tokens {
+				err = appl.ExternalTokens().Delete(ctx, token.ID)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	})
