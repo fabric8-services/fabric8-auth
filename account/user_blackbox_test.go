@@ -145,7 +145,7 @@ func (s *userBlackBoxTest) TestUpdateUserWithoutClusterFails() {
 	require.NotEmpty(t, user.Cluster)
 	user.Cluster = ""
 	err = s.repo.Save(s.Ctx, user)
-	require.Nil(t, err)
+	require.NotNil(t, err)
 	u, err := s.repo.Load(s.Ctx, user.ID)
 	require.Nil(t, err)
 	require.NotEmpty(t, u.Cluster)
@@ -154,6 +154,21 @@ func (s *userBlackBoxTest) TestUpdateUserWithoutClusterFails() {
 	user.Cluster = "someClusterForTest"
 	err = s.repo.Save(s.Ctx, user)
 	require.Nil(t, err)
+}
+
+func (s *userBlackBoxTest) TestUpdateToEmptyString() {
+	t := s.T()
+	resource.Require(t, resource.Database)
+	user := createAndLoadUser(s)
+
+	err := s.repo.Save(s.Ctx, user)
+	require.Nil(t, err)
+	user.Bio = ""
+	err = s.repo.Save(s.Ctx, user)
+	require.Nil(t, err)
+	u, err := s.repo.Load(s.Ctx, user.ID)
+	require.Nil(t, err)
+	require.Empty(t, u.Bio)
 }
 
 func createAndLoadUser(s *userBlackBoxTest) *account.User {
