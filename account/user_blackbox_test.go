@@ -21,7 +21,7 @@ type userBlackBoxTest struct {
 }
 
 func TestRunUserBlackBoxTest(t *testing.T) {
-	suite.Run(t, &userBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &userBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *userBlackBoxTest) SetupTest() {

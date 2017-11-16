@@ -39,7 +39,7 @@ type LinkTestSuite struct {
 
 func TestRunLinkTestSuite(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &LinkTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite("")})
+	suite.Run(t, &LinkTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *LinkTestSuite) SetupSuite() {

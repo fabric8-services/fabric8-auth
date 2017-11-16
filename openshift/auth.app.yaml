@@ -162,6 +162,9 @@ objects:
           - mountPath: /etc/fabric8/
             name: auth-serviceaccounts
             readOnly: true
+          - mountPath: /etc/fabric8/
+            name: auth-osoclusters
+            readOnly: true
         volumes:
         - name: auth-serviceaccounts
           secret:
@@ -169,6 +172,12 @@ objects:
             items:
             - key: service-account-secrets
               path: service-account-secrets.conf
+        - name: auth-osoclusters
+          secret:
+            secretName: fabric8-auth-oso-clusters
+            items:
+            - key: oso-clusters
+              path: oso-clusters.conf
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}

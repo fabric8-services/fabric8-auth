@@ -23,7 +23,7 @@ type externalTokenBlackboxTest struct {
 }
 
 func TestRunExternalTokenBlackboxTest(t *testing.T) {
-	suite.Run(t, &externalTokenBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("")})
+	suite.Run(t, &externalTokenBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *externalTokenBlackboxTest) SetupTest() {

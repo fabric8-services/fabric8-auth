@@ -44,7 +44,7 @@ func resetConfiguration() {
 	var err error
 
 	// calling NewConfigurationData("") is same as GetConfigurationData()
-	config, err = configuration.NewConfigurationData("", "")
+	config, err = configuration.GetConfigurationData()
 	if err != nil {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
@@ -331,7 +331,7 @@ func TestLoadDefaultServiceAccountConfiguration(t *testing.T) {
 func TestLoadServiceAccountConfigurationFromFile(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	saConfig, err := configuration.NewConfigurationData("", "./conf-files/service-account-secrets.conf")
+	saConfig, err := configuration.NewConfigurationData("", "./conf-files/service-account-secrets.conf", "")
 	require.Nil(t, err)
 	accounts := saConfig.GetServiceAccounts()
 	checkServiceAccountConfiguration(t, accounts)

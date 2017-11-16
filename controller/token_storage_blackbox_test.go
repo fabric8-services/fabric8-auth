@@ -43,7 +43,7 @@ type TestTokenStorageREST struct {
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
-	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (rest *TestTokenStorageREST) SetupTest() {

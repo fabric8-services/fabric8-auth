@@ -19,7 +19,7 @@ type stateBlackBoxTest struct {
 }
 
 func TestRunStateBlackBoxTest(t *testing.T) {
-	suite.Run(t, &stateBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &stateBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *stateBlackBoxTest) SetupTest() {

@@ -99,11 +99,25 @@ type serviceAccountConfig struct {
 	Accounts []ServiceAccount
 }
 
+type osoClusterConfig struct {
+	Clusters []OSOCluster
+}
+
 // ServiceAccount represents a service account configuration
 type ServiceAccount struct {
 	Name    string   `mapstructure:"name"`
 	ID      string   `mapstructure:"id"`
 	Secrets []string `mapstructure:"secrets"`
+}
+
+// OSOCluster represents an OSO cluster configuration
+type OSOCluster struct {
+	Name                   string `mapstructure:"name"`
+	URL                    string `mapstructure:"url"`
+	ServiceAccountToken    string `mapstructure:"service-account-token"`
+	AuthClientID           string `mapstructure:"auth-client-id"`
+	AuthClientSecret       string `mapstructure:"auth-client-secret"`
+	AuthClientDefaultScope string `mapstructure:"auth-client-default-scope"`
 }
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -113,10 +127,13 @@ type ConfigurationData struct {
 
 	// Service Account Configuration is a map of service accounts where the key == the service account ID
 	sa map[string]ServiceAccount
+
+	// OSO Cluster Configuration is a map of clusters where the key == the OSO cluster API URL
+	clusters map[string]OSOCluster
 }
 
-// NewConfigurationData creates a configuration reader object using a configurable configuration file path
-func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string) (*ConfigurationData, error) {
+// NewConfigurationData creates a configuration reader object using configurable configuration file paths
+func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string, osoClusterConfigFile string) (*ConfigurationData, error) {
 	c := ConfigurationData{
 		v: viper.New(),
 	}
@@ -138,59 +155,78 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	// Set up the service account configuration (stored in a separate config file)
-	saViper := viper.New()
-	saViper.SetTypeByDefaultValue(true)
+	saViper, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
 
-	var err error
-	var etcSAConfigUsed bool
-	if serviceAccountConfigFile != "" {
-		// If a service account configuration file has been specified, check that it exists
-		if _, err := os.Stat(serviceAccountConfigFile); err != nil {
-			return nil, err
-		}
-	} else {
-		// If the service account configuration file has not been specified
-		// then we default to /etc/fabric8/service-account-secrets.conf
-		serviceAccountConfigFile, err = pathExists(defaultServiceAccountConfigPath)
-		if err != nil {
-			return nil, err
-		}
-		etcSAConfigUsed = serviceAccountConfigFile != ""
-	}
-
-	if !etcSAConfigUsed {
-		log.WithFields(map[string]interface{}{
-			"default_sa_conf_path": defaultServiceAccountConfigPath,
-		}).Warningln("Default service account config file path is not used!")
-	}
-
-	saViper.SetConfigType("json")
-	if serviceAccountConfigFile == "" {
-		// Load the default config
-		data, err := Asset(serviceAccountConfigFileName)
-		if err != nil {
-			return nil, err
-		}
-		saViper.ReadConfig(bytes.NewBuffer(data))
-	} else {
-		saViper.SetConfigFile(serviceAccountConfigFile)
-		err := saViper.ReadInConfig()
-		if err != nil {
-			return nil, errors.Errorf("failed to load the sa config file: %s \n", err)
-		}
-	}
-
-	var conf serviceAccountConfig
-	err = saViper.UnmarshalExact(&conf)
+	var saConf serviceAccountConfig
+	err = saViper.UnmarshalExact(&saConf)
 	if err != nil {
 		return nil, err
 	}
 	c.sa = map[string]ServiceAccount{}
-	for _, account := range conf.Accounts {
+	for _, account := range saConf.Accounts {
 		c.sa[account.ID] = account
 	}
 
+	// Set up the OSO cluster configuration (stored in a separate config file)
+	clusterViper, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
+
+	var clusterConf osoClusterConfig
+	err = clusterViper.UnmarshalExact(&clusterConf)
+	if err != nil {
+		return nil, err
+	}
+	c.clusters = map[string]OSOCluster{}
+	for _, cluster := range clusterConf.Clusters {
+		c.clusters[cluster.URL] = cluster
+	}
+
 	return &c, nil
+}
+
+func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, error) {
+	jsonViper := viper.New()
+	jsonViper.SetTypeByDefaultValue(true)
+
+	var err error
+	var etcJSONConfigUsed bool
+	if configFilePath != "" {
+		// If a JSON configuration file has been specified, check if it exists
+		if _, err := os.Stat(configFilePath); err != nil {
+			return nil, err
+		}
+	} else {
+		// If the JSON configuration file has not been specified
+		// then we default to <defaultConfigFile>
+		configFilePath, err = pathExists(defaultConfigFilePath)
+		if err != nil {
+			return nil, err
+		}
+		etcJSONConfigUsed = configFilePath != ""
+	}
+
+	if !etcJSONConfigUsed {
+		log.WithFields(map[string]interface{}{
+			"default_json_config_path": defaultConfigFilePath,
+		}).Warningln("Default JSON config file path is not used!")
+	}
+
+	jsonViper.SetConfigType("json")
+	if configFilePath == "" {
+		// Load the default config
+		data, err := Asset(configFileName)
+		if err != nil {
+			return nil, err
+		}
+		jsonViper.ReadConfig(bytes.NewBuffer(data))
+	} else {
+		jsonViper.SetConfigFile(configFilePath)
+		err := jsonViper.ReadInConfig()
+		if err != nil {
+			return nil, errors.Errorf("failed to load the JSON config file (%s): %s \n", configFilePath, err)
+		}
+	}
+
+	return jsonViper, nil
 }
 
 func pathExists(pathToCheck string) (string, error) {
@@ -204,25 +240,29 @@ func pathExists(pathToCheck string) (string, error) {
 }
 
 func getMainConfigFile() string {
-	// This was either passed as a env var Or, set inside main.go from --config
-	envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH")
-	if !ok {
-		return ""
-	}
+	// This was either passed as a env var or set inside main.go from --config
+	envConfigPath, _ := os.LookupEnv("AUTH_CONFIG_FILE_PATH")
 	return envConfigPath
 }
 
 func getServiceAccountConfigFile() string {
-	envServiceAccountConfigFile, ok := os.LookupEnv("AUTH_SERVICE_ACCOUNT_CONFIG_FILE")
-	if !ok {
-		return ""
-	}
+	envServiceAccountConfigFile, _ := os.LookupEnv("AUTH_SERVICE_ACCOUNT_CONFIG_FILE")
 	return envServiceAccountConfigFile
+}
+
+func getOSOClusterConfigFile() string {
+	envOSOClusterConfigFile, _ := os.LookupEnv("AUTH_OSO_CLUSTER_CONFIG_FILE")
+	return envOSOClusterConfigFile
 }
 
 // GetServiceAccounts returns a map of service account configurations by service account ID
 func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
+}
+
+// GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
+func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
+	return c.clusters
 }
 
 // GetDefaultConfigurationFile returns the default configuration file.
@@ -233,7 +273,7 @@ func (c *ConfigurationData) GetDefaultConfigurationFile() string {
 // GetConfigurationData is a wrapper over NewConfigurationData which reads configuration file path
 // from the environment variable.
 func GetConfigurationData() (*ConfigurationData, error) {
-	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile())
+	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile(), getOSOClusterConfigFile())
 }
 
 func (c *ConfigurationData) setConfigDefaults() {
@@ -838,7 +878,7 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 
 	serviceAccountConfigFileName    = "service-account-secrets.conf"
 	defaultServiceAccountConfigPath = "/etc/fabric8/" + serviceAccountConfigFileName
-)
 
-// ActualToken is actual OAuth access token of github
-var defaultActualToken = strings.Split(camouflagedAccessToken, "-AccessToken-")[0] + strings.Split(camouflagedAccessToken, "-AccessToken-")[1]
+	osoClusterConfigFileName    = "oso-clusters.conf"
+	defaultOsoClusterConfigPath = "/etc/fabric8/" + osoClusterConfigFileName
+)
