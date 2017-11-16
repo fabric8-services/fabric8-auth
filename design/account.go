@@ -251,6 +251,10 @@ var createUserDataAttributes = a.Type("CreateIdentityDataAttributes", func() {
 	a.Attribute("username", d.String, "The username")
 	a.Attribute("registrationCompleted", d.Boolean, "Whether the registration has been completed")
 	a.Attribute("email", d.String, "The email")
+	a.Attribute("approved", d.Boolean, "Whether the user is approved for using an OpenShift cluster")
+	a.Attribute("emailVerified", d.Boolean, "Whether email is verified")
+	a.Attribute("enabled", d.Boolean, "Whether the user is enabled")
+	a.Attribute("rhd_username", d.String, "The associated Red Hat Developers account")
 	a.Attribute("bio", d.String, "The bio")
 	a.Attribute("url", d.String, "The url")
 	a.Attribute("company", d.String, "The company")
@@ -259,5 +263,6 @@ var createUserDataAttributes = a.Type("CreateIdentityDataAttributes", func() {
 	a.Attribute("contextInformation", a.HashOf(d.String, d.Any), "User context information of any type as a json", func() {
 		a.Example(map[string]interface{}{"last_visited_url": "https://a.openshift.io", "space": "3d6dab8d-f204-42e8-ab29-cdb1c93130ad"})
 	})
-	a.Required("username", "email", "providerType", "cluster")
+	// Based on the request from online-registration app.
+	a.Required("username", "email", "cluster", "company", "fullName", "rhd_username")
 })

@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -39,6 +40,10 @@ type UsersControllerConfiguration interface {
 	GetCacheControlUser() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
 	GetWITURL(*goa.RequestData) (string, error)
+	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
+	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
+	GetKeycloakClientID() string
+	GetKeycloakSecret() string
 }
 
 // NewUsersController creates a users controller.
@@ -86,16 +91,80 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		log.Error(ctx, nil, "account used to call create api is not a service account")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))
 	}
+	userUrl, err := c.createUserInKeycloak(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
-	return c.createUserInDB(ctx)
+	// TODO: Handle error, check if there was actually a URL returned.
+	userURLComponents := strings.Split(*userUrl, "/")
+
+	// TODO: Check if we got a real UUID.
+	identityID, _ := uuid.FromString(userURLComponents[len(userURLComponents)-1])
+
+	identity, user, err := c.createUserInDB(ctx, identityID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
+	// finally, if all works, we create a user in WIT too.
+	witURL, err := c.config.GetWITURL(ctx.RequestData)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+	identity.User = *user // being explicit
+	c.RemoteWITService.CreateWITUser(ctx.Context, ctx.RequestData, identity, witURL, identityID.String())
+
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
 }
 
-func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
+func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext) (*string, error) {
 
-	// can we specify what the identityID of a user can be , in keycloak?
-	// if not, then maybe we should first create the user in keycloak
-	// and then use that identityID here.
-	identityID := uuid.NewV4()
+	// All the below attributs are mandatory:
+	// "username", "email", "cluster", "company", "fullName", "approved", "rhd_username")
+
+	userAttributes := ctx.Payload.Data.Attributes
+
+	keycloakUser := login.KeytcloakUserRequest{
+		Username: &userAttributes.Username,
+		Email:    &userAttributes.Email,
+		Attributes: &login.KeycloakUserProfileAttributes{
+			login.ApprovedAttributeName: []string{fmt.Sprint(*userAttributes.Approved)},
+			login.ClusterAttribute:      []string{userAttributes.Cluster},
+			login.CompanyAttributeName:  []string{userAttributes.Company},
+			"rhd_username":              []string{userAttributes.RhdUsername},
+		},
+	}
+
+	nameComponents := strings.Split(userAttributes.FullName, " ")
+	firstName := nameComponents[0]
+	lastName := ""
+	if len(nameComponents) > 1 {
+		lastName = strings.Join(nameComponents[1:], " ")
+	}
+
+	keycloakUser.FirstName = &firstName
+	keycloakUser.LastName = &lastName
+
+	tokenEndpoint, err := c.config.GetKeycloakEndpointToken(ctx.RequestData)
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
+	}
+	protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, c.config.GetKeycloakClientID(), c.config.GetKeycloakSecret())
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
+	}
+
+	usersEndpoint, err := c.config.GetKeycloakEndpointUsers(ctx.RequestData)
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
+	}
+
+	return c.userProfileService.Create(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
+}
+
+func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID uuid.UUID) (*account.Identity, *account.User, error) {
+
 	userID := uuid.NewV4()
 	var err error
 
@@ -103,16 +172,19 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 	var identity *account.Identity
 
 	// Mandatory attributes
+	// "username", "email", "cluster", "company", "fullName"
 
 	user = &account.User{
-		ID:      userID,
-		Email:   ctx.Payload.Data.Attributes.Email,
-		Cluster: ctx.Payload.Data.Attributes.Cluster,
+		ID:       userID,
+		Email:    ctx.Payload.Data.Attributes.Email,
+		Cluster:  ctx.Payload.Data.Attributes.Cluster,
+		Company:  ctx.Payload.Data.Attributes.Company,
+		FullName: ctx.Payload.Data.Attributes.FullName,
 	}
 	identity = &account.Identity{
 		ID:           identityID,
 		Username:     ctx.Payload.Data.Attributes.Username,
-		ProviderType: ctx.Payload.Data.Attributes.ProviderType,
+		ProviderType: "kc", // replace with a string constant
 	}
 
 	// associate foreign key
@@ -130,9 +202,8 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 		user.Bio = *bio
 	}
 
-	fullName := ctx.Payload.Data.Attributes.FullName
-	if fullName != nil {
-		user.FullName = *fullName
+	if ctx.Payload.Data.Attributes.ProviderType != nil {
+		identity.ProviderType = *ctx.Payload.Data.Attributes.ProviderType
 	}
 
 	imageURL := ctx.Payload.Data.Attributes.ImageURL
@@ -145,11 +216,6 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 		user.URL = *url
 	}
 
-	company := ctx.Payload.Data.Attributes.Company
-	if company != nil {
-		user.Company = *company
-	}
-
 	contextInformation := ctx.Payload.Data.Attributes.ContextInformation
 	if contextInformation != nil {
 		if user.ContextInformation == nil {
@@ -160,7 +226,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 		}
 	}
 
-	returnResponse := application.Transactional(c.db, func(appl application.Application) error {
+	returnErrorResponse := application.Transactional(c.db, func(appl application.Application) error {
 
 		err = appl.Users().Create(ctx, user)
 		if err != nil {
@@ -177,11 +243,14 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext) error {
 			}, "failed to create identity using service account")
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
-
-		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+		return nil
 	})
 
-	return returnResponse
+	if returnErrorResponse != nil {
+		return nil, nil, returnErrorResponse
+	}
+
+	return identity, user, nil
 }
 
 func mergeKeycloakUserProfileInfo(keycloakUserProfile *login.KeycloakUserProfile, existingProfile *login.KeycloakUserProfileResponse) *login.KeycloakUserProfile {

@@ -979,6 +979,11 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 	return d.dummyGetResponse, nil
 }
 
+func (d *dummyUserProfileService) Create(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, error) {
+	url := "someurl"
+	return &url, nil
+}
+
 func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *login.KeycloakUserProfileResponse) {
 	d.dummyGetResponse = dummyGetResponse
 }

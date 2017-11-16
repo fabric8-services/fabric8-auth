@@ -585,6 +585,17 @@ func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (stri
 	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm())
 }
 
+// GetKeycloakEndpointUsers returns the <keycloak>/realms/admin/<realm>/users endpoint
+// set via config file or environment variable.
+// If nothing set then in Dev environment the defualt endopoint will be returned.
+// In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
+// Example: api.service.domain.org -> sso.service.domain.org
+// or api.domain.org -> sso.domain.org
+func (c *ConfigurationData) GetKeycloakEndpointUsers(req *goa.RequestData) (string, error) {
+	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm()+"/users")
+
+}
+
 // GetKeycloakEndpointAuthzResourceset returns the <keycloak>/realms/<realm>/authz/protection/resource_set endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the defualt endopoint will be returned.
