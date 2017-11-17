@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ajg/form"
+	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -24,22 +25,25 @@ type KeycloakExternalTokenResponse struct {
 // KeycloakExternalTokenService describes what the service can do with respect to external tokens from Keycloak.
 type KeycloakExternalTokenService interface {
 	Get(ctx context.Context, accessToken string, keycloakExternalTokenURL string) (*KeycloakExternalTokenResponse, error)
+	Delete(ctx context.Context, keycloakExternalTokenURL string) error
 }
 
 // KeycloakExternalTokenServiceClient is an implementation of KeycloakExternalTokenService and serves as an interface to the Keycloak token service.
 type KeycloakExternalTokenServiceClient struct {
 	client *http.Client
+	config auth.KeycloakConfiguration
 }
 
 // NewKeycloakTokenServiceClient creates a new KeycloakTokenServiceClient
-func NewKeycloakTokenServiceClient() KeycloakExternalTokenServiceClient {
+func NewKeycloakTokenServiceClient(config auth.KeycloakConfiguration) KeycloakExternalTokenServiceClient {
 	return KeycloakExternalTokenServiceClient{
 		client: http.DefaultClient,
+		config: config,
 	}
 }
 
 //Get gets the external token information from Keycloak
-func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Get(ctx context.Context, accessToken string, keycloakExternalTokenURL string) (*KeycloakExternalTokenResponse, error) {
+func (c *KeycloakExternalTokenServiceClient) Get(ctx context.Context, accessToken string, keycloakExternalTokenURL string) (*KeycloakExternalTokenResponse, error) {
 
 	log.Info(ctx, map[string]interface{}{
 		"keycloak_external_token_url": keycloakExternalTokenURL,
@@ -54,7 +58,7 @@ func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Ge
 	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Add("Accept", "application/json, text/plain, */*")
 
-	resp, err := keycloakExternalTokenServiceClient.client.Do(req)
+	resp, err := c.client.Do(req)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -88,4 +92,49 @@ func (keycloakExternalTokenServiceClient *KeycloakExternalTokenServiceClient) Ge
 		}
 	}
 	return &keycloakExternalTokenResponse, err
+}
+
+// Delete deletes an Identity Provider link from Keycloak
+func (c *KeycloakExternalTokenServiceClient) Delete(ctx context.Context, keycloakExternalTokenURL string) error {
+	log.Info(ctx, map[string]interface{}{
+		"keycloak_external_token_url": keycloakExternalTokenURL,
+	}, "Deleting Identity Provider link from Keycloak...")
+
+	endpoint, err := c.config.GetKeycloakEndpointToken(nil)
+	if err != nil {
+		return err
+	}
+	pat, err := auth.GetProtectedAPIToken(ctx, endpoint, c.config.GetKeycloakClientID(), c.config.GetKeycloakSecret())
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("DELETE", keycloakExternalTokenURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+pat)
+	resp, err := c.client.Do(req)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"keycloak_external_token_url": keycloakExternalTokenURL,
+			"err": err,
+		}, "Unable to delete Identity Provider link from Keycloak")
+		return err
+	} else if resp != nil {
+		defer resp.Body.Close()
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		log.Info(ctx, map[string]interface{}{
+			"response_status":             resp.Status,
+			"response_body":               rest.ReadBody(resp.Body),
+			"keycloak_external_token_url": keycloakExternalTokenURL,
+		}, "Unable to delete Identity Provider link from Keycloak. That's OK if the link doesn't exist.")
+	} else {
+		log.Info(ctx, map[string]interface{}{
+			"keycloak_external_token_url": keycloakExternalTokenURL,
+		}, "Identity Provider link has been deleted from Keycloak.")
+	}
+	return nil
 }
