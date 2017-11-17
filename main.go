@@ -186,7 +186,7 @@ func main() {
 	providerFactory := link.NewOauthProviderFactory(config)
 	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
 	//providerFactory := link.NewOauthProviderFactory(configuration, appDB)
-	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient(configuration)
+	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient(config)
 	// Mount "token" controller
 	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, config)
 	app.MountTokenController(service, tokenCtrl)
