@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 
 func TestUsers(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &TestUsersSuite{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestUsersSuite{DBTestSuite: gormtestsupport.NewDBTestSuite("")})
 }
 
 type TestUsersSuite struct {
@@ -64,7 +65,9 @@ func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Serv
 
 func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
-	return svc, NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller := NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller.RemoteWITService = &dummyRemoteWITService{}
+	return svc, controller
 }
 
 func (s *TestUsersSuite) TestUpdateUserOK() {
@@ -345,9 +348,7 @@ func (s *TestUsersSuite) TestUpdateUserVariableSpacesInNameOK() {
 	assert.Equal(s.T(), contextInformation["rate"], updatedContextInformation["rate"])
 }
 
-/*
-	Test to unset variable in contextInformation
-*/
+//Test to unset variable in contextInformation
 
 func (s *TestUsersSuite) TestUpdateUserUnsetVariableInContextInfo() {
 	// given
@@ -980,7 +981,8 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 }
 
 func (d *dummyUserProfileService) Create(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, error) {
-	url := "someurl"
+	fmt.Println("Calling Dummy service******************88888")
+	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
 	return &url, nil
 }
 
@@ -1014,6 +1016,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountOK() {
 		"rate":         100.00,
 		"count":        3,
 	}
+	user.Company = "randomCompany"
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	// when
@@ -1030,6 +1033,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnauthorized() {
 	identity := testsupport.TestIdentity
 	identity.User = user
 	identity.ProviderType = "KC"
+	user.Company = "randomCompany"
 
 	user.ContextInformation = map[string]interface{}{
 		"last_visited": "yesterday",
@@ -1046,22 +1050,28 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnauthorized() {
 }
 
 func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}, cluster string) *app.CreateUsersPayload {
+	approvedTrue := true
+	enabledTrue := true
+	providerType := "KC"
 
 	return &app.CreateUsersPayload{
 		Data: &app.CreateUserData{
 			Type: "identities",
 			Attributes: &app.CreateIdentityDataAttributes{
 				//UserID:                userID,
+				Approved:              &approvedTrue,
+				Enabled:               &enabledTrue,
 				Email:                 *email,
-				FullName:              fullName,
+				RhdUsername:           "rhdusername",
+				FullName:              *fullName,
 				Bio:                   bio,
 				ImageURL:              imageURL,
 				URL:                   profileURL,
-				Company:               company,
+				Company:               *company,
 				ContextInformation:    contextInformation,
 				Username:              *username,
 				RegistrationCompleted: registrationCompleted,
-				ProviderType:          "KC",
+				ProviderType:          &providerType,
 				Cluster:               cluster,
 			},
 		},

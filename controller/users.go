@@ -93,8 +93,14 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 	userUrl, err := c.createUserInKeycloak(ctx)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to create user in keycloak")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
+	log.Info(ctx, map[string]interface{}{
+		"user_url": userUrl,
+	}, "successfully created new user in keycloak")
 
 	// TODO: Handle error, check if there was actually a URL returned.
 	userURLComponents := strings.Split(*userUrl, "/")
@@ -104,12 +110,20 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	identity, user, err := c.createUserInDB(ctx, identityID)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to create user in DB")
+
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	// finally, if all works, we create a user in WIT too.
 	witURL, err := c.config.GetWITURL(ctx.RequestData)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to create user in WIT")
+
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 	identity.User = *user // being explicit
@@ -150,6 +164,11 @@ func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext) (*st
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}
+	log.Info(nil, map[string]interface{}{
+		"keycloak_client_id": c.config.GetKeycloakClientID(),
+		"token_endpoint":     tokenEndpoint,
+		"keycloak_secret":    c.config.GetKeycloakSecret(),
+	}, "will generate PAT ")
 	protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, c.config.GetKeycloakClientID(), c.config.GetKeycloakSecret())
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
