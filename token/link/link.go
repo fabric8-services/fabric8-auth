@@ -35,7 +35,7 @@ type ProviderConfig interface {
 	TypeName() string
 }
 
-// LinkService represents OAuth service interface for linking accounts
+// LinkOAuthService represents OAuth service interface for linking accounts
 type LinkOAuthService interface {
 	ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error)
 	Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error)
@@ -46,10 +46,6 @@ type LinkConfig interface {
 	GetGitHubClientID() string
 	GetGitHubClientDefaultScopes() string
 	GetGitHubClientSecret() string
-	GetOpenShiftClientApiUrl() string
-	GetOpenShiftClientID() string
-	GetOpenShiftClientSecret() string
-	GetOpenShiftClientDefaultScopes() string
 	IsTLSInsecureSkipVerify() bool
 	GetOSOClusters() map[string]configuration.OSOCluster
 }

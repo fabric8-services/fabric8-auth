@@ -87,16 +87,6 @@ objects:
               secretKeyRef:
                 name: auth
                 key: oso.client.apiurl
-          - name: AUTH_OSO_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: auth
-                key: oso.client.id
-          - name: AUTH_OSO_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: auth
-                key: oso.client.secret
           - name: AUTH_TENANT_SERVICEURL
             valueFrom:
               secretKeyRef:

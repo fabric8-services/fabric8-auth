@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -512,12 +511,6 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 		}
 	} else {
 		redirectURL = *ctx.Payload.Redirect
-	}
-
-	if !c.Configuration.IsOpenShiftLinkingEnabled() && strings.HasPrefix(ctx.Payload.For, c.Configuration.GetOpenShiftClientApiUrl()) {
-		// OSO account linking is disabled by default in Dev Mode.
-		ctx.ResponseData.Header().Set("Location", redirectURL)
-		return ctx.SeeOther()
 	}
 
 	redirectLocation, err := c.LinkService.ProviderLocation(ctx, ctx.RequestData, identityID, ctx.Payload.For, redirectURL)
