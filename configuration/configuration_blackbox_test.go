@@ -353,6 +353,46 @@ func checkServiceAccount(t *testing.T, accounts map[string]configuration.Service
 	assert.Equal(t, expected, accounts[expected.ID])
 }
 
+func TestLoadDefaultClusterConfiguration(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	clusters := config.GetOSOClusters()
+	checkClusterConfiguration(t, clusters)
+}
+
+func TestLoadClusterConfigurationFromFile(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	clusterConfig, err := configuration.NewConfigurationData("", "", "./conf-files/oso-clusters.conf")
+	require.Nil(t, err)
+	clusters := clusterConfig.GetOSOClusters()
+	checkClusterConfiguration(t, clusters)
+}
+
+func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.OSOCluster) {
+	checkCluster(t, clusters, configuration.OSOCluster{
+		Name:                   "us-east-2",
+		URL:                    "https://api.starter-us-east-2.openshift.com",
+		ServiceAccountToken:    "fX0nH3d68LQ6SK5wBE6QeKJ6X8AZGVQO3dGQZZETakhmgmWAqr2KDFXE65KUwBO69aWoq",
+		AuthClientID:           "autheast2",
+		AuthClientSecret:       "autheast2secret",
+		AuthClientDefaultScope: "user:full",
+	})
+	checkCluster(t, clusters, configuration.OSOCluster{
+		Name:                   "us-east-2a",
+		URL:                    "https://api.starter-us-east-2a.openshift.com",
+		ServiceAccountToken:    "ak61T6RSAacWFruh1vZP8cyUOBtQ3Chv1rdOBddSuc9nZ2wEcs81DHXRO55NpIpVQ8uiH",
+		AuthClientID:           "autheast2a",
+		AuthClientSecret:       "autheast2asecret",
+		AuthClientDefaultScope: "user:full",
+	})
+}
+
+func checkCluster(t *testing.T, clusters map[string]configuration.OSOCluster, expected configuration.OSOCluster) {
+	assert.Contains(t, clusters, expected.URL)
+	assert.Equal(t, expected, clusters[expected.URL])
+}
+
 func TestIsTLSInsecureSkipVerifySetToFalse(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	require.False(t, config.IsTLSInsecureSkipVerify())
