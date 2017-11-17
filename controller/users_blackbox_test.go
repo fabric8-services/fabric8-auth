@@ -981,7 +981,6 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 }
 
 func (d *dummyUserProfileService) Create(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, error) {
-	fmt.Println("Calling Dummy service******************88888")
 	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
 	return &url, nil
 }
