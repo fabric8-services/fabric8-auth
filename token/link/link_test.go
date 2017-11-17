@@ -119,7 +119,7 @@ func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{uuid.NewV4().String()})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token: uuid.NewV4().String(), config: s.Configuration})
 
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -132,7 +132,7 @@ func (s *LinkTestSuite) TestProviderSavesToken() {
 	state := s.stateParam(location)
 
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token: token, config: s.Configuration})
 
 	code := uuid.NewV4().String()
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -156,12 +156,12 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 	callbackLocation := s.checkCallback(gitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
-	s.checkCallback(osoStarterEast2ProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
+	s.checkCallback(s.Configuration.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"].TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
 }
 
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token: token, config: s.Configuration})
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, uuid.NewV4().String())
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(callbackLocation)
@@ -188,7 +188,8 @@ func (s *LinkTestSuite) checkToken(providerID string, expectedToken string) {
 }
 
 type DummyProviderFactory struct {
-	token string
+	token  string
+	config *configuration.ConfigurationData
 }
 
 func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
@@ -196,7 +197,8 @@ func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, req *
 		return &DummyProvider{factory: factory, id: gitHubProviderID, url: forResource}, nil
 	}
 	if forResource == "https://api.starter-us-east-2.openshift.com" {
-		return &DummyProvider{factory: factory, id: osoStarterEast2ProviderID, url: forResource}, nil
+		cluster := factory.config.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"]
+		return &DummyProvider{factory: factory, id: cluster.TokenProviderID, url: forResource}, nil
 	}
 	return nil, errors.New("unknown provider")
 }

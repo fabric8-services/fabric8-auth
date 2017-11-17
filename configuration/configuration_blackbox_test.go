@@ -374,6 +374,7 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 		Name:                   "us-east-2",
 		URL:                    "https://api.starter-us-east-2.openshift.com",
 		ServiceAccountToken:    "fX0nH3d68LQ6SK5wBE6QeKJ6X8AZGVQO3dGQZZETakhmgmWAqr2KDFXE65KUwBO69aWoq",
+		TokenProviderID:        "f867ac10-5e05-4359-a0c6-b855ece59090",
 		AuthClientID:           "autheast2",
 		AuthClientSecret:       "autheast2secret",
 		AuthClientDefaultScope: "user:full",
@@ -382,6 +383,7 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 		Name:                   "us-east-2a",
 		URL:                    "https://api.starter-us-east-2a.openshift.com",
 		ServiceAccountToken:    "ak61T6RSAacWFruh1vZP8cyUOBtQ3Chv1rdOBddSuc9nZ2wEcs81DHXRO55NpIpVQ8uiH",
+		TokenProviderID:        "886c7ea3-ef97-443d-b345-de94b94bb65d",
 		AuthClientID:           "autheast2a",
 		AuthClientSecret:       "autheast2asecret",
 		AuthClientDefaultScope: "user:full",
@@ -389,8 +391,10 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 }
 
 func checkCluster(t *testing.T, clusters map[string]configuration.OSOCluster, expected configuration.OSOCluster) {
-	assert.Contains(t, clusters, expected.URL)
-	assert.Equal(t, expected, clusters[expected.URL])
+	require.Contains(t, clusters, expected.URL)
+	require.Equal(t, expected, clusters[expected.URL])
+	_, err := uuid.FromString(clusters[expected.URL].TokenProviderID)
+	require.Nil(t, err)
 }
 
 func TestIsTLSInsecureSkipVerifySetToFalse(t *testing.T) {

@@ -2,19 +2,19 @@ package link
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
-
-	"crypto/tls"
-	"net/http"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -51,6 +51,7 @@ type LinkConfig interface {
 	GetOpenShiftClientSecret() string
 	GetOpenShiftClientDefaultScopes() string
 	IsTLSInsecureSkipVerify() bool
+	GetOSOClusters() map[string]configuration.OSOCluster
 }
 
 // OauthProviderFactory represents oauth provider factory
@@ -261,8 +262,13 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 	}
 	if resourceURL.Host == "github.com" {
 		return NewGitHubConfig(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
-	} else if strings.HasPrefix(forResource, service.config.GetOpenShiftClientApiUrl()) {
-		return NewOpenShiftConfig(service.config.GetOpenShiftClientApiUrl(), service.config.GetOpenShiftClientID(), service.config.GetOpenShiftClientSecret(), service.config.GetOpenShiftClientDefaultScopes(), authURL), nil
+	} else {
+		clusters := service.config.GetOSOClusters()
+		for apiURL, cluster := range clusters {
+			if strings.HasPrefix(forResource, apiURL) {
+				return NewOpenShiftConfig(cluster, authURL)
+			}
+		}
 	}
 	log.Error(ctx, map[string]interface{}{
 		"for": forResource,
