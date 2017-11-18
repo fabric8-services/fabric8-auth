@@ -4,16 +4,18 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
+	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/satori/go.uuid"
+	"net/http"
 )
 
 type dummySpaceAuthzService struct {
@@ -88,4 +90,25 @@ func ServiceAsSpaceUser(serviceName string, u account.Identity, authzSrv authz.A
 	svc := service(serviceName, nil, u, nil)
 	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: authzSrv})
 	return svc
+}
+
+// ServiceAsServiceAccountUser generates the minimal service needed to satisfy the condition of being a service account.
+func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Service {
+	svc := goa.New(serviceName)
+	svc.Context = WithServiceAccountAuthz(svc.Context, testtoken.TokenManager, u)
+	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
+	return svc
+}
+
+// WithServiceAccountAuthz fills the context with token
+// Token is filled using input Identity object and resource authorization information
+func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, ident account.Identity) context.Context {
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "example.com"},
+	}
+	if ident.ID == uuid.Nil {
+		ident.ID = uuid.NewV4()
+	}
+	token := tokenManager.GenerateUnsignedServiceAccountToken(r, ident.ID.String(), ident.Username)
+	return goajwt.WithJWT(ctx, token)
 }

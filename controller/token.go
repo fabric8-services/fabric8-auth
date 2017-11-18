@@ -214,12 +214,10 @@ func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, prov
 
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
-
 	currentIdentity, err := login.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
 	tokenString := goajwt.ContextJWT(ctx).Raw
 
 	if ctx.For == "" {
@@ -233,10 +231,10 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	providerName := providerConfig.TypeName()
 
 	osConfig, ok := providerConfig.(*link.OpenShiftConfig)
-	if ok && token.IsSpecificServiceAccount(ctx, "fabric8-oso-proxy") {
-		// This is a request from OSO proxy service to obtain a cluster wide token
+	if ok && token.IsSpecificServiceAccount(ctx, []string{"fabric8-oso-proxy", "fabric8-tenant"}) {
+		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
 		clusterToken := app.ExternalToken{
-			Scope:       "",
+			Scope:       "<unknown>",
 			AccessToken: osConfig.Cluster.ServiceAccountToken,
 			TokenType:   "bearer",
 		}

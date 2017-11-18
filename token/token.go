@@ -82,6 +82,7 @@ type Manager interface {
 	PemKeys() JsonKeys
 	AuthServiceAccountToken(req *goa.RequestData) (string, error)
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
+	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -415,8 +416,18 @@ func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, 
 	return mgm.serviceAccountToken, nil
 }
 
-// GenerateServiceAccountToken generates a new Service Account Token (Protection API Token)
+// GenerateServiceAccountToken generates and signs a new Service Account Token (Protection API Token)
 func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error) {
+	token := mgm.GenerateUnsignedServiceAccountToken(req, saID, saName)
+	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	return tokenStr, nil
+}
+
+// GenerateUnsignedServiceAccountToken generates an unsigned Service Account Token (Protection API Token)
+func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
 	token.Claims.(jwt.MapClaims)["service_accountname"] = saName
@@ -425,22 +436,22 @@ func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID 
 	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
 	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
 	token.Claims.(jwt.MapClaims)["scopes"] = []string{"uma_protection"}
-
-	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-	return tokenStr, nil
+	return token
 }
 
-// IsSpecificServiceAccount checks if the request is done by a given
-// Service account based on the JWT Token provided in context
-func IsSpecificServiceAccount(ctx context.Context, name string) bool {
+// IsSpecificServiceAccount checks if the request is done by a service account listed in the names param
+// based on the JWT Token provided in context
+func IsSpecificServiceAccount(ctx context.Context, names []string) bool {
 	accountName, ok := extractServiceAccountName(ctx)
 	if !ok {
 		return false
 	}
-	return accountName == name
+	for _, name := range names {
+		if accountName == name {
+			return true
+		}
+	}
+	return false
 }
 
 // IsServiceAccount checks if the request is done by a
