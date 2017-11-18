@@ -232,6 +232,20 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	}
 	providerName := providerConfig.TypeName()
 
+	osConfig, ok := providerConfig.(*link.OpenShiftConfig)
+	if ok && token.IsSpecificServiceAccount(ctx, "fabric8-oso-proxy") {
+		// This is a request from OSO proxy service to obtain a cluster wide token
+		clusterToken := app.ExternalToken{
+			Scope:       "",
+			AccessToken: osConfig.Cluster.ServiceAccountToken,
+			TokenType:   "bearer",
+		}
+		log.Info(ctx, map[string]interface{}{
+			"cluster": osConfig.Cluster.Name,
+		}, "Returning a cluster wide token")
+		return ctx.OK(&clusterToken)
+	}
+
 	keycloakTokenResponse, kcErr := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if kcErr != nil {
 		log.Error(ctx, map[string]interface{}{

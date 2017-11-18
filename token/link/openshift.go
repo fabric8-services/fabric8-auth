@@ -16,10 +16,12 @@ type OpenShiftConfig struct {
 	oauth2.Config
 	providerID uuid.UUID
 	scopeStr   string
+	Cluster    configuration.OSOCluster
 }
 
 func NewOpenShiftConfig(cluster configuration.OSOCluster, authURL string) (*OpenShiftConfig, error) {
 	provider := &OpenShiftConfig{}
+	provider.Cluster = cluster
 	provider.ClientID = cluster.AuthClientID
 	provider.ClientSecret = cluster.AuthClientSecret
 	provider.Endpoint = oauth2.Endpoint{
