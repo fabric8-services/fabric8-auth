@@ -22,7 +22,7 @@ type TestLinkREST struct {
 }
 
 func TestRunLinkREST(t *testing.T) {
-	suite.Run(t, &TestLinkREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestLinkREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (rest *TestLinkREST) SetupTest() {

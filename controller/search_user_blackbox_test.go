@@ -2,7 +2,6 @@ package controller_test
 
 import (
 	"context"
-	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -23,9 +22,7 @@ import (
 
 func TestRunSearchUser(t *testing.T) {
 	resource.Require(t, resource.Database)
-	pwd, err := os.Getwd()
-	require.Nil(t, err)
-	suite.Run(t, &TestSearchUserSearch{DBTestSuite: gormtestsupport.NewDBTestSuite(pwd + "/../config.yaml")})
+	suite.Run(t, &TestSearchUserSearch{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 type TestSearchUserSearch struct {

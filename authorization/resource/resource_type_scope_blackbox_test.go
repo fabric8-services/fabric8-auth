@@ -23,7 +23,7 @@ type resourceTypeScopeBlackBoxTest struct {
 }
 
 func TestRunResourceTypeScopeBlackBoxTest(t *testing.T) {
-	suite.Run(t, &resourceTypeScopeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
+	suite.Run(t, &resourceTypeScopeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *resourceTypeScopeBlackBoxTest) SetupTest() {

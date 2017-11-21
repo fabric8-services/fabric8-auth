@@ -43,7 +43,7 @@ type TestTokenStorageREST struct {
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
-	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (rest *TestTokenStorageREST) SetupTest() {
@@ -72,6 +72,46 @@ func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 	return svc, NewTokenController(svc, rest.db, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
+}
+
+func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
+	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
+
+	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
+	return svc, NewTokenController(svc, rest.db, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-oso-proxy")
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-tenant")
+}
+
+func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName string) {
+	sa := account.Identity{
+		Username: saName,
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL)
+
+		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
+		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
+		assert.Equal(rest.T(), "bearer", tokenResponse.TokenType)
+	}
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSAFails() {
+	sa := account.Identity{
+		Username: "unknown-sa",
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL)
+	}
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {

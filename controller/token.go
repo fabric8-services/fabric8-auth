@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -215,12 +214,10 @@ func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, prov
 
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
-
 	currentIdentity, err := login.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
 	tokenString := goajwt.ContextJWT(ctx).Raw
 
 	if ctx.For == "" {
@@ -232,6 +229,20 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	providerName := providerConfig.TypeName()
+
+	osConfig, ok := providerConfig.(*link.OpenShiftConfig)
+	if ok && token.IsSpecificServiceAccount(ctx, []string{"fabric8-oso-proxy", "fabric8-tenant"}) {
+		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
+		clusterToken := app.ExternalToken{
+			Scope:       "<unknown>",
+			AccessToken: osConfig.Cluster.ServiceAccountToken,
+			TokenType:   "bearer",
+		}
+		log.Info(ctx, map[string]interface{}{
+			"cluster": osConfig.Cluster.Name,
+		}, "Returning a cluster wide token")
+		return ctx.OK(&clusterToken)
+	}
 
 	keycloakTokenResponse, kcErr := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if kcErr != nil {
@@ -512,12 +523,6 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 		}
 	} else {
 		redirectURL = *ctx.Payload.Redirect
-	}
-
-	if !c.Configuration.IsOpenShiftLinkingEnabled() && strings.HasPrefix(ctx.Payload.For, c.Configuration.GetOpenShiftClientApiUrl()) {
-		// OSO account linking is disabled by default in Dev Mode.
-		ctx.ResponseData.Header().Set("Location", redirectURL)
-		return ctx.SeeOther()
 	}
 
 	redirectLocation, err := c.LinkService.ProviderLocation(ctx, ctx.RequestData, identityID, ctx.Payload.For, redirectURL)

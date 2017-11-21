@@ -29,7 +29,7 @@ type identityRoleBlackBoxTest struct {
 }
 
 func TestRunIdentityRoleBlackBoxTest(t *testing.T) {
-	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
+	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *identityRoleBlackBoxTest) SetupTest() {
