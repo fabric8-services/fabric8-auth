@@ -3,16 +3,18 @@ package test
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/account"
-	tokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
+	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/satori/go.uuid"
+	"net/http"
 )
 
 type dummySpaceAuthzService struct {
@@ -92,23 +94,20 @@ func ServiceAsSpaceUser(serviceName string, u account.Identity, authzSrv authz.A
 // ServiceAsServiceAccountUser generates the minimal service needed to satisfy the condition of being a service account.
 func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Service {
 	svc := goa.New(serviceName)
+	svc.Context = WithServiceAccountAuthz(svc.Context, testtoken.TokenManager, u)
 	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
-	svc.Context = WithServiceAccountAuthz(svc.Context, testtoken.PrivateKey(), u)
-
 	return svc
 }
 
 // WithServiceAccountAuthz fills the context with token
 // Token is filled using input Identity object and resource authorization information
-func WithServiceAccountAuthz(ctx context.Context, key interface{}, ident account.Identity) context.Context {
-	token := fillClaimsWithIdentity(ident) // irrelavant for service account , but keeping it anyway.
-
-	token.Claims.(jwt.MapClaims)["service_accountname"] = ident.Username // pass the name of the service account user here.
-	token.Header["kid"] = "test-key"
-	t, err := token.SignedString(key)
-	if err != nil {
-		panic(err.Error())
+func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, ident account.Identity) context.Context {
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "example.com"},
 	}
-	token.Raw = t
+	if ident.ID == uuid.Nil {
+		ident.ID = uuid.NewV4()
+	}
+	token := tokenManager.GenerateUnsignedServiceAccountToken(r, ident.ID.String(), ident.Username)
 	return goajwt.WithJWT(ctx, token)
 }

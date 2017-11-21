@@ -83,7 +83,7 @@ func (s *TestWhiteboxTokenSuite) TestServiceAccountGeneratedOK() {
 
 func (s *TestWhiteboxTokenSuite) TestNotAServiceAccountFails() {
 	ctx := createInvalidSAContext()
-	assert.False(s.T(), IsSpecificServiceAccount(ctx, "someName"))
+	assert.False(s.T(), IsSpecificServiceAccount(ctx, []string{"someName"}))
 }
 
 func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken string, saID string, saName string) {
@@ -115,8 +115,11 @@ func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken string, saID 
 	require.Equal(s.T(), "http://example.com", claims["iss"])
 
 	ctx := goajwt.WithJWT(context.Background(), token)
-	assert.True(s.T(), IsSpecificServiceAccount(ctx, saName))
-	assert.False(s.T(), IsSpecificServiceAccount(ctx, saName+"wrongName"))
+	assert.True(s.T(), IsSpecificServiceAccount(ctx, []string{saName}))
+	assert.True(s.T(), IsSpecificServiceAccount(ctx, []string{saName + "wrongName", saName}))
+	assert.True(s.T(), IsSpecificServiceAccount(ctx, []string{saName, saName + "wrongName"}))
+	assert.False(s.T(), IsSpecificServiceAccount(ctx, []string{saName + "wrongName"}))
+	assert.False(s.T(), IsSpecificServiceAccount(ctx, []string{saName + "wrongName", saName + "wrongName"}))
 }
 
 func createInvalidSAContext() context.Context {

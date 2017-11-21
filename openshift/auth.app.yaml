@@ -87,16 +87,6 @@ objects:
               secretKeyRef:
                 name: auth
                 key: oso.client.apiurl
-          - name: AUTH_OSO_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: auth
-                key: oso.client.id
-          - name: AUTH_OSO_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: auth
-                key: oso.client.secret
           - name: AUTH_TENANT_SERVICEURL
             valueFrom:
               secretKeyRef:
@@ -160,15 +150,17 @@ objects:
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /etc/fabric8/
-            name: auth-serviceaccounts
+            name: auth-configs
             readOnly: true
         volumes:
-        - name: auth-serviceaccounts
+        - name: auth-configs
           secret:
-            secretName: fabric8-auth-service-accounts
+            secretName: auth-config-files
             items:
-            - key: service-account-secrets
+            - key: service.account.secrets
               path: service-account-secrets.conf
+            - key: oso.clusters
+              path: oso-clusters.conf
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}

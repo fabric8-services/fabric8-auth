@@ -40,45 +40,28 @@ func main() {
 	// --------------------------------------------------------------------
 	var configFile string
 	var serviceAccountConfigFile string
+	var osoClusterConfigFile string
 	var printConfig bool
 	var migrateDB bool
 	flag.StringVar(&configFile, "config", "", "Path to the config file to read")
 	flag.StringVar(&serviceAccountConfigFile, "serviceAccountConfig", "", "Path to the service account configuration file")
+	flag.StringVar(&osoClusterConfigFile, "osoClusterConfigFile", "", "Path to the OSO cluster configuration file")
 	flag.BoolVar(&printConfig, "printConfig", false, "Prints the config (including merged environment variables) and exits")
 	flag.BoolVar(&migrateDB, "migrateDatabase", false, "Migrates the database to the newest version and exits.")
 	flag.Parse()
 
 	// Override default -config switch with environment variable only if -config switch was
 	// not explicitly given via the command line.
-	configSwitchIsSet := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "config" {
-			configSwitchIsSet = true
-		}
-	})
-	if !configSwitchIsSet {
-		if envConfigPath, ok := os.LookupEnv("AUTH_CONFIG_FILE_PATH"); ok {
-			configFile = envConfigPath
-		}
-	}
+	configFile = configFileFromFlags("config", "AUTH_CONFIG_FILE_PATH")
+	serviceAccountConfigFile = configFileFromFlags("serviceAccountConfig", "AUTH_SERVICE_ACCOUNT_CONFIG_FILE")
+	osoClusterConfigFile = configFileFromFlags("osoClusterConfigFile", "AUTH_OSO_CLUSTER_CONFIG_FILE")
 
-	serviceAccountConfigSwitchIsSet := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "serviceAccountConfig" {
-			serviceAccountConfigSwitchIsSet = true
-		}
-	})
-	if !serviceAccountConfigSwitchIsSet {
-		if envServiceAccountConfig, ok := os.LookupEnv("AUTH_SERVICE_ACCOUNT_CONFIG_FILE"); ok {
-			serviceAccountConfigFile = envServiceAccountConfig
-		}
-	}
-
-	config, err := configuration.NewConfigurationData(configFile, serviceAccountConfigFile)
+	config, err := configuration.NewConfigurationData(configFile, serviceAccountConfigFile, osoClusterConfigFile)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"config_file":                 configFile,
 			"service_account_config_file": serviceAccountConfigFile,
+			"oso_cluster_config_file":     osoClusterConfigFile,
 			"err": err,
 		}, "failed to setup the configuration")
 	}
@@ -186,7 +169,7 @@ func main() {
 	providerFactory := link.NewOauthProviderFactory(config)
 	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
 	//providerFactory := link.NewOauthProviderFactory(configuration, appDB)
-	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient()
+	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient(config)
 	// Mount "token" controller
 	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, config)
 	app.MountTokenController(service, tokenCtrl)
@@ -260,6 +243,21 @@ func main() {
 		}, "unable to connect to server")
 		service.LogError("startup", "err", err)
 	}
+}
+
+func configFileFromFlags(flagName string, envVarName string) string {
+	configSwitchIsSet := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == flagName {
+			configSwitchIsSet = true
+		}
+	})
+	if !configSwitchIsSet {
+		if envConfigPath, ok := os.LookupEnv(envVarName); ok {
+			return envConfigPath
+		}
+	}
+	return ""
 }
 
 func printUserInfo() {

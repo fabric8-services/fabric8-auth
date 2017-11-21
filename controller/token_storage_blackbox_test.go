@@ -43,7 +43,7 @@ type TestTokenStorageREST struct {
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
-	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (rest *TestTokenStorageREST) SetupTest() {
@@ -72,6 +72,46 @@ func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 	return svc, NewTokenController(svc, rest.db, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
+}
+
+func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
+	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
+
+	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
+	return svc, NewTokenController(svc, rest.db, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-oso-proxy")
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-tenant")
+}
+
+func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName string) {
+	sa := account.Identity{
+		Username: saName,
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL)
+
+		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
+		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
+		assert.Equal(rest.T(), "bearer", tokenResponse.TokenType)
+	}
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSAFails() {
+	sa := account.Identity{
+		Username: "unknown-sa",
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL)
+	}
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
@@ -202,37 +242,54 @@ func (rest *TestTokenStorageREST) TestDeleteExternalTokenIdentityNotPresent() {
 }
 
 func (rest *TestTokenStorageREST) TestDeleteExternalTokenGithubOK() {
-	rest.deleteExternalToken("https://github.com/a/b")
+	rest.deleteExternalTokenOK("https://github.com/a/b")
 }
 
 func (rest *TestTokenStorageREST) TestDeleteExternalTokenOSOOK() {
-	rest.deleteExternalToken("https://api.starter-us-east-2.openshift.com")
+	rest.deleteExternalTokenOK("https://api.starter-us-east-2.openshift.com")
 }
 
-func (rest *TestTokenStorageREST) deleteExternalToken(forResource string) {
+func (rest *TestTokenStorageREST) deleteExternalTokenOK(forResource string) {
+	rest.deleteExternalToken(forResource, 1, "unlinked")
+	rest.deleteExternalToken(forResource, 1, "positive")
+	rest.deleteExternalToken(forResource, 1, "internalError")
+	rest.deleteExternalToken(forResource, 3, "unlinked")
+	rest.deleteExternalToken(forResource, 3, "positive")
+	rest.deleteExternalToken(forResource, 3, "internalError")
+}
+
+func (rest *TestTokenStorageREST) deleteExternalToken(forResource string, numberOfTokens int, scenario string) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
+	rest.mockKeycloakExternalTokenServiceClient.scenario = scenario
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
 	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), r, forResource)
 	require.Nil(rest.T(), err)
 
-	expectedToken := provider.ExternalToken{
-		ProviderID: providerConfig.ID(),
-		Scope:      providerConfig.Scopes(),
-		IdentityID: identity.ID,
-		Token:      "1234-from-db",
-	}
 	// OK is returned even if there is nothing to delete
 	test.DeleteTokenOK(rest.T(), service.Context, service, controller, forResource)
 
-	err = rest.externalTokenRepository.Create(context.Background(), &expectedToken)
+	for i := 0; i < numberOfTokens; i++ {
+		expectedToken := provider.ExternalToken{
+			ProviderID: providerConfig.ID(),
+			Scope:      providerConfig.Scopes(),
+			IdentityID: identity.ID,
+			Token:      "1234-from-db",
+		}
+		err = rest.externalTokenRepository.Create(context.Background(), &expectedToken)
+		require.Nil(rest.T(), err)
+	}
+	tokens, err := rest.db.ExternalTokens().LoadByProviderIDAndIdentityID(service.Context, providerConfig.ID(), identity.ID)
 	require.Nil(rest.T(), err)
+	require.Equal(rest.T(), numberOfTokens, len(tokens))
 
 	test.DeleteTokenOK(rest.T(), service.Context, service, controller, forResource)
+	tokens, err = rest.db.ExternalTokens().LoadByProviderIDAndIdentityID(service.Context, providerConfig.ID(), identity.ID)
+	require.Nil(rest.T(), err)
+	require.Empty(rest.T(), tokens)
 }
 
 type mockKeycloakExternalTokenServiceClient struct {
@@ -255,6 +312,16 @@ func (client mockKeycloakExternalTokenServiceClient) Get(ctx context.Context, ac
 		return nil, errs.NewInternalError(ctx, errors.New("Internal Server Error"))
 	}
 	return nil, errs.NewUnauthorizedError("user not linked")
+}
+
+func (client mockKeycloakExternalTokenServiceClient) Delete(ctx context.Context, keycloakExternalTokenURL string) error {
+	if client.scenario == "positive" {
+		return nil
+	}
+	if client.scenario == "internalError" {
+		return errs.NewInternalError(ctx, errors.New("Internal Server Error"))
+	}
+	return errs.NewUnauthorizedError("user not linked")
 }
 
 func positiveKCResponseGithub() *keycloak.KeycloakExternalTokenResponse {

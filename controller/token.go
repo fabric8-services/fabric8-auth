@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -208,14 +207,17 @@ func (c *TokenController) getKeycloakExternalTokenURL(providerName string) strin
 	return fmt.Sprintf("%s/auth/realms/%s/broker/%s/token", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), providerName)
 }
 
+func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, providerName string) string {
+	// not moving this to config because this is temporary.
+	return fmt.Sprintf("%s/auth/admin/realms/%s/users/%s/federated-identity/%s", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), identityID, providerName)
+}
+
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
-
 	currentIdentity, err := login.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
 	tokenString := goajwt.ContextJWT(ctx).Raw
 
 	if ctx.For == "" {
@@ -224,10 +226,23 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
 	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
 	if err != nil {
-
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	providerName := providerConfig.TypeName()
+
+	osConfig, ok := providerConfig.(*link.OpenShiftConfig)
+	if ok && token.IsSpecificServiceAccount(ctx, []string{"fabric8-oso-proxy", "fabric8-tenant"}) {
+		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
+		clusterToken := app.ExternalToken{
+			Scope:       "<unknown>",
+			AccessToken: osConfig.Cluster.ServiceAccountToken,
+			TokenType:   "bearer",
+		}
+		log.Info(ctx, map[string]interface{}{
+			"cluster": osConfig.Cluster.Name,
+		}, "Returning a cluster wide token")
+		return ctx.OK(&clusterToken)
+	}
 
 	keycloakTokenResponse, kcErr := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
 	if kcErr != nil {
@@ -280,6 +295,18 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	// Delete from Keycloak
+	err = c.keycloakExternalTokenService.Delete(ctx, c.getKeycloakIdentityProviderURL(currentIdentity.String(), providerConfig.TypeName()))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"error":         err,
+			"provider_name": providerConfig.TypeName(),
+			"identity_id":   currentIdentity,
+		}, "Unable to remove Identity Provider link from Keycloak.")
+		// Not critical. Log the error and proceed.
+	}
+	// Delete from local DB
+
 	err = application.Transactional(c.db, func(appl application.Application) error {
 		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
@@ -290,7 +317,12 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 			return err
 		}
 		if len(tokens) > 0 {
-			return appl.ExternalTokens().Delete(ctx, tokens[0].ID)
+			for _, token := range tokens {
+				err = appl.ExternalTokens().Delete(ctx, token.ID)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	})
@@ -491,12 +523,6 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 		}
 	} else {
 		redirectURL = *ctx.Payload.Redirect
-	}
-
-	if !c.Configuration.IsOpenShiftLinkingEnabled() && strings.HasPrefix(ctx.Payload.For, c.Configuration.GetOpenShiftClientApiUrl()) {
-		// OSO account linking is disabled by default in Dev Mode.
-		ctx.ResponseData.Header().Set("Location", redirectURL)
-		return ctx.SeeOther()
 	}
 
 	redirectLocation, err := c.LinkService.ProviderLocation(ctx, ctx.RequestData, identityID, ctx.Payload.For, redirectURL)
