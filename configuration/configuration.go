@@ -89,6 +89,8 @@ const (
 	varWITURL                               = "wit.url"
 
 	varTenantServiceURL = "tenant.serviceurl"
+
+	varKeycloakTestsDisabled = "keycloak.tests.disabled"
 )
 
 type serviceAccountConfig struct {
@@ -343,6 +345,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
 	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
+
+	// Keycloak Tests are disabled by default
+	c.v.SetDefault(varKeycloakTestsDisabled, true)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -533,6 +538,10 @@ func (c *ConfigurationData) GetKeycloakRealm() string {
 		return devModeKeycloakRealm
 	}
 	return defaultKeycloakRealm
+}
+
+func (c *ConfigurationData) IsKeycloakTestsDisabled() bool {
+	return c.v.GetBool(varKeycloakTestsDisabled)
 }
 
 // GetKeycloakTestUserName returns the keycloak test user name used to obtain a test token (as set via config file or environment variable)
