@@ -413,4 +413,3 @@ or
 eval $(minikube docker-env)
 
 ```
-
