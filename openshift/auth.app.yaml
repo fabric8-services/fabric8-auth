@@ -166,7 +166,7 @@ objects:
           secret:
             secretName: auth
             items:
-            - key: oso-clusters
+            - key: oso.clusters
               path: oso-clusters.conf
         dnsPolicy: ClusterFirst
         restartPolicy: Always
