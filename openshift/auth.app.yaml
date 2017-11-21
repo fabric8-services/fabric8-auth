@@ -150,22 +150,15 @@ objects:
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /etc/fabric8/
-            name: auth-serviceaccounts
-            readOnly: true
-          - mountPath: /etc/fabric8/
-            name: auth-osoclusters
+            name: auth-configs
             readOnly: true
         volumes:
-        - name: auth-serviceaccounts
+        - name: auth-configs
           secret:
-            secretName: fabric8-auth-service-accounts
+            secretName: auth-config-files
             items:
-            - key: service-account-secrets
+            - key: service.account.secrets
               path: service-account-secrets.conf
-        - name: auth-osoclusters
-          secret:
-            secretName: auth
-            items:
             - key: oso.clusters
               path: oso-clusters.conf
         dnsPolicy: ClusterFirst
