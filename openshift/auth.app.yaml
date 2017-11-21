@@ -162,9 +162,9 @@ objects:
             items:
             - key: service-account-secrets
               path: service-account-secrets.conf
-        - name: auth
+        - name: auth-osoclusters
           secret:
-            secretName: fabric8-auth-oso-clusters
+            secretName: auth
             items:
             - key: oso-clusters
               path: oso-clusters.conf
