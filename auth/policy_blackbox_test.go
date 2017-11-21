@@ -19,6 +19,9 @@ import (
 )
 
 func TestPolicy(t *testing.T) {
+	if configuration.IsKeycloakTestsDisabled() {
+		t.Skip("Skipping Keycloak AuthZ tests")
+	}
 	resource.Require(t, resource.Remote)
 	suite.Run(t, new(TestPolicySuite))
 }
