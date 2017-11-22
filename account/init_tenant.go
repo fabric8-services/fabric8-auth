@@ -7,6 +7,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa/client"
 )
 
@@ -29,7 +30,10 @@ func InitTenant(ctx context.Context, config tenantConfig) error {
 	}
 
 	// Ignore response for now
-	_, err = c.SetupTenant(goasupport.ForwardContextRequestID(ctx), tenant.SetupTenantPath())
+	response, err := c.SetupTenant(goasupport.ForwardContextRequestID(ctx), tenant.SetupTenantPath())
+	if err == nil {
+		defer rest.CloseResponse(response)
+	}
 
 	return err
 }

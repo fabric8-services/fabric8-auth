@@ -70,13 +70,14 @@ func (c *KeycloakExternalTokenServiceClient) Get(ctx context.Context, accessToke
 		defer resp.Body.Close()
 	}
 	if resp.StatusCode != http.StatusOK {
+		bodyString := rest.ReadBody(resp.Body)
 		log.Error(ctx, map[string]interface{}{
 			"response_status":             resp.Status,
-			"response_body":               rest.ReadBody(resp.Body),
+			"response_body":               bodyString,
 			"keycloak_external_token_url": keycloakExternalTokenURL,
 		}, "Unable to fetch external keycloak token")
 		if resp.StatusCode == 400 {
-			return nil, errors.NewUnauthorizedError(rest.ReadBody(resp.Body))
+			return nil, errors.NewUnauthorizedError(bodyString)
 		}
 		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while fetching keycloak external token %s", resp.Status, keycloakExternalTokenURL))
 	}
