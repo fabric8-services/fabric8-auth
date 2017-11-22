@@ -25,7 +25,7 @@ var testPolicyID2 string = uuid.NewV4().String()
 var testPermissionID2 string = uuid.NewV4().String()
 
 func TestRunResourceRepoBBTest(t *testing.T) {
-	suite.Run(t, &resourceRepoBBTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &resourceRepoBBTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 type resourceRepoBBTest struct {

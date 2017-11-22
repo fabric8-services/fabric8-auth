@@ -26,7 +26,6 @@ type LoginConfiguration interface {
 	GetKeycloakClientID() string
 	GetKeycloakSecret() string
 	IsPostgresDeveloperModeEnabled() bool
-	IsOpenShiftLinkingEnabled() bool
 	GetOpenShiftClientApiUrl() string
 	GetKeycloakTestUserName() string
 	GetKeycloakTestUserSecret() string
@@ -83,5 +82,5 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.Perform(ctx, oauth, c.Configuration) // brokerEndpoint, entitlementEndpoint, profileEndpoint, whitelist, c.Configuration.GetNotApprovedRedirect(), remoteWITUserProfile)
+	return c.Auth.Perform(ctx, oauth, c.Configuration)
 }

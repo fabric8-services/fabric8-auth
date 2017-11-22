@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/errors"
+	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -41,7 +42,7 @@ type TestTokenStorageREST struct {
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
-	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (rest *TestTokenStorageREST) SetupTest() {
@@ -73,6 +74,46 @@ func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account
 }
 
 // Not present in DB but present in keycloak
+func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
+	loginService := newTestKeycloakOAuthProvider(rest.db, rest.Configuration)
+
+	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
+	return svc, NewTokenController(svc, rest.db, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-oso-proxy")
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-tenant")
+}
+
+func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName string) {
+	sa := account.Identity{
+		Username: saName,
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL)
+
+		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
+		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
+		assert.Equal(rest.T(), "bearer", tokenResponse.TokenType)
+	}
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSAFails() {
+	sa := account.Identity{
+		Username: "unknown-sa",
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL)
+	}
+}
+
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
@@ -85,7 +126,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	require.Equal(rest.T(), expectedToken.TokenType, tokenResponse.TokenType)
 }
 
-// Not present in DB but present in keycloak
+// Not present in DB but present in Keycloak
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
@@ -99,7 +140,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	require.Equal(rest.T(), expectedToken.TokenType, tokenResponse.TokenType)
 }
 
-// Not present in keycloak and not present in DB
+// Not present in Keycloak and not present in DB
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
@@ -146,10 +187,19 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() 
 
 // Not present in keycloak but present in DB.
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
+	rest.retrieveExternalTokenFailedInKeycloak("unlinked")
+}
+
+// Failed to get token from keycloak for any reason but token present in DB.
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenFailedInKeycloak() {
+	rest.retrieveExternalTokenFailedInKeycloak("internalError")
+}
+
+func (rest *TestTokenStorageREST) retrieveExternalTokenFailedInKeycloak(scenario string) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 
-	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	rest.mockKeycloakExternalTokenServiceClient.scenario = scenario
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 
 	r := &goa.RequestData{
@@ -203,8 +253,10 @@ func (rest *TestTokenStorageREST) TestDeleteExternalTokenOSOOK() {
 func (rest *TestTokenStorageREST) deleteExternalTokenOK(forResource string) {
 	rest.deleteExternalToken(forResource, 1, "unlinked")
 	rest.deleteExternalToken(forResource, 1, "positive")
+	rest.deleteExternalToken(forResource, 1, "internalError")
 	rest.deleteExternalToken(forResource, 3, "unlinked")
 	rest.deleteExternalToken(forResource, 3, "positive")
+	rest.deleteExternalToken(forResource, 3, "internalError")
 }
 
 func (rest *TestTokenStorageREST) deleteExternalToken(forResource string, numberOfTokens int, scenario string) {
@@ -257,7 +309,20 @@ func (client mockKeycloakExternalTokenServiceClient) Get(ctx context.Context, ac
 	} else if client.scenario == "positive" {
 		return positiveKCResponseOpenShift(), nil
 	}
-	return nil, errors.NewUnauthorizedError("user not linked")
+	if client.scenario == "internalError" {
+		return nil, errs.NewInternalError(ctx, errors.New("Internal Server Error"))
+	}
+	return nil, errs.NewUnauthorizedError("user not linked")
+}
+
+func (client mockKeycloakExternalTokenServiceClient) Delete(ctx context.Context, keycloakExternalTokenURL string) error {
+	if client.scenario == "positive" {
+		return nil
+	}
+	if client.scenario == "internalError" {
+		return errs.NewInternalError(ctx, errors.New("Internal Server Error"))
+	}
+	return errs.NewUnauthorizedError("user not linked")
 }
 
 func (client mockKeycloakExternalTokenServiceClient) Delete(ctx context.Context, keycloakExternalTokenURL string) error {

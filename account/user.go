@@ -30,6 +30,7 @@ type User struct {
 	Bio                string             // The bio of the User
 	URL                string             // The URL of the User
 	Company            string             // The (optional) Company of the User
+	Cluster            string             // The OpenShift cluster allocted to the user.
 	Identities         []Identity         // has many Identities from different IDPs
 	ContextInformation ContextInformation `sql:"type:jsonb"` // context information of the user activity
 }
@@ -122,15 +123,7 @@ func (m *GormUserRepository) Create(ctx context.Context, u *User) error {
 func (m *GormUserRepository) Save(ctx context.Context, model *User) error {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, model.ID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"user_id": model.ID,
-			"err":     err,
-		}, "unable to update user")
-		return errs.WithStack(err)
-	}
-	err = m.db.Model(obj).Updates(model).Error
+	err := m.db.Save(model).Error
 	if err != nil {
 		return errs.WithStack(err)
 	}

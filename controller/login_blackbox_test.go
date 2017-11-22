@@ -29,7 +29,7 @@ type TestLoginREST struct {
 }
 
 func TestRunLoginREST(t *testing.T) {
-	suite.Run(t, &TestLoginREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestLoginREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (rest *TestLoginREST) SetupTest() {
@@ -80,7 +80,7 @@ func (t TestLoginService) Perform(ctx *app.LoginLoginContext, config oauth.Oauth
 	return ctx.TemporaryRedirect()
 }
 
-func (t TestLoginService) CreateOrUpdateIdentity(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
+func (t TestLoginService) CreateOrUpdateIdentity(ctx context.Context, accessToken string, serviceConfig login.LoginServiceConfiguration) (*account.Identity, bool, error) {
 	return nil, false, nil
 }
 

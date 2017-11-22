@@ -25,7 +25,7 @@ type roleBlackBoxTest struct {
 }
 
 func TestRunRoleBlackBoxTest(t *testing.T) {
-	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite("../../config.yaml")})
+	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *roleBlackBoxTest) SetupTest() {

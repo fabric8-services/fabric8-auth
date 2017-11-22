@@ -32,7 +32,7 @@ func TestConcurrentMigrations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Cannot connect to DB: %s\n", err)
 			}
-			err = Migrate(db, configuration.GetPostgresDatabase())
+			err = Migrate(db, configuration.GetPostgresDatabase(), configuration)
 			assert.Nil(t, err)
 		}()
 
