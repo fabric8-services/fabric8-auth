@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/app"
+
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 )
@@ -17,27 +18,38 @@ var (
 	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
 )
 
+type statusConfiguration interface {
+	IsPostgresDeveloperModeEnabled() bool
+}
+
 // StatusController implements the status resource.
 type StatusController struct {
 	*goa.Controller
-	db *gorm.DB
+	db     *gorm.DB
+	config statusConfiguration
 }
 
 // NewStatusController creates a status controller.
-func NewStatusController(service *goa.Service, db *gorm.DB) *StatusController {
+func NewStatusController(service *goa.Service, db *gorm.DB, config statusConfiguration) *StatusController {
 	return &StatusController{
 		Controller: service.NewController("StatusController"),
 		db:         db,
+		config:     config,
 	}
 }
 
 // Show runs the show action.
 func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
-	res := &app.Status{}
-	res.Commit = Commit
-	res.BuildTime = BuildTime
-	res.StartTime = StartTime
+	res := &app.Status{
+		Commit:    Commit,
+		BuildTime: BuildTime,
+		StartTime: StartTime,
+	}
 
+	if c.config.IsPostgresDeveloperModeEnabled() {
+		devMode := true
+		res.DevMode = &devMode
+	}
 	_, err := c.db.DB().Exec("select 1")
 	if err != nil {
 		var message string

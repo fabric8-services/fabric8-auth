@@ -13,6 +13,7 @@ var AuthStatus = a.MediaType("application/vnd.status+json", func() {
 		a.Attribute("buildTime", d.String, "The time when built")
 		a.Attribute("startTime", d.String, "The time when started")
 		a.Attribute("error", d.String, "The error if any")
+		a.Attribute("devMode", d.Boolean, "'True' if the Developer Mode is enabled")
 		a.Required("commit", "buildTime", "startTime")
 	})
 	a.View("default", func() {
@@ -20,6 +21,7 @@ var AuthStatus = a.MediaType("application/vnd.status+json", func() {
 		a.Attribute("buildTime")
 		a.Attribute("startTime")
 		a.Attribute("error")
+		a.Attribute("devMode")
 	})
 })
 
@@ -37,10 +39,3 @@ var _ = a.Resource("status", func() {
 		a.Response(d.ServiceUnavailable, AuthStatus)
 	})
 })
-
-var nameValidationFunction = func() {
-	a.MaxLength(62) // maximum name length is 62 characters
-	a.MinLength(1)  // minimum name length is 1 characters
-	a.Pattern("^[^_|-].*")
-	a.Example("name for the object")
-}

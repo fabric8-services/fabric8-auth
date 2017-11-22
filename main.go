@@ -179,7 +179,7 @@ func main() {
 	app.MountLinkController(service, linkCtrl)
 
 	// Mount "status" controller
-	statusCtrl := controller.NewStatusController(service, db)
+	statusCtrl := controller.NewStatusController(service, db, config)
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "space" controller
