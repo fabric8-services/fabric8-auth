@@ -257,19 +257,19 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		"provider_name": providerName,
 		"identity_id":   currentIdentity,
 	}, "External token not found. Will try to load from Keycloak.")
-	keycloakTokenResponse, kcErr := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
-	if kcErr != nil {
-		log.Warning(ctx, map[string]interface{}{
-			"err": kcErr,
-			"for": ctx.For,
-      "provider_name", providerName,
+	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
+	if err != nil {
+		log.Warn(ctx, map[string]interface{}{
+			"err":           err,
+			"for":           ctx.For,
+			"provider_name": providerName,
 		}, "Unable to obtain external token from Keycloak. Account linking may be required.")
 
 		linkURL := rest.AbsoluteURL(ctx.RequestData, client.LinkTokenPath())
 		errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
-    return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("token is missing"))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("token is missing"))
 	}
 
 	err = c.saveKeycloakToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
@@ -306,7 +306,7 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 		// Not critical. Log the error and proceed.
 	}
 
-  // Delete from local DB
+	// Delete from local DB
 	err = application.Transactional(c.db, func(appl application.Application) error {
 		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
