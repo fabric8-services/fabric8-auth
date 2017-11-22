@@ -103,11 +103,12 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 		defer resp.Body.Close()
 	}
 
+	bodyString := rest.ReadBody(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 
 		log.Error(nil, map[string]interface{}{
 			"response_status":           resp.Status,
-			"response_body":             rest.ReadBody(resp.Body),
+			"response_body":             bodyString,
 			"keycloak_user_profile_url": keycloakProfileURL,
 		}, "Unable to update Keycloak user profile")
 
@@ -116,14 +117,14 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 			return errors.NewBadParameterError("username or email", fmt.Sprintf("%s , %s", *keycloakUserProfile.Email, *keycloakUserProfile.Username))
 		}
 		if resp.StatusCode == 400 {
-			return errors.NewUnauthorizedError(rest.ReadBody(resp.Body))
+			return errors.NewUnauthorizedError(bodyString)
 		}
 
 		return errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while updating keycloak user profile %s", resp.Status, keycloakProfileURL))
 	}
 	log.Info(nil, map[string]interface{}{
 		"response_status":           resp.Status,
-		"response_body":             rest.ReadBody(resp.Body),
+		"response_body":             bodyString,
 		"keycloak_user_profile_url": keycloakProfileURL,
 	}, "Successfully updated Keycloak user profile")
 
@@ -156,13 +157,14 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		bodyString := rest.ReadBody(resp.Body)
 		log.Error(nil, map[string]interface{}{
 			"response_status":           resp.Status,
-			"response_body":             rest.ReadBody(resp.Body),
+			"response_body":             bodyString,
 			"keycloak_user_profile_url": keycloakProfileURL,
 		}, "Unable to fetch Keycloak user profile")
 		if resp.StatusCode == 400 {
-			return nil, errors.NewUnauthorizedError(rest.ReadBody(resp.Body))
+			return nil, errors.NewUnauthorizedError(bodyString)
 		}
 		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while fetching keycloak user profile %s", resp.Status, keycloakProfileURL))
 	}

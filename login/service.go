@@ -430,7 +430,7 @@ func (keycloak *KeycloakOAuthProvider) checkFederatedIdentity(ctx context.Contex
 		}, "Unable to obtain a federated identity token")
 		return false, autherrors.NewInternalError(ctx, errs.Wrap(err, "unable to obtain a federated identity token"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	return res.StatusCode == http.StatusOK, nil
 }
 

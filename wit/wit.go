@@ -56,14 +56,15 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 		return err
 	}
 	defer res.Body.Close()
+	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{
 			"identity_id":     identityID,
 			"username":        updatePayload.Data.Attributes.Username,
 			"response_status": res.Status,
-			"response_body":   rest.ReadBody(res.Body),
+			"response_body":   bodyString,
 		}, "unable to update user in WIT")
-		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, rest.ReadBody(res.Body))
+		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, bodyString)
 	}
 	return nil
 }
@@ -97,14 +98,15 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 		return err
 	}
 	defer res.Body.Close()
+	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{
 			"identity_id":     identityID,
 			"username":        identity.Username,
 			"response_status": res.Status,
-			"response_body":   rest.ReadBody(res.Body),
+			"response_body":   bodyString,
 		}, "unable to create user in WIT")
-		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, rest.ReadBody(res.Body))
+		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, bodyString)
 	}
 	return nil
 
