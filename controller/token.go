@@ -462,11 +462,12 @@ func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration 
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
+		bodyString := rest.ReadBody(res.Body)
 		log.Error(ctx, map[string]interface{}{
 			"response_status": res.Status,
-			"response_body":   rest.ReadBody(res.Body),
+			"response_body":   bodyString,
 		}, "unable to obtain token")
-		return nil, errors.NewInternalError(ctx, errs.Errorf("unable to obtain token. Response status: %s. Response body: %s", res.Status, rest.ReadBody(res.Body)))
+		return nil, errors.NewInternalError(ctx, errs.Errorf("unable to obtain token. Response status: %s. Response body: %s", res.Status, bodyString))
 	}
 	t, err := token.ReadTokenSet(ctx, res)
 	if err != nil {
