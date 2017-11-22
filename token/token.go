@@ -209,16 +209,16 @@ func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
+	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusOK {
 		log.Error(nil, map[string]interface{}{
 			"response_status": res.Status,
-			"response_body":   rest.ReadBody(res.Body),
+			"response_body":   bodyString,
 			"url":             keysEndpointURL,
 		}, "unable to obtain public keys from remote service")
 		return nil, errors.Errorf("unable to obtain public keys from remote service")
 	}
-	jsonString := rest.ReadBody(res.Body)
-	keys, err := unmarshalKeys([]byte(jsonString))
+	keys, err := unmarshalKeys([]byte(bodyString))
 	if err != nil {
 		return nil, err
 	}
