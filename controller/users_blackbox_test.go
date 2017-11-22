@@ -17,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	linkAPI "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -40,6 +41,7 @@ type TestUsersSuite struct {
 	userRepo       account.UserRepository
 	identityRepo   account.IdentityRepository
 	profileService login.UserProfileService
+	linkAPIService linkAPI.KeycloakIDPService
 }
 
 func (s *TestUsersSuite) SetupSuite() {
@@ -50,7 +52,8 @@ func (s *TestUsersSuite) SetupSuite() {
 	dummyProfileResponse := createDummyUserProfileResponse(&testAttributeValue, &testAttributeValue, &testAttributeValue)
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
-	s.controller = NewUsersController(s.svc, s.db, s.Configuration, s.profileService)
+	s.linkAPIService = &dummyKeycloakLinkService{}
+	s.controller = NewUsersController(s.svc, s.db, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.db.Users()
 	s.identityRepo = s.db.Identities()
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
@@ -58,14 +61,14 @@ func (s *TestUsersSuite) SetupSuite() {
 
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller := NewUsersController(s.svc, s.db, s.Configuration, s.profileService, s.linkAPIService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
 func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
-	controller := NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller := NewUsersController(s.svc, s.db, s.Configuration, s.profileService, s.linkAPIService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -959,6 +962,12 @@ func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.Requ
 }
 
 func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
+	return nil
+}
+
+type dummyKeycloakLinkService struct{}
+
+func (d *dummyKeycloakLinkService) Create(ctx context.Context, keycloakLinkIDPRequest *linkAPI.KeycloakLinkIDPRequest, protectedAccessToken string, keycloakIDPLinkURL string) error {
 	return nil
 }
 

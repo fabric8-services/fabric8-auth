@@ -19,6 +19,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	keycloakLinkAPI "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
@@ -200,7 +201,9 @@ func main() {
 
 	// Mount "users" controller
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
-	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService)
+	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
+
+	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	app.MountUsersController(service, usersCtrl)
 
 	// Mount "collaborators" controller
