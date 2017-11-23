@@ -159,7 +159,7 @@ func TestGetKeycloakEndpointTokenSetByEnvVaribaleOK(t *testing.T) {
 func TestGetKeycloakEndpointUserInfoOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
+	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
 }
 
 func TestGetKeycloakEndpointLinkIDPOK(t *testing.T) {
@@ -182,7 +182,7 @@ func TestGetKeycloakEndpointLinkIDPOK(t *testing.T) {
 func TestGetKeycloakEndpointUsersOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/users", config.GetKeycloakEndpointUsers)
+	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/users", config.GetKeycloakEndpointUsers)
 }
 
 func TestGetKeycloakEndpointUserInfoSetByEnvVaribaleOK(t *testing.T) {
