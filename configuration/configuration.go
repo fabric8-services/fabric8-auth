@@ -129,6 +129,8 @@ type ConfigurationData struct {
 
 	// OSO Cluster Configuration is a map of clusters where the key == the OSO cluster API URL
 	clusters map[string]OSOCluster
+
+	defaultConfigurationError error
 }
 
 // NewConfigurationData creates a configuration reader object using configurable configuration file paths
@@ -154,7 +156,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	// Set up the service account configuration (stored in a separate config file)
-	saViper, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
+	saViper, defaultConfigErrorMsg, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
+	c.defaultConfigurationError = appendErrorMessage(c.defaultConfigurationError, defaultConfigErrorMsg)
 
 	var saConf serviceAccountConfig
 	err = saViper.UnmarshalExact(&saConf)
@@ -167,7 +170,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
-	clusterViper, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
+	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
+	c.defaultConfigurationError = appendErrorMessage(c.defaultConfigurationError, defaultConfigErrorMsg)
 
 	var clusterConf osoClusterConfig
 	err = clusterViper.UnmarshalExact(&clusterConf)
@@ -182,23 +186,24 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	return &c, nil
 }
 
-func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, error) {
+func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, *string, error) {
 	jsonViper := viper.New()
 	jsonViper.SetTypeByDefaultValue(true)
 
 	var err error
 	var etcJSONConfigUsed bool
+	var defaultConfigErrorMsg *string
 	if configFilePath != "" {
 		// If a JSON configuration file has been specified, check if it exists
 		if _, err := os.Stat(configFilePath); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	} else {
 		// If the JSON configuration file has not been specified
 		// then we default to <defaultConfigFile>
 		configFilePath, err = pathExists(defaultConfigFilePath)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		etcJSONConfigUsed = configFilePath != ""
 	}
@@ -207,6 +212,8 @@ func readFromJSONFile(configFilePath string, defaultConfigFilePath string, confi
 		log.WithFields(map[string]interface{}{
 			"default_json_config_path": defaultConfigFilePath,
 		}).Warningln("Default JSON config file path is not used!")
+		errMsg := fmt.Sprintf("%s is not used", defaultConfigFilePath)
+		defaultConfigErrorMsg = &errMsg
 	}
 
 	jsonViper.SetConfigType("json")
@@ -214,18 +221,30 @@ func readFromJSONFile(configFilePath string, defaultConfigFilePath string, confi
 		// Load the default config
 		data, err := Asset(configFileName)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		jsonViper.ReadConfig(bytes.NewBuffer(data))
 	} else {
 		jsonViper.SetConfigFile(configFilePath)
 		err := jsonViper.ReadInConfig()
 		if err != nil {
-			return nil, errors.Errorf("failed to load the JSON config file (%s): %s \n", configFilePath, err)
+			return nil, nil, errors.Errorf("failed to load the JSON config file (%s): %s \n", configFilePath, err)
 		}
 	}
 
-	return jsonViper, nil
+	return jsonViper, defaultConfigErrorMsg, nil
+}
+
+func appendErrorMessage(appendTo error, message *string) error {
+	if message == nil {
+		return appendTo
+	}
+	if appendTo == nil {
+		appendTo = errors.New(*message)
+	} else {
+		appendTo = errors.Errorf("%s; %s", appendTo.Error(), *message)
+	}
+	return appendTo
 }
 
 func pathExists(pathToCheck string) (string, error) {
@@ -252,6 +271,14 @@ func getServiceAccountConfigFile() string {
 func getOSOClusterConfigFile() string {
 	envOSOClusterConfigFile, _ := os.LookupEnv("AUTH_OSO_CLUSTER_CONFIG_FILE")
 	return envOSOClusterConfigFile
+}
+
+// DefaultConfigurationError returns an error if the default values is used
+// for sensitive configuration like service account secrets or private keys.
+// Error contains all the details.
+// Returns nil if the default configuration is not used.
+func (c *ConfigurationData) DefaultConfigurationError() error {
+	return c.defaultConfigurationError
 }
 
 // GetServiceAccounts returns a map of service account configurations by service account ID

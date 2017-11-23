@@ -20,6 +20,7 @@ var (
 
 type statusConfiguration interface {
 	IsPostgresDeveloperModeEnabled() bool
+	DefaultConfigurationError() error
 }
 
 // StatusController implements the status resource.
@@ -46,16 +47,26 @@ func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
 		StartTime: StartTime,
 	}
 
-	if c.config.IsPostgresDeveloperModeEnabled() {
-		devMode := true
+	devMode := c.config.IsPostgresDeveloperModeEnabled()
+	if devMode {
 		res.DevMode = &devMode
 	}
+
 	_, err := c.db.DB().Exec("select 1")
 	if err != nil {
-		var message string
-		message = err.Error()
+		message := err.Error()
 		res.Error = &message
 		return ctx.ServiceUnavailable(res)
 	}
+
+	err = c.config.DefaultConfigurationError()
+	if err != nil {
+		message := err.Error()
+		res.Error = &message
+		if !devMode {
+			return ctx.ServiceUnavailable(res)
+		}
+	}
+
 	return ctx.OK(res)
 }

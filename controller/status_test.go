@@ -43,6 +43,7 @@ func (rest *TestStatusREST) TestShowStatusOK() {
 
 	assert.Equal(t, "0", res.Commit, "Commit not found")
 	assert.Equal(t, StartTime, res.StartTime, "StartTime is not correct")
+	assert.Nil(t, res.Error)
 
 	_, err := time.Parse("2006-01-02T15:04:05Z", res.StartTime)
 	assert.Nil(t, err, "Incorrect layout of StartTime")
