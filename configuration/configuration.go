@@ -157,7 +157,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 
 	// Set up the service account configuration (stored in a separate config file)
 	saViper, defaultConfigErrorMsg, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
-	c.defaultConfigurationError = appendErrorMessage(c.defaultConfigurationError, defaultConfigErrorMsg)
+	c.appendDefaultConfigErrorMessage(defaultConfigErrorMsg)
 
 	var saConf serviceAccountConfig
 	err = saViper.UnmarshalExact(&saConf)
@@ -171,7 +171,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
 	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
-	c.defaultConfigurationError = appendErrorMessage(c.defaultConfigurationError, defaultConfigErrorMsg)
+	c.appendDefaultConfigErrorMessage(defaultConfigErrorMsg)
 
 	var clusterConf osoClusterConfig
 	err = clusterViper.UnmarshalExact(&clusterConf)
@@ -181,6 +181,46 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	c.clusters = map[string]OSOCluster{}
 	for _, cluster := range clusterConf.Clusters {
 		c.clusters[cluster.URL] = cluster
+	}
+
+	// Check sensitive default configuration
+	if c.IsPostgresDeveloperModeEnabled() {
+		msg := "developer Mode is enabled"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	key, kid := c.GetServiceAccountPrivateKey()
+	if string(key) == DefaultServiceAccountPrivateKey {
+		msg := "default service account private key is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if kid == defaultServiceAccountPrivateKeyID {
+		msg := "default service account private key ID is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetPostgresPassword() == defaultDBPassword {
+		msg := "default DB password is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetKeycloakSecret() == defaultKeycloakSecret {
+		msg := "default Keycloak client secret is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
+		msg := "default GitHub client secret is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.IsTLSInsecureSkipVerify() {
+		msg := "TLS verification disabled"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetValidRedirectURLs() != DefaultValidRedirectURLs {
+		msg := "default valid redirect URLs are NOT used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.defaultConfigurationError != nil {
+		log.WithFields(map[string]interface{}{
+			"default_configuration_error": c.defaultConfigurationError.Error(),
+		}).Warningln("Default config is used! This is OK in Dev Mode.")
 	}
 
 	return &c, nil
@@ -209,9 +249,6 @@ func readFromJSONFile(configFilePath string, defaultConfigFilePath string, confi
 	}
 
 	if !etcJSONConfigUsed {
-		log.WithFields(map[string]interface{}{
-			"default_json_config_path": defaultConfigFilePath,
-		}).Warningln("Default JSON config file path is not used!")
 		errMsg := fmt.Sprintf("%s is not used", defaultConfigFilePath)
 		defaultConfigErrorMsg = &errMsg
 	}
@@ -235,16 +272,15 @@ func readFromJSONFile(configFilePath string, defaultConfigFilePath string, confi
 	return jsonViper, defaultConfigErrorMsg, nil
 }
 
-func appendErrorMessage(appendTo error, message *string) error {
+func (c *ConfigurationData) appendDefaultConfigErrorMessage(message *string) {
 	if message == nil {
-		return appendTo
+		return
 	}
-	if appendTo == nil {
-		appendTo = errors.New(*message)
+	if c.defaultConfigurationError == nil {
+		c.defaultConfigurationError = errors.New(*message)
 	} else {
-		appendTo = errors.Errorf("%s; %s", appendTo.Error(), *message)
+		c.defaultConfigurationError = errors.Errorf("%s; %s", c.defaultConfigurationError.Error(), *message)
 	}
-	return appendTo
 }
 
 func pathExists(pathToCheck string) (string, error) {
@@ -314,7 +350,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varPostgresPort, 5433)
 	c.v.SetDefault(varPostgresUser, "postgres")
 	c.v.SetDefault(varPostgresDatabase, "postgres")
-	c.v.SetDefault(varPostgresPassword, "mysecretpassword")
+	c.v.SetDefault(varPostgresPassword, defaultDBPassword)
 	c.v.SetDefault(varPostgresSSLMode, "disable")
 	c.v.SetDefault(varPostgresConnectionTimeout, 5)
 	c.v.SetDefault(varPostgresConnectionMaxIdle, -1)
@@ -348,14 +384,14 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Auth-related defaults
 	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
 	c.v.SetDefault(varServiceAccountPrivateKey, DefaultServiceAccountPrivateKey)
-	c.v.SetDefault(varServiceAccountPrivateKeyID, "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs")
+	c.v.SetDefault(varServiceAccountPrivateKeyID, defaultServiceAccountPrivateKeyID)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 	c.v.SetDefault(varGitHubClientID, "c6a3a6280e9650ba27d8")
-	c.v.SetDefault(varGitHubClientSecret, "48d1498c849616dfecf83cf74f22dfb361ee2511")
+	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org repo user gist")
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
 	c.v.SetDefault(varTLSInsecureSkipVerify, false) // Do not set to true in production! True can be used only for testing.
@@ -854,6 +890,12 @@ ZzBJ0G5JHPtaub6sEC6/ZWe0F1nJYP2KLop57FxKRt0G2+fxeA0ahpMwa2oMMiQM
 BA/cKaLPqUF+08Tz/9MPBw51UH4GYfppA/x0ktc8998984FeIpfIFX6I2U9yUnoQ
 OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 -----END RSA PRIVATE KEY-----`
+
+	defaultServiceAccountPrivateKeyID = "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs"
+
+	defaultDBPassword = "mysecretpassword"
+
+	defaultGitHubClientSecret = "48d1498c849616dfecf83cf74f22dfb361ee2511"
 
 	defaultLogLevel = "info"
 
