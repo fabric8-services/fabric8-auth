@@ -34,9 +34,6 @@ type ProfileUserBlackBoxTest struct {
 }
 
 func TestRunProfileUserBlackBoxTest(t *testing.T) {
-	if configuration.IsKeycloakTestsDisabled() {
-		t.Skip("Skipping Keycloak AuthZ tests")
-	}
 	suite.Run(t, &ProfileUserBlackBoxTest{RemoteTestSuite: testsuite.NewRemoteTestSuite()})
 }
 
@@ -89,6 +86,10 @@ func (s *ProfileUserBlackBoxTest) TestPATGenerated() {
 }
 
 func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
+
+	if s.Config.IsKeycloakTestsDisabled() {
+		s.T().Skip("Skipping Keycloak AuthZ tests")
+	}
 
 	// UPDATE the user profile
 
