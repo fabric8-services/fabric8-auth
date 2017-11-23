@@ -23,18 +23,23 @@ type statusConfiguration interface {
 	DefaultConfigurationError() error
 }
 
+// DBChecker is to be used to check if the DB is reachable
+type DBChecker interface {
+	Ping() error
+}
+
 // StatusController implements the status resource.
 type StatusController struct {
 	*goa.Controller
-	db     *gorm.DB
-	config statusConfiguration
+	dbChecker DBChecker
+	config    statusConfiguration
 }
 
 // NewStatusController creates a status controller.
-func NewStatusController(service *goa.Service, db *gorm.DB, config statusConfiguration) *StatusController {
+func NewStatusController(service *goa.Service, dbChecker DBChecker, config statusConfiguration) *StatusController {
 	return &StatusController{
 		Controller: service.NewController("StatusController"),
-		db:         db,
+		dbChecker:  dbChecker,
 		config:     config,
 	}
 }
@@ -52,7 +57,7 @@ func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
 		res.DevMode = &devMode
 	}
 
-	_, err := c.db.DB().Exec("select 1")
+	err := c.dbChecker.Ping()
 	if err != nil {
 		message := err.Error()
 		res.Error = &message
@@ -69,4 +74,21 @@ func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
 	}
 
 	return ctx.OK(res)
+}
+
+// GormDBChecker implements DB checker
+type GormDBChecker struct {
+	db *gorm.DB
+}
+
+// NewGormDBChecker constructs a new GormDBChecker
+func NewGormDBChecker(db *gorm.DB) DBChecker {
+	return &GormDBChecker{
+		db: db,
+	}
+}
+
+func (c *GormDBChecker) Ping() error {
+	_, err := c.db.DB().Exec("select 1")
+	return err
 }
