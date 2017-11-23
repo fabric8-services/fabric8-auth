@@ -18,6 +18,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	expectedDefaultConfErrorMessage = "/etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; developer Mode is enabled; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used; default valid redirect URLs are NOT used"
+)
+
 type TestStatusREST struct {
 	gormtestsupport.DBTestSuite
 }
@@ -44,7 +48,8 @@ func (rest *TestStatusREST) TestShowStatusOK() {
 
 	assert.Equal(t, "0", res.Commit, "Commit not found")
 	assert.Equal(t, StartTime, res.StartTime, "StartTime is not correct")
-	assert.NotNil(t, res.Error)
+	require.NotNil(t, res.Error)
+	assert.Equal(t, expectedDefaultConfErrorMessage, *res.Error)
 
 	_, err := time.Parse("2006-01-02T15:04:05Z", res.StartTime)
 	assert.Nil(t, err, "Incorrect layout of StartTime")
