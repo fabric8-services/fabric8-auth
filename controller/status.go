@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 
+	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 )
@@ -57,22 +58,23 @@ func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
 		res.DevMode = &devMode
 	}
 
-	err := c.dbChecker.Ping()
-	if err != nil {
-		message := err.Error()
-		res.Error = &message
+	dbErr := c.dbChecker.Ping()
+	if dbErr != nil {
+		res.DatabaseStatus = fmt.Sprintf("Error: %s", dbErr.Error())
+	} else {
+		res.DatabaseStatus = "OK"
+	}
+
+	configErr := c.config.DefaultConfigurationError()
+	if configErr != nil {
+		res.ConfigurationStatus = fmt.Sprintf("Error: %s", configErr.Error())
+	} else {
+		res.ConfigurationStatus = "OK"
+	}
+
+	if dbErr != nil || (configErr != nil && !devMode) {
 		return ctx.ServiceUnavailable(res)
 	}
-
-	err = c.config.DefaultConfigurationError()
-	if err != nil {
-		message := err.Error()
-		res.Error = &message
-		if !devMode {
-			return ctx.ServiceUnavailable(res)
-		}
-	}
-
 	return ctx.OK(res)
 }
 

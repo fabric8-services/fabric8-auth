@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	expectedDefaultConfErrorMessage = "/etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; developer Mode is enabled; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used; default valid redirect URLs are NOT used"
+	expectedDefaultConfDevModeErrorMessage  = "Error: /etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; developer Mode is enabled; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used; default valid redirect URLs are NOT used"
+	expectedDefaultConfProdModeErrorMessage = "Error: /etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used"
 )
 
 type TestStatusREST struct {
@@ -41,15 +42,15 @@ func (rest *TestStatusREST) UnSecuredControllerWithUnreachableDB() (*goa.Service
 	return svc, NewStatusController(svc, &dummyDBChecker{}, rest.Configuration)
 }
 
-func (rest *TestStatusREST) TestShowStatusOK() {
+func (rest *TestStatusREST) TestShowStatusInDevModeOK() {
 	t := rest.T()
 	svc, ctrl := rest.UnSecuredController()
 	_, res := test.ShowStatusOK(t, svc.Context, svc, ctrl)
 
 	assert.Equal(t, "0", res.Commit, "Commit not found")
 	assert.Equal(t, StartTime, res.StartTime, "StartTime is not correct")
-	require.NotNil(t, res.Error)
-	assert.Equal(t, expectedDefaultConfErrorMessage, *res.Error)
+	assert.Equal(t, expectedDefaultConfDevModeErrorMessage, res.ConfigurationStatus)
+	assert.Equal(t, "OK", res.DatabaseStatus)
 
 	_, err := time.Parse("2006-01-02T15:04:05Z", res.StartTime)
 	assert.Nil(t, err, "Incorrect layout of StartTime")
@@ -58,15 +59,14 @@ func (rest *TestStatusREST) TestShowStatusOK() {
 	assert.True(t, *res.DevMode)
 }
 
-func (rest *TestStatusREST) TestShowStatusFailsWithoutDB() {
+func (rest *TestStatusREST) TestShowStatusWithoutDBFails() {
 	svc, ctrl := rest.UnSecuredControllerWithUnreachableDB()
 	_, res := test.ShowStatusServiceUnavailable(rest.T(), svc.Context, svc, ctrl)
 
-	assert.NotNil(rest.T(), res.Error)
-	assert.Equal(rest.T(), "DB is unreachable", *res.Error)
+	assert.Equal(rest.T(), "Error: DB is unreachable", res.DatabaseStatus)
 }
 
-func (rest *TestStatusREST) TestShowStatusFailWithDefaultConfig() {
+func (rest *TestStatusREST) TestShowStatusWithDefaultConfigInProdModeFails() {
 	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
 	defer func() {
 		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
@@ -77,14 +77,15 @@ func (rest *TestStatusREST) TestShowStatusFailWithDefaultConfig() {
 	rest.resetConfiguration()
 	svc, ctrl := rest.UnSecuredController()
 	_, res := test.ShowStatusServiceUnavailable(rest.T(), svc.Context, svc, ctrl)
-	assert.NotNil(rest.T(), res.Error)
+	assert.Equal(rest.T(), expectedDefaultConfProdModeErrorMessage, res.ConfigurationStatus)
+	assert.Equal(rest.T(), "OK", res.DatabaseStatus)
 
 	// If the DB is not available then status should return the corresponding error
 	svc, ctrl = rest.UnSecuredControllerWithUnreachableDB()
 	_, res = test.ShowStatusServiceUnavailable(rest.T(), svc.Context, svc, ctrl)
 
-	assert.NotNil(rest.T(), res.Error)
-	assert.Equal(rest.T(), "DB is unreachable", *res.Error)
+	assert.Equal(rest.T(), expectedDefaultConfProdModeErrorMessage, res.ConfigurationStatus)
+	assert.Equal(rest.T(), "Error: DB is unreachable", res.DatabaseStatus)
 }
 
 func (rest *TestStatusREST) resetConfiguration() {
