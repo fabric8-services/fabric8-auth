@@ -92,7 +92,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	isSvcAccount := token.IsSpecificServiceAccount(ctx, []string{"online-registration"})
 	if !isSvcAccount {
-		log.Error(ctx, nil, "account used to call create api is not a service account")
+		log.Error(ctx, nil, "The account is not an authorized service account allowed to create a new user")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))
 	}
 
