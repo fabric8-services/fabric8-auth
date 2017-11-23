@@ -159,7 +159,30 @@ func TestGetKeycloakEndpointTokenSetByEnvVaribaleOK(t *testing.T) {
 func TestGetKeycloakEndpointUserInfoOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
+	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
+}
+
+func TestGetKeycloakEndpointLinkIDPOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	sampleID := "1234"
+	idp := "openshift-v3"
+	expectedEndpoint := config.GetKeycloakDevModeURL() + "/auth/admin/realms/" + config.GetKeycloakRealm() + "/users/" + sampleID + "/federated-identity/" + idp
+	url, err := config.GetKeycloakEndpointLinkIDP(reqLong, sampleID, idp)
+	assert.Nil(t, err)
+	// In dev mode it's always the defualt value regardless of the request
+	assert.Equal(t, expectedEndpoint, url)
+
+	url, err = config.GetKeycloakEndpointLinkIDP(reqShort, sampleID, idp)
+	assert.Nil(t, err)
+	// In dev mode it's always the defualt value regardless of the request
+	assert.Equal(t, expectedEndpoint, url)
+}
+
+func TestGetKeycloakEndpointUsersOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/users", config.GetKeycloakEndpointUsers)
 }
 
 func TestGetKeycloakEndpointUserInfoSetByEnvVaribaleOK(t *testing.T) {
