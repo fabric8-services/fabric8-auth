@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/app"
+
+	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 )
@@ -17,33 +19,78 @@ var (
 	StartTime = time.Now().UTC().Format("2006-01-02T15:04:05Z")
 )
 
+type statusConfiguration interface {
+	IsPostgresDeveloperModeEnabled() bool
+	DefaultConfigurationError() error
+}
+
+// DBChecker is to be used to check if the DB is reachable
+type DBChecker interface {
+	Ping() error
+}
+
 // StatusController implements the status resource.
 type StatusController struct {
 	*goa.Controller
-	db *gorm.DB
+	dbChecker DBChecker
+	config    statusConfiguration
 }
 
 // NewStatusController creates a status controller.
-func NewStatusController(service *goa.Service, db *gorm.DB) *StatusController {
+func NewStatusController(service *goa.Service, dbChecker DBChecker, config statusConfiguration) *StatusController {
 	return &StatusController{
 		Controller: service.NewController("StatusController"),
-		db:         db,
+		dbChecker:  dbChecker,
+		config:     config,
 	}
 }
 
 // Show runs the show action.
 func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
-	res := &app.Status{}
-	res.Commit = Commit
-	res.BuildTime = BuildTime
-	res.StartTime = StartTime
+	res := &app.Status{
+		Commit:    Commit,
+		BuildTime: BuildTime,
+		StartTime: StartTime,
+	}
 
-	_, err := c.db.DB().Exec("select 1")
-	if err != nil {
-		var message string
-		message = err.Error()
-		res.Error = &message
+	devMode := c.config.IsPostgresDeveloperModeEnabled()
+	if devMode {
+		res.DevMode = &devMode
+	}
+
+	dbErr := c.dbChecker.Ping()
+	if dbErr != nil {
+		res.DatabaseStatus = fmt.Sprintf("Error: %s", dbErr.Error())
+	} else {
+		res.DatabaseStatus = "OK"
+	}
+
+	configErr := c.config.DefaultConfigurationError()
+	if configErr != nil {
+		res.ConfigurationStatus = fmt.Sprintf("Error: %s", configErr.Error())
+	} else {
+		res.ConfigurationStatus = "OK"
+	}
+
+	if dbErr != nil || (configErr != nil && !devMode) {
 		return ctx.ServiceUnavailable(res)
 	}
 	return ctx.OK(res)
+}
+
+// GormDBChecker implements DB checker
+type GormDBChecker struct {
+	db *gorm.DB
+}
+
+// NewGormDBChecker constructs a new GormDBChecker
+func NewGormDBChecker(db *gorm.DB) DBChecker {
+	return &GormDBChecker{
+		db: db,
+	}
+}
+
+func (c *GormDBChecker) Ping() error {
+	_, err := c.db.DB().Exec("select 1")
+	return err
 }
