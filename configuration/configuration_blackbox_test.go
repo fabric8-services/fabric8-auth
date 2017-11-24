@@ -228,9 +228,9 @@ func TestGetWITURLNotDevModeOK(t *testing.T) {
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
 	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
 	defer func() {
-		resetConfiguration()
 		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITprefix)
 		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
+		resetConfiguration()
 	}()
 
 	os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", "false")
@@ -251,9 +251,9 @@ func TestGetWITURLDevModeOK(t *testing.T) {
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
 	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
 	defer func() {
-		resetConfiguration()
 		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITprefix)
 		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
+		resetConfiguration()
 	}()
 
 	os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", "true")
@@ -268,12 +268,12 @@ func TestGetWITURLSetViaEnvVarOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	existingWITURL := os.Getenv("AUTH_WIT_URL")
 	defer func() {
-		resetConfiguration()
 		if existingWITURL != "" {
 			os.Setenv("AUTH_WIT_URL", existingWITURL)
 		} else {
 			os.Unsetenv("AUTH_WIT_URL")
 		}
+		resetConfiguration()
 	}()
 
 	os.Setenv("AUTH_WIT_URL", "https://new.wit.url")

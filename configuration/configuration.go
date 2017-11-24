@@ -129,6 +129,8 @@ type ConfigurationData struct {
 
 	// OSO Cluster Configuration is a map of clusters where the key == the OSO cluster API URL
 	clusters map[string]OSOCluster
+
+	defaultConfigurationError error
 }
 
 // NewConfigurationData creates a configuration reader object using configurable configuration file paths
@@ -154,7 +156,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	// Set up the service account configuration (stored in a separate config file)
-	saViper, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
+	saViper, defaultConfigErrorMsg, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
+	c.appendDefaultConfigErrorMessage(defaultConfigErrorMsg)
 
 	var saConf serviceAccountConfig
 	err = saViper.UnmarshalExact(&saConf)
@@ -167,7 +170,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
-	clusterViper, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
+	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
+	c.appendDefaultConfigErrorMessage(defaultConfigErrorMsg)
 
 	var clusterConf osoClusterConfig
 	err = clusterViper.UnmarshalExact(&clusterConf)
@@ -179,34 +183,74 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		c.clusters[cluster.URL] = cluster
 	}
 
+	// Check sensitive default configuration
+	if c.IsPostgresDeveloperModeEnabled() {
+		msg := "developer Mode is enabled"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	key, kid := c.GetServiceAccountPrivateKey()
+	if string(key) == DefaultServiceAccountPrivateKey {
+		msg := "default service account private key is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if kid == defaultServiceAccountPrivateKeyID {
+		msg := "default service account private key ID is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetPostgresPassword() == defaultDBPassword {
+		msg := "default DB password is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetKeycloakSecret() == defaultKeycloakSecret {
+		msg := "default Keycloak client secret is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
+		msg := "default GitHub client secret is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.IsTLSInsecureSkipVerify() {
+		msg := "TLS verification disabled"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.GetValidRedirectURLs() == ".*" {
+		msg := "no restrictions for valid redirect URLs"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if c.defaultConfigurationError != nil {
+		log.WithFields(map[string]interface{}{
+			"default_configuration_error": c.defaultConfigurationError.Error(),
+		}).Warningln("Default config is used! This is OK in Dev Mode.")
+	}
+
 	return &c, nil
 }
 
-func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, error) {
+func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, *string, error) {
 	jsonViper := viper.New()
 	jsonViper.SetTypeByDefaultValue(true)
 
 	var err error
 	var etcJSONConfigUsed bool
+	var defaultConfigErrorMsg *string
 	if configFilePath != "" {
 		// If a JSON configuration file has been specified, check if it exists
 		if _, err := os.Stat(configFilePath); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	} else {
 		// If the JSON configuration file has not been specified
 		// then we default to <defaultConfigFile>
 		configFilePath, err = pathExists(defaultConfigFilePath)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		etcJSONConfigUsed = configFilePath != ""
 	}
 
 	if !etcJSONConfigUsed {
-		log.WithFields(map[string]interface{}{
-			"default_json_config_path": defaultConfigFilePath,
-		}).Warningln("Default JSON config file path is not used!")
+		errMsg := fmt.Sprintf("%s is not used", defaultConfigFilePath)
+		defaultConfigErrorMsg = &errMsg
 	}
 
 	jsonViper.SetConfigType("json")
@@ -214,18 +258,29 @@ func readFromJSONFile(configFilePath string, defaultConfigFilePath string, confi
 		// Load the default config
 		data, err := Asset(configFileName)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		jsonViper.ReadConfig(bytes.NewBuffer(data))
 	} else {
 		jsonViper.SetConfigFile(configFilePath)
 		err := jsonViper.ReadInConfig()
 		if err != nil {
-			return nil, errors.Errorf("failed to load the JSON config file (%s): %s \n", configFilePath, err)
+			return nil, nil, errors.Errorf("failed to load the JSON config file (%s): %s \n", configFilePath, err)
 		}
 	}
 
-	return jsonViper, nil
+	return jsonViper, defaultConfigErrorMsg, nil
+}
+
+func (c *ConfigurationData) appendDefaultConfigErrorMessage(message *string) {
+	if message == nil {
+		return
+	}
+	if c.defaultConfigurationError == nil {
+		c.defaultConfigurationError = errors.New(*message)
+	} else {
+		c.defaultConfigurationError = errors.Errorf("%s; %s", c.defaultConfigurationError.Error(), *message)
+	}
 }
 
 func pathExists(pathToCheck string) (string, error) {
@@ -252,6 +307,14 @@ func getServiceAccountConfigFile() string {
 func getOSOClusterConfigFile() string {
 	envOSOClusterConfigFile, _ := os.LookupEnv("AUTH_OSO_CLUSTER_CONFIG_FILE")
 	return envOSOClusterConfigFile
+}
+
+// DefaultConfigurationError returns an error if the default values is used
+// for sensitive configuration like service account secrets or private keys.
+// Error contains all the details.
+// Returns nil if the default configuration is not used.
+func (c *ConfigurationData) DefaultConfigurationError() error {
+	return c.defaultConfigurationError
 }
 
 // GetServiceAccounts returns a map of service account configurations by service account ID
@@ -287,7 +350,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varPostgresPort, 5433)
 	c.v.SetDefault(varPostgresUser, "postgres")
 	c.v.SetDefault(varPostgresDatabase, "postgres")
-	c.v.SetDefault(varPostgresPassword, "mysecretpassword")
+	c.v.SetDefault(varPostgresPassword, defaultDBPassword)
 	c.v.SetDefault(varPostgresSSLMode, "disable")
 	c.v.SetDefault(varPostgresConnectionTimeout, 5)
 	c.v.SetDefault(varPostgresConnectionMaxIdle, -1)
@@ -321,14 +384,14 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Auth-related defaults
 	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
 	c.v.SetDefault(varServiceAccountPrivateKey, DefaultServiceAccountPrivateKey)
-	c.v.SetDefault(varServiceAccountPrivateKeyID, "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs")
+	c.v.SetDefault(varServiceAccountPrivateKeyID, defaultServiceAccountPrivateKeyID)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 	c.v.SetDefault(varGitHubClientID, "c6a3a6280e9650ba27d8")
-	c.v.SetDefault(varGitHubClientSecret, "48d1498c849616dfecf83cf74f22dfb361ee2511")
+	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org repo user gist")
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
 	c.v.SetDefault(varTLSInsecureSkipVerify, false) // Do not set to true in production! True can be used only for testing.
@@ -848,6 +911,12 @@ ZzBJ0G5JHPtaub6sEC6/ZWe0F1nJYP2KLop57FxKRt0G2+fxeA0ahpMwa2oMMiQM
 BA/cKaLPqUF+08Tz/9MPBw51UH4GYfppA/x0ktc8998984FeIpfIFX6I2U9yUnoQ
 OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 -----END RSA PRIVATE KEY-----`
+
+	defaultServiceAccountPrivateKeyID = "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs"
+
+	defaultDBPassword = "mysecretpassword"
+
+	defaultGitHubClientSecret = "48d1498c849616dfecf83cf74f22dfb361ee2511"
 
 	defaultLogLevel = "info"
 
