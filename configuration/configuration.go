@@ -213,8 +213,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		msg := "TLS verification disabled"
 		c.appendDefaultConfigErrorMessage(&msg)
 	}
-	if c.GetValidRedirectURLs() != DefaultValidRedirectURLs {
-		msg := "default valid redirect URLs are NOT used"
+	if c.GetValidRedirectURLs() == ".*" {
+		msg := "no restrictions for valid redirect URLs"
 		c.appendDefaultConfigErrorMessage(&msg)
 	}
 	if c.defaultConfigurationError != nil {
