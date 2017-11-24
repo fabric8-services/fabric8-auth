@@ -296,6 +296,19 @@ $(INSTALL_PREFIX):
 
 $(TMP_PATH):
 	mkdir -p $(TMP_PATH)
+	
+.PHONY: dev-auth-openshift
+dev-auth-openshift: prebuild-check deps generate $(FRESH_BIN)
+	minishift start --cpus 4
+	./check_hosts.sh
+	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
+	AUTH_DEVELOPER_MODE_ENABLED=true \
+	kedge apply -f kedge/db-auth.yml -f kedge/auth.yml
+
+.PHONY: dev-auth-openshift-clean
+dev-auth-openshift-clean:
+	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc delete project auth-openshift --grace-period=1
+
 
 .PHONY: prebuild-check
 prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN)
