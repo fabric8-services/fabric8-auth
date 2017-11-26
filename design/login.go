@@ -30,6 +30,34 @@ var _ = a.Resource("login", func() {
 	})
 })
 
+var _ = a.Resource("authorize", func() {
+
+	a.BasePath("/authorize")
+
+	a.Action("authorize", func() {
+		a.Routing(
+			a.GET(""),
+		)
+		a.Params(func() {
+			a.Param("response_type", d.String, func() {
+				a.Enum("code")
+				a.Description("response_type=code for grant_type authorization_code")
+			})
+			a.Param("client_id", d.String, "")
+			a.Param("redirect_uri", d.String, "This is where authorization provider will send authorization_code")
+			a.Param("scope", d.String, "")
+			a.Param("state", d.UUID, "")
+			a.Param("code", d.String, "authorization_code")
+			a.Param("api_client", d.String, "The name of the api client which is requesting a token")
+		})
+		a.Description("Authorize service client")
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
+})
+
 var _ = a.Resource("logout", func() {
 
 	a.BasePath("/logout")
