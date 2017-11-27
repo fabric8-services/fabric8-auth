@@ -122,8 +122,10 @@ var _ = a.Resource("token", func() {
 			a.POST("link"),
 		)
 		a.Payload(linkPayload)
-		a.Description("Link the user account to an external resource provider such as GitHub")
-		a.Response(d.SeeOther)
+		a.Description("Get a redirect location which should be used to initiate account linking between the user account and an external resource provider such as GitHub")
+		a.Response(d.OK, func() {
+			a.Media(redirectLocation)
+		})
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
@@ -218,5 +220,19 @@ var OauthToken = a.MediaType("application/vnd.oauthtoken+json", func() {
 	a.View("default", func() {
 		a.Attribute("access_token")
 		a.Attribute("token_type")
+	})
+})
+
+// redirectLocation represents an redirect location
+var redirectLocation = a.MediaType("application/vnd.redirectlocation+json", func() {
+	a.TypeName("RedirectLocation")
+	a.Description("Redirect Location")
+	a.Attributes(func() {
+		a.Attribute("redirect_location", d.String, "The location which should be used to redirect browser")
+		a.Required("redirect_location")
+	})
+	a.View("default", func() {
+		a.Attribute("redirect_location")
+		a.Required("redirect_location")
 	})
 })

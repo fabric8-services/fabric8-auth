@@ -86,20 +86,15 @@ func (rest *TestTokenREST) TestLinkRedirects() {
 	token, _ := testtoken.GenerateTokenWithClaims(nil)
 	redirect := "https://openshift.io"
 	payload := &app.LinkPayload{Token: token, For: "https://github.com/org/repo", Redirect: &redirect}
-	response := test.LinkTokenSeeOther(rest.T(), service.Context, service, controller, payload)
-	require.NotNil(rest.T(), response)
-	location := response.Header()["Location"]
-	require.Equal(rest.T(), 1, len(location))
-	require.Equal(rest.T(), "providerLocation", location[0])
+	_, redirectLocation := test.LinkTokenOK(rest.T(), service.Context, service, controller, payload)
+	require.NotNil(rest.T(), redirectLocation)
+	require.Equal(rest.T(), "providerLocation", redirectLocation.RedirectLocation)
 
 	// Multiple "for" resources
 	payload = &app.LinkPayload{Token: token, For: "https://github.com/org/repo," + rest.config.GetOpenShiftClientApiUrl(), Redirect: &redirect}
-	response = test.LinkTokenSeeOther(rest.T(), service.Context, service, controller, payload)
-	require.NotNil(rest.T(), response)
-	location = response.Header()["Location"]
-	require.Equal(rest.T(), 1, len(location))
-	require.Equal(rest.T(), "providerLocation", location[0])
-
+	_, redirectLocation = test.LinkTokenOK(rest.T(), service.Context, service, controller, payload)
+	require.NotNil(rest.T(), redirectLocation)
+	require.Equal(rest.T(), "providerLocation", redirectLocation.RedirectLocation)
 }
 
 func (rest *TestTokenREST) TestLinkCallbackRedirects() {

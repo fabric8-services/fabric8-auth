@@ -531,8 +531,8 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	ctx.ResponseData.Header().Set("Location", redirectLocation)
-	return ctx.SeeOther()
+	locationPayload := &app.RedirectLocation{RedirectLocation: redirectLocation}
+	return ctx.OK(locationPayload)
 }
 
 // Callback is called by an external oauth2 resource provider such as GitHub as part of user's account linking flow
