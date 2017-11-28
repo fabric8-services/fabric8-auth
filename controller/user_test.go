@@ -1,33 +1,31 @@
 package controller_test
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
-	"context"
-
-	"net/http"
-
-	token "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
-
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-auth/token/provider"
+
+	token "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -40,7 +38,6 @@ type TestUserREST struct {
 
 func (rest *TestUserREST) TestRunUserREST(t *testing.T) {
 	resource.Require(rest.T(), resource.UnitTest)
-	t.Parallel()
 	suite.Run(rest.T(), &TestUserREST{})
 }
 

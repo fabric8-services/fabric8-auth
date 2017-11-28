@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
@@ -42,7 +41,7 @@ func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) 
 }
 
 func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(&gormapplication.GormDB{}, rest.Configuration)
+	loginService := newTestKeycloakOAuthProvider(rest.Application)
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 

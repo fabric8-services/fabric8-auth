@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -49,29 +48,24 @@ func (rest *TestTokenStorageREST) SetupTest() {
 	rest.identityRepository = account.NewIdentityRepository(rest.DB)
 	rest.externalTokenRepository = provider.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
-
-	config, err := configuration.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
-	}
-	rest.Configuration = config
-	rest.providerConfigFactory = link.NewOauthProviderFactory(config)
+	rest.providerConfigFactory = link.NewOauthProviderFactory(rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	return svc, &TokenController{Controller: svc.NewController("token"), Auth: TestLoginService{}, Configuration: rest.Configuration}
+	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	return svc, &TokenController{Controller: svc.NewController("token"), Auth: loginService, Configuration: rest.Configuration}
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application, rest.Configuration)
+	loginService := newTestKeycloakOAuthProvider(rest.Application)
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application, rest.Configuration)
+	loginService := newTestKeycloakOAuthProvider(rest.Application)
 
 	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)

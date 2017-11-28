@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"testing"
 
-	config "github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/resource"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 
 	"github.com/dgrijalva/jwt-go"
@@ -27,12 +25,8 @@ func TestRunTokenWhiteBoxTest(t *testing.T) {
 }
 
 func (s *TokenWhiteBoxTest) SetupSuite() {
-	resource.Require(s.T(), resource.Remote)
+	s.RemoteTestSuite.SetupSuite()
 	var err error
-	s.Config, err = config.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
-	}
 	m, err := NewManager(s.Config)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), m)
