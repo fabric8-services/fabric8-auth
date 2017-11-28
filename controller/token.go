@@ -506,33 +506,31 @@ func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration 
 
 // Link links the user account to an external resource provider such as GitHub
 func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
-	tokenClaims, err := c.TokenManager.ParseToken(ctx, ctx.Payload.Token)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":   err,
-			"token": ctx.Payload.Token,
-		}, "unable to parse token")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	if ctx.For == "" {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
-	identityID := tokenClaims.StandardClaims.Subject
+	currentIdentity, err := login.ContextIdentityIfExists(ctx, c.db)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	var redirectURL string
-	if ctx.Payload.Redirect == nil {
+	if ctx.Redirect == nil {
 		redirectURL = ctx.RequestData.Header.Get("Referer")
 		if redirectURL == "" {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect", "empty").Expected("redirect param or Referer header should be specified"))
 		}
 	} else {
-		redirectURL = *ctx.Payload.Redirect
+		redirectURL = *ctx.Redirect
 	}
 
-	redirectLocation, err := c.LinkService.ProviderLocation(ctx, ctx.RequestData, identityID, ctx.Payload.For, redirectURL)
+	redirectLocation, err := c.LinkService.ProviderLocation(ctx, ctx.RequestData, currentIdentity.String(), ctx.For, redirectURL)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	ctx.ResponseData.Header().Set("Location", redirectLocation)
-	return ctx.SeeOther()
+	locationPayload := &app.RedirectLocation{RedirectLocation: redirectLocation}
+	return ctx.OK(locationPayload)
 }
 
 // Callback is called by an external oauth2 resource provider such as GitHub as part of user's account linking flow

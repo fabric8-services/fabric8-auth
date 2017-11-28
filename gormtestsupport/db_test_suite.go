@@ -10,6 +10,8 @@ import (
 
 	"context"
 
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq" // need to import postgres driver
@@ -29,6 +31,7 @@ type DBTestSuite struct {
 	suite.Suite
 	Configuration *config.ConfigurationData
 	DB            *gorm.DB
+	Application   application.DB
 	clean         func()
 	Ctx           context.Context
 }
@@ -52,6 +55,7 @@ func (s *DBTestSuite) SetupSuite() {
 			}, "failed to connect to the database")
 		}
 	}
+	s.Application = gormapplication.NewGormDB(s.DB)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
 }

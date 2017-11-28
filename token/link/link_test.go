@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -15,10 +17,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
-
-	"os"
-
-	"strings"
 
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
@@ -31,7 +29,6 @@ import (
 
 type LinkTestSuite struct {
 	gormtestsupport.DBTestSuite
-	application  application.DB
 	linkService  LinkOAuthService
 	testIdentity account.Identity
 	requestData  *goa.RequestData
@@ -44,9 +41,8 @@ func TestRunLinkTestSuite(t *testing.T) {
 
 func (s *LinkTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.application = gormapplication.NewGormDB(s.DB)
 	providerFactory := NewOauthProviderFactory(s.Configuration)
-	s.linkService = NewLinkServiceWithFactory(s.Configuration, s.application, providerFactory)
+	s.linkService = NewLinkServiceWithFactory(s.Configuration, s.Application, providerFactory)
 	s.requestData = &goa.RequestData{Request: &http.Request{
 		URL: &url.URL{Scheme: "https", Host: "auth.openshift.io"},
 	}}
@@ -178,7 +174,7 @@ func (s *LinkTestSuite) checkToken(providerID string, expectedToken string) {
 	id, err := uuid.FromString(providerID)
 	require.Nil(s.T(), err)
 	var tokens []provider.ExternalToken
-	err = application.Transactional(s.application, func(appl application.Application) error {
+	err = application.Transactional(s.Application, func(appl application.Application) error {
 		tokens, err = appl.ExternalTokens().LoadByProviderIDAndIdentityID(context.Background(), id, s.testIdentity.ID)
 		return err
 	})
