@@ -8,13 +8,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/satori/go.uuid"
-
-	res "github.com/fabric8-services/fabric8-auth/resource"
 )
 
 type resourceBlackBoxTest struct {
@@ -36,9 +33,6 @@ func (s *resourceBlackBoxTest) SetupTest() {
 }
 
 func (s *resourceBlackBoxTest) TestOKToDelete() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	resource := createAndLoadResource(s)
 	createAndLoadResource(s)
 
@@ -56,15 +50,11 @@ func (s *resourceBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *resourceBlackBoxTest) TestOKToLoad() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	createAndLoadResource(s)
 }
 
 func (s *resourceBlackBoxTest) TestExistsResource() {
 	t := s.T()
-	res.Require(t, res.Database)
 
 	t.Run("resource exists", func(t *testing.T) {
 		//t.Parallel()
@@ -85,9 +75,6 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 }
 
 func (s *resourceBlackBoxTest) TestOKToSave() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	resource := createAndLoadResource(s)
 
 	resource.Description = "foo"

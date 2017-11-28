@@ -6,13 +6,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	res "github.com/fabric8-services/fabric8-auth/resource"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/satori/go.uuid"
 )
 
 type resourceTypeBlackBoxTest struct {
@@ -30,9 +28,6 @@ func (s *resourceTypeBlackBoxTest) SetupTest() {
 }
 
 func (s *resourceTypeBlackBoxTest) TestOKToDelete() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	// create 2 resources types, where the first one would be deleted.
 	resourceType := createAndLoadResourceType(s)
 	createAndLoadResourceType(s)
@@ -53,15 +48,11 @@ func (s *resourceTypeBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *resourceTypeBlackBoxTest) TestOKToLoad() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	createAndLoadResourceType(s) // this function does the needful already
 }
 
 func (s *resourceTypeBlackBoxTest) TestExistsResourceType() {
 	t := s.T()
-	res.Require(t, res.Database)
 
 	t.Run("resource type exists", func(t *testing.T) {
 		//t.Parallel()
@@ -82,9 +73,6 @@ func (s *resourceTypeBlackBoxTest) TestExistsResourceType() {
 }
 
 func (s *resourceTypeBlackBoxTest) TestOKToSave() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	resourceType := createAndLoadResourceType(s)
 
 	resourceType.Name = "newResourceTypeNameTestType"

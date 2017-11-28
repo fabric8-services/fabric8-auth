@@ -9,13 +9,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/satori/go.uuid"
-
-	res "github.com/fabric8-services/fabric8-auth/resource"
 )
 
 type identityRoleBlackBoxTest struct {
@@ -63,15 +60,11 @@ func (s *identityRoleBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToLoad() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	createAndLoadIdentityRole(s)
 }
 
 func (s *identityRoleBlackBoxTest) TestExistsRole() {
 	t := s.T()
-	res.Require(t, res.Database)
 
 	t.Run("identity role exists", func(t *testing.T) {
 		//t.Parallel()
@@ -92,9 +85,6 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToSave() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	//identityRole := createAndLoadIdentityRole(s)
 
 	//identityRole.Name = "newRoleNameTestType"

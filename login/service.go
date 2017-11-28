@@ -827,6 +827,27 @@ func ContextIdentity(ctx context.Context) (*uuid.UUID, error) {
 	return &uuid, nil
 }
 
+// ContextIdentity returns the identity's ID found in given context if the identity exists in the Auth DB
+// If it doesn't exist then an Unauthorized error is returned
+func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID, error) {
+	identity, err := ContextIdentity(ctx)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	// Check if the identity exists
+	err = application.Transactional(db, func(appl application.Application) error {
+		err := appl.Identities().CheckExists(ctx, identity.String())
+		if err != nil {
+			return autherrors.NewUnauthorizedError(err.Error())
+		}
+		return nil
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return *identity, nil
+}
+
 // InjectTokenManager is a middleware responsible for setting up tokenManager in the context for every request.
 func InjectTokenManager(tokenManager token.Manager) goa.Middleware {
 	return func(h goa.Handler) goa.Handler {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-
 	"testing"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -35,7 +33,6 @@ func TestUsers(t *testing.T) {
 
 type TestUsersSuite struct {
 	gormtestsupport.DBTestSuite
-	db             *gormapplication.GormDB
 	svc            *goa.Service
 	controller     *UsersController
 	userRepo       account.UserRepository
@@ -47,7 +44,6 @@ type TestUsersSuite struct {
 func (s *TestUsersSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.svc = goa.New("test")
-	s.db = gormapplication.NewGormDB(s.DB)
 	testAttributeValue := "a"
 	dummyProfileResponse := createDummyUserProfileResponse(&testAttributeValue, &testAttributeValue, &testAttributeValue)
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
