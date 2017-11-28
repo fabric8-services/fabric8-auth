@@ -2,15 +2,13 @@ package controller_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
@@ -18,40 +16,37 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestTokenREST struct {
-	suite.Suite
-	config *configuration.ConfigurationData
+	gormtestsupport.DBTestSuite
 }
 
 func TestRunTokenREST(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	suite.Run(t, &TestTokenREST{})
+	suite.Run(t, &TestTokenREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (rest *TestTokenREST) SetupSuite() {
-	var err error
-	rest.config, err = configuration.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
-	}
-}
-
-func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController) {
-	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	return svc, &TokenController{Controller: svc.NewController("token"), Auth: TestLoginService{}, Configuration: rest.config}
+func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
+	return rest.SecuredControllerWithIdentity(testsupport.TestIdentity)
 }
 
 func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(&gormapplication.GormDB{}, rest.config)
-	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	require.Nil(rest.T(), err)
+	return rest.SecuredControllerWithIdentity(identity)
+}
+
+func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
+	loginService := newTestKeycloakOAuthProvider(rest.Application)
+
+	svc := testsupport.ServiceAsUser("Token-Service", identity)
 
 	linkService := &DummyLinkService{}
-	return svc, NewTokenController(svc, nil, loginService, linkService, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.config)
+	return svc, NewTokenController(svc, rest.Application, loginService, linkService, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Configuration)
 }
 
 func (rest *TestTokenREST) TestRefreshTokenUsingNilTokenFails() {
@@ -63,43 +58,31 @@ func (rest *TestTokenREST) TestRefreshTokenUsingNilTokenFails() {
 	assert.NotNil(t, err)
 }
 
-func (rest *TestTokenREST) TestLinkForInvalidTokenFails() {
-	service, controller := rest.SecuredController()
+func (rest *TestTokenREST) TestLinkForNonExistentUserFails() {
+	service, controller := rest.SecuredControllerWithNonExistentIdentity()
 
-	token := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.S-vR8LZTQ92iqGCR3rNUG0MiGx2N5EBVq0frCHP_bJ8"
 	redirect := "https://openshift.io"
-	payload := &app.LinkPayload{Token: token, For: "https://github.com/org/repo", Redirect: &redirect}
-	test.LinkTokenUnauthorized(rest.T(), service.Context, service, controller, payload)
+	test.LinkTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/org/repo", &redirect)
 }
 
 func (rest *TestTokenREST) TestLinkNoRedirectNoReferrerFails() {
 	service, controller := rest.SecuredController()
 
-	token, _ := testtoken.GenerateTokenWithClaims(nil)
-	payload := &app.LinkPayload{Token: token, For: "https://github.com/org/repo"}
-	test.LinkTokenBadRequest(rest.T(), service.Context, service, controller, payload)
+	test.LinkTokenBadRequest(rest.T(), service.Context, service, controller, "https://github.com/org/repo", nil)
 }
 
-func (rest *TestTokenREST) TestLinkRedirects() {
+func (rest *TestTokenREST) TestLinkOK() {
 	service, controller := rest.SecuredController()
 
-	token, _ := testtoken.GenerateTokenWithClaims(nil)
 	redirect := "https://openshift.io"
-	payload := &app.LinkPayload{Token: token, For: "https://github.com/org/repo", Redirect: &redirect}
-	response := test.LinkTokenSeeOther(rest.T(), service.Context, service, controller, payload)
-	require.NotNil(rest.T(), response)
-	location := response.Header()["Location"]
-	require.Equal(rest.T(), 1, len(location))
-	require.Equal(rest.T(), "providerLocation", location[0])
+	_, redirectLocation := test.LinkTokenOK(rest.T(), service.Context, service, controller, "https://github.com/org/repo", &redirect)
+	require.NotNil(rest.T(), redirectLocation)
+	require.Equal(rest.T(), "providerLocation", redirectLocation.RedirectLocation)
 
 	// Multiple "for" resources
-	payload = &app.LinkPayload{Token: token, For: "https://github.com/org/repo," + rest.config.GetOpenShiftClientApiUrl(), Redirect: &redirect}
-	response = test.LinkTokenSeeOther(rest.T(), service.Context, service, controller, payload)
-	require.NotNil(rest.T(), response)
-	location = response.Header()["Location"]
-	require.Equal(rest.T(), 1, len(location))
-	require.Equal(rest.T(), "providerLocation", location[0])
-
+	_, redirectLocation = test.LinkTokenOK(rest.T(), service.Context, service, controller, "https://github.com/org/repo,"+rest.Configuration.GetOpenShiftClientApiUrl(), &redirect)
+	require.NotNil(rest.T(), redirectLocation)
+	require.Equal(rest.T(), "providerLocation", redirectLocation.RedirectLocation)
 }
 
 func (rest *TestTokenREST) TestLinkCallbackRedirects() {

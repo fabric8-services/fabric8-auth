@@ -73,7 +73,6 @@ func (m *DummyPolicyManager) RemoveUserFromPolicy(p *auth.KeycloakPolicy, userID
 type TestCollaboratorsREST struct {
 	gormtestsupport.DBTestSuite
 
-	db            *gormapplication.GormDB
 	policy        *auth.KeycloakPolicy
 	testIdentity1 account.Identity
 	testIdentity2 account.Identity
@@ -88,8 +87,6 @@ func TestRunCollaboratorsREST(t *testing.T) {
 
 func (rest *TestCollaboratorsREST) SetupTest() {
 	rest.DBTestSuite.SetupTest()
-	rest.db = gormapplication.NewGormDB(rest.DB)
-
 	rest.policy = &auth.KeycloakPolicy{
 		Name:             "TestCollaborators-" + uuid.NewV4().String(),
 		Type:             auth.PolicyTypeUser,
@@ -110,12 +107,12 @@ func (rest *TestCollaboratorsREST) SetupTest() {
 
 func (rest *TestCollaboratorsREST) SecuredController() (*goa.Service, *CollaboratorsController) {
 	svc := testsupport.ServiceAsSpaceUser("Collaborators-Service", rest.testIdentity1, &DummySpaceAuthzService{rest})
-	return svc, NewCollaboratorsController(svc, rest.db, rest.Configuration, &DummyPolicyManager{rest: rest})
+	return svc, NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
 }
 
 func (rest *TestCollaboratorsREST) UnSecuredController() (*goa.Service, *CollaboratorsController) {
 	svc := goa.New("Collaborators-Service")
-	return svc, NewCollaboratorsController(svc, rest.db, rest.Configuration, &DummyPolicyManager{rest: rest})
+	return svc, NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
 }
 
 func (rest *TestCollaboratorsREST) TestListCollaboratorsWithRandomSpaceIDNotFound() {
@@ -395,7 +392,7 @@ func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsUnauthorizedIfNoTo
 func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsUnauthorizedIfCurrentUserIsNotCollaborator() {
 	// given
 	svc := testsupport.ServiceAsSpaceUser("Collaborators-Service", rest.testIdentity2, &DummySpaceAuthzService{rest})
-	ctrl := NewCollaboratorsController(svc, rest.db, rest.Configuration, &DummyPolicyManager{rest: rest})
+	ctrl := NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	_, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID}, actualUsers)
@@ -406,7 +403,7 @@ func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsUnauthorizedIfCurrentU
 func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsUnauthorizedIfCurrentUserIsNotCollaborator() {
 	// given
 	svc := testsupport.ServiceAsSpaceUser("Collaborators-Service", rest.testIdentity2, &DummySpaceAuthzService{rest})
-	ctrl := NewCollaboratorsController(svc, rest.db, rest.Configuration, &DummyPolicyManager{rest: rest})
+	ctrl := NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	_, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID}, actualUsers)
@@ -530,7 +527,7 @@ func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsOk() {
 func (rest *TestCollaboratorsREST) createSpace() uuid.UUID {
 	// given
 	svc, _ := rest.SecuredController()
-	spaceCtrl := NewSpaceController(svc, rest.db, rest.Configuration, &DummyResourceManager{})
+	spaceCtrl := NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{})
 	require.NotNil(rest.T(), spaceCtrl)
 
 	id := uuid.NewV4()

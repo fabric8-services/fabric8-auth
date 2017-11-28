@@ -27,7 +27,6 @@ func TestRunSearchUser(t *testing.T) {
 
 type TestSearchUserSearch struct {
 	gormtestsupport.DBTestSuite
-	db         *gormapplication.GormDB
 	svc        *goa.Service
 	controller *SearchController
 }
@@ -35,8 +34,7 @@ type TestSearchUserSearch struct {
 func (s *TestSearchUserSearch) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.svc = goa.New("test")
-	s.db = gormapplication.NewGormDB(s.DB)
-	s.controller = NewSearchController(s.svc, s.db, s.Configuration)
+	s.controller = NewSearchController(s.svc, s.Application, s.Configuration)
 }
 
 type userSearchTestArgs struct {
@@ -111,7 +109,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 
 	idents := []account.Identity{}
 
-	err := application.Transactional(s.db, func(app application.Application) error {
+	err := application.Transactional(s.Application, func(app application.Application) error {
 		for i, name := range names {
 
 			user := account.User{
@@ -140,7 +138,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 }
 
 func (s *TestSearchUserSearch) cleanTestData(idents []account.Identity) {
-	err := application.Transactional(s.db, func(app application.Application) error {
+	err := application.Transactional(s.Application, func(app application.Application) error {
 		db := app.(*gormapplication.GormTransaction).DB()
 		db = db.Unscoped()
 		for _, ident := range idents {

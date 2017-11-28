@@ -118,12 +118,21 @@ var _ = a.Resource("token", func() {
 	})
 
 	a.Action("link", func() {
+		a.Security("jwt")
 		a.Routing(
-			a.POST("link"),
+			a.GET("link"),
 		)
-		a.Payload(linkPayload)
-		a.Description("Link the user account to an external resource provider such as GitHub")
-		a.Response(d.SeeOther)
+		a.Params(func() {
+			a.Param("for", d.String, "Resource we need to link accounts for. Multiple resources should be separated by comma.", func() {
+				a.Example("https://github.com,https://api.starter-us-east-2.openshift.com")
+			})
+			a.Param("redirect", d.String, "URL to be redirected to after successful account linking. If not set then will redirect to the referrer instead.")
+			a.Required("for")
+		})
+		a.Description("Get a redirect location which should be used to initiate account linking between the user account and an external resource provider such as GitHub")
+		a.Response(d.OK, func() {
+			a.Media(redirectLocation)
+		})
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
@@ -143,16 +152,6 @@ var _ = a.Resource("token", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
-})
-
-var linkPayload = a.Type("LinkPayload", func() {
-	a.Attribute("for", d.String, "Resource we need to link accounts for. Multiple resources should be separated by comma.", func() {
-		a.Example("https://github.com/somecoolrepo,https://api.openshift.com")
-	})
-	a.Attribute("token", d.String, "User's access token")
-	a.Attribute("redirect", d.String, "URL to be redirected to after successful account linking. If not set then will redirect to the referrer instead.")
-	//a.Attribute("scope", d.String, "Required scope. Multiple scopes can be specified by separating them with a space. If not defined then the default scope is used.")
-	a.Required("token", "for")
 })
 
 // PublicKeys represents an public keys payload
@@ -218,5 +217,19 @@ var OauthToken = a.MediaType("application/vnd.oauthtoken+json", func() {
 	a.View("default", func() {
 		a.Attribute("access_token")
 		a.Attribute("token_type")
+	})
+})
+
+// redirectLocation represents an redirect location
+var redirectLocation = a.MediaType("application/vnd.redirectlocation+json", func() {
+	a.TypeName("RedirectLocation")
+	a.Description("Redirect Location")
+	a.Attributes(func() {
+		a.Attribute("redirect_location", d.String, "The location which should be used to redirect browser")
+		a.Required("redirect_location")
+	})
+	a.View("default", func() {
+		a.Attribute("redirect_location")
+		a.Required("redirect_location")
 	})
 })

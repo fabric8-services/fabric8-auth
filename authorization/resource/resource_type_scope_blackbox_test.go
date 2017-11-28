@@ -7,13 +7,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/satori/go.uuid"
-
-	res "github.com/fabric8-services/fabric8-auth/resource"
 )
 
 type resourceTypeScopeBlackBoxTest struct {
@@ -54,15 +51,11 @@ func (s *resourceTypeScopeBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *resourceTypeScopeBlackBoxTest) TestOKToLoad() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	createAndLoadResourceTypeScope(s)
 }
 
 func (s *resourceTypeScopeBlackBoxTest) TestExistsResourceTypeScope() {
 	t := s.T()
-	res.Require(t, res.Database)
 
 	t.Run("resource type scope exists", func(t *testing.T) {
 		//t.Parallel()
@@ -83,9 +76,6 @@ func (s *resourceTypeScopeBlackBoxTest) TestExistsResourceTypeScope() {
 }
 
 func (s *resourceTypeScopeBlackBoxTest) TestOKToSave() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	resourceTypeScope := createAndLoadResourceTypeScope(s)
 
 	resourceTypeScope.Name = "newResourceTypeScopeNameTestType"

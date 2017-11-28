@@ -1,37 +1,24 @@
 package controller_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+
 	"github.com/goadesign/goa"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-var spaceConfiguration *configuration.ConfigurationData
-
-func init() {
-	var err error
-	spaceConfiguration, err = configuration.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
-	}
-}
-
 type TestSpaceREST struct {
 	gormtestsupport.DBTestSuite
-	db           *gormapplication.GormDB
 	resourceID   string
 	permissionID string
 	policyID     string
@@ -44,7 +31,6 @@ func TestRunSpaceREST(t *testing.T) {
 
 func (rest *TestSpaceREST) SetupTest() {
 	rest.DBTestSuite.SetupTest()
-	rest.db = gormapplication.NewGormDB(rest.DB)
 	rest.resourceID = uuid.NewV4().String()
 	rest.permissionID = uuid.NewV4().String()
 	rest.policyID = uuid.NewV4().String()
@@ -52,7 +38,7 @@ func (rest *TestSpaceREST) SetupTest() {
 
 func (rest *TestSpaceREST) SecuredController(identity account.Identity) (*goa.Service, *SpaceController) {
 	svc := testsupport.ServiceAsUser("Space-Service", identity)
-	return svc, NewSpaceController(svc, rest.db, spaceConfiguration, &DummyResourceManager{
+	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
 		ResourceID:   &rest.resourceID,
 		PermissionID: &rest.permissionID,
 		PolicyID:     &rest.policyID,
@@ -61,7 +47,7 @@ func (rest *TestSpaceREST) SecuredController(identity account.Identity) (*goa.Se
 
 func (rest *TestSpaceREST) UnSecuredController() (*goa.Service, *SpaceController) {
 	svc := goa.New("Space-Service")
-	return svc, NewSpaceController(svc, rest.db, spaceConfiguration, &DummyResourceManager{
+	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
 		ResourceID:   &rest.resourceID,
 		PermissionID: &rest.permissionID,
 		PolicyID:     &rest.policyID,
