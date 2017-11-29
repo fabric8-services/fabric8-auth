@@ -8,13 +8,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-
-	"github.com/satori/go.uuid"
-
-	res "github.com/fabric8-services/fabric8-auth/resource"
 )
 
 type roleBlackBoxTest struct {
@@ -57,15 +54,11 @@ func (s *roleBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *roleBlackBoxTest) TestOKToLoad() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	createAndLoadRole(s)
 }
 
 func (s *roleBlackBoxTest) TestExistsRole() {
 	t := s.T()
-	res.Require(t, res.Database)
 
 	t.Run("role exists", func(t *testing.T) {
 		//t.Parallel()
@@ -86,9 +79,6 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 }
 
 func (s *roleBlackBoxTest) TestOKToSave() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	role := createAndLoadRole(s)
 
 	role.Name = "newRoleNameTestType"
@@ -101,9 +91,6 @@ func (s *roleBlackBoxTest) TestOKToSave() {
 }
 
 func (s *roleBlackBoxTest) TestScopes() {
-	t := s.T()
-	res.Require(t, res.Database)
-
 	role := createAndLoadRole(s)
 
 	resourceTypeScopes, err := s.resourceTypeScopeRepo.List(s.Ctx, &role.ResourceType)

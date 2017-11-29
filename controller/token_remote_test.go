@@ -2,20 +2,18 @@ package controller_test
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"github.com/fabric8-services/fabric8-auth/token"
 
-	"path/filepath"
-
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -24,18 +22,12 @@ import (
 )
 
 type TestTokenRemoteREST struct {
-	suite.Suite
-	config  *configuration.ConfigurationData
+	testsuite.RemoteTestSuite
 	testDir string
 }
 
 func TestRunTokenRemoteREST(t *testing.T) {
-	resource.Require(t, resource.Remote)
-	config, err := configuration.GetConfigurationData()
-	if err != nil {
-		t.Fatalf("Failed to setup the Configuration: %s", err.Error())
-	}
-	suite.Run(t, &TestTokenRemoteREST{config: config})
+	suite.Run(t, &TestTokenRemoteREST{RemoteTestSuite: testsuite.NewRemoteTestSuite()})
 }
 
 func (rest *TestTokenRemoteREST) SetupTest() {
@@ -47,16 +39,16 @@ func (rest *TestTokenRemoteREST) TearDownTest() {
 
 func (rest *TestTokenRemoteREST) UnSecuredController() (*goa.Service, *TokenController) {
 	svc := goa.New("Token-Service")
-	manager, err := token.NewManager(rest.config)
+	manager, err := token.NewManager(rest.Config)
 	require.Nil(rest.T(), err)
-	return svc, NewTokenController(svc, nil, nil, nil, nil, manager, nil, rest.config)
+	return svc, NewTokenController(svc, nil, nil, nil, nil, manager, nil, rest.Config)
 }
 
 func (rest *TestTokenRemoteREST) UnSecuredControllerWithDummyDB() (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(&gormapplication.GormDB{}, rest.config)
+	loginService := newTestKeycloakOAuthProvider(&gormapplication.GormDB{})
 
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	return svc, NewTokenController(svc, nil, loginService, nil, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.config)
+	return svc, NewTokenController(svc, nil, loginService, nil, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Config)
 }
 
 func (rest *TestTokenRemoteREST) TestPublicKeys() {

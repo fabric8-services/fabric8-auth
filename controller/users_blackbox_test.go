@@ -11,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -33,7 +32,6 @@ func TestUsers(t *testing.T) {
 
 type TestUsersSuite struct {
 	gormtestsupport.DBTestSuite
-	db             *gormapplication.GormDB
 	svc            *goa.Service
 	controller     *UsersController
 	userRepo       account.UserRepository
@@ -44,20 +42,19 @@ type TestUsersSuite struct {
 func (s *TestUsersSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.svc = goa.New("test")
-	s.db = gormapplication.NewGormDB(s.DB)
 	testAttributeValue := "a"
 	dummyProfileResponse := createDummyUserProfileResponse(&testAttributeValue, &testAttributeValue, &testAttributeValue)
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
-	s.controller = NewUsersController(s.svc, s.db, s.Configuration, s.profileService)
-	s.userRepo = s.db.Users()
-	s.identityRepo = s.db.Identities()
+	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService)
+	s.userRepo = s.Application.Users()
+	s.identityRepo = s.Application.Identities()
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
 }
 
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(svc, s.db, s.Configuration, s.profileService)
+	controller := NewUsersController(svc, s.Application, s.Configuration, s.profileService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
