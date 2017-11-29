@@ -162,6 +162,29 @@ func TestGetKeycloakEndpointUserInfoOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
 }
 
+func TestGetKeycloakEndpointLinkIDPOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	sampleID := "1234"
+	idp := "openshift-v3"
+	expectedEndpoint := config.GetKeycloakDevModeURL() + "/auth/admin/realms/" + config.GetKeycloakRealm() + "/users/" + sampleID + "/federated-identity/" + idp
+	url, err := config.GetKeycloakEndpointLinkIDP(reqLong, sampleID, idp)
+	assert.Nil(t, err)
+	// In dev mode it's always the defualt value regardless of the request
+	assert.Equal(t, expectedEndpoint, url)
+
+	url, err = config.GetKeycloakEndpointLinkIDP(reqShort, sampleID, idp)
+	assert.Nil(t, err)
+	// In dev mode it's always the defualt value regardless of the request
+	assert.Equal(t, expectedEndpoint, url)
+}
+
+func TestGetKeycloakEndpointUsersOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/users", config.GetKeycloakEndpointUsers)
+}
+
 func TestGetKeycloakEndpointUserInfoSetByEnvVaribaleOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_USERINFO", config.GetKeycloakEndpointUserInfo)
@@ -346,6 +369,16 @@ func checkServiceAccountConfiguration(t *testing.T, accounts map[string]configur
 		ID:      "c211f1bd-17a7-4f8c-9f80-0917d167889d",
 		Name:    "fabric8-tenant",
 		Secrets: []string{"$2a$04$ynqM/syKMYowMIn5cyqHuevWnfzIQqtyY4m.61B02qltY5SOyGIOe", "$2a$04$sbC/AfW2c33hv8orGA.1D.LXa/.IY76VWhsfqxCVhrhFkDfL0/XGK"}})
+
+	checkServiceAccount(t, accounts, configuration.ServiceAccount{
+		ID:      "341c283f-0cd7-48a8-9281-4583aceb3617",
+		Name:    "fabric8-jenkins-idler",
+		Secrets: []string{"$2a$04$hbGHAVKohpeDgHzafnLwdO4ZzhEn9ukVP/6CaOtf5o3Btp.r6tXTG"}})
+
+	checkServiceAccount(t, accounts, configuration.ServiceAccount{
+		ID:      "f867ec72-3171-4b8f-8eec-90a32eab6e0b",
+		Name:    "online-registration",
+		Secrets: []string{"jIR5FpYq0QUUzMEKqiAIVloNBCL3v1nOPxq9Wm07vTsJhKGNBRWWsdknK4x4el3"}})
 }
 
 func checkServiceAccount(t *testing.T, accounts map[string]configuration.ServiceAccount, expected configuration.ServiceAccount) {
