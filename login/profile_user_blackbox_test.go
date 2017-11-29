@@ -2,20 +2,16 @@ package login_test
 
 import (
 	"context"
-	"fmt"
-	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/resource"
-	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/auth"
-	keycloakLink "github.com/fabric8-services/fabric8-auth/login/link"
+	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/login/link"
+	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 
 	"github.com/goadesign/goa"
-	_ "github.com/lib/pq"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +23,7 @@ type ProfileUserBlackBoxTest struct {
 	clean                func()
 	profileService       login.UserProfileService
 	loginService         *login.KeycloakOAuthProvider
-	idpLinkService       keycloakLink.KeycloakIDPService
+	idpLinkService       link.KeycloakIDPService
 	protectedAccessToken string
 	userAPIFOrAdminURL   string
 	tokenEndpoint        string
@@ -40,35 +36,31 @@ func TestRunProfileUserBlackBoxTest(t *testing.T) {
 // SetupSuite overrides the RemoteTestSuite's function but calls it before doing anything else
 // The SetupSuite method will run before the tests in the suite are run.
 func (s *ProfileUserBlackBoxTest) SetupSuite() {
-	resource.Require(s.T(), resource.Remote)
-	var err error
-	s.Config, err = configuration.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
+	s.RemoteTestSuite.SetupSuite()
+	if s.Config.IsKeycloakTestsDisabled() {
+		s.T().Skip("Skipping Keycloak tests")
 	}
-
+	var err error
 	keycloakUserProfileService := login.NewKeycloakUserProfileClient()
 	s.profileService = keycloakUserProfileService
 
-	s.idpLinkService = keycloakLink.NewKeycloakIDPServiceClient()
+	s.idpLinkService = link.NewKeycloakIDPServiceClient()
 
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
 
 	s.tokenEndpoint, err = s.Config.GetKeycloakEndpointToken(r)
+	assert.Nil(s.T(), err)
 
 	// http://sso.prod-preview.openshift.io/auth/admin/realms/fabric8/users"
 	s.userAPIFOrAdminURL, err = s.Config.GetKeycloakEndpointUsers(r)
+	assert.Nil(s.T(), err)
 
 	token, err := s.generateProtectedAccessToken()
 	assert.Nil(s.T(), err)
 	require.NotNil(s.T(), token)
 	s.protectedAccessToken = *token
-}
-
-func (s *ProfileUserBlackBoxTest) TearDownTest() {
-	//s.clean()
 }
 
 func (s *ProfileUserBlackBoxTest) generateProtectedAccessToken() (*string, error) {
@@ -86,11 +78,6 @@ func (s *ProfileUserBlackBoxTest) TestPATGenerated() {
 }
 
 func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
-
-	if s.Config.IsKeycloakTestsDisabled() {
-		s.T().Skip("Skipping Keycloak AuthZ tests")
-	}
-
 	// UPDATE the user profile
 
 	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
@@ -125,7 +112,7 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 	userURLComponents := strings.Split(*userURL, "/")
 	identityID := userURLComponents[len(userURLComponents)-1]
 	idpName := "rhd"
-	linkRequest := keycloakLink.KeycloakLinkIDPRequest{
+	linkRequest := link.KeycloakLinkIDPRequest{
 		UserID:           &identityID,
 		Username:         testKeycloakUserData.Username,
 		IdentityProvider: &idpName,

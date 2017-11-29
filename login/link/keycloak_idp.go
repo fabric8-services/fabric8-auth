@@ -57,7 +57,7 @@ func (c *KeycloakIDPServiceClient) Create(ctx context.Context, keycloakLinkIDPRe
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"keycloak_idp_link_url": keycloakIDPLinkURL,
 			"err": err,
 		}, "Unable to create idp link for RHD")
@@ -66,25 +66,25 @@ func (c *KeycloakIDPServiceClient) Create(ctx context.Context, keycloakLinkIDPRe
 		defer resp.Body.Close()
 	}
 
+	bodyString := rest.ReadBody(resp.Body)
 	if resp.StatusCode != 204 {
-
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"response_status":       resp.Status,
-			"response_body":         rest.ReadBody(resp.Body),
+			"response_body":         bodyString,
 			"keycloak_idp_link_url": keycloakIDPLinkURL,
 		}, "Unable to create idp link for RHD")
 
 		// Observed this error code when trying to create user
 		// with a token belonging to a different realm.
 		if resp.StatusCode == 403 {
-			return errors.NewUnauthorizedError(rest.ReadBody(resp.Body))
+			return errors.NewUnauthorizedError(bodyString)
 		}
 
 		return errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating keycloak user :  %s", resp.Status, keycloakIDPLinkURL))
 	}
-	log.Info(nil, map[string]interface{}{
+	log.Info(ctx, map[string]interface{}{
 		"response_status":       resp.Status,
-		"response_body":         rest.ReadBody(resp.Body),
+		"response_body":         bodyString,
 		"keycloak_idp_link_url": keycloakIDPLinkURL,
 	}, "Successfully created RHD link for Keycloak user")
 

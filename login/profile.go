@@ -13,12 +13,15 @@ import (
 	errs "github.com/pkg/errors"
 )
 
-const ImageURLAttributeName = "imageURL"
-const BioAttributeName = "bio"
-const URLAttributeName = "url"
-const CompanyAttributeName = "company"
-const ApprovedAttributeName = "approved"
-const ClusterAttribute = "cluster"
+const (
+	ImageURLAttributeName = "imageURL"
+	BioAttributeName      = "bio"
+	URLAttributeName      = "url"
+	CompanyAttributeName  = "company"
+	ApprovedAttributeName = "approved"
+	ClusterAttribute      = "cluster"
+	RHDUsernameAttribute  = "rhd_username"
+)
 
 // KeycloakUserProfile represents standard Keycloak User profile api request payload
 type KeycloakUserProfile struct {
@@ -112,7 +115,7 @@ func (userProfileClient *KeycloakUserProfileClient) Create(ctx context.Context, 
 	resp, err := userProfileClient.client.Do(req)
 
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
 			"err": err,
 		}, "Unable to create Keycloak user")
@@ -121,56 +124,56 @@ func (userProfileClient *KeycloakUserProfileClient) Create(ctx context.Context, 
 		defer resp.Body.Close()
 	}
 
+	bodyString := rest.ReadBody(resp.Body)
 	if resp.StatusCode != 201 {
 
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"response_status":           resp.Status,
-			"response_body":             rest.ReadBody(resp.Body),
+			"response_body":             bodyString,
 			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
 		}, "Unable to create Keycloak user")
 
 		// Observed this error code when trying to create user
 		// with a token belonging to a different realm.
 		if resp.StatusCode == 403 {
-			return nil, errors.NewUnauthorizedError(rest.ReadBody(resp.Body))
+			return nil, errors.NewUnauthorizedError(bodyString)
 		}
 
 		// Observed this error code when trying to create user with an existing username.
 		if resp.StatusCode == 409 {
 			// This isn't version conflict really,
 			// but helps us generate the final response code.
-			return nil, errors.NewVersionConflictError(fmt.Sprintf("user with username %s / email %s already exists", keycloakUserRequest.Username, keycloakUserRequest.Email))
+			return nil, errors.NewVersionConflictError(fmt.Sprintf("user with username %s / email %s already exists", *keycloakUserRequest.Username, *keycloakUserRequest.Email))
 		}
 
 		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating keycloak user :  %s", resp.Status, keycloakAdminUserAPIURL))
 	}
-	log.Info(nil, map[string]interface{}{
+	log.Info(ctx, map[string]interface{}{
 		"response_status":           resp.Status,
-		"response_body":             rest.ReadBody(resp.Body),
+		"response_body":             bodyString,
 		"keycloak_user_profile_url": keycloakAdminUserAPIURL,
 	}, "Successfully create Keycloak user")
 
 	createdUserURL, err := resp.Location()
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_url": keycloakAdminUserAPIURL,
 			"err":               err,
 		}, "Unable to create Keycloak user")
 		return nil, errors.NewInternalError(ctx, err)
 	}
 	if createdUserURL == nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_url": keycloakAdminUserAPIURL,
 		}, "Unable to create Keycloak user")
 		return nil, errors.NewInternalError(ctx, errs.Errorf("user creation in keycloak might have failed."))
 	}
 
 	createdUserURLString := createdUserURL.String()
-	log.Info(nil, map[string]interface{}{
+	log.Info(ctx, map[string]interface{}{
 		"keycloak_user_url": keycloakAdminUserAPIURL,
-		"err":               err,
 		"user_url":          createdUserURLString,
-	}, "Unable to create Keycloak user")
+	}, "Successfully created Keycloak user user")
 
 	return &createdUserURLString, nil
 }
@@ -192,7 +195,7 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 	resp, err := userProfileClient.client.Do(req)
 
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_profile_url": keycloakProfileURL,
 			"err": err,
 		}, "Unable to update Keycloak user profile")
@@ -204,7 +207,7 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 	bodyString := rest.ReadBody(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"response_status":           resp.Status,
 			"response_body":             bodyString,
 			"keycloak_user_profile_url": keycloakProfileURL,
@@ -220,7 +223,7 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 
 		return errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while updating keycloak user profile %s", resp.Status, keycloakProfileURL))
 	}
-	log.Info(nil, map[string]interface{}{
+	log.Info(ctx, map[string]interface{}{
 		"response_status":           resp.Status,
 		"response_body":             bodyString,
 		"keycloak_user_profile_url": keycloakProfileURL,
@@ -245,7 +248,7 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 	resp, err := userProfileClient.client.Do(req)
 
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_profile_url": keycloakProfileURL,
 			"err": err,
 		}, "Unable to fetch Keycloak user profile")
@@ -256,7 +259,7 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 
 	if resp.StatusCode != http.StatusOK {
 		bodyString := rest.ReadBody(resp.Body)
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"response_status":           resp.Status,
 			"response_body":             bodyString,
 			"keycloak_user_profile_url": keycloakProfileURL,
