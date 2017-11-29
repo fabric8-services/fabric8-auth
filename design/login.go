@@ -5,6 +5,24 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
+// AuthorizationCode
+var authorizationCode = a.MediaType("application/vnd.authorizationCode+json", func() {
+	a.TypeName("AuthorizationCode")
+	a.Description("authorization_code from keycloak")
+	a.Attributes(func() {
+		a.Attribute("code", d.String, "authorization_code from keycloak")
+		a.Attribute("state", d.UUID, "")
+		a.Required("code", "state")
+	})
+
+	a.View("default", func() {
+		a.Attribute("code")
+		a.Attribute("state")
+		a.Required("code", "state")
+	})
+
+})
+
 var _ = a.Resource("login", func() {
 
 	a.BasePath("/login")
@@ -51,6 +69,7 @@ var _ = a.Resource("authorize", func() {
 			a.Param("api_client", d.String, "The name of the api client which is requesting a token")
 		})
 		a.Description("Authorize service client")
+		a.Response(d.OK, authorizationCode)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)
 		a.Response(d.InternalServerError, JSONAPIErrors)

@@ -387,7 +387,8 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 				"code": code,
 				"err":  err,
 			}, "keycloak exchange operation failed")
-			return redirectWithErrorForAuthorize(ctx, knownReferrer, err.Error())
+			return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+			//return redirectWithErrorForAuthorize(ctx, knownReferrer, err.Error())
 		}
 
 		log.Debug(ctx, map[string]interface{}{
@@ -404,7 +405,8 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 				"known_referrer": knownReferrer,
 				"err":            err,
 			}, "failed to parse referrer")
-			return redirectWithErrorForAuthorize(ctx, knownReferrer, err.Error())
+			return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+			//return redirectWithErrorForAuthorize(ctx, knownReferrer, err.Error())
 		}
 
 		apiClient := referrerURL.Query().Get(apiClientParam)
@@ -420,11 +422,16 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 					log.Info(ctx, map[string]interface{}{
 						"known_referrer": knownReferrer,
 						"api_client":     ctx.APIClient,
-					}, "return api token for unapproved user")
-					ctx.ResponseData.Header().Set("Location", fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), *ctx.Code, *ctx.State))
-					return ctx.TemporaryRedirect()
+					}, "return authorization_code for unapproved user")
+					//ctx.ResponseData.Header().Set("Location", fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), *ctx.Code, *ctx.State))
+					//return ctx.TemporaryRedirect()
+					authCode := &app.AuthorizationCode{
+						Code:  *ctx.Code,
+						State: *ctx.State,
+					}
+					return ctx.OK(authCode)
 				}
-
+				// what should be the behaviour if a user is not approved?
 				userNotApprovedRedirectURL := serviceConfig.GetNotApprovedRedirect()
 				if userNotApprovedRedirectURL != "" {
 					log.Debug(ctx, map[string]interface{}{
@@ -477,19 +484,29 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 		}, "token encoded")
 
 		if s, err := strconv.ParseBool(referrerURL.Query().Get(initiateLinkingParam)); err != nil || !s {
-			ctx.ResponseData.Header().Set("Location", fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), *ctx.Code, *ctx.State))
+			//ctx.ResponseData.Header().Set("Location", fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), *ctx.Code, *ctx.State))
 			log.Info(ctx, map[string]interface{}{
 				"known_referrer": knownReferrer,
 				"user_name":      identity.Username,
 				"api_client":     ctx.APIClient,
-			}, "all good; redirecting back to referrer")
-			return ctx.TemporaryRedirect()
+			}, "all good; returning authorization_code")
+
+			authCode := &app.AuthorizationCode{
+				Code:  *ctx.Code,
+				State: *ctx.State,
+			}
+			return ctx.OK(authCode)
 		}
 
-		ctx.ResponseData.Header().Set(
-			"Location",
-			fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), *ctx.Code, *ctx.State))
-		return ctx.TemporaryRedirect()
+		authCode := &app.AuthorizationCode{
+			Code:  *ctx.Code,
+			State: *ctx.State,
+		}
+		return ctx.OK(authCode)
+		//ctx.ResponseData.Header().Set(
+		//	"Location",
+		//	fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), *ctx.Code, *ctx.State))
+		//return ctx.TemporaryRedirect()
 		// return keycloak.autoLinkProvidersDuringLogin(ctx, keycloakToken.AccessToken, referrerStr)
 	}
 
