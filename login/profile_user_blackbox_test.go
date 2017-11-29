@@ -20,7 +20,6 @@ import (
 
 type ProfileUserBlackBoxTest struct {
 	testsuite.RemoteTestSuite
-	clean                func()
 	profileService       login.UserProfileService
 	loginService         *login.KeycloakOAuthProvider
 	idpLinkService       link.KeycloakIDPService

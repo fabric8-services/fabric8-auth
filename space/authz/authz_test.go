@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
+	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
+
+	"github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -30,31 +31,30 @@ func TestAuthz(t *testing.T) {
 }
 
 type TestAuthzSuite struct {
-	suite.Suite
+	testsuite.RemoteTestSuite
 	authzService        *authz.KeycloakAuthzService
-	config              *configuration.ConfigurationData
 	entitlementEndpoint string
 	test1Token          string
 	test2Token          string
 }
 
 func (s *TestAuthzSuite) SetupSuite() {
+	s.RemoteTestSuite.SetupSuite()
 	var err error
-	s.config, err = configuration.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("failed to setup the configuration: %s", err.Error()))
+	if s.Config.IsKeycloakTestsDisabled() {
+		s.T().Skip("Skipping Keycloak tests")
 	}
-	s.authzService = authz.NewAuthzService(s.config)
-	s.entitlementEndpoint, err = s.config.GetKeycloakEndpointEntitlement(nil)
+	s.authzService = authz.NewAuthzService(s.Config)
+	s.entitlementEndpoint, err = s.Config.GetKeycloakEndpointEntitlement(nil)
 	if err != nil {
 		panic(fmt.Errorf("failed to get endpoint from configuration: %s", err.Error()))
 	}
-	tokenEndpoint, err := s.config.GetKeycloakEndpointToken(nil)
+	tokenEndpoint, err := s.Config.GetKeycloakEndpointToken(nil)
 	if err != nil {
 		panic(fmt.Errorf("failed to get endpoint from configuration: %s", err.Error()))
 	}
 
-	token, err := controller.GenerateUserToken(context.Background(), tokenEndpoint, s.config, s.config.GetKeycloakTestUserName(), s.config.GetKeycloakTestUserSecret())
+	token, err := controller.GenerateUserToken(context.Background(), tokenEndpoint, s.Config, s.Config.GetKeycloakTestUserName(), s.Config.GetKeycloakTestUserSecret())
 	if err != nil {
 		panic(fmt.Errorf("failed to generate token: %s", err.Error()))
 	}
@@ -64,7 +64,7 @@ func (s *TestAuthzSuite) SetupSuite() {
 
 	s.test1Token = *token.Token.AccessToken
 
-	token, err = controller.GenerateUserToken(context.Background(), tokenEndpoint, s.config, s.config.GetKeycloakTestUser2Name(), s.config.GetKeycloakTestUser2Secret())
+	token, err = controller.GenerateUserToken(context.Background(), tokenEndpoint, s.Config, s.Config.GetKeycloakTestUser2Name(), s.Config.GetKeycloakTestUser2Secret())
 	if err != nil {
 		panic(fmt.Errorf("failed to generate token: %s", err.Error()))
 	}
@@ -96,7 +96,7 @@ func (s *TestAuthzSuite) checkPermissions(token string, spaceID string) bool {
 	tk := jwt.New(jwt.SigningMethodRS256)
 	tk.Raw = token
 	ctx := goajwt.WithJWT(context.Background(), tk)
-	authzService := authz.NewAuthzService(s.config)
+	authzService := authz.NewAuthzService(s.Config)
 	ok, err := authzService.Authorize(ctx, s.entitlementEndpoint, spaceID)
 	require.Nil(s.T(), err)
 	return ok
