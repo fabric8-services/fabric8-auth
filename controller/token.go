@@ -413,32 +413,27 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
 			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/authorize"),
 		}
+		/*
+			keycloakToken, err := oauth.Exchange(ctx, *payload.Code)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"code": payload.Code,
+					"err":  err,
+				}, "keycloak exchange operation failed")
+				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+			}
 
-		// After redirect from oauth provider
-		log.Debug(ctx, map[string]interface{}{
-			"code":         payload.Code,
-			"redirect_uri": payload.RedirectURI,
-		}, "Redirected from oauth provider")
+			log.Debug(ctx, map[string]interface{}{
+				"code":         payload.Code,
+				"redirect_uri": payload.RedirectURI,
+			}, "exchanged code to access token")
 
-		keycloakToken, err := oauth.Exchange(ctx, *payload.Code)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"code": payload.Code,
-				"err":  err,
-			}, "keycloak exchange operation failed")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-		}
-
-		log.Debug(ctx, map[string]interface{}{
-			"code":         payload.Code,
-			"redirect_uri": payload.RedirectURI,
-		}, "exchanged code to access token")
-
-		token := &app.OauthToken{
-			AccessToken: &keycloakToken.AccessToken,
-			TokenType:   &keycloakToken.TokenType,
-		}
-		return ctx.OK(token)
+			token := &app.OauthToken{
+				AccessToken: &keycloakToken.AccessToken,
+				TokenType:   &keycloakToken.TokenType,
+			}
+			return ctx.OK(token)*/
+		return c.Auth.PerformExchange(ctx, oauth, c.Configuration)
 	}
 
 	log.Error(ctx, map[string]interface{}{
