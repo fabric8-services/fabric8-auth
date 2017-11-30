@@ -305,6 +305,20 @@ dev-auth-openshift: prebuild-check deps generate $(FRESH_BIN)
 	AUTH_DEVELOPER_MODE_ENABLED=true \
 	kedge apply -f kedge/db-auth.yml -f kedge/auth.yml
 
+.PHONY: dev-authdb-openshift
+dev-authdb-openshift: prebuild-check deps generate $(FRESH_BIN)
+	minishift start --cpus 4
+	./check_hosts.sh
+	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
+	AUTH_DEVELOPER_MODE_ENABLED=true \
+	kedge apply -f kedge/db-auth-exposed.yml
+	sleep 5s
+	AUTH_POSTGRES_HOST=minishift.local \
+	AUTH_POSTGRES_PORT=31001 \
+	AUTH_POSTGRES_USERNAME=postgres \
+	AUTH_POSTGRES_PASSWORD=mysecretpassword \
+	$(FRESH_BIN)
+
 .PHONY: dev-auth-openshift-clean
 dev-auth-openshift-clean:
 	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc delete project auth-openshift --grace-period=1
