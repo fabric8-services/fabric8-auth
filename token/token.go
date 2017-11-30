@@ -454,13 +454,6 @@ func IsSpecificServiceAccount(ctx context.Context, names []string) bool {
 	return false
 }
 
-// IsServiceAccount checks if the request is done by a
-// Service account based on the JWT Token provided in context
-func IsServiceAccount(ctx context.Context) bool {
-	_, ok := extractServiceAccountName(ctx)
-	return ok
-}
-
 func extractServiceAccountName(ctx context.Context) (string, bool) {
 	token := goajwt.ContextJWT(ctx)
 	if token == nil {
