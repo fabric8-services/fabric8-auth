@@ -30,6 +30,10 @@ func NewAuthorizeController(service *goa.Service, auth *login.KeycloakOAuthProvi
 // Authorize runs the authorize action.
 func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) error {
 
+	if ctx.State == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("state", "nil").Expected("State"))
+	}
+
 	if ctx.Code == nil {
 		if ctx.ClientID == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Service Account ID"))
