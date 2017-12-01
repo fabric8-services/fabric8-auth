@@ -16,6 +16,7 @@ var TestUser = account.User{
 	ID:       uuid.NewV4(),
 	Email:    "testdeveloper@testalm.io",
 	FullName: "Test Developer",
+	Cluster:  "Test Cluster",
 }
 
 // TestUser2 only creates in memory obj for testing purposes.
@@ -46,6 +47,12 @@ var TestIdentity2 = account.Identity{
 	ID:       uuid.NewV4(),
 	Username: "TestDeveloper2",
 	User:     TestUser2,
+}
+
+var TestOnlineRegistrationAppIdentity = account.Identity{
+	ID:       uuid.NewV4(),
+	Username: "online-registration",
+	User:     TestUser,
 }
 
 // CreateTestIdentity creates an identity with the given `username` in the database. For testing purpose only.

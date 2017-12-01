@@ -15,6 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -37,6 +38,7 @@ type TestUsersSuite struct {
 	userRepo       account.UserRepository
 	identityRepo   account.IdentityRepository
 	profileService login.UserProfileService
+	linkAPIService link.KeycloakIDPService
 }
 
 func (s *TestUsersSuite) SetupSuite() {
@@ -46,7 +48,8 @@ func (s *TestUsersSuite) SetupSuite() {
 	dummyProfileResponse := createDummyUserProfileResponse(&testAttributeValue, &testAttributeValue, &testAttributeValue)
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
-	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService)
+	s.linkAPIService = &dummyKeycloakLinkService{}
+	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
@@ -54,7 +57,14 @@ func (s *TestUsersSuite) SetupSuite() {
 
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(svc, s.Application, s.Configuration, s.profileService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller.RemoteWITService = &dummyRemoteWITService{}
+	return svc, controller
+}
+
+func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identity) (*goa.Service, *UsersController) {
+	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -337,9 +347,7 @@ func (s *TestUsersSuite) TestUpdateUserVariableSpacesInNameOK() {
 	assert.Equal(s.T(), contextInformation["rate"], updatedContextInformation["rate"])
 }
 
-/*
-	Test to unset variable in contextInformation
-*/
+//Test to unset variable in contextInformation
 
 func (s *TestUsersSuite) TestUpdateUserUnsetVariableInContextInfo() {
 	// given
@@ -381,7 +389,7 @@ func (s *TestUsersSuite) TestUpdateUserUnsetVariableInContextInfo() {
 	updatedContextInformation := result.Data.Attributes.ContextInformation
 	assert.Equal(s.T(), contextInformation["last_visited"], updatedContextInformation["last_visited"])
 
-	/** Usual stuff done, now lets unset **/
+	// Usual stuff done, now lets unset
 	contextInformation = map[string]interface{}{
 		"last_visited": nil,
 		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
@@ -406,10 +414,8 @@ func (s *TestUsersSuite) TestUpdateUserUnsetVariableInContextInfo() {
 	assert.Equal(s.T(), false, ok)
 }
 
-/*
-	Pass no contextInformation and no one complains.
-	This is as per general service behaviour.
-*/
+//Pass no contextInformation and no one complains.
+//This is as per general service behaviour.
 
 func (s *TestUsersSuite) TestUpdateUserOKWithoutContextInfo() {
 	// given
@@ -433,9 +439,7 @@ func (s *TestUsersSuite) TestUpdateUserOKWithoutContextInfo() {
 	test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
-/*
-	Pass " " as email in HTTP PATCH  /api/Users
-*/
+//Pass " " as email in HTTP PATCH  /api/Users
 
 func (s *TestUsersSuite) TestUpdateUserWithInvalidEmail() {
 	// given
@@ -456,9 +460,7 @@ func (s *TestUsersSuite) TestUpdateUserWithInvalidEmail() {
 	test.UpdateUsersBadRequest(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 }
 
-/*
-	Pass " " as username in HTTP PATCH  /api/Users
-*/
+//Pass " " as username in HTTP PATCH  /api/Users
 
 func (s *TestUsersSuite) TestUpdateUserWithInvalidUsername() {
 	// given
@@ -854,6 +856,38 @@ func findUser(id uuid.UUID, userData []*app.UserData) *app.UserData {
 	return nil
 }
 
+func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser account.User, expectedIdentity account.Identity) {
+	require.NotNil(t, actual)
+	assert.Equal(t, expectedIdentity.Username, *actual.Attributes.Username)
+	if expectedIdentity.ProviderType == "" {
+		assert.Equal(t, account.KeycloakIDP, *actual.Attributes.ProviderType)
+	} else {
+		assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
+	}
+	assert.Equal(t, expectedIdentity.RegistrationCompleted, *actual.Attributes.RegistrationCompleted)
+	assert.Equal(t, expectedUser.FullName, *actual.Attributes.FullName)
+	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
+	assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	assert.Equal(t, expectedUser.Company, *actual.Attributes.Company)
+	assert.Equal(t, expectedUser.Cluster, *actual.Attributes.Cluster)
+	assert.Equal(t, expectedUser.URL, *actual.Attributes.URL)
+	assert.Equal(t, expectedUser.Bio, *actual.Attributes.Bio)
+	assertContextInformation(t, expectedUser.ContextInformation, actual.Attributes.ContextInformation)
+}
+
+func assertContextInformation(t *testing.T, expected account.ContextInformation, actual map[string]interface{}) {
+	if expected == nil {
+		require.Equal(t, 0, len(actual))
+		return
+	}
+	require.Equal(t, len(expected), len(actual))
+	for key, value := range expected {
+		actualValue, found := actual[key]
+		assert.True(t, found, fmt.Sprintf("key [%s] not found", key))
+		assert.Equal(t, value, actualValue)
+	}
+}
+
 func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, expectedIdentity account.Identity) {
 	require.NotNil(t, actual)
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.ID)
@@ -948,6 +982,12 @@ func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.Requ
 	return nil
 }
 
+type dummyKeycloakLinkService struct{}
+
+func (d *dummyKeycloakLinkService) Create(ctx context.Context, keycloakLinkIDPRequest *link.KeycloakLinkIDPRequest, protectedAccessToken string, keycloakIDPLinkURL string) error {
+	return nil
+}
+
 type dummyUserProfileService struct {
 	dummyGetResponse *login.KeycloakUserProfileResponse
 }
@@ -966,6 +1006,11 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 	return d.dummyGetResponse, nil
 }
 
+func (d *dummyUserProfileService) Create(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, error) {
+	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
+	return &url, nil
+}
+
 func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *login.KeycloakUserProfileResponse) {
 	d.dummyGetResponse = dummyGetResponse
 }
@@ -980,4 +1025,141 @@ func createDummyUserProfileResponse(updatedBio, updatedImageURL, updatedURL *str
 
 	return profile
 
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithAllFieldsOK() {
+
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = account.KeycloakIDP
+	identity.RegistrationCompleted = true
+
+	user.ContextInformation = map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+	user.Company = "randomCompany"
+	user.Bio = "some bio"
+	user.ImageURL = "some image"
+	user.URL = "some url"
+	user.Cluster = "some cluster"
+	rhdUserName := "somerhdusername"
+	approved := false
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+	// when
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &rhdUserName, &user.Cluster, &identity.RegistrationCompleted, &approved, user.ContextInformation)
+
+	// then
+	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	assertCreatedUser(s.T(), appUser.Data, user, identity)
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithRequiredFieldsOnlyOK() {
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = ""
+	user.FullName = ""
+	user.Cluster = "some cluster"
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, &user.Cluster, nil, nil, nil)
+
+	// With only required fields should be OK
+	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	assertCreatedUser(s.T(), appUser.Data, user, identity)
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithMissingRequiredFieldsFails() {
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	cluster := "some cluster"
+
+	// Missing username
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, nil, nil, &cluster, nil, nil, nil)
+	require.NotNil(s.T(), createUserPayload.Validate())
+
+	// Missing email
+	createUserPayload = createCreateUsersAsServiceAccountPayload(nil, nil, nil, nil, nil, nil, &identity.Username, nil, &cluster, nil, nil, nil)
+	require.NotNil(s.T(), createUserPayload.Validate())
+
+	// Missing cluster
+	createUserPayload = createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, nil, nil, nil, nil)
+	require.NotNil(s.T(), createUserPayload.Validate())
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnauthorized() {
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
+
+	// then
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
+	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+}
+
+func (s *TestUsersSuite) TestCreateUserAsNonServiceAccountUnauthorized() {
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+
+	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
+
+	// then
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
+	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+}
+
+func (s *TestUsersSuite) TestCreateUserUnauthorized() {
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+
+	// then
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
+	test.CreateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, createUserPayload)
+}
+
+func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username, rhdUsername, cluster *string, registrationCompleted, approved *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {
+	providerType := "SomeRandomType" // Should be ignored
+
+	attributes := app.CreateIdentityDataAttributes{
+		//UserID:                userID,
+		Approved:              approved,
+		RhdUsername:           rhdUsername,
+		FullName:              fullName,
+		Bio:                   bio,
+		ImageURL:              imageURL,
+		URL:                   profileURL,
+		Company:               company,
+		ContextInformation:    contextInformation,
+		RegistrationCompleted: registrationCompleted,
+		ProviderType:          &providerType,
+	}
+
+	if email != nil {
+		attributes.Email = *email
+	}
+	if username != nil {
+		attributes.Username = *username
+	}
+	if cluster != nil {
+		attributes.Cluster = *cluster
+	}
+
+	return &app.CreateUsersPayload{
+		Data: &app.CreateUserData{
+			Type:       "identities",
+			Attributes: &attributes,
+		},
+	}
 }

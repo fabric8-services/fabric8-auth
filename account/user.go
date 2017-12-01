@@ -105,6 +105,7 @@ func (m *GormUserRepository) Create(ctx context.Context, u *User) error {
 	if u.ID == uuid.Nil {
 		u.ID = uuid.NewV4()
 	}
+
 	err := m.db.Create(u).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
