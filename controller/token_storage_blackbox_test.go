@@ -213,6 +213,7 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 		Scope:      providerConfig.Scopes(),
 		IdentityID: identity.ID,
 		Token:      "1234-from-db",
+		Username:   "testuser",
 	}
 	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
 
@@ -220,6 +221,7 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
 	require.Equal(rest.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
+	require.Equal(rest.T(), expectedToken.Username, *tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
@@ -224,4 +225,10 @@ func (provider *DummyProvider) Scopes() string {
 
 func (provider *DummyProvider) TypeName() string {
 	return "DummyProvider"
+}
+
+func (provider *DummyProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
+	return &oauth.UserProfile{
+		Username: "testuser",
+	}, nil
 }

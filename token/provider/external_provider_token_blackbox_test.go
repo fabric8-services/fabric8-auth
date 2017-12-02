@@ -100,7 +100,7 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToSave() {
 	externalTokenLoaded, err := s.repo.Load(s.Ctx, externalToken.ID)
 
 	require.Nil(s.T(), err, "Could not retrieve externalToken")
-	require.Equal(s.T(), externalToken.Token, externalTokenLoaded.Token)
+	s.assertToken(*externalToken, *externalTokenLoaded)
 }
 
 func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityID() {
@@ -166,6 +166,7 @@ func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.External
 		Token:      uuid.NewV4().String(),
 		Scope:      "user:full",
 		IdentityID: identity.ID,
+		Username:   uuid.NewV4().String(),
 	}
 	fmt.Println(externalToken)
 
@@ -175,6 +176,15 @@ func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.External
 	externalTokenRetrieved, err := s.repo.Load(s.Ctx, externalToken.ID)
 	// then
 	require.Nil(s.T(), err, "Could not load externalToken")
-	require.Equal(s.T(), externalToken.ID, externalTokenRetrieved.ID)
+	s.assertToken(externalToken, *externalTokenRetrieved)
 	return externalTokenRetrieved
+}
+
+func (s *externalTokenBlackboxTest) assertToken(expected provider.ExternalToken, actual provider.ExternalToken) {
+	assert.Equal(s.T(), expected.ID, actual.ID)
+	assert.Equal(s.T(), expected.IdentityID, actual.IdentityID)
+	assert.Equal(s.T(), expected.ProviderID, actual.ProviderID)
+	assert.Equal(s.T(), expected.Scope, actual.Scope)
+	assert.Equal(s.T(), expected.Token, actual.Token)
+	assert.Equal(s.T(), expected.Username, actual.Username)
 }

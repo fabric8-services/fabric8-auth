@@ -102,6 +102,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration08", testMigration08)
 	t.Run("TestMigration09", testMigration09)
 	t.Run("TestMigration10", testMigration10)
+	t.Run("TestMigration11", testMigration11)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -167,6 +168,12 @@ func testMigration10(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(11)], (11))
 
 	assert.True(t, dialect.HasColumn("users", "cluster"))
+}
+
+func testMigration11(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(12)], (12))
+
+	assert.True(t, dialect.HasColumn("external_tokens", "username"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

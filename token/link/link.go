@@ -29,7 +29,7 @@ const (
 
 // ProviderConfig represents OAuth2 config for linking accounts
 type ProviderConfig interface {
-	oauth.OauthConfig
+	oauth.IdentityProvider
 	ID() uuid.UUID
 	Scopes() string
 	TypeName() string
@@ -196,6 +196,10 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 		return "", errors.New("access token return by provider is empty")
 	}
 
+	userProfile, err := oauthProvider.Profile(ctx, *providerToken)
+	if err != nil {
+		return "", err
+	}
 	err = application.Transactional(service.db, func(appl application.Application) error {
 		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, oauthProvider.ID(), identityUUID)
 		if err != nil {
@@ -205,6 +209,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			// It was re-linking. Overwrite the existing link.
 			externalToken := tokens[0]
 			externalToken.Token = providerToken.AccessToken
+			externalToken.Username = userProfile.Username
 			err = appl.ExternalTokens().Save(ctx, &externalToken)
 			if err == nil {
 				log.Info(ctx, map[string]interface{}{
@@ -220,6 +225,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			IdentityID: identityUUID,
 			Scope:      oauthProvider.Scopes(),
 			ProviderID: oauthProvider.ID(),
+			Username:   userProfile.Username,
 		}
 		err = appl.ExternalTokens().Create(ctx, &externalToken)
 		if err == nil {
@@ -257,12 +263,12 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 		return nil, err
 	}
 	if resourceURL.Host == "github.com" {
-		return NewGitHubConfig(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
+		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
 	} else {
 		clusters := service.config.GetOSOClusters()
 		for apiURL, cluster := range clusters {
 			if strings.HasPrefix(forResource, apiURL) {
-				return NewOpenShiftConfig(cluster, authURL)
+				return NewOpenShiftIdentityProvider(cluster, authURL)
 			}
 		}
 	}
