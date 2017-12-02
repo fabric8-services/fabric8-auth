@@ -264,12 +264,11 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 	}
 	if resourceURL.Host == "github.com" {
 		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
-	} else {
-		clusters := service.config.GetOSOClusters()
-		for apiURL, cluster := range clusters {
-			if strings.HasPrefix(forResource, apiURL) {
-				return NewOpenShiftIdentityProvider(cluster, authURL)
-			}
+	}
+	clusters := service.config.GetOSOClusters()
+	for apiURL, cluster := range clusters {
+		if strings.HasPrefix(forResource, apiURL) {
+			return NewOpenShiftIdentityProvider(cluster, authURL)
 		}
 	}
 	log.Error(ctx, map[string]interface{}{

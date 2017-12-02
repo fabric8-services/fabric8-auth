@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	gitHubProviderID = "2f6b7176-8f4b-4204-962d-606033275397" // Do not change! This ID is used as provider ID in the external token table
+	GitHubProviderID = "2f6b7176-8f4b-4204-962d-606033275397" // Do not change! This ID is used as provider ID in the external token table
 )
 
 type GitHubIdentityProvider struct {
@@ -33,7 +33,7 @@ func NewGitHubIdentityProvider(clientID string, clientSecret string, scopes stri
 	provider.RedirectURL = authURL + client.CallbackTokenPath()
 	provider.ScopeStr = scopes
 	provider.Config.Scopes = strings.Split(scopes, " ")
-	provider.ProviderID, _ = uuid.FromString(gitHubProviderID)
+	provider.ProviderID, _ = uuid.FromString(GitHubProviderID)
 	provider.ProfileURL = "https://api.github.com/user"
 	return provider
 }
