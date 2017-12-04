@@ -358,7 +358,7 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 		log.Debug(ctx, map[string]interface{}{
 			"code":  code,
 			"state": state,
-		}, "Redirected from oauth provider")
+		}, "redirected from oauth provider")
 
 		authCode := &app.AuthorizationCode{
 			Code:  *ctx.Code,
@@ -373,7 +373,7 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 	referrer := ctx.RequestData.Header.Get("Referer")
 	if redirect == nil {
 		if referrer == "" {
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("Referer Header and redirect param are both empty. At least one should be specified."))
+			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("referer header and redirect param are both empty. At least one should be specified."))
 			return ctx.BadRequest(jerrors)
 		}
 		redirect = &referrer
@@ -384,7 +384,7 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 	log.Debug(ctx, map[string]interface{}{
 		"referrer": referrer,
 		"redirect": redirect,
-	}, "Got Request from!")
+	}, "got request from!")
 
 	stateID := *ctx.State
 

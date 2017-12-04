@@ -31,29 +31,33 @@ func NewAuthorizeController(service *goa.Service, auth *login.KeycloakOAuthProvi
 func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) error {
 
 	if ctx.State == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("state", "nil").Expected("State"))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("state", "nil").Expected("state"))
 	}
+	var scope []string
 
 	if ctx.Code == nil {
 		if ctx.ClientID == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Service Account ID"))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("service account id"))
 		}
 		if ctx.RedirectURI == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("Redirect URI"))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("redirect uri"))
 		}
 		if ctx.ResponseType == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("response_type", "nil").Expected("Response Type"))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("response_type", "nil").Expected("response type"))
 		}
+
 		if ctx.Scope == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("scope", "nil").Expected("Scope"))
+			scope = []string{"user:email"}
+		} else {
+			scope = []string{*ctx.Scope}
 		}
 
 		_, found := c.Configuration.GetServiceAccounts()[*ctx.ClientID]
 		if !found {
 			log.Error(ctx, map[string]interface{}{
 				"client_id": *ctx.ClientID,
-			}, "Unknown Service Account ID")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID"))
+			}, "unknown service account id")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid service account id"))
 		}
 	}
 
@@ -61,16 +65,16 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "Unable to get Keycloak Auth endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak Auth endpoint URL")))
+		}, "unable to get keycloak auth endpoint url")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak auth endpoint url")))
 	}
 
 	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
+		}, "unable to get keycloak token endpoint url")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak token endpoint url")))
 	}
 	if ctx.Scope != nil {
 		authEndpoint = fmt.Sprintf("%s?scope=%s", authEndpoint, *ctx.Scope)
@@ -79,7 +83,7 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 	oauth := &oauth2.Config{
 		ClientID:     c.Configuration.GetKeycloakClientID(),
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
-		Scopes:       []string{"user:email"},
+		Scopes:       scope,
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/authorize"),
 	}

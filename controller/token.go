@@ -343,7 +343,10 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	if payload == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("payload", "nil").Expected("not empty payload"))
 	}
-	if payload.GrantType == "client_credentials" {
+	const clientCredentials = "client_credentials"
+	const authorizationCode = "authorization_code"
+
+	if payload.GrantType == clientCredentials {
 		if payload.ClientID == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Service Account ID"))
 		}
@@ -381,33 +384,33 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
 	}
 
-	if payload.GrantType == "authorization_code" {
+	if payload.GrantType == authorizationCode {
 
 		if payload.ClientID == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Client ID"))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("client id"))
 		}
 
 		if payload.RedirectURI == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("Redirect URI"))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("redirect uri"))
 		}
 		if payload.Code == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("code", "nil").Expected("Authorization Code"))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("code", "nil").Expected("authorization code"))
 		}
 
 		authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
-			}, "Unable to get Keycloak Auth endpoint URL")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak Auth endpoint URL")))
+			}, "unable to get keycloak auth endpoint url")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak auth endpoint url")))
 		}
 
 		tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
-			}, "Unable to get Keycloak token endpoint URL")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
+			}, "unable to get keycloak token endpoint url")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak token endpoint url")))
 		}
 
 		oauth := &oauth2.Config{
