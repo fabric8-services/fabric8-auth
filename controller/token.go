@@ -383,6 +383,10 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 	if payload.GrantType == "authorization_code" {
 
+		if payload.ClientID == nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Client ID"))
+		}
+
 		if payload.RedirectURI == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("Redirect URI"))
 		}
@@ -420,8 +424,8 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	log.Error(ctx, map[string]interface{}{
 		"grant_type": payload.GrantType,
 	}, "Invalid grant_type")
-	return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Invalid grant_type"))
 
+	return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", "nil").Expected("grant_type=client_credentials or grant_type=authorization_code"))
 }
 
 func (c *TokenController) createOrUpdateToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) error {

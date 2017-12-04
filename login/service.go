@@ -360,23 +360,6 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 			"state": state,
 		}, "Redirected from oauth provider")
 
-		// validate known state
-		knownReferrer, err := keycloak.getReferrer(ctx, state)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"state": state,
-				"err":   err,
-			}, "unknown state")
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized("unknown state. "+err.Error()))
-			return ctx.Unauthorized(jerrors)
-		}
-
-		log.Debug(ctx, map[string]interface{}{
-			"code":           code,
-			"state":          state,
-			"known_referrer": knownReferrer,
-		}, "referrer found")
-
 		authCode := &app.AuthorizationCode{
 			Code:  *ctx.Code,
 			State: *ctx.State,
@@ -403,7 +386,7 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 		"redirect": redirect,
 	}, "Got Request from!")
 
-	stateID := *ctx.State //uuid.NewV4()
+	stateID := *ctx.State
 
 	redirect, err := keycloak.saveParamsForAuthorize(ctx, *redirect)
 	if err != nil {
@@ -436,15 +419,15 @@ func (keycloak *KeycloakOAuthProvider) PerformExchange(ctx *app.ExchangeTokenCon
 		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
 	}
 
-	redirect := ctx.Params.Get("redirect_uri")
-	code := ctx.Params.Get("code")
+	redirect := ctx.Payload.RedirectURI
+	code := ctx.Payload.Code
 
 	log.Debug(ctx, map[string]interface{}{
 		"code":         code,
 		"redirect_uri": redirect,
 	}, "token request received")
 
-	keycloakToken, err := config.Exchange(ctx, code)
+	keycloakToken, err := config.Exchange(ctx, *code)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"code": code,
@@ -453,9 +436,12 @@ func (keycloak *KeycloakOAuthProvider) PerformExchange(ctx *app.ExchangeTokenCon
 		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
 	}
 
+	exp := keycloakToken.Expiry.String()
 	token := &app.OauthToken{
-		AccessToken: &keycloakToken.AccessToken,
-		TokenType:   &keycloakToken.TokenType,
+		AccessToken:  &keycloakToken.AccessToken,
+		Expiry:       &exp,
+		RefreshToken: &keycloakToken.RefreshToken,
+		TokenType:    &keycloakToken.TokenType,
 	}
 
 	log.Debug(ctx, map[string]interface{}{

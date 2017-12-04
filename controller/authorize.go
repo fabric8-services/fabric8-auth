@@ -55,8 +55,8 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 			}, "Unknown Service Account ID")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID"))
 		}
-
 	}
+
 	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
