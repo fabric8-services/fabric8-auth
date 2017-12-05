@@ -15,6 +15,7 @@ import (
 type searchConfiguration interface {
 	GetHTTPAddress() string
 	GetMaxUsersListLimit() int
+	GetMinimumUserSearchQuerySize() int
 }
 
 // SearchController implements the search resource.
@@ -33,8 +34,8 @@ func NewSearchController(service *goa.Service, db application.DB, configuration 
 func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
 	q := ctx.Q
-	if q == "" {
-		return ctx.BadRequest(goa.ErrBadRequest(fmt.Errorf("empty search query not allowed")))
+	if len(q) < c.configuration.GetMinimumUserSearchQuerySize() {
+		return ctx.BadRequest(goa.ErrBadRequest(fmt.Errorf("search query should be longer")))
 	}
 
 	var result []account.Identity
