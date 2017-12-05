@@ -35,11 +35,11 @@ Compiles sources into executable binary
 |dev                   |
 Same as build, however also starts up a Docker instance of the Postgres database and runs the auth service on the host.
 |deploy-auth-openshift |
-Starts a minishift instance and deploys the "latest" tagged versions of the fabric-auth service, plus a postgres database from the docker.io repository, exposing the service on port 31000.
+Starts a minishift instance and deploys the "latest" tagged versions of the fabric-auth service, plus a postgres database from the docker.io repository, exposing the service at http://minishift.local:31000.
 |dev-db-openshift      |
 Starts a minishift instance and deploys a postgres database to it, while building and running the fabric8-auth service on the host machine which then connects to the db on port 31001.
 |dev-openshift         |
-Starts a minishift instance and deploys a postgres database to it, then builds and deploys the fabric-auth service to minishift also, exposing the service on port 31000.
+Starts a minishift instance and deploys a postgres database to it, then builds and deploys the fabric-auth service to minishift also, exposing the service at http://minishift.local:31000.
 |clean-openshift       |
 Removes the deployment from minishift, deleting the deployments and removing the project.
 |docs                  |
