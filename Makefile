@@ -297,21 +297,21 @@ $(INSTALL_PREFIX):
 $(TMP_PATH):
 	mkdir -p $(TMP_PATH)
 	
-.PHONY: dev-auth-openshift
-dev-auth-openshift: prebuild-check deps generate $(FRESH_BIN)
+.PHONY: deploy-auth-openshift
+deploy-auth-openshift: prebuild-check deps generate $(FRESH_BIN)
 	minishift start --cpus 4
-	./check_hosts.sh
+	./minishift/check_hosts.sh
 	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
 	AUTH_DEVELOPER_MODE_ENABLED=true \
-	kedge apply -f kedge/db-auth.yml -f kedge/auth.yml
+	kedge apply -f minishift/kedge/db-auth.yml -f minishift/kedge/auth.yml
 
-.PHONY: dev-authdb-openshift
-dev-authdb-openshift: prebuild-check deps generate $(FRESH_BIN)
+.PHONY: dev-db-openshift
+dev-db-openshift: prebuild-check deps generate $(FRESH_BIN)
 	minishift start --cpus 4
-	./check_hosts.sh
+	./minishift/check_hosts.sh
 	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
 	AUTH_DEVELOPER_MODE_ENABLED=true \
-	kedge apply -f kedge/db-auth-exposed.yml
+	kedge apply -f minishift/kedge/db-auth-exposed.yml
 	sleep 5s
 	AUTH_POSTGRES_HOST=minishift.local \
 	AUTH_POSTGRES_PORT=31001 \
@@ -319,20 +319,20 @@ dev-authdb-openshift: prebuild-check deps generate $(FRESH_BIN)
 	AUTH_POSTGRES_PASSWORD=mysecretpassword \
 	$(FRESH_BIN)
 
-.PHONY: dev-auth-local-openshift
-dev-auth-local-openshift: prebuild-check deps generate build bin/docker/fabric8-auth-linux
+.PHONY: dev-openshift
+dev-openshift: prebuild-check deps generate build bin/docker/fabric8-auth-linux
 	minishift start --cpus 4
-	./check_hosts.sh
+	./minishift/check_hosts.sh
 	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
 	AUTH_DEVELOPER_MODE_ENABLED=true \
-	kedge apply -f kedge/db-auth.yml
+	kedge apply -f minishift/kedge/db-auth.yml
 	sleep 5s
 	-eval `minishift docker-env` && docker login -u developer -p $$(oc whoami -t) $$(minishift openshift registry) && docker build -t fabric8/fabric8-auth:dev bin/docker
-	kedge apply -f kedge/auth-local.yml
+	kedge apply -f minishift/kedge/auth-local.yml
 	
-.PHONY: dev-auth-openshift-clean
+.PHONY: clean-openshift
 dev-auth-openshift-clean:
-	kedge delete -f kedge/auth.yml -f kedge/db-auth.yml
+	kedge delete -f minishift/kedge/auth.yml -f minishift/kedge/db-auth.yml
 	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc delete project auth-openshift --grace-period=1
 
 .PHONY: prebuild-check

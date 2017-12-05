@@ -426,6 +426,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_source_code">Source code</a></li>
 <li><a href="#_issue_tracking">Issue Tracking</a></li>
 <li><a href="#_development_workflow">Development workflow</a></li>
+<li><a href="#_makefile_targets">Makefile targets</a></li>
 <li><a href="#_service_accounts">Service Accounts</a></li>
 </ul>
 </div>
@@ -494,10 +495,51 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
+<h2 id="_makefile_targets">Makefile targets</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all" style="width: 90%;">
+<colgroup>
+<col style="width: 22.2222%;">
+<col style="width: 77.7778%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">build</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Compiles sources into executable binary</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">dev</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Same as build, however also starts up a Docker instance of the Postgres database and runs the auth service on the host.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">deploy-auth-openshift</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Starts a minishift instance and deploys the "latest" tagged versions of the fabric-auth service, plus a postgres database from the docker.io repository, exposing the service on port 31000.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">dev-db-openshift</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Starts a minishift instance and deploys a postgres database to it, while building and running the fabric8-auth service on the host machine which then connects to the db on port 31001.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">dev-openshift</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Starts a minishift instance and deploys a postgres database to it, then builds and deploys the fabric-auth service to minishift also, exposing the service on port 31000.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">clean-openshift</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Removes the deployment from minishift, deleting the deployments and removing the project.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">docs</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Builds the documentation in the /docs directory.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_service_accounts">Service Accounts</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Service accounts are used by resource servers to interact with the fabric8-auth protection API.  This API requires a PAT (Protection API Token) in order for the resource servers to register newly created resources, and query the access rights for clients attempting to access resources that they don&#8217;t own.</p>
+<p>Service accounts are used by other services to allow secure service-to-service interaction.  One example of this is the auth service&#8217;s protection API, which requires a PAT (Protection API Token) in order for the resource servers to register newly created resources, and query the access rights for clients attempting to access resources that they don&#8217;t own.</p>
 </div>
 <div class="paragraph">
 <p>Service account configuration is expected to be found in <strong>/etc/fabric8/service-account-secrets.conf</strong>, in JSON format.  Here&#8217;s an example configuration:</p>
@@ -509,17 +551,17 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
         {
             "name":"fabric8-wit",
             "id":"5dec5fdb-09e3-4453-b73f-5c828832b28e",
-            "secrets":["witsecret"]
+            "secrets":["$2a$04$nI7z7Re4pbx.V5vwm14n5.velhB.nbMgxdZ0vSomWVxcct34zbH9e"]
         },
         {
             "name":"fabric8-tenant",
             "id":"c211f1bd-17a7-4f8c-9f80-0917d167889d",
-            "secrets":["tenantsecretOld", "tenantsecretNew"]
+            "secrets":["$2a$04$ynqM/syKMYowMIn5cyqHuevWnfzIQqtyY4m.61B02qltY5SOyGIOe", "$2a$04$sbC/AfW2c33hv8orGA.1D.LXa/.IY76VWhsfqxCVhrhFkDfL0/XGK"]
         },
         {
             "name":"fabric8-jenkins-idler",
             "id":"341c283f-0cd7-48a8-9281-4583aceb3617",
-            "secrets":["jenkinsidlersecret"]
+            "secrets":["$2a$04$hbGHAVKohpeDgHzafnLwdO4ZzhEn9ukVP/6CaOtf5o3Btp.r6tXTG"]
         }
     ]
 }</code></pre>
@@ -550,7 +592,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-11-12 22:34:57 AEST
+Last updated 2017-12-05 09:08:11 +07
 </div>
 </div>
 </body>
