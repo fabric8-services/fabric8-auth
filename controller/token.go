@@ -422,11 +422,12 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, providerConf
 			return externalToken, err
 		}
 		externalToken.Username = userProfile.Username
+		err = application.Transactional(c.db, func(appl application.Application) error {
+			return appl.ExternalTokens().Save(ctx, &externalToken)
+		})
+		return externalToken, err
 	}
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		return appl.ExternalTokens().Save(ctx, &externalToken)
-	})
-	return externalToken, err
+	return externalToken, nil
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
