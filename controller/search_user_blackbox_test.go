@@ -90,10 +90,10 @@ func (s *TestSearchUserSearch) TestUsersSearchBadRequest() {
 		userSearchTestArgs userSearchTestArgs
 	}{
 		{"with empty query", userSearchTestArgs{s.offset(0), s.limit(10), ""}},
-		{"with empty query", userSearchTestArgs{s.offset(0), s.limit(10), "."}},
-		{"with empty query", userSearchTestArgs{s.offset(0), s.limit(10), "1"}},
-		{"with empty query", userSearchTestArgs{s.offset(0), s.limit(10), "m"}},
-		{"with empty query", userSearchTestArgs{s.offset(0), s.limit(10), "@."}},
+		{"with query size less than the allowed minimum", userSearchTestArgs{s.offset(0), s.limit(10), "."}},
+		{"with query size less than the allowed minimum", userSearchTestArgs{s.offset(0), s.limit(10), "1"}},
+		{"with query size less than the allowed minimum", userSearchTestArgs{s.offset(0), s.limit(10), "m"}},
+		{"with query size less than the allowed minimum", userSearchTestArgs{s.offset(0), s.limit(10), "@."}},
 	}
 
 	for _, tt := range tests {
