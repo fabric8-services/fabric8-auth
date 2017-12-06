@@ -13,6 +13,7 @@ var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 		a.Attribute("access_token", d.String, "The token associated with the identity for the specific external provider")
 		a.Attribute("scope", d.String, "The scope associated with the token")
 		a.Attribute("token_type", d.String, "The type of the toke, example : bearer")
+		a.Attribute("username", d.String, "The username of the identity loaded from the specific external provider. Optional attribute.")
 		a.Required("access_token", "scope", "token_type")
 	})
 
@@ -20,6 +21,7 @@ var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 		a.Attribute("access_token")
 		a.Attribute("scope")
 		a.Attribute("token_type")
+		a.Attribute("username")
 		a.Required("access_token", "scope", "token_type")
 	})
 

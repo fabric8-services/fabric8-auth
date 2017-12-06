@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"time"
 
+	"golang.org/x/oauth2"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -230,7 +232,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	osConfig, ok := providerConfig.(*link.OpenShiftConfig)
+	osConfig, ok := providerConfig.(*link.OpenShiftIdentityProvider)
 	if ok && token.IsSpecificServiceAccount(ctx, []string{"fabric8-oso-proxy", "fabric8-tenant"}) {
 		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
 		clusterToken := app.ExternalToken{
@@ -249,7 +251,11 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	if externalToken != nil {
-		appResponse := modelToAppExternalToken(*externalToken)
+		updatedToken, err := c.updateProfileIfEmpty(ctx, providerConfig, externalToken)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+		appResponse := modelToAppExternalToken(updatedToken)
 		return ctx.OK(&appResponse)
 	}
 
@@ -273,12 +279,17 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("token is missing"))
 	}
 
-	err = c.saveKeycloakToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
+	externalToken, err = c.saveKeycloakToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	appResponse := appExternalToken(*keycloakTokenResponse)
+	updatedToken, err := c.updateProfileIfEmpty(ctx, providerConfig, externalToken)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	appResponse := modelToAppExternalToken(updatedToken)
+
 	return ctx.OK(&appResponse)
 }
 
@@ -431,9 +442,10 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", "nil").Expected("grant_type=client_credentials or grant_type=authorization_code"))
 }
 
-func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) error {
+func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
+	var externalToken provider.ExternalToken
 	err := application.Transactional(c.db, func(appl application.Application) error {
-		externalToken := provider.ExternalToken{
+		externalToken = provider.ExternalToken{
 			Token:      keycloakTokenResponse.AccessToken,
 			IdentityID: currentIdentity,
 			Scope:      providerConfig.Scopes(),
@@ -449,7 +461,25 @@ func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenRe
 		}
 		return err
 	})
-	return err
+	return &externalToken, err
+}
+
+// updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
+// loads the user profile from the identity provider and saves the username in the external token
+func (c *TokenController) updateProfileIfEmpty(ctx context.Context, providerConfig link.ProviderConfig, token *provider.ExternalToken) (provider.ExternalToken, error) {
+	externalToken := *token
+	if externalToken.Username == "" {
+		userProfile, err := providerConfig.Profile(ctx, oauth2.Token{AccessToken: token.Token})
+		if err != nil {
+			return externalToken, err
+		}
+		externalToken.Username = userProfile.Username
+		err = application.Transactional(c.db, func(appl application.Application) error {
+			return appl.ExternalTokens().Save(ctx, &externalToken)
+		})
+		return externalToken, err
+	}
+	return externalToken, nil
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
@@ -476,14 +506,7 @@ func modelToAppExternalToken(externalToken provider.ExternalToken) app.ExternalT
 		Scope:       externalToken.Scope,
 		AccessToken: externalToken.Token,
 		TokenType:   "bearer", // We aren't saving the token_type in the database
-	}
-}
-
-func appExternalToken(k keycloak.KeycloakExternalTokenResponse) app.ExternalToken {
-	return app.ExternalToken{
-		Scope:       k.Scope,
-		AccessToken: k.AccessToken,
-		TokenType:   k.TokenType,
+		Username:    &externalToken.Username,
 	}
 }
 

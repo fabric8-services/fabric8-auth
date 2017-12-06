@@ -58,6 +58,9 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 	defer s.cleanTestData(idents)
 
 	tests := []okScenarioUserSearchTest{
+		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "."}, userSearchTestExpects{s.totalCount(0)}},
+		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), ".@"}, userSearchTestExpects{s.totalCount(0)}},
+		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "a@"}, userSearchTestExpects{s.totalCountAtLeast(1)}},
 		{"With lowercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_ab"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
 		{"With uppercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
 		{"With uppercase email query", userSearchTestArgs{s.offset(0), s.limit(10), "EMAIL_X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(1)}},

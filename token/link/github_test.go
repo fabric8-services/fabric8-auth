@@ -12,7 +12,7 @@ import (
 func TestGitHubProviderID(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
-	_, err := uuid.FromString(gitHubProviderID)
+	_, err := uuid.FromString(GitHubProviderID)
 	assert.Nil(t, err)
-	assert.Equal(t, "2f6b7176-8f4b-4204-962d-606033275397", gitHubProviderID)
+	assert.Equal(t, "2f6b7176-8f4b-4204-962d-606033275397", GitHubProviderID)
 }
