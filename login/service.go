@@ -360,11 +360,32 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 			"state": state,
 		}, "redirected from oauth provider")
 
-		authCode := &app.AuthorizationCode{
-			Code:  *ctx.Code,
-			State: *ctx.State,
+		// validate known state
+		knownReferrer, err := keycloak.getReferrer(ctx, state)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"state": state,
+				"err":   err,
+			}, "unknown state")
+			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized("unknown state. "+err.Error()))
+			return ctx.Unauthorized(jerrors)
 		}
-		return ctx.OK(authCode)
+
+		referrerURL, err := url.Parse(knownReferrer)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"code":           code,
+				"state":          state,
+				"known_referrer": knownReferrer,
+				"err":            err,
+			}, "failed to parse referrer")
+			return redirectWithErrorForAuthorize(ctx, knownReferrer, err.Error())
+		}
+
+		ctx.ResponseData.Header().Set(
+			"Location",
+			fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), *ctx.Code, ctx.State))
+		return ctx.TemporaryRedirect()
 	}
 
 	// First time access, redirect to oauth provider
@@ -386,7 +407,7 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 		"redirect": redirect,
 	}, "got request from!")
 
-	stateID := *ctx.State
+	stateID := ctx.State
 
 	redirect, err := keycloak.saveParamsForAuthorize(ctx, *redirect)
 	if err != nil {

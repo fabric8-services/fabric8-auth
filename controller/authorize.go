@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -30,9 +28,6 @@ func NewAuthorizeController(service *goa.Service, auth *login.KeycloakOAuthProvi
 // Authorize runs the authorize action.
 func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) error {
 
-	if ctx.State == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("state", "nil").Expected("state"))
-	}
 	var scope []string
 
 	if ctx.Code == nil {
@@ -75,9 +70,6 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 			"err": err,
 		}, "unable to get keycloak token endpoint url")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak token endpoint url")))
-	}
-	if ctx.Scope != nil {
-		authEndpoint = fmt.Sprintf("%s?scope=%s", authEndpoint, *ctx.Scope)
 	}
 
 	oauth := &oauth2.Config{
