@@ -16,7 +16,7 @@ These instructions will help you run your services on OpenShift using MiniShift.
 
 ##### Install Kedge
 
-Following steps will download and install Kedge on your machine and put it in your $PATH. For more detailed information please visit kedgeproject.org
+Following steps will download and install Kedge on your machine and put it in your $PATH. For more detailed information please visit [kedgeproject.org](http://kedgeproject.org/)
 
 ```
 curl -L https://github.com/kedgeproject/kedge/releases/download/v0.5.1/kedge-linux-amd64 -o kedge
@@ -53,7 +53,7 @@ End with an example of getting some data out of the system or using it for a lit
 
 ## Usage
 
-See the developer documentation for make targets to run fabric8-auth on minishift
+See the [developer documentation](https://fabric8-services.github.io/fabric8-auth/developer.html) for make targets to run fabric8-auth on minishift
 
 ## Check logs from services
 Use `oc` from MiniShift
