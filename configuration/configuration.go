@@ -81,7 +81,6 @@ const (
 	varCacheControlCollaborators            = "cachecontrol.collaborators"
 	varCacheControlUser                     = "cachecontrol.user"
 	varUsersListLimit                       = "users.listlimit"
-	varMinimumUsersSearchQuerySize          = "users.search.min"
 	defaultConfigFile                       = "config.yaml"
 	varValidRedirectURLs                    = "redirect.valid"
 	varLogLevel                             = "log.level"
@@ -400,9 +399,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Max number of users returned when searching users
 	c.v.SetDefault(varUsersListLimit, 50)
 
-	// Min length of search query string
-	c.v.SetDefault(varMinimumUsersSearchQuerySize, 3)
-
 	// HTTP Cache-Control/max-age default
 	c.v.SetDefault(varCacheControlUsers, "max-age=2")
 	c.v.SetDefault(varCacheControlCollaborators, "max-age=2")
@@ -515,11 +511,6 @@ func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 // GetMaxUsersListLimit returns the max number of users returned when searching users
 func (c *ConfigurationData) GetMaxUsersListLimit() int {
 	return c.v.GetInt(varUsersListLimit)
-}
-
-// GetMinimumUserSearchQuerySize returns the minimum size of the search query
-func (c *ConfigurationData) GetMinimumUserSearchQuerySize() int {
-	return c.v.GetInt(varMinimumUsersSearchQuerySize)
 }
 
 // GetCacheControlUsers returns the value to set in the "Cache-Control" HTTP response header

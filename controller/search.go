@@ -16,7 +16,6 @@ import (
 type searchConfiguration interface {
 	GetHTTPAddress() string
 	GetMaxUsersListLimit() int
-	GetMinimumUserSearchQuerySize() int
 }
 
 // SearchController implements the search resource.
