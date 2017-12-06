@@ -1,4 +1,4 @@
-package link
+package link_test
 
 import (
 	"context"
@@ -16,15 +16,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
+	. "github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
-	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	netcontext "golang.org/x/net/context"
-	"golang.org/x/oauth2"
 )
 
 type LinkTestSuite struct {
@@ -115,27 +113,41 @@ func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token: uuid.NewV4().String(), config: s.Configuration})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: uuid.NewV4().String(), Config: s.Configuration})
 
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
 	require.NotNil(s.T(), err)
 }
 
-func (s *LinkTestSuite) TestProviderSavesToken() {
+func (s *LinkTestSuite) TestProviderSavesTokenOK() {
 	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token: token, config: s.Configuration})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration})
 
 	code := uuid.NewV4().String()
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), callbackLocation, "https://openshift.io/home")
 
-	s.checkToken(gitHubProviderID, token)
+	s.checkToken(GitHubProviderID, token)
+}
+
+func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
+	require.Nil(s.T(), err)
+	state := s.stateParam(location)
+
+	token := uuid.NewV4().String()
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, LoadProfileFail: true})
+
+	code := uuid.NewV4().String()
+	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
+	require.NotNil(s.T(), err)
+	require.Contains(s.T(), err.Error(), "unable to load profile")
 }
 
 func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
@@ -149,7 +161,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 	require.Equal(s.T(), "/login/oauth/authorize", locationURL.Path)
 
 	// Callback from GitHub should redirect to OSO
-	callbackLocation := s.checkCallback(gitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
+	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
 	s.checkCallback(s.Configuration.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"].TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
@@ -157,7 +169,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &DummyProviderFactory{token: token, config: s.Configuration})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration})
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, uuid.NewV4().String())
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(callbackLocation)
@@ -181,47 +193,5 @@ func (s *LinkTestSuite) checkToken(providerID string, expectedToken string) {
 	require.Nil(s.T(), err)
 	require.Equal(s.T(), 1, len(tokens))
 	require.Equal(s.T(), expectedToken, tokens[0].Token)
-}
-
-type DummyProviderFactory struct {
-	token  string
-	config *configuration.ConfigurationData
-}
-
-func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
-	if forResource == "https://github.com/org/repo" {
-		return &DummyProvider{factory: factory, id: gitHubProviderID, url: forResource}, nil
-	}
-	if forResource == "https://api.starter-us-east-2.openshift.com" {
-		cluster := factory.config.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"]
-		return &DummyProvider{factory: factory, id: cluster.TokenProviderID, url: forResource}, nil
-	}
-	return nil, errors.New("unknown provider")
-}
-
-type DummyProvider struct {
-	factory *DummyProviderFactory
-	id      string
-	url     string
-}
-
-func (provider *DummyProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
-	return &oauth2.Token{AccessToken: provider.factory.token}, nil
-}
-
-func (provider *DummyProvider) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
-	return fmt.Sprintf("%s/oauth/authorize?state=%s", provider.url, state)
-}
-
-func (provider *DummyProvider) ID() uuid.UUID {
-	id, _ := uuid.FromString(provider.id)
-	return id
-}
-
-func (provider *DummyProvider) Scopes() string {
-	return ""
-}
-
-func (provider *DummyProvider) TypeName() string {
-	return "DummyProvider"
+	require.Equal(s.T(), expectedToken+"testuser", tokens[0].Username)
 }
