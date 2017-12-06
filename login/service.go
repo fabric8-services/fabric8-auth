@@ -454,7 +454,7 @@ func (keycloak *KeycloakOAuthProvider) PerformExchange(ctx *app.ExchangeTokenCon
 			"code": code,
 			"err":  err,
 		}, "keycloak exchange operation failed")
-		return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, autherrors.NewUnauthorizedError("Code Not Valid"))
 	}
 
 	exp := keycloakToken.Expiry.String()
