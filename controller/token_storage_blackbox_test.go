@@ -93,7 +93,7 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
 	for _, cluster := range rest.Configuration.GetOSOClusters() {
-		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL)
+		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL, nil)
 
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
 		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
@@ -109,7 +109,7 @@ func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSA
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
 	for _, cluster := range rest.Configuration.GetOSOClusters() {
-		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL)
+		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL, nil)
 	}
 }
 
@@ -119,7 +119,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
 
 	expectedToken := positiveKCResponseGithub()
 	rest.assertKeycloakTokenResponse(expectedToken, tokenResponse)
@@ -138,7 +138,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com")
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com", nil)
 
 	expectedToken := positiveKCResponseOpenShift()
 	rest.assertKeycloakTokenResponse(expectedToken, tokenResponse)
@@ -194,7 +194,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() 
 	identity := testsupport.TestIdentity // using an Identity which does not exist in the database.
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b")
+	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
 }
 
 // Not present in Keycloak but present in DB.
@@ -230,7 +230,7 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
 
 	// This call should end up in a failed KC response but a positive retrieval from the database.
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
 	require.Equal(rest.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, *tokenResponse.Username)
@@ -240,7 +240,7 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenBadRequest() {
 	identity := testsupport.TestIdentity
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "")
+	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "", nil)
 }
 
 func (rest *TestTokenStorageREST) TestDeleteExternalTokenBadRequest() {

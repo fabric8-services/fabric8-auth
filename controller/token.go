@@ -217,6 +217,8 @@ func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, prov
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	currentIdentity, err := login.ContextIdentity(ctx)
+	var appResponse app.ExternalToken
+
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -250,11 +252,14 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	if externalToken != nil {
-		updatedToken, err := c.updateProfileIfEmpty(ctx, providerConfig, externalToken)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+		if externalToken.Username == "" || (ctx.ForcePull != nil && *ctx.ForcePull == true) {
+			updatedToken, err := c.updateProfileIfEmpty(ctx, providerConfig, externalToken)
+			if err != nil {
+				return jsonapi.JSONErrorResponse(ctx, err)
+			}
+			appResponse = modelToAppExternalToken(updatedToken)
 		}
-		appResponse := modelToAppExternalToken(updatedToken)
+		appResponse = modelToAppExternalToken(*externalToken)
 		return ctx.OK(&appResponse)
 	}
 
@@ -282,12 +287,11 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
 	updatedToken, err := c.updateProfileIfEmpty(ctx, providerConfig, externalToken)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	appResponse := modelToAppExternalToken(updatedToken)
+	appResponse = modelToAppExternalToken(updatedToken)
 
 	return ctx.OK(&appResponse)
 }
@@ -416,18 +420,15 @@ func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenRe
 // loads the user profile from the identity provider and saves the username in the external token
 func (c *TokenController) updateProfileIfEmpty(ctx context.Context, providerConfig link.ProviderConfig, token *provider.ExternalToken) (provider.ExternalToken, error) {
 	externalToken := *token
-	if externalToken.Username == "" {
-		userProfile, err := providerConfig.Profile(ctx, oauth2.Token{AccessToken: token.Token})
-		if err != nil {
-			return externalToken, err
-		}
-		externalToken.Username = userProfile.Username
-		err = application.Transactional(c.db, func(appl application.Application) error {
-			return appl.ExternalTokens().Save(ctx, &externalToken)
-		})
+	userProfile, err := providerConfig.Profile(ctx, oauth2.Token{AccessToken: token.Token})
+	if err != nil {
 		return externalToken, err
 	}
-	return externalToken, nil
+	externalToken.Username = userProfile.Username
+	err = application.Transactional(c.db, func(appl application.Application) error {
+		return appl.ExternalTokens().Save(ctx, &externalToken)
+	})
+	return externalToken, err
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
