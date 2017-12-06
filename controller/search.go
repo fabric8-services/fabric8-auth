@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -33,8 +34,8 @@ func NewSearchController(service *goa.Service, db application.DB, configuration 
 func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
 	q := ctx.Q
-	if q == "" {
-		return ctx.BadRequest(goa.ErrBadRequest(fmt.Errorf("empty search query not allowed")))
+	if len(q) == 0 {
+		return ctx.BadRequest(goa.ErrBadRequest(fmt.Errorf("search query should be longer")))
 	}
 
 	var result []account.Identity
@@ -44,6 +45,8 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 	exceeded := false
 	offset, limit := computePagingLimits(ctx.PageOffset, ctx.PageLimit)
 
+	r, err := regexp.Compile(`\w`) // check for A-Z a-z 0-9
+
 	searchLimit := limit
 	// Don't return more users than allowed by configuration
 	if offset >= c.configuration.GetMaxUsersListLimit() {
@@ -52,15 +55,17 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		searchLimit = c.configuration.GetMaxUsersListLimit() - offset
 	}
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
-		result, count, err = appl.Identities().Search(ctx, q, offset, searchLimit)
-		return err
-	})
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to run search query on users.")
-		return jsonapi.JSONErrorResponse(ctx, err)
+	if r.MatchString(q) {
+		err = application.Transactional(c.db, func(appl application.Application) error {
+			result, count, err = appl.Identities().Search(ctx, q, offset, searchLimit)
+			return err
+		})
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "unable to run search query on users.")
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
 	}
 
 	if exceeded {
@@ -109,4 +114,5 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 	setPagingLinks(response.Links, buildAbsoluteURL(ctx.RequestData), len(result), offset, limit, count, "q="+q)
 
 	return ctx.OK(&response)
+
 }
