@@ -331,9 +331,10 @@ dev-openshift: prebuild-check deps generate build bin/docker/fabric8-auth-linux
 	kedge apply -f minishift/kedge/auth-local.yml
 	
 .PHONY: clean-openshift
-dev-auth-openshift-clean:
+clean-openshift:
+	-eval `minishift oc-env` &&  oc login -u developer -p developer
 	kedge delete -f minishift/kedge/auth.yml -f minishift/kedge/db-auth.yml
-	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc delete project auth-openshift --grace-period=1
+	-eval oc delete project auth-openshift --grace-period=1
 
 .PHONY: prebuild-check
 prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN)
