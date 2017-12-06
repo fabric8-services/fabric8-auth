@@ -30,7 +30,6 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/oauth2"
 )
 
 // TokenController implements the login resource.

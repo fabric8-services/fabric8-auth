@@ -132,7 +132,7 @@ func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
 
 	someRandomString := "someString"
 	witID := "5dec5fdb-09e3-4453-b73f-5c828832b28e"
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", RedirectURI: &someRandomString, ClientID: &witID, Code: &someRandomString})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: &witID, Code: &someRandomString})
 
 }
 func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
