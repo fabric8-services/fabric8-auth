@@ -140,6 +140,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	defaultCluster := configuration.GetOpenShiftClientApiUrl()
 	m = append(m, steps{ExecuteSQLFile("010-add-cluster-to-user.sql", defaultCluster)})
 
+	// version 11
+	m = append(m, steps{ExecuteSQLFile("011-add-username-to-external-token.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

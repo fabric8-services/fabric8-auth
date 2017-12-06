@@ -16,6 +16,6 @@ func TestOpenShiftProviderID(t *testing.T) {
 	require.Nil(t, err)
 
 	cluster := config.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"]
-	_, err = NewOpenShiftConfig(cluster, "")
+	_, err = NewOpenShiftIdentityProvider(cluster, "")
 	require.Nil(t, err)
 }

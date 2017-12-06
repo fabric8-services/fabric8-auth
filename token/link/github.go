@@ -1,9 +1,12 @@
 package link
 
 import (
+	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -11,35 +14,52 @@ import (
 )
 
 const (
-	gitHubProviderID = "2f6b7176-8f4b-4204-962d-606033275397" // Do not change! This ID is used as provider ID in the external token table
+	GitHubProviderID = "2f6b7176-8f4b-4204-962d-606033275397" // Do not change! This ID is used as provider ID in the external token table
 )
 
-type GitHubConfig struct {
-	oauth2.Config
-	providerID uuid.UUID
-	scopeStr   string
+type GitHubIdentityProvider struct {
+	oauth.OauthIdentityProvider
 }
 
-func NewGitHubConfig(clientID string, clientSecret string, scopes string, authURL string) *GitHubConfig {
-	provider := &GitHubConfig{}
+type gitHubUser struct {
+	Login string `json:"login"`
+}
+
+func NewGitHubIdentityProvider(clientID string, clientSecret string, scopes string, authURL string) *GitHubIdentityProvider {
+	provider := &GitHubIdentityProvider{}
 	provider.ClientID = clientID
 	provider.ClientSecret = clientSecret
 	provider.Endpoint = github.Endpoint
 	provider.RedirectURL = authURL + client.CallbackTokenPath()
-	provider.scopeStr = scopes
+	provider.ScopeStr = scopes
 	provider.Config.Scopes = strings.Split(scopes, " ")
-	provider.providerID, _ = uuid.FromString(gitHubProviderID)
+	provider.ProviderID, _ = uuid.FromString(GitHubProviderID)
+	provider.ProfileURL = "https://api.github.com/user"
 	return provider
 }
 
-func (config *GitHubConfig) ID() uuid.UUID {
-	return config.providerID
+func (provider *GitHubIdentityProvider) ID() uuid.UUID {
+	return provider.ProviderID
 }
 
-func (config *GitHubConfig) Scopes() string {
-	return config.scopeStr
+func (provider *GitHubIdentityProvider) Scopes() string {
+	return provider.ScopeStr
 }
 
-func (config *GitHubConfig) TypeName() string {
+func (provider *GitHubIdentityProvider) TypeName() string {
 	return "github"
+}
+
+// Profile fetches a user profile from the Identity Provider
+func (provider *GitHubIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
+	body, err := provider.UserProfilePayload(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	var u gitHubUser
+	err = json.Unmarshal(body, &u)
+	userProfile := &oauth.UserProfile{
+		Username: u.Login,
+	}
+	return userProfile, nil
 }

@@ -35,7 +35,8 @@ type TestTokenStorageREST struct {
 	userRepository                         account.UserRepository
 	mockKeycloakExternalTokenServiceClient mockKeycloakExternalTokenServiceClient
 
-	providerConfigFactory link.OauthProviderFactory
+	providerConfigFactory      link.OauthProviderFactory
+	dummyProviderConfigFactory *testsupport.DummyProviderFactory
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
@@ -49,6 +50,7 @@ func (rest *TestTokenStorageREST) SetupTest() {
 	rest.externalTokenRepository = provider.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
 	rest.providerConfigFactory = link.NewOauthProviderFactory(rest.Configuration)
+	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.NewV4().String(), Config: rest.Configuration}
 }
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
@@ -62,6 +64,13 @@ func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
+}
+
+func (rest *TestTokenStorageREST) SecuredControllerWithIdentityAndDummyProviderFactory(identity account.Identity) (*goa.Service, *TokenController) {
+	loginService := newTestKeycloakOAuthProvider(rest.Application)
+
+	svc := testsupport.ServiceAsUser("Token-Service", identity)
+	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.dummyProviderConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
@@ -109,13 +118,18 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
-	service, controller := rest.SecuredControllerWithIdentity(identity)
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
 
 	expectedToken := positiveKCResponseGithub()
-	require.Equal(rest.T(), expectedToken.AccessToken, tokenResponse.AccessToken)
-	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
-	require.Equal(rest.T(), expectedToken.TokenType, tokenResponse.TokenType)
+	rest.assertKeycloakTokenResponse(expectedToken, tokenResponse)
+}
+
+func (rest *TestTokenStorageREST) assertKeycloakTokenResponse(expected *keycloak.KeycloakExternalTokenResponse, actual *app.ExternalToken) {
+	require.Equal(rest.T(), expected.AccessToken, actual.AccessToken)
+	require.Equal(rest.T(), expected.Scope, actual.Scope)
+	require.Equal(rest.T(), expected.TokenType, actual.TokenType)
+	require.Equal(rest.T(), expected.AccessToken+"testuser", *actual.Username)
 }
 
 // Not present in DB but present in Keycloak
@@ -123,13 +137,11 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
-	service, controller := rest.SecuredControllerWithIdentity(identity)
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com")
 
 	expectedToken := positiveKCResponseOpenShift()
-	require.Equal(rest.T(), expectedToken.AccessToken, tokenResponse.AccessToken)
-	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
-	require.Equal(rest.T(), expectedToken.TokenType, tokenResponse.TokenType)
+	rest.assertKeycloakTokenResponse(expectedToken, tokenResponse)
 }
 
 // Not present in DB and failed in Keycloak for any reason
@@ -200,7 +212,7 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 	require.Nil(rest.T(), err)
 
 	rest.mockKeycloakExternalTokenServiceClient.scenario = scenario
-	service, controller := rest.SecuredControllerWithIdentity(identity)
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
@@ -213,6 +225,7 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 		Scope:      providerConfig.Scopes(),
 		IdentityID: identity.ID,
 		Token:      "1234-from-db",
+		Username:   "1234-from-dbtestuser",
 	}
 	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
 
@@ -220,6 +233,7 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
 	require.Equal(rest.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
+	require.Equal(rest.T(), expectedToken.Username, *tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
 }
 
@@ -328,7 +342,7 @@ func (client mockKeycloakExternalTokenServiceClient) Delete(ctx context.Context,
 func positiveKCResponseGithub() *keycloak.KeycloakExternalTokenResponse {
 	return &keycloak.KeycloakExternalTokenResponse{
 		AccessToken: "1234-github",
-		Scope:       "default-github",
+		Scope:       "testscope",
 		TokenType:   "bearer",
 	}
 }
@@ -336,7 +350,7 @@ func positiveKCResponseGithub() *keycloak.KeycloakExternalTokenResponse {
 func positiveKCResponseOpenShift() *keycloak.KeycloakExternalTokenResponse {
 	return &keycloak.KeycloakExternalTokenResponse{
 		AccessToken: "1234-openshift",
-		Scope:       "default-openshift",
+		Scope:       "testscope",
 		TokenType:   "bearer",
 	}
 }

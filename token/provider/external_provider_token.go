@@ -24,6 +24,7 @@ type ExternalToken struct {
 	ProviderID uuid.UUID
 	Token      string
 	Scope      string
+	Username   string
 	IdentityID uuid.UUID `sql:"type:uuid"` // use NullUUID ?
 	Identity   account.Identity
 }

@@ -1,26 +1,34 @@
 package link
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/client"
-
-	"fmt"
-
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
+
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 )
 
-type OpenShiftConfig struct {
-	oauth2.Config
-	providerID uuid.UUID
-	scopeStr   string
-	Cluster    configuration.OSOCluster
+type OpenShiftIdentityProvider struct {
+	oauth.OauthIdentityProvider
+	Cluster configuration.OSOCluster
 }
 
-func NewOpenShiftConfig(cluster configuration.OSOCluster, authURL string) (*OpenShiftConfig, error) {
-	provider := &OpenShiftConfig{}
+type openshiftUser struct {
+	Metadata metadata `json:"metadata"`
+}
+
+type metadata struct {
+	Name string `json:"name"`
+}
+
+func NewOpenShiftIdentityProvider(cluster configuration.OSOCluster, authURL string) (*OpenShiftIdentityProvider, error) {
+	provider := &OpenShiftIdentityProvider{}
 	provider.Cluster = cluster
 	provider.ClientID = cluster.AuthClientID
 	provider.ClientSecret = cluster.AuthClientSecret
@@ -29,24 +37,39 @@ func NewOpenShiftConfig(cluster configuration.OSOCluster, authURL string) (*Open
 		TokenURL: fmt.Sprintf("%s/oauth/access_token", cluster.URL),
 	}
 	provider.RedirectURL = authURL + client.CallbackTokenPath()
-	provider.scopeStr = cluster.AuthClientDefaultScope
+	provider.ScopeStr = cluster.AuthClientDefaultScope
 	provider.Config.Scopes = strings.Split(cluster.AuthClientDefaultScope, " ")
 	prID, err := uuid.FromString(cluster.TokenProviderID)
 	if err != nil {
 		return nil, err
 	}
-	provider.providerID = prID
+	provider.ProviderID = prID
+	provider.ProfileURL = fmt.Sprintf("%s/oapi/v1/users/~", cluster.URL)
 	return provider, nil
 }
 
-func (config *OpenShiftConfig) ID() uuid.UUID {
-	return config.providerID
+func (provider *OpenShiftIdentityProvider) ID() uuid.UUID {
+	return provider.ProviderID
 }
 
-func (config *OpenShiftConfig) Scopes() string {
-	return config.scopeStr
+func (provider *OpenShiftIdentityProvider) Scopes() string {
+	return provider.ScopeStr
 }
 
-func (config *OpenShiftConfig) TypeName() string {
+func (provider *OpenShiftIdentityProvider) TypeName() string {
 	return "openshift-v3"
+}
+
+// Profile fetches a user profile from the Identity Provider
+func (provider *OpenShiftIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
+	body, err := provider.UserProfilePayload(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	var u openshiftUser
+	err = json.Unmarshal(body, &u)
+	userProfile := &oauth.UserProfile{
+		Username: u.Metadata.Name,
+	}
+	return userProfile, nil
 }
