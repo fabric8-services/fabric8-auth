@@ -26,6 +26,26 @@ Basically, all work done to the fabric8-auth code base must have a corresponding
 . Create a pull request for your issue branch, making sure to clearly link the issue that the PR is for
 . Update the issue with a link to the pull request
 
+== Makefile targets
+
+[width="90%",cols="20,70"]
+|============================
+|build                 |
+Compiles sources into executable binary
+|dev                   |
+Same as build, however also starts up a Docker instance of the Postgres database and runs the auth service on the host.
+|deploy-auth-openshift |
+Starts a minishift instance and deploys the "latest" tagged versions of the fabric-auth service, plus a postgres database from the docker.io repository, exposing the service at http://minishift.local:31000.
+|dev-db-openshift      |
+Starts a minishift instance and deploys a postgres database to it, while building and running the fabric8-auth service on the host machine which then connects to the db on port 31001.
+|dev-openshift         |
+Starts a minishift instance and deploys a postgres database to it, then builds and deploys the fabric-auth service to minishift also, exposing the service at http://minishift.local:31000.
+|clean-openshift       |
+Removes the deployment from minishift, deleting the deployments and removing the project.
+|docs                  |
+Builds the documentation in the /docs directory.
+|============================
+
 == Service Accounts
 
 Service accounts are used by other services to allow secure service-to-service interaction.  One example of this is the auth service's protection API, which requires a PAT (Protection API Token) in order for the resource servers to register newly created resources, and query the access rights for clients attempting to access resources that they don't own.
