@@ -311,7 +311,7 @@ dev-db-openshift: prebuild-check deps generate $(FRESH_BIN)
 	./minishift/check_hosts.sh
 	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
 	AUTH_DEVELOPER_MODE_ENABLED=true \
-	kedge apply -f minishift/kedge/db-auth-exposed.yml
+	kedge apply -f minishift/kedge/db-auth.yml
 	sleep 5s
 	AUTH_POSTGRES_HOST=minishift.local \
 	AUTH_POSTGRES_PORT=31001 \

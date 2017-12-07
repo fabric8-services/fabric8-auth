@@ -64,6 +64,14 @@ This build uses the developer account for creating a project called `auth-opensh
 
 The above command then automates the process of running the containers on OpenShift in MiniShift by using Kedge.
 
+Once the service is running, it will be available at [http://minishift.local:31000/api](http://minishift.local:31000/api).
+
+If you wish to access the Postgres database, it is available on the same host but on port 31001.  Use the following command to connect with the Postgres client:
+
+```
+psql -h minishift.local -U postgres -d postgres -p 31001
+```
+
 See the [developer documentation](https://fabric8-services.github.io/fabric8-auth/developer.html) for other make targets to run fabric8-auth on minishift
 
 ## Check logs from services
