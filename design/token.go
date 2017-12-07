@@ -182,7 +182,7 @@ var tokenExchange = a.Type("TokenExchange", func() {
 	a.Attribute("client_secret", d.String, "Service Account secret. Used to obtain a PAT for this service account.")
 	a.Attribute("redirect_uri", d.String, "Must be identical to the redirect URI provided while getting the authorization_code")
 	a.Attribute("code", d.String, "this is the authorization_code you received from /api/authorize endpoint")
-	a.Required("grant_type")
+	a.Required("grant_type", "client_id")
 })
 
 // AuthToken represents an authentication JWT Token

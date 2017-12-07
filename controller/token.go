@@ -357,17 +357,15 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	const authorizationCode = "authorization_code"
 
 	if payload.GrantType == clientCredentials {
-		if payload.ClientID == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Service Account ID"))
-		}
+
 		if payload.ClientSecret == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_secret", "nil").Expected("Service Account secret"))
 		}
 
-		sa, found := c.Configuration.GetServiceAccounts()[*payload.ClientID]
+		sa, found := c.Configuration.GetServiceAccounts()[payload.ClientID]
 		if !found {
 			log.Error(ctx, map[string]interface{}{
-				"client_id":     *payload.ClientID,
+				"client_id":     payload.ClientID,
 				"client_secret": *payload.ClientSecret,
 			}, "Unknown Service Account ID")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
@@ -388,17 +386,13 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			}
 		}
 		log.Error(ctx, map[string]interface{}{
-			"client_id":     *payload.ClientID,
+			"client_id":     payload.ClientID,
 			"client_secret": *payload.ClientSecret,
 		}, "Service Account secret doesn't match")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
 	}
 
 	if payload.GrantType == authorizationCode {
-
-		if payload.ClientID == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("client id"))
-		}
 
 		if payload.RedirectURI == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("redirect uri"))
@@ -426,12 +420,39 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		oauth := &oauth2.Config{
 			ClientID:     c.Configuration.GetKeycloakClientID(),
 			ClientSecret: c.Configuration.GetKeycloakSecret(),
-			Scopes:       []string{"user:email"},
 			Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/authorize"),
+			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/authorize/callback"),
 		}
 
-		return c.Auth.PerformExchange(ctx, oauth, c.Configuration)
+		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
+		keycloakToken, err := c.Auth.GetTokenFromAuthorizationCode(ctx, *payload.Code, oauth)
+		if err != nil {
+			return err
+		}
+
+		redirectURL, err := url.Parse(oauth.RedirectURL)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"redirectURL": oauth.RedirectURL,
+				"err":         err,
+			}, "failed to parse referrer")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
+
+		_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, *payload.Code, redirectURL, keycloakToken, ctx.RequestData, oauth, c.Configuration)
+
+		if err != nil {
+			return err
+		}
+
+		exp := keycloakToken.Expiry.String()
+		token := &app.OauthToken{
+			AccessToken:  &keycloakToken.AccessToken,
+			Expiry:       &exp,
+			RefreshToken: &keycloakToken.RefreshToken,
+			TokenType:    &keycloakToken.TokenType,
+		}
+		return ctx.OK(token)
 	}
 
 	log.Error(ctx, map[string]interface{}{

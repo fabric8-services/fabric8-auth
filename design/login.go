@@ -5,24 +5,6 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
-// AuthorizationCode
-var authorizationCode = a.MediaType("application/vnd.authorizationCode+json", func() {
-	a.TypeName("AuthorizationCode")
-	a.Description("authorization_code from keycloak")
-	a.Attributes(func() {
-		a.Attribute("code", d.String, "authorization_code from keycloak")
-		a.Attribute("state", d.UUID, "")
-		a.Required("code", "state")
-	})
-
-	a.View("default", func() {
-		a.Attribute("code")
-		a.Attribute("state")
-		a.Required("code", "state")
-	})
-
-})
-
 var _ = a.Resource("login", func() {
 
 	a.BasePath("/login")
@@ -65,11 +47,26 @@ var _ = a.Resource("authorize", func() {
 			a.Param("redirect_uri", d.String, "This is where authorization provider will send authorization_code")
 			a.Param("scope", d.String, "")
 			a.Param("state", d.UUID, "")
-			a.Param("code", d.String, "authorization_code")
 			a.Param("api_client", d.String, "The name of the api client which is requesting a token")
-			a.Required("state")
+			a.Required("state", "response_type", "redirect_uri", "client_id")
 		})
 		a.Description("Authorize service client")
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
+
+	a.Action("callback", func() {
+		a.Routing(
+			a.GET("callback"),
+		)
+		a.Params(func() {
+			a.Param("state", d.UUID, "")
+			a.Param("code", d.String, "authorization_code")
+			a.Required("state", "code")
+		})
+		a.Description("Authorize service client callback")
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)
 		a.Response(d.InternalServerError, JSONAPIErrors)
