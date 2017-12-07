@@ -93,7 +93,7 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
 	for _, cluster := range rest.Configuration.GetOSOClusters() {
-		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL)
+		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL, nil)
 
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
 		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
@@ -109,7 +109,7 @@ func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSA
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
 	for _, cluster := range rest.Configuration.GetOSOClusters() {
-		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL)
+		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL, nil)
 	}
 }
 
@@ -119,7 +119,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenGithubOK() {
 	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
 
 	expectedToken := positiveKCResponseGithub()
 	rest.assertKeycloakTokenResponse(expectedToken, tokenResponse)
@@ -138,7 +138,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenOSOOK() {
 	require.Nil(rest.T(), err)
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com")
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2.openshift.com", nil)
 
 	expectedToken := positiveKCResponseOpenShift()
 	rest.assertKeycloakTokenResponse(expectedToken, tokenResponse)
@@ -194,7 +194,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() 
 	identity := testsupport.TestIdentity // using an Identity which does not exist in the database.
 	rest.mockKeycloakExternalTokenServiceClient.scenario = "positive"
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b")
+	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
 }
 
 // Not present in Keycloak but present in DB.
@@ -208,6 +208,10 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenFailedInKeycloak() {
 }
 
 func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenario string) {
+	rest.retrieveExternalTokenFromDBSuccess(scenario)
+}
+
+func (rest *TestTokenStorageREST) retrieveExternalTokenFromDBSuccess(scenario string) (account.Identity, provider.ExternalToken) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 
@@ -230,17 +234,71 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
 
 	// This call should end up in a failed KC response but a positive retrieval from the database.
-	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b")
+	_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
 	require.Equal(rest.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, *tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
+
+	return identity, expectedToken
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenBadRequest() {
 	identity := testsupport.TestIdentity
 	service, controller := rest.SecuredControllerWithIdentity(identity)
-	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "")
+	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "", nil)
+}
+
+// This test demonstrates that the token retrieval works successfully without the ForcePull option
+// However, when the ForcePull option is passed, we determine that the token is invalid.
+
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenInvalidOnForcePullInternalError() {
+
+	identity, _ := rest.retrieveExternalTokenFromDBSuccess("linked")
+	// Token retrieved from database is successful, but when tested with github it's invalid.
+	forcePull := true
+	forProvider := "https://github.com/a/b"
+	rest.dummyProviderConfigFactory.LoadProfileFail = true
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+	test.RetrieveTokenInternalServerError(rest.T(), service.Context, service, controller, forProvider, &forcePull)
+	rest.dummyProviderConfigFactory.LoadProfileFail = false // reset to default
+}
+
+// This test demonstrates that the token retrieval works successfully without the ForcePull option
+// When the ForcePull option is passed, we determine that the token is valid.
+
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenValidOnForcePullInternalError() {
+
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	require.Nil(rest.T(), err)
+
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "linked"
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "api.example.org"},
+	}
+	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), r, "https://github.com/a/b")
+	require.Nil(rest.T(), err)
+
+	expectedToken := provider.ExternalToken{
+		ProviderID: providerConfig.ID(),
+		Scope:      providerConfig.Scopes(),
+		IdentityID: identity.ID,
+		Token:      "1234-from-db",
+		Username:   "1234-from-dbtestuser",
+	}
+	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
+
+	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+
+	// Token retrieved from database is successful, but when tested with github it's invalid.
+	forcePull := true
+	forProvider := "https://github.com/a/b"
+	rest.dummyProviderConfigFactory.LoadProfileFail = false
+	service, controller = rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, forProvider, &forcePull)
+
 }
 
 func (rest *TestTokenStorageREST) TestDeleteExternalTokenBadRequest() {
