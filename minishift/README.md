@@ -69,7 +69,7 @@ Once the service is running, it will be available at [http://minishift.local:310
 If you wish to access the Postgres database, it is available on the same host but on port 31001.  Use the following command to connect with the Postgres client:
 
 ```
-psql -h minishift.local -U postgres -d postgres -p 31001
+PGPASSWORD=mysecretpassword psql -h minishift.local -U postgres -d postgres -p 31001
 ```
 
 See the [developer documentation](https://fabric8-services.github.io/fabric8-auth/developer.html) for other make targets to run fabric8-auth on minishift
