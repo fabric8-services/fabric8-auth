@@ -208,6 +208,10 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenFailedInKeycloak() {
 }
 
 func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenario string) {
+	rest.retrieveExternalTokenFromDBSuccess(scenario)
+}
+
+func (rest *TestTokenStorageREST) retrieveExternalTokenFromDBSuccess(scenario string) (account.Identity, provider.ExternalToken) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 
@@ -235,12 +239,66 @@ func (rest *TestTokenStorageREST) retrieveExternalTokenFailingInKeycloak(scenari
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, *tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
+
+	return identity, expectedToken
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenBadRequest() {
 	identity := testsupport.TestIdentity
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 	test.RetrieveTokenBadRequest(rest.T(), service.Context, service, controller, "", nil)
+}
+
+// This test demonstrates that the token retrieval works successfully without the ForcePull option
+// However, when the ForcePull option is passed, we determine that the token is invalid.
+
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenInvalidOnForcePullInternalError() {
+
+	identity, _ := rest.retrieveExternalTokenFromDBSuccess("linked")
+	// Token retrieved from database is successful, but when tested with github it's invalid.
+	forcePull := true
+	forProvider := "https://github.com/a/b"
+	rest.dummyProviderConfigFactory.LoadProfileFail = true
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+	test.RetrieveTokenInternalServerError(rest.T(), service.Context, service, controller, forProvider, &forcePull)
+	rest.dummyProviderConfigFactory.LoadProfileFail = false // reset to default
+}
+
+// This test demonstrates that the token retrieval works successfully without the ForcePull option
+// When the ForcePull option is passed, we determine that the token is valid.
+
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenValidOnForcePullInternalError() {
+
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	require.Nil(rest.T(), err)
+
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "linked"
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "api.example.org"},
+	}
+	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), r, "https://github.com/a/b")
+	require.Nil(rest.T(), err)
+
+	expectedToken := provider.ExternalToken{
+		ProviderID: providerConfig.ID(),
+		Scope:      providerConfig.Scopes(),
+		IdentityID: identity.ID,
+		Token:      "1234-from-db",
+		Username:   "1234-from-dbtestuser",
+	}
+	rest.externalTokenRepository.Create(context.Background(), &expectedToken)
+
+	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+
+	// Token retrieved from database is successful, but when tested with github it's invalid.
+	forcePull := true
+	forProvider := "https://github.com/a/b"
+	rest.dummyProviderConfigFactory.LoadProfileFail = false
+	service, controller = rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, forProvider, &forcePull)
+
 }
 
 func (rest *TestTokenStorageREST) TestDeleteExternalTokenBadRequest() {
