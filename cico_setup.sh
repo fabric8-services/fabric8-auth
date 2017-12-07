@@ -53,7 +53,7 @@ function prepare() {
 }
 
 function run_tests_without_coverage() {
-  make docker-test-unit-no-coverage
+  make docker-test-unit
   make integration-test-env-prepare
   trap cleanup_env EXIT
 
@@ -61,8 +61,8 @@ function run_tests_without_coverage() {
   check_postgres_healthiness
 
   make docker-test-migration
-  make docker-test-integration-no-coverage
-  make docker-test-remote-no-coverage
+  make docker-test-integration
+  make docker-test-remote
   echo "CICO: ran tests without coverage"
 }
 
@@ -77,7 +77,7 @@ function check_postgres_healthiness(){
 
 function run_tests_with_coverage() {
   # Run the unit tests that generate coverage information
-  make docker-test-unit
+  make docker-test-unit-with-coverage
   make integration-test-env-prepare
   trap cleanup_env EXIT
 
@@ -86,10 +86,10 @@ function run_tests_with_coverage() {
 
   # Run the integration tests that generate coverage information
   make docker-test-migration
-  make docker-test-integration
+  make docker-test-integration-with-coverage
 
   # Run the remote tests that generate coverage information
-  make docker-test-remote
+  make docker-test-remote-with-coverage
 
   # Output coverage
   make docker-coverage-all
