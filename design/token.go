@@ -38,6 +38,7 @@ var _ = a.Resource("token", func() {
 		)
 		a.Params(func() {
 			a.Param("for", d.String, "The resource for which the external token is being fetched, example https://github.com/fabric8-services/fabric8-auth or https://api.starter-us-east-2.openshift.com")
+			a.Param("force_pull", d.Boolean, "Pull the user's details for the specific connected account, example, the user's updated github username would be fetched from github. If this is not set or false, then the user profile will be pulled only if the stored user's details did not have the username")
 			a.Required("for")
 		})
 		a.Description("Get the external token for resources belonging to external providers like Github and OpenShift")

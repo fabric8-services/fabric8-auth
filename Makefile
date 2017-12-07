@@ -296,6 +296,46 @@ $(INSTALL_PREFIX):
 
 $(TMP_PATH):
 	mkdir -p $(TMP_PATH)
+	
+.PHONY: deploy-auth-openshift
+deploy-auth-openshift: prebuild-check deps generate $(FRESH_BIN)
+	minishift start --cpus 4
+	./minishift/check_hosts.sh
+	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
+	AUTH_DEVELOPER_MODE_ENABLED=true \
+	kedge apply -f minishift/kedge/db-auth.yml -f minishift/kedge/auth.yml
+
+.PHONY: dev-db-openshift
+dev-db-openshift: prebuild-check deps generate $(FRESH_BIN)
+	minishift start --cpus 4
+	./minishift/check_hosts.sh
+	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
+	AUTH_DEVELOPER_MODE_ENABLED=true \
+	kedge apply -f minishift/kedge/db-auth.yml
+	sleep 5s
+	AUTH_POSTGRES_HOST=minishift.local \
+	AUTH_POSTGRES_PORT=31001 \
+	AUTH_POSTGRES_USERNAME=postgres \
+	AUTH_POSTGRES_PASSWORD=mysecretpassword \
+	$(FRESH_BIN)
+
+.PHONY: dev-openshift
+dev-openshift: prebuild-check deps generate build bin/docker/fabric8-auth-linux
+	minishift start --cpus 4
+	./minishift/check_hosts.sh
+	-eval `minishift oc-env` &&  oc login -u developer -p developer && oc new-project auth-openshift
+	AUTH_DEVELOPER_MODE_ENABLED=true \
+	kedge apply -f minishift/kedge/db-auth.yml
+	sleep 5s
+	-eval `minishift docker-env` && docker login -u developer -p $$(oc whoami -t) $$(minishift openshift registry) && docker build -t fabric8/fabric8-auth:dev bin/docker
+	-kedge delete -f minishift/kedge/auth-local.yml
+	kedge apply -f minishift/kedge/auth-local.yml
+	
+.PHONY: clean-openshift
+clean-openshift:
+	-eval `minishift oc-env` &&  oc login -u developer -p developer
+	-kedge delete -f minishift/kedge/auth.yml -f minishift/kedge/db-auth.yml
+	-eval oc delete project auth-openshift --grace-period=1
 
 .PHONY: prebuild-check
 prebuild-check: $(TMP_PATH) $(INSTALL_PREFIX) $(CHECK_GOPATH_BIN)
