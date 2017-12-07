@@ -113,6 +113,13 @@ want to compile. That's why we offer special `make` targets for these topics:
  * <<test>>
  * <<coverage>>
 
+===== Running on Minishift
+
+See the following README in the minishift directory for instructions on running fabric8-auth in minishift:
+
+link:minishift/README.md[Minishift README].
+
+
 ===== Fetch dependencies [[fetch-dependencies]]
 
 This will download all the dependencies for this project inside a directory

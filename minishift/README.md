@@ -53,7 +53,18 @@ End with an example of getting some data out of the system or using it for a lit
 
 ## Usage
 
-See the [developer documentation](https://fabric8-services.github.io/fabric8-auth/developer.html) for make targets to run fabric8-auth on minishift
+When you want to run fabric8-auth and its database on OpenShift use following command:
+```
+make dev-openshift
+```
+Please enter sudo password when prompted, it is needed in order to create an entry in the `/etc/hosts`.
+`minishift ip` gives the IP address on which MiniShift is running. This automation creates a host entry as `minishift.local` for that IP. This domain is whitelisted on fabric8-auth.
+
+This build uses the developer account for creating a project called `auth-openshift`.
+
+The above command then automates the process of running the containers on OpenShift in MiniShift by using Kedge.
+
+See the [developer documentation](https://fabric8-services.github.io/fabric8-auth/developer.html) for other make targets to run fabric8-auth on minishift
 
 ## Check logs from services
 Use `oc` from MiniShift
