@@ -80,6 +80,18 @@ Use `oc` from MiniShift
 eval $(minishift oc-env)
 ```
 
+## Cleanup
+
+To undeploy the fabric8-auth service and auth DB (Postgres) from minishift, run the following command:
+
+```
+make clean-openshift
+```
+
+This removes both the auth and db-auth services from minishift and deletes the auth-openshift project.
+
+## Checking services logs
+
 List out all running services in MiniShift using
 ```
 oc get pods
