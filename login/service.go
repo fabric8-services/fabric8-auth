@@ -69,6 +69,7 @@ type KeycloakOAuthService interface {
 	VerifyState(ctx context.Context, state string, code string) (*url.URL, error)
 	CreateOrUpdateIdentity(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, code string, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
+	BeforeRedirectToLogin(ctx context.Context, redirect *string, link *bool, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -93,7 +94,7 @@ const (
 // Perform performs authentication
 func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
 	/* Compute all the configuration urls */
-	validRedirectURL := serviceConfig.GetValidRedirectURLs()
+	//validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
@@ -132,12 +133,25 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 	}
 
 	// First time access, redirect to oauth provider
-	redirect := ctx.Redirect
-	referrer := ctx.RequestData.Header.Get("Referer")
+
+	redirectURL, err := keycloak.BeforeRedirectToLogin(ctx, ctx.Redirect, ctx.Link, ctx.APIClient, ctx.RequestData, config, serviceConfig)
+	if err != nil {
+		return err
+	}
+	ctx.ResponseData.Header().Set("Location", *redirectURL)
+	return ctx.TemporaryRedirect()
+}
+
+// BeforeRedirectToLogin takes care of things parameter and state saving
+func (keycloak *KeycloakOAuthProvider) BeforeRedirectToLogin(ctx context.Context, redirect *string, link *bool, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+	/* Compute all the configuration urls */
+	validRedirectURL := serviceConfig.GetValidRedirectURLs()
+
+	// First time access, redirect to oauth provider
+	referrer := request.Header.Get("Referer")
 	if redirect == nil {
 		if referrer == "" {
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("Referer Header and redirect param are both empty. At least one should be specified."))
-			return ctx.BadRequest(jerrors)
+			return nil, jsonapi.JSONErrorResponse(ctx, autherrors.NewBadParameterError("Referer Header and redirect param are both empty. At least one should be specified", redirect).Expected("redirect"))
 		}
 		redirect = &referrer
 	}
@@ -150,9 +164,9 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 	stateID := uuid.NewV4()
 
-	redirect, err := keycloak.saveParams(ctx, *redirect)
+	redirect, err := keycloak.saveParams(ctx, *redirect, link, apiClient)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return nil, jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	err = keycloak.saveReferrer(ctx, stateID, *redirect, validRedirectURL)
@@ -163,13 +177,14 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"redirect": redirect,
 			"err":      err,
 		}, "unable to save the state")
-		return err
+		return nil, err
 	}
 
 	redirectURL := config.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline)
 
-	ctx.ResponseData.Header().Set("Location", redirectURL)
-	return ctx.TemporaryRedirect()
+	return &redirectURL, err
+	/*ctx.ResponseData.Header().Set("Location", redirectURL)
+	return ctx.TemporaryRedirect()*/
 }
 
 // GetTokenFromAuthorizationCode returns token and referralURL on recieving code and state
@@ -340,50 +355,12 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 // PerformAuthorize takes care of authorize action
 func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
-	/* Compute all the configuration urls */
-
-	validRedirectURL := serviceConfig.GetValidRedirectURLs()
-
-	// First time access, redirect to oauth provider
-
-	redirect := &ctx.RedirectURI
-	referrer := ctx.RequestData.Header.Get("Referer")
-	if redirect == nil {
-		if referrer == "" {
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("referer header and redirect param are both empty. At least one should be specified."))
-			return ctx.BadRequest(jerrors)
-		}
-		redirect = &referrer
-	}
-
-	// store referrer in a state reference to redirect later
-
-	log.Debug(ctx, map[string]interface{}{
-		"referrer": referrer,
-		"redirect": redirect,
-	}, "got request from!")
-
-	stateID := ctx.State
-
-	redirect, err := keycloak.saveParamsForAuthorize(ctx, *redirect)
+	link := false
+	redirectURL, err := keycloak.BeforeRedirectToLogin(ctx, &ctx.RedirectURI, &link, ctx.APIClient, ctx.RequestData, config, serviceConfig)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	err = keycloak.saveReferrer(ctx, stateID, *redirect, validRedirectURL)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state":    stateID,
-			"referrer": referrer,
-			"redirect": redirect,
-			"err":      err,
-		}, "unable to save the state")
 		return err
 	}
-
-	redirectURL := config.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline)
-
-	ctx.ResponseData.Header().Set("Location", redirectURL)
+	ctx.ResponseData.Header().Set("Location", *redirectURL)
 	return ctx.TemporaryRedirect()
 }
 
@@ -432,8 +409,8 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	return nil
 }
 
-func (keycloak *KeycloakOAuthProvider) saveParams(ctx *app.LoginLoginContext, redirect string) (*string, error) {
-	if ctx.APIClient != nil || (ctx.Link != nil && *ctx.Link) {
+func (keycloak *KeycloakOAuthProvider) saveParams(ctx context.Context, redirect string, link *bool, apiClient *string) (*string, error) {
+	if apiClient != nil || (link != nil && *link) {
 		// We need to save the "link" and "api_client" params so we don't lose them when redirect to sso for auth and back to auth.
 		linkURL, err := url.Parse(redirect)
 		if err != nil {
@@ -444,33 +421,11 @@ func (keycloak *KeycloakOAuthProvider) saveParams(ctx *app.LoginLoginContext, re
 			return nil, autherrors.NewBadParameterError("redirect", redirect).Expected("valid URL")
 		}
 		parameters := linkURL.Query()
-		if ctx.Link != nil && *ctx.Link {
-			parameters.Add(initiateLinkingParam, strconv.FormatBool(*ctx.Link))
+		if link != nil && *link {
+			parameters.Add(initiateLinkingParam, strconv.FormatBool(*link))
 		}
-		if ctx.APIClient != nil {
-			parameters.Add(apiClientParam, *ctx.APIClient)
-		}
-		linkURL.RawQuery = parameters.Encode()
-		s := linkURL.String()
-		return &s, nil
-	}
-	return &redirect, nil
-}
-
-func (keycloak *KeycloakOAuthProvider) saveParamsForAuthorize(ctx *app.AuthorizeAuthorizeContext, redirect string) (*string, error) {
-	if ctx.APIClient != nil {
-		// We need to save the "api_client" params so we don't lose them when redirect to sso for auth and back to auth.
-		linkURL, err := url.Parse(redirect)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"redirect": redirect,
-				"err":      err,
-			}, "unable to parse redirect")
-			return nil, autherrors.NewBadParameterError("redirect", redirect).Expected("valid URL")
-		}
-		parameters := linkURL.Query()
-		if ctx.APIClient != nil {
-			parameters.Add(apiClientParam, *ctx.APIClient)
+		if apiClient != nil {
+			parameters.Add(apiClientParam, *apiClient)
 		}
 		linkURL.RawQuery = parameters.Encode()
 		s := linkURL.String()
@@ -643,7 +598,7 @@ func (keycloak *KeycloakOAuthProvider) linkProvider(ctx linkInterface, req *goa.
 	return ctx.TemporaryRedirect()
 }
 
-func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx linkInterface, state uuid.UUID, referrer string, validReferrerURL string) error {
+func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state uuid.UUID, referrer string, validReferrerURL string) error {
 	err := oauth.SaveReferrer(ctx, keycloak.db, state, referrer, validReferrerURL)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -847,16 +802,6 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 		},
 	}
 	return keycloak.remoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
-}
-
-func redirectWithError(ctx *app.LoginLoginContext, knownReferrer string, errorString string) error {
-	ctx.ResponseData.Header().Set("Location", knownReferrer+"?error="+errorString)
-	return ctx.TemporaryRedirect()
-}
-
-func redirectWithErrorForAuthorize(ctx *app.AuthorizeAuthorizeContext, knownReferrer string, errorString string) error {
-	ctx.ResponseData.Header().Set("Location", knownReferrer+"?error="+errorString)
-	return ctx.TemporaryRedirect()
 }
 
 func generateGravatarURL(email string) (string, error) {
