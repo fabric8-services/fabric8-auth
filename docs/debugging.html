@@ -518,7 +518,7 @@ are instructions to install delve on different platforms.</p>
 <h2 id="_example_debugging">2. Example debugging</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>In this example we&#8217;ll debug a running ALM server using delve and set a breakpoint
+<p>In this example we&#8217;ll debug a running Auth server using delve and set a breakpoint
 on the function <code>WorkitemController.Show</code>.</p>
 </div>
 <div class="admonitionblock note">
@@ -534,7 +534,7 @@ To see other ways to run <code>dlv</code>, see the <a href="https://github.com/d
 </table>
 </div>
 <div class="paragraph">
-<p>Let&#8217;s assume the binary <code>./bin/alm</code> is running.</p>
+<p>Let&#8217;s assume the binary <code>./bin/auth</code> is running.</p>
 </div>
 <div class="sect2">
 <h3 id="_attach_to_program">2.1. Attach to program</h3>
@@ -544,7 +544,7 @@ the debugger to your running fabric8-auth server,run:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre>$ dlv attach $(pidof ./bin/alm)</pre>
+<pre>$ dlv attach $(pidof ./bin/auth)</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -557,7 +557,7 @@ the debugger to your running fabric8-auth server,run:</p>
 </div>
 </div>
 <div class="paragraph">
-<p>The <code>./bin/alm</code> program is <strong>paused</strong> right now. Once we&#8217;ve set a breakpoint we will
+<p>The <code>./bin/auth</code> program is <strong>paused</strong> right now. Once we&#8217;ve set a breakpoint we will
 let it run again.</p>
 </div>
 </div>

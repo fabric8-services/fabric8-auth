@@ -135,33 +135,33 @@ GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS
 #-------------------------------------------------------------------------------
 
 .PHONY: test-all
-## Runs test-unit and test-integration targets.
+## Runs test-unit, test-integration, and test-remote targets.
 test-all: prebuild-check test-unit test-integration test-remote
 
-.PHONY: test-unit
+.PHONY: test-unit-with-coverage
 ## Runs the unit tests and produces coverage files for each package.
-test-unit: prebuild-check clean-coverage-unit $(COV_PATH_UNIT)
+test-unit-with-coverage: prebuild-check clean-coverage-unit $(COV_PATH_UNIT)
 
-.PHONY: test-unit-no-coverage
+.PHONY: test-unit
 ## Runs the unit tests and WITHOUT producing coverage files for each package.
-test-unit-no-coverage: prebuild-check $(SOURCES)
+test-unit: prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_UNIT_TEST=1 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
-.PHONY: test-unit-no-coverage-junit
-test-unit-no-coverage-junit: prebuild-check ${GO_JUNIT_BIN} ${TMP_PATH}
-	bash -c "set -o pipefail; make test-unit-no-coverage 2>&1 | tee >(${GO_JUNIT_BIN} > ${TMP_PATH}/junit.xml)"
+.PHONY: test-unit-junit
+test-unit-junit: prebuild-check ${GO_JUNIT_BIN} ${TMP_PATH}
+	bash -c "set -o pipefail; make test-unit 2>&1 | tee >(${GO_JUNIT_BIN} > ${TMP_PATH}/junit.xml)"
  
-.PHONY: test-integration
+.PHONY: test-integration-with-coverage
 ## Runs the integration tests and produces coverage files for each package.
 ## Make sure you ran "make integration-test-env-prepare" before you run this target.
-test-integration: prebuild-check clean-coverage-integration migrate-database $(COV_PATH_INTEGRATION)
+test-integration-with-coverage: prebuild-check clean-coverage-integration migrate-database $(COV_PATH_INTEGRATION)
 
-.PHONY: test-integration-no-coverage
+.PHONY: test-integration
 ## Runs the integration tests WITHOUT producing coverage files for each package.
 ## Make sure you ran "make integration-test-env-prepare" before you run this target.
-test-integration-no-coverage: prebuild-check migrate-database $(SOURCES)
+test-integration: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
@@ -171,13 +171,13 @@ test-integration-benchmark: prebuild-check migrate-database $(SOURCES)
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_LOG_LEVEL=error AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -run=^$$ -bench=. -cpu 1,2,4 -test.benchmem $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
-.PHONY: test-remote
+.PHONY: test-remote-with-coverage
 ## Runs the remote tests and produces coverage files for each package.
-test-remote: prebuild-check clean-coverage-remote $(COV_PATH_REMOTE)
+test-remote-with-coverage: prebuild-check clean-coverage-remote $(COV_PATH_REMOTE)
 
-.PHONY: test-remote-no-coverage
+.PHONY: test-remote
 ## Runs the tests which reqire availability of some remote servers WITHOUT producing coverage files for each package.
-test-remote-no-coverage: prebuild-check $(SOURCES)
+test-remote: prebuild-check $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_REMOTE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
