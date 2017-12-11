@@ -743,21 +743,23 @@ func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
-	_, callbackCtx := s.AuthorizeCallback("invalid_code", make(map[string]string))
+	rw, callbackCtx := s.AuthorizeCallback("invalid_code", make(map[string]string))
 	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
 	require.Nil(s.T(), err)
 
-	keycloakToken, err := s.loginService.GetTokenFromAuthorizationCode(callbackCtx, callbackCtx.Code, s.dummyOauth)
-	require.Nil(s.T(), err)
-	require.NotNil(s.T(), keycloakToken)
-	require.Nil(s.T(), err)
+	keycloakToken, err := s.loginService.GetTokenFromAuthorizationCode(callbackCtx, "INVALID_OAUTH2.0_CODE", s.oauth)
+	require.NotNil(s.T(), err)
+	require.Nil(s.T(), keycloakToken)
+
+	assert.Equal(s.T(), 401, rw.Code)
 }
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 
-	_, callbackCtx := s.AuthorizeCallback("invalid_state", make(map[string]string))
+	rw, callbackCtx := s.AuthorizeCallback("invalid_state", make(map[string]string))
 	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
 	require.NotNil(s.T(), err)
+	assert.Equal(s.T(), 401, rw.Code)
 }
 
 func (s *serviceBlackBoxTest) AuthorizeCallback(testType string, extraParams map[string]string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
@@ -804,6 +806,7 @@ func (s *serviceBlackBoxTest) AuthorizeCallback(testType string, extraParams map
 	u = &url.URL{
 		Path: fmt.Sprintf("/api/authorize/callback"),
 	}
+
 	if testType == "valid_code" {
 		prms = url.Values{
 			"state": {returnedState},

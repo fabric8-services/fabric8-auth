@@ -185,8 +185,6 @@ func (keycloak *KeycloakOAuthProvider) BeforeRedirectToLogin(ctx context.Context
 	redirectURL := config.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline)
 
 	return &redirectURL, err
-	/*ctx.ResponseData.Header().Set("Location", redirectURL)
-	return ctx.TemporaryRedirect()*/
 }
 
 // GetTokenFromAuthorizationCode returns token and referralURL on recieving code and state
@@ -198,7 +196,7 @@ func (keycloak *KeycloakOAuthProvider) GetTokenFromAuthorizationCode(ctx context
 			"code": code,
 			"err":  err,
 		}, "keycloak exchange operation failed")
-		return nil, jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+		return nil, jsonapi.JSONErrorResponse(ctx, autherrors.NewUnauthorizedError(err.Error()))
 	}
 
 	log.Debug(ctx, map[string]interface{}{

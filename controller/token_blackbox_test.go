@@ -129,7 +129,7 @@ func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
 	someRandomString := "someString"
 	witID := "5dec5fdb-09e3-4453-b73f-5c828832b28e"
 	code := "INVALID_OAUTH2.0_CODE"
-	test.ExchangeTokenInternalServerError(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: witID, Code: &code})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: witID, Code: &code})
 
 }
 func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
