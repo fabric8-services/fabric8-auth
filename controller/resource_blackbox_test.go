@@ -39,7 +39,7 @@ type TestResourceREST struct {
 
 func TestRunResourceREST(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &TestResourceREST{DBTestSuite: gormtestsupport.NewDBTestSuite("../config.yaml")})
+	suite.Run(t, &TestResourceREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (rest *TestResourceREST) SetupTest() {

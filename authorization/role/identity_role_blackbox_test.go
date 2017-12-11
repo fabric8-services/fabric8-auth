@@ -132,7 +132,7 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		ParentResource: nil,
 		Owner:          *identity,
 		ResourceType:   *resourceType,
-		Description:    &description,
+		Description:    description,
 	}
 
 	err = s.resourceRepo.Create(s.Ctx, res)
