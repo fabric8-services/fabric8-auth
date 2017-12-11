@@ -141,7 +141,7 @@ $ make generate
 
 ===== Build [[build]]
 
-If you want to just build the ALM server and client, run `make build`.
+If you want to just build the Auth server and client, run `make build`.
 
 ----
 $ cd $GOPATH/src/github.com/fabric8-services/fabric8-auth
@@ -272,7 +272,7 @@ The above steps start the API Server on port 8089.
 
 Test out the build by executing CLI commands in a different terminal.
 
-NOTE: The CLI needs the API Server which was started on executing `make dev`  to be up and running. Please do not kill the process. Alternatively if you haven't run `make dev` you could just start the server by running `./bin/alm`.
+NOTE: The CLI needs the API Server which was started on executing `make dev`  to be up and running. Please do not kill the process. Alternatively if you haven't run `make dev` you could just start the server by running `./bin/auth`.
 
 Generate a token for future use.
 ----
