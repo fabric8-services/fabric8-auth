@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -17,7 +18,8 @@ import (
 // ResourceController implements the resource resource.
 type ResourceController struct {
 	*goa.Controller
-	db application.DB
+	db           application.DB
+	TokenManager token.Manager
 }
 
 // NewResourceController creates a resource controller.
@@ -42,11 +44,16 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 // Register runs the register action.
 func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
-	// TODO validate the PAT here
+	// Validate the PAT
+	_, err := c.TokenManager.Locate(ctx)
+	if err != nil {
+		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest(err.Error()))
+		return ctx.BadRequest(jerrors)
+	}
 
 	var res *resource.Resource
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err = application.Transactional(c.db, func(appl application.Application) error {
 
 		// Lookup or create the resource type
 		resourceType, err := appl.ResourceTypeRepository().LookupOrCreate(ctx, ctx.Payload.Type)
@@ -91,10 +98,9 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		}
 
 		// Create the new resource instance
-
 		res = &resource.Resource{
 			ResourceID:     uuid.NewV4().String(),
-			ParentResource: parentResource, //ctx.Payload.ParentResourceID,
+			ParentResource: parentResource,
 			Owner:          *identity,
 			ResourceType:   *resourceType,
 			Description:    *ctx.Payload.Description,
