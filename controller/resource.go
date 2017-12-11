@@ -44,16 +44,14 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 // Register runs the register action.
 func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
-	// Validate the PAT
-	_, err := c.TokenManager.Locate(ctx)
-	if err != nil {
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest(err.Error()))
-		return ctx.BadRequest(jerrors)
+	if !token.IsServiceAccount(ctx) {
+		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized("Invalid Service Account"))
+		return ctx.Unauthorized(jerrors)
 	}
 
 	var res *resource.Resource
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
+	err := application.Transactional(c.db, func(appl application.Application) error {
 
 		// Lookup or create the resource type
 		resourceType, err := appl.ResourceTypeRepository().LookupOrCreate(ctx, ctx.Payload.Type)
