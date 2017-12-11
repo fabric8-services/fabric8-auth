@@ -731,7 +731,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 
-	_, callbackCtx := s.AuthorizeCallback("valid_code", make(map[string]string))
+	_, callbackCtx := s.authorizeCallback("valid_code", make(map[string]string))
 	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
 	require.Nil(s.T(), err)
 
@@ -743,7 +743,7 @@ func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
-	rw, callbackCtx := s.AuthorizeCallback("invalid_code", make(map[string]string))
+	rw, callbackCtx := s.authorizeCallback("invalid_code", make(map[string]string))
 	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
 	require.Nil(s.T(), err)
 
@@ -756,13 +756,13 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 
-	rw, callbackCtx := s.AuthorizeCallback("invalid_state", make(map[string]string))
+	rw, callbackCtx := s.authorizeCallback("invalid_state", make(map[string]string))
 	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
 	require.NotNil(s.T(), err)
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) AuthorizeCallback(testType string, extraParams map[string]string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
+func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map[string]string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
