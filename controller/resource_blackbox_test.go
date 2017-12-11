@@ -13,9 +13,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
+
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
+
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
-	//"github.com/stretchr/testify/assert"
+
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -33,13 +37,22 @@ func init() {
 
 type TestResourceREST struct {
 	gormtestsupport.DBTestSuite
-	db    *gormapplication.GormDB
-	clean func()
+	db *gormapplication.GormDB
+	testsuite.RemoteTestSuite
+	tokenManager token.Manager
+	clean        func()
 }
 
 func TestRunResourceREST(t *testing.T) {
 	resource.Require(t, resource.Database)
 	suite.Run(t, &TestResourceREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+}
+
+func (s *TestResourceREST) SetupSuite() {
+	s.RemoteTestSuite.SetupSuite()
+	var err error
+	s.tokenManager, err = token.NewManager(s.Config)
+	require.Nil(s.T(), err)
 }
 
 func (rest *TestResourceREST) SetupTest() {
@@ -62,11 +75,15 @@ func (rest *TestResourceREST) UnSecuredController() (*goa.Service, *ResourceCont
 }
 
 /*
- * This test will attempt to register a resource with an invalid PAT
+ * This test will attempt to register a resource with an invalid resource owner
  */
 func (rest *TestResourceREST) TestFailRegisterResourceBadRequest() {
 
 	svc, ctrl := rest.UnSecuredController()
+
+	//tokenString, err := rest.tokenManager.GenerateServiceAccountToken(??, saID, "fabric8-wit")
+	//require.Nil(s.T(), err)
+	//s.checkServiceAccountToken(tokenString, saID, "fabric8-wit")
 
 	resourceDescription := "Resource description"
 	resourceID := ""

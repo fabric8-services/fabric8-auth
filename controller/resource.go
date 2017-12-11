@@ -70,7 +70,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 					"parent_resource_id": ctx.Payload.ParentResourceID,
 				}, "Parent resource could not be found")
 
-				return err
+				return errors.NewBadParameterError("Invalid parent resource ID specified", err)
 			}
 		}
 		// Extract the resource owner ID from the request
@@ -81,7 +81,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 				"resource_owner_id": ctx.Payload.ResourceOwnerID,
 			}, "Resource owner ID is not valid")
 
-			return errors.NewConversionError(fmt.Sprintf("resource owner ID is not valida UUID %v", err.Error()))
+			return errors.NewConversionError(fmt.Sprintf("resource owner ID is not a valid UUID %v", err.Error()))
 		}
 
 		// Lookup the identity record of the resource owner
