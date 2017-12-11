@@ -108,13 +108,9 @@ func (rest *TestTokenREST) TestExchangeFailsWithIncompletePayload() {
 	service, controller := rest.SecuredController()
 
 	someRandomString := "someString"
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials"})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: &someRandomString})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code"})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: &someRandomString})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: &someRandomString, RedirectURI: &someRandomString})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: &someRandomString, RedirectURI: &someRandomString, Code: &someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString, RedirectURI: &someRandomString})
 
 }
 
@@ -123,8 +119,8 @@ func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
 
 	someRandomString := "someString"
 	witID := "fabric8-wit"
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &someRandomString})
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &witID})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: someRandomString})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: witID})
 }
 
 func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
@@ -133,7 +129,7 @@ func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
 	someRandomString := "someString"
 	witID := "5dec5fdb-09e3-4453-b73f-5c828832b28e"
 	code := "INVALID_OAUTH2.0_CODE"
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: &witID, Code: &code})
+	test.ExchangeTokenInternalServerError(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: witID, Code: &code})
 
 }
 func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
@@ -149,7 +145,7 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
 	service, controller := rest.SecuredController()
 
-	_, saToken := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: &id})
+	_, saToken := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
 	assert.NotNil(rest.T(), saToken.TokenType)
 	assert.Equal(rest.T(), "bearer", *saToken.TokenType)
 	assert.NotNil(rest.T(), saToken.AccessToken)

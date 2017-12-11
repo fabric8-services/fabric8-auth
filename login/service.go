@@ -118,8 +118,9 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 		keycloakToken, err := keycloak.GetTokenFromAuthorizationCode(ctx, code, config)
 
-		if err != nil {
-			return err
+		if err != nil || keycloakToken == nil {
+			ctx.ResponseData.Header().Set("Location", referrerURL.String()+"?error="+err.Error())
+			return ctx.TemporaryRedirect()
 		}
 
 		redirectTo, err := keycloak.CreateOrUpdateIdentityAndUser(ctx, code, referrerURL, keycloakToken, ctx.RequestData, config, serviceConfig)
@@ -129,13 +130,14 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			return ctx.TemporaryRedirect()
 		}
 
-		return err
+		ctx.ResponseData.Header().Set("Location", referrerURL.String()+"?error="+err.Error())
+		return ctx.TemporaryRedirect()
 	}
 
 	// First time access, redirect to oauth provider
 
 	redirectURL, err := keycloak.BeforeRedirectToLogin(ctx, ctx.Redirect, ctx.Link, ctx.APIClient, ctx.RequestData, config, serviceConfig)
-	if err != nil {
+	if err != nil || redirectURL == nil {
 		return err
 	}
 	ctx.ResponseData.Header().Set("Location", *redirectURL)
@@ -223,6 +225,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	}
 
 	apiClient := referrerURL.Query().Get(apiClientParam)
+
 	identity, newUser, err := keycloak.CreateOrUpdateIdentity(ctx, keycloakToken.AccessToken, serviceConfig)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -252,7 +255,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 				log.Debug(ctx, map[string]interface{}{
 					"user_not_approved_redirect_url": userNotApprovedRedirectURL,
 				}, "user not approved; redirecting to registration app")
-				return &userNotApprovedRedirectURL, nil
+				return nil, jsonapi.JSONErrorResponse(ctx, autherrors.NewUnauthorizedError(err.Error()))
 			}
 		}
 		return nil, jsonapi.JSONErrorResponse(ctx, err)

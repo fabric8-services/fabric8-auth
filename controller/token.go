@@ -427,7 +427,8 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 		keycloakToken, err := c.Auth.GetTokenFromAuthorizationCode(ctx, *payload.Code, oauth)
-		if err != nil {
+
+		if err != nil || keycloakToken == nil {
 			return err
 		}
 

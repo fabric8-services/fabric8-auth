@@ -36,5 +36,5 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	responseType := "code"
 	state := uuid.NewV4()
 
-	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, &clientID, nil, &redirect, &responseType, nil, state)
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
 }
