@@ -100,7 +100,9 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			ResourceID:     uuid.NewV4().String(),
 			ParentResource: parentResource,
 			Owner:          *identity,
+			OwnerID:        identity.ID,
 			ResourceType:   *resourceType,
+			ResourceTypeID: resourceType.ResourceTypeID,
 			Description:    *ctx.Payload.Description,
 		}
 
@@ -112,9 +114,16 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	var parentResourceID string
+	if res.ParentResource != nil {
+		parentResourceID = res.ParentResource.ResourceID
+	} else {
+		parentResourceID = ""
+	}
+
 	log.Debug(ctx, map[string]interface{}{
 		"resource_id":        res.ResourceID,
-		"parent_resource_id": res.ParentResource.ResourceID,
+		"parent_resource_id": parentResourceID,
 		"owner_id":           res.Owner.ID,
 		"resource_type":      res.ResourceType.Name,
 		"description":        res.Description,

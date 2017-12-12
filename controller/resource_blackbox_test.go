@@ -15,9 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 
 	"github.com/satori/go.uuid"
@@ -37,22 +35,13 @@ func init() {
 
 type TestResourceREST struct {
 	gormtestsupport.DBTestSuite
-	db *gormapplication.GormDB
-	testsuite.RemoteTestSuite
-	tokenManager token.Manager
-	clean        func()
+	db    *gormapplication.GormDB
+	clean func()
 }
 
 func TestRunResourceREST(t *testing.T) {
 	resource.Require(t, resource.Database)
 	suite.Run(t, &TestResourceREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
-}
-
-func (s *TestResourceREST) SetupSuite() {
-	s.RemoteTestSuite.SetupSuite()
-	var err error
-	s.tokenManager, err = token.NewManager(s.Config)
-	require.Nil(s.T(), err)
 }
 
 func (rest *TestResourceREST) SetupTest() {
@@ -69,6 +58,11 @@ func (rest *TestResourceREST) SecuredController(identity account.Identity) (*goa
 	return svc, NewResourceController(svc, rest.db)
 }
 
+func (rest *TestResourceREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *ResourceController) {
+	svc := testsupport.ServiceAsServiceAccountUser("Resource-Service", serviceAccount)
+	return svc, NewResourceController(svc, rest.Application)
+}
+
 func (rest *TestResourceREST) UnSecuredController() (*goa.Service, *ResourceController) {
 	svc := goa.New("Resource-Service")
 	return svc, NewResourceController(svc, rest.db)
@@ -78,12 +72,10 @@ func (rest *TestResourceREST) UnSecuredController() (*goa.Service, *ResourceCont
  * This test will attempt to register a resource with an invalid resource owner
  */
 func (rest *TestResourceREST) TestFailRegisterResourceBadRequest() {
-
-	svc, ctrl := rest.UnSecuredController()
-
-	//tokenString, err := rest.tokenManager.GenerateServiceAccountToken(??, saID, "fabric8-wit")
-	//require.Nil(s.T(), err)
-	//s.checkServiceAccountToken(tokenString, saID, "fabric8-wit")
+	sa := account.Identity{
+		Username: "unknown-sa",
+	}
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 
 	resourceDescription := "Resource description"
 	resourceID := ""
@@ -102,14 +94,18 @@ func (rest *TestResourceREST) TestFailRegisterResourceBadRequest() {
 		Type:             "Area",
 	}
 
-	test.RegisterResourceBadRequest(rest.T(), svc.Context, svc, ctrl, payload)
+	test.RegisterResourceBadRequest(rest.T(), service.Context, service, controller, payload)
 }
 
 func (rest *TestResourceREST) TestRegisterResourceCreated() {
 
 	testIdentity, err := testsupport.CreateTestIdentity(rest.DB, "TestRegisterResourceCreated-"+uuid.NewV4().String(), "TestRegisterResourceCreated")
 	require.Nil(rest.T(), err)
-	svc, ctrl := rest.SecuredController(testIdentity)
+
+	sa := account.Identity{
+		Username: "fabric8-wit",
+	}
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 
 	resourceDescription := "Resource description"
 	resourceID := ""
@@ -129,7 +125,7 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 	}
 
 	fmt.Println("Creating...")
-	_, created := test.RegisterResourceCreated(rest.T(), svc.Context, svc, ctrl, payload)
+	_, created := test.RegisterResourceCreated(rest.T(), service.Context, service, controller, payload)
 	// then
 	fmt.Println("...Created")
 	require.NotNil(rest.T(), created)
@@ -138,7 +134,10 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 
 func (rest *TestResourceREST) TestRegisterResourceNotFound() {
 
-	svc, ctrl := rest.SecuredController(testsupport.TestIdentity)
+	sa := account.Identity{
+		Username: "fabric8-wit",
+	}
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 
 	resourceDescription := "Resource description"
 	resourceID := ""
@@ -156,5 +155,5 @@ func (rest *TestResourceREST) TestRegisterResourceNotFound() {
 	}
 
 	fmt.Println("Creating...")
-	test.RegisterResourceNotFound(rest.T(), svc.Context, svc, ctrl, payload)
+	test.RegisterResourceNotFound(rest.T(), service.Context, service, controller, payload)
 }

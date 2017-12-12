@@ -26,8 +26,12 @@ type Resource struct {
 	ParentResource *Resource
 	// The owning identity
 	Owner account.Identity
+	// The identifier for the owning identity
+	OwnerID uuid.UUID
 	// The resource type
 	ResourceType ResourceType
+	// The identifier for the resource type
+	ResourceTypeID uuid.UUID
 	// Resource description
 	Description string
 }
@@ -45,12 +49,13 @@ func (m Resource) GetLastModified() time.Time {
 
 // GormResourceRepository is the implementation of the storage interface for Resource.
 type GormResourceRepository struct {
-	db *gorm.DB
+	db               *gorm.DB
+	resourceTypeRepo ResourceTypeRepository
 }
 
 // NewResourceRepository creates a new storage type.
 func NewResourceRepository(db *gorm.DB) ResourceRepository {
-	return &GormResourceRepository{db: db}
+	return &GormResourceRepository{db: db, resourceTypeRepo: NewResourceTypeRepository(db)}
 }
 
 // ResourceRepository represents the storage interface.
@@ -113,6 +118,18 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 	// If no identifier has been specified for the new resource, then generate one
 	if resource.ResourceID == "" {
 		resource.ResourceID = uuid.NewV4().String()
+	}
+
+	if resource.ResourceTypeID.String() == "" {
+		resourceType, err := m.resourceTypeRepo.LookupOrCreate(ctx, resource.ResourceType.Name)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_type": resource.ResourceType.Name,
+				"err":           err,
+			}, "unable to find or create the resource type")
+			return errs.WithStack(err)
+		}
+		resource.ResourceTypeID = resourceType.ResourceTypeID
 	}
 
 	fmt.Printf("!!!! Creating resource with id %v", resource.Owner.ID)
