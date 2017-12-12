@@ -350,12 +350,14 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 // A service account token is returned as the result of successful exchange.
 // May be expanded in the future to support other exchange types.
 func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
+
+	const clientCredentials = "client_credentials"
+	const authorizationCode = "authorization_code"
+
 	payload := ctx.Payload
 	if payload == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("payload", "nil").Expected("not empty payload"))
 	}
-	const clientCredentials = "client_credentials"
-	const authorizationCode = "authorization_code"
 
 	if payload.GrantType == clientCredentials {
 
@@ -391,9 +393,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			"client_secret": *payload.ClientSecret,
 		}, "Service Account secret doesn't match")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
-	}
-
-	if payload.GrantType == authorizationCode {
+	} else if payload.GrantType == authorizationCode {
 
 		if payload.RedirectURI == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("redirect uri"))
@@ -429,7 +429,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		keycloakToken, err := c.Auth.GetTokenFromAuthorizationCode(ctx, *payload.Code, oauth)
 
 		if err != nil || keycloakToken == nil {
-			return err
+			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 
 		redirectURL, err := url.Parse(oauth.RedirectURL)
@@ -444,7 +444,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, *payload.Code, redirectURL, keycloakToken, ctx.RequestData, oauth, c.Configuration)
 
 		if err != nil {
-			return err
+			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 
 		exp := keycloakToken.Expiry.String()
@@ -457,10 +457,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		return ctx.OK(token)
 	}
 
-	log.Error(ctx, map[string]interface{}{
-		"grant_type": payload.GrantType,
-	}, "Invalid grant_type")
-
+	// We have this only because we need a return statement. Code below this will never get executed
 	return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", "nil").Expected("grant_type=client_credentials or grant_type=authorization_code"))
 }
 

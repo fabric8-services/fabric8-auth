@@ -15,6 +15,7 @@ import (
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	. "github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
@@ -511,7 +512,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	require.Nil(s.T(), err)
 
 	allQueryParameters = locationUrl.Query()
-	assert.NotEqual(s.T(), 307, rw.Code) // redirect to ALM page where login was clicked.
+	assert.Equal(s.T(), 401, rw.Code) // redirect to ALM page where login was clicked.
 	// Avoiding panics.
 	assert.NotNil(s.T(), allQueryParameters)
 	assert.NotNil(s.T(), allQueryParameters["error"])
@@ -750,6 +751,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 	keycloakToken, err := s.loginService.GetTokenFromAuthorizationCode(callbackCtx, "INVALID_OAUTH2.0_CODE", s.oauth)
 	require.NotNil(s.T(), err)
 	require.Nil(s.T(), keycloakToken)
+	jsonapi.JSONErrorResponse(callbackCtx, err)
 
 	assert.Equal(s.T(), 401, rw.Code)
 }
@@ -759,6 +761,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 	rw, callbackCtx := s.authorizeCallback("invalid_state", make(map[string]string))
 	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
 	require.NotNil(s.T(), err)
+	jsonapi.JSONErrorResponse(callbackCtx, err)
 	assert.Equal(s.T(), 401, rw.Code)
 }
 

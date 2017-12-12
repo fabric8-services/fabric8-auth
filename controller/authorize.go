@@ -79,7 +79,7 @@ func (c *AuthorizeController) Callback(ctx *app.CallbackAuthorizeContext) error 
 
 	referrerURL, err := c.Auth.VerifyState(ctx, ctx.State.String(), ctx.Code)
 	if err != nil {
-		return err
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	ctx.ResponseData.Header().Set(
 		"Location",
