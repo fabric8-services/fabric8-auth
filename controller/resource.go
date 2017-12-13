@@ -95,9 +95,16 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			return err
 		}
 
+		var resourceID string
+		if ctx.Payload.ResourceID != nil {
+			resourceID = *ctx.Payload.ResourceID
+		} else {
+			resourceID = uuid.NewV4().String()
+		}
+
 		// Create the new resource instance
 		res = &resource.Resource{
-			ResourceID:     uuid.NewV4().String(),
+			ResourceID:     resourceID,
 			ParentResource: parentResource,
 			Owner:          *identity,
 			OwnerID:        identity.ID,

@@ -166,6 +166,41 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 	require.NotNil(rest.T(), created.ID)
 }
 
+func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
+	testIdentity, err := testsupport.CreateTestIdentity(rest.DB, "TestRegisterResourceCreated-"+uuid.NewV4().String(), "TestRegisterResourceCreated")
+	require.Nil(rest.T(), err)
+
+	sa := account.Identity{
+		Username: "fabric8-wit",
+	}
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+
+	resourceDescription := "Resource description"
+	resourceID := uuid.NewV4().String()
+	resourceScopes := []string{}
+	resourceOwnerID := testIdentity.ID
+
+	fmt.Printf("!!!!!! ID: %v\n", resourceOwnerID)
+
+	payload := &app.RegisterResourcePayload{
+		Description:      &resourceDescription,
+		Name:             "My new resource",
+		ParentResourceID: nil,
+		ResourceScopes:   resourceScopes,
+		ResourceID:       &resourceID,
+		ResourceOwnerID:  resourceOwnerID.String(),
+		Type:             "Area",
+	}
+
+	fmt.Println("Creating...")
+	_, created := test.RegisterResourceCreated(rest.T(), service.Context, service, controller, payload)
+	// then
+	fmt.Println("...Created")
+	require.NotNil(rest.T(), created)
+	require.NotNil(rest.T(), created.ID)
+	require.EqualValues(rest.T(), *created.ID, resourceID)
+}
+
 func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
 
 	sa := account.Identity{
