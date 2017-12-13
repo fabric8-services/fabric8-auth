@@ -132,15 +132,12 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 		resource.ResourceTypeID = resourceType.ResourceTypeID
 	}
 
-	fmt.Printf("!!!! Creating resource with id %v", resource.Owner.ID)
-
 	err := m.db.Create(resource).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resource.ResourceID,
 			"err":         err,
 		}, "unable to create the resource")
-		fmt.Printf("Failed!!!! %v\n", err)
 		return errs.WithStack(err)
 	}
 	log.Info(ctx, map[string]interface{}{

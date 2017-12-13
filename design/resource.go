@@ -37,6 +37,7 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.MethodNotAllowed)
 	})
 
 	a.Action("update", func() {
@@ -53,6 +54,7 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.MethodNotAllowed)
 	})
 
 	a.Action("delete", func() {
@@ -68,6 +70,7 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.MethodNotAllowed)
 	})
 
 })

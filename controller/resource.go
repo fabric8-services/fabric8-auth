@@ -29,24 +29,20 @@ func NewResourceController(service *goa.Service, db application.DB) *ResourceCon
 
 // Delete runs the delete action.
 func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
-	// TODO validate the PAT here
-
-	return nil
+	return ctx.MethodNotAllowed()
 }
 
 // Read runs the read action.
 func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
-	// TODO validate the PAT here
-
-	return nil
+	return ctx.MethodNotAllowed()
 }
 
 // Register runs the register action.
 func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 	if !token.IsServiceAccount(ctx) {
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized("Invalid Service Account"))
-		return ctx.Unauthorized(jerrors)
+		log.Error(ctx, map[string]interface{}{}, "Unable to register resource. Not a service account")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
 	}
 
 	var res *resource.Resource
@@ -68,9 +64,9 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 				log.Error(ctx, map[string]interface{}{
 					"err":                err,
 					"parent_resource_id": ctx.Payload.ParentResourceID,
-				}, "Parent resource could not be found")
+				}, "Parent resource could not be found.")
 
-				return errors.NewBadParameterError("Invalid parent resource ID specified", err)
+				return errors.NewBadParameterError("invalid parent resource id specified", err)
 			}
 		}
 		// Extract the resource owner ID from the request
@@ -124,8 +120,6 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	var parentResourceID string
 	if res.ParentResource != nil {
 		parentResourceID = res.ParentResource.ResourceID
-	} else {
-		parentResourceID = ""
 	}
 
 	log.Debug(ctx, map[string]interface{}{
@@ -141,7 +135,5 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 // Update runs the update action.
 func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
-	// TODO validate the PAT here
-
-	return nil
+	return ctx.MethodNotAllowed()
 }

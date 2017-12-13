@@ -86,6 +86,11 @@ func (s *TestWhiteboxTokenSuite) TestNotAServiceAccountFails() {
 	assert.False(s.T(), IsSpecificServiceAccount(ctx, []string{"someName"}))
 }
 
+func (s *TestWhiteboxTokenSuite) TestIsServiceAccountFails() {
+	ctx := createInvalidSAContext()
+	assert.False(s.T(), IsServiceAccount(ctx))
+}
+
 func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken string, saID string, saName string) {
 	token, err := jwt.Parse(rawToken, func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
