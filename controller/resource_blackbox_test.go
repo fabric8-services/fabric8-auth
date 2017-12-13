@@ -201,6 +201,55 @@ func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
 	require.EqualValues(rest.T(), *created.ID, resourceID)
 }
 
+func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated() {
+	testIdentity, err := testsupport.CreateTestIdentity(rest.DB, "TestRegisterResourceCreated-"+uuid.NewV4().String(), "TestRegisterResourceCreated")
+	require.Nil(rest.T(), err)
+
+	sa := account.Identity{
+		Username: "fabric8-wit",
+	}
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+
+	resourceDescription := "Parent Resource Description"
+	resourceID := ""
+	resourceScopes := []string{}
+	resourceOwnerID := testIdentity.ID
+
+	// First we will create the parent resource
+	payload := &app.RegisterResourcePayload{
+		Description:      &resourceDescription,
+		Name:             "My new parent resource",
+		ParentResourceID: nil,
+		ResourceScopes:   resourceScopes,
+		ResourceID:       &resourceID,
+		ResourceOwnerID:  resourceOwnerID.String(),
+		Type:             "Area",
+	}
+
+	_, parentCreated := test.RegisterResourceCreated(rest.T(), service.Context, service, controller, payload)
+
+	require.NotNil(rest.T(), parentCreated)
+	require.NotNil(rest.T(), parentCreated.ID)
+
+	// Now we create the child resource
+	resourceDescription = "Child Resource Description"
+
+	payload = &app.RegisterResourcePayload{
+		Description:      &resourceDescription,
+		Name:             "My new child resource",
+		ParentResourceID: parentCreated.ID,
+		ResourceScopes:   resourceScopes,
+		ResourceID:       &resourceID,
+		ResourceOwnerID:  resourceOwnerID.String(),
+		Type:             "Area",
+	}
+
+	_, childCreated := test.RegisterResourceCreated(rest.T(), service.Context, service, controller, payload)
+
+	require.NotNil(rest.T(), childCreated)
+	require.NotNil(rest.T(), childCreated.ID)
+}
+
 func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
 
 	sa := account.Identity{
