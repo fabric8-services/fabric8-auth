@@ -119,7 +119,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	}
 	require.Nil(s.T(), err)
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 
 	assert.Equal(s.T(), 307, rw.Code)
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
@@ -131,7 +131,7 @@ func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	identity, ok, err := s.loginService.CreateOrUpdateIdentity(context.Background(), token, s.Configuration)
+	identity, ok, err := s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), identity)
 	assert.True(s.T(), ok)
@@ -148,7 +148,7 @@ func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
 	token, err = testtoken.UpdateToken(token, updatedClaims)
 	require.Nil(s.T(), err)
 
-	identity, ok, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token, s.Configuration)
+	identity, ok, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), identity)
 	assert.False(s.T(), ok)
@@ -161,7 +161,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	_, _, err = s.loginService.CreateOrUpdateIdentity(context.Background(), token, s.Configuration)
+	_, _, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 }
@@ -201,7 +201,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam(
 
 	require.Nil(s.T(), err)
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 
 	assert.Equal(s.T(), 307, rw.Code)
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
@@ -227,7 +227,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 	}
 	require.Nil(s.T(), err)
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 400, rw.Code)
 }
 
@@ -266,7 +266,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 	}
 	require.Nil(s.T(), err)
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 400, rw.Code)
 
 	// openshift.io redirects pass
@@ -280,7 +280,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 		panic("invalid test data " + err.Error()) // bug
 	}
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 307, rw.Code)
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
@@ -306,7 +306,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
 		panic("invalid test data " + err.Error()) // bug
 	}
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 307, rw.Code)
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
@@ -437,7 +437,7 @@ func (s *serviceBlackBoxTest) TestInvalidState() {
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
@@ -470,7 +470,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 
 	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
 
@@ -505,7 +505,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 
-	err = s.loginService.Perform(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 
 	locationString = rw.HeaderMap["Location"][0]
 	locationUrl, err = url.Parse(locationString)
@@ -543,7 +543,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
 		accessToken: accessToken,
 	}
 
-	err = s.loginService.Perform(authorizeCtx, dummyOauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	assert.Equal(s.T(), 401, rw.Code)
@@ -607,7 +607,7 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	err = s.loginService.Perform(authorizeCtx, s.dummyOauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, s.dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
@@ -647,7 +647,7 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 
 func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
 
-	err := s.loginService.Perform(authorizeCtx, dummyOauth, s.Configuration)
+	err := s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	locationString := rw.HeaderMap["Location"][0]
@@ -723,7 +723,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 	}
 	require.Nil(s.T(), err)
 
-	err = s.loginService.PerformAuthorize(authorizeCtx, s.oauth, s.Configuration)
+	err = s.loginService.AuthCodeURL(authorizeCtx, s.oauth, s.Configuration)
 
 	assert.Equal(s.T(), 307, rw.Code)
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
@@ -732,34 +732,52 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 
-	_, callbackCtx := s.authorizeCallback("valid_code", make(map[string]string))
-	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
+	rw, callbackCtx := s.authorizeCallback("valid_code", make(map[string]string))
+	err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.Nil(s.T(), err)
 
-	keycloakToken, err := s.loginService.GetTokenFromAuthorizationCode(callbackCtx, callbackCtx.Code, s.dummyOauth)
+	keycloakToken, err := s.loginService.Exchange(callbackCtx, callbackCtx.Code, s.dummyOauth)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), keycloakToken)
-	require.Nil(s.T(), err)
+	assert.Equal(s.T(), 307, rw.Code)
 }
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
-	rw, callbackCtx := s.authorizeCallback("invalid_code", make(map[string]string))
-	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
+	_, callbackCtx := s.authorizeCallback("invalid_code", make(map[string]string))
+	err := s.loginService.AuthCodeCallback(callbackCtx)
+	require.Nil(s.T(), err)
+	ctx := context.Background()
+	rw := httptest.NewRecorder()
+
+	u := &url.URL{
+		Path: fmt.Sprintf("/api/token"),
+	}
+	req, err := http.NewRequest("POST", u.String(), nil)
 	require.Nil(s.T(), err)
 
-	keycloakToken, err := s.loginService.GetTokenFromAuthorizationCode(callbackCtx, "INVALID_OAUTH2.0_CODE", s.oauth)
+	prms := url.Values{}
+
+	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
+	// The request originates from Keycloak after a valid authorization by the end user.
+	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
+	req.Header.Add("referer", refererKeycloakUrl)
+
+	goaCtx := goa.NewContext(goa.WithAction(ctx, "TokenTest"), rw, req, prms)
+	tokenCtx, err := app.NewExchangeTokenContext(goaCtx, req, goa.New("LoginService"))
+	require.Nil(s.T(), err)
+	keycloakToken, err := s.loginService.Exchange(tokenCtx, "INVALID_OAUTH2.0_CODE", s.oauth)
 	require.NotNil(s.T(), err)
 	require.Nil(s.T(), keycloakToken)
-	jsonapi.JSONErrorResponse(callbackCtx, err)
+	jsonapi.JSONErrorResponse(tokenCtx, err)
+	require.Equal(s.T(), 401, rw.Code)
 
-	assert.Equal(s.T(), 401, rw.Code)
 }
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 
 	rw, callbackCtx := s.authorizeCallback("invalid_state", make(map[string]string))
-	_, err := s.loginService.VerifyState(callbackCtx, callbackCtx.State.String(), callbackCtx.Code)
+	err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.NotNil(s.T(), err)
 	jsonapi.JSONErrorResponse(callbackCtx, err)
 	assert.Equal(s.T(), 401, rw.Code)
@@ -778,7 +796,7 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map
 
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", "https://openshift.io/somepath")
-	prms.Add("client_id", "5dec5fdb-09e3-4453-b73f-5c828832b28e")
+	prms.Add("client_id", "740650a2-9c44-4db5-b067-a3d1b2cd2d01")
 	prms.Add("state", uuid.NewV4().String())
 
 	for key, value := range extraParams {
@@ -790,7 +808,7 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map
 	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	err = s.loginService.PerformAuthorize(authorizeCtx, s.dummyOauth, s.Configuration)
+	err = s.loginService.AuthCodeURL(authorizeCtx, s.dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
@@ -830,6 +848,7 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map
 			"code":  {"SOME_OAUTH2.0_CODE"},
 		}
 	}
+
 	ctx = context.Background()
 	rw = httptest.NewRecorder()
 

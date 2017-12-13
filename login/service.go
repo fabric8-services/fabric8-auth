@@ -63,13 +63,12 @@ type KeycloakOAuthProvider struct {
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Perform(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
-	PerformAuthorize(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
-	GetTokenFromAuthorizationCode(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	VerifyState(ctx context.Context, state string, code string) (*url.URL, error)
-	CreateOrUpdateIdentity(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
+	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
+	AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
+	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
+	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) error
+	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, code string, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
-	BeforeRedirectToLogin(ctx context.Context, redirect *string, link *bool, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -91,8 +90,8 @@ const (
 	tokenJSONParam       = "token_json"
 )
 
-// Perform performs authentication
-func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
+// Login performs authentication
+func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
 
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
@@ -109,12 +108,12 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 			"state": state,
 		}, "Redirected from oauth provider")
 
-		referrerURL, err := keycloak.VerifyState(ctx, state, code)
+		referrerURL, err := keycloak.reclaimReferrer(ctx, state, code)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 
-		keycloakToken, err := keycloak.GetTokenFromAuthorizationCode(ctx, code, config)
+		keycloakToken, err := keycloak.Exchange(ctx, code, config)
 
 		if err != nil || keycloakToken == nil {
 			jsonapi.JSONErrorResponse(ctx, err)
@@ -138,7 +137,7 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 
 	// First time access, redirect to oauth provider
 
-	redirectURL, err := keycloak.BeforeRedirectToLogin(ctx, ctx.Redirect, ctx.Link, ctx.APIClient, ctx.RequestData, config, serviceConfig)
+	redirectURL, err := keycloak.beforeRedirectToLogin(ctx, ctx.Redirect, ctx.APIClient, ctx.RequestData, config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -146,8 +145,8 @@ func (keycloak *KeycloakOAuthProvider) Perform(ctx *app.LoginLoginContext, confi
 	return ctx.TemporaryRedirect()
 }
 
-// BeforeRedirectToLogin takes care of things parameter and state saving
-func (keycloak *KeycloakOAuthProvider) BeforeRedirectToLogin(ctx context.Context, redirect *string, link *bool, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+// beforeRedirectToLogin saves referer and api_client parameter
+func (keycloak *KeycloakOAuthProvider) beforeRedirectToLogin(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
@@ -168,7 +167,7 @@ func (keycloak *KeycloakOAuthProvider) BeforeRedirectToLogin(ctx context.Context
 
 	stateID := uuid.NewV4()
 
-	redirect, err := keycloak.saveParams(ctx, *redirect, link, apiClient)
+	redirect, err := keycloak.saveParams(ctx, *redirect, apiClient)
 	if err != nil {
 		return nil, err
 	}
@@ -189,8 +188,8 @@ func (keycloak *KeycloakOAuthProvider) BeforeRedirectToLogin(ctx context.Context
 	return &redirectURL, err
 }
 
-// GetTokenFromAuthorizationCode returns token and referralURL on recieving code and state
-func (keycloak *KeycloakOAuthProvider) GetTokenFromAuthorizationCode(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+// Exchange returns token and referralURL on recieving code and state
+func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
 
 	keycloakToken, err := config.Exchange(ctx, code)
 	if err != nil {
@@ -208,16 +207,9 @@ func (keycloak *KeycloakOAuthProvider) GetTokenFromAuthorizationCode(ctx context
 	return keycloakToken, nil
 }
 
-// CreateOrUpdateIdentityAndUser creates or updates user and identity
+// CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
+// encodes the token and returns final URL to which we are supposed to redirect
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, code string, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
-
-	brokerEndpoint, err := serviceConfig.GetKeycloakEndpointBroker(request)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak broker endpoint URL")
-		return nil, autherrors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak broker endpoint URL"))
-	}
 
 	witURL, err := serviceConfig.GetWITURL(request)
 	if err != nil {
@@ -226,7 +218,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	apiClient := referrerURL.Query().Get(apiClientParam)
 
-	identity, newUser, err := keycloak.CreateOrUpdateIdentity(ctx, keycloakToken.AccessToken, serviceConfig)
+	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, serviceConfig)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -316,50 +308,13 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		return &redirectTo, nil
 	}
 
-	// If the 'initlinking" param == true then initiate account linking if not already linked
-	linked, err := keycloak.checkAllFederatedIdentities(ctx, keycloakToken.AccessToken, brokerEndpoint)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to check federated identities")
-		return nil, autherrors.NewInternalError(ctx, err)
-	}
-	log.Debug(ctx, map[string]interface{}{
-		"code":        code,
-		"referrerURL": referrerURL.String(),
-		"user_name":   identity.Username,
-		"linked":      linked,
-	}, "identities links checked")
-
-	// Return linked=true param if account has been linked to all IdPs or linked=false if not.
-	if linked {
-		referrerStr := referrerURL.String() + "&linked=true"
-		redirectTo := referrerStr
-		log.Info(ctx, map[string]interface{}{
-			"referrerURL": referrerURL.String(),
-			"user_name":   identity.Username,
-			"linked":      linked,
-			"api_client":  apiClient,
-		}, "all good; redirecting back to referrer")
-		return &redirectTo, nil
-	}
-
-	referrerStr := referrerURL.String() + "&linked=false"
-	log.Debug(ctx, map[string]interface{}{
-		"code":        code,
-		"referrerURL": referrerURL.String(),
-		"user_name":   identity.Username,
-		"linked":      linked,
-	}, "linking identities...")
-
-	return keycloak.autoLinkProvidersDuringLogin(ctx, request, keycloakToken.AccessToken, referrerStr)
-
+	redirectTo := referrerURL.String()
+	return &redirectTo, nil
 }
 
-// PerformAuthorize takes care of authorize action
-func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
-	link := false
-	redirectURL, err := keycloak.BeforeRedirectToLogin(ctx, &ctx.RedirectURI, &link, ctx.APIClient, ctx.RequestData, config, serviceConfig)
+// AuthCodeURL is used in authorize action of /api/authorize to get authorization_code
+func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
+	redirectURL, err := keycloak.beforeRedirectToLogin(ctx, &ctx.RedirectURI, ctx.APIClient, ctx.RequestData, config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -367,8 +322,22 @@ func (keycloak *KeycloakOAuthProvider) PerformAuthorize(ctx *app.AuthorizeAuthor
 	return ctx.TemporaryRedirect()
 }
 
-// VerifyState verifies the state and return referrerURL
-func (keycloak *KeycloakOAuthProvider) VerifyState(ctx context.Context, state string, code string) (*url.URL, error) {
+// AuthCodeCallback takes care of authorization callback.
+// When authorization_code is requested with /api/authorize, keycloak would return authorization_code at /api/authorize/callback,
+// which would pass on the code along with the state to client using this method
+func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthorizeContext) error {
+	referrerURL, err := keycloak.reclaimReferrer(ctx, ctx.State.String(), ctx.Code)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	ctx.ResponseData.Header().Set(
+		"Location",
+		fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), ctx.Code, ctx.State))
+	return ctx.TemporaryRedirect()
+}
+
+// reclaimReferrer reclaims referrerURL and verifies the state
+func (keycloak *KeycloakOAuthProvider) reclaimReferrer(ctx context.Context, state string, code string) (*url.URL, error) {
 	knownReferrer, err := keycloak.getReferrer(ctx, state)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -412,9 +381,9 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	return nil
 }
 
-func (keycloak *KeycloakOAuthProvider) saveParams(ctx context.Context, redirect string, link *bool, apiClient *string) (*string, error) {
-	if apiClient != nil || (link != nil && *link) {
-		// We need to save the "link" and "api_client" params so we don't lose them when redirect to sso for auth and back to auth.
+func (keycloak *KeycloakOAuthProvider) saveParams(ctx context.Context, redirect string, apiClient *string) (*string, error) {
+	if apiClient != nil {
+		// We need to save"api_client" params so we don't lose them when redirect to sso for auth and back to auth.
 		linkURL, err := url.Parse(redirect)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -424,9 +393,6 @@ func (keycloak *KeycloakOAuthProvider) saveParams(ctx context.Context, redirect 
 			return nil, autherrors.NewBadParameterError("redirect", redirect).Expected("valid URL")
 		}
 		parameters := linkURL.Query()
-		if link != nil && *link {
-			parameters.Add(initiateLinkingParam, strconv.FormatBool(*link))
-		}
 		if apiClient != nil {
 			parameters.Add(apiClientParam, *apiClient)
 		}
@@ -643,9 +609,9 @@ func getProviderURL(req *goa.RequestData, state string, sessionState string, pro
 	return linkingURL.String(), nil
 }
 
-// CreateOrUpdateIdentity creates a user and a keycloak identity. If the user and identity already exist then update them.
+// CreateOrUpdateIdentityInDB creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentity(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
@@ -882,7 +848,7 @@ func ContextIdentity(ctx context.Context) (*uuid.UUID, error) {
 	return &uuid, nil
 }
 
-// ContextIdentity returns the identity's ID found in given context if the identity exists in the Auth DB
+// ContextIdentityIfExists returns the identity's ID found in given context if the identity exists in the Auth DB
 // If it doesn't exist then an Unauthorized error is returned
 func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID, error) {
 	identity, err := ContextIdentity(ctx)

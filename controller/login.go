@@ -38,6 +38,7 @@ type LoginConfiguration interface {
 	GetKeycloakURL() string
 	GetKeycloakRealm() string
 	GetServiceAccounts() map[string]configuration.ServiceAccount
+	GetPublicOauthClientID() string
 }
 
 // LoginController implements the login resource.
@@ -82,5 +83,5 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.Perform(ctx, oauth, c.Configuration)
+	return c.Auth.Login(ctx, oauth, c.Configuration)
 }

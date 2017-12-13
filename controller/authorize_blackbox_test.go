@@ -40,7 +40,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	svc, ctrl := rest.UnSecuredController()
 
 	redirect := "https://openshift.io"
-	clientID := "5dec5fdb-09e3-4453-b73f-5c828832b28e"
+	clientID := "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	responseType := "code"
 	state := uuid.NewV4()
 
@@ -63,7 +63,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
-	prms.Add("client_id", "5dec5fdb-09e3-4453-b73f-5c828832b28e")
+	prms.Add("client_id", "740650a2-9c44-4db5-b067-a3d1b2cd2d01")
 	prms.Add("state", uuid.NewV4().String())
 
 	ctx := context.Background()
@@ -145,7 +145,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
 
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
-	prms.Add("client_id", "5dec5fdb-09e3-4453-b73f-5c828832b28e")
+	prms.Add("client_id", "740650a2-9c44-4db5-b067-a3d1b2cd2d01")
 	prms.Add("state", uuid.NewV4().String())
 
 	ctx := context.Background()

@@ -145,7 +145,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token ")))
 	}
 
-	identity, _, err := c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
+	identity, _, err := c.Auth.CreateOrUpdateIdentityInDB(ctx, *testuser.Token.AccessToken, c.Configuration)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -180,7 +180,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	}
 
 	// Creates the testuser2 user and identity if they don't yet exist
-	identity, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
+	identity, _, err = c.Auth.CreateOrUpdateIdentityInDB(ctx, *testuser.Token.AccessToken, c.Configuration)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -401,7 +401,13 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		if payload.Code == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("code", "nil").Expected("authorization code"))
 		}
-
+		// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+		if payload.ClientID != c.Configuration.GetPublicOauthClientID() {
+			log.Error(ctx, map[string]interface{}{
+				"client_id": payload.ClientID,
+			}, "unknown oauth client id")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid oauth client id"))
+		}
 		authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -422,11 +428,11 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			ClientID:     c.Configuration.GetKeycloakClientID(),
 			ClientSecret: c.Configuration.GetKeycloakSecret(),
 			Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/authorize/callback"),
+			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath()),
 		}
 
 		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-		keycloakToken, err := c.Auth.GetTokenFromAuthorizationCode(ctx, *payload.Code, oauth)
+		keycloakToken, err := c.Auth.Exchange(ctx, *payload.Code, oauth)
 
 		if err != nil || keycloakToken == nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
