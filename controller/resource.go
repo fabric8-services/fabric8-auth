@@ -56,7 +56,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		// Lookup or create the resource type
 		resourceType, err := appl.ResourceTypeRepository().LookupOrCreate(ctx, ctx.Payload.Type)
 		if err != nil {
-			return err
+			return errors.NewInternalError(ctx, err)
 		}
 
 		// Lookup the parent resource if one has been specified

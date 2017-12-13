@@ -80,7 +80,7 @@ func (m *GormResourceRepository) Load(ctx context.Context, id string) (*Resource
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "load"}, time.Now())
 
 	var native Resource
-	err := m.db.Table(m.TableName()).Where("id = ?", id).Find(&native).Error
+	err := m.db.Table(m.TableName()).Where("resource_id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(errors.NewNotFoundError("resource", id))
 	}

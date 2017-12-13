@@ -69,20 +69,22 @@ func (rest *TestResourceREST) UnSecuredController() (*goa.Service, *ResourceCont
 }
 
 /*
- * This test will attempt to register a resource with an invalid resource owner
+ * This test will attempt to register a resource with an invalid account
  */
-func (rest *TestResourceREST) TestFailRegisterResourceBadRequest() {
+func (rest *TestResourceREST) TestFailRegisterResourceNonServiceAccount() {
+	testIdentity, err := testsupport.CreateTestIdentity(rest.DB, "TestRegisterResourceCreated-"+uuid.NewV4().String(), "TestRegisterResourceCreated")
+	require.Nil(rest.T(), err)
+
 	sa := account.Identity{
 		Username: "unknown-sa",
 	}
-	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+	service, controller := rest.SecuredController(sa)
 
 	resourceDescription := "Resource description"
 	resourceID := ""
 	resourceScopes := []string{}
 
-	// Assign an invalid owner ID
-	resourceOwnerID := "xxx1234"
+	resourceOwnerID := testIdentity.ID
 
 	payload := &app.RegisterResourcePayload{
 		Description:      &resourceDescription,
@@ -90,7 +92,39 @@ func (rest *TestResourceREST) TestFailRegisterResourceBadRequest() {
 		ParentResourceID: nil,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
-		ResourceOwnerID:  resourceOwnerID,
+		ResourceOwnerID:  resourceOwnerID.String(),
+		Type:             "Area",
+	}
+
+	test.RegisterResourceUnauthorized(rest.T(), service.Context, service, controller, payload)
+}
+
+/*
+ * This test will attempt to register a resource with an invalid parent resource
+ */
+func (rest *TestResourceREST) TestFailRegisterResourceInvalidParentResource() {
+	testIdentity, err := testsupport.CreateTestIdentity(rest.DB, "TestRegisterResourceCreated-"+uuid.NewV4().String(), "TestRegisterResourceCreated")
+	require.Nil(rest.T(), err)
+
+	sa := account.Identity{
+		Username: "fabric8-wit",
+	}
+	service, controller := rest.SecuredControllerWithServiceAccount(sa)
+
+	resourceDescription := "Resource description"
+	resourceID := ""
+	resourceScopes := []string{}
+
+	resourceOwnerID := testIdentity.ID
+	parentResourceID := uuid.NewV4().String()
+
+	payload := &app.RegisterResourcePayload{
+		Description:      &resourceDescription,
+		Name:             "My new resource",
+		ParentResourceID: &parentResourceID,
+		ResourceScopes:   resourceScopes,
+		ResourceID:       &resourceID,
+		ResourceOwnerID:  resourceOwnerID.String(),
 		Type:             "Area",
 	}
 
@@ -132,7 +166,7 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 	require.NotNil(rest.T(), created.ID)
 }
 
-func (rest *TestResourceREST) TestRegisterResourceNotFound() {
+func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
 
 	sa := account.Identity{
 		Username: "fabric8-wit",
@@ -142,7 +176,9 @@ func (rest *TestResourceREST) TestRegisterResourceNotFound() {
 	resourceDescription := "Resource description"
 	resourceID := ""
 	resourceScopes := []string{}
-	resourceOwnerID := uuid.NewV4() // unknown identity
+
+	// Attempt to register the resource with an unknown owner
+	resourceOwnerID := uuid.NewV4()
 
 	payload := &app.RegisterResourcePayload{
 		Description:      &resourceDescription,
