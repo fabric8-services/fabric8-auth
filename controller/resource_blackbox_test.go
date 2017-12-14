@@ -1,7 +1,6 @@
 package controller_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -18,13 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
-
-func init() {
-	var err error
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
-	}
-}
 
 type TestResourceREST struct {
 	gormtestsupport.DBTestSuite
