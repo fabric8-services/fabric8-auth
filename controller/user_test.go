@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	res "github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
@@ -306,6 +307,14 @@ func (g *GormTestBase) SpaceResources() space.ResourceRepository {
 }
 
 func (g *GormTestBase) ExternalTokens() provider.ExternalTokenRepository {
+	return nil
+}
+
+func (g *GormTestBase) ResourceRepository() res.ResourceRepository {
+	return nil
+}
+
+func (g *GormTestBase) ResourceTypeRepository() res.ResourceTypeRepository {
 	return nil
 }
 

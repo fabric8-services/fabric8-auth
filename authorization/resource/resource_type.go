@@ -51,6 +51,7 @@ func NewResourceTypeRepository(db *gorm.DB) ResourceTypeRepository {
 type ResourceTypeRepository interface {
 	CheckExists(ctx context.Context, id string) (bool, error)
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceType, error)
+	LookupOrCreate(ctx context.Context, name string) (*ResourceType, error)
 	Create(ctx context.Context, u *ResourceType) error
 	Save(ctx context.Context, u *ResourceType) error
 	List(ctx context.Context) ([]ResourceType, error)
@@ -75,6 +76,39 @@ func (m *GormResourceTypeRepository) Load(ctx context.Context, id uuid.UUID) (*R
 		return nil, errors.NewNotFoundError("resource_type_scope", id.String())
 	}
 	return &native, errs.WithStack(err)
+}
+
+// LookupOrCreate looks up the ResourceType record with the specified name.  If there is no such record, then
+// a new ResourceType will be created with the specified name and returned.
+func (m *GormResourceTypeRepository) LookupOrCreate(ctx context.Context, name string) (*ResourceType, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "resource_type", "lookupOrCreate"}, time.Now())
+
+	var native ResourceType
+	err := m.db.Table(m.TableName()).Where("name = ?", name).First(&native).Error
+
+	if err == gorm.ErrRecordNotFound {
+		native = ResourceType{
+			ResourceTypeID: uuid.NewV4(),
+			Name:           name,
+		}
+
+		err := m.db.Create(&native).Error
+
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_type_id": native.ResourceTypeID,
+				"name":             native.Name,
+				"err":              err,
+			}, "unable to create the resource type")
+			return nil, errs.WithStack(err)
+		}
+		log.Debug(ctx, map[string]interface{}{
+			"resource_type_id": native.ResourceTypeID,
+			"name":             native.Name,
+		}, "Resource Type created!")
+		return &native, nil
+	}
+	return &native, err
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
