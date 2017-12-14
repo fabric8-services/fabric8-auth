@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
@@ -204,6 +205,8 @@ func main() {
 	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
 
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
+	emailVerificationService := email.NewEmailVerificationClient(appDB)
+	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 
 	// Mount "collaborators" controller

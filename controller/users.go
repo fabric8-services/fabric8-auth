@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
@@ -29,11 +30,12 @@ import (
 // UsersController implements the users resource.
 type UsersController struct {
 	*goa.Controller
-	db                  application.DB
-	config              UsersControllerConfiguration
-	userProfileService  login.UserProfileService
-	RemoteWITService    wit.RemoteWITService
-	keycloakLinkService linkAPI.KeycloakIDPService
+	db                       application.DB
+	config                   UsersControllerConfiguration
+	userProfileService       login.UserProfileService
+	RemoteWITService         wit.RemoteWITService
+	EmailVerificationService email.EmailVerificationService
+	keycloakLinkService      linkAPI.KeycloakIDPService
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -723,6 +725,12 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 	})
 }
 
+// VerifyEmail verifies a user's email when updated.
+func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
+
+	return nil
+}
+
 func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]account.User, []account.Identity, error) {
 	var err error
 	var resultUsers []account.User
@@ -828,6 +836,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var updatedAt time.Time
 	var company string
 	var cluster string
+	var emailVerified bool
 	var contextInformation map[string]interface{}
 
 	if user != nil {
@@ -842,6 +851,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
+		emailVerified = user.EmailVerified
 	}
 
 	converted := app.User{
@@ -862,6 +872,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				Email:                 &email,
 				Company:               &company,
 				Cluster:               &cluster,
+				EmailVerified:         &emailVerified,
 				ContextInformation:    make(map[string]interface{}),
 				RegistrationCompleted: &registrationCompleted,
 			},

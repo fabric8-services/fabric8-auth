@@ -143,6 +143,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// version 11
 	m = append(m, steps{ExecuteSQLFile("011-add-username-to-external-token.sql")})
 
+	// version 12
+	m = append(m, steps{ExecuteSQLFile("012-add-email-verified.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
