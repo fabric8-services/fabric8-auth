@@ -115,7 +115,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 
 		keycloakToken, err := keycloak.Exchange(ctx, code, config)
 
-		if err != nil || keycloakToken == nil {
+		if err != nil {
 			jsonapi.JSONErrorResponse(ctx, err)
 			ctx.ResponseData.Header().Set("Location", referrerURL.String()+"?error="+err.Error())
 			return ctx.TemporaryRedirect()
@@ -183,9 +183,9 @@ func (keycloak *KeycloakOAuthProvider) saveParamsAndReferrer(ctx context.Context
 		return nil, err
 	}
 
-	redirectURL := config.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline)
+	redirectTo := config.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline)
 
-	return &redirectURL, err
+	return &redirectTo, err
 }
 
 // Exchange returns token and referralURL on recieving code and state

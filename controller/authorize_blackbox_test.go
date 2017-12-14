@@ -75,6 +75,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
 	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
 	jsonapi.JSONErrorResponse(authorizeCtx, err)
 	require.Equal(t, 400, rw.Code)
+	prms.Add("response_type", "code")
 
 	prms.Del("redirect_uri")
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
@@ -83,6 +84,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
 	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
 	jsonapi.JSONErrorResponse(authorizeCtx, err)
 	require.Equal(t, 400, rw.Code)
+	prms.Add("redirect_uri", redirectURI)
 
 	prms.Del("client_id")
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
@@ -91,6 +93,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
 	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
 	jsonapi.JSONErrorResponse(authorizeCtx, err)
 	require.Equal(t, 400, rw.Code)
+	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
 
 	prms.Del("state")
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)

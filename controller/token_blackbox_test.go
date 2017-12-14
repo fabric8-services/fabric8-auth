@@ -127,11 +127,21 @@ func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
 	service, controller := rest.SecuredController()
 
 	someRandomString := "someString"
-	witID := "5dec5fdb-09e3-4453-b73f-5c828832b28e"
+	clientID := controller.Configuration.GetPublicOauthClientID()
 	code := "INVALID_OAUTH2.0_CODE"
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: witID, Code: &code})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
 
 }
+
+func (rest *TestTokenREST) TestExchangeWithWrongClientIDFailsWithGrantTypeAuthorizationCode() {
+	service, controller := rest.SecuredController()
+
+	someRandomString := "someString"
+	clientID := "someString"
+	code := "doesnt_matter"
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
+}
+
 func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
 	rest.checkServiceAccountCredentials("fabric8-wit", "5dec5fdb-09e3-4453-b73f-5c828832b28e", "witsecret")
 	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretOld")
@@ -139,7 +149,8 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
 }
 
 func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {
-	rest.checkAuthorizationCode("fabric8-wit", "SOME_OAUTH2.0_CODE")
+	_, controller := rest.SecuredController()
+	rest.checkAuthorizationCode(controller.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE")
 }
 
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
@@ -159,19 +170,11 @@ func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string
 
 func (rest *TestTokenREST) checkAuthorizationCode(name string, code string) {
 	service, _ := rest.SecuredController()
-	saToken, _ := rest.dummyOauth.Exchange(service.Context, code)
+	saToken, err := rest.dummyOauth.Exchange(service.Context, code)
+	assert.Nil(rest.T(), err)
 	assert.NotNil(rest.T(), saToken.TokenType)
 	assert.Equal(rest.T(), "bearer", saToken.TokenType)
 	assert.NotNil(rest.T(), saToken.AccessToken)
-	// To be modified for type: public
-	/*
-		claims, err := testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), saToken.AccessToken)
-		require.Nil(rest.T(), err)
-
-		jwtToken := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
-		ctx := goajwt.WithJWT(context.Background(), jwtToken)
-		assert.True(rest.T(), token.IsSpecificServiceAccount(ctx, []string{name}))
-	*/
 }
 
 func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {

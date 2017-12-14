@@ -730,7 +730,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 
-	_, callbackCtx := s.authorizeCallback("valid_code", make(map[string]string))
+	_, callbackCtx := s.authorizeCallback("valid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.Nil(s.T(), err)
 
@@ -741,14 +741,14 @@ func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
-	_, callbackCtx := s.authorizeCallback("invalid_code", make(map[string]string))
+	_, callbackCtx := s.authorizeCallback("invalid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.Nil(s.T(), err)
 	ctx := context.Background()
 	rw := httptest.NewRecorder()
 
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/token"),
+		Path: fmt.Sprintf(client.ExchangeTokenPath()),
 	}
 	req, err := http.NewRequest("POST", u.String(), nil)
 	require.Nil(s.T(), err)
@@ -773,14 +773,14 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 
-	rw, callbackCtx := s.authorizeCallback("invalid_state", make(map[string]string))
+	rw, callbackCtx := s.authorizeCallback("invalid_state")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.NotNil(s.T(), err)
 	jsonapi.JSONErrorResponse(callbackCtx, err)
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map[string]string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
+func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -795,10 +795,6 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map
 	prms.Add("redirect_uri", "https://openshift.io/somepath")
 	prms.Add("client_id", "740650a2-9c44-4db5-b067-a3d1b2cd2d01")
 	prms.Add("state", uuid.NewV4().String())
-
-	for key, value := range extraParams {
-		prms.Add(key, value)
-	}
 
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
