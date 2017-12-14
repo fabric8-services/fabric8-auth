@@ -122,7 +122,7 @@ var _ = a.Resource("users", func() {
 			a.Param("code", d.String, "code")
 		})
 		a.UseTrait("conditional")
-		a.Response(d.OK, userArray)
+		a.Response(d.OK, user)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
