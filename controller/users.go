@@ -430,6 +430,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	keycloakUserProfile.Attributes = &login.KeycloakUserProfileAttributes{}
 
 	var isKeycloakUserProfileUpdateNeeded bool
+	var isEmailVerificationNeeded bool
 	// prepare for updating keycloak user profile
 	tokenString := goajwt.ContextJWT(ctx).Raw
 	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
@@ -466,6 +467,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 			user.Email = *updatedEmail
 			isKeycloakUserProfileUpdateNeeded = true
+
+			isEmailVerificationNeeded = true
+			user.EmailVerified = false
+
 			keycloakUserProfile.Email = updatedEmail
 		}
 
@@ -590,6 +595,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	if isEmailVerificationNeeded {
+		c.sendVerificationEmail(ctx, *user)
+	}
+
 	if isKeycloakUserProfileUpdateNeeded {
 		keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
 		if err != nil {
@@ -632,6 +641,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+}
+
+func (c *UsersController) sendVerificationEmail(ctx context.Context, user account.User) error {
+	return c.EmailVerificationService.SendVerificationCode(ctx, user)
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
