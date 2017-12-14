@@ -78,7 +78,7 @@ func (m *GormResourceTypeRepository) Load(ctx context.Context, id uuid.UUID) (*R
 	return &native, errs.WithStack(err)
 }
 
-// This method looks up the ResourceType record with the specified name.  If there is no such record, then
+// LookupOrCreate looks up the ResourceType record with the specified name.  If there is no such record, then
 // a new ResourceType will be created with the specified name and returned.
 func (m *GormResourceTypeRepository) LookupOrCreate(ctx context.Context, name string) (*ResourceType, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type", "lookupOrCreate"}, time.Now())

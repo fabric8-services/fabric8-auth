@@ -66,7 +66,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 					"parent_resource_id": ctx.Payload.ParentResourceID,
 				}, "Parent resource could not be found.")
 
-				return errors.NewBadParameterError("invalid parent resource id specified", err)
+				return errors.NewBadParameterError("invalid parent resource ID specified", err)
 			}
 		}
 		// Extract the resource owner ID from the request
