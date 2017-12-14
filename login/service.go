@@ -64,9 +64,9 @@ type KeycloakOAuthProvider struct {
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
-	AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
+	AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) error
+	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, code string, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
@@ -137,7 +137,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 
 	// First time access, redirect to oauth provider
 
-	redirectURL, err := keycloak.beforeRedirectToLogin(ctx, ctx.Redirect, ctx.APIClient, ctx.RequestData, config, serviceConfig)
+	redirectURL, err := keycloak.saveParamsAndReferrer(ctx, ctx.Redirect, ctx.APIClient, ctx.RequestData, config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -145,8 +145,8 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 	return ctx.TemporaryRedirect()
 }
 
-// beforeRedirectToLogin saves referer and api_client parameter
-func (keycloak *KeycloakOAuthProvider) beforeRedirectToLogin(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+// saveParamsAndReferrer saves referer and api_client parameter
+func (keycloak *KeycloakOAuthProvider) saveParamsAndReferrer(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
@@ -313,27 +313,26 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 }
 
 // AuthCodeURL is used in authorize action of /api/authorize to get authorization_code
-func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
-	redirectURL, err := keycloak.beforeRedirectToLogin(ctx, &ctx.RedirectURI, ctx.APIClient, ctx.RequestData, config, serviceConfig)
+func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+	redirectURL, err := keycloak.saveParamsAndReferrer(ctx, &ctx.RedirectURI, ctx.APIClient, ctx.RequestData, config, serviceConfig)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return nil, err
 	}
-	ctx.ResponseData.Header().Set("Location", *redirectURL)
-	return ctx.TemporaryRedirect()
+
+	return redirectURL, nil
 }
 
 // AuthCodeCallback takes care of authorization callback.
 // When authorization_code is requested with /api/authorize, keycloak would return authorization_code at /api/authorize/callback,
 // which would pass on the code along with the state to client using this method
-func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthorizeContext) error {
+func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error) {
 	referrerURL, err := keycloak.reclaimReferrer(ctx, ctx.State.String(), ctx.Code)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return nil, err
 	}
-	ctx.ResponseData.Header().Set(
-		"Location",
-		fmt.Sprintf("%s?code=%s&state=%s", referrerURL.String(), ctx.Code, ctx.State))
-	return ctx.TemporaryRedirect()
+
+	redirectTo := referrerURL.String() + "?code=" + ctx.Code + "&state=" + ctx.State.String()
+	return &redirectTo, nil
 }
 
 // reclaimReferrer reclaims referrerURL and verifies the state

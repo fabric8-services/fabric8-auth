@@ -10,8 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/client"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -20,8 +22,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
-
-	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/goadesign/goa/uuid"
@@ -696,7 +696,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/authorize"),
+		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -712,7 +712,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", "https://openshift.io/somepath")
-	prms.Add("client_id", "5dec5fdb-09e3-4453-b73f-5c828832b28e")
+	prms.Add("client_id", "740650a2-9c44-4db5-b067-a3d1b2cd2d01")
 	prms.Add("state", uuid.NewV4().String())
 
 	ctx := context.Background()
@@ -723,29 +723,26 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 	}
 	require.Nil(s.T(), err)
 
-	err = s.loginService.AuthCodeURL(authorizeCtx, s.oauth, s.Configuration)
-
-	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
-	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
+	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, s.oauth, s.Configuration)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), redirectTo)
 }
 
 func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 
-	rw, callbackCtx := s.authorizeCallback("valid_code", make(map[string]string))
-	err := s.loginService.AuthCodeCallback(callbackCtx)
+	_, callbackCtx := s.authorizeCallback("valid_code", make(map[string]string))
+	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.Nil(s.T(), err)
 
 	keycloakToken, err := s.loginService.Exchange(callbackCtx, callbackCtx.Code, s.dummyOauth)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), keycloakToken)
-	assert.Equal(s.T(), 307, rw.Code)
 }
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("invalid_code", make(map[string]string))
-	err := s.loginService.AuthCodeCallback(callbackCtx)
+	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.Nil(s.T(), err)
 	ctx := context.Background()
 	rw := httptest.NewRecorder()
@@ -777,7 +774,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 
 	rw, callbackCtx := s.authorizeCallback("invalid_state", make(map[string]string))
-	err := s.loginService.AuthCodeCallback(callbackCtx)
+	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.NotNil(s.T(), err)
 	jsonapi.JSONErrorResponse(callbackCtx, err)
 	assert.Equal(s.T(), 401, rw.Code)
@@ -787,7 +784,7 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
-		Path: fmt.Sprintf("/api/authorize"),
+		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	require.Nil(s.T(), err)
@@ -808,10 +805,11 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map
 	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	err = s.loginService.AuthCodeURL(authorizeCtx, s.dummyOauth, s.Configuration)
+	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, s.dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
-	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
+	authorizeCtx.ResponseData.Header().Set("Cache-Control", "no-cache")
+	authorizeCtx.ResponseData.Header().Set("Location", *redirectTo)
 
 	locationString := rw.HeaderMap["Location"][0]
 	locationUrl, err := url.Parse(locationString)
@@ -825,7 +823,7 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string, extraParams map
 	returnedState := allQueryParameters["state"][0]
 
 	u = &url.URL{
-		Path: fmt.Sprintf("/api/authorize/callback"),
+		Path: fmt.Sprintf(client.CallbackAuthorizePath()),
 	}
 
 	if testType == "valid_code" {

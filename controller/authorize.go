@@ -70,11 +70,24 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath()),
 	}
 
+	redirectTo, err := c.Auth.AuthCodeURL(ctx, oauth, c.Configuration)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.AuthCodeURL(ctx, oauth, c.Configuration)
+	ctx.ResponseData.Header().Set("Location", *redirectTo)
+	return ctx.TemporaryRedirect()
 }
 
 // Callback takes care of Authorize callback
 func (c *AuthorizeController) Callback(ctx *app.CallbackAuthorizeContext) error {
-	return c.Auth.AuthCodeCallback(ctx)
+	redirectTo, err := c.Auth.AuthCodeCallback(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
+	ctx.ResponseData.Header().Set("Location", *redirectTo)
+	return ctx.TemporaryRedirect()
 }
