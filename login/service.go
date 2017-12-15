@@ -64,7 +64,7 @@ type KeycloakOAuthProvider struct {
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
-	AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
+	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
@@ -137,7 +137,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 
 	// First time access, redirect to oauth provider
 
-	redirectURL, err := keycloak.saveParamsAndReferrer(ctx, ctx.Redirect, ctx.APIClient, ctx.RequestData, config, serviceConfig)
+	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, ctx.RequestData, config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -145,8 +145,8 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 	return ctx.TemporaryRedirect()
 }
 
-// saveParamsAndReferrer saves referer and api_client parameter
-func (keycloak *KeycloakOAuthProvider) saveParamsAndReferrer(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+// AuthCodeURL is used in authorize action of /api/authorize to get authorization_code
+func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
@@ -312,16 +312,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	return &redirectTo, nil
 }
 
-// AuthCodeURL is used in authorize action of /api/authorize to get authorization_code
-func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx *app.AuthorizeAuthorizeContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
-	redirectURL, err := keycloak.saveParamsAndReferrer(ctx, &ctx.RedirectURI, ctx.APIClient, ctx.RequestData, config, serviceConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return redirectURL, nil
-}
-
 // AuthCodeCallback takes care of authorization callback.
 // When authorization_code is requested with /api/authorize, keycloak would return authorization_code at /api/authorize/callback,
 // which would pass on the code along with the state to client using this method
@@ -331,7 +321,12 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthori
 		return nil, err
 	}
 
-	redirectTo := referrerURL.String() + "?code=" + ctx.Code + "&state=" + ctx.State.String()
+	parameters := url.Values{}
+	parameters.Add("code", ctx.Code)
+	parameters.Add("state", ctx.State.String())
+	referrerURL.RawQuery = parameters.Encode()
+
+	redirectTo := referrerURL.String()
 	return &redirectTo, nil
 }
 

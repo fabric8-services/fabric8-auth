@@ -723,7 +723,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 	}
 	require.Nil(s.T(), err)
 
-	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, s.oauth, s.Configuration)
+	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, &authorizeCtx.RedirectURI, authorizeCtx.APIClient, authorizeCtx.RequestData, s.oauth, s.Configuration)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), redirectTo)
 }
@@ -801,7 +801,7 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.Resp
 	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, s.dummyOauth, s.Configuration)
+	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, &authorizeCtx.RedirectURI, authorizeCtx.APIClient, authorizeCtx.RequestData, s.dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	authorizeCtx.ResponseData.Header().Set("Cache-Control", "no-cache")
