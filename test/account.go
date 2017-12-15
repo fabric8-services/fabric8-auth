@@ -105,12 +105,13 @@ func CreateTestIdentityForAccountIdentity(db *gorm.DB, identity *account.Identit
 	return err
 }
 
-// CreateTestIdentityAndUserInDB creates an account.Identity in the database. For testing purpose only.
+// CreateTestIdentityAndUserInDB creates an account.Identity and account.User
+// in the database. For testing purpose only. Not re-using CreateTestIdentityForAccountIdentity
+// because it is used in many places and will cause errors/failures.
 // This function unlike CreateTestIdentity() allows to create an Identity with pre-defined ID.
 func CreateTestIdentityAndUserInDB(db *gorm.DB, identity *account.Identity) error {
 
 	identityRepository := account.NewIdentityRepository(db)
-
 	userRepository := account.NewUserRepository(db)
 
 	err := models.Transactional(db, func(tx *gorm.DB) error {

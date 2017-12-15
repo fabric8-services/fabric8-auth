@@ -60,7 +60,6 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 		userProfileService:  userProfileService,
 		RemoteWITService:    &wit.RemoteWITServiceCaller{},
 		keycloakLinkService: linkService,
-		//EmailVerificationService: email.NewEmailVerificationClient(db),
 	}
 }
 
