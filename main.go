@@ -188,7 +188,9 @@ func main() {
 	app.MountSpaceController(service, spaceCtrl)
 
 	// Mount "user" controller
-	userCtrl := controller.NewUserController(service, appDB, tokenManager, config)
+	keycloakProfileService := login.NewKeycloakUserProfileClient()
+
+	userCtrl := controller.NewUserController(service, appDB, tokenManager, keycloakProfileService, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
 		userCtrl.InitTenant = account.NewInitTenant(config)
@@ -200,7 +202,6 @@ func main() {
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
-	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
 
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
