@@ -18,7 +18,7 @@ type EmailVerificationClient struct {
 	db application.DB
 }
 
-// NewEmailVerificationClient creates a new Keycloakc
+// NewEmailVerificationClient creates a new client for managing email verification.
 func NewEmailVerificationClient(db application.DB) *EmailVerificationClient {
 	return &EmailVerificationClient{
 		db: db,
