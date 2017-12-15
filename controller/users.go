@@ -60,6 +60,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 		userProfileService:  userProfileService,
 		RemoteWITService:    &wit.RemoteWITServiceCaller{},
 		keycloakLinkService: linkService,
+		//EmailVerificationService: email.NewEmailVerificationClient(db),
 	}
 }
 
@@ -644,7 +645,9 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 }
 
 func (c *UsersController) sendVerificationEmail(ctx context.Context, user account.User) error {
-	return c.EmailVerificationService.SendVerificationCode(ctx, user)
+	_, err := c.EmailVerificationService.SendVerificationCode(ctx, user)
+	return err
+
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
@@ -740,8 +743,18 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 
 // VerifyEmail verifies a user's email when updated.
 func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
-
-	return nil
+	verifiedCode, err := c.EmailVerificationService.VerifyCode(ctx, ctx.Code)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	if verifiedCode == nil {
+		// NotFoundError would have been caught above
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New("unable to verify code")))
+	}
+	return ctx.OK(&app.EmailApprovedData{
+		Email:    verifiedCode.User.Email,
+		Approved: true,
+	})
 }
 
 func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]account.User, []account.Identity, error) {

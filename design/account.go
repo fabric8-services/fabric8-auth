@@ -120,11 +120,10 @@ var _ = a.Resource("users", func() {
 		)
 		a.Params(func() {
 			a.Param("code", d.String, "code")
+			a.Required("code")
 		})
-		a.UseTrait("conditional")
-		a.Response(d.OK, user)
-		a.Response(d.NotModified)
-		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.OK, emailApprovedData)
+		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
 
@@ -204,6 +203,12 @@ var userData = a.Type("UserData", func() {
 	a.Attribute("attributes", userDataAttributes, "Attributes of the user")
 	a.Attribute("links", genericLinks)
 	a.Required("type", "attributes")
+})
+
+var emailApprovedData = a.Type("EmailApprovedData", func() {
+	a.Attribute("email", d.String, "email of the user which is being approved")
+	a.Attribute("approved", d.Boolean, "approval status of the email")
+	a.Required("email", "approved")
 })
 
 // userDataAttributes represents an identified user object attributes

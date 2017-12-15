@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
@@ -58,6 +59,7 @@ func (s *TestUsersSuite) SetupSuite() {
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -67,6 +69,38 @@ func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identi
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
+}
+
+func (s *TestUsersSuite) TestEmailVerifiedOK() {
+	// given
+	user := s.createRandomUser("TestUpdateUserOK")
+	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
+
+	// when
+	newEmail := "TestUpdateUserOK-" + uuid.NewV4().String() + "@email.com"
+	newFullName := "TestUpdateUserOK"
+	newImageURL := "http://new.image.io/imageurl"
+	newBio := "new bio"
+	newProfileURL := "http://new.profile.url/url"
+	newCompany := "updateCompany " + uuid.NewV4().String()
+	secureService, secureController := s.SecuredController(identity)
+
+	contextInformation := map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+	//secureController, secureService := createSecureController(t, identity)
+	updateUsersPayload := createUpdateUsersPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, &newCompany, nil, nil, contextInformation)
+	test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+
+	codes, err := s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
+	require.Nil(s.T(), err)
+	require.Len(s.T(), codes, 1)
+	verificationCode := codes[0].Code
+	test.VerifyEmailUsersOK(s.T(), secureService.Context, secureService, secureController, verificationCode)
 }
 
 func (s *TestUsersSuite) TestUpdateUserOK() {

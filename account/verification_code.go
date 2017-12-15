@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/repository"
@@ -18,27 +17,17 @@ import (
 
 type VerificationCode struct {
 	gormsupport.Lifecycle
-	ID       uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
-	User     User
-	Verified bool // The verification status of the updated email.
-	Code     string
+	ID     uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
+	User   User
+	UserID NullUUID `sql:"type:uuid"`
+
+	Code string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
 func (m VerificationCode) TableName() string {
 	return "verification_codes"
-}
-
-// GetETagData returns the field values to use to generate the ETag
-func (m VerificationCode) GetETagData() []interface{} {
-	// using the 'ID' and 'UpdatedAt' (converted to number of seconds since epoch) fields
-	return []interface{}{m.ID, strconv.FormatInt(m.UpdatedAt.Unix(), 10)}
-}
-
-// GetLastModified returns the last modification time
-func (m VerificationCode) GetLastModified() time.Time {
-	return m.UpdatedAt
 }
 
 // GormVerificationCodeRepository is the implementation of the storage interface for
@@ -56,7 +45,7 @@ func NewVerificationCodeRepository(db *gorm.DB) *GormVerificationCodeRepository 
 type VerificationCodeRepository interface {
 	repository.Exister
 	Load(ctx context.Context, id uuid.UUID) (*VerificationCode, error)
-	LoadByCode(ctx context.Context, code string) (*VerificationCode, error)
+	LoadByCode(ctx context.Context, code string) ([]VerificationCode, error)
 	Create(ctx context.Context, VerificationCode *VerificationCode) error
 	Save(ctx context.Context, VerificationCode *VerificationCode) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -85,16 +74,9 @@ func (m *GormVerificationCodeRepository) Load(ctx context.Context, id uuid.UUID)
 	return &native, errs.WithStack(err)
 }
 
-func (m *GormVerificationCodeRepository) LoadByCode(ctx context.Context, code string) (*VerificationCode, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "VerificationCode", "load"}, time.Now())
-
-	var native VerificationCode
-	err := m.db.Table(m.TableName()).Where("code = ?", code).Find(&native).Error
-	if err == gorm.ErrRecordNotFound {
-		return nil, errors.NewNotFoundError("verification_code", code)
-	}
-
-	return &native, errs.WithStack(err)
+// LoadByCode loads result by filtering with respect to the verificate code.
+func (m *GormVerificationCodeRepository) LoadByCode(ctx context.Context, code string) ([]VerificationCode, error) {
+	return m.Query(VerificationCodeWithUser(), VerificationCodeFilterByCode(code)) // maybe load with user?
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
@@ -202,6 +184,6 @@ func VerificationCodeFilterByCode(code string) func(db *gorm.DB) *gorm.DB {
 // VerificationCodeWithUser is a gorm filter for preloading the user relationship.
 func VerificationCodeWithUser() func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Preload("user")
+		return db.Preload("User")
 	}
 }

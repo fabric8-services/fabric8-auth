@@ -204,8 +204,8 @@ func main() {
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
 
-	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	emailVerificationService := email.NewEmailVerificationClient(appDB)
+	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 

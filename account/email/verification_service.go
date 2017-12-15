@@ -1,24 +1,24 @@
 package email
 
-import "github.com/fabric8-services/fabric8-auth/application"
-import "github.com/fabric8-services/fabric8-auth/account"
-import "github.com/fabric8-services/fabric8-auth/log"
-import "github.com/fabric8-services/fabric8-auth/errors"
-import errs "github.com/pkg/errors"
-import "github.com/satori/go.uuid"
+import (
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/satori/go.uuid"
 
-import "context"
+	"context"
+)
 
 type EmailVerificationService interface {
-	SendVerificationCode(ctx context.Context, user account.User) error
-	VerifyCode(ctx context.Context, code string) (bool, error)
+	SendVerificationCode(ctx context.Context, user account.User) (*account.VerificationCode, error)
+	VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error)
 }
 
 type EmailVerificationClient struct {
 	db application.DB
 }
 
-// NewKeycloakIDPServiceClient creates a new Keycloakc
+// NewEmailVerificationClient creates a new Keycloakc
 func NewEmailVerificationClient(db application.DB) *EmailVerificationClient {
 	return &EmailVerificationClient{
 		db: db,
@@ -26,70 +26,66 @@ func NewEmailVerificationClient(db application.DB) *EmailVerificationClient {
 }
 
 // SendVerificationCode generates and sends out an email with verification code.
-func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, user account.User) error {
+func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, user account.User) (*account.VerificationCode, error) {
 
+	generatedCode := uuid.NewV4().String()
 	newVerificationCode := account.VerificationCode{
-		User:     user,
-		Code:     uuid.NewV4().String(),
-		Verified: false,
+		User: user,
+		Code: generatedCode,
 	}
 
-	return application.Transactional(c.db, func(appl application.Application) error {
+	err := application.Transactional(c.db, func(appl application.Application) error {
 		log.Info(ctx, map[string]interface{}{
 			"email": user.Email,
 		}, "verification code to be sent")
 		err := appl.VerificationCodes().Create(ctx, &newVerificationCode)
-		/*
-			TODO: Invoke the EmailService to send out an email
-		*/
 		return err
 	})
-	return nil
+	/*
+		TODO: Invoke the EmailService to send out an email
+	*/
+	if err != nil {
+		return nil, err
+	}
+	return &newVerificationCode, err
 }
 
-// VerifyCode validates whether the code is present in our database.
-func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (bool, error) {
+// VerifyCode validates whether the code is present in our database and returns a non-nil if yes.
+func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error) {
 
+	var verificationCode *account.VerificationCode
 	err := application.Transactional(c.db, func(appl application.Application) error {
 
-		log.Info(ctx, map[string]interface{}{
+		log.Debug(ctx, map[string]interface{}{
 			"code": code,
 		}, "verification code to be validated")
 
-		verificationCode, err := appl.VerificationCodes().LoadByCode(ctx, code)
+		verificationCodeList, err := appl.VerificationCodes().LoadByCode(ctx, code)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "error looking up verification code")
 			return err
 		}
-		if verificationCode == nil {
-			return errors.NewInternalError(ctx, errs.New("could not find verification code"))
-		}
-
-		// if verification code was previously used, it can't be used again.
-		if verificationCode.Verified {
-			return errors.NewForbiddenError("verification code has already been used")
-		}
-
-		user, err := appl.Users().Load(ctx, verificationCode.User.ID)
-		if err != nil {
+		if verificationCodeList == nil || len(verificationCodeList) == 0 {
 			return err
 		}
-		if user == nil {
-			return errors.NewInternalError(ctx, errs.New("could not find user id"))
-		}
 
+		verificationCode = &verificationCodeList[0]
+
+		user := verificationCode.User
 		user.EmailVerified = true
-		err = appl.Users().Save(ctx, user)
+		err = appl.Users().Save(ctx, &user)
 		if err != nil {
 			return err
 		}
 
-		verificationCode.Verified = true
-		err = appl.VerificationCodes().Save(ctx, verificationCode)
+		err = appl.VerificationCodes().Delete(ctx, verificationCode.ID)
 		return err
 
 	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return true, nil
+	return verificationCode, nil
 }
