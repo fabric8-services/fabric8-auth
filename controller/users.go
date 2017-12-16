@@ -10,17 +10,18 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	linkAPI "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/rest/proxy"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/goadesign/goa"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -417,6 +418,7 @@ func (c *UsersController) getKeycloakProfileInformation(ctx context.Context, tok
 }
 
 // Update updates the authorized user based on the provided Token
+/*
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	id, err := login.ContextIdentity(ctx)
@@ -630,6 +632,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+}
+*/
+func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
+	return proxy.RouteHTTPToPath(ctx, c.configuration.GetAuthShortServiceHostName(), client.UpdateUserPath())
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
