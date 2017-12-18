@@ -64,7 +64,7 @@ type KeycloakOAuthProvider struct {
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
-	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
+	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, stateID *uuid.UUID, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
@@ -136,8 +136,8 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 	}
 
 	// First time access, redirect to oauth provider
-
-	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, ctx.RequestData, config, serviceConfig)
+	stateID := uuid.NewV4()
+	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &stateID, ctx.RequestData, config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -146,7 +146,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 }
 
 // AuthCodeURL is used in authorize action of /api/authorize to get authorization_code
-func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, stateID *uuid.UUID, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
@@ -158,21 +158,18 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect
 		}
 		redirect = &referrer
 	}
-
 	// store referrer in a state reference to redirect later
 	log.Debug(ctx, map[string]interface{}{
 		"referrer": referrer,
 		"redirect": redirect,
 	}, "Got Request from!")
 
-	stateID := uuid.NewV4()
-
 	redirect, err := keycloak.saveParams(ctx, *redirect, apiClient)
 	if err != nil {
 		return nil, err
 	}
 
-	err = keycloak.saveReferrer(ctx, stateID, *redirect, validRedirectURL)
+	err = keycloak.saveReferrer(ctx, *stateID, *redirect, validRedirectURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state":    stateID,
@@ -321,7 +318,7 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthori
 		return nil, err
 	}
 
-	parameters := url.Values{}
+	parameters := referrerURL.Query()
 	parameters.Add("code", ctx.Code)
 	parameters.Add("state", ctx.State.String())
 	referrerURL.RawQuery = parameters.Encode()

@@ -70,7 +70,7 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath()),
 	}
 
-	redirectTo, err := c.Auth.AuthCodeURL(ctx, &ctx.RedirectURI, ctx.APIClient, ctx.RequestData, oauth, c.Configuration)
+	redirectTo, err := c.Auth.AuthCodeURL(ctx, &ctx.RedirectURI, ctx.APIClient, &ctx.State, ctx.RequestData, oauth, c.Configuration)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

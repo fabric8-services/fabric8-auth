@@ -3,9 +3,11 @@ package controller_test
 import (
 	"context"
 	"fmt"
+	rand "math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -51,57 +53,20 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
 	t := rest.T()
 
-	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
 	}
-	req, err := http.NewRequest("GET", u.String(), nil)
-	require.Nil(t, err)
 
-	redirectURI := "https://openshift.io/somepath"
 	prms := url.Values{}
-
 	prms.Add("response_type", "code")
-	prms.Add("redirect_uri", redirectURI)
+	prms.Add("redirect_uri", "https://openshift.io/somepath")
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
 	prms.Add("state", uuid.NewV4().String())
 
-	ctx := context.Background()
-
-	prms.Del("response_type")
-	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
-	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
-	jsonapi.JSONErrorResponse(authorizeCtx, err)
-	require.Equal(t, 400, rw.Code)
-	prms.Add("response_type", "code")
-
-	prms.Del("redirect_uri")
-	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
-	authorizeCtx, err = app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
-	jsonapi.JSONErrorResponse(authorizeCtx, err)
-	require.Equal(t, 400, rw.Code)
-	prms.Add("redirect_uri", redirectURI)
-
-	prms.Del("client_id")
-	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
-	authorizeCtx, err = app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
-	jsonapi.JSONErrorResponse(authorizeCtx, err)
-	require.Equal(t, 400, rw.Code)
-	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
-
-	prms.Del("state")
-	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
-	authorizeCtx, err = app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
-	jsonapi.JSONErrorResponse(authorizeCtx, err)
-	require.Equal(t, 400, rw.Code)
+	rest.checkInvalidRequest("authorize", "response_type", prms, u, t)
+	rest.checkInvalidRequest("authorize", "redirect_uri", prms, u, t)
+	rest.checkInvalidRequest("authorize", "client_id", prms, u, t)
+	rest.checkInvalidRequest("authorize", "state", prms, u, t)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeUnauthorizedError() {
@@ -129,7 +94,6 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 
 	redirectURI := "https://openshift.io/somepath"
 	prms := url.Values{}
-
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
@@ -146,6 +110,8 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
 
 	locationString := rw.HeaderMap["Location"][0]
+	authEndpoint, _ := rest.Configuration.GetKeycloakEndpointAuth(authorizeCtx.RequestData)
+	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)
 
@@ -153,16 +119,16 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 
 	require.NotNil(t, allQueryParameters)
 	require.NotNil(t, allQueryParameters["state"][0])
-
 	returnedState := allQueryParameters["state"][0]
 
 	u = &url.URL{
 		Path: fmt.Sprintf(client.CallbackAuthorizePath()),
 	}
 
+	code := strconv.Itoa(rand.Int())
 	prms = url.Values{
 		"state": {returnedState},
-		"code":  {"SOME_OAUTH2.0_CODE"},
+		"code":  {code},
 	}
 
 	ctx = context.Background()
@@ -183,11 +149,10 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 	err = ctrl.Callback(callbackCtx)
 	require.Nil(t, err)
 
-	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
-
-	require.Contains(t, rw.Header().Get("Location"), redirectURI)
+	require.Equal(t, 307, rw.Code)
 
 	locationString = rw.HeaderMap["Location"][0]
+	require.Contains(t, locationString, redirectURI)
 	locationUrl, err = url.Parse(locationString)
 	require.Nil(t, err)
 
@@ -195,41 +160,24 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 
 	require.NotNil(t, allQueryParameters)
 	require.NotNil(t, allQueryParameters["state"][0])
-	require.NotNil(t, allQueryParameters["code"][0])
 	require.Equal(t, returnedState, allQueryParameters["state"][0])
+	require.NotNil(t, allQueryParameters["code"][0])
+	require.Equal(t, code, allQueryParameters["code"][0])
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeCallbackBadRequest() {
 	t := rest.T()
 
-	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf(client.CallbackAuthorizePath()),
 	}
-	req, err := http.NewRequest("GET", u.String(), nil)
-	require.Nil(t, err)
 
 	prms := url.Values{}
 	prms.Add("code", "SOME_OAUTH2.0_CODE")
 	prms.Add("state", uuid.NewV4().String())
 
-	ctx := context.Background()
-
-	prms.Del("code")
-	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
-	callbackCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
-	jsonapi.JSONErrorResponse(callbackCtx, err)
-	require.Equal(t, 400, rw.Code)
-
-	prms.Del("state")
-	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
-	_, err = app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
-	jsonapi.JSONErrorResponse(callbackCtx, err)
-	require.Equal(t, 400, rw.Code)
+	rest.checkInvalidRequest("authorizeCallback", "code", prms, u, t)
+	rest.checkInvalidRequest("authorizeCallback", "state", prms, u, t)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
@@ -246,10 +194,11 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	redirectURI := "https://openshift.io/somepath"
 	prms := url.Values{}
 
+	state := uuid.NewV4().String()
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
-	prms.Add("state", uuid.NewV4().String())
+	prms.Add("state", state)
 
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
@@ -262,6 +211,8 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
 
 	locationString := rw.HeaderMap["Location"][0]
+	authEndpoint, _ := rest.Configuration.GetKeycloakEndpointAuth(authorizeCtx.RequestData)
+	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)
 
@@ -269,6 +220,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 
 	require.NotNil(t, allQueryParameters)
 	require.NotNil(t, allQueryParameters["state"][0])
+	require.Equal(t, state, allQueryParameters["state"][0])
 
 	u = &url.URL{
 		Path: fmt.Sprintf(client.CallbackAuthorizePath()),
@@ -279,10 +231,29 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 		"code":  {"SOME_OAUTH2.0_CODE"},
 	}
 
-	ctx = context.Background()
-	rw = httptest.NewRecorder()
+	// Request with wrong state results in unauthorized error
+	statusCode, err := rest.makeNewRequest("authorizeCallback", u, t, prms, ctrl)
+	require.NotNil(t, err)
+	require.Equal(t, 401, statusCode)
 
-	req, err = http.NewRequest("GET", u.String(), nil)
+	// Correct state results in success thus redirect state and code to redirecURI/referrer resulting in statusCode 307
+	prms.Set("state", state)
+	statusCode, err = rest.makeNewRequest("authorizeCallback", u, t, prms, ctrl)
+	require.Nil(t, err)
+	require.Equal(t, 307, statusCode)
+
+	// Call the same call back one more time to make sure it now fails (because the corresponding state does not exist anymore).
+	statusCode, err = rest.makeNewRequest("authorizeCallback", u, t, prms, ctrl)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "No encoder registered for  and no default encoder")
+	require.Equal(t, 401, statusCode)
+}
+
+func (rest *TestAuthorizeREST) checkInvalidRequest(testFor string, toBeRemoved string, prms url.Values, u *url.URL, t *testing.T) {
+	ctx := context.Background()
+	rw := httptest.NewRecorder()
+
+	req, err := http.NewRequest("GET", u.String(), nil)
 	require.Nil(t, err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
@@ -290,12 +261,50 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
 	req.Header.Add("referer", refererKeycloakUrl)
 
-	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizecallbackTest"), rw, req, prms)
-	callbackCtx, err := app.NewCallbackAuthorizeContext(goaCtx, req, goa.New("LoginService"))
+	valueToAdd := prms.Get(toBeRemoved)
+	prms.Del(toBeRemoved)
+	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
+	if testFor == "authorize" {
+		authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
+		jsonapi.JSONErrorResponse(authorizeCtx, err)
+	}
+
+	if testFor == "authorizeCallback" {
+		callbackCtx, err := app.NewCallbackAuthorizeContext(goaCtx, req, goa.New("LoginService"))
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "400 invalid_request: missing required parameter")
+		jsonapi.JSONErrorResponse(callbackCtx, err)
+	}
+
+	require.Equal(t, 400, rw.Code)
+	prms.Add(toBeRemoved, valueToAdd)
+}
+
+// for a request to /authorize/callback use testFor = "authorizeCallback" and anything else for a request to /authorize
+func (rest *TestAuthorizeREST) makeNewRequest(testFor string, u *url.URL, t *testing.T, prms url.Values, ctrl *AuthorizeController) (int, error) {
+	ctx := context.Background()
+	rw := httptest.NewRecorder()
+
+	req, err := http.NewRequest("GET", u.String(), nil)
 	require.Nil(t, err)
 
-	err = ctrl.Callback(callbackCtx)
-	require.NotNil(t, err)
+	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
+	// The request originates from Keycloak after a valid authorization by the end user.
+	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
+	req.Header.Add("referer", refererKeycloakUrl)
 
-	require.Equal(t, 401, rw.Code)
+	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
+	if testFor == "authorizeCallback" {
+		callbackCtx, err := app.NewCallbackAuthorizeContext(goaCtx, req, goa.New("LoginService"))
+		require.Nil(t, err)
+		err = ctrl.Callback(callbackCtx)
+		return rw.Code, err
+	}
+
+	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
+	require.Nil(t, err)
+	err = ctrl.Authorize(authorizeCtx)
+	return rw.Code, err
 }
