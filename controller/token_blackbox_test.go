@@ -2,6 +2,8 @@ package controller_test
 
 import (
 	"context"
+	rand "math/rand"
+	"strconv"
 	"testing"
 	"time"
 
@@ -27,7 +29,9 @@ import (
 
 type TestTokenREST struct {
 	gormtestsupport.DBTestSuite
-	dummyOauth dummyOauth2Config
+	dummyOauth         dummyOauth2Config
+	sampleAccessToken  string
+	sampleRefreshToken string
 }
 
 type dummyOauth2Config struct {
@@ -36,7 +40,13 @@ type dummyOauth2Config struct {
 }
 
 func TestRunTokenREST(t *testing.T) {
-	suite.Run(t, &TestTokenREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+	suite.Run(
+		t,
+		&TestTokenREST{
+			DBTestSuite:        gormtestsupport.NewDBTestSuite(),
+			sampleAccessToken:  strconv.Itoa(rand.Int()),
+			sampleRefreshToken: strconv.Itoa(rand.Int()),
+		})
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -171,26 +181,23 @@ func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string
 
 func (rest *TestTokenREST) checkAuthorizationCode(name string, code string) {
 	service, _ := rest.SecuredController()
-	saToken, err := rest.dummyOauth.Exchange(service.Context, code)
+	saToken, err := rest.Exchange(service.Context, code)
 	assert.Nil(rest.T(), err)
 	assert.NotNil(rest.T(), saToken.TokenType)
 	assert.Equal(rest.T(), "bearer", saToken.TokenType)
 	assert.NotNil(rest.T(), saToken.AccessToken)
+	assert.Equal(rest.T(), saToken.AccessToken, rest.sampleAccessToken)
+	assert.NotNil(rest.T(), saToken.RefreshToken)
+	assert.Equal(rest.T(), saToken.RefreshToken, rest.sampleRefreshToken)
 }
 
-func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
-	claims := make(map[string]interface{})
-	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
-	if err != nil {
-		panic(err)
-	}
-
+func (rest *TestTokenREST) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays int64
 	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
 		TokenType:    "bearer",
-		AccessToken:  accessToken,
-		RefreshToken: "someRefreshToken",
+		AccessToken:  rest.sampleAccessToken,
+		RefreshToken: rest.sampleRefreshToken,
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
 	}
 	extra := make(map[string]interface{})
