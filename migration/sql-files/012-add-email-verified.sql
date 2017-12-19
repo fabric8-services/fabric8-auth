@@ -11,5 +11,6 @@ CREATE TABLE verification_codes (
     code text
 );
 
-
+CREATE INDEX idx_user_id ON verification_codes (user_id);
+CREATE INDEX idx_verification_code ON verification_codes (code);
 
