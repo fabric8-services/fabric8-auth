@@ -3,6 +3,7 @@ package email
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/satori/go.uuid"
 
@@ -55,11 +56,12 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, user
 func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error) {
 
 	var verificationCode *account.VerificationCode
-	err := application.Transactional(c.db, func(appl application.Application) error {
 
-		log.Debug(ctx, map[string]interface{}{
-			"code": code,
-		}, "verification code to be validated")
+	log.Debug(ctx, map[string]interface{}{
+		"code": code,
+	}, "verification code to be validated")
+
+	err := application.Transactional(c.db, func(appl application.Application) error {
 
 		verificationCodeList, err := appl.VerificationCodes().LoadByCode(ctx, code)
 		if err != nil {
@@ -69,7 +71,7 @@ func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (
 			return err
 		}
 		if verificationCodeList == nil || len(verificationCodeList) == 0 {
-			return err
+			return errors.NewNotFoundError("code", code)
 		}
 
 		verificationCode = &verificationCodeList[0]
@@ -91,5 +93,5 @@ func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (
 			"err":  err,
 		}, "verification failed")
 	}
-	return verificationCode, nil
+	return verificationCode, err
 }

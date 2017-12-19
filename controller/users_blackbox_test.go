@@ -97,10 +97,14 @@ func (s *TestUsersSuite) TestEmailVerifiedOK() {
 	test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 
 	codes, err := s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.Len(s.T(), codes, 1)
 	verificationCode := codes[0].Code
 	test.VerifyEmailUsersOK(s.T(), secureService.Context, secureService, secureController, verificationCode)
+
+	codes, err = s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
+	require.NoError(s.T(), err)
+	require.Len(s.T(), codes, 0)
 }
 
 func (s *TestUsersSuite) TestUpdateUserOK() {

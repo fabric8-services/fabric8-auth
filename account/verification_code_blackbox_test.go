@@ -63,7 +63,7 @@ func createAndLoadVerificationCode(s *verificationCodeBlackboxTest) *account.Ver
 	verificationCode := account.VerificationCode{
 		ID:     uuid.NewV4(),
 		Code:   uuid.NewV4().String(),
-		UserID: account.NullUUID{UUID: identity.User.ID, Valid: true},
+		UserID: identity.User.ID,
 		User:   identity.User,
 	}
 	err = s.repo.Create(s.Ctx, &verificationCode)
@@ -79,5 +79,5 @@ func createAndLoadVerificationCode(s *verificationCodeBlackboxTest) *account.Ver
 func (s *verificationCodeBlackboxTest) assertCode(expected account.VerificationCode, actual account.VerificationCode) {
 	assert.Equal(s.T(), expected.Code, actual.Code)
 	assert.Equal(s.T(), expected.ID, actual.ID)
-	assert.Equal(s.T(), actual.UserID.UUID, expected.UserID.UUID)
+	assert.Equal(s.T(), actual.UserID, expected.UserID)
 }
