@@ -64,3 +64,22 @@ func (s *verificationServiceBlackboxTest) TestVerifyCodeOK() {
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), verificationCodes)
 }
+
+func (s *verificationServiceBlackboxTest) TestVerifyCodeFails() {
+	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), identity.ProviderType, "kc")
+
+	generatedCode := uuid.NewV4().String()
+	newVerificationCode := account.VerificationCode{
+		User: identity.User,
+		Code: generatedCode,
+	}
+
+	err = s.Application.VerificationCodes().Create(context.Background(), &newVerificationCode)
+	require.NoError(s.T(), err)
+
+	codeOK, err := s.verificationService.VerifyCode(context.Background(), generatedCode+"dfdkjfd")
+	require.Error(s.T(), err)
+	require.Nil(s.T(), codeOK)
+}
