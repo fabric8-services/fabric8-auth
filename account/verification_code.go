@@ -19,7 +19,7 @@ type VerificationCode struct {
 	gormsupport.Lifecycle
 	ID     uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
 	User   User
-	UserID NullUUID `sql:"type:uuid"`
+	UserID uuid.UUID `sql:"type:uuid"`
 
 	Code string
 }
@@ -82,7 +82,7 @@ func (m *GormVerificationCodeRepository) LoadByCode(ctx context.Context, code st
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormVerificationCodeRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "VerificationCode", "exists"}, time.Now())
-	return repository.CheckHardDeletableExists(ctx, m.db, m.TableName(), id)
+	return repository.CheckExists(ctx, m.db, m.TableName(), id)
 }
 
 // Create creates a new record.
@@ -113,7 +113,6 @@ func (m *GormVerificationCodeRepository) Save(ctx context.Context, model *Verifi
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"verification_code_id": model.ID,
-			"ctx": ctx,
 			"err": err,
 		}, "unable to update the verification_code")
 		return errs.WithStack(err)
