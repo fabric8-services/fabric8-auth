@@ -34,10 +34,11 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, user
 		Code: generatedCode,
 	}
 
+	log.Info(ctx, map[string]interface{}{
+		"email": user.Email,
+	}, "verification code to be sent")
+
 	err := application.Transactional(c.db, func(appl application.Application) error {
-		log.Info(ctx, map[string]interface{}{
-			"email": user.Email,
-		}, "verification code to be sent")
 		err := appl.VerificationCodes().Create(ctx, &newVerificationCode)
 		return err
 	})
@@ -85,7 +86,10 @@ func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (
 
 	})
 	if err != nil {
-		return nil, err
+		log.Error(ctx, map[string]interface{}{
+			"code": code,
+			"err":  err,
+		}, "verification failed")
 	}
 	return verificationCode, nil
 }
