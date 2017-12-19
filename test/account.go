@@ -114,28 +114,29 @@ func CreateTestIdentityAndUserInDB(db *gorm.DB, identity *account.Identity) erro
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
 
-	err := models.Transactional(db, func(tx *gorm.DB) error {
-		return userRepository.Create(context.Background(), &identity.User)
-	})
-	if err != nil {
-		log.Error(nil, map[string]interface{}{
-			"err":      err,
-			"identity": identity.User,
-		}, "unable to create user")
-		return err
-	}
-	log.Info(nil, map[string]interface{}{"user_id": identity.User.ID}, "created user")
+	transactionError := models.Transactional(db, func(tx *gorm.DB) error {
+		err := userRepository.Create(context.Background(), &identity.User)
 
-	err = models.Transactional(db, func(tx *gorm.DB) error {
-		return identityRepository.Create(context.Background(), identity)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{
+				"err":      err,
+				"identity": identity.User,
+			}, "unable to create user")
+			return err
+		}
+		log.Info(nil, map[string]interface{}{"user_id": identity.User.ID}, "created user")
+
+		err = identityRepository.Create(context.Background(), identity)
+
+		if err != nil {
+			log.Error(nil, map[string]interface{}{
+				"err":      err,
+				"identity": identity,
+			}, "unable to create identity")
+		} else {
+			log.Info(nil, map[string]interface{}{"identity_id": identity.ID}, "created identity")
+		}
+		return err
 	})
-	if err != nil {
-		log.Error(nil, map[string]interface{}{
-			"err":      err,
-			"identity": identity,
-		}, "unable to create identity")
-	} else {
-		log.Info(nil, map[string]interface{}{"identity_id": identity.ID}, "created identity")
-	}
-	return err
+	return transactionError
 }
