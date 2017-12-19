@@ -122,6 +122,7 @@ var _ = a.Resource("users", func() {
 			a.Param("code", d.String, "code")
 			a.Required("code")
 		})
+		a.Description("Verify if the new email updated by the user is a valid email")
 		a.Response(d.OK, emailApprovedData)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
