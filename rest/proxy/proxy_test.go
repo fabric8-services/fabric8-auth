@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-wit/app"
-	"github.com/fabric8-services/fabric8-wit/resource"
-	"github.com/fabric8-services/fabric8-wit/rest"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/rest"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
