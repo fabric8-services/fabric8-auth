@@ -10,10 +10,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-wit/jsonapi"
-	"github.com/fabric8-services/fabric8-wit/log"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/client"
+	"github.com/goadesign/goa/middleware"
 	"github.com/pkg/errors"
 )
 
@@ -98,7 +100,12 @@ func newDirector(ctx context.Context, originalRequestData *goa.RequestData, targ
 			// explicitly disable User-Agent so it's not set to default value
 			req.Header.Set("User-Agent", "")
 		}
-		requestID := log.ExtractRequestID(ctx)
+
+		requestID := middleware.ContextRequestID(ctx)
+		if requestID == "" {
+			requestID = client.ContextRequestID(ctx)
+		}
+
 		if requestID != "" {
 			req.Header.Set("X-Request-ID", requestID)
 		}

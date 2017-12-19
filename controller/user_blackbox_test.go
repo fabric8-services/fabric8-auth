@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
@@ -34,7 +35,8 @@ import (
 
 type TestUserREST struct {
 	suite.Suite
-	config configuration.ConfigurationData
+	config             configuration.ConfigurationData
+	userProfileService login.UserProfileService
 }
 
 func (rest *TestUserREST) TestRunUserREST(t *testing.T) {
@@ -51,7 +53,7 @@ func (rest *TestUserREST) SetupSuite() {
 }
 
 func (rest *TestUserREST) newUserController(identity *account.Identity, user *account.User) *UserController {
-	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.TokenManager, &rest.config)
+	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.TokenManager, rest.userProfileService, &rest.config)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingUUID() {

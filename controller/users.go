@@ -339,6 +339,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	return identity, user, nil
 }
 
+/*
 func mergeKeycloakUserProfileInfo(keycloakUserProfile *login.KeycloakUserProfile, existingProfile *login.KeycloakUserProfileResponse) *login.KeycloakUserProfile {
 
 	// If the *new* FirstName has already been set, we won't be updating it with the *existing* value
@@ -405,7 +406,7 @@ func (c *UsersController) copyExistingKeycloakUserProfileInfo(ctx context.Contex
 
 	return keycloakUserProfile, nil
 }
-
+*/
 func (c *UsersController) getKeycloakProfileInformation(ctx context.Context, tokenString string, accountAPIEndpoint string) (*login.KeycloakUserProfileResponse, error) {
 
 	response, err := c.userProfileService.Get(ctx, tokenString, accountAPIEndpoint)
@@ -635,7 +636,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 }
 */
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
-	return proxy.RouteHTTPToPath(ctx, c.configuration.GetAuthShortServiceHostName(), client.UpdateUserPath())
+	return proxy.RouteHTTP(ctx, client.UpdateUserPath())
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {

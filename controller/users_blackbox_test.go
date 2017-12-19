@@ -69,6 +69,7 @@ func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identi
 	return svc, controller
 }
 
+/*
 func (s *TestUsersSuite) TestUpdateUserOK() {
 	// given
 	user := s.createRandomUser("TestUpdateUserOK")
@@ -561,7 +562,7 @@ func (s *TestUsersSuite) TestUpdateUserUnauthorized() {
 	// when/then
 	test.UpdateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, updateUsersPayload)
 }
-
+*/
 func (s *TestUsersSuite) TestShowUserOK() {
 	// given user
 	user := s.createRandomUser("TestShowUserOK")
