@@ -596,7 +596,14 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	if isEmailVerificationNeeded {
-		c.sendVerificationEmail(ctx, *user)
+		err = c.sendVerificationEmail(ctx, *user)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"identity_id": id.String(),
+				"err":         err,
+				"username":    identity.Username,
+			}, "failed to send verification email for update on email")
+		}
 	}
 
 	if isKeycloakUserProfileUpdateNeeded {
