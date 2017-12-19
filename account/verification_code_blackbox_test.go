@@ -36,7 +36,7 @@ func (s *verificationCodeBlackboxTest) TestVerificationCodeOKToLoadByCode() {
 	verificationCode := createAndLoadVerificationCode(s)
 	require.NotNil(s.T(), verificationCode)
 	listLoadedByCode, err := s.repo.LoadByCode(context.Background(), verificationCode.Code)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.Len(s.T(), listLoadedByCode, 1)
 	require.Equal(s.T(), verificationCode.UserID, listLoadedByCode[0].UserID)
 	s.assertCode(*verificationCode, listLoadedByCode[0])
@@ -47,7 +47,7 @@ func (s *verificationCodeBlackboxTest) TestVerificationCodeOKToDelete() {
 	require.NotNil(s.T(), verificationCode)
 
 	err := s.repo.Delete(context.Background(), verificationCode.ID)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 
 	loaded, err := s.repo.Load(context.Background(), verificationCode.ID)
 	require.Nil(s.T(), loaded)
@@ -58,7 +58,7 @@ func createAndLoadVerificationCode(s *verificationCodeBlackboxTest) *account.Ver
 
 	identity, err := test.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "kc")
 
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 
 	verificationCode := account.VerificationCode{
 		ID:     uuid.NewV4(),

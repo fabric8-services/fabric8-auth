@@ -2,7 +2,6 @@ package email_test
 
 import (
 	"context"
-	"fmt"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -31,22 +30,22 @@ func (s *verificationServiceBlackboxTest) SetupTest() {
 
 func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {
 	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
 	generatedCode, err := s.verificationService.SendVerificationCode(context.Background(), identity.User)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.NotNil(s.T(), generatedCode)
 
 	// let's check if it's present in the db
 	verificationCodes, err := s.Application.VerificationCodes().LoadByCode(context.Background(), generatedCode.Code)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.NotEmpty(s.T(), verificationCodes)
 }
 
 func (s *verificationServiceBlackboxTest) TestVerifyCodeOK() {
 	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
 	generatedCode := uuid.NewV4().String()
@@ -55,14 +54,13 @@ func (s *verificationServiceBlackboxTest) TestVerifyCodeOK() {
 		Code: generatedCode,
 	}
 
-	fmt.Println(identity.User.ID)
 	err = s.Application.VerificationCodes().Create(context.Background(), &newVerificationCode)
 	codeOK, err := s.verificationService.VerifyCode(context.Background(), generatedCode)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.NotNil(s.T(), codeOK)
 
 	// let's check if it's present in the db - should be deleted
 	verificationCodes, err := s.Application.VerificationCodes().LoadByCode(context.Background(), generatedCode)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 	require.Empty(s.T(), verificationCodes)
 }
