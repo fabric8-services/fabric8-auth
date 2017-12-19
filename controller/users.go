@@ -602,6 +602,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 				"identity_id": id.String(),
 				"err":         err,
 				"username":    identity.Username,
+				"email":       user.Email,
 			}, "failed to send verification email for update on email")
 		}
 	}
