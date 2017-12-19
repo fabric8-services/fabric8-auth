@@ -73,7 +73,7 @@ func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identi
 
 func (s *TestUsersSuite) TestEmailVerifiedOK() {
 	// given
-	user := s.createRandomUser("TestUpdateUserOK")
+	user := s.createRandomUser("TestVerifyEmailOK")
 	identity := s.createRandomIdentity(user, account.KeycloakIDP)
 	test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
 
@@ -105,6 +105,15 @@ func (s *TestUsersSuite) TestEmailVerifiedOK() {
 	codes, err = s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), codes, 0)
+}
+
+func (s *TestUsersSuite) TestVerifyEmailFail() {
+	// given
+	user := s.createRandomUser("TestVerifyEmailOK")
+	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+
+	secureService, secureController := s.SecuredController(identity)
+	test.VerifyEmailUsersNotFound(s.T(), secureService.Context, secureService, secureController, "1234")
 }
 
 func (s *TestUsersSuite) TestUpdateUserOK() {
