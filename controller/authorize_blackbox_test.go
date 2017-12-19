@@ -152,8 +152,8 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 	require.Equal(t, 307, rw.Code)
 
 	locationString = rw.HeaderMap["Location"][0]
-	require.Contains(t, locationString, redirectURI)
 	locationUrl, err = url.Parse(locationString)
+	require.Contains(t, redirectURI, locationUrl.Host+locationUrl.Path)
 	require.Nil(t, err)
 
 	allQueryParameters = locationUrl.Query()
