@@ -596,7 +596,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	if isEmailVerificationNeeded {
-		err = c.sendVerificationEmail(ctx, *user)
+		_, err = c.EmailVerificationService.SendVerificationCode(ctx, *user)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id.String(),
@@ -649,12 +649,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
-}
-
-func (c *UsersController) sendVerificationEmail(ctx context.Context, user account.User) error {
-	_, err := c.EmailVerificationService.SendVerificationCode(ctx, user)
-	return err
-
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
