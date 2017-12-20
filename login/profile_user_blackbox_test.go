@@ -131,8 +131,9 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 }
 
 func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeytcloakUserRequest) *string {
-	url, err := s.profileService.Create(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
+	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)
+	require.True(s.T(), created)
 	return url
 }

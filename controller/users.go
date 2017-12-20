@@ -117,7 +117,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	keycloakUserID, err := c.createUserInKeycloak(ctx, protectedAccessToken)
+	keycloakUserID, err := c.createOrUpdateUserInKeycloak(ctx, protectedAccessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -131,15 +131,6 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	identityID, err := uuid.FromString(*keycloakUserID)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
-	err = c.linkUserToRHD(ctx, *keycloakUserID, rhdUserName(*ctx.Payload.Data.Attributes), protectedAccessToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":              err,
-			"keycloak_user_id": *keycloakUserID,
-		}, "failed to link user to rhd")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
@@ -199,7 +190,8 @@ func rhdUserName(userAttributes app.CreateIdentityDataAttributes) string {
 	return rhdUsername
 }
 
-func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext, protectedAccessToken string) (*string, error) {
+// createOrUpdateUserInKeycloak creates a new user in Keycloak. If the user already exists then try to update the user
+func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersContext, protectedAccessToken string) (*string, error) {
 
 	// All the below attributes are mandatory: "username", "email"
 	// "cluster" is mandatory too but we do not store it in Keycloak
@@ -247,7 +239,7 @@ func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext, prot
 		return nil, err
 	}
 
-	userURL, err := c.userProfileService.Create(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
+	userURL, created, err := c.userProfileService.CreateOrUpdate(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -255,6 +247,19 @@ func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext, prot
 	// TODO: Handle error, check if there was actually a URL returned.
 	userURLComponents := strings.Split(*userURL, "/")
 	identityID := userURLComponents[len(userURLComponents)-1]
+
+	// Link only new accounts. Do not link already existing (and updated) ones
+	if created {
+		err = c.linkUserToRHD(ctx, identityID, rhdUserName(*ctx.Payload.Data.Attributes), protectedAccessToken)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":              err,
+				"keycloak_user_id": identityID,
+			}, "failed to link user to rhd")
+			return nil, err
+		}
+	}
+
 	return &identityID, nil
 }
 
