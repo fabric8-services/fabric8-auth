@@ -176,7 +176,7 @@ func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 	ctx := goajwt.WithJWT(context.Background(), jwtToken)
 	assert.True(rest.T(), token.IsServiceAccount(ctx))
-	assert.True(rest.T(), token.IsSpecificServiceAccount(ctx, []string{name}))
+	assert.True(rest.T(), token.IsSpecificServiceAccount(ctx, name))
 }
 
 func (rest *TestTokenREST) checkAuthorizationCode(name string, code string) {

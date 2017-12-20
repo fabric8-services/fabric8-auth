@@ -234,7 +234,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	}
 
 	osConfig, ok := providerConfig.(*link.OpenShiftIdentityProvider)
-	if ok && token.IsSpecificServiceAccount(ctx, []string{"fabric8-oso-proxy", "fabric8-tenant"}) {
+	if ok && token.IsSpecificServiceAccount(ctx, "fabric8-oso-proxy", "fabric8-tenant") {
 		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
 		clusterToken := app.ExternalToken{
 			Scope:       "<unknown>",
