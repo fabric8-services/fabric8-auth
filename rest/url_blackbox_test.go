@@ -67,3 +67,44 @@ func TestReplaceDomainPrefixInTooShortHostFails(t *testing.T) {
 	_, err := ReplaceDomainPrefix("org", "sso")
 	assert.NotNil(t, err)
 }
+
+func TestValidateEmailSuccess(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	isValid, err := ValidateEmail("a@a.com")
+	require.NoError(t, err)
+	require.True(t, isValid)
+}
+
+func TestValidateEmailFail(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	isValid, err := ValidateEmail("a.a@com")
+	require.NoError(t, err)
+	require.False(t, isValid)
+}
+
+func TestAddParamsSuccess(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	testMap := map[string]string{
+		"param1": "a",
+		"param2": "b",
+		"param3": "https://www.redhat.com",
+	}
+	generatedURL, err := AddParams("https://openshift.io", testMap)
+	require.NoError(t, err)
+	assert.Equal(t, "https://openshift.io?param1=a&param2=b&param3=https%3A%2F%2Fwww.redhat.com", generatedURL)
+}
+
+func TestAddParamSuccess(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	generatedURL, err := AddParam("https://openshift.io", "param1", "a")
+	require.NoError(t, err)
+	assert.Equal(t, "https://openshift.io?param1=a", generatedURL)
+}
