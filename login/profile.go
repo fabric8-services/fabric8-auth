@@ -187,7 +187,7 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 }
 
 func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error) {
-	user, err := userProfileClient.loadUser(ctx, *keycloakUserRequest.Email, protectedAccessToken, keycloakAdminUserAPIURL)
+	user, err := userProfileClient.loadUser(ctx, *keycloakUserRequest.Username, protectedAccessToken, keycloakAdminUserAPIURL)
 	if err != nil {
 		return nil, err
 	}
@@ -242,19 +242,13 @@ func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Co
 	return &userURL, nil
 }
 
-// loadUser search for a user by email. Return nil if no user found.
-func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context, email string, protectedAccessToken string, keycloakAdminUserAPIURL string) (*KeycloakUserProfile, error) {
-	validEmail, err := rest.ValidateEmail(email)
-	if err != nil {
-		return nil, err
-	}
-	if !validEmail {
-		log.Error(ctx, map[string]interface{}{
-			"email": email,
-		}, "invalid email")
-		return nil, errs.New("invalid email: " + email)
-	}
-	kcURL, err := rest.AddParam(keycloakAdminUserAPIURL, "email", email)
+// loadUser search for a user by username. Return nil if no user found.
+func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context, username string, protectedAccessToken string, keycloakAdminUserAPIURL string) (*KeycloakUserProfile, error) {
+	kcURL, err := rest.AddParams(keycloakAdminUserAPIURL, map[string]string{
+		"username": username,
+		"first":    "0",
+		"max":      "500", // TODO we need to handle big user lists better
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -296,8 +290,14 @@ func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	if len(users) > 0 {
-		return &users[0], nil
+	log.Info(ctx, map[string]interface{}{
+		"url":              kcURL,
+		"user_list_length": len(users),
+	}, "users found")
+	for _, user := range users {
+		if *user.Username == username {
+			return &user, nil
+		}
 	}
 	return nil, nil
 }
