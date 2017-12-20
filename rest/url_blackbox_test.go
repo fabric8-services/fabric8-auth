@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"net/http"
+	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa"
@@ -95,9 +96,20 @@ func TestAddParamsSuccess(t *testing.T) {
 		"param2": "b",
 		"param3": "https://www.redhat.com",
 	}
-	generatedURL, err := AddParams("https://openshift.io", testMap)
+	testHost := "openshift.io"
+	generatedURLString, err := AddParams("https://"+testHost, testMap)
 	require.NoError(t, err)
-	assert.Equal(t, "https://openshift.io?param1=a&param2=b&param3=https%3A%2F%2Fwww.redhat.com", generatedURL)
+
+	generateURL, err := url.Parse(generatedURLString)
+	require.NoError(t, err)
+
+	assert.Equal(t, testHost, generateURL.Host)
+	assert.Equal(t, "https", generateURL.Scheme)
+
+	m, _ := url.ParseQuery(generateURL.RawQuery)
+	for k, v := range testMap {
+		assert.Equal(t, v, m[k][0])
+	}
 }
 
 func TestAddParamSuccess(t *testing.T) {
