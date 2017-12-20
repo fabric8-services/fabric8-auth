@@ -463,8 +463,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		return ctx.OK(token)
 	}
 
-	// We have this only because we need a return statement. Code below this will never get executed
-	return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", "nil").Expected("grant_type=client_credentials or grant_type=authorization_code"))
+	return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", payload.GrantType).Expected("grant_type=client_credentials or grant_type=authorization_code"))
 }
 
 func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
