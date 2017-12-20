@@ -145,7 +145,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token ")))
 	}
 
-	identity, _, err := c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
+	identity, _, err := c.Auth.CreateOrUpdateIdentityInDB(ctx, *testuser.Token.AccessToken, c.Configuration)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -180,7 +180,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	}
 
 	// Creates the testuser2 user and identity if they don't yet exist
-	identity, _, err = c.Auth.CreateOrUpdateIdentity(ctx, *testuser.Token.AccessToken, c.Configuration)
+	identity, _, err = c.Auth.CreateOrUpdateIdentityInDB(ctx, *testuser.Token.AccessToken, c.Configuration)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -350,45 +350,120 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 // A service account token is returned as the result of successful exchange.
 // May be expanded in the future to support other exchange types.
 func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
+
+	const clientCredentials = "client_credentials"
+	const authorizationCode = "authorization_code"
+
 	payload := ctx.Payload
 	if payload == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("payload", "nil").Expected("not empty payload"))
 	}
-	if payload.ClientID == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_id", "nil").Expected("Service Account ID"))
-	}
-	if payload.ClientSecret == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_secret", "nil").Expected("Service Account secret"))
+
+	if payload.GrantType == clientCredentials {
+
+		if payload.ClientSecret == nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("client_secret", "nil").Expected("Service Account secret"))
+		}
+
+		sa, found := c.Configuration.GetServiceAccounts()[payload.ClientID]
+		if !found {
+			log.Error(ctx, map[string]interface{}{
+				"client_id":     payload.ClientID,
+				"client_secret": *payload.ClientSecret,
+			}, "Unknown Service Account ID")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
+		}
+		secret := []byte(*payload.ClientSecret)
+		for _, hash := range sa.Secrets {
+			if bcrypt.CompareHashAndPassword([]byte(hash), secret) == nil {
+				tokenType := "bearer"
+				accessToken, err := c.TokenManager.GenerateServiceAccountToken(ctx.RequestData, sa.ID, sa.Name)
+				if err != nil {
+					return jsonapi.JSONErrorResponse(ctx, err)
+				}
+				pat := &app.OauthToken{
+					AccessToken: &accessToken,
+					TokenType:   &tokenType,
+				}
+				return ctx.OK(pat)
+			}
+		}
+		log.Error(ctx, map[string]interface{}{
+			"client_id":     payload.ClientID,
+			"client_secret": *payload.ClientSecret,
+		}, "Service Account secret doesn't match")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
+	} else if payload.GrantType == authorizationCode {
+
+		if payload.RedirectURI == nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("redirect uri"))
+		}
+		if payload.Code == nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("code", "nil").Expected("authorization code"))
+		}
+		// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+		if payload.ClientID != c.Configuration.GetPublicOauthClientID() {
+			log.Error(ctx, map[string]interface{}{
+				"client_id": payload.ClientID,
+			}, "unknown oauth client id")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid oauth client id"))
+		}
+		authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "unable to get keycloak auth endpoint url")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak auth endpoint url")))
+		}
+
+		tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "unable to get keycloak token endpoint url")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak token endpoint url")))
+		}
+
+		oauth := &oauth2.Config{
+			ClientID:     c.Configuration.GetKeycloakClientID(),
+			ClientSecret: c.Configuration.GetKeycloakSecret(),
+			Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
+			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath()),
+		}
+
+		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
+		keycloakToken, err := c.Auth.Exchange(ctx, *payload.Code, oauth)
+
+		if err != nil || keycloakToken == nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+
+		redirectURL, err := url.Parse(oauth.RedirectURL)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"redirectURL": oauth.RedirectURL,
+				"err":         err,
+			}, "failed to parse referrer")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
+
+		_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, *payload.Code, redirectURL, keycloakToken, ctx.RequestData, oauth, c.Configuration)
+
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+
+		exp := keycloakToken.Expiry.String()
+		token := &app.OauthToken{
+			AccessToken:  &keycloakToken.AccessToken,
+			Expiry:       &exp,
+			RefreshToken: &keycloakToken.RefreshToken,
+			TokenType:    &keycloakToken.TokenType,
+		}
+		return ctx.OK(token)
 	}
 
-	sa, found := c.Configuration.GetServiceAccounts()[*payload.ClientID]
-	if !found {
-		log.Error(ctx, map[string]interface{}{
-			"client_id":     *payload.ClientID,
-			"client_secret": *payload.ClientSecret,
-		}, "Unknown Service Account ID")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
-	}
-	secret := []byte(*payload.ClientSecret)
-	for _, hash := range sa.Secrets {
-		if bcrypt.CompareHashAndPassword([]byte(hash), secret) == nil {
-			tokenType := "bearer"
-			accessToken, err := c.TokenManager.GenerateServiceAccountToken(ctx.RequestData, sa.ID, sa.Name)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, err)
-			}
-			pat := &app.OauthToken{
-				AccessToken: &accessToken,
-				TokenType:   &tokenType,
-			}
-			return ctx.OK(pat)
-		}
-	}
-	log.Error(ctx, map[string]interface{}{
-		"client_id":     *payload.ClientID,
-		"client_secret": *payload.ClientSecret,
-	}, "Service Account secret doesn't match")
-	return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
+	return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", payload.GrantType).Expected("grant_type=client_credentials or grant_type=authorization_code"))
 }
 
 func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
