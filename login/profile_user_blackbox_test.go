@@ -128,6 +128,41 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 	err = s.idpLinkService.Create(context.Background(), &linkRequest, s.protectedAccessToken, linkURL)
 	require.Nil(s.T(), err)
 
+	userURL = s.updateExistingUser(&testKeycloakUserData)
+}
+
+func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
+	// UPDATE the user profile
+
+	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
+	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
+	testEmail := "updatedEmail" + uuid.NewV4().String() + "@email.com"
+	testBio := "updatedBioNew" + uuid.NewV4().String()
+	testURL := "updatedURLNew" + uuid.NewV4().String()
+	testImageURL := "updatedBio" + uuid.NewV4().String()
+	testUserName := "sbosetestusercreate" + uuid.NewV4().String()
+	testEnabled := true
+	testEmailVerified := true
+
+	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+		login.ImageURLAttributeName: []string{testImageURL},
+		login.BioAttributeName:      []string{testBio},
+		login.URLAttributeName:      []string{testURL},
+	}
+
+	testKeycloakUserData := login.KeytcloakUserRequest{
+		Username:      &testUserName,
+		Enabled:       &testEnabled,
+		EmailVerified: &testEmailVerified,
+		FirstName:     &testFirstName,
+		LastName:      &testLastName,
+		Email:         &testEmail,
+		Attributes:    testKeycloakUserProfileAttributes,
+	}
+
+	s.createUser(&testKeycloakUserData)
+	s.updateExistingUser(&testKeycloakUserData)
+
 }
 
 func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeytcloakUserRequest) *string {
@@ -135,5 +170,13 @@ func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeytcloakUserReq
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)
 	require.True(s.T(), created)
+	return url
+}
+
+func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.KeytcloakUserRequest) *string {
+	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), url)
+	require.False(s.T(), created)
 	return url
 }

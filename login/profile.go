@@ -159,7 +159,7 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 			return nil, false, errors.NewUnauthorizedError(bodyString)
 		}
 
-		return nil, true, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating keycloak user :  %s", resp.Status, keycloakAdminUserAPIURL))
+		return nil, false, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating keycloak user :  %s", resp.Status, keycloakAdminUserAPIURL))
 	}
 
 	createdUserURL, err := resp.Location()
@@ -183,7 +183,7 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 		"user_url":          createdUserURLString,
 	}, "Successfully created Keycloak user")
 
-	return &createdUserURLString, false, nil
+	return &createdUserURLString, true, nil
 }
 
 func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error) {
