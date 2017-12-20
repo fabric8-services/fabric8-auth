@@ -1,16 +1,80 @@
 name: auth
+controller: DeploymentConfig
+
+revisionHistoryLimit: 2
+strategy:
+  rollingParams:
+    timeoutSeconds: 7200
+  type: Rolling
+triggers:
+- type: ConfigChange
+
+init-containers:
+- name: wait-for-auth-db
+  image: fabric8/fabric8-dependency-wait-service:v6632df1
+  imagePullPolicy: IfNotPresent
+  command:
+  - sh
+  - "-c"
+  - fabric8-dependency-wait-service-linux-amd64 postgres://auth@auth-db:5432
+  env:
+  - name: DEPENDENCY_POLL_INTERVAL
+    value: '1'
+  - name: DEPENDENCY_LOG_VERBOSE
+    value: 'true'
+
 containers:
-- image: fabric8/fabric8-auth:dev
+- name: auth
+  image: fabric8/fabric8-auth:[[ IMAGE_TAG ]]
+  imagePullPolicy: IfNotPresent
   env:
   - name: AUTH_DEVELOPER_MODE_ENABLED
-    value: "true"
-  - name: AUTH_POSTGRES_HOST
-    value: "db-auth"
-  - name: AUTH_POSTGRES_PORT
-    value: "5432"
+    value: [[ AUTH_DEVELOPER_MODE_ENABLED ]]
+  envFrom:
+  - configMapRef:
+      name: auth
+  - secretRef:
+      name: auth
+
+  health:
+    failureThreshold: 3
+    httpGet:
+      path: /api/status
+      port: 8089
+      scheme: HTTP
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+
 services:
+- portMappings:
+  - 80:8089
+
+configMaps:
+- data:
+    AUTH_POSTGRES_HOST: auth-db
+    AUTH_POSTGRES_PORT: "5432"
+    AUTH_AUTH_NOTAPPROVED_REDIRECT: ""
+    AUTH_CHESTARTERURL: http://che-starter:10000
+    AUTH_WIT_URL: http://wit
+    AUTH_OPENSHIFT_TENANT_MASTERURL: http://kubernetes.default/
+    AUTH_POSTGRES_CONNECTION_MAXIDLE: "90"
+    AUTH_POSTGRES_CONNECTION_MAXOPEN: "90"
+    AUTH_POSTGRES_SSLMODE: disable
+    AUTH_REDIRECT_VALID: .*
+    tenant.serviceurl: http://kubernetes.default/
+
+secrets:
 - name: auth
-  type: NodePort
-  ports:
-  - port: 8089
-    nodePort: 31000
+  data:
+    AUTH_POSTGRES_USER: cG9zdGdyZXM=
+    AUTH_POSTGRES_PASSWORD: bXlzZWNyZXRwYXNzd29yZA==
+    AUTH_TOKEN_PUBLICKEY: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlHZU1BMEdDU3FHU0liM0RRRUJBUVVBQTRHTUFEQ0JpQUtCZ0VqbFpOMVE3d2c1UU9IelhHcXlOZi9xL1ZIUTBvSjJOZGVPRHMxOHh1WkpHSkxEZVA4ZU5QY2trbGdWb1RJaFZzOTlaNXRMTTFoUCs5R213ODI1dVVXRnZsNHg1MGoyYW0yNUFIOGlpUGhreUw2aEx6dThzYnd3clU5R1RpcllqRVM5RlNRVWF6TmlWMVhYSGR5TGRvRm03dzMzZDVobFdpT1M4NmNmRnNGN0FnTUJBQUU9Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo=
+    AUTH_TENANT_SERVICEURL: aHR0cDovL2Y4dGVuYW50Ojgw
+  type: Opaque
+
+routes:
+- to:
+    kind: Service
+    name: auth
