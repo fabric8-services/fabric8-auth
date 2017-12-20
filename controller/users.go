@@ -123,7 +123,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 			"err":      err,
 			"username": ctx.Payload.Data.Attributes.Username,
 		}, "failed to create user in keycloak")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	log.Info(ctx, map[string]interface{}{
 		"keycloak_user_id": *keycloakUserID,

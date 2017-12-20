@@ -230,6 +230,11 @@ func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Co
 			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
 			"email":                     *keycloakUserRequest.Email,
 		}, "Unable to update Keycloak user")
+
+		// new username, but existing email can cause this.
+		if resp.StatusCode == 409 {
+			return nil, errors.NewVersionConflictError(fmt.Sprintf("user with the same email %s already exists", *keycloakUserRequest.Email))
+		}
 		return nil, errs.Errorf("received a non-2xx response %s while creating keycloak user:  %s", resp.Status, keycloakAdminUserAPIURL)
 	}
 	log.Info(ctx, map[string]interface{}{

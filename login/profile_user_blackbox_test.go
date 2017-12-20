@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/login/link"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
@@ -165,6 +166,53 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
 
 }
 
+func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
+	// UPDATE the user profile
+
+	emailToBeUpdatedFor409 := "unitestupdatedmail" + uuid.NewV4().String() + "@email.com"
+	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
+	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
+	testEmail := emailToBeUpdatedFor409
+	testBio := "updatedBioNew" + uuid.NewV4().String()
+	testURL := "updatedURLNew" + uuid.NewV4().String()
+	testImageURL := "updatedBio" + uuid.NewV4().String()
+	testUserName := "unittestsbosetestusercreate" + uuid.NewV4().String()
+	testEnabled := true
+	testEmailVerified := true
+
+	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+		login.ImageURLAttributeName: []string{testImageURL},
+		login.BioAttributeName:      []string{testBio},
+		login.URLAttributeName:      []string{testURL},
+	}
+
+	testKeycloakUserData := login.KeytcloakUserRequest{
+		Username:      &testUserName,
+		Enabled:       &testEnabled,
+		EmailVerified: &testEmailVerified,
+		FirstName:     &testFirstName,
+		LastName:      &testLastName,
+		Email:         &testEmail,
+		Attributes:    testKeycloakUserProfileAttributes,
+	}
+
+	s.createUser(&testKeycloakUserData)
+
+	// Create second user
+
+	*(testKeycloakUserData).Email = "unittestupdatedemail" + uuid.NewV4().String() + "@email.com"
+	*(testKeycloakUserData).Username = "unitestupdatedusername" + uuid.NewV4().String() + "@email.com"
+
+	s.createUser(&testKeycloakUserData)
+
+	// Try updating second user with first user's email.
+	*(testKeycloakUserData).Email = emailToBeUpdatedFor409
+
+	// should fail with a 409
+	s.updateExistingUser409(&testKeycloakUserData)
+
+}
+
 func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeytcloakUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
@@ -177,6 +225,15 @@ func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.Keytcloa
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)
+	require.False(s.T(), created)
+	return url
+}
+
+func (s *ProfileUserBlackBoxTest) updateExistingUser409(userProfile *login.KeytcloakUserRequest) *string {
+	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.VersionConflictError{}, err)
+	require.Nil(s.T(), url)
 	require.False(s.T(), created)
 	return url
 }
