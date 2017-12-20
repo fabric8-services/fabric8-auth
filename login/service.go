@@ -185,7 +185,7 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect
 	return &redirectTo, err
 }
 
-// Exchange returns token and referralURL on recieving code and state
+// Exchange returns token and referralURL on receiving code and state
 func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
 
 	keycloakToken, err := config.Exchange(ctx, code)
