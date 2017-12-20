@@ -143,7 +143,7 @@ var _ = a.Resource("users", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
-
+		a.Response(d.Conflict, JSONAPIErrors)
 	})
 
 	a.Action("update", func() {

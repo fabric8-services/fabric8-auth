@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
 
-	"github.com/goadesign/goa"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+
+	"github.com/goadesign/goa"
 )
 
 // AbsoluteURL prefixes a relative URL with absolute address
@@ -46,4 +49,32 @@ func ReadBody(body io.ReadCloser) string {
 func CloseResponse(response *http.Response) {
 	ioutil.ReadAll(response.Body)
 	response.Body.Close()
+}
+
+// ValidateEmail return true if the string is a valid email address
+// This is a very simple validation. It just checks if there is @ and dot in the address
+func ValidateEmail(email string) (bool, error) {
+	// .+@.+\..+
+	return regexp.MatchString(".+@.+\\..+", email)
+}
+
+// AddParam adds a parameter to URL
+func AddParam(urlString string, paramName string, paramValue string) (string, error) {
+	return AddParams(urlString, map[string]string{paramName: paramValue})
+}
+
+// AddParams adds parameters to URL
+func AddParams(urlString string, params map[string]string) (string, error) {
+	parsedURL, err := url.Parse(urlString)
+	if err != nil {
+		return "", err
+	}
+
+	parameters := url.Values{}
+	for k, v := range params {
+		parameters.Add(k, v)
+	}
+	parsedURL.RawQuery = parameters.Encode()
+
+	return parsedURL.String(), nil
 }
