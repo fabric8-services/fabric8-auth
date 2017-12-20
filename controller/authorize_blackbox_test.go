@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -153,7 +154,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 
 	locationString = rw.HeaderMap["Location"][0]
 	locationUrl, err = url.Parse(locationString)
-	require.Contains(t, redirectURI, locationUrl.Host+locationUrl.Path)
+	require.True(t, strings.HasPrefix(locationString, redirectURI))
 	require.Nil(t, err)
 
 	allQueryParameters = locationUrl.Query()
