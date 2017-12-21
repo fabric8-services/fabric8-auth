@@ -441,7 +441,7 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestDat
 
 // IsSpecificServiceAccount checks if the request is done by a service account listed in the names param
 // based on the JWT Token provided in context
-func IsSpecificServiceAccount(ctx context.Context, names []string) bool {
+func IsSpecificServiceAccount(ctx context.Context, names ...string) bool {
 	accountName, ok := extractServiceAccountName(ctx)
 	if !ok {
 		return false

@@ -39,7 +39,7 @@ func (rest *TestLoginREST) TestLoginOK() {
 	svc, ctrl := rest.UnSecuredController()
 
 	redirect := "https://openshift.io"
-	test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, &redirect, nil)
+	test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, &redirect, nil)
 }
 
 func (rest *TestLoginREST) TestOfflineAccessOK() {
@@ -48,9 +48,9 @@ func (rest *TestLoginREST) TestOfflineAccessOK() {
 
 	offline := "offline_access"
 	redirect := "https://openshift.io"
-	resp := test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, &redirect, &offline)
+	resp := test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, &redirect, &offline)
 	assert.Contains(t, resp.Header().Get("Location"), "scope=offline_access")
 
-	resp = test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, nil, &redirect, nil)
+	resp = test.LoginLoginTemporaryRedirect(t, svc.Context, svc, ctrl, nil, &redirect, nil)
 	assert.NotContains(t, resp.Header().Get("Location"), "scope=offline_access")
 }
