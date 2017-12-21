@@ -37,9 +37,9 @@ type TestUserREST struct {
 	config configuration.ConfigurationData
 }
 
-func (rest *TestUserREST) TestRunUserREST(t *testing.T) {
-	resource.Require(rest.T(), resource.UnitTest)
-	suite.Run(rest.T(), &TestUserREST{})
+func TestRunUserREST(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	suite.Run(t, &TestUserREST{})
 }
 
 func (rest *TestUserREST) SetupSuite() {
