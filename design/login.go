@@ -14,7 +14,6 @@ var _ = a.Resource("login", func() {
 			a.GET(""),
 		)
 		a.Params(func() {
-			a.Param("link", d.Boolean, "If true then link all available Identity Providers to the user account after successful login")
 			a.Param("redirect", d.String, "URL to be redirected to after successful login. If not set then will redirect to the referrer instead.")
 			a.Param("scope", d.String, func() {
 				a.Enum("offline_access")
@@ -23,6 +22,50 @@ var _ = a.Resource("login", func() {
 			a.Param("api_client", d.String, "The name of the api client which is requesting a token")
 		})
 		a.Description("Login user")
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
+})
+
+var _ = a.Resource("authorize", func() {
+
+	a.BasePath("/authorize")
+
+	a.Action("authorize", func() {
+		a.Routing(
+			a.GET(""),
+		)
+		a.Params(func() {
+			a.Param("response_type", d.String, func() {
+				a.Enum("code")
+				a.Description("response_type=code for grant_type authorization_code")
+			})
+			a.Param("client_id", d.String, "")
+			a.Param("redirect_uri", d.String, "This is where authorization provider will send authorization_code")
+			a.Param("scope", d.String, "")
+			a.Param("state", d.UUID, "")
+			a.Param("api_client", d.String, "The name of the api client which is requesting a token")
+			a.Required("state", "response_type", "redirect_uri", "client_id")
+		})
+		a.Description("Authorize service client")
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
+
+	a.Action("callback", func() {
+		a.Routing(
+			a.GET("callback"),
+		)
+		a.Params(func() {
+			a.Param("state", d.UUID, "")
+			a.Param("code", d.String, "authorization_code")
+			a.Required("state", "code")
+		})
+		a.Description("Authorize service client callback")
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)
 		a.Response(d.InternalServerError, JSONAPIErrors)

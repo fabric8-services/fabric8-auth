@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -83,7 +84,7 @@ func NewKeycloakUserProfile(firstName *string, lastName *string, email *string, 
 type UserProfileService interface {
 	Update(ctx context.Context, conkeycloakUserProfile *KeycloakUserProfile, accessToken string, keycloakProfileURL string) error
 	Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*KeycloakUserProfileResponse, error)
-	Create(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error)
+	CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error)
 }
 
 // KeycloakUserProfileClient describes the interface between platform and Keycloak User profile service.
@@ -98,16 +99,18 @@ func NewKeycloakUserProfileClient() *KeycloakUserProfileClient {
 	}
 }
 
-// Create creates the user in Keycloak using the admin REST API
-func (userProfileClient *KeycloakUserProfileClient) Create(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error) {
+// CreateOrUpdate creates the user in Keycloak using the admin REST API
+// If the user already exists then the user will be updated
+// Returns true if a new user has been created and false if the existing user has been updated
+func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error) {
 	body, err := json.Marshal(keycloakUserRequest)
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, false, errors.NewInternalError(ctx, err)
 	}
 
 	req, err := http.NewRequest("POST", keycloakAdminUserAPIURL, bytes.NewReader(body))
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, false, errors.NewInternalError(ctx, err)
 	}
 	req.Header.Add("Authorization", "Bearer "+protectedAccessToken)
 	req.Header.Add("Content-Type", "application/json")
@@ -119,13 +122,30 @@ func (userProfileClient *KeycloakUserProfileClient) Create(ctx context.Context, 
 			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
 			"err": err,
 		}, "Unable to create Keycloak user")
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, false, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
 		defer resp.Body.Close()
 	}
 
 	bodyString := rest.ReadBody(resp.Body)
 	if resp.StatusCode != 201 {
+		if resp.StatusCode == 409 {
+			// User exists. Update the user.
+			log.Info(ctx, map[string]interface{}{
+				"response_status":           resp.Status,
+				"response_body":             bodyString,
+				"keycloak_user_profile_url": keycloakAdminUserAPIURL,
+			}, "User already exists in Keycloak. Will try to update")
+			createdUserURLString, err := userProfileClient.updateAsAdmin(ctx, keycloakUserRequest, protectedAccessToken, keycloakAdminUserAPIURL)
+			if err != nil {
+				return nil, false, err
+			}
+			log.Info(ctx, map[string]interface{}{
+				"keycloak_user_url": keycloakAdminUserAPIURL,
+				"user_url":          createdUserURLString,
+			}, "Successfully updated Keycloak user user")
+			return createdUserURLString, false, nil
+		}
 
 		log.Error(ctx, map[string]interface{}{
 			"response_status":           resp.Status,
@@ -136,23 +156,11 @@ func (userProfileClient *KeycloakUserProfileClient) Create(ctx context.Context, 
 		// Observed this error code when trying to create user
 		// with a token belonging to a different realm.
 		if resp.StatusCode == 403 {
-			return nil, errors.NewUnauthorizedError(bodyString)
+			return nil, false, errors.NewUnauthorizedError(bodyString)
 		}
 
-		// Observed this error code when trying to create user with an existing username.
-		if resp.StatusCode == 409 {
-			// This isn't version conflict really,
-			// but helps us generate the final response code.
-			return nil, errors.NewVersionConflictError(fmt.Sprintf("user with username %s / email %s already exists", *keycloakUserRequest.Username, *keycloakUserRequest.Email))
-		}
-
-		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating keycloak user :  %s", resp.Status, keycloakAdminUserAPIURL))
+		return nil, false, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating keycloak user :  %s", resp.Status, keycloakAdminUserAPIURL))
 	}
-	log.Info(ctx, map[string]interface{}{
-		"response_status":           resp.Status,
-		"response_body":             bodyString,
-		"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-	}, "Successfully create Keycloak user")
 
 	createdUserURL, err := resp.Location()
 	if err != nil {
@@ -160,22 +168,143 @@ func (userProfileClient *KeycloakUserProfileClient) Create(ctx context.Context, 
 			"keycloak_user_url": keycloakAdminUserAPIURL,
 			"err":               err,
 		}, "Unable to create Keycloak user")
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, false, errors.NewInternalError(ctx, err)
 	}
 	if createdUserURL == nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_url": keycloakAdminUserAPIURL,
 		}, "Unable to create Keycloak user")
-		return nil, errors.NewInternalError(ctx, errs.Errorf("user creation in keycloak might have failed."))
+		return nil, false, errors.NewInternalError(ctx, errs.Errorf("user creation in keycloak might have failed."))
 	}
 
 	createdUserURLString := createdUserURL.String()
 	log.Info(ctx, map[string]interface{}{
 		"keycloak_user_url": keycloakAdminUserAPIURL,
 		"user_url":          createdUserURLString,
-	}, "Successfully created Keycloak user user")
+	}, "Successfully created Keycloak user")
 
-	return &createdUserURLString, nil
+	return &createdUserURLString, true, nil
+}
+
+func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error) {
+	user, err := userProfileClient.loadUser(ctx, *keycloakUserRequest.Username, protectedAccessToken, keycloakAdminUserAPIURL)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		log.Error(ctx, map[string]interface{}{
+			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
+			"email":                     *keycloakUserRequest.Email,
+		}, "Unable to update Keycloak user because user not found")
+		return nil, errs.New("unable to update Keycloak user because user not found")
+	}
+	body, err := json.Marshal(keycloakUserRequest)
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
+	}
+	userURL := keycloakAdminUserAPIURL + "/" + *user.ID
+	req, err := http.NewRequest("PUT", userURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", "Bearer "+protectedAccessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := userProfileClient.client.Do(req)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
+			"email":                     *keycloakUserRequest.Email,
+			"err":                       err,
+		}, "Unable to update Keycloak user")
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyString := rest.ReadBody(resp.Body)
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Error(ctx, map[string]interface{}{
+			"response_status":           resp.Status,
+			"response_body":             bodyString,
+			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
+			"email":                     *keycloakUserRequest.Email,
+		}, "Unable to update Keycloak user")
+
+		// new username, but existing email can cause this.
+		if resp.StatusCode == 409 {
+			return nil, errors.NewVersionConflictError(fmt.Sprintf("user with the same email %s already exists", *keycloakUserRequest.Email))
+		}
+		return nil, errs.Errorf("received a non-2xx response %s while creating keycloak user:  %s", resp.Status, keycloakAdminUserAPIURL)
+	}
+	log.Info(ctx, map[string]interface{}{
+		"response_status":           resp.Status,
+		"response_body":             bodyString,
+		"keycloak_user_profile_url": keycloakAdminUserAPIURL,
+		"email":                     *keycloakUserRequest.Email,
+	}, "Successfully updated Keycloak user")
+
+	return &userURL, nil
+}
+
+// loadUser search for a user by username. Return nil if no user found.
+func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context, username string, protectedAccessToken string, keycloakAdminUserAPIURL string) (*KeycloakUserProfile, error) {
+	kcURL, err := rest.AddParams(keycloakAdminUserAPIURL, map[string]string{
+		"username": username,
+		"first":    "0",
+		"max":      "500", // TODO we need to handle big user lists better
+	})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("GET", kcURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", "Bearer "+protectedAccessToken)
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := userProfileClient.client.Do(req)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"url": kcURL,
+			"err": err,
+		}, "Unable to load Keycloak user")
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		bodyString := string(body)
+		log.Error(ctx, map[string]interface{}{
+			"response_status": resp.Status,
+			"response_body":   bodyString,
+			"url":             kcURL,
+		}, "Unable to load Keycloak user")
+
+		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while loading keycloak user :  %s", resp.Status, kcURL))
+	}
+
+	var users []KeycloakUserProfile
+	err = json.Unmarshal(body, &users)
+	if err != nil {
+		return nil, err
+	}
+	log.Info(ctx, map[string]interface{}{
+		"url":              kcURL,
+		"user_list_length": len(users),
+	}, "users found")
+	for _, user := range users {
+		if *user.Username == username {
+			return &user, nil
+		}
+	}
+	return nil, nil
 }
 
 // Update updates the user profile information in Keycloak

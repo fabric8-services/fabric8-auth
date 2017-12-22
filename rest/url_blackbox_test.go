@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"net/http"
+	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa"
@@ -66,4 +67,56 @@ func TestReplaceDomainPrefixInTooShortHostFails(t *testing.T) {
 
 	_, err := ReplaceDomainPrefix("org", "sso")
 	assert.NotNil(t, err)
+}
+
+func TestValidateEmailSuccess(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	isValid, err := ValidateEmail("a@a.com")
+	require.NoError(t, err)
+	require.True(t, isValid)
+}
+
+func TestValidateEmailFail(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	isValid, err := ValidateEmail("a.a@com")
+	require.NoError(t, err)
+	require.False(t, isValid)
+}
+
+func TestAddParamsSuccess(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	testMap := map[string]string{
+		"param1": "a",
+		"param2": "b",
+		"param3": "https://www.redhat.com",
+	}
+	testHost := "openshift.io"
+	generatedURLString, err := AddParams("https://"+testHost, testMap)
+	require.NoError(t, err)
+
+	generateURL, err := url.Parse(generatedURLString)
+	require.NoError(t, err)
+
+	assert.Equal(t, testHost, generateURL.Host)
+	assert.Equal(t, "https", generateURL.Scheme)
+
+	m, _ := url.ParseQuery(generateURL.RawQuery)
+	for k, v := range testMap {
+		assert.Equal(t, v, m[k][0])
+	}
+}
+
+func TestAddParamSuccess(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	generatedURL, err := AddParam("https://openshift.io", "param1", "a")
+	require.NoError(t, err)
+	assert.Equal(t, "https://openshift.io?param1=a", generatedURL)
 }

@@ -360,6 +360,10 @@ func TestLoadServiceAccountConfigurationFromFile(t *testing.T) {
 	checkServiceAccountConfiguration(t, accounts)
 }
 
+func TestGetPublicClientID(t *testing.T) {
+	require.Equal(t, "740650a2-9c44-4db5-b067-a3d1b2cd2d01", config.GetPublicOauthClientID())
+}
+
 func checkServiceAccountConfiguration(t *testing.T, accounts map[string]configuration.ServiceAccount) {
 	checkServiceAccount(t, accounts, configuration.ServiceAccount{
 		ID:      "5dec5fdb-09e3-4453-b73f-5c828832b28e",

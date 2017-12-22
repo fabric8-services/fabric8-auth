@@ -176,12 +176,14 @@ var refreshToken = a.Type("RefreshToken", func() {
 
 var tokenExchange = a.Type("TokenExchange", func() {
 	a.Attribute("grant_type", d.String, func() {
-		a.Enum("client_credentials")
-		a.Description("Grant type. If set to \"client_credentials\" then this token exchange request is for a Protection API Token (PAT). PAT can be used to authenticate the corresponding Service Account.")
+		a.Enum("client_credentials", "authorization_code")
+		a.Description("Grant type. If set to \"client_credentials\" then this token exchange request is for a Protection API Token (PAT). PAT can be used to authenticate the corresponding Service Account. If the Grant Type is \"authorization_code\" we can use a authorization_code to get access_token")
 	})
 	a.Attribute("client_id", d.String, "Service Account ID. Used to obtain a PAT for this service account.")
 	a.Attribute("client_secret", d.String, "Service Account secret. Used to obtain a PAT for this service account.")
-	a.Required("grant_type")
+	a.Attribute("redirect_uri", d.String, "Must be identical to the redirect URI provided while getting the authorization_code")
+	a.Attribute("code", d.String, "this is the authorization_code you received from /api/authorize endpoint")
+	a.Required("grant_type", "client_id")
 })
 
 // AuthToken represents an authentication JWT Token
@@ -215,10 +217,14 @@ var OauthToken = a.MediaType("application/vnd.oauthtoken+json", func() {
 	a.Description("Oauth 2.0 token payload")
 	a.Attributes(func() {
 		a.Attribute("access_token", d.String, "Access token")
+		a.Attribute("expiry", d.String, "Expiry")
+		a.Attribute("refresh_token", d.String, "RefreshToken")
 		a.Attribute("token_type", d.String, "Token type")
 	})
 	a.View("default", func() {
 		a.Attribute("access_token")
+		a.Attribute("expiry")
+		a.Attribute("refresh_token")
 		a.Attribute("token_type")
 	})
 })

@@ -1007,9 +1007,9 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 	return d.dummyGetResponse, nil
 }
 
-func (d *dummyUserProfileService) Create(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, error) {
+func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
 	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
-	return &url, nil
+	return &url, true, nil
 }
 
 func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *login.KeycloakUserProfileResponse) {
@@ -1059,6 +1059,34 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithAllFieldsOK() {
 	// then
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
+}
+
+func (s *TestUsersSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails() {
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = ""
+	user.Cluster = "some cluster"
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, &user.Cluster, nil, nil, nil)
+
+	// First attempt should be OK
+	test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+
+	// Another call with the same email and username should fail
+	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+
+	newEmail := uuid.NewV4().String() + user.Email
+	payloadWithSameUsername := createCreateUsersAsServiceAccountPayload(&newEmail, nil, nil, nil, nil, nil, &identity.Username, nil, &user.Cluster, nil, nil, nil)
+	// Another call with the same username should fail
+	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameUsername)
+
+	newUsername := uuid.NewV4().String() + identity.Username
+	payloadWithSameEmail := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &newUsername, nil, &user.Cluster, nil, nil, nil)
+	// Another call with the same email should fail
+	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameEmail)
 }
 
 func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithRequiredFieldsOnlyOK() {
