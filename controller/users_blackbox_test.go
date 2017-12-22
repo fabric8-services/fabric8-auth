@@ -841,6 +841,12 @@ func (s *TestUsersSuite) TestHideEmailOK() {
 	_, result = test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
 	returnedUserResult := result.Data[0]
 	require.Equal(s.T(), "", *returnedUserResult.Attributes.Email)
+
+	// even though the email_hidden=true,
+	// the email address is visible to the user if her user token is passed.
+	_, showUserResponse := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+	require.Equal(s.T(), user1.Email, *showUserResponse.Data.Attributes.Email)
+	require.True(s.T(), *showUserResponse.Data.Attributes.EmailHidden)
 }
 
 func (s *TestUsersSuite) TestListUsersByEmailNotModifiedUsingIfNoneMatchHeader() {
