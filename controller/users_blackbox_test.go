@@ -804,6 +804,46 @@ func (s *TestUsersSuite) TestListUsersByEmailOKEmptyResult() {
 	require.Len(s.T(), result.Data, 0)
 }
 
+func (s *TestUsersSuite) TestHideEmailOK() {
+	boolTrue := true
+
+	// given user1
+	user1 := s.createRandomUser("TestListUsersOK1")
+	identity := s.createRandomIdentity(user1, account.KeycloakIDP)
+
+	// when
+	email := user1.Email
+
+	// by default, email is public.
+	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
+	returnedUser := result.Data[0].Attributes
+	require.Equal(s.T(), email, *returnedUser.Email)
+	require.False(s.T(), *returnedUser.EmailHidden)
+
+	secureService, secureController := s.SecuredController(identity)
+
+	contextInformation := map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+	//secureController, secureService := createSecureController(t, identity)
+	updateUsersPayload := createUpdateUsersPayload(nil, nil, nil, nil, nil, nil, nil, nil, contextInformation)
+	updateUsersPayload.Data.Attributes.EmailHidden = &boolTrue
+	_, updateResult := test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+
+	// Email will be visible to the one who it belongs to
+	require.True(s.T(), *updateResult.Data.Attributes.EmailHidden)
+	require.Equal(s.T(), user1.Email, *updateResult.Data.Attributes.Email)
+
+	// But when you try to access the same with an API which doesn't respect auth,
+	// it wouldn't be visible.
+	_, result = test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
+	returnedUserResult := result.Data[0]
+	require.Equal(s.T(), "", *returnedUserResult.Attributes.Email)
+}
+
 func (s *TestUsersSuite) TestListUsersByEmailNotModifiedUsingIfNoneMatchHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
@@ -822,12 +862,13 @@ func (s *TestUsersSuite) TestListUsersByEmailNotModifiedUsingIfNoneMatchHeader()
 
 func (s *TestUsersSuite) createRandomUser(fullname string) account.User {
 	user := account.User{
-		Email:    uuid.NewV4().String() + "primaryForUpdat7e@example.com",
-		FullName: fullname,
-		ImageURL: "someURLForUpdate",
-		ID:       uuid.NewV4(),
-		Company:  uuid.NewV4().String() + "company",
-		Cluster:  "My OSO cluster url",
+		Email:       uuid.NewV4().String() + "primaryForUpdat7e@example.com",
+		FullName:    fullname,
+		ImageURL:    "someURLForUpdate",
+		ID:          uuid.NewV4(),
+		Company:     uuid.NewV4().String() + "company",
+		Cluster:     "My OSO cluster url",
+		EmailHidden: false, // being explicit
 	}
 	err := s.userRepo.Create(context.Background(), &user)
 	require.Nil(s.T(), err)
@@ -895,7 +936,12 @@ func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, e
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	assert.Equal(t, expectedUser.FullName, *actual.Attributes.FullName)
 	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
-	assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	//if actual.Attributes.EmailHidden != nil {
+	if !*actual.Attributes.EmailHidden {
+		assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	} else {
+		assert.Equal(t, "", *actual.Attributes.Email)
+	}
 	assert.Equal(t, expectedUser.ID.String(), *actual.Attributes.UserID)
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.Attributes.IdentityID)
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
