@@ -23,7 +23,7 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // UsersController implements the users resource.
@@ -580,6 +580,28 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 
+		updatedFeatureLevel := ctx.Payload.Data.Attributes.FeatureLevel
+		if log.IsDebug() {
+			currentFeatureLevel := "none"
+			newFeatureLevel := "none"
+			if user.FeatureLevel != nil {
+				currentFeatureLevel = *user.FeatureLevel
+			}
+			if updatedFeatureLevel != nil {
+				newFeatureLevel = *updatedFeatureLevel
+			}
+			log.Debug(ctx, map[string]interface{}{"current_feature_level": currentFeatureLevel, "new_feature_level": newFeatureLevel}, "updating feature level")
+		}
+		if updatedFeatureLevel != nil && (user.FeatureLevel == nil || *updatedFeatureLevel != *user.FeatureLevel) {
+			// handle the case where the value needs to be reset, when the new value is "" (empty string)
+			if *updatedFeatureLevel == "" {
+				log.Debug(ctx, map[string]interface{}{}, "resetting feature level")
+				user.FeatureLevel = nil
+			} else {
+				user.FeatureLevel = updatedFeatureLevel
+			}
+		}
+
 		err = appl.Users().Save(ctx, user)
 		if err != nil {
 			return err
@@ -877,6 +899,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
+	var featureLevel *string
 	var cluster string
 	var contextInformation map[string]interface{}
 
@@ -889,6 +912,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		company = user.Company
 		contextInformation = user.ContextInformation
 		cluster = user.Cluster
+		featureLevel = user.FeatureLevel
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
@@ -911,6 +935,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				ProviderType:          &providerType,
 				Email:                 &email,
 				Company:               &company,
+				FeatureLevel:          featureLevel,
 				Cluster:               &cluster,
 				ContextInformation:    make(map[string]interface{}),
 				RegistrationCompleted: &registrationCompleted,
