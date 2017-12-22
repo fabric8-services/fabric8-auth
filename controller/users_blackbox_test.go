@@ -828,7 +828,6 @@ func (s *TestUsersSuite) TestHideEmailOK() {
 		"rate":         100.00,
 		"count":        3,
 	}
-	//secureController, secureService := createSecureController(t, identity)
 	updateUsersPayload := createUpdateUsersPayload(nil, nil, nil, nil, nil, nil, nil, nil, contextInformation)
 	updateUsersPayload.Data.Attributes.EmailHidden = &boolTrue
 	_, updateResult := test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
@@ -936,7 +935,6 @@ func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, e
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	assert.Equal(t, expectedUser.FullName, *actual.Attributes.FullName)
 	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
-	//if actual.Attributes.EmailHidden != nil {
 	if !*actual.Attributes.EmailHidden {
 		assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
 	} else {
