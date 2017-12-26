@@ -82,7 +82,7 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			}
 		}
 		return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
+			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, false))
 		})
 	})
 }
