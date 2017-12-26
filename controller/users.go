@@ -92,10 +92,18 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 // Create creates a user when requested using a service account token
 func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
-	isSvcAccount := token.IsSpecificServiceAccount(ctx, []string{"online-registration"})
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, "online-registration")
 	if !isSvcAccount {
 		log.Error(ctx, nil, "The account is not an authorized service account allowed to create a new user")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))
+	}
+
+	userExists, err := c.userExistsInDB(ctx, ctx.Payload.Data.Attributes.Email, ctx.Payload.Data.Attributes.Username)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+	if userExists {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewVersionConflictError("user with such email or username already exists"))
 	}
 
 	tokenEndpoint, err := c.config.GetKeycloakEndpointToken(ctx.RequestData)
@@ -111,13 +119,13 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	keycloakUserID, err := c.createUserInKeycloak(ctx, protectedAccessToken)
+	keycloakUserID, err := c.createOrUpdateUserInKeycloak(ctx, protectedAccessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
 			"username": ctx.Payload.Data.Attributes.Username,
 		}, "failed to create user in keycloak")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	log.Info(ctx, map[string]interface{}{
 		"keycloak_user_id": *keycloakUserID,
@@ -125,15 +133,6 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	identityID, err := uuid.FromString(*keycloakUserID)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
-	err = c.linkUserToRHD(ctx, *keycloakUserID, rhdUserName(*ctx.Payload.Data.Attributes), protectedAccessToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":              err,
-			"keycloak_user_id": *keycloakUserID,
-		}, "failed to link user to rhd")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
@@ -193,7 +192,8 @@ func rhdUserName(userAttributes app.CreateIdentityDataAttributes) string {
 	return rhdUsername
 }
 
-func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext, protectedAccessToken string) (*string, error) {
+// createOrUpdateUserInKeycloak creates a new user in Keycloak. If the user already exists then try to update the user
+func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersContext, protectedAccessToken string) (*string, error) {
 
 	// All the below attributes are mandatory: "username", "email"
 	// "cluster" is mandatory too but we do not store it in Keycloak
@@ -241,7 +241,7 @@ func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext, prot
 		return nil, err
 	}
 
-	userURL, err := c.userProfileService.Create(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
+	userURL, created, err := c.userProfileService.CreateOrUpdate(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -249,6 +249,19 @@ func (c *UsersController) createUserInKeycloak(ctx *app.CreateUsersContext, prot
 	// TODO: Handle error, check if there was actually a URL returned.
 	userURLComponents := strings.Split(*userURL, "/")
 	identityID := userURLComponents[len(userURLComponents)-1]
+
+	// Link only new accounts. Do not link already existing (and updated) ones
+	if created {
+		err = c.linkUserToRHD(ctx, identityID, rhdUserName(*ctx.Payload.Data.Attributes), protectedAccessToken)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":              err,
+				"keycloak_user_id": identityID,
+			}, "failed to link user to rhd")
+			return nil, err
+		}
+	}
+
 	return &identityID, nil
 }
 
@@ -457,7 +470,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			if !isValid {
 				return errors.NewBadParameterError("email", *updatedEmail).Expected("valid email")
 			}
-			isUnique, err := isEmailUnique(appl, *updatedEmail, *user)
+			isUnique, err := isEmailUnique(ctx, appl, *updatedEmail, *user)
 			if err != nil {
 				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
@@ -483,7 +496,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			if identity.RegistrationCompleted {
 				return errors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id))
 			}
-			isUnique, err := isUsernameUnique(appl, *updatedUserName, *identity)
+			isUnique, err := isUsernameUnique(ctx, appl, *updatedUserName, *identity)
 			if err != nil {
 				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
@@ -690,10 +703,10 @@ func isUsernameValid(username string) bool {
 	return false
 }
 
-func isUsernameUnique(appl application.Application, username string, identity account.Identity) (bool, error) {
+func isUsernameUnique(ctx context.Context, appl application.Application, username string, identity account.Identity) (bool, error) {
 	usersWithSameUserName, err := appl.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"user_name": username,
 			"err":       err,
 		}, "error fetching users with username filter")
@@ -707,13 +720,13 @@ func isUsernameUnique(appl application.Application, username string, identity ac
 	return true, nil
 }
 
-func isEmailUnique(appl application.Application, email string, user account.User) (bool, error) {
+func isEmailUnique(ctx context.Context, appl application.Application, email string, user account.User) (bool, error) {
 	usersWithSameEmail, err := appl.Users().Query(account.UserFilterByEmail(email))
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"email": email,
 			"err":   err,
-		}, "error fetching identities with email filter")
+		}, "error fetching users with email filter")
 		return false, err
 	}
 	for _, u := range usersWithSameEmail {
@@ -722,6 +735,43 @@ func isEmailUnique(appl application.Application, email string, user account.User
 		}
 	}
 	return true, nil
+}
+
+func (c *UsersController) userExistsInDB(ctx context.Context, email string, username string) (bool, error) {
+	var exists bool
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		users, err := appl.Users().Query(account.UserFilterByEmail(email))
+		if err != nil {
+			return err
+		}
+		if len(users) > 0 {
+			// User with the same email exists
+			exists = true
+			return nil
+		}
+		identities, err := appl.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		if err != nil {
+			return err
+		}
+		for _, identity := range identities {
+			if identity.UserID.Valid {
+				// A Keycloak Identity which is assigned to a user exists
+				exists = true
+				return nil
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"email":    email,
+			"username": username,
+			"err":      err,
+		}, "unable to check if user exists")
+	}
+	return exists, err
 }
 
 // List runs the list action.

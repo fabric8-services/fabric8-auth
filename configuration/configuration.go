@@ -49,6 +49,7 @@ const (
 	varDeveloperModeEnabled                 = "developer.mode.enabled"
 	varKeycloakSecret                       = "keycloak.secret"
 	varKeycloakClientID                     = "keycloak.client.id"
+	varPublicOauthClientID                  = "public.oauth.client.id"
 	varKeycloakDomainPrefix                 = "keycloak.domain.prefix"
 	varKeycloakRealm                        = "keycloak.realm"
 	varKeycloakTesUserName                  = "keycloak.testuser.name"
@@ -387,6 +388,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varServiceAccountPrivateKeyID, defaultServiceAccountPrivateKeyID)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
+	c.v.SetDefault(varPublicOauthClientID, defaultPublicOauthClientID)
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
 	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
@@ -585,6 +587,11 @@ func (c *ConfigurationData) GetKeycloakSecret() string {
 // that is used to make authorized Keycloak API Calls.
 func (c *ConfigurationData) GetKeycloakClientID() string {
 	return c.v.GetString(varKeycloakClientID)
+}
+
+// GetPublicOauthClientID returns the public clientID
+func (c *ConfigurationData) GetPublicOauthClientID() string {
+	return c.v.GetString(varPublicOauthClientID)
 }
 
 // GetKeycloakDomainPrefix returns the domain prefix which should be used in all Keycloak requests
@@ -920,9 +927,9 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 
 	defaultLogLevel = "info"
 
-	defaultKeycloakClientID = "fabric8-online-platform"
-	defaultKeycloakSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
-
+	defaultKeycloakClientID     = "fabric8-online-platform"
+	defaultKeycloakSecret       = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+	defaultPublicOauthClientID  = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	defaultKeycloakDomainPrefix = "sso"
 	defaultKeycloakRealm        = "fabric8"
 	defaultWITDomainPrefix      = "api"

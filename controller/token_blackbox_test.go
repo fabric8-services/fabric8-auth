@@ -2,7 +2,10 @@ package controller_test
 
 import (
 	"context"
+	rand "math/rand"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -12,6 +15,8 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
+	netcontext "golang.org/x/net/context"
+	"golang.org/x/oauth2"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -24,10 +29,24 @@ import (
 
 type TestTokenREST struct {
 	gormtestsupport.DBTestSuite
+	dummyOauth         dummyOauth2Config
+	sampleAccessToken  string
+	sampleRefreshToken string
+}
+
+type dummyOauth2Config struct {
+	oauth2.Config
+	accessToken string
 }
 
 func TestRunTokenREST(t *testing.T) {
-	suite.Run(t, &TestTokenREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+	suite.Run(
+		t,
+		&TestTokenREST{
+			DBTestSuite:        gormtestsupport.NewDBTestSuite(),
+			sampleAccessToken:  strconv.Itoa(rand.Int()),
+			sampleRefreshToken: strconv.Itoa(rand.Int()),
+		})
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -99,9 +118,10 @@ func (rest *TestTokenREST) TestExchangeFailsWithIncompletePayload() {
 	service, controller := rest.SecuredController()
 
 	someRandomString := "someString"
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials"})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: &someRandomString})
-	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString, RedirectURI: &someRandomString})
+
 }
 
 func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
@@ -109,8 +129,27 @@ func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
 
 	someRandomString := "someString"
 	witID := "fabric8-wit"
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &someRandomString})
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: &witID})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: someRandomString})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: witID})
+}
+
+func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
+	service, controller := rest.SecuredController()
+
+	someRandomString := "someString"
+	clientID := controller.Configuration.GetPublicOauthClientID()
+	code := "INVALID_OAUTH2.0_CODE"
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
+
+}
+
+func (rest *TestTokenREST) TestExchangeWithWrongClientIDFailsWithGrantTypeAuthorizationCode() {
+	service, controller := rest.SecuredController()
+
+	someRandomString := "someString"
+	clientID := "someString"
+	code := "doesnt_matter"
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
 }
 
 func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
@@ -119,10 +158,15 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
 	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretNew")
 }
 
+func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {
+	_, controller := rest.SecuredController()
+	rest.checkAuthorizationCode(controller.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE")
+}
+
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
 	service, controller := rest.SecuredController()
 
-	_, saToken := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: &id})
+	_, saToken := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
 	assert.NotNil(rest.T(), saToken.TokenType)
 	assert.Equal(rest.T(), "bearer", *saToken.TokenType)
 	assert.NotNil(rest.T(), saToken.AccessToken)
@@ -132,7 +176,35 @@ func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 	ctx := goajwt.WithJWT(context.Background(), jwtToken)
 	assert.True(rest.T(), token.IsServiceAccount(ctx))
-	assert.True(rest.T(), token.IsSpecificServiceAccount(ctx, []string{name}))
+	assert.True(rest.T(), token.IsSpecificServiceAccount(ctx, name))
+}
+
+func (rest *TestTokenREST) checkAuthorizationCode(name string, code string) {
+	service, _ := rest.SecuredController()
+	saToken, err := rest.Exchange(service.Context, code)
+	assert.Nil(rest.T(), err)
+	assert.NotNil(rest.T(), saToken.TokenType)
+	assert.Equal(rest.T(), "bearer", saToken.TokenType)
+	assert.NotNil(rest.T(), saToken.AccessToken)
+	assert.Equal(rest.T(), saToken.AccessToken, rest.sampleAccessToken)
+	assert.NotNil(rest.T(), saToken.RefreshToken)
+	assert.Equal(rest.T(), saToken.RefreshToken, rest.sampleRefreshToken)
+}
+
+func (rest *TestTokenREST) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+	var thirtyDays int64
+	thirtyDays = 60 * 60 * 24 * 30
+	token := &oauth2.Token{
+		TokenType:    "bearer",
+		AccessToken:  rest.sampleAccessToken,
+		RefreshToken: rest.sampleRefreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	extra := make(map[string]interface{})
+	extra["expires_in"] = time.Now().Unix() + thirtyDays
+	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
+	token = token.WithExtra(extra)
+	return token, nil
 }
 
 func validateToken(t *testing.T, token *app.AuthToken, controler *TokenController) {

@@ -37,9 +37,9 @@ type TestUserREST struct {
 	config configuration.ConfigurationData
 }
 
-func (rest *TestUserREST) TestRunUserREST(t *testing.T) {
-	resource.Require(rest.T(), resource.UnitTest)
-	suite.Run(rest.T(), &TestUserREST{})
+func TestRunUserREST(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	suite.Run(t, &TestUserREST{})
 }
 
 func (rest *TestUserREST) SetupSuite() {
@@ -121,7 +121,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfModifiedSinceHe
 	// given
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	// when
-	ifModifiedSince := usr.UpdatedAt.Add(-1 * time.Hour).UTC().Format(http.TimeFormat)
+	ifModifiedSince := app.ToHTTPTime(usr.UpdatedAt)
 	res := test.ShowUserNotModified(rest.T(), ctx, nil, userCtrl, &ifModifiedSince, nil)
 	// then
 	rest.assertResponseHeaders(res, usr)
@@ -131,7 +131,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfNoneMatchHeader
 	// given
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	// when
-	ifNoneMatch := "foo"
+	ifNoneMatch := app.GenerateEntityTag(usr)
 	res := test.ShowUserNotModified(rest.T(), ctx, nil, userCtrl, nil, &ifNoneMatch)
 	// then
 	rest.assertResponseHeaders(res, usr)
