@@ -649,7 +649,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 }
 */
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
-	return proxy.RouteHTTP(ctx, client.UpdateUserPath())
+	return proxy.RouteHTTPToPath(ctx, "http://localhost:8089", client.UpdateUserPath())
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
