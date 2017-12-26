@@ -123,7 +123,7 @@ func (c *UserController) Update(ctx *app.UpdateUserContext) error {
 			if !isValid {
 				return autherrors.NewBadParameterError("email", *updatedEmail).Expected("valid email")
 			}
-			isUnique, err := isEmailUnique(appl, *updatedEmail, *user)
+			isUnique, err := isEmailUnique(ctx, appl, *updatedEmail, *user)
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
@@ -145,7 +145,7 @@ func (c *UserController) Update(ctx *app.UpdateUserContext) error {
 			if identity.RegistrationCompleted {
 				return autherrors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id))
 			}
-			isUnique, err := isUsernameUnique(appl, *updatedUserName, *identity)
+			isUnique, err := isUsernameUnique(ctx, appl, *updatedUserName, *identity)
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}

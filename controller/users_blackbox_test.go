@@ -919,6 +919,7 @@ func assertMultiUsersResponseHeaders(t *testing.T, res http.ResponseWriter, last
 	require.NotNil(t, res.Header()[app.ETag])
 }
 
+/*
 func createUpdateUsersPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}) *app.UpdateUsersPayload {
 	return &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
@@ -952,7 +953,7 @@ func createUpdateUsersPayloadWithoutContextInformation(email, fullName, bio, ima
 		},
 	}
 }
-
+*/
 func getUserUpdatedAt(appUser app.User) time.Time {
 	return appUser.Data.Attributes.UpdatedAt.Truncate(time.Second).UTC()
 }
