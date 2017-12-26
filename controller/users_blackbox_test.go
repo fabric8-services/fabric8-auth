@@ -69,7 +69,6 @@ func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identi
 	return svc, controller
 }
 
-/*
 func (s *TestUsersSuite) TestUpdateUserOK() {
 	// given
 	user := s.createRandomUser("TestUpdateUserOK")
@@ -562,7 +561,7 @@ func (s *TestUsersSuite) TestUpdateUserUnauthorized() {
 	// when/then
 	test.UpdateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, updateUsersPayload)
 }
-*/
+
 func (s *TestUsersSuite) TestShowUserOK() {
 	// given user
 	user := s.createRandomUser("TestShowUserOK")
@@ -919,7 +918,6 @@ func assertMultiUsersResponseHeaders(t *testing.T, res http.ResponseWriter, last
 	require.NotNil(t, res.Header()[app.ETag])
 }
 
-/*
 func createUpdateUsersPayload(email, fullName, bio, imageURL, profileURL, company, username *string, registrationCompleted *bool, contextInformation map[string]interface{}) *app.UpdateUsersPayload {
 	return &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
@@ -953,7 +951,7 @@ func createUpdateUsersPayloadWithoutContextInformation(email, fullName, bio, ima
 		},
 	}
 }
-*/
+
 func getUserUpdatedAt(appUser app.User) time.Time {
 	return appUser.Data.Attributes.UpdatedAt.Truncate(time.Second).UTC()
 }
