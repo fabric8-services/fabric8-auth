@@ -552,9 +552,9 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			(*keycloakUserProfile.Attributes)[login.URLAttributeName] = []string{*updateURL}
 		}
 
-		updatedEmailPrivate := ctx.Payload.Data.Attributes.EmailHidden
+		updatedEmailPrivate := ctx.Payload.Data.Attributes.EmailPrivate
 		if updatedEmailPrivate != nil {
-			user.EmailHidden = *updatedEmailPrivate
+			user.EmailPrivate = *updatedEmailPrivate
 		}
 
 		updatedCompany := ctx.Payload.Data.Attributes.Company
@@ -879,7 +879,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var bio string
 	var userURL string
 	var email string
-	var isEmailHidden bool
+	var isEmailPrivate bool
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
@@ -891,10 +891,10 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		imageURL = user.ImageURL
 		bio = user.Bio
 		userURL = user.URL
-		isEmailHidden = user.EmailHidden
+		isEmailPrivate = user.EmailPrivate
 		email = user.Email
 
-		if !isAuthenticated && isEmailHidden {
+		if !isAuthenticated && isEmailPrivate {
 			email = ""
 		}
 
@@ -916,7 +916,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				Username:              &userName,
 				FullName:              &fullName,
 				ImageURL:              &imageURL,
-				EmailHidden:           &isEmailHidden,
+				EmailPrivate:          &isEmailPrivate,
 				Bio:                   &bio,
 				URL:                   &userURL,
 				UserID:                &userID,

@@ -25,7 +25,7 @@ type User struct {
 	gormsupport.Lifecycle
 	ID                 uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
 	Email              string    `sql:"unique_index"`
-	EmailHidden        bool
+	EmailPrivate       bool
 	FullName           string             // The fullname of the User
 	ImageURL           string             // The image URL for the User
 	Bio                string             // The bio of the User
