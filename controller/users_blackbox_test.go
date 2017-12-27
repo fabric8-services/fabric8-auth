@@ -59,7 +59,7 @@ func (s *TestUsersSuite) SetupSuite() {
 func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application)
+	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }

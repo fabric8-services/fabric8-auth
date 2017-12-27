@@ -5,6 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -25,7 +26,8 @@ func TestRunVerificationServiceBlackboxTest(t *testing.T) {
 func (s *verificationServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = account.NewVerificationCodeRepository(s.DB)
-	s.verificationService = email.NewEmailVerificationClient(s.Application)
+	channel, err := notification.NewServiceChannel(s.Configuration)
+	s.verificationService = email.NewEmailVerificationClient(s.Application, test.NotificationChannel{})
 }
 
 func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {

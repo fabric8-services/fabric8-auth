@@ -88,6 +88,7 @@ const (
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
 	varWITURL                               = "wit.url"
+	varNotificationServiceURL               = "notification.serviceurl"
 
 	varTenantServiceURL = "tenant.serviceurl"
 
@@ -663,6 +664,11 @@ func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (stri
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointUserInfo(req *goa.RequestData) (string, error) {
 	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointUserinfo, "userinfo")
+}
+
+// GetNotificationServiceURL returns the URL for the Notification service used for event notification
+func (c *ConfigurationData) GetNotificationServiceURL() string {
+	return c.v.GetString(varNotificationServiceURL)
 }
 
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint

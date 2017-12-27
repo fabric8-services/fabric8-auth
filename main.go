@@ -22,6 +22,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	keycloakLinkAPI "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
+	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
@@ -140,6 +141,19 @@ func main() {
 	identityRepository := account.NewIdentityRepository(db)
 	userRepository := account.NewUserRepository(db)
 
+	var notificationChannel notification.Channel = &notification.DevNullChannel{}
+	if config.GetNotificationServiceURL() != "" {
+		log.Logger().Infof("Enabling Notification service %v", config.GetNotificationServiceURL())
+		channel, err := notification.NewServiceChannel(config)
+		if err != nil {
+			log.Panic(nil, map[string]interface{}{
+				"err": err,
+				"url": config.GetNotificationServiceURL(),
+			}, "failed to parse notification service url")
+		}
+		notificationChannel = channel
+	}
+
 	appDB := gormapplication.NewGormDB(db)
 
 	tokenManager, err := token.NewManager(config)
@@ -208,7 +222,7 @@ func main() {
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
 
-	emailVerificationService := email.NewEmailVerificationClient(appDB)
+	emailVerificationService := email.NewEmailVerificationClient(appDB, notificationChannel)
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)

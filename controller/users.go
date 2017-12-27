@@ -609,7 +609,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	if isEmailVerificationNeeded {
-		_, err = c.EmailVerificationService.SendVerificationCode(ctx, *user)
+		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *user)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id.String(),

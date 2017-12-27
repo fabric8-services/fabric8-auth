@@ -3,31 +3,41 @@ package email
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
+	authclient "github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 
 	"context"
 )
 
 type EmailVerificationService interface {
-	SendVerificationCode(ctx context.Context, user account.User) (*account.VerificationCode, error)
+	SendVerificationCode(ctx context.Context, req *goa.RequestData, user account.User) (*account.VerificationCode, error)
 	VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error)
 }
 
 type EmailVerificationClient struct {
-	db application.DB
+	db           application.DB
+	notification notification.Channel
 }
 
 // NewEmailVerificationClient creates a new client for managing email verification.
-func NewEmailVerificationClient(db application.DB) *EmailVerificationClient {
+func NewEmailVerificationClient(db application.DB, notificationChannel notification.Channel) *EmailVerificationClient {
+	n := notificationChannel
+	if n == nil {
+		n = &notification.DevNullChannel{}
+	}
 	return &EmailVerificationClient{
-		db: db,
+		db:           db,
+		notification: notificationChannel,
 	}
 }
 
 // SendVerificationCode generates and sends out an email with verification code.
-func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, user account.User) (*account.VerificationCode, error) {
+func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req *goa.RequestData, user account.User) (*account.VerificationCode, error) {
 
 	generatedCode := uuid.NewV4().String()
 	newVerificationCode := account.VerificationCode{
@@ -43,12 +53,17 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, user
 		err := appl.VerificationCodes().Create(ctx, &newVerificationCode)
 		return err
 	})
-	/*
-		TODO: Invoke the EmailService to send out an email
-	*/
 	if err != nil {
 		return nil, err
 	}
+
+	notificationCustomAttributes := map[string]interface{}{
+		"verifyURL": rest.AbsoluteURL(req, authclient.VerifyEmailUsersPath()),
+	}
+
+	emailMessage := notification.NewUserEmailUpdated(user.ID.String(), notificationCustomAttributes)
+	c.notification.Send(ctx, emailMessage)
+
 	return &newVerificationCode, err
 }
 
