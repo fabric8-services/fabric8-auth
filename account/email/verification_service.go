@@ -32,7 +32,7 @@ func NewEmailVerificationClient(db application.DB, notificationChannel notificat
 	}
 	return &EmailVerificationClient{
 		db:           db,
-		notification: notificationChannel,
+		notification: n,
 	}
 }
 

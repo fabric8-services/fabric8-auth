@@ -29,7 +29,7 @@ func TestRunVerificationServiceBlackboxTest(t *testing.T) {
 func (s *verificationServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = account.NewVerificationCodeRepository(s.DB)
-	s.verificationService = email.NewEmailVerificationClient(s.Application, test.NotificationChannel{})
+	s.verificationService = email.NewEmailVerificationClient(s.Application, &test.NotificationChannel{})
 }
 
 func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {
