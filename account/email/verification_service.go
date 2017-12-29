@@ -58,13 +58,17 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req 
 	}
 
 	notificationCustomAttributes := map[string]interface{}{
-		"verifyURL": rest.AbsoluteURL(req, authclient.VerifyEmailUsersPath()),
+		"verifyURL": c.generateVerificationURL(ctx, req, generatedCode),
 	}
 
 	emailMessage := notification.NewUserEmailUpdated(user.ID.String(), notificationCustomAttributes)
 	c.notification.Send(ctx, emailMessage)
 
 	return &newVerificationCode, err
+}
+
+func (c *EmailVerificationClient) generateVerificationURL(ctx context.Context, req *goa.RequestData, code string) string {
+	return rest.AbsoluteURL(req, authclient.VerifyEmailUsersPath()) + "?code=" + code
 }
 
 // VerifyCode validates whether the code is present in our database and returns a non-nil if yes.
