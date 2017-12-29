@@ -2,12 +2,16 @@ package email_test
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/notification"
+	//"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/test"
+	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
+
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -26,7 +30,7 @@ func TestRunVerificationServiceBlackboxTest(t *testing.T) {
 func (s *verificationServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = account.NewVerificationCodeRepository(s.DB)
-	channel, err := notification.NewServiceChannel(s.Configuration)
+	//channel, err := notification.NewServiceChannel(s.Configuration)
 	s.verificationService = email.NewEmailVerificationClient(s.Application, test.NotificationChannel{})
 }
 
@@ -35,7 +39,11 @@ func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
-	generatedCode, err := s.verificationService.SendVerificationCode(context.Background(), identity.User)
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "example.com"},
+	}
+
+	generatedCode, err := s.verificationService.SendVerificationCode(context.Background(), r, identity.User)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), generatedCode)
 
