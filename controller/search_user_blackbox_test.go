@@ -140,6 +140,70 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 	return idents
 }
 
+func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
+	randomName := uuid.NewV4().String()
+	application.Transactional(s.Application, func(app application.Application) error {
+		user := account.User{
+			EmailPrivate: true,
+			FullName:     randomName,
+			ImageURL:     "http://example.org/" + randomName + ".png",
+			Email:        uuid.NewV4().String(),
+			Cluster:      "default Cluster",
+		}
+		err := app.Users().Create(context.Background(), &user)
+		require.Nil(s.T(), err)
+
+		ident := account.Identity{
+			User:         user,
+			Username:     uuid.NewV4().String(),
+			ProviderType: "kc",
+		}
+		err = app.Identities().Create(context.Background(), &ident)
+		require.Nil(s.T(), err)
+		return err
+	})
+
+	offset := "0"
+	pageLimit := 1
+	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+
+	for _, result := range results.Data {
+		require.Equal(s.T(), "", *result.Attributes.Email)
+	}
+}
+
+func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
+	randomName := uuid.NewV4().String()
+	application.Transactional(s.Application, func(app application.Application) error {
+		user := account.User{
+			EmailPrivate: false,
+			FullName:     randomName,
+			ImageURL:     "http://example.org/" + randomName + ".png",
+			Email:        uuid.NewV4().String(),
+			Cluster:      "default Cluster",
+		}
+		err := app.Users().Create(context.Background(), &user)
+		require.Nil(s.T(), err)
+
+		ident := account.Identity{
+			User:         user,
+			Username:     uuid.NewV4().String(),
+			ProviderType: "kc",
+		}
+		err = app.Identities().Create(context.Background(), &ident)
+		require.Nil(s.T(), err)
+		return err
+	})
+
+	offset := "0"
+	pageLimit := 1
+	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+
+	for _, result := range results.Data {
+		require.NotEmpty(s.T(), *result.Attributes.Email)
+	}
+}
+
 func (s *TestSearchUserSearch) cleanTestData(idents []account.Identity) {
 	err := application.Transactional(s.Application, func(app application.Application) error {
 		db := app.(*gormapplication.GormTransaction).DB()
