@@ -30,11 +30,11 @@ func (s *stateBlackBoxTest) SetupTest() {
 func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	// given
 	state := &auth.OauthStateReference{
-		ID:       uuid.NewV4(),
+		ID:       uuid.NewV4().String(),
 		Referrer: "domain.org"}
 
 	state2 := &auth.OauthStateReference{
-		ID:       uuid.NewV4(),
+		ID:       uuid.NewV4().String(),
 		Referrer: "anotherdomain.com"}
 
 	_, err := s.repo.Create(s.Ctx, state)
