@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -142,26 +143,16 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 
 func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 	randomName := uuid.NewV4().String()
-	application.Transactional(s.Application, func(app application.Application) error {
-		user := account.User{
-			EmailPrivate: true,
-			FullName:     randomName,
-			ImageURL:     "http://example.org/" + randomName + ".png",
-			Email:        uuid.NewV4().String(),
-			Cluster:      "default Cluster",
-		}
-		err := app.Users().Create(context.Background(), &user)
-		require.Nil(s.T(), err)
+	user := account.User{
+		EmailPrivate: true,
+		FullName:     randomName,
+		ImageURL:     "http://example.org/" + randomName + ".png",
+		Email:        uuid.NewV4().String(),
+		Cluster:      "default Cluster",
+	}
 
-		ident := account.Identity{
-			User:         user,
-			Username:     uuid.NewV4().String(),
-			ProviderType: "kc",
-		}
-		err = app.Identities().Create(context.Background(), &ident)
-		require.Nil(s.T(), err)
-		return err
-	})
+	_, err := testsupport.CreateTestUser(s.DB, user)
+	require.Nil(s.T(), err)
 
 	offset := "0"
 	pageLimit := 1
@@ -174,26 +165,15 @@ func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 
 func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 	randomName := uuid.NewV4().String()
-	application.Transactional(s.Application, func(app application.Application) error {
-		user := account.User{
-			EmailPrivate: false,
-			FullName:     randomName,
-			ImageURL:     "http://example.org/" + randomName + ".png",
-			Email:        uuid.NewV4().String(),
-			Cluster:      "default Cluster",
-		}
-		err := app.Users().Create(context.Background(), &user)
-		require.Nil(s.T(), err)
-
-		ident := account.Identity{
-			User:         user,
-			Username:     uuid.NewV4().String(),
-			ProviderType: "kc",
-		}
-		err = app.Identities().Create(context.Background(), &ident)
-		require.Nil(s.T(), err)
-		return err
-	})
+	user := account.User{
+		EmailPrivate: false,
+		FullName:     randomName,
+		ImageURL:     "http://example.org/" + randomName + ".png",
+		Email:        uuid.NewV4().String(),
+		Cluster:      "default Cluster",
+	}
+	_, err := testsupport.CreateTestUser(s.DB, user)
+	require.Nil(s.T(), err)
 
 	offset := "0"
 	pageLimit := 1
