@@ -34,7 +34,33 @@ func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
 
 // Read runs the read action.
 func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
-	return ctx.MethodNotAllowed()
+
+	if !token.IsServiceAccount(ctx) {
+		log.Error(ctx, map[string]interface{}{}, "Unable to register resource. Not a service account")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
+	}
+
+	var res *resource.Resource
+
+	err := application.Transactional(c.db, func(appl application.Application) error {
+
+		var error error
+		// Load the resource
+		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
+
+		return error
+	})
+
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.OK(&app.Resource{
+		ResourceID:       &res.ResourceID,
+		Type:             res.ResourceType.Name,
+		Name:             res.Name,
+		ParentResourceID: &res.ParentResource.ResourceID,
+	})
 }
 
 // Register runs the register action.
@@ -50,7 +76,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	err := application.Transactional(c.db, func(appl application.Application) error {
 
 		// Lookup or create the resource type
-		resourceType, err := appl.ResourceTypeRepository().LookupOrCreate(ctx, ctx.Payload.Type)
+		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, ctx.Payload.Type)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -106,7 +132,6 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			OwnerID:        identity.ID,
 			ResourceType:   *resourceType,
 			ResourceTypeID: resourceType.ResourceTypeID,
-			Description:    *ctx.Payload.Description,
 		}
 
 		// Persist the resource
@@ -127,7 +152,6 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		"parent_resource_id": parentResourceID,
 		"owner_id":           res.Owner.ID,
 		"resource_type":      res.ResourceType.Name,
-		"description":        res.Description,
 	}, "resource registered")
 
 	return ctx.Created(&app.RegisterResource{ID: &res.ResourceID})

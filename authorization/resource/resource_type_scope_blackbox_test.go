@@ -85,7 +85,6 @@ func (s *resourceTypeScopeBlackBoxTest) TestOKToSave() {
 	updatedResourceTypeScope, err := s.repo.Load(s.Ctx, resourceTypeScope.ResourceTypeScopeID)
 	require.Nil(s.T(), err, "Could not load resource type scope")
 	assert.Equal(s.T(), resourceTypeScope.Name, updatedResourceTypeScope.Name)
-	assert.Equal(s.T(), resourceTypeScope.Description, "Collaborators may perform many operations within an area")
 }
 
 func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.ResourceTypeScope {
@@ -93,7 +92,6 @@ func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.
 	resourceType := &resource.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
 		Name:           "resource_type_scope_blackbox_test_Area" + uuid.NewV4().String(),
-		Description:    "An area is a logical grouping within a space",
 	}
 
 	s.resourceTypeRepo.Create(s.Ctx, resourceType)
@@ -103,7 +101,6 @@ func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.
 		ResourceType:        *resourceType,
 		ResourceTypeID:      resourceType.ResourceTypeID,
 		Name:                "resource_type_scope_blackbox_test_collaborate" + uuid.NewV4().String(),
-		Description:         "Collaborators may perform many operations within an area",
 	}
 
 	err := s.repo.Create(s.Ctx, resourceTypeScope)
@@ -115,7 +112,6 @@ func createAndLoadResourceTypeScope(s *resourceTypeScopeBlackBoxTest) *resource.
 	require.Nil(s.T(), err, "Could not load resource type scope")
 	require.Equal(s.T(), resourceTypeScope.Name, createdResourceTypeScope.Name)
 	require.Equal(s.T(), resourceTypeScope.ResourceTypeScopeID, createdResourceTypeScope.ResourceTypeScopeID)
-	require.Equal(s.T(), resourceTypeScope.Description, createdResourceTypeScope.Description)
 	require.Equal(s.T(), resourceTypeScope.ResourceType.ResourceTypeID, createdResourceTypeScope.ResourceType.ResourceTypeID)
 	//require.Equal(s.T(), resourceTypeScope.ResourceTypeID, createdResourceTypeScope.ResourceType.ResourceTypeID)
 

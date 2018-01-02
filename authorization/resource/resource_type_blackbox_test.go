@@ -82,14 +82,12 @@ func (s *resourceTypeBlackBoxTest) TestOKToSave() {
 	updatedResourceType, err := s.repo.Load(s.Ctx, resourceType.ResourceTypeID)
 	require.Nil(s.T(), err, "Could not load resource type")
 	assert.Equal(s.T(), resourceType.Name, updatedResourceType.Name)
-	assert.Equal(s.T(), resourceType.Description, "An area is a logical grouping within a space")
 }
 
 func createAndLoadResourceType(s *resourceTypeBlackBoxTest) *resource.ResourceType {
 	resourceType := &resource.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
 		Name:           "resource_type_blackbox_test_Area" + uuid.NewV4().String(),
-		Description:    "An area is a logical grouping within a space",
 	}
 
 	err := s.repo.Create(s.Ctx, resourceType)
@@ -99,7 +97,6 @@ func createAndLoadResourceType(s *resourceTypeBlackBoxTest) *resource.ResourceTy
 	require.Nil(s.T(), err, "Could not load resource type")
 	require.Equal(s.T(), resourceType.Name, createdResourceType.Name)
 	require.Equal(s.T(), resourceType.ResourceTypeID, createdResourceType.ResourceTypeID)
-	require.Equal(s.T(), resourceType.Description, createdResourceType.Description)
 
 	return createdResourceType
 }

@@ -111,7 +111,6 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 	resourceType := &resource.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
 		Name:           "role_blackbox_test_Area" + uuid.NewV4().String(),
-		Description:    "An area is a logical grouping within a space",
 	}
 
 	err := s.resourceTypeRepo.Create(s.Ctx, resourceType)
@@ -122,7 +121,6 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 		ResourceType:        *resourceType,
 		ResourceTypeID:      resourceType.ResourceTypeID,
 		Name:                "role_blackbox_test_collaborate" + uuid.NewV4().String(),
-		Description:         "Collaborators may perform many operations within an area",
 	}
 
 	err = s.resourceTypeScopeRepo.Create(s.Ctx, resourceTypeScope)

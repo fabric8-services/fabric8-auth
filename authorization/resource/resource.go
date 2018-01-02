@@ -32,8 +32,8 @@ type Resource struct {
 	ResourceType ResourceType
 	// The identifier for the resource type
 	ResourceTypeID uuid.UUID
-	// Resource description
-	Description string
+	// Resource name
+	Name string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -121,7 +121,7 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 	}
 
 	if resource.ResourceTypeID.String() == "" {
-		resourceType, err := m.resourceTypeRepo.LookupOrCreate(ctx, resource.ResourceType.Name)
+		resourceType, err := m.resourceTypeRepo.Lookup(ctx, resource.ResourceType.Name)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"resource_type": resource.ResourceType.Name,
