@@ -171,7 +171,6 @@ var _ = a.Resource("users", func() {
 			a.PATCH(""),
 		)
 		a.Description("update the authenticated user")
-		a.Payload(updateUser)
 		a.Response(d.OK, func() {
 			a.Media(user)
 		})

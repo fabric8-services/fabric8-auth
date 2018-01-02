@@ -380,7 +380,7 @@ func (c *UserController) getKeycloakProfileInformation(ctx context.Context, toke
 }
 
 func (c *UserController) updateWITUser(ctx *app.UpdateUserContext, request *goa.RequestData, identityID string) error {
-	updateUserPayload := &app.UpdateUsersPayload{
+	updateUserPayload := &app.UpdateUserPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
 				Bio:                   ctx.Payload.Data.Attributes.Bio,
