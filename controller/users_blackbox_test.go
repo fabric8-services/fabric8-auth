@@ -810,6 +810,7 @@ func (s *TestUsersSuite) TestHideEmailOK() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
 	identity := s.createRandomIdentity(user1, account.KeycloakIDP)
+	secureService, secureController := s.SecuredController(identity)
 
 	// when
 	email := user1.Email
@@ -820,7 +821,12 @@ func (s *TestUsersSuite) TestHideEmailOK() {
 	require.Equal(s.T(), email, *returnedUser.Email)
 	require.False(s.T(), *returnedUser.EmailPrivate)
 
-	secureService, secureController := s.SecuredController(identity)
+	// check for /api/users/<ID>
+	// should show public email when not made private.
+	_, singleResult := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+	returnedUser = singleResult.Data.Attributes
+	require.Equal(s.T(), email, *returnedUser.Email)
+	require.False(s.T(), *returnedUser.EmailPrivate)
 
 	contextInformation := map[string]interface{}{
 		"last_visited": "yesterday",
@@ -842,8 +848,7 @@ func (s *TestUsersSuite) TestHideEmailOK() {
 	returnedUserResult := result.Data[0]
 	require.Equal(s.T(), "", *returnedUserResult.Attributes.Email)
 
-	// even though the email_private=true,
-	// the email address is visible to the user if her user token is passed.
+	// the /api/users/<ID> endpoint should hide out the email.
 	_, showUserResponse := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
 	require.NotEqual(s.T(), user1.Email, *showUserResponse.Data.Attributes.Email)
 	require.Equal(s.T(), "", *showUserResponse.Data.Attributes.Email)
