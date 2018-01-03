@@ -41,12 +41,16 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 	}
 
 	var res *resource.Resource
+	var scopes []resource.ResourceTypeScope
 
 	err := application.Transactional(c.db, func(appl application.Application) error {
 
 		var error error
 		// Load the resource
 		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
+
+		// Load the resource type scopes
+		scopes, error := appl.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
 
 		return error
 	})
@@ -55,11 +59,24 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	var parentResourceID *string
+
+	if res.ParentResource != nil {
+		parentResourceID = &res.ParentResource.ResourceID
+	}
+
+	var scopeValues [len(scopes)]string
+
+	for index, _ := range scopes {
+		scopeValues[index] = scopes[index].Name
+	}
+
 	return ctx.OK(&app.Resource{
 		ResourceID:       &res.ResourceID,
 		Type:             res.ResourceType.Name,
 		Name:             res.Name,
-		ParentResourceID: &res.ParentResource.ResourceID,
+		ParentResourceID: parentResourceID,
+		ResourceScopes:   scopeValues,
 	})
 }
 

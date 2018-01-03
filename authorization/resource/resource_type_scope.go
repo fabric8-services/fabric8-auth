@@ -54,6 +54,7 @@ func NewResourceTypeScopeRepository(db *gorm.DB) ResourceTypeScopeRepository {
 type ResourceTypeScopeRepository interface {
 	CheckExists(ctx context.Context, id string) (bool, error)
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
+	LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error)
 	Create(ctx context.Context, u *ResourceTypeScope) error
 	Save(ctx context.Context, u *ResourceTypeScope) error
 	List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error)
@@ -102,6 +103,17 @@ func (m *GormResourceTypeScopeRepository) Load(ctx context.Context, id uuid.UUID
 		return nil, errors.NewNotFoundError("resource_type_scope", id.String())
 	}
 	return &native, errs.WithStack(err)
+}
+
+func (m *GormResourceTypeScopeRepository) LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "load"}, time.Now())
+	var native []ResourceTypeScope
+	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("resource_type__id = ?", resourceTypeID).Find(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		// If there are no records found then return an empty slice of the correct type
+		return []ResourceTypeScope{}, nil
+	}
+	return native, errs.WithStack(err)
 }
 
 // Create creates a new record.

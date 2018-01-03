@@ -13,6 +13,7 @@ import (
 
 	"github.com/goadesign/goa"
 
+	"fmt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -136,6 +137,8 @@ func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
 	require.NotNil(rest.T(), created)
 	require.NotNil(rest.T(), created.ID)
 	require.EqualValues(rest.T(), *created.ID, resourceID)
+
+	fmt.Println("#### Created resource ID: ", created.ID)
 
 	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
 
