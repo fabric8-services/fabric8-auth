@@ -73,7 +73,14 @@ func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, state st
 		}, "unable to find the oauth state reference by state")
 		return errors.NewNotFoundError("oauth state reference", state)
 	}
-	reference := OauthStateReference{State: state}
+
+	reference, err := r.Load(ctx, state)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"state": state,
+		}, "Could not find oauth state reference by state")
+		return errors.NewNotFoundError("oauth state reference", state)
+	}
 	tx := r.db.Delete(reference)
 
 	if err := tx.Error; err != nil {
@@ -110,7 +117,7 @@ func (r *GormOauthStateReferenceRepository) Create(ctx context.Context, referenc
 	return reference, nil
 }
 
-// Load loads state reference by ID
+// Load loads state reference by state
 func (r *GormOauthStateReferenceRepository) Load(ctx context.Context, state string) (*OauthStateReference, error) {
 	ref := OauthStateReference{}
 	tx := r.db.Where("state=?", state).First(&ref)
