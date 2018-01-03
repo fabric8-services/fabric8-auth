@@ -368,29 +368,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	return proxy.RouteHTTPToPath(ctx, "http://localhost:8089", client.UpdateUserPath())
 }
 
-func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
-	updateUserPayload := &app.UpdateUsersPayload{
-		Data: &app.UpdateUserData{
-			Attributes: &app.UpdateIdentityDataAttributes{
-				Bio:                   ctx.Payload.Data.Attributes.Bio,
-				Company:               ctx.Payload.Data.Attributes.Company,
-				ContextInformation:    ctx.Payload.Data.Attributes.ContextInformation,
-				Email:                 ctx.Payload.Data.Attributes.Email,
-				FullName:              ctx.Payload.Data.Attributes.FullName,
-				ImageURL:              ctx.Payload.Data.Attributes.ImageURL,
-				RegistrationCompleted: ctx.Payload.Data.Attributes.RegistrationCompleted,
-				URL:      ctx.Payload.Data.Attributes.URL,
-				Username: ctx.Payload.Data.Attributes.Username,
-			},
-			Type: ctx.Payload.Data.Type,
-		},
-	}
-	witURL, err := c.config.GetWITURL(ctx.RequestData)
-	if err != nil {
-		return err
-	}
-	return c.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
-}
 
 func isEmailValid(email string) bool {
 	// TODO: Add regex to verify email format, later
