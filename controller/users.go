@@ -352,22 +352,10 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	return identity, user, nil
 }
 
-func (c *UsersController) getKeycloakProfileInformation(ctx context.Context, tokenString string, accountAPIEndpoint string) (*login.KeycloakUserProfileResponse, error) {
-
-	response, err := c.userProfileService.Get(ctx, tokenString, accountAPIEndpoint)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to fetch keycloak account information")
-	}
-	return response, err
-}
-
 // Update updates the authorized user based on the provided Token
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	return proxy.RouteHTTPToPath(ctx, "http://localhost:8089", client.UpdateUserPath())
 }
-
 
 func isEmailValid(email string) bool {
 	// TODO: Add regex to verify email format, later

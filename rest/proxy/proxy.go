@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// RouteHTTP uses a reverse proxy to route the http request to the scheme, host provided in targetHost
+// RouteHTTPToPath uses a reverse proxy to route the http request to the scheme, host provided in targetHost
 // and path provided in targetPath.
 func RouteHTTPToPath(ctx context.Context, targetHost string, targetPath string) error {
 	return route(ctx, targetHost, &targetPath)

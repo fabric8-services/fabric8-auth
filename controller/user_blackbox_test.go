@@ -41,7 +41,6 @@ type TestUserREST struct {
 	config             configuration.ConfigurationData
 	svc                *goa.Service
 	usersController    *UsersController
-	userController     *UserController
 	userRepo           account.UserRepository
 	identityRepo       account.IdentityRepository
 	userProfileService login.UserProfileService
@@ -68,14 +67,12 @@ func (rest *TestUserREST) SetupSuite() {
 	rest.userProfileService = keycloakUserProfileService
 	rest.linkAPIService = &dummyKeycloakLinkService{}
 	rest.usersController = NewUsersController(rest.svc, rest.Application, rest.Configuration, rest.userProfileService, rest.linkAPIService)
-	//rest.userController = NewUserController(rest.svc, rest.Application, token.Manager, rest.userProfileService, rest.config)
 	rest.userRepo = rest.Application.Users()
 	rest.identityRepo = rest.Application.Identities()
-	rest.usersController.RemoteWITService = &dummyRemoteWITService{}
 }
 
 func (rest *TestUserREST) newUserController(identity *account.Identity, user *account.User) *UserController {
-	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.TokenManager, rest.userProfileService, &rest.config)
+	return NewUserController(goa.New("auth-test"), newGormTestBase(identity, user), testtoken.TokenManager, rest.userProfileService, &rest.config)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingUUID() {
@@ -402,9 +399,7 @@ func (rest *TestUserREST) createRandomIdentity(user account.User, providerType s
 
 func (rest *TestUserREST) SecuredController(identity account.Identity) (*goa.Service, *UserController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	//controller := NewUsersController(rest.svc, rest.Application, rest.Configuration, rest.userProfileService, rest.linkAPIService)
 	controller := NewUserController(rest.svc, rest.Application, nil, rest.userProfileService, rest.Configuration)
-	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
@@ -749,7 +744,7 @@ func (rest *TestUserREST) TestUpdateUserUnsetVariableInContextInfo() {
 		"rate":         100.00,
 		"count":        3,
 	}
-	//secureController, secureService := createSecureController(t, identity)
+
 	updateUserPayload := createUpdateUserPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, nil, nil, nil, contextInformation)
 	_, result = test.UpdateUserOK(rest.T(), secureService.Context, secureService, secureController, updateUserPayload)
 	// then
@@ -871,7 +866,7 @@ func (rest *TestUserREST) TestPatchUserContextInformation() {
 		"last_visited": "yesterday",
 		"count":        3,
 	}
-	//secureController, secureService := createSecureController(t, identity)
+
 	updateUserPayload := createUpdateUserPayload(nil, nil, nil, nil, nil, nil, nil, nil, contextInformation)
 	_, result = test.UpdateUserOK(rest.T(), secureService.Context, secureService, secureController, updateUserPayload)
 	// then
@@ -932,8 +927,9 @@ func (rest *TestUserREST) TestUpdateUserUnauthorized() {
 		"last_visited": "yesterday",
 		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
 	}
-	//secureController, secureService := createSecureController(t, identity)
+
 	updateUserPayload := createUpdateUserPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, nil, nil, nil, contextInformation)
 	// when/then
-	test.UpdateUserUnauthorized(rest.T(), context.Background(), nil, rest.userController, updateUserPayload)
+	_, secureController := rest.SecuredController(identity)
+	test.UpdateUserUnauthorized(rest.T(), context.Background(), nil, secureController, updateUserPayload)
 }
