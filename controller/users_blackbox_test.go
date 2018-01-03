@@ -164,6 +164,24 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			assert.Equal(t, newFeatureLevel, *result.Data.Attributes.FeatureLevel)
 		})
 
+		t.Run("internal level allowed", func(t *testing.T) {
+			// given
+			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@redhat.com"))
+			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			// when
+			newFeatureLevel := "internal"
+			secureService, secureController := s.SecuredController(identity)
+			updateUsersPayload := newUpdateUsersPayload(WithUpdatedFeatureLevel(newFeatureLevel))
+			_, result := test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
+			// then
+			require.NotNil(t, result)
+			// let's fetch it and validate
+			_, result = test.ShowUsersOK(t, nil, nil, s.controller, identity.ID.String(), nil, nil)
+			require.NotNil(t, result)
+			require.NotNil(t, result.Data.Attributes.FeatureLevel)
+			assert.Equal(t, newFeatureLevel, *result.Data.Attributes.FeatureLevel)
+		})
+
 		t.Run("change feature level", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOK", WithFeatureLevel("experimental"))
@@ -184,19 +202,36 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		})
 
 		t.Run("reset feature level", func(t *testing.T) {
-			user := s.createRandomUser("TestUpdateUserOK", WithFeatureLevel("experimental"))
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
-			// when
-			newFeatureLevel := ""
-			secureService, secureController := s.SecuredController(identity)
-			updateUsersPayload := newUpdateUsersPayload(WithUpdatedFeatureLevel(newFeatureLevel))
-			_, result := test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
-			// then
-			require.NotNil(t, result)
-			// let's fetch it and validate
-			_, result = test.ShowUsersOK(t, nil, nil, s.controller, identity.ID.String(), nil, nil)
-			require.NotNil(t, result)
-			require.Nil(t, result.Data.Attributes.FeatureLevel)
+			t.Run("with released value", func(t *testing.T) {
+				user := s.createRandomUser("TestUpdateUserOK", WithFeatureLevel("experimental"))
+				identity := s.createRandomIdentity(user, account.KeycloakIDP)
+				// when
+				newFeatureLevel := "released"
+				secureService, secureController := s.SecuredController(identity)
+				updateUsersPayload := newUpdateUsersPayload(WithUpdatedFeatureLevel(newFeatureLevel))
+				_, result := test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
+				// then
+				require.NotNil(t, result)
+				// let's fetch it and validate
+				_, result = test.ShowUsersOK(t, nil, nil, s.controller, identity.ID.String(), nil, nil)
+				require.NotNil(t, result)
+				require.Nil(t, result.Data.Attributes.FeatureLevel)
+			})
+			t.Run("with empty value", func(t *testing.T) {
+				user := s.createRandomUser("TestUpdateUserOK", WithFeatureLevel("experimental"))
+				identity := s.createRandomIdentity(user, account.KeycloakIDP)
+				// when
+				newFeatureLevel := ""
+				secureService, secureController := s.SecuredController(identity)
+				updateUsersPayload := newUpdateUsersPayload(WithUpdatedFeatureLevel(newFeatureLevel))
+				_, result := test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
+				// then
+				require.NotNil(t, result)
+				// let's fetch it and validate
+				_, result = test.ShowUsersOK(t, nil, nil, s.controller, identity.ID.String(), nil, nil)
+				require.NotNil(t, result)
+				require.Nil(t, result.Data.Attributes.FeatureLevel)
+			})
 		})
 
 		t.Run("username multiple times forbidden", func(t *testing.T) {
@@ -598,6 +633,16 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			test.UpdateUsersBadRequest(t, secureService.Context, secureService, secureController, updateUsersPayload)
 		})
 
+		t.Run("internal level for non RH employee", func(t *testing.T) {
+			// given
+			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@foo.com"))
+			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			// when/then
+			newFeatureLevel := "internal"
+			secureService, secureController := s.SecuredController(identity)
+			updateUsersPayload := newUpdateUsersPayload(WithUpdatedFeatureLevel(newFeatureLevel))
+			test.UpdateUsersBadRequest(t, secureService.Context, secureService, secureController, updateUsersPayload)
+		})
 	})
 
 	s.T().Run("unauthorized", func(t *testing.T) {
@@ -892,6 +937,12 @@ type CreateUserOption func(user *account.User)
 func WithFeatureLevel(level string) CreateUserOption {
 	return func(user *account.User) {
 		user.FeatureLevel = &level
+	}
+}
+
+func WithEmailAddress(email string) CreateUserOption {
+	return func(user *account.User) {
+		user.Email = email
 	}
 }
 

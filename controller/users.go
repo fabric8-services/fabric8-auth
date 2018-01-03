@@ -593,11 +593,16 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			log.Debug(ctx, map[string]interface{}{"current_feature_level": currentFeatureLevel, "new_feature_level": newFeatureLevel}, "updating feature level")
 		}
 		if updatedFeatureLevel != nil && (user.FeatureLevel == nil || *updatedFeatureLevel != *user.FeatureLevel) {
-			// handle the case where the value needs to be reset, when the new value is "" (empty string)
-			if *updatedFeatureLevel == "" {
-				log.Debug(ctx, map[string]interface{}{}, "resetting feature level")
+			// handle the case where the value needs to be reset, when the new value is "" (empty string) or "released"
+			if *updatedFeatureLevel == "" || *updatedFeatureLevel == "released" {
+				log.Debug(ctx, map[string]interface{}{"user_id": user.ID}, "resetting feature level")
 				user.FeatureLevel = nil
 			} else {
+				// if the level is 'internal', we need to check against the email address to verify that the user is a Red Hat employee
+				if *updatedFeatureLevel == "internal" && !strings.HasSuffix(user.Email, "@redhat.com") {
+					log.Error(ctx, map[string]interface{}{"user_id": user.ID}, "user is not a Red Hat employee")
+					return errors.NewBadParameterError("feature_level", updatedFeatureLevel)
+				}
 				user.FeatureLevel = updatedFeatureLevel
 			}
 		}

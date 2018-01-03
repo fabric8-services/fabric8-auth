@@ -30,7 +30,7 @@ type User struct {
 	Bio                string             // The bio of the User
 	URL                string             // The URL of the User
 	Company            string             // The (optional) Company of the User
-	FeatureLevel       *string            // the (optional) level of features that the user opted in (to access unreleased features)
+	FeatureLevel       *string            // the (optional) level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
 	Cluster            string             // The OpenShift cluster allocted to the user.
 	Identities         []Identity         // has many Identities from different IDPs
 	ContextInformation ContextInformation `sql:"type:jsonb"` // context information of the user activity
