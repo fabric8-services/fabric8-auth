@@ -89,6 +89,7 @@ const (
 	varWITDomainPrefix                      = "wit.domain.prefix"
 	varWITURL                               = "wit.url"
 	varNotificationServiceURL               = "notification.serviceurl"
+	varEmailVerifiedRedirectURL             = "email.verify.url"
 
 	varTenantServiceURL = "tenant.serviceurl"
 
@@ -414,6 +415,14 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Keycloak Tests are disabled by default
 	c.v.SetDefault(varKeycloakTestsDisabled, true)
+
+	// On email successful/failed verification, redirect to this page.
+	c.v.SetDefault(varEmailVerifiedRedirectURL, "https://prod-preview.openshift.io/_home")
+}
+
+// GetPostgresHost returns the postgres host as set via default, config file, or environment variable
+func (c *ConfigurationData) GetEmailVerifiedRedirectURL() string {
+	return c.v.GetString(varEmailVerifiedRedirectURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
