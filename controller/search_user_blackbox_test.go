@@ -151,7 +151,7 @@ func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 		Cluster:      "default Cluster",
 	}
 
-	_, err := testsupport.CreateTestUser(s.DB, user)
+	_, err := testsupport.CreateTestUser(s.DB, &user)
 	require.Nil(s.T(), err)
 
 	offset := "0"
@@ -172,7 +172,7 @@ func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 		Email:        uuid.NewV4().String(),
 		Cluster:      "default Cluster",
 	}
-	_, err := testsupport.CreateTestUser(s.DB, user)
+	_, err := testsupport.CreateTestUser(s.DB, &user)
 	require.Nil(s.T(), err)
 
 	offset := "0"

@@ -66,19 +66,19 @@ func CreateTestIdentity(db *gorm.DB, username, providerType string) (account.Ide
 }
 
 // CreateTestUser creates a new user from a given user object
-func CreateTestUser(db *gorm.DB, user account.User) (account.Identity, error) {
+func CreateTestUser(db *gorm.DB, user *account.User) (account.Identity, error) {
 	userRepository := account.NewUserRepository(db)
 	identityRepository := account.NewIdentityRepository(db)
 	identity := account.Identity{
 		Username:     uuid.NewV4().String(),
-		ProviderType: "KC",
+		ProviderType: account.KeycloakIDP,
 	}
 	err := models.Transactional(db, func(tx *gorm.DB) error {
-		userCreationError := userRepository.Create(context.Background(), &user)
+		userCreationError := userRepository.Create(context.Background(), user)
 		if userCreationError != nil {
 			return userCreationError
 		}
-		identity.User = user
+		identity.User = *user
 		identity.UserID.UUID = user.ID
 
 		return identityRepository.Create(context.Background(), &identity)

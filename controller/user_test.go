@@ -136,7 +136,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfNoneMatchHeader
 func (rest *TestUserREST) TestPrivateEmailVisibleIfNotPrivate() {
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	usr.EmailPrivate = false
-	_, err := testsupport.CreateTestUser(rest.DB, usr)
+	_, err := testsupport.CreateTestUser(rest.DB, &usr)
 	require.NoError(rest.T(), err)
 	_, returnedUser := test.ShowUserOK(rest.T(), ctx, nil, userCtrl, nil, nil)
 	require.NotNil(rest.T(), returnedUser)
@@ -146,7 +146,7 @@ func (rest *TestUserREST) TestPrivateEmailVisibleIfNotPrivate() {
 func (rest *TestUserREST) TestPrivateEmailVisibleIfPrivate() {
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	usr.EmailPrivate = true
-	_, err := testsupport.CreateTestUser(rest.DB, usr)
+	_, err := testsupport.CreateTestUser(rest.DB, &usr)
 	require.NoError(rest.T(), err)
 	_, returnedUser := test.ShowUserOK(rest.T(), ctx, nil, userCtrl, nil, nil)
 	require.NotNil(rest.T(), returnedUser)
