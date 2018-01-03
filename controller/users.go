@@ -49,6 +49,7 @@ type UsersControllerConfiguration interface {
 	GetKeycloakClientID() string
 	GetKeycloakSecret() string
 	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
+	GetEmailVerifiedRedirectURL() string
 }
 
 // NewUsersController creates a users controller.
@@ -795,17 +796,18 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 // VerifyEmail verifies a user's email when updated.
 func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 	verifiedCode, err := c.EmailVerificationService.VerifyCode(ctx, ctx.Code)
+	var errResponse string
+	isVerified := "true"
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		errResponse = err.Error()
+		isVerified = "false"
+	} else if verifiedCode == nil {
+		errResponse = "unable to verify code"
+		isVerified = "false"
 	}
-	if verifiedCode == nil {
-		// NotFoundError would have been caught above
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New("unable to verify code")))
-	}
-	return ctx.OK(&app.EmailApprovedData{
-		Email:    verifiedCode.User.Email,
-		Approved: true,
-	})
+	redirectURL := fmt.Sprintf("%s?verified=%s&error=%s", c.config.GetEmailVerifiedRedirectURL(), isVerified, errResponse)
+	ctx.ResponseData.Header().Set("Location", redirectURL)
+	return ctx.TemporaryRedirect()
 }
 
 func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]account.User, []account.Identity, error) {

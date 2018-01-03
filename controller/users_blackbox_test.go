@@ -100,7 +100,10 @@ func (s *TestUsersSuite) TestEmailVerifiedOK() {
 	require.NoError(s.T(), err)
 	require.Len(s.T(), codes, 1)
 	verificationCode := codes[0].Code
-	test.VerifyEmailUsersOK(s.T(), secureService.Context, secureService, secureController, verificationCode)
+
+	rw := test.VerifyEmailUsersTemporaryRedirect(s.T(), secureService.Context, secureService, secureController, verificationCode)
+	redirectLocation := rw.Header().Get("Location")
+	assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=true&error=", redirectLocation)
 
 	codes, err = s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
 	require.NoError(s.T(), err)
@@ -109,11 +112,14 @@ func (s *TestUsersSuite) TestEmailVerifiedOK() {
 
 func (s *TestUsersSuite) TestVerifyEmailFail() {
 	// given
-	user := s.createRandomUser("TestVerifyEmailOK")
+	user := s.createRandomUser("TestVerifyEmailFail")
 	identity := s.createRandomIdentity(user, account.KeycloakIDP)
 
 	secureService, secureController := s.SecuredController(identity)
-	test.VerifyEmailUsersNotFound(s.T(), secureService.Context, secureService, secureController, "1234")
+	rw := test.VerifyEmailUsersTemporaryRedirect(s.T(), secureService.Context, secureService, secureController, "ABCD")
+	redirectLocation := rw.Header().Get("Location")
+	assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=false&error=code with id 'ABCD' not found", redirectLocation)
+
 }
 
 func (s *TestUsersSuite) TestUpdateUserOK() {
