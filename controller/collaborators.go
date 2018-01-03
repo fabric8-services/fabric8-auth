@@ -102,7 +102,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 	return ctx.ConditionalEntities(resultUsers, c.config.GetCacheControlCollaborators, func() error {
 		data := make([]*app.UserData, len(page))
 		for i := range resultUsers {
-			appUser := ConvertToAppUser(ctx.RequestData, &resultUsers[i], &resultIdentities[i])
+			appUser := ConvertToAppUser(ctx.RequestData, &resultUsers[i], &resultIdentities[i], false)
 			data[i] = appUser.Data
 		}
 		response := app.UserList{
