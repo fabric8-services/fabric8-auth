@@ -420,7 +420,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varEmailVerifiedRedirectURL, "https://prod-preview.openshift.io/_home")
 }
 
-// GetPostgresHost returns the postgres host as set via default, config file, or environment variable
+// GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
+// verification url
 func (c *ConfigurationData) GetEmailVerifiedRedirectURL() string {
 	return c.v.GetString(varEmailVerifiedRedirectURL)
 }

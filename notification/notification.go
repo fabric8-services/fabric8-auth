@@ -38,7 +38,7 @@ func (m Message) String() string {
 func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
-		MessageType: "user.email.updated",
+		MessageType: "user.email.update",
 		TargetID:    userID,
 		Custom:      custom,
 	}

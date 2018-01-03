@@ -204,12 +204,6 @@ var userData = a.Type("UserData", func() {
 	a.Required("type", "attributes")
 })
 
-var emailApprovedData = a.Type("EmailApprovedData", func() {
-	a.Attribute("email", d.String, "email of the user which is being approved")
-	a.Attribute("approved", d.Boolean, "approval status of the email")
-	a.Required("email", "approved")
-})
-
 // userDataAttributes represents an identified user object attributes
 var userDataAttributes = a.Type("UserDataAttributes", func() {
 	a.Attribute("userID", d.String, "The id of the corresponding User")
