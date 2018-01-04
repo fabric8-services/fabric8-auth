@@ -221,7 +221,7 @@ var userDataAttributes = a.Type("UserDataAttributes", func() {
 	a.Attribute("username", d.String, "The username")
 	a.Attribute("registrationCompleted", d.Boolean, "Whether the registration has been completed")
 	a.Attribute("email", d.String, "The email")
-	a.Attribute("email_private", d.Boolean, "Whether the email address would be private.")
+	a.Attribute("emailPrivate", d.Boolean, "Whether the email address would be private.")
 	a.Attribute("bio", d.String, "The bio")
 	a.Attribute("url", d.String, "The url")
 	a.Attribute("company", d.String, "The company")
@@ -240,7 +240,7 @@ var updateUserDataAttributes = a.Type("UpdateIdentityDataAttributes", func() {
 	a.Attribute("email", d.String, "The email")
 	a.Attribute("bio", d.String, "The bio")
 	a.Attribute("url", d.String, "The url")
-	a.Attribute("email_private", d.Boolean, "Whether the email address would be private.")
+	a.Attribute("emailPrivate", d.Boolean, "Whether the email address would be private.")
 	a.Attribute("company", d.String, "The company")
 	a.Attribute("registrationCompleted", d.Boolean, "Complete the registration to proceed. This can only be set to true")
 	a.Attribute("contextInformation", a.HashOf(d.String, d.Any), "User context information of any type as a json", func() {
