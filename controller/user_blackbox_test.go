@@ -390,7 +390,7 @@ func newGormTestBase(identity *account.Identity, user *account.User) *GormTestBa
 		UserRepository:     TestUserRepository{User: user}}
 }
 
-func (rest *TestUserREST) createRandomUser(fullname string) account.User {
+func (rest *TestUserREST) giveUser(fullname string) account.User {
 	user := account.User{
 		Email:    uuid.NewV4().String() + "primaryForUpdat7e@example.com",
 		FullName: fullname,
@@ -400,8 +400,8 @@ func (rest *TestUserREST) createRandomUser(fullname string) account.User {
 		Cluster:  "My OSO cluster url",
 	}
 
-	err := rest.userRepo.Create(context.Background(), &user)
-	require.Nil(rest.T(), err)
+	//err := rest.userRepo.Create(context.Background(), &user)
+	//require.Nil(rest.T(), err)
 	return user
 }
 
@@ -461,8 +461,9 @@ func createUpdateUserPayload(email, fullName, bio, imageURL, profileURL, company
 
 func (rest *TestUserREST) TestUpdateUserOK() {
 	// Create a user
-	user := rest.createRandomUser("TestUpdateUserOK")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("TestUpdateUserOK")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
@@ -516,8 +517,10 @@ func (rest *TestUserREST) TestUpdateUserOK() {
 
 func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesForbidden() {
 
-	user := rest.createRandomUser("OK")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OK")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
+
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
@@ -545,8 +548,10 @@ func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesForbidden() {
 
 func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesOK() {
 
-	user := rest.createRandomUser("OK")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OK")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
+
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
@@ -568,8 +573,10 @@ func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesOK() {
 }
 
 func (rest *TestUserREST) TestUpdateRegistrationCompletedOK() {
-	user := rest.createRandomUser("OK")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OK")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
+
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
@@ -590,8 +597,9 @@ func (rest *TestUserREST) TestUpdateRegistrationCompletedOK() {
 }
 
 func (rest *TestUserREST) TestUpdateRegistrationCompletedBadRequest() {
-	user := rest.createRandomUser("OKRegCompleted")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OKRegCompleted")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
@@ -617,8 +625,9 @@ func (rest *TestUserREST) TestUpdateRegistrationCompletedAndUsernameOK() {
 	// In this test case, we send both registrationCompleted=True and an updated username
 	// as part of HTTP PATCH.
 
-	user := rest.createRandomUser("OKRegCompleted")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OKRegCompleted")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
@@ -641,13 +650,15 @@ func (rest *TestUserREST) TestUpdateRegistrationCompletedAndUsernameOK() {
 
 func (rest *TestUserREST) TestUpdateExistingUsernameForbidden() {
 	// create 2 users.
-	user := rest.createRandomUser("OK")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OK")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
-	user2 := rest.createRandomUser("OK2")
-	identity2 := rest.createRandomIdentity(user2, account.KeycloakIDP)
+	user2 := rest.giveUser("OK2")
+	identity2, err := testsupport.CreateTestUser(rest.DB, &user2)
+	require.NoError(rest.T(), err)
 	_, result2 := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity2.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity2.ID.String(), *result2.Data.ID)
 
@@ -665,13 +676,15 @@ func (rest *TestUserREST) TestUpdateExistingUsernameForbidden() {
 
 func (rest *TestUserREST) TestUpdateExistingEmailForbidden() {
 	// create 2 users.
-	user := rest.createRandomUser("OK")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OK")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
-	user2 := rest.createRandomUser("OK2")
-	identity2 := rest.createRandomIdentity(user2, account.KeycloakIDP)
+	user2 := rest.giveUser("OK2")
+	identity2, err := testsupport.CreateTestUser(rest.DB, &user2)
+	require.NoError(rest.T(), err)
 	_, result2 := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity2.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity2.ID.String(), *result2.Data.ID)
 
@@ -690,8 +703,9 @@ func (rest *TestUserREST) TestUpdateExistingEmailForbidden() {
 func (rest *TestUserREST) TestUpdateUserVariableSpacesInNameOK() {
 
 	// given
-	user := rest.createRandomUser("OK")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("OK")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assertUser(rest.T(), result.Data, user, identity)
 	// when
@@ -744,8 +758,9 @@ func (rest *TestUserREST) TestUpdateUserVariableSpacesInNameOK() {
 
 func (rest *TestUserREST) TestUpdateUserUnsetVariableInContextInfo() {
 	// given
-	user := rest.createRandomUser("TestUpdateUserUnsetVariableInContextInfo")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("TestUpdateUserUnsetVariableInContextInfo")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 	assert.Equal(rest.T(), user.FullName, *result.Data.Attributes.FullName)
@@ -812,8 +827,9 @@ func (rest *TestUserREST) TestUpdateUserUnsetVariableInContextInfo() {
 
 func (rest *TestUserREST) TestUpdateUserOKWithoutContextInfo() {
 	// given
-	user := rest.createRandomUser("TestUpdateUserOKWithoutContextInfo")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("TestUpdateUserOKWithoutContextInfo")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 	assert.Equal(rest.T(), user.FullName, *result.Data.Attributes.FullName)
@@ -836,8 +852,9 @@ func (rest *TestUserREST) TestUpdateUserOKWithoutContextInfo() {
 
 func (rest *TestUserREST) TestUpdateUserWithInvalidEmail() {
 	// given
-	user := rest.createRandomUser("TestUpdateUserOKWithoutContextInfo")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("TestUpdateUserOKWithoutContextInfo")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 
 	// when
@@ -857,8 +874,9 @@ func (rest *TestUserREST) TestUpdateUserWithInvalidEmail() {
 
 func (rest *TestUserREST) TestUpdateUserWithInvalidUsername() {
 	// given
-	user := rest.createRandomUser("TestUpdateUserOKWithoutContextInfo")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("TestUpdateUserOKWithoutContextInfo")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 
 	contextInformation := map[string]interface{}{
@@ -877,8 +895,9 @@ func (rest *TestUserREST) TestUpdateUserWithInvalidUsername() {
 func (rest *TestUserREST) TestPatchUserContextInformation() {
 
 	// given
-	user := rest.createRandomUser("TestPatchUserContextInformation")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("TestPatchUserContextInformation")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assertUser(rest.T(), result.Data, user, identity)
 	// when
@@ -932,8 +951,9 @@ func (rest *TestUserREST) TestPatchUserContextInformation() {
 
 func (rest *TestUserREST) TestUpdateUserUnauthorized() {
 	// given
-	user := rest.createRandomUser("TestUpdateUserUnauthorized")
-	identity := rest.createRandomIdentity(user, account.KeycloakIDP)
+	user := rest.giveUser("TestUpdateUserUnauthorized")
+	identity, err := testsupport.CreateTestUser(rest.DB, &user)
+	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 	assert.Equal(rest.T(), user.FullName, *result.Data.Attributes.FullName)
