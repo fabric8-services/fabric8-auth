@@ -146,6 +146,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// version 12
 	m = append(m, steps{ExecuteSQLFile("012-hide-email.sql")})
 
+	// version 13
+	m = append(m, steps{ExecuteSQLFile("013-add-email-verified.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
