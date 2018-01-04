@@ -19,14 +19,14 @@ import (
 
 // RemoteWITService specifies the behaviour of a remote WIT caller
 type RemoteWITService interface {
-	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error
+	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUserPayload, witURL string, identityID string) error
 	CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error
 }
 
 type RemoteWITServiceCaller struct{}
 
 // UpdateWITUser updates user in WIT
-func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
+func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUserPayload, witURL string, identityID string) error {
 
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{

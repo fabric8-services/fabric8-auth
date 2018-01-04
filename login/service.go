@@ -748,7 +748,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 }
 
 func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
-	updateUserPayload := &app.UpdateUsersPayload{
+	updateUserPayload := &app.UpdateUserPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
 				Bio:      &identity.User.Bio,

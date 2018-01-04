@@ -109,6 +109,25 @@ var _ = a.Resource("user", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+
+	a.Action("update", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PATCH(""),
+		)
+		a.Description("update the authenticated user")
+		a.Payload(updateUser)
+		a.Response(d.OK, func() {
+			a.Media(user)
+		})
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
+		a.Response(d.Conflict, JSONAPIErrors)
+
+	})
 })
 
 var _ = a.Resource("users", func() {
@@ -152,7 +171,6 @@ var _ = a.Resource("users", func() {
 			a.PATCH(""),
 		)
 		a.Description("update the authenticated user")
-		a.Payload(updateUser)
 		a.Response(d.OK, func() {
 			a.Media(user)
 		})
