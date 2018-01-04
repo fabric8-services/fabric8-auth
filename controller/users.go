@@ -83,7 +83,7 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			}
 		}
 		return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, false))
 		})
 	})
 }
@@ -165,7 +165,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		// Not a blocker. Log the error and proceed.
 	}
 
-	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
 func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, protectedAccessToken string) error {
@@ -553,6 +553,11 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			(*keycloakUserProfile.Attributes)[login.URLAttributeName] = []string{*updateURL}
 		}
 
+		updatedEmailPrivate := ctx.Payload.Data.Attributes.EmailPrivate
+		if updatedEmailPrivate != nil {
+			user.EmailPrivate = *updatedEmailPrivate
+		}
+
 		updatedCompany := ctx.Payload.Data.Attributes.Company
 		if updatedCompany != nil && *updatedCompany != user.Company {
 			user.Company = *updatedCompany
@@ -671,7 +676,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		// Let's not disrupt the response if there was an issue with updating WIT.
 	}
 
-	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
@@ -794,7 +799,7 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 		return ctx.ConditionalEntities(users, c.config.GetCacheControlUsers, func() error {
 			appUsers := make([]*app.UserData, len(users))
 			for i := range users {
-				appUser := ConvertToAppUser(ctx.RequestData, &users[i], &identities[i])
+				appUser := ConvertToAppUser(ctx.RequestData, &users[i], &identities[i], false)
 				appUsers[i] = appUser.Data
 			}
 			return ctx.OK(&app.UserArray{Data: appUsers})
@@ -892,7 +897,11 @@ func loadKeyCloakIdentity(appl application.Application, user account.User) (*acc
 }
 
 // ConvertToAppUser converts a complete Identity object into REST representation
-func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *account.Identity) *app.User {
+// if isAuthenticated is set to True, then the 'email' field is populated irrespective of whether
+// 'emailPrivate' = true/false.
+// if isAuthenticated is set of False, then the 'email' field is populated only if
+// 'emailPrivate' = false.
+func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *account.Identity, isAuthenticated bool) *app.User {
 	userID := user.ID.String()
 	identityID := identity.ID.String()
 	fullName := user.FullName
@@ -903,6 +912,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var bio string
 	var userURL string
 	var email string
+	var isEmailPrivate bool
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
@@ -915,7 +925,13 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		imageURL = user.ImageURL
 		bio = user.Bio
 		userURL = user.URL
+		isEmailPrivate = user.EmailPrivate
 		email = user.Email
+
+		if !isAuthenticated && isEmailPrivate {
+			email = ""
+		}
+
 		company = user.Company
 		contextInformation = user.ContextInformation
 		cluster = user.Cluster
@@ -935,6 +951,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				Username:              &userName,
 				FullName:              &fullName,
 				ImageURL:              &imageURL,
+				EmailPrivate:          &isEmailPrivate,
 				Bio:                   &bio,
 				URL:                   &userURL,
 				UserID:                &userID,

@@ -74,7 +74,9 @@ func (s *UsersControllerTestSuite) TestCreateRandomUser() {
 	s.T().Run("ok with defaults", func(t *testing.T) {
 		// given
 		user := s.createRandomUser("TestUpdateUserOK")
-		identity := s.createRandomIdentity(user, account.KeycloakIDP)
+		identity, err := testsupport.CreateTestUser(s.DB, &user)
+		require.NoError(s.T(), err)
+
 		//when
 		_, result := test.ShowUsersOK(t, nil, nil, s.controller, identity.ID.String(), nil, nil)
 		// then
@@ -95,8 +97,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("ok", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
-
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newEmail := "TestUpdateUserOK-" + uuid.NewV4().String() + "@email.com"
 			newFullName := "TestUpdateUserOK"
@@ -149,7 +151,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("add feature level", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newFeatureLevel := "beta"
 			secureService, secureController := s.SecuredController(identity)
@@ -167,7 +170,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("internal level allowed", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@redhat.com"))
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newFeatureLevel := "internal"
 			secureService, secureController := s.SecuredController(identity)
@@ -185,7 +189,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("change feature level", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOK", WithFeatureLevel("experimental"))
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newFeatureLevel := "beta"
 			secureService, secureController := s.SecuredController(identity)
@@ -204,7 +209,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("reset feature level", func(t *testing.T) {
 			t.Run("with released value", func(t *testing.T) {
 				user := s.createRandomUser("TestUpdateUserOK", WithFeatureLevel("experimental"))
-				identity := s.createRandomIdentity(user, account.KeycloakIDP)
+				identity, err := testsupport.CreateTestUser(s.DB, &user)
+				require.NoError(t, err)
 				// when
 				newFeatureLevel := "released"
 				secureService, secureController := s.SecuredController(identity)
@@ -219,7 +225,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			})
 			t.Run("with empty value", func(t *testing.T) {
 				user := s.createRandomUser("TestUpdateUserOK", WithFeatureLevel("experimental"))
-				identity := s.createRandomIdentity(user, account.KeycloakIDP)
+				identity, err := testsupport.CreateTestUser(s.DB, &user)
+				require.NoError(t, err)
 				// when
 				newFeatureLevel := ""
 				secureService, secureController := s.SecuredController(identity)
@@ -237,7 +244,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("username multiple times ok", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("OK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			newUsername := identity.Username // new username = old userame
 			secureService, secureController := s.SecuredController(identity)
 			contextInformation := map[string]interface{}{
@@ -258,7 +266,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("registration completed ok", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("OK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			secureService, secureController := s.SecuredController(identity)
 			contextInformation := map[string]interface{}{
 				"last_visited": "yesterday",
@@ -278,7 +287,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("registration completed bad request", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("OKRegCompleted")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			secureService, secureController := s.SecuredController(identity)
 			contextInformation := map[string]interface{}{
 				"last_visited": "yesterday",
@@ -300,7 +310,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			// In this test case, we send both registrationCompleted=True and an updated username
 			// as part of HTTP PATCH.
 			user := s.createRandomUser("OKRegCompleted")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			secureService, secureController := s.SecuredController(identity)
 			contextInformation := map[string]interface{}{
 				"last_visited": "yesterday",
@@ -322,7 +333,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("spaces in name", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("OK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newEmail := "updated-" + uuid.NewV4().String() + "@email.com"
 
@@ -381,7 +393,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("unset variable in context information", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserUnsetVariableInContextInfo")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newEmail := "TestUpdateUserUnsetVariableInContextInfo-" + uuid.NewV4().String() + "@email.com"
 			newFullName := "TestUpdateUserUnsetVariableInContextInfo"
@@ -449,7 +462,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("without context info", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOKWithoutContextInfo")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newEmail := "TestUpdateUserOKWithoutContextInfo-" + uuid.NewV4().String() + "@email.com"
 			newFullName := "TestUpdateUserOKWithoutContextInfo"
@@ -469,7 +483,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("patch content info", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestPatchUserContextInformation")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			secureService, secureController := s.SecuredController(identity)
 
@@ -517,6 +532,56 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			assert.True(t, ok)
 			assert.Equal(t, patchedContextInformation["count"], int(countValue))
 		})
+
+		t.Run("hide email address", func(t *testing.T) {
+			// given user1
+			user1 := s.createRandomUser("TestListUsersOK1")
+			identity, err := testsupport.CreateTestUser(s.DB, &user1)
+			require.NoError(s.T(), err)
+
+			secureService, secureController := s.SecuredController(identity)
+
+			// when
+			email := user1.Email
+
+			// by default, email is public.
+			_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
+			returnedUser := result.Data[0].Attributes
+			require.Equal(s.T(), email, *returnedUser.Email)
+			require.False(s.T(), *returnedUser.EmailPrivate)
+
+			// check for /api/users/<ID>
+			// should show public email when not made private.
+			_, singleResult := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+			returnedUser = singleResult.Data.Attributes
+			require.Equal(s.T(), email, *returnedUser.Email)
+			require.False(s.T(), *returnedUser.EmailPrivate)
+
+			contextInformation := map[string]interface{}{
+				"last_visited": "yesterday",
+				"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+				"rate":         100.00,
+				"count":        3,
+			}
+			updateUsersPayload := newUpdateUsersPayload(WithUpdatedContextInformation(contextInformation), WithUpdatedEmailPrivate(true))
+			_, updateResult := test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+
+			// Email will be visible to the one who it belongs to
+			require.True(s.T(), *updateResult.Data.Attributes.EmailPrivate)
+			require.Equal(s.T(), user1.Email, *updateResult.Data.Attributes.Email)
+
+			// But when you try to access the same with an API which doesn't respect auth,
+			// it wouldn't be visible.
+			_, result = test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
+			returnedUserResult := result.Data[0]
+			require.Equal(s.T(), "", *returnedUserResult.Attributes.Email)
+
+			// the /api/users/<ID> endpoint should hide out the email.
+			_, showUserResponse := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+			require.NotEqual(s.T(), user1.Email, *showUserResponse.Data.Attributes.Email)
+			require.Equal(s.T(), "", *showUserResponse.Data.Attributes.Email)
+			require.True(s.T(), *showUserResponse.Data.Attributes.EmailPrivate)
+		})
 	})
 
 	s.T().Run("bad request", func(t *testing.T) {
@@ -524,7 +589,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("invalid email address", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOKWithoutContextInfo")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when
 			newEmail := " "
 			newFullName := "TestUpdateUserOKWithoutContextInfo"
@@ -546,7 +612,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("invalid username", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOKWithoutContextInfo")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			contextInformation := map[string]interface{}{
 				"last_visited": "yesterday",
 				"count":        3,
@@ -565,9 +632,11 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("existing username", func(t *testing.T) {
 			// create 2 users.
 			user := s.createRandomUser("OK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			user2 := s.createRandomUser("OK2")
-			identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+			identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+			require.NoError(t, err)
 
 			// try updating using the username of an existing ( just created ) user.
 			secureService, secureController := s.SecuredController(identity2)
@@ -586,9 +655,10 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("existing email", func(t *testing.T) {
 			// create 2 users.
 			user := s.createRandomUser("OK")
-			s.createRandomIdentity(user, account.KeycloakIDP)
+			_, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			user2 := s.createRandomUser("OK2")
-			identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+			identity2, err := testsupport.CreateTestUser(s.DB, &user2)
 			// try updating using the email of an existing ( just created ) user.
 			secureService, secureController := s.SecuredController(identity2)
 			contextInformation := map[string]interface{}{
@@ -607,7 +677,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 		t.Run("username multiple times forbidden", func(t *testing.T) {
 			user := s.createRandomUser("OK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			newUsername := identity.Username + uuid.NewV4().String()
 			secureService, secureController := s.SecuredController(identity)
 			contextInformation := map[string]interface{}{
@@ -640,7 +711,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		t.Run("internal level for non-employee", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@foo.com"))
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
 			// when/then
 			newFeatureLevel := "internal"
 			secureService, secureController := s.SecuredController(identity)
@@ -652,7 +724,8 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 	s.T().Run("unauthorized", func(t *testing.T) {
 		// given
 		user := s.createRandomUser("TestUpdateUserUnauthorized")
-		s.createRandomIdentity(user, account.KeycloakIDP)
+		_, err := testsupport.CreateTestUser(s.DB, &user)
+		require.NoError(t, err)
 		newEmail := "TestUpdateUserUnauthorized-" + uuid.NewV4().String() + "@email.com"
 		newFullName := "TestUpdateUserUnauthorized"
 		newImageURL := "http://new.image.io/imageurl"
@@ -680,7 +753,9 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 func (s *UsersControllerTestSuite) TestShowUserOK() {
 	// given user
 	user := s.createRandomUser("TestShowUserOK")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when
 	res, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
 	// then
@@ -691,7 +766,9 @@ func (s *UsersControllerTestSuite) TestShowUserOK() {
 func (s *UsersControllerTestSuite) TestShowUserOKUsingExpiredIfModifedSinceHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserOKUsingExpiredIfModifedSinceHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when
 	ifModifiedSince := app.ToHTTPTime(user.UpdatedAt.Add(-1 * time.Hour))
 	res, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), &ifModifiedSince, nil)
@@ -703,7 +780,9 @@ func (s *UsersControllerTestSuite) TestShowUserOKUsingExpiredIfModifedSinceHeade
 func (s *UsersControllerTestSuite) TestShowUserOKUsingExpiredIfNoneMatchHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserOKUsingExpiredIfNoneMatchHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when
 	ifNoneMatch := "foo"
 	res, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, &ifNoneMatch)
@@ -715,7 +794,9 @@ func (s *UsersControllerTestSuite) TestShowUserOKUsingExpiredIfNoneMatchHeader()
 func (s *UsersControllerTestSuite) TestShowUserNotModifiedUsingIfModifedSinceHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserNotModifiedUsingIfModifedSinceHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	ifModifiedSince := app.ToHTTPTime(user.UpdatedAt.UTC())
 	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), &ifModifiedSince, nil)
@@ -724,7 +805,9 @@ func (s *UsersControllerTestSuite) TestShowUserNotModifiedUsingIfModifedSinceHea
 func (s *UsersControllerTestSuite) TestShowUserNotModifiedUsingIfNoneMatchHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserNotModifiedUsingIfNoneMatchHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	ifNoneMatch := app.GenerateEntityTag(user)
 	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), nil, &ifNoneMatch)
@@ -733,7 +816,9 @@ func (s *UsersControllerTestSuite) TestShowUserNotModifiedUsingIfNoneMatchHeader
 func (s *UsersControllerTestSuite) TestShowUserNotFound() {
 	// given user
 	user := s.createRandomUser("TestShowUserNotFound")
-	s.createRandomIdentity(user, account.KeycloakIDP)
+	_, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	test.ShowUsersNotFound(s.T(), nil, nil, s.controller, uuid.NewV4().String(), nil, nil)
 }
@@ -741,7 +826,9 @@ func (s *UsersControllerTestSuite) TestShowUserNotFound() {
 func (s *UsersControllerTestSuite) TestShowUserBadRequest() {
 	// given user
 	user := s.createRandomUser("TestShowUserBadRequest")
-	s.createRandomIdentity(user, account.KeycloakIDP)
+	_, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	test.ShowUsersBadRequest(s.T(), nil, nil, s.controller, "invaliduuid", nil, nil)
 }
@@ -749,11 +836,14 @@ func (s *UsersControllerTestSuite) TestShowUserBadRequest() {
 func (s *UsersControllerTestSuite) TestListUsersOK() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity1 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, account.KeycloakIDP)
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity1.Username, nil, nil)
 	// then
@@ -768,10 +858,18 @@ func (s *UsersControllerTestSuite) TestListUsersOK() {
 // to respond to the query if data some data is invalid.
 func (s *UsersControllerTestSuite) TestListUsersWithMissingKeycloakIdentityOK() {
 	// given user1
-	s.createRandomUser("TestListUsersOK1")
+	user1 := s.createRandomUser("TestListUsersOK1")
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
+	identity1.ProviderType = ""
+	err = s.Application.Identities().Save(context.Background(), &identity1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
 	// when
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity2.Username, nil, nil)
 	// then
@@ -782,11 +880,14 @@ func (s *UsersControllerTestSuite) TestListUsersWithMissingKeycloakIdentityOK() 
 func (s *UsersControllerTestSuite) TestListUsersOKUsingExpiredIfModifiedSinceHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOKUsingExpiredIfModifiedSinceHeader")
-	identity1 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, account.KeycloakIDP)
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOKUsingExpiredIfModifiedSinceHeader2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	ifModifiedSinceHeader := app.ToHTTPTime(user2.UpdatedAt.Add(-1 * time.Hour))
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity1.Username, &ifModifiedSinceHeader, nil)
@@ -801,11 +902,14 @@ func (s *UsersControllerTestSuite) TestListUsersOKUsingExpiredIfModifiedSinceHea
 func (s *UsersControllerTestSuite) TestListUsersOKUsingExpiredIfNoneMatchHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOKUsingExpiredIfNoneMatchHeader")
-	identity1 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOKUsingExpiredIfNoneMatchHeader2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	ifNoneMatch := "foo"
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity1.Username, nil, &ifNoneMatch)
@@ -821,11 +925,14 @@ func (s *UsersControllerTestSuite) TestListUsersOKUsingExpiredIfNoneMatchHeader(
 func (s *UsersControllerTestSuite) TestListUsersNotModifiedUsingIfModifiedSinceHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersNotModifiedUsingIfModifiedSinceHeader")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersNotModifiedUsingIfModifiedSinceHeader2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	ifModifiedSinceHeader := app.ToHTTPTime(user2.UpdatedAt)
 	res := test.ListUsersNotModified(s.T(), nil, nil, s.controller, nil, nil, &ifModifiedSinceHeader, nil)
@@ -836,11 +943,17 @@ func (s *UsersControllerTestSuite) TestListUsersNotModifiedUsingIfModifiedSinceH
 func (s *UsersControllerTestSuite) TestListUsersByUsernameOK() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity11 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
-	// given user2
+	identity11, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
+	user3 := s.createRandomUser("TestListUsersOK3")
+	_, err = testsupport.CreateTestUser(s.DB, &user3)
+	require.NoError(s.T(), err)
+
 	// when
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity11.Username, nil, nil)
 	// then
@@ -854,11 +967,14 @@ func (s *UsersControllerTestSuite) TestListUsersByUsernameOK() {
 func (s *UsersControllerTestSuite) TestListUsersByUsernameOKEmptyResult() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	username := "foobar"
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &username, nil, nil)
@@ -869,11 +985,14 @@ func (s *UsersControllerTestSuite) TestListUsersByUsernameOKEmptyResult() {
 func (s *UsersControllerTestSuite) TestListUsersByUsernameNotModifiedUsingIfNoneMatchHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity11 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	identity11, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	_, filteredUsers := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity11.Username, nil, nil)
 	// when/then
 	ifNoneMatch := s.generateUsersTag(*filteredUsers)
@@ -886,12 +1005,14 @@ func (s *UsersControllerTestSuite) TestListUsersByUsernameNotModifiedUsingIfNone
 func (s *UsersControllerTestSuite) TestListUsersByEmailOK() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity11 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	_ = s.createRandomIdentity(user1, "xyz-idp")
+	identity11, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
 
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, nil)
 	// then
@@ -907,11 +1028,14 @@ func (s *UsersControllerTestSuite) TestListUsersByEmailOK() {
 func (s *UsersControllerTestSuite) TestListUsersByEmailOKEmptyResult() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "xyz-idp")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	email := "foo@bar.com"
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
@@ -920,13 +1044,17 @@ func (s *UsersControllerTestSuite) TestListUsersByEmailOKEmptyResult() {
 }
 
 func (s *UsersControllerTestSuite) TestListUsersByEmailNotModifiedUsingIfNoneMatchHeader() {
+
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "xyz-idp")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	_, filteredUsers := test.ListUsersOK(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, nil)
 	// when
 	ifNoneMatch := s.generateUsersTag(*filteredUsers)
@@ -952,33 +1080,18 @@ func WithEmailAddress(email string) CreateUserOption {
 
 func (s *UsersControllerTestSuite) createRandomUser(fullname string, options ...CreateUserOption) account.User {
 	user := account.User{
-		Email:    uuid.NewV4().String() + "primaryForUpdat7e@example.com",
-		FullName: fullname,
-		ImageURL: "someURLForUpdate",
-		ID:       uuid.NewV4(),
-		Company:  uuid.NewV4().String() + "company",
-		Cluster:  "My OSO cluster url",
+		Email:        uuid.NewV4().String() + "primaryForUpdat7e@example.com",
+		FullName:     fullname,
+		ImageURL:     "someURLForUpdate",
+		ID:           uuid.NewV4(),
+		Company:      uuid.NewV4().String() + "company",
+		Cluster:      "My OSO cluster url",
+		EmailPrivate: false, // being explicit
 	}
 	for _, option := range options {
 		option(&user)
 	}
-
-	err := s.userRepo.Create(context.Background(), &user)
-	require.Nil(s.T(), err)
 	return user
-}
-func (s *UsersControllerTestSuite) createRandomIdentity(user account.User, providerType string) account.Identity {
-	profile := "foobarforupdate.com/" + uuid.NewV4().String() + "/" + user.ID.String()
-	identity := account.Identity{
-		Username:     "TestUpdateUserIntegration123" + uuid.NewV4().String(),
-		ProviderType: providerType,
-		ProfileURL:   &profile,
-		User:         user,
-		UserID:       account.NullUUID{UUID: user.ID, Valid: true},
-	}
-	err := s.identityRepo.Create(context.Background(), &identity)
-	require.Nil(s.T(), err)
-	return identity
 }
 
 func findUser(id uuid.UUID, userData []*app.UserData) *app.UserData {
@@ -1029,7 +1142,11 @@ func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, e
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	assert.Equal(t, expectedUser.FullName, *actual.Attributes.FullName)
 	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
-	assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	if !*actual.Attributes.EmailPrivate {
+		assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	} else {
+		assert.Equal(t, "", *actual.Attributes.Email)
+	}
 	assert.Equal(t, expectedUser.ID.String(), *actual.Attributes.UserID)
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.Attributes.IdentityID)
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
@@ -1105,6 +1222,12 @@ func WithUpdatedFeatureLevel(featureLevel string) UpdateUserOption {
 func WithUpdatedContextInformation(contextInformation map[string]interface{}) UpdateUserOption {
 	return func(attrs *app.UpdateIdentityDataAttributes) {
 		attrs.ContextInformation = contextInformation
+	}
+}
+
+func WithUpdatedEmailPrivate(emailPrivate bool) UpdateUserOption {
+	return func(attrs *app.UpdateIdentityDataAttributes) {
+		attrs.EmailPrivate = &emailPrivate
 	}
 }
 
