@@ -2,7 +2,6 @@ package controller_test
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -13,11 +12,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	res "github.com/fabric8-services/fabric8-auth/authorization/resource"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -33,25 +33,21 @@ import (
 )
 
 type TestUserREST struct {
-	suite.Suite
-	config configuration.ConfigurationData
+	gormtestsupport.DBTestSuite
 }
 
 func TestRunUserREST(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
+	resource.Require(t, resource.Database)
 	suite.Run(t, &TestUserREST{})
 }
 
 func (rest *TestUserREST) SetupSuite() {
-	config, err := configuration.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
-	}
-	rest.config = *config
+	rest.DBTestSuite.SetupSuite()
+
 }
 
 func (rest *TestUserREST) newUserController(identity *account.Identity, user *account.User) *UserController {
-	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.TokenManager, &rest.config)
+	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.TokenManager, rest.Configuration)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingUUID() {
@@ -137,6 +133,27 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfNoneMatchHeader
 	rest.assertResponseHeaders(res, usr)
 }
 
+func (rest *TestUserREST) TestPrivateEmailVisibleIfNotPrivate() {
+	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
+	usr.EmailPrivate = false
+	_, err := testsupport.CreateTestUser(rest.DB, &usr)
+	require.NoError(rest.T(), err)
+	_, returnedUser := test.ShowUserOK(rest.T(), ctx, nil, userCtrl, nil, nil)
+	require.NotNil(rest.T(), returnedUser)
+	require.Equal(rest.T(), usr.Email, *returnedUser.Data.Attributes.Email)
+}
+
+func (rest *TestUserREST) TestPrivateEmailVisibleIfPrivate() {
+	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
+	usr.EmailPrivate = true
+	_, err := testsupport.CreateTestUser(rest.DB, &usr)
+	require.NoError(rest.T(), err)
+	_, returnedUser := test.ShowUserOK(rest.T(), ctx, nil, userCtrl, nil, nil)
+	require.NotNil(rest.T(), returnedUser)
+	require.NotEqual(rest.T(), "", *returnedUser.Data.Attributes.Email)
+	require.Equal(rest.T(), usr.Email, *returnedUser.Data.Attributes.Email)
+}
+
 func (rest *TestUserREST) initTestCurrentAuthorized() (context.Context, app.UserController, account.User, account.Identity) {
 	jwtToken := token.New(token.SigningMethodRS256)
 	jwtToken.Claims.(token.MapClaims)["sub"] = uuid.NewV4().String()
@@ -149,7 +166,8 @@ func (rest *TestUserREST) initTestCurrentAuthorized() (context.Context, app.User
 		},
 		FullName: "TestCurrentAuthorizedOK User",
 		ImageURL: "someURL",
-		Email:    "email@domain.com",
+		Cluster:  "cluster",
+		Email:    uuid.NewV4().String() + "email@domain.com",
 	}
 	ident := account.Identity{ID: uuid.NewV4(), Username: "TestUser", ProviderType: account.KeycloakIDP, User: usr, UserID: account.NullUUID{UUID: usr.ID, Valid: true}}
 	userCtrl := rest.newUserController(&ident, &usr)
@@ -171,7 +189,7 @@ func (rest *TestUserREST) assertResponseHeaders(res http.ResponseWriter, usr acc
 	require.NotNil(rest.T(), res.Header()[app.LastModified])
 	assert.Equal(rest.T(), usr.UpdatedAt.Truncate(time.Second).UTC().Format(http.TimeFormat), res.Header()[app.LastModified][0])
 	require.NotNil(rest.T(), res.Header()[app.CacheControl])
-	assert.Equal(rest.T(), rest.config.GetCacheControlUser(), res.Header()[app.CacheControl][0])
+	assert.Equal(rest.T(), rest.Configuration.GetCacheControlUser(), res.Header()[app.CacheControl][0])
 	require.NotNil(rest.T(), res.Header()[app.ETag])
 	assert.Equal(rest.T(), app.GenerateEntityTag(usr), res.Header()[app.ETag][0])
 
