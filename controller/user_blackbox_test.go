@@ -390,7 +390,7 @@ func newGormTestBase(identity *account.Identity, user *account.User) *GormTestBa
 		UserRepository:     TestUserRepository{User: user}}
 }
 
-func (rest *TestUserREST) giveUser(fullname string) account.User {
+func (rest *TestUserREST) createRandomUser(fullname string) account.User {
 	user := account.User{
 		Email:    uuid.NewV4().String() + "primaryForUpdat7e@example.com",
 		FullName: fullname,
@@ -400,8 +400,6 @@ func (rest *TestUserREST) giveUser(fullname string) account.User {
 		Cluster:  "My OSO cluster url",
 	}
 
-	//err := rest.userRepo.Create(context.Background(), &user)
-	//require.Nil(rest.T(), err)
 	return user
 }
 
@@ -461,7 +459,7 @@ func createUpdateUserPayload(email, fullName, bio, imageURL, profileURL, company
 
 func (rest *TestUserREST) TestUpdateUserOK() {
 	// Create a user
-	user := rest.giveUser("TestUpdateUserOK")
+	user := rest.createRandomUser("TestUpdateUserOK")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 
@@ -517,7 +515,7 @@ func (rest *TestUserREST) TestUpdateUserOK() {
 
 func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesForbidden() {
 
-	user := rest.giveUser("OK")
+	user := rest.createRandomUser("OK")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 
@@ -548,7 +546,7 @@ func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesForbidden() {
 
 func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesOK() {
 
-	user := rest.giveUser("OK")
+	user := rest.createRandomUser("OK")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 
@@ -573,7 +571,7 @@ func (rest *TestUserREST) TestUpdateUserNameMulitpleTimesOK() {
 }
 
 func (rest *TestUserREST) TestUpdateRegistrationCompletedOK() {
-	user := rest.giveUser("OK")
+	user := rest.createRandomUser("OK")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 
@@ -597,7 +595,7 @@ func (rest *TestUserREST) TestUpdateRegistrationCompletedOK() {
 }
 
 func (rest *TestUserREST) TestUpdateRegistrationCompletedBadRequest() {
-	user := rest.giveUser("OKRegCompleted")
+	user := rest.createRandomUser("OKRegCompleted")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -625,7 +623,7 @@ func (rest *TestUserREST) TestUpdateRegistrationCompletedAndUsernameOK() {
 	// In this test case, we send both registrationCompleted=True and an updated username
 	// as part of HTTP PATCH.
 
-	user := rest.giveUser("OKRegCompleted")
+	user := rest.createRandomUser("OKRegCompleted")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -650,13 +648,13 @@ func (rest *TestUserREST) TestUpdateRegistrationCompletedAndUsernameOK() {
 
 func (rest *TestUserREST) TestUpdateExistingUsernameForbidden() {
 	// create 2 users.
-	user := rest.giveUser("OK")
+	user := rest.createRandomUser("OK")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
-	user2 := rest.giveUser("OK2")
+	user2 := rest.createRandomUser("OK2")
 	identity2, err := testsupport.CreateTestUser(rest.DB, &user2)
 	require.NoError(rest.T(), err)
 	_, result2 := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity2.ID.String(), nil, nil)
@@ -676,13 +674,13 @@ func (rest *TestUserREST) TestUpdateExistingUsernameForbidden() {
 
 func (rest *TestUserREST) TestUpdateExistingEmailForbidden() {
 	// create 2 users.
-	user := rest.giveUser("OK")
+	user := rest.createRandomUser("OK")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
 	assert.Equal(rest.T(), identity.ID.String(), *result.Data.ID)
 
-	user2 := rest.giveUser("OK2")
+	user2 := rest.createRandomUser("OK2")
 	identity2, err := testsupport.CreateTestUser(rest.DB, &user2)
 	require.NoError(rest.T(), err)
 	_, result2 := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity2.ID.String(), nil, nil)
@@ -703,7 +701,7 @@ func (rest *TestUserREST) TestUpdateExistingEmailForbidden() {
 func (rest *TestUserREST) TestUpdateUserVariableSpacesInNameOK() {
 
 	// given
-	user := rest.giveUser("OK")
+	user := rest.createRandomUser("OK")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -758,7 +756,7 @@ func (rest *TestUserREST) TestUpdateUserVariableSpacesInNameOK() {
 
 func (rest *TestUserREST) TestUpdateUserUnsetVariableInContextInfo() {
 	// given
-	user := rest.giveUser("TestUpdateUserUnsetVariableInContextInfo")
+	user := rest.createRandomUser("TestUpdateUserUnsetVariableInContextInfo")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -827,7 +825,7 @@ func (rest *TestUserREST) TestUpdateUserUnsetVariableInContextInfo() {
 
 func (rest *TestUserREST) TestUpdateUserOKWithoutContextInfo() {
 	// given
-	user := rest.giveUser("TestUpdateUserOKWithoutContextInfo")
+	user := rest.createRandomUser("TestUpdateUserOKWithoutContextInfo")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -852,7 +850,7 @@ func (rest *TestUserREST) TestUpdateUserOKWithoutContextInfo() {
 
 func (rest *TestUserREST) TestUpdateUserWithInvalidEmail() {
 	// given
-	user := rest.giveUser("TestUpdateUserOKWithoutContextInfo")
+	user := rest.createRandomUser("TestUpdateUserOKWithoutContextInfo")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -874,7 +872,7 @@ func (rest *TestUserREST) TestUpdateUserWithInvalidEmail() {
 
 func (rest *TestUserREST) TestUpdateUserWithInvalidUsername() {
 	// given
-	user := rest.giveUser("TestUpdateUserOKWithoutContextInfo")
+	user := rest.createRandomUser("TestUpdateUserOKWithoutContextInfo")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -895,7 +893,7 @@ func (rest *TestUserREST) TestUpdateUserWithInvalidUsername() {
 func (rest *TestUserREST) TestPatchUserContextInformation() {
 
 	// given
-	user := rest.giveUser("TestPatchUserContextInformation")
+	user := rest.createRandomUser("TestPatchUserContextInformation")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
@@ -951,7 +949,7 @@ func (rest *TestUserREST) TestPatchUserContextInformation() {
 
 func (rest *TestUserREST) TestUpdateUserUnauthorized() {
 	// given
-	user := rest.giveUser("TestUpdateUserUnauthorized")
+	user := rest.createRandomUser("TestUpdateUserUnauthorized")
 	identity, err := testsupport.CreateTestUser(rest.DB, &user)
 	require.NoError(rest.T(), err)
 	_, result := test.ShowUsersOK(rest.T(), nil, nil, rest.usersController, identity.ID.String(), nil, nil)
