@@ -35,6 +35,8 @@ func (m Message) String() string {
 	return fmt.Sprintf("id:%v type:%v by:%v for:%v", m.MessageID, m.MessageType, m.UserID, m.TargetID)
 }
 
+// NewUserEmailUpdated is a helper constructor which returns a Message with contents of the notification
+// that would be sent out.
 func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
@@ -58,36 +60,39 @@ type ServiceConfiguration interface {
 
 // Service is a simple client Channel to the fabric8-notification service
 type Service struct {
-	config ServiceConfiguration
+	notificationURL *url.URL
 }
 
-func validateConfig(config ServiceConfiguration) error {
-	_, err := url.Parse(config.GetNotificationServiceURL())
+func validateConfig(config ServiceConfiguration) (*url.URL, error) {
+	notificationURL, err := url.Parse(config.GetNotificationServiceURL())
 	if err != nil {
-		return fmt.Errorf("Invalid NotificationServiceURL %v cause %v", config.GetNotificationServiceURL(), err.Error())
+		return nil, fmt.Errorf("Invalid NotificationServiceURL %v cause %v", config.GetNotificationServiceURL(), err.Error())
 	}
-	return nil
+	return notificationURL, nil
 }
 
 // NewServiceChannel sends notification messages to the fabric8-notification service
 func NewServiceChannel(config ServiceConfiguration) (Channel, error) {
-	err := validateConfig(config)
+	notificationURL, err := validateConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return &Service{config: config}, nil
+	return &Service{notificationURL: notificationURL}, nil
 }
 
 // Send invokes the fabric8-notification API
 func (s *Service) Send(ctx context.Context, msg Message) {
 	go func(ctx context.Context, msg Message) {
 
-		u, err := url.Parse(s.config.GetNotificationServiceURL())
-		if err != nil {
+		u := s.notificationURL
+		if u == nil {
 			log.Error(ctx, map[string]interface{}{
-				"url": s.config.GetNotificationServiceURL(),
-				"err": err,
-			}, "unable to parse GetNotificationServiceURL")
+				"custom":     msg.Custom,
+				"message_id": msg.MessageID,
+				"type":       msg.MessageType,
+				"target_id":  msg.TargetID,
+			}, "notification url could not be consumed")
+			return
 		}
 
 		cl := client.New(goaclient.HTTPClientDoer(http.DefaultClient))
