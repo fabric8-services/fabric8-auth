@@ -9,6 +9,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/notification/client"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	goaclient "github.com/goadesign/goa/client"
@@ -41,6 +42,14 @@ func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
 		MessageType: "user.email.update",
 		TargetID:    userID,
 		Custom:      custom,
+	}
+}
+
+func setCurrentIdentity(ctx context.Context, msg *Message) {
+	currentUserIdentityID, err := login.ContextIdentity(ctx)
+	if err != nil {
+		uID := currentUserIdentityID.String()
+		msg.UserID = &uID
 	}
 }
 
@@ -80,6 +89,7 @@ func NewServiceChannel(config ServiceConfiguration) (Channel, error) {
 // Send invokes the fabric8-notification API
 func (s *Service) Send(ctx context.Context, msg Message) {
 	go func(ctx context.Context, msg Message) {
+		setCurrentIdentity(ctx, &msg)
 
 		u, err := url.Parse(s.config.GetNotificationServiceURL())
 		if err != nil {
