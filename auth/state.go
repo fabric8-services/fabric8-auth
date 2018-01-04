@@ -50,7 +50,7 @@ func (r OauthStateReference) Equal(u convert.Equaler) bool {
 // OauthStateReferenceRepository encapsulate storage & retrieval of state references
 type OauthStateReferenceRepository interface {
 	Create(ctx context.Context, state *OauthStateReference) (*OauthStateReference, error)
-	Delete(ctx context.Context, state string) error
+	Delete(ctx context.Context, state *OauthStateReference) error
 	Load(ctx context.Context, state string) (*OauthStateReference, error)
 }
 
@@ -64,36 +64,25 @@ type GormOauthStateReferenceRepository struct {
 	db *gorm.DB
 }
 
-// Delete deletes the reference with the given id
+// Delete deletes the reference with the given state
 // returns NotFoundError or InternalError
-func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, state string) error {
-	if &state == nil {
-		log.Error(ctx, map[string]interface{}{
-			"oauth_state_reference_state": state,
-		}, "unable to find the oauth state reference by state")
-		return errors.NewNotFoundError("oauth state reference", state)
-	}
+func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, reference *OauthStateReference) error {
 
-	reference, err := r.Load(ctx, state)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-		}, "Could not find oauth state reference by state")
-		return errors.NewNotFoundError("oauth state reference", state)
-	}
 	tx := r.db.Delete(reference)
 
 	if err := tx.Error; err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"oauth_state_reference_state": state,
+			"oauth_state_reference_id":    reference.ID,
+			"oauth_state_reference_state": reference.State,
 		}, "unable to delete the oauth state reference")
 		return errors.NewInternalError(ctx, err)
 	}
 	if tx.RowsAffected == 0 {
 		log.Error(ctx, map[string]interface{}{
-			"oauth state reference": state,
+			"oauth_state_reference_id": reference.ID,
+			"oauth state reference":    reference.State,
 		}, "none row was affected by the deletion operation")
-		return errors.NewNotFoundError("oauth state reference", state)
+		return errors.NewNotFoundError("oauth state reference", reference.State)
 	}
 
 	return nil
@@ -102,7 +91,7 @@ func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, state st
 // Create creates a new oauth state reference in the DB
 // returns InternalError
 func (r *GormOauthStateReferenceRepository) Create(ctx context.Context, reference *OauthStateReference) (*OauthStateReference, error) {
-	if &reference.ID == nil {
+	if reference.ID == uuid.Nil {
 		reference.ID = uuid.NewV4()
 	}
 

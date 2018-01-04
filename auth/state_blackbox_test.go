@@ -42,7 +42,7 @@ func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	_, err = s.repo.Create(s.Ctx, state2)
 	require.Nil(s.T(), err, "Could not create state reference")
 	// when
-	err = s.repo.Delete(s.Ctx, state.State)
+	err = s.repo.Delete(s.Ctx, state)
 	// then
 	assert.Nil(s.T(), err)
 	_, err = s.repo.Load(s.Ctx, state.State)

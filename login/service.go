@@ -146,7 +146,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 }
 
 // AuthCodeURL is used in authorize action of /api/authorize to get authorization_code
-func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, stateID *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
@@ -169,10 +169,10 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect
 		return nil, err
 	}
 
-	err = keycloak.saveReferrer(ctx, *stateID, *redirect, validRedirectURL)
+	err = keycloak.saveReferrer(ctx, *state, *redirect, validRedirectURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"state":    stateID,
+			"state":    state,
 			"referrer": referrer,
 			"redirect": redirect,
 			"err":      err,
@@ -180,7 +180,7 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect
 		return nil, err
 	}
 
-	redirectTo := config.AuthCodeURL(*stateID, oauth2.AccessTypeOnline)
+	redirectTo := config.AuthCodeURL(*state, oauth2.AccessTypeOnline)
 
 	return &redirectTo, err
 }

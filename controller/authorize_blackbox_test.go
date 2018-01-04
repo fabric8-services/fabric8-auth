@@ -49,6 +49,9 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	state := uuid.NewV4().String()
 
 	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
+
+	state = "not-uuid"
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
