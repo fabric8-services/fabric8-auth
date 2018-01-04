@@ -74,7 +74,8 @@ func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identi
 func (s *TestUsersSuite) TestEmailVerifiedOK() {
 	// given
 	user := s.createRandomUser("TestVerifyEmailOK")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
 	test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
 
 	// when
@@ -113,7 +114,8 @@ func (s *TestUsersSuite) TestEmailVerifiedOK() {
 func (s *TestUsersSuite) TestVerifyEmailFail() {
 	// given
 	user := s.createRandomUser("TestVerifyEmailFail")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
 
 	secureService, secureController := s.SecuredController(identity)
 	rw := test.VerifyEmailUsersTemporaryRedirect(s.T(), secureService.Context, secureService, secureController, "ABCD")
