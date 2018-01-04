@@ -81,7 +81,7 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 					c.InitTenant(ctx)
 				}(ctx)
 			}
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 		})
 	})
 }
@@ -298,7 +298,7 @@ func (c *UserController) Update(ctx *app.UpdateUserContext) error {
 		// Let's not disrupt the response if there was an issue with updating WIT.
 	}
 
-	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity))
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
 func mergeKeycloakUserProfileInfo(keycloakUserProfile *login.KeycloakUserProfile, existingProfile *login.KeycloakUserProfileResponse) *login.KeycloakUserProfile {

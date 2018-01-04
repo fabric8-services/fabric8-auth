@@ -69,7 +69,9 @@ func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identi
 func (s *TestUsersSuite) TestShowUserOK() {
 	// given user
 	user := s.createRandomUser("TestShowUserOK")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when
 	res, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
 	// then
@@ -80,7 +82,9 @@ func (s *TestUsersSuite) TestShowUserOK() {
 func (s *TestUsersSuite) TestShowUserOKUsingExpiredIfModifedSinceHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserOKUsingExpiredIfModifedSinceHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when
 	ifModifiedSince := app.ToHTTPTime(user.UpdatedAt.Add(-1 * time.Hour))
 	res, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), &ifModifiedSince, nil)
@@ -92,7 +96,9 @@ func (s *TestUsersSuite) TestShowUserOKUsingExpiredIfModifedSinceHeader() {
 func (s *TestUsersSuite) TestShowUserOKUsingExpiredIfNoneMatchHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserOKUsingExpiredIfNoneMatchHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when
 	ifNoneMatch := "foo"
 	res, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, &ifNoneMatch)
@@ -104,7 +110,9 @@ func (s *TestUsersSuite) TestShowUserOKUsingExpiredIfNoneMatchHeader() {
 func (s *TestUsersSuite) TestShowUserNotModifiedUsingIfModifedSinceHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserNotModifiedUsingIfModifedSinceHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	ifModifiedSince := app.ToHTTPTime(user.UpdatedAt.UTC())
 	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), &ifModifiedSince, nil)
@@ -113,7 +121,9 @@ func (s *TestUsersSuite) TestShowUserNotModifiedUsingIfModifedSinceHeader() {
 func (s *TestUsersSuite) TestShowUserNotModifiedUsingIfNoneMatchHeader() {
 	// given user
 	user := s.createRandomUser("TestShowUserNotModifiedUsingIfNoneMatchHeader")
-	identity := s.createRandomIdentity(user, account.KeycloakIDP)
+	identity, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	ifNoneMatch := app.GenerateEntityTag(user)
 	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), nil, &ifNoneMatch)
@@ -122,7 +132,9 @@ func (s *TestUsersSuite) TestShowUserNotModifiedUsingIfNoneMatchHeader() {
 func (s *TestUsersSuite) TestShowUserNotFound() {
 	// given user
 	user := s.createRandomUser("TestShowUserNotFound")
-	s.createRandomIdentity(user, account.KeycloakIDP)
+	_, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	test.ShowUsersNotFound(s.T(), nil, nil, s.controller, uuid.NewV4().String(), nil, nil)
 }
@@ -130,7 +142,9 @@ func (s *TestUsersSuite) TestShowUserNotFound() {
 func (s *TestUsersSuite) TestShowUserBadRequest() {
 	// given user
 	user := s.createRandomUser("TestShowUserBadRequest")
-	s.createRandomIdentity(user, account.KeycloakIDP)
+	_, err := testsupport.CreateTestUser(s.DB, &user)
+	require.NoError(s.T(), err)
+
 	// when/then
 	test.ShowUsersBadRequest(s.T(), nil, nil, s.controller, "invaliduuid", nil, nil)
 }
@@ -138,11 +152,14 @@ func (s *TestUsersSuite) TestShowUserBadRequest() {
 func (s *TestUsersSuite) TestListUsersOK() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity1 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, account.KeycloakIDP)
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity1.Username, nil, nil)
 	// then
@@ -157,10 +174,18 @@ func (s *TestUsersSuite) TestListUsersOK() {
 // to respond to the query if data some data is invalid.
 func (s *TestUsersSuite) TestListUsersWithMissingKeycloakIdentityOK() {
 	// given user1
-	s.createRandomUser("TestListUsersOK1")
+	user1 := s.createRandomUser("TestListUsersOK1")
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
+	identity1.ProviderType = ""
+	err = s.Application.Identities().Save(context.Background(), &identity1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
 	// when
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity2.Username, nil, nil)
 	// then
@@ -171,11 +196,14 @@ func (s *TestUsersSuite) TestListUsersWithMissingKeycloakIdentityOK() {
 func (s *TestUsersSuite) TestListUsersOKUsingExpiredIfModifiedSinceHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOKUsingExpiredIfModifiedSinceHeader")
-	identity1 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, account.KeycloakIDP)
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOKUsingExpiredIfModifiedSinceHeader2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	ifModifiedSinceHeader := app.ToHTTPTime(user2.UpdatedAt.Add(-1 * time.Hour))
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity1.Username, &ifModifiedSinceHeader, nil)
@@ -190,11 +218,14 @@ func (s *TestUsersSuite) TestListUsersOKUsingExpiredIfModifiedSinceHeader() {
 func (s *TestUsersSuite) TestListUsersOKUsingExpiredIfNoneMatchHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOKUsingExpiredIfNoneMatchHeader")
-	identity1 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	identity1, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOKUsingExpiredIfNoneMatchHeader2")
-	identity2 := s.createRandomIdentity(user2, account.KeycloakIDP)
+	identity2, err := testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	ifNoneMatch := "foo"
 	res, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity1.Username, nil, &ifNoneMatch)
@@ -210,11 +241,14 @@ func (s *TestUsersSuite) TestListUsersOKUsingExpiredIfNoneMatchHeader() {
 func (s *TestUsersSuite) TestListUsersNotModifiedUsingIfModifiedSinceHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersNotModifiedUsingIfModifiedSinceHeader")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersNotModifiedUsingIfModifiedSinceHeader2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	ifModifiedSinceHeader := app.ToHTTPTime(user2.UpdatedAt)
 	res := test.ListUsersNotModified(s.T(), nil, nil, s.controller, nil, nil, &ifModifiedSinceHeader, nil)
@@ -223,13 +257,19 @@ func (s *TestUsersSuite) TestListUsersNotModifiedUsingIfModifiedSinceHeader() {
 }
 
 func (s *TestUsersSuite) TestListUsersByUsernameOK() {
-	// given user1
+	// given 3 users
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity11 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
-	// given user2
+	identity11, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
+	user3 := s.createRandomUser("TestListUsersOK3")
+	_, err = testsupport.CreateTestUser(s.DB, &user3)
+	require.NoError(s.T(), err)
+
 	// when
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity11.Username, nil, nil)
 	// then
@@ -243,11 +283,14 @@ func (s *TestUsersSuite) TestListUsersByUsernameOK() {
 func (s *TestUsersSuite) TestListUsersByUsernameOKEmptyResult() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	username := "foobar"
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &username, nil, nil)
@@ -258,11 +301,14 @@ func (s *TestUsersSuite) TestListUsersByUsernameOKEmptyResult() {
 func (s *TestUsersSuite) TestListUsersByUsernameNotModifiedUsingIfNoneMatchHeader() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity11 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "github-test")
+	identity11, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	_, filteredUsers := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity11.Username, nil, nil)
 	// when/then
 	ifNoneMatch := s.generateUsersTag(*filteredUsers)
@@ -275,12 +321,14 @@ func (s *TestUsersSuite) TestListUsersByUsernameNotModifiedUsingIfNoneMatchHeade
 func (s *TestUsersSuite) TestListUsersByEmailOK() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	identity11 := s.createRandomIdentity(user1, account.KeycloakIDP)
-	_ = s.createRandomIdentity(user1, "xyz-idp")
+	identity11, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
 
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, nil)
 	// then
@@ -296,11 +344,14 @@ func (s *TestUsersSuite) TestListUsersByEmailOK() {
 func (s *TestUsersSuite) TestListUsersByEmailOKEmptyResult() {
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "xyz-idp")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	// when
 	email := "foo@bar.com"
 	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
@@ -308,14 +359,72 @@ func (s *TestUsersSuite) TestListUsersByEmailOKEmptyResult() {
 	require.Len(s.T(), result.Data, 0)
 }
 
-func (s *TestUsersSuite) TestListUsersByEmailNotModifiedUsingIfNoneMatchHeader() {
+func (s *TestUsersSuite) TestHideEmailOK() {
+	boolTrue := true
+
 	// given user1
 	user1 := s.createRandomUser("TestListUsersOK1")
-	s.createRandomIdentity(user1, account.KeycloakIDP)
-	s.createRandomIdentity(user1, "xyz-idp")
+	identity, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
+	secureService, secureController := s.SecuredController(identity)
+
+	// when
+	email := user1.Email
+
+	// by default, email is public.
+	_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
+	returnedUser := result.Data[0].Attributes
+	require.Equal(s.T(), email, *returnedUser.Email)
+	require.False(s.T(), *returnedUser.EmailPrivate)
+
+	// check for /api/users/<ID>
+	// should show public email when not made private.
+	_, singleResult := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+	returnedUser = singleResult.Data.Attributes
+	require.Equal(s.T(), email, *returnedUser.Email)
+	require.False(s.T(), *returnedUser.EmailPrivate)
+
+	contextInformation := map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+	updateUsersPayload := createUpdateUsersPayload(nil, nil, nil, nil, nil, nil, nil, nil, contextInformation)
+	updateUsersPayload.Data.Attributes.EmailPrivate = &boolTrue
+	_, updateResult := test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+
+	// Email will be visible to the one who it belongs to
+	require.True(s.T(), *updateResult.Data.Attributes.EmailPrivate)
+	require.Equal(s.T(), user1.Email, *updateResult.Data.Attributes.Email)
+
+	// But when you try to access the same with an API which doesn't respect auth,
+	// it wouldn't be visible.
+	_, result = test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
+	returnedUserResult := result.Data[0]
+	require.Equal(s.T(), "", *returnedUserResult.Attributes.Email)
+
+	// the /api/users/<ID> endpoint should hide out the email.
+	_, showUserResponse := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+	require.NotEqual(s.T(), user1.Email, *showUserResponse.Data.Attributes.Email)
+	require.Equal(s.T(), "", *showUserResponse.Data.Attributes.Email)
+	require.True(s.T(), *showUserResponse.Data.Attributes.EmailPrivate)
+
+}
+
+func (s *TestUsersSuite) TestListUsersByEmailNotModifiedUsingIfNoneMatchHeader() {
+
+	// given user1
+	user1 := s.createRandomUser("TestListUsersOK1")
+	_, err := testsupport.CreateTestUser(s.DB, &user1)
+	require.NoError(s.T(), err)
+
 	// given user2
 	user2 := s.createRandomUser("TestListUsersOK2")
-	s.createRandomIdentity(user2, account.KeycloakIDP)
+	_, err = testsupport.CreateTestUser(s.DB, &user2)
+	require.NoError(s.T(), err)
+
 	_, filteredUsers := test.ListUsersOK(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, nil)
 	// when
 	ifNoneMatch := s.generateUsersTag(*filteredUsers)
@@ -326,29 +435,15 @@ func (s *TestUsersSuite) TestListUsersByEmailNotModifiedUsingIfNoneMatchHeader()
 
 func (s *TestUsersSuite) createRandomUser(fullname string) account.User {
 	user := account.User{
-		Email:    uuid.NewV4().String() + "primaryForUpdat7e@example.com",
-		FullName: fullname,
-		ImageURL: "someURLForUpdate",
-		ID:       uuid.NewV4(),
-		Company:  uuid.NewV4().String() + "company",
-		Cluster:  "My OSO cluster url",
+		Email:        uuid.NewV4().String() + "primaryForUpdat7e@example.com",
+		FullName:     fullname,
+		ImageURL:     "someURLForUpdate",
+		ID:           uuid.NewV4(),
+		Company:      uuid.NewV4().String() + "company",
+		Cluster:      "My OSO cluster url",
+		EmailPrivate: false, // being explicit
 	}
-	err := s.userRepo.Create(context.Background(), &user)
-	require.Nil(s.T(), err)
 	return user
-}
-func (s *TestUsersSuite) createRandomIdentity(user account.User, providerType string) account.Identity {
-	profile := "foobarforupdate.com/" + uuid.NewV4().String() + "/" + user.ID.String()
-	identity := account.Identity{
-		Username:     "TestUpdateUserIntegration123" + uuid.NewV4().String(),
-		ProviderType: providerType,
-		ProfileURL:   &profile,
-		User:         user,
-		UserID:       account.NullUUID{UUID: user.ID, Valid: true},
-	}
-	err := s.identityRepo.Create(context.Background(), &identity)
-	require.Nil(s.T(), err)
-	return identity
 }
 
 func findUser(id uuid.UUID, userData []*app.UserData) *app.UserData {
@@ -399,7 +494,11 @@ func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, e
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	assert.Equal(t, expectedUser.FullName, *actual.Attributes.FullName)
 	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
-	assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	if !*actual.Attributes.EmailPrivate {
+		assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
+	} else {
+		assert.Equal(t, "", *actual.Attributes.Email)
+	}
 	assert.Equal(t, expectedUser.ID.String(), *actual.Attributes.UserID)
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.Attributes.IdentityID)
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
