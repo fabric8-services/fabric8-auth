@@ -88,6 +88,7 @@ const (
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
 	varWITURL                               = "wit.url"
+	varInternalUsersEmailAddressSuffix      = "internal.users.email.address.domain"
 
 	varTenantServiceURL = "tenant.serviceurl"
 
@@ -413,6 +414,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Keycloak Tests are disabled by default
 	c.v.SetDefault(varKeycloakTestsDisabled, true)
+
+	// default email address suffix
+	c.v.SetDefault(varInternalUsersEmailAddressSuffix, "@redhat.com")
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -882,6 +886,11 @@ func (c *ConfigurationData) GetValidRedirectURLs() string {
 		return devModeValidRedirectURLs
 	}
 	return DefaultValidRedirectURLs
+}
+
+// GetInternalUsersEmailAddressSuffix returns the email address suffix of employees who can opt-in for the 'internal' features.
+func (c *ConfigurationData) GetInternalUsersEmailAddressSuffix() string {
+	return c.v.GetString(varInternalUsersEmailAddressSuffix)
 }
 
 const (

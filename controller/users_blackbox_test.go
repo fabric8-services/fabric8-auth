@@ -234,38 +234,6 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			})
 		})
 
-		t.Run("username multiple times forbidden", func(t *testing.T) {
-			user := s.createRandomUser("OK")
-			identity := s.createRandomIdentity(user, account.KeycloakIDP)
-			newUsername := identity.Username + uuid.NewV4().String()
-			secureService, secureController := s.SecuredController(identity)
-			contextInformation := map[string]interface{}{
-				"last_visited": "yesterday",
-			}
-
-			// you can update username multiple times.
-			// also omit registrationCompleted
-			updateUsersPayload := newUpdateUsersPayload(
-				WithUpdatedUsername(newUsername),
-				WithUpdatedContextInformation(contextInformation))
-
-			test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
-
-			updateUsersPayload = newUpdateUsersPayload(
-				WithUpdatedUsername(newUsername),
-				WithRegistrationCompleted(true),
-				WithUpdatedContextInformation(contextInformation))
-
-			test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
-
-			// next attempt should fail.
-			newUsername = identity.Username + uuid.NewV4().String()
-			updateUsersPayload = newUpdateUsersPayload(
-				WithUpdatedUsername(newUsername),
-				WithUpdatedContextInformation(contextInformation))
-			test.UpdateUsersForbidden(t, secureService.Context, secureService, secureController, updateUsersPayload)
-		})
-
 		t.Run("username multiple times ok", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("OK")
@@ -633,7 +601,43 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			test.UpdateUsersBadRequest(t, secureService.Context, secureService, secureController, updateUsersPayload)
 		})
 
-		t.Run("internal level for non RH employee", func(t *testing.T) {
+	})
+
+	s.T().Run("forbidden", func(t *testing.T) {
+
+		t.Run("username multiple times forbidden", func(t *testing.T) {
+			user := s.createRandomUser("OK")
+			identity := s.createRandomIdentity(user, account.KeycloakIDP)
+			newUsername := identity.Username + uuid.NewV4().String()
+			secureService, secureController := s.SecuredController(identity)
+			contextInformation := map[string]interface{}{
+				"last_visited": "yesterday",
+			}
+
+			// you can update username multiple times.
+			// also omit registrationCompleted
+			updateUsersPayload := newUpdateUsersPayload(
+				WithUpdatedUsername(newUsername),
+				WithUpdatedContextInformation(contextInformation))
+
+			test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
+
+			updateUsersPayload = newUpdateUsersPayload(
+				WithUpdatedUsername(newUsername),
+				WithRegistrationCompleted(true),
+				WithUpdatedContextInformation(contextInformation))
+
+			test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
+
+			// next attempt should fail.
+			newUsername = identity.Username + uuid.NewV4().String()
+			updateUsersPayload = newUpdateUsersPayload(
+				WithUpdatedUsername(newUsername),
+				WithUpdatedContextInformation(contextInformation))
+			test.UpdateUsersForbidden(t, secureService.Context, secureService, secureController, updateUsersPayload)
+		})
+
+		t.Run("internal level for non-employee", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@foo.com"))
 			identity := s.createRandomIdentity(user, account.KeycloakIDP)
@@ -641,7 +645,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			newFeatureLevel := "internal"
 			secureService, secureController := s.SecuredController(identity)
 			updateUsersPayload := newUpdateUsersPayload(WithUpdatedFeatureLevel(newFeatureLevel))
-			test.UpdateUsersBadRequest(t, secureService.Context, secureService, secureController, updateUsersPayload)
+			test.UpdateUsersForbidden(t, secureService.Context, secureService, secureController, updateUsersPayload)
 		})
 	})
 
