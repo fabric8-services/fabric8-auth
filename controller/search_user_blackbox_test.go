@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -138,6 +139,49 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 	})
 	require.Nil(s.T(), err)
 	return idents
+}
+
+func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
+	randomName := uuid.NewV4().String()
+	user := account.User{
+		EmailPrivate: true,
+		FullName:     randomName,
+		ImageURL:     "http://example.org/" + randomName + ".png",
+		Email:        uuid.NewV4().String(),
+		Cluster:      "default Cluster",
+	}
+
+	_, err := testsupport.CreateTestUser(s.DB, &user)
+	require.Nil(s.T(), err)
+
+	offset := "0"
+	pageLimit := 1
+	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+
+	for _, result := range results.Data {
+		require.Equal(s.T(), "", *result.Attributes.Email)
+	}
+}
+
+func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
+	randomName := uuid.NewV4().String()
+	user := account.User{
+		EmailPrivate: false,
+		FullName:     randomName,
+		ImageURL:     "http://example.org/" + randomName + ".png",
+		Email:        uuid.NewV4().String(),
+		Cluster:      "default Cluster",
+	}
+	_, err := testsupport.CreateTestUser(s.DB, &user)
+	require.Nil(s.T(), err)
+
+	offset := "0"
+	pageLimit := 1
+	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+
+	for _, result := range results.Data {
+		require.NotEmpty(s.T(), *result.Attributes.Email)
+	}
 }
 
 func (s *TestSearchUserSearch) cleanTestData(idents []account.Identity) {

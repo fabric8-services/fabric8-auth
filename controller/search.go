@@ -81,22 +81,29 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		ident := result[i]
 		id := ident.ID.String()
 		userID := ident.User.ID.String()
+
+		email := ident.User.Email
+		if ident.User.EmailPrivate {
+			email = ""
+		}
+
 		users = append(users, &app.UserData{
 			// FIXME : should be "users" in the long term
 			Type: "identities",
 			ID:   &id,
 			Attributes: &app.UserDataAttributes{
-				CreatedAt:  &ident.User.CreatedAt,
-				UpdatedAt:  &ident.User.UpdatedAt,
-				Username:   &ident.Username,
-				FullName:   &ident.User.FullName,
-				ImageURL:   &ident.User.ImageURL,
-				Bio:        &ident.User.Bio,
-				URL:        &ident.User.URL,
-				UserID:     &userID,
-				IdentityID: &id,
-				Email:      &ident.User.Email,
-				Company:    &ident.User.Company,
+				CreatedAt:    &ident.User.CreatedAt,
+				UpdatedAt:    &ident.User.UpdatedAt,
+				Username:     &ident.Username,
+				FullName:     &ident.User.FullName,
+				ImageURL:     &ident.User.ImageURL,
+				Bio:          &ident.User.Bio,
+				URL:          &ident.User.URL,
+				UserID:       &userID,
+				IdentityID:   &id,
+				Email:        &email,
+				EmailPrivate: &ident.User.EmailPrivate,
+				Company:      &ident.User.Company,
 			},
 		})
 	}
