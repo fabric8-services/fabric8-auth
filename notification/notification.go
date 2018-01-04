@@ -49,7 +49,7 @@ type DevNullChannel struct{}
 // Send NO-OP
 func (d *DevNullChannel) Send(context.Context, Message) {}
 
-// ServiceConfiguration holds configuration options required to interact authh the fabric8-notification API
+// ServiceConfiguration holds configuration options required to interact with the fabric8-notification API
 type ServiceConfiguration interface {
 	GetNotificationServiceURL() string
 }
