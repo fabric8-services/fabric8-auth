@@ -208,6 +208,11 @@ func (c *UserController) Update(ctx *app.UpdateUserContext) error {
 			(*keycloakUserProfile.Attributes)[login.URLAttributeName] = []string{*updateURL}
 		}
 
+		updatedEmailPrivate := ctx.Payload.Data.Attributes.EmailPrivate
+		if updatedEmailPrivate != nil {
+			user.EmailPrivate = *updatedEmailPrivate
+		}
+
 		updatedCompany := ctx.Payload.Data.Attributes.Company
 		if updatedCompany != nil && *updatedCompany != user.Company {
 			user.Company = *updatedCompany

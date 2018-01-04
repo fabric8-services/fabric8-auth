@@ -158,6 +158,27 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfNoneMatchHeader
 	rest.assertResponseHeaders(res, usr)
 }
 
+func (rest *TestUserREST) TestPrivateEmailVisibleIfNotPrivate() {
+	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
+	usr.EmailPrivate = false
+	_, err := testsupport.CreateTestUser(rest.DB, &usr)
+	require.NoError(rest.T(), err)
+	_, returnedUser := test.ShowUserOK(rest.T(), ctx, nil, userCtrl, nil, nil)
+	require.NotNil(rest.T(), returnedUser)
+	require.Equal(rest.T(), usr.Email, *returnedUser.Data.Attributes.Email)
+}
+
+func (rest *TestUserREST) TestPrivateEmailVisibleIfPrivate() {
+	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
+	usr.EmailPrivate = true
+	_, err := testsupport.CreateTestUser(rest.DB, &usr)
+	require.NoError(rest.T(), err)
+	_, returnedUser := test.ShowUserOK(rest.T(), ctx, nil, userCtrl, nil, nil)
+	require.NotNil(rest.T(), returnedUser)
+	require.NotEqual(rest.T(), "", *returnedUser.Data.Attributes.Email)
+	require.Equal(rest.T(), usr.Email, *returnedUser.Data.Attributes.Email)
+}
+
 func (rest *TestUserREST) initTestCurrentAuthorized() (context.Context, app.UserController, account.User, account.Identity) {
 	jwtToken := token.New(token.SigningMethodRS256)
 	jwtToken.Claims.(token.MapClaims)["sub"] = uuid.NewV4().String()
@@ -170,7 +191,8 @@ func (rest *TestUserREST) initTestCurrentAuthorized() (context.Context, app.User
 		},
 		FullName: "TestCurrentAuthorizedOK User",
 		ImageURL: "someURL",
-		Email:    "email@domain.com",
+		Cluster:  "cluster",
+		Email:    uuid.NewV4().String() + "email@domain.com",
 	}
 	ident := account.Identity{ID: uuid.NewV4(), Username: "TestUser", ProviderType: account.KeycloakIDP, User: usr, UserID: account.NullUUID{UUID: usr.ID, Valid: true}}
 	userCtrl := rest.newUserController(&ident, &usr)
@@ -398,7 +420,7 @@ func (rest *TestUserREST) createRandomIdentity(user account.User, providerType s
 }
 
 func (rest *TestUserREST) SecuredController(identity account.Identity) (*goa.Service, *UserController) {
-	svc := testsupport.ServiceAsUser("Users-Service", identity)
+	svc := testsupport.ServiceAsUser("User-Service", identity)
 	controller := NewUserController(rest.svc, rest.Application, nil, rest.userProfileService, rest.Configuration)
 	return svc, controller
 }

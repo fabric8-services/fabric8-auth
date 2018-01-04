@@ -60,6 +60,12 @@ func (s *TestUsersSuite) SecuredController(identity account.Identity) (*goa.Serv
 	return svc, controller
 }
 
+func (s *TestUsersSuite) SecuredUserController(identity account.Identity) (*goa.Service, *UserController) {
+	svc := testsupport.ServiceAsUser("User-Service", identity)
+	controller := NewUserController(s.svc, s.Application, nil, s.profileService, s.Configuration)
+	return svc, controller
+}
+
 func (s *TestUsersSuite) SecuredServiceAccountController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
@@ -367,7 +373,7 @@ func (s *TestUsersSuite) TestHideEmailOK() {
 	identity, err := testsupport.CreateTestUser(s.DB, &user1)
 	require.NoError(s.T(), err)
 
-	secureService, secureController := s.SecuredController(identity)
+	secureService, _ := s.SecuredController(identity)
 
 	// when
 	email := user1.Email
@@ -391,9 +397,10 @@ func (s *TestUsersSuite) TestHideEmailOK() {
 		"rate":         100.00,
 		"count":        3,
 	}
-	updateUsersPayload := createUpdateUsersPayload(nil, nil, nil, nil, nil, nil, nil, nil, contextInformation)
-	updateUsersPayload.Data.Attributes.EmailPrivate = &boolTrue
-	_, updateResult := test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+	updateUserPayload := createUpdateUserPayload(nil, nil, nil, nil, nil, nil, nil, nil, contextInformation)
+	updateUserPayload.Data.Attributes.EmailPrivate = &boolTrue
+	secureUserService, secureUserController := s.SecuredUserController(identity)
+	_, updateResult := test.UpdateUserOK(s.T(), secureUserService.Context, secureUserService, secureUserController, updateUserPayload)
 
 	// Email will be visible to the one who it belongs to
 	require.True(s.T(), *updateResult.Data.Attributes.EmailPrivate)
