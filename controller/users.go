@@ -906,9 +906,9 @@ func loadKeyCloakIdentity(appl application.Application, user account.User) (*acc
 
 // ConvertToAppUser converts a complete Identity object into REST representation
 // if isAuthenticated is set to True, then the 'email' field is populated irrespective of whether
-// 'email_private' = true/false.
+// 'emailPrivate' = true/false.
 // if isAuthenticated is set of False, then the 'email' field is populated only if
-// 'email_private' = false.
+// 'emailPrivate' = false.
 func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *account.Identity, isAuthenticated bool) *app.User {
 	userID := user.ID.String()
 	identityID := identity.ID.String()
