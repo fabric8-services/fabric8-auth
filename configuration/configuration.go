@@ -220,10 +220,11 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		msg := "no restrictions for valid redirect URLs"
 		c.appendDefaultConfigErrorMessage(&msg)
 	}
-	if c.GetNotificationServiceURL() == "" {
-		msg := "notification service url is empty"
-		c.appendDefaultConfigErrorMessage(&msg)
-	}
+	// TODO add this env var via Config Map first:
+	// if c.GetNotificationServiceURL() == "" {
+	// 	msg := "notification service url is empty"
+	// 	c.appendDefaultConfigErrorMessage(&msg)
+	// }
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
 			"default_configuration_error": c.defaultConfigurationError.Error(),
