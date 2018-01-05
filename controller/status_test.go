@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	expectedDefaultConfDevModeErrorMessage  = "Error: /etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; developer Mode is enabled; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used; no restrictions for valid redirect URLs; notification service url is empty"
-	expectedDefaultConfProdModeErrorMessage = "Error: /etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used; notification service url is empty"
+	expectedDefaultConfDevModeErrorMessage  = "Error: /etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; developer Mode is enabled; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used; no restrictions for valid redirect URLs"
+	expectedDefaultConfProdModeErrorMessage = "Error: /etc/fabric8/service-account-secrets.conf is not used; /etc/fabric8/oso-clusters.conf is not used; default service account private key is used; default service account private key ID is used; default DB password is used; default Keycloak client secret is used; default GitHub client secret is used"
 )
 
 type TestStatusREST struct {
