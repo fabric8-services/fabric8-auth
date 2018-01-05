@@ -88,6 +88,8 @@ const (
 	varLogJSON                              = "log.json"
 	varWITDomainPrefix                      = "wit.domain.prefix"
 	varWITURL                               = "wit.url"
+	varNotificationServiceURL               = "notification.serviceurl"
+	varEmailVerifiedRedirectURL             = "email.verify.url"
 	varInternalUsersEmailAddressSuffix      = "internal.users.email.address.domain"
 
 	varTenantServiceURL = "tenant.serviceurl"
@@ -219,6 +221,11 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		msg := "no restrictions for valid redirect URLs"
 		c.appendDefaultConfigErrorMessage(&msg)
 	}
+	// TODO add this env var via Config Map first:
+	// if c.GetNotificationServiceURL() == "" {
+	// 	msg := "notification service url is empty"
+	// 	c.appendDefaultConfigErrorMessage(&msg)
+	// }
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
 			"default_configuration_error": c.defaultConfigurationError.Error(),
@@ -415,8 +422,17 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Keycloak Tests are disabled by default
 	c.v.SetDefault(varKeycloakTestsDisabled, true)
 
+	// On email successful/failed verification, redirect to this page.
+	c.v.SetDefault(varEmailVerifiedRedirectURL, "https://prod-preview.openshift.io/_home")
+
 	// default email address suffix
 	c.v.SetDefault(varInternalUsersEmailAddressSuffix, "@redhat.com")
+}
+
+// GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
+// verification url
+func (c *ConfigurationData) GetEmailVerifiedRedirectURL() string {
+	return c.v.GetString(varEmailVerifiedRedirectURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable
@@ -667,6 +683,11 @@ func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (stri
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointUserInfo(req *goa.RequestData) (string, error) {
 	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointUserinfo, "userinfo")
+}
+
+// GetNotificationServiceURL returns the URL for the Notification service used for event notification
+func (c *ConfigurationData) GetNotificationServiceURL() string {
+	return c.v.GetString(varNotificationServiceURL)
 }
 
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint

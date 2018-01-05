@@ -15,6 +15,7 @@ type Application interface {
 	Users() account.UserRepository
 	OauthStates() auth.OauthStateReferenceRepository
 	ExternalTokens() provider.ExternalTokenRepository
+	VerificationCodes() account.VerificationCodeRepository
 	ResourceRepository() resource.ResourceRepository
 	ResourceTypeRepository() resource.ResourceTypeRepository
 }

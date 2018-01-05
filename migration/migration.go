@@ -147,7 +147,10 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("012-hide-email.sql")})
 
 	// version 13
-	m = append(m, steps{ExecuteSQLFile("013-add-user-feature-level.sql")})
+	m = append(m, steps{ExecuteSQLFile("013-add-email-verified.sql")})
+
+	// version 14
+	m = append(m, steps{ExecuteSQLFile("014-add-user-feature-level.sql")})
 
 	// Version N
 	//

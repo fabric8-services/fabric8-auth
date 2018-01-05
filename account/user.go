@@ -33,6 +33,7 @@ type User struct {
 	Company            string             // The (optional) Company of the User
 	FeatureLevel       *string            // the (optional) level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
 	Cluster            string             // The OpenShift cluster allocted to the user.
+	EmailVerified      bool               // The verification status of the updated email.
 	Identities         []Identity         // has many Identities from different IDPs
 	ContextInformation ContextInformation `sql:"type:jsonb"` // context information of the user activity
 }

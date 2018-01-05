@@ -114,6 +114,18 @@ var _ = a.Resource("user", func() {
 var _ = a.Resource("users", func() {
 	a.BasePath("/users")
 
+	a.Action("verifyEmail", func() {
+		a.Routing(
+			a.GET("/verifyemail"),
+		)
+		a.Params(func() {
+			a.Param("code", d.String, "code")
+			a.Required("code")
+		})
+		a.Description("Verify if the new email updated by the user is a valid email")
+		a.Response(d.TemporaryRedirect)
+	})
+
 	a.Action("show", func() {
 		a.Routing(
 			a.GET("/:id"),
@@ -203,6 +215,7 @@ var userDataAttributes = a.Type("UserDataAttributes", func() {
 	a.Attribute("username", d.String, "The username")
 	a.Attribute("registrationCompleted", d.Boolean, "Whether the registration has been completed")
 	a.Attribute("email", d.String, "The email")
+	a.Attribute("emailVerified", d.Boolean, "Whether the email is a verified one")
 	a.Attribute("emailPrivate", d.Boolean, "Whether the email address would be private.")
 	a.Attribute("bio", d.String, "The bio")
 	a.Attribute("url", d.String, "The url")
@@ -259,6 +272,7 @@ var createUserDataAttributes = a.Type("CreateIdentityDataAttributes", func() {
 	a.Attribute("emailVerified", d.Boolean, "Whether email is verified")
 	a.Attribute("enabled", d.Boolean, "Whether the user is enabled")
 	a.Attribute("rhd_username", d.String, "The associated Red Hat Developers account. If not set then username is used as the RHD username")
+	a.Attribute("rhd_user_id", d.String, "The Red Hat Developers User ID of the user")
 	a.Attribute("bio", d.String, "The bio")
 	a.Attribute("url", d.String, "The url")
 	a.Attribute("company", d.String, "The company")
@@ -268,5 +282,5 @@ var createUserDataAttributes = a.Type("CreateIdentityDataAttributes", func() {
 		a.Example(map[string]interface{}{"last_visited_url": "https://a.openshift.io", "space": "3d6dab8d-f204-42e8-ab29-cdb1c93130ad"})
 	})
 	// Based on the request from online-registration app.
-	a.Required("username", "email", "cluster")
+	a.Required("username", "email", "cluster", "rhd_user_id")
 })
