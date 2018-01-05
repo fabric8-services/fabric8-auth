@@ -12,6 +12,10 @@ ALTER TABLE resource_type DROP COLUMN description;
 ALTER TABLE resource_type_scope DROP COLUMN description;
 ALTER TABLE resource DROP COLUMN description;
 
+-- Add unique constraint to resource_type.name.  Adding a unique constraint 
+-- automatically creates an index to enforce that constraint.
+ALTER TABLE resource_type ADD UNIQUE (name);
+
 -- Create default resource type
 INSERT INTO resource_type (
     name,

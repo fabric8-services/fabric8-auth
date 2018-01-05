@@ -13,7 +13,6 @@ import (
 
 	"github.com/goadesign/goa"
 
-	"fmt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -138,8 +137,6 @@ func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
 	require.NotNil(rest.T(), created.ID)
 	require.EqualValues(rest.T(), *created.ID, resourceID)
 
-	fmt.Println("#### Created resource ID: ", created.ID)
-
 	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
 
 	require.EqualValues(rest.T(), payload.Name, readResource.Name)
@@ -162,13 +159,15 @@ func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated()
 
 	_, parentCreated := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
 
+	parentResourceID := *parentCreated.ID
+
 	require.NotNil(rest.T(), parentCreated)
 	require.NotNil(rest.T(), parentCreated.ID)
 
 	// Now we create the child resource
 	payload = &app.RegisterResourcePayload{
 		Name:             "My new child resource",
-		ParentResourceID: parentCreated.ID,
+		ParentResourceID: &parentResourceID,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),

@@ -24,6 +24,8 @@ type Resource struct {
 	ResourceID string `sql:"type:string" gorm:"primary_key" gorm:"column:resource_id"`
 	// The parent resource
 	ParentResource *Resource
+	// The parent resource ID
+	//ParentResourceID uuid.UUID
 	// The owning identity
 	Owner account.Identity
 	// The identifier for the owning identity
@@ -85,6 +87,11 @@ func (m *GormResourceRepository) Load(ctx context.Context, id string) (*Resource
 		return nil, errs.WithStack(errors.NewNotFoundError("resource", id))
 	}
 
+	err = m.db.Table(ResourceType{}.TableName()).Where("resource_type_id = ?", native.ResourceTypeID).Find(&native.ResourceType).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(errors.NewNotFoundError("resource_type", id))
+	}
+
 	return &native, errs.WithStack(err)
 }
 
@@ -126,7 +133,7 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 			log.Error(ctx, map[string]interface{}{
 				"resource_type": resource.ResourceType.Name,
 				"err":           err,
-			}, "unable to find or create the resource type")
+			}, "unable to find the resource type")
 			return errs.WithStack(err)
 		}
 		resource.ResourceTypeID = resourceType.ResourceTypeID
@@ -140,6 +147,7 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 		}, "unable to create the resource")
 		return errs.WithStack(err)
 	}
+
 	log.Info(ctx, map[string]interface{}{
 		"resource_id": resource.ResourceID,
 	}, "Resource created!")

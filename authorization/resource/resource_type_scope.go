@@ -108,7 +108,7 @@ func (m *GormResourceTypeScopeRepository) Load(ctx context.Context, id uuid.UUID
 func (m *GormResourceTypeScopeRepository) LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "load"}, time.Now())
 	var native []ResourceTypeScope
-	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("resource_type__id = ?", resourceTypeID).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("resource_type_id = ?", resourceTypeID).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		// If there are no records found then return an empty slice of the correct type
 		return []ResourceTypeScope{}, nil

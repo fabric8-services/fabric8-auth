@@ -36,7 +36,7 @@ func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
 func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 
 	if !token.IsServiceAccount(ctx) {
-		log.Error(ctx, map[string]interface{}{}, "Unable to register resource. Not a service account")
+		log.Error(ctx, map[string]interface{}{}, "Unable to read resource. Not a service account")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
 	}
 
@@ -50,7 +50,7 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
 
 		// Load the resource type scopes
-		scopes, error := appl.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
+		scopes, error = appl.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
 
 		return error
 	})
@@ -65,10 +65,10 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 		parentResourceID = &res.ParentResource.ResourceID
 	}
 
-	var scopeValues [len(scopes)]string
+	var scopeValues []string
 
 	for index, _ := range scopes {
-		scopeValues[index] = scopes[index].Name
+		scopeValues = append(scopeValues, scopes[index].Name)
 	}
 
 	return ctx.OK(&app.Resource{
@@ -102,7 +102,8 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		var parentResource *resource.Resource
 
 		if ctx.Payload.ParentResourceID != nil {
-			parentResource, err = appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
+			parentResourceID := *ctx.Payload.ParentResourceID
+			parentResource, err = appl.ResourceRepository().Load(ctx, parentResourceID)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err":                err,
@@ -112,6 +113,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 				return errors.NewBadParameterError("invalid parent resource ID specified", err)
 			}
 		}
+
 		// Extract the resource owner ID from the request
 		resourceOwnerID, err := uuid.FromString(ctx.Payload.ResourceOwnerID)
 		if err != nil {
@@ -144,6 +146,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		// Create the new resource instance
 		res = &resource.Resource{
 			ResourceID:     resourceID,
+			Name:           ctx.Payload.Name,
 			ParentResource: parentResource,
 			Owner:          *identity,
 			OwnerID:        identity.ID,

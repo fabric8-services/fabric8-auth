@@ -85,7 +85,7 @@ var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 		a.Attribute("type", d.String, "The type of resource")
 		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs")
 		a.Attribute("resource_id", d.String, "The identifier for this resource. If left blank, one will be generated")
-		a.Required("resource_owner_id", "resource_scopes", "name", "type")
+		a.Required("resource_owner_id", "name", "type")
 	})
 	a.View("default", func() {
 		a.Attribute("resource_scopes")
