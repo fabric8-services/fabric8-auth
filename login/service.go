@@ -68,7 +68,7 @@ type KeycloakOAuthService interface {
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
-	CreateOrUpdateIdentityAndUser(ctx context.Context, code string, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
+	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig LoginServiceConfiguration) (*string, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
@@ -121,7 +121,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 			return ctx.TemporaryRedirect()
 		}
 
-		redirectTo, err := keycloak.CreateOrUpdateIdentityAndUser(ctx, code, referrerURL, keycloakToken, ctx.RequestData, config, serviceConfig)
+		redirectTo, err := keycloak.CreateOrUpdateIdentityAndUser(ctx, referrerURL, keycloakToken, ctx.RequestData, serviceConfig)
 		if err != nil {
 			jsonapi.JSONErrorResponse(ctx, err)
 		}
@@ -206,16 +206,16 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, code string, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config LoginServiceConfiguration) (*string, error) {
 
-	witURL, err := serviceConfig.GetWITURL(request)
+	witURL, err := config.GetWITURL(request)
 	if err != nil {
 		return nil, autherrors.NewInternalError(ctx, err)
 	}
 
 	apiClient := referrerURL.Query().Get(apiClientParam)
 
-	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, serviceConfig)
+	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, config)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -239,19 +239,19 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 				return &redirectTo, nil
 			}
 
-			userNotApprovedRedirectURL := serviceConfig.GetNotApprovedRedirect()
+			userNotApprovedRedirectURL := config.GetNotApprovedRedirect()
 			if userNotApprovedRedirectURL != "" {
 				log.Debug(ctx, map[string]interface{}{
 					"user_not_approved_redirect_url": userNotApprovedRedirectURL,
 				}, "user not approved; redirecting to registration app")
-				return nil, autherrors.NewUnauthorizedError(err.Error())
+				return &userNotApprovedRedirectURL, nil
 			}
+			return nil, autherrors.NewUnauthorizedError(err.Error())
 		}
 		return nil, err
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"code":        code,
 		"referrerURL": referrerURL.String(),
 		"user_name":   identity.Username,
 	}, "local user created/updated")
@@ -290,7 +290,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		return &redirectTo, autherrors.NewInternalError(ctx, err)
 	}
 	log.Debug(ctx, map[string]interface{}{
-		"code":        code,
 		"referrerURL": referrerURL.String(),
 		"user_name":   identity.Username,
 	}, "token encoded")
