@@ -482,7 +482,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
 		})
 
-		t.Run("patch content info", func(t *testing.T) {
+		t.Run("patch context info", func(t *testing.T) {
 			// given
 			user := s.createRandomUser("TestPatchUserContextInformation")
 			identity, err := testsupport.CreateTestUser(s.DB, &user)
