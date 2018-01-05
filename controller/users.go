@@ -278,10 +278,11 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	// "username", "email", "cluster"
 
 	user = &account.User{
-		ID:           userID,
-		Email:        ctx.Payload.Data.Attributes.Email,
-		Cluster:      ctx.Payload.Data.Attributes.Cluster,
-		EmailPrivate: false,
+		ID:            userID,
+		Email:         ctx.Payload.Data.Attributes.Email,
+		Cluster:       ctx.Payload.Data.Attributes.Cluster,
+		EmailPrivate:  false,
+		EmailVerified: true,
 	}
 	identity = &account.Identity{
 		ID:           identityID,
