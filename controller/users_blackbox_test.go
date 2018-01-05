@@ -171,7 +171,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 		t.Run("internal level allowed", func(t *testing.T) {
 			// given
-			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@redhat.com"))
+			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@redhat.com"), WithEmailAddressVerified(true))
 			identity, err := testsupport.CreateTestUser(s.DB, &user)
 			require.NoError(t, err)
 			// when
@@ -712,7 +712,19 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 		t.Run("internal level for non-employee", func(t *testing.T) {
 			// given
-			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@foo.com"))
+			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress(fmt.Sprintf("%s@foo.com", uuid.NewV4())), WithEmailAddressVerified(true))
+			identity, err := testsupport.CreateTestUser(s.DB, &user)
+			require.NoError(t, err)
+			// when/then
+			newFeatureLevel := "internal"
+			secureService, secureController := s.SecuredController(identity)
+			updateUsersPayload := newUpdateUsersPayload(WithUpdatedFeatureLevel(newFeatureLevel))
+			test.UpdateUsersForbidden(t, secureService.Context, secureService, secureController, updateUsersPayload)
+		})
+
+		t.Run("internal level for non-verified employee", func(t *testing.T) {
+			// given
+			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress(fmt.Sprintf("%s@redhat.com", uuid.NewV4())), WithEmailAddressVerified(false))
 			identity, err := testsupport.CreateTestUser(s.DB, &user)
 			require.NoError(t, err)
 			// when/then
@@ -1130,6 +1142,12 @@ func WithFeatureLevel(level string) CreateUserOption {
 func WithEmailAddress(email string) CreateUserOption {
 	return func(user *account.User) {
 		user.Email = email
+	}
+}
+
+func WithEmailAddressVerified(verified bool) CreateUserOption {
+	return func(user *account.User) {
+		user.EmailVerified = verified
 	}
 }
 

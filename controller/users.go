@@ -616,8 +616,9 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 				user.FeatureLevel = nil
 			} else {
 				// if the level is 'internal', we need to check against the email address to verify that the user is a Red Hat employee
-				// TODO(xcoulon): also check the `EmailVerified` field before analyzing the email address
-				if *updatedFeatureLevel == "internal" && !strings.HasSuffix(user.Email, c.config.GetInternalUsersEmailAddressSuffix()) {
+				if *updatedFeatureLevel == "internal" &&
+					// do not allow if email is not verified or if email belongs to another domain
+					(!user.EmailVerified || !strings.HasSuffix(user.Email, c.config.GetInternalUsersEmailAddressSuffix())) {
 					log.Error(ctx, map[string]interface{}{"user_id": user.ID, "user_email": user.Email}, "user is not an employee")
 					return errors.NewForbiddenError("User is not allowed to opt-in for the 'internal' level of features.")
 				}
