@@ -166,6 +166,34 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
 
 }
 
+func (s *ProfileUserBlackBoxTest) TestCreateKeycloakUserWithDefaults() {
+
+	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
+	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
+	testEmail := "updatedEmail" + uuid.NewV4().String() + "@email.com"
+	testBio := "updatedBioNew" + uuid.NewV4().String()
+	testURL := "updatedURLNew" + uuid.NewV4().String()
+	testImageURL := "updatedBio" + uuid.NewV4().String()
+	testUserName := "sev1testsbosetestusercreate" + uuid.NewV4().String()
+
+	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+		login.ImageURLAttributeName: []string{testImageURL},
+		login.BioAttributeName:      []string{testBio},
+		login.URLAttributeName:      []string{testURL},
+	}
+
+	testKeycloakUserData := login.KeytcloakUserRequest{
+		Username:   &testUserName,
+		FirstName:  &testFirstName,
+		LastName:   &testLastName,
+		Email:      &testEmail,
+		Attributes: testKeycloakUserProfileAttributes,
+	}
+
+	s.createUser(&testKeycloakUserData)
+	// verified on keycloak
+}
+
 func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
 	// UPDATE the user profile
 

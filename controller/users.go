@@ -170,10 +170,10 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
-func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, protectedAccessToken string) error {
+func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
 	idpName := "rhd"
 	linkRequest := linkAPI.KeycloakLinkIDPRequest{
-		UserID:           &identityID,
+		UserID:           &rhdUserID,
 		Username:         &rhdUsername,
 		IdentityProvider: &idpName,
 	}
@@ -253,7 +253,8 @@ func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersConte
 
 	// Link only new accounts. Do not link already existing (and updated) ones
 	if created {
-		err = c.linkUserToRHD(ctx, identityID, rhdUserName(*ctx.Payload.Data.Attributes), protectedAccessToken)
+		rhdUserID := userAttributes.RhdUserID
+		err = c.linkUserToRHD(ctx, identityID, rhdUserName(*ctx.Payload.Data.Attributes), rhdUserID, protectedAccessToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":              err,
@@ -278,9 +279,11 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	// "username", "email", "cluster"
 
 	user = &account.User{
-		ID:      userID,
-		Email:   ctx.Payload.Data.Attributes.Email,
-		Cluster: ctx.Payload.Data.Attributes.Cluster,
+		ID:            userID,
+		Email:         ctx.Payload.Data.Attributes.Email,
+		Cluster:       ctx.Payload.Data.Attributes.Cluster,
+		EmailPrivate:  false,
+		EmailVerified: true,
 	}
 	identity = &account.Identity{
 		ID:           identityID,
