@@ -1240,7 +1240,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithAllFieldsOK() {
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	// when
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &rhdUserName, &user.Cluster, &identity.RegistrationCompleted, &approved, user.ContextInformation)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &rhdUserName, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, &approved, user.ContextInformation)
 
 	// then
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
@@ -1256,7 +1256,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails(
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, &user.Cluster, nil, nil, nil)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 
 	// First attempt should be OK
 	test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
@@ -1265,12 +1265,12 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails(
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 
 	newEmail := uuid.NewV4().String() + user.Email
-	payloadWithSameUsername := createCreateUsersAsServiceAccountPayload(&newEmail, nil, nil, nil, nil, nil, &identity.Username, nil, &user.Cluster, nil, nil, nil)
+	payloadWithSameUsername := createCreateUsersAsServiceAccountPayload(&newEmail, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 	// Another call with the same username should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameUsername)
 
 	newUsername := uuid.NewV4().String() + identity.Username
-	payloadWithSameEmail := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &newUsername, nil, &user.Cluster, nil, nil, nil)
+	payloadWithSameEmail := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &newUsername, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 	// Another call with the same email should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameEmail)
 }
@@ -1285,7 +1285,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithRequiredFieldsOnlyOK(
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, &user.Cluster, nil, nil, nil)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 
 	// With only required fields should be OK
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
@@ -1294,19 +1294,23 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithRequiredFieldsOnlyOK(
 
 func (s *TestUsersSuite) TestCreateUserAsServiceAccountWithMissingRequiredFieldsFails() {
 	user := testsupport.TestUser
-	identity := testsupport.TestIdentity
+	// identity := testsupport.TestIdentity
 	cluster := "some cluster"
 
 	// Missing username
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, nil, nil, &cluster, nil, nil, nil)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, nil, nil, user.ID.String(), &cluster, nil, nil, nil)
 	require.NotNil(s.T(), createUserPayload.Validate())
 
 	// Missing email
-	createUserPayload = createCreateUsersAsServiceAccountPayload(nil, nil, nil, nil, nil, nil, &identity.Username, nil, &cluster, nil, nil, nil)
+	createUserPayload = createCreateUsersAsServiceAccountPayload(nil, nil, nil, nil, nil, nil, nil, nil, user.ID.String(), &cluster, nil, nil, nil)
 	require.NotNil(s.T(), createUserPayload.Validate())
 
 	// Missing cluster
-	createUserPayload = createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, &identity.Username, nil, nil, nil, nil, nil)
+	createUserPayload = createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, nil, nil, user.ID.String(), nil, nil, nil, nil)
+	require.NotNil(s.T(), createUserPayload.Validate())
+
+	// Missing RHD user ID
+	createUserPayload = createCreateUsersAsServiceAccountPayload(&user.Email, nil, nil, nil, nil, nil, nil, nil, "", &cluster, nil, nil, nil)
 	require.NotNil(s.T(), createUserPayload.Validate())
 }
 
@@ -1318,7 +1322,7 @@ func (s *TestUsersSuite) TestCreateUserAsServiceAccountUnauthorized() {
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
 
 	// then
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 }
 
@@ -1330,7 +1334,7 @@ func (s *TestUsersSuite) TestCreateUserAsNonServiceAccountUnauthorized() {
 	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
 
 	// then
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 }
 
@@ -1340,17 +1344,18 @@ func (s *TestUsersSuite) TestCreateUserUnauthorized() {
 	identity := testsupport.TestIdentity
 
 	// then
-	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
+	createUserPayload := createCreateUsersAsServiceAccountPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, createUserPayload)
 }
 
-func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username, rhdUsername, cluster *string, registrationCompleted, approved *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {
+func createCreateUsersAsServiceAccountPayload(email, fullName, bio, imageURL, profileURL, company, username, rhdUsername *string, rhdUserID string, cluster *string, registrationCompleted, approved *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {
 	providerType := "SomeRandomType" // Should be ignored
 
 	attributes := app.CreateIdentityDataAttributes{
 		//UserID:                userID,
 		Approved:              approved,
 		RhdUsername:           rhdUsername,
+		RhdUserID:             rhdUserID,
 		FullName:              fullName,
 		Bio:                   bio,
 		ImageURL:              imageURL,
