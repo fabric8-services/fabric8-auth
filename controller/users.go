@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
@@ -29,11 +30,12 @@ import (
 // UsersController implements the users resource.
 type UsersController struct {
 	*goa.Controller
-	db                  application.DB
-	config              UsersControllerConfiguration
-	userProfileService  login.UserProfileService
-	RemoteWITService    wit.RemoteWITService
-	keycloakLinkService linkAPI.KeycloakIDPService
+	db                       application.DB
+	config                   UsersControllerConfiguration
+	userProfileService       login.UserProfileService
+	RemoteWITService         wit.RemoteWITService
+	EmailVerificationService email.EmailVerificationService
+	keycloakLinkService      linkAPI.KeycloakIDPService
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -47,6 +49,7 @@ type UsersControllerConfiguration interface {
 	GetKeycloakClientID() string
 	GetKeycloakSecret() string
 	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
+	GetEmailVerifiedRedirectURL() string
 }
 
 // NewUsersController creates a users controller.
@@ -441,6 +444,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	keycloakUserProfile.Attributes = &login.KeycloakUserProfileAttributes{}
 
 	var isKeycloakUserProfileUpdateNeeded bool
+	var isEmailVerificationNeeded bool
 	// prepare for updating keycloak user profile
 	tokenString := goajwt.ContextJWT(ctx).Raw
 	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
@@ -477,6 +481,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 			user.Email = *updatedEmail
 			isKeycloakUserProfileUpdateNeeded = true
+
+			isEmailVerificationNeeded = true
+			user.EmailVerified = false
+
 			keycloakUserProfile.Email = updatedEmail
 		}
 
@@ -604,6 +612,18 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			"err":         err,
 		}, "failed to update user/identity")
 		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	if isEmailVerificationNeeded {
+		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *user)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"identity_id": id.String(),
+				"err":         err,
+				"username":    identity.Username,
+				"email":       user.Email,
+			}, "failed to send verification email for update on email")
+		}
 	}
 
 	if isKeycloakUserProfileUpdateNeeded {
@@ -778,6 +798,23 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 	})
 }
 
+// VerifyEmail verifies a user's email when updated.
+func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
+	verifiedCode, err := c.EmailVerificationService.VerifyCode(ctx, ctx.Code)
+	var errResponse string
+	isVerified := "true"
+	if err != nil {
+		errResponse = err.Error()
+		isVerified = "false"
+	} else if verifiedCode == nil {
+		errResponse = "unable to verify code"
+		isVerified = "false"
+	}
+	redirectURL := fmt.Sprintf("%s?verified=%s&error=%s", c.config.GetEmailVerifiedRedirectURL(), isVerified, errResponse)
+	ctx.ResponseData.Header().Set("Location", redirectURL)
+	return ctx.TemporaryRedirect()
+}
+
 func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]account.User, []account.Identity, error) {
 	var err error
 	var resultUsers []account.User
@@ -888,6 +925,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var updatedAt time.Time
 	var company string
 	var cluster string
+	var emailVerified bool
 	var contextInformation map[string]interface{}
 
 	if user != nil {
@@ -908,6 +946,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
+		emailVerified = user.EmailVerified
 	}
 
 	converted := app.User{
@@ -929,6 +968,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				Email:                 &email,
 				Company:               &company,
 				Cluster:               &cluster,
+				EmailVerified:         &emailVerified,
 				ContextInformation:    make(map[string]interface{}),
 				RegistrationCompleted: &registrationCompleted,
 			},

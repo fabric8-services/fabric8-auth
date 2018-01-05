@@ -114,6 +114,18 @@ var _ = a.Resource("user", func() {
 var _ = a.Resource("users", func() {
 	a.BasePath("/users")
 
+	a.Action("verifyEmail", func() {
+		a.Routing(
+			a.GET("/verifyemail"),
+		)
+		a.Params(func() {
+			a.Param("code", d.String, "code")
+			a.Required("code")
+		})
+		a.Description("Verify if the new email updated by the user is a valid email")
+		a.Response(d.TemporaryRedirect)
+	})
+
 	a.Action("show", func() {
 		a.Routing(
 			a.GET("/:id"),
@@ -203,6 +215,7 @@ var userDataAttributes = a.Type("UserDataAttributes", func() {
 	a.Attribute("username", d.String, "The username")
 	a.Attribute("registrationCompleted", d.Boolean, "Whether the registration has been completed")
 	a.Attribute("email", d.String, "The email")
+	a.Attribute("emailVerified", d.Boolean, "Whether the email is a verified one")
 	a.Attribute("emailPrivate", d.Boolean, "Whether the email address would be private.")
 	a.Attribute("bio", d.String, "The bio")
 	a.Attribute("url", d.String, "The url")

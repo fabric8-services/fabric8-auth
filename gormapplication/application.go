@@ -84,6 +84,11 @@ func (g *GormBase) ExternalTokens() provider.ExternalTokenRepository {
 	return provider.NewExternalTokenRepository(g.db)
 }
 
+// VerificationCodes returns an VerificationCodes repository
+func (g *GormBase) VerificationCodes() account.VerificationCodeRepository {
+	return account.NewVerificationCodeRepository(g.db)
+}
+
 func (g *GormBase) ResourceRepository() resource.ResourceRepository {
 	return resource.NewResourceRepository(g.db)
 }

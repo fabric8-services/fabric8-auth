@@ -328,6 +328,10 @@ func (g *GormTestBase) ExternalTokens() provider.ExternalTokenRepository {
 	return nil
 }
 
+func (g *GormTestBase) VerificationCodes() account.VerificationCodeRepository {
+	return nil
+}
+
 func (g *GormTestBase) ResourceRepository() res.ResourceRepository {
 	return nil
 }
