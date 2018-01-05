@@ -184,7 +184,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
 
 	redirect, err := s.unapprovedUserRedirected()
 	require.Nil(s.T(), err)
-	require.Equal(s.T(), "https://xyz.io", redirect)
+	require.Equal(s.T(), "https://xyz.io", *redirect)
 }
 
 func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
@@ -195,7 +195,12 @@ func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
 		Request: &http.Request{Host: "auth.openshift.io"},
 	}
 
-	token := &oauth2.Token{AccessToken: "accessToken", RefreshToken: "refreshToken"}
+	claims := make(map[string]interface{})
+	claims["approved"] = false
+	tokenStr, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	token := &oauth2.Token{AccessToken: tokenStr, RefreshToken: tokenStr}
 	return s.loginService.CreateOrUpdateIdentityAndUser(context.Background(), redirect, token, req, s.Configuration)
 }
 
