@@ -447,7 +447,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 
-		_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, *payload.Code, redirectURL, keycloakToken, ctx.RequestData, oauth, c.Configuration)
+		_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
 
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
