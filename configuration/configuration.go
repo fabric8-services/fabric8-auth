@@ -90,6 +90,7 @@ const (
 	varWITURL                               = "wit.url"
 	varNotificationServiceURL               = "notification.serviceurl"
 	varEmailVerifiedRedirectURL             = "email.verify.url"
+	varInternalUsersEmailAddressSuffix      = "internal.users.email.address.domain"
 
 	varTenantServiceURL = "tenant.serviceurl"
 
@@ -422,6 +423,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// On email successful/failed verification, redirect to this page.
 	c.v.SetDefault(varEmailVerifiedRedirectURL, "https://prod-preview.openshift.io/_home")
+
+	// default email address suffix
+	c.v.SetDefault(varInternalUsersEmailAddressSuffix, "@redhat.com")
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -902,6 +906,11 @@ func (c *ConfigurationData) GetValidRedirectURLs() string {
 		return devModeValidRedirectURLs
 	}
 	return DefaultValidRedirectURLs
+}
+
+// GetInternalUsersEmailAddressSuffix returns the email address suffix of employees who can opt-in for the 'internal' features.
+func (c *ConfigurationData) GetInternalUsersEmailAddressSuffix() string {
+	return c.v.GetString(varInternalUsersEmailAddressSuffix)
 }
 
 const (
