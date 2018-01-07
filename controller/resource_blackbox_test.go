@@ -142,6 +142,23 @@ func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
 	require.EqualValues(rest.T(), payload.Name, readResource.Name)
 }
 
+func (rest *TestResourceREST) TestRegisterResourceWithInvalidResourceType() {
+	resourceID := uuid.NewV4().String()
+	resourceScopes := []string{}
+	resourceOwnerID := rest.testIdentity.ID
+
+	payload := &app.RegisterResourcePayload{
+		Name:             "My invalid resource",
+		ParentResourceID: nil,
+		ResourceScopes:   resourceScopes,
+		ResourceID:       &resourceID,
+		ResourceOwnerID:  resourceOwnerID.String(),
+		Type:             "invalid_type",
+	}
+
+	_, _ = test.RegisterResourceBadRequest(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+}
+
 func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated() {
 	resourceID := ""
 	resourceScopes := []string{}

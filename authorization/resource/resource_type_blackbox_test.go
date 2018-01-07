@@ -72,6 +72,16 @@ func (s *resourceTypeBlackBoxTest) TestExistsResourceType() {
 	})
 }
 
+func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
+	t := s.T()
+
+	t.Run("resource type exists", func(t *testing.T) {
+		_, err := s.repo.Lookup(s.Ctx, "openshift.io/resource/area")
+		// then
+		require.Nil(t, err)
+	})
+}
+
 func (s *resourceTypeBlackBoxTest) TestOKToSave() {
 	resourceType := createAndLoadResourceType(s)
 
