@@ -67,7 +67,7 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 
 	var scopeValues []string
 
-	for index, _ := range scopes {
+	for index := range scopes {
 		scopeValues = append(scopeValues, scopes[index].Name)
 	}
 
