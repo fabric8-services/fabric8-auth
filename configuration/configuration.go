@@ -326,6 +326,13 @@ func (c *ConfigurationData) DefaultConfigurationError() error {
 }
 
 // GetServiceAccounts returns a map of service account configurations by service account ID
+// Default Service Account names and secrets used in Dev mode:
+// "fabric8-wit" : "witsecret"
+// "fabric8-tenant : ["tenantsecretOld", "tenantsecretNew"]
+// "fabric8-jenkins-idler : "secret"
+// "fabric8-oso-proxy : "secret"
+// "online-registration : "secret"
+// "fabric8-notification : "secret"
 func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
