@@ -73,6 +73,10 @@ func (rest *TestResourceREST) TestFailRegisterResourceNonServiceAccount() {
 	}
 
 	test.RegisterResourceUnauthorized(rest.T(), service.Context, service, controller, payload)
+
+	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+
+	test.ReadResourceUnauthorized(rest.T(), service.Context, service, controller, *created.ID)
 }
 
 /*

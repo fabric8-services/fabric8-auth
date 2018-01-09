@@ -7,7 +7,6 @@ import (
 	//"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -38,7 +37,6 @@ func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
 		var types, errs = s.repo.List(s.Ctx)
 		require.Nil(t, errs)
 
-		fmt.Println("### number of resource types: ", len(types))
 		require.EqualValues(t, 1, len(types))
 	})
 }
