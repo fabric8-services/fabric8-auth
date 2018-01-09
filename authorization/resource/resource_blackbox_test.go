@@ -93,12 +93,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	err := s.identityRepo.Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
 
-	resourceType := &resource.ResourceType{
-		ResourceTypeID: uuid.NewV4(),
-		Name:           "resource_blackbox_test_Area" + uuid.NewV4().String(),
-	}
-
-	err = s.resourceTypeRepo.Create(s.Ctx, resourceType)
+	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resource := &resource.Resource{

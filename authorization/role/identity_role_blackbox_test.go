@@ -105,23 +105,8 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	err := s.identityRepo.Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
 
-	resourceType := &resource.ResourceType{
-		ResourceTypeID: uuid.NewV4(),
-		Name:           "identity_role_blackbox_test_Area" + uuid.NewV4().String(),
-	}
-
-	err = s.resourceTypeRepo.Create(s.Ctx, resourceType)
-	require.Nil(s.T(), err, "Could not create resource type")
-
-	resourceTypeScope := &resource.ResourceTypeScope{
-		ResourceTypeScopeID: uuid.NewV4(),
-		ResourceType:        *resourceType,
-		ResourceTypeID:      resourceType.ResourceTypeID,
-		Name:                "identity_role_blackbox_test_collaborate" + uuid.NewV4().String(),
-	}
-
-	err = s.resourceTypeScopeRepo.Create(s.Ctx, resourceTypeScope)
-	require.Nil(s.T(), err, "Could not create resource type scope")
+	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
+	require.Nil(s.T(), err, "Could not lookup resource type")
 
 	res := &resource.Resource{
 		ResourceID:     uuid.NewV4().String(),

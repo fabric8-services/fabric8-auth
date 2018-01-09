@@ -55,10 +55,7 @@ type ResourceTypeScopeRepository interface {
 	CheckExists(ctx context.Context, id string) (bool, error)
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
 	LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error)
-	Create(ctx context.Context, u *ResourceTypeScope) error
-	Save(ctx context.Context, u *ResourceTypeScope) error
 	List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error)
-	Delete(ctx context.Context, ID uuid.UUID) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
