@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/log"
 
 	"fmt"
 	"github.com/goadesign/goa"
@@ -60,6 +61,9 @@ func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
 
 	dbErr := c.dbChecker.Ping()
 	if dbErr != nil {
+		log.Error(ctx, map[string]interface{}{
+			"db_error": dbErr.Error(),
+		}, "database configuration error")
 		res.DatabaseStatus = fmt.Sprintf("Error: %s", dbErr.Error())
 	} else {
 		res.DatabaseStatus = "OK"
@@ -67,6 +71,9 @@ func (c *StatusController) Show(ctx *app.ShowStatusContext) error {
 
 	configErr := c.config.DefaultConfigurationError()
 	if configErr != nil {
+		log.Error(ctx, map[string]interface{}{
+			"config_error": configErr.Error(),
+		}, "configuration error")
 		res.ConfigurationStatus = fmt.Sprintf("Error: %s", configErr.Error())
 	} else {
 		res.ConfigurationStatus = "OK"
