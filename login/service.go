@@ -47,8 +47,8 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		Identities:       identities,
 		Users:            users,
 		TokenManager:     tokenManager,
-		db:               db,
-		remoteWITService: &wit.RemoteWITServiceCaller{},
+		DB:               db,
+		RemoteWITService: &wit.RemoteWITServiceCaller{},
 	}
 }
 
@@ -57,8 +57,8 @@ type KeycloakOAuthProvider struct {
 	Identities       account.IdentityRepository
 	Users            account.UserRepository
 	TokenManager     token.Manager
-	db               application.DB
-	remoteWITService wit.RemoteWITService
+	DB               application.DB
+	RemoteWITService wit.RemoteWITService
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
@@ -258,7 +258,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	// new user for WIT
 	if newUser {
-		err = keycloak.remoteWITService.CreateWITUser(ctx, request, identity, witURL, identity.ID.String())
+		err = keycloak.RemoteWITService.CreateWITUser(ctx, request, identity, witURL, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
@@ -558,7 +558,7 @@ func (keycloak *KeycloakOAuthProvider) linkProvider(ctx linkInterface, req *goa.
 }
 
 func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state uuid.UUID, referrer string, validReferrerURL string) error {
-	err := oauth.SaveReferrer(ctx, keycloak.db, state, referrer, validReferrerURL)
+	err := oauth.SaveReferrer(ctx, keycloak.DB, state, referrer, validReferrerURL)
 	if err != nil {
 		return err
 	}
@@ -566,7 +566,7 @@ func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state u
 }
 
 func (keycloak *KeycloakOAuthProvider) getReferrer(ctx context.Context, state string) (string, error) {
-	return oauth.LoadReferrer(ctx, keycloak.db, state)
+	return oauth.LoadReferrer(ctx, keycloak.DB, state)
 }
 
 func getProviderURL(req *goa.RequestData, state string, sessionState string, provider string, nextProvider *string, brokerEndpoint string, clientID string) (string, error) {
@@ -666,7 +666,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
 		}
 
-		err = application.Transactional(keycloak.db, func(appl application.Application) error {
+		err = application.Transactional(keycloak.DB, func(appl application.Application) error {
 			user := &identity.User
 			err := appl.Users().Create(ctx, user)
 			if err != nil {
@@ -714,7 +714,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			}, "unable to create user/identity")
 			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
 		} else if isChanged {
-			err = application.Transactional(keycloak.db, func(appl application.Application) error {
+			err = application.Transactional(keycloak.DB, func(appl application.Application) error {
 				err = appl.Users().Save(ctx, user)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{
@@ -760,7 +760,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 			},
 		},
 	}
-	return keycloak.remoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
+	return keycloak.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
 }
 
 func generateGravatarURL(email string) (string, error) {

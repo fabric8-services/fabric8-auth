@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"golang.org/x/oauth2"
