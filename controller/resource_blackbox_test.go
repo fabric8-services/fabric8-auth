@@ -195,6 +195,13 @@ func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated()
 
 	require.NotNil(rest.T(), childCreated)
 	require.NotNil(rest.T(), childCreated.ID)
+
+	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *childCreated.ID)
+
+	require.EqualValues(rest.T(), payload.Name, readResource.Name)
+	require.EqualValues(rest.T(), payload.Type, "openshift.io/resource/area")
+	require.EqualValues(rest.T(), payload.ParentResourceID, &parentResourceID)
+	require.EqualValues(rest.T(), payload.ResourceOwnerID, resourceOwnerID.String())
 }
 
 func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
