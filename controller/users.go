@@ -66,6 +66,12 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 
 // Show runs the show action.
 func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
+	isServiceAccount := token.IsSpecificServiceAccount(ctx, "fabric8-notification")
+	authenticatedRequest := false
+	if isServiceAccount {
+		authenticatedRequest = true
+	}
+
 	return application.Transactional(c.db, func(appl application.Application) error {
 		identityID, err := uuid.FromString(ctx.ID)
 		if err != nil {
@@ -85,7 +91,7 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			}
 		}
 		return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, false))
+			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, authenticatedRequest))
 		})
 	})
 }
