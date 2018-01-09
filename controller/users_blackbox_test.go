@@ -535,6 +535,60 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			assert.Equal(t, patchedContextInformation["count"], int(countValue))
 		})
 
+		t.Run("view hidden email address", func(t *testing.T) {
+			// given user1
+			user1 := s.createRandomUser("TestListUsersOK1")
+			identity, err := testsupport.CreateTestUser(s.DB, &user1)
+			require.NoError(s.T(), err)
+
+			secureService, secureController := s.SecuredController(identity)
+
+			// when
+			email := user1.Email
+
+			// by default, email is public.
+			_, result := test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
+			returnedUser := result.Data[0].Attributes
+			require.Equal(s.T(), email, *returnedUser.Email)
+			require.False(s.T(), *returnedUser.EmailPrivate)
+
+			// check for /api/users/<ID>
+			// should show public email when not made private.
+			_, singleResult := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+			returnedUser = singleResult.Data.Attributes
+			require.Equal(s.T(), email, *returnedUser.Email)
+			require.False(s.T(), *returnedUser.EmailPrivate)
+
+			contextInformation := map[string]interface{}{
+				"last_visited": "yesterday",
+				"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+				"rate":         100.00,
+				"count":        3,
+			}
+			updateUsersPayload := newUpdateUsersPayload(WithUpdatedContextInformation(contextInformation), WithUpdatedEmailPrivate(true))
+			test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+
+			// the /api/users/<ID> endpoint should hide out the email.
+			_, showUserResponse := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+			require.NotEqual(s.T(), user1.Email, *showUserResponse.Data.Attributes.Email)
+			require.Equal(s.T(), "", *showUserResponse.Data.Attributes.Email)
+			require.True(s.T(), *showUserResponse.Data.Attributes.EmailPrivate)
+
+			// On using the notification service account token, email would magically show up.
+			secureService, secureController = s.SecuredServiceAccountController(testsupport.TestNotificationIdentity)
+			_, showUserResponse = test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+			require.Equal(s.T(), user1.Email, *showUserResponse.Data.Attributes.Email)
+			require.True(s.T(), *showUserResponse.Data.Attributes.EmailPrivate)
+
+			// On using the online-registration service account token, email would NOT show up.
+			secureService, secureController = s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+			_, showUserResponse = test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+			require.NotEqual(s.T(), user1.Email, *showUserResponse.Data.Attributes.Email)
+			require.Equal(s.T(), "", *showUserResponse.Data.Attributes.Email)
+			require.True(s.T(), *showUserResponse.Data.Attributes.EmailPrivate)
+
+		})
+
 		t.Run("hide email address", func(t *testing.T) {
 			// given user1
 			user1 := s.createRandomUser("TestListUsersOK1")

@@ -63,6 +63,12 @@ var TestOnlineRegistrationAppIdentity = account.Identity{
 	User:     TestUser,
 }
 
+var TestNotificationIdentity = account.Identity{
+	ID:       uuid.NewV4(),
+	Username: "fabric8-notification",
+	User:     TestUser,
+}
+
 // CreateTestIdentity creates an identity with the given `username` in the database. For testing purpose only.
 func CreateTestIdentity(db *gorm.DB, username, providerType string) (account.Identity, error) {
 	testIdentity := account.Identity{
