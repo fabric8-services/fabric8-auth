@@ -24,7 +24,7 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // UsersController implements the users resource.
@@ -50,6 +50,7 @@ type UsersControllerConfiguration interface {
 	GetKeycloakSecret() string
 	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
 	GetEmailVerifiedRedirectURL() string
+	GetInternalUsersEmailAddressSuffix() string
 }
 
 // NewUsersController creates a users controller.
@@ -602,6 +603,11 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 
+		err := c.updateFeatureLevel(ctx, user, ctx.Payload.Data.Attributes.FeatureLevel)
+		if err != nil {
+			return err
+		}
+
 		err = appl.Users().Save(ctx, user)
 		if err != nil {
 			return err
@@ -677,6 +683,37 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
+}
+
+func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.User, updatedFeatureLevel *string) error {
+	if log.IsDebug() {
+		currentFeatureLevel := "none"
+		newFeatureLevel := "none"
+		if user.FeatureLevel != nil {
+			currentFeatureLevel = *user.FeatureLevel
+		}
+		if updatedFeatureLevel != nil {
+			newFeatureLevel = *updatedFeatureLevel
+		}
+		log.Debug(ctx, map[string]interface{}{"current_feature_level": currentFeatureLevel, "new_feature_level": newFeatureLevel}, "updating feature level")
+	}
+	if updatedFeatureLevel != nil && (user.FeatureLevel == nil || *updatedFeatureLevel != *user.FeatureLevel) {
+		// handle the case where the value needs to be reset, when the new value is "" (empty string) or "released"
+		if *updatedFeatureLevel == "" || *updatedFeatureLevel == "released" {
+			log.Debug(ctx, map[string]interface{}{"user_id": user.ID}, "resetting feature level")
+			user.FeatureLevel = nil
+		} else {
+			// if the level is 'internal', we need to check against the email address to verify that the user is a Red Hat employee
+			if *updatedFeatureLevel == "internal" &&
+				// do not allow if email is not verified or if email belongs to another domain
+				(!user.EmailVerified || !strings.HasSuffix(user.Email, c.config.GetInternalUsersEmailAddressSuffix())) {
+				log.Error(ctx, map[string]interface{}{"user_id": user.ID, "user_email": user.Email}, "user is not an employee")
+				return errors.NewForbiddenError("User is not allowed to opt-in for the 'internal' level of features.")
+			}
+			user.FeatureLevel = updatedFeatureLevel
+		}
+	}
+	return nil
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
@@ -933,6 +970,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
+	var featureLevel *string
 	var cluster string
 	var emailVerified bool
 	var contextInformation map[string]interface{}
@@ -952,6 +990,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		company = user.Company
 		contextInformation = user.ContextInformation
 		cluster = user.Cluster
+		featureLevel = user.FeatureLevel
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
@@ -976,6 +1015,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				ProviderType:          &providerType,
 				Email:                 &email,
 				Company:               &company,
+				FeatureLevel:          featureLevel,
 				Cluster:               &cluster,
 				EmailVerified:         &emailVerified,
 				ContextInformation:    make(map[string]interface{}),
