@@ -34,7 +34,50 @@ func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
 
 // Read runs the read action.
 func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
-	return ctx.MethodNotAllowed()
+
+	if !token.IsServiceAccount(ctx) {
+		log.Error(ctx, map[string]interface{}{}, "Unable to read resource. Not a service account")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
+	}
+
+	var res *resource.Resource
+	var scopes []resource.ResourceTypeScope
+
+	err := application.Transactional(c.db, func(appl application.Application) error {
+
+		var error error
+		// Load the resource
+		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
+
+		// Load the resource type scopes
+		scopes, error = appl.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
+
+		return error
+	})
+
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	var parentResourceID *string
+
+	if res.ParentResource != nil {
+		parentResourceID = &res.ParentResource.ResourceID
+	}
+
+	var scopeValues []string
+
+	for index := range scopes {
+		scopeValues = append(scopeValues, scopes[index].Name)
+	}
+
+	return ctx.OK(&app.Resource{
+		ResourceID:       &res.ResourceID,
+		Type:             res.ResourceType.Name,
+		Name:             res.Name,
+		ParentResourceID: parentResourceID,
+		ResourceScopes:   scopeValues,
+	})
 }
 
 // Register runs the register action.
@@ -50,16 +93,17 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	err := application.Transactional(c.db, func(appl application.Application) error {
 
 		// Lookup or create the resource type
-		resourceType, err := appl.ResourceTypeRepository().LookupOrCreate(ctx, ctx.Payload.Type)
+		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, ctx.Payload.Type)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewBadParameterError("type", ctx.Payload.Type)
 		}
 
 		// Lookup the parent resource if one has been specified
 		var parentResource *resource.Resource
 
 		if ctx.Payload.ParentResourceID != nil {
-			parentResource, err = appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
+			parentResourceID := *ctx.Payload.ParentResourceID
+			parentResource, err = appl.ResourceRepository().Load(ctx, parentResourceID)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err":                err,
@@ -69,6 +113,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 				return errors.NewBadParameterError("invalid parent resource ID specified", err)
 			}
 		}
+
 		// Extract the resource owner ID from the request
 		resourceOwnerID, err := uuid.FromString(ctx.Payload.ResourceOwnerID)
 		if err != nil {
@@ -101,12 +146,12 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		// Create the new resource instance
 		res = &resource.Resource{
 			ResourceID:     resourceID,
+			Name:           ctx.Payload.Name,
 			ParentResource: parentResource,
 			Owner:          *identity,
 			OwnerID:        identity.ID,
 			ResourceType:   *resourceType,
 			ResourceTypeID: resourceType.ResourceTypeID,
-			Description:    *ctx.Payload.Description,
 		}
 
 		// Persist the resource
@@ -127,7 +172,6 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		"parent_resource_id": parentResourceID,
 		"owner_id":           res.Owner.ID,
 		"resource_type":      res.ResourceType.Name,
-		"description":        res.Description,
 	}, "resource registered")
 
 	return ctx.Created(&app.RegisterResource{ID: &res.ResourceID})
