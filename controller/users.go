@@ -24,7 +24,7 @@ import (
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // UsersController implements the users resource.
@@ -854,7 +854,16 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		errResponse = "unable to verify code"
 		isVerified = "false"
 	}
-	redirectURL := fmt.Sprintf("%s?verified=%s&error=%s", c.config.GetEmailVerifiedRedirectURL(), isVerified, errResponse)
+	redirectURL, err := rest.AddParam(c.config.GetEmailVerifiedRedirectURL(), "verified", string(isVerified))
+	if err != nil {
+		return err
+	}
+	if errResponse != "" {
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		if err != nil {
+			return err
+		}
+	}
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
 }
