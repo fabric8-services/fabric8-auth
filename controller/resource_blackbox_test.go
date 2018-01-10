@@ -58,30 +58,31 @@ func (rest *TestResourceREST) TestFailRegisterResourceNonServiceAccount() {
 	}
 	service, controller := rest.SecuredController(sa)
 
-	resourceDescription := "Resource description"
 	resourceID := ""
 	resourceScopes := []string{}
 
 	resourceOwnerID := rest.testIdentity.ID
 
 	payload := &app.RegisterResourcePayload{
-		Description:      &resourceDescription,
 		Name:             "My new resource",
 		ParentResourceID: nil,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "Area",
+		Type:             "openshift.io/resource/area",
 	}
 
 	test.RegisterResourceUnauthorized(rest.T(), service.Context, service, controller, payload)
+
+	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+
+	test.ReadResourceUnauthorized(rest.T(), service.Context, service, controller, *created.ID)
 }
 
 /*
  * This test will attempt to register a resource with an invalid parent resource
  */
 func (rest *TestResourceREST) TestFailRegisterResourceInvalidParentResource() {
-	resourceDescription := "Resource description"
 	resourceID := ""
 	resourceScopes := []string{}
 
@@ -89,32 +90,29 @@ func (rest *TestResourceREST) TestFailRegisterResourceInvalidParentResource() {
 	parentResourceID := uuid.NewV4().String()
 
 	payload := &app.RegisterResourcePayload{
-		Description:      &resourceDescription,
 		Name:             "My new resource",
 		ParentResourceID: &parentResourceID,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "Area",
+		Type:             "openshift.io/resource/area",
 	}
 
 	test.RegisterResourceBadRequest(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
 }
 
 func (rest *TestResourceREST) TestRegisterResourceCreated() {
-	resourceDescription := "Resource description"
 	resourceID := ""
 	resourceScopes := []string{}
 	resourceOwnerID := rest.testIdentity.ID
 
 	payload := &app.RegisterResourcePayload{
-		Description:      &resourceDescription,
 		Name:             "My new resource",
 		ParentResourceID: nil,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "Area",
+		Type:             "openshift.io/resource/area",
 	}
 
 	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
@@ -124,19 +122,17 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 }
 
 func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
-	resourceDescription := "Resource description"
 	resourceID := uuid.NewV4().String()
 	resourceScopes := []string{}
 	resourceOwnerID := rest.testIdentity.ID
 
 	payload := &app.RegisterResourcePayload{
-		Description:      &resourceDescription,
 		Name:             "My new resource",
 		ParentResourceID: nil,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "Area",
+		Type:             "openshift.io/resource/area",
 	}
 
 	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
@@ -144,51 +140,75 @@ func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
 	require.NotNil(rest.T(), created)
 	require.NotNil(rest.T(), created.ID)
 	require.EqualValues(rest.T(), *created.ID, resourceID)
+
+	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
+
+	require.EqualValues(rest.T(), payload.Name, readResource.Name)
+}
+
+func (rest *TestResourceREST) TestRegisterResourceWithInvalidResourceType() {
+	resourceID := uuid.NewV4().String()
+	resourceScopes := []string{}
+	resourceOwnerID := rest.testIdentity.ID
+
+	payload := &app.RegisterResourcePayload{
+		Name:             "My invalid resource",
+		ParentResourceID: nil,
+		ResourceScopes:   resourceScopes,
+		ResourceID:       &resourceID,
+		ResourceOwnerID:  resourceOwnerID.String(),
+		Type:             "invalid_type",
+	}
+
+	_, _ = test.RegisterResourceBadRequest(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
 }
 
 func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated() {
-	resourceDescription := "Parent Resource Description"
 	resourceID := ""
 	resourceScopes := []string{}
 	resourceOwnerID := rest.testIdentity.ID
 
 	// First we will create the parent resource
 	payload := &app.RegisterResourcePayload{
-		Description:      &resourceDescription,
 		Name:             "My new parent resource",
 		ParentResourceID: nil,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "Area",
+		Type:             "openshift.io/resource/area",
 	}
 
 	_, parentCreated := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+
+	parentResourceID := *parentCreated.ID
 
 	require.NotNil(rest.T(), parentCreated)
 	require.NotNil(rest.T(), parentCreated.ID)
 
 	// Now we create the child resource
-	resourceDescription = "Child Resource Description"
-
 	payload = &app.RegisterResourcePayload{
-		Description:      &resourceDescription,
 		Name:             "My new child resource",
-		ParentResourceID: parentCreated.ID,
+		ParentResourceID: &parentResourceID,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "Area",
+		Type:             "openshift.io/resource/area",
 	}
 
 	_, childCreated := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
 
 	require.NotNil(rest.T(), childCreated)
 	require.NotNil(rest.T(), childCreated.ID)
+
+	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *childCreated.ID)
+
+	require.EqualValues(rest.T(), payload.Name, readResource.Name)
+	require.EqualValues(rest.T(), payload.Type, "openshift.io/resource/area")
+	require.EqualValues(rest.T(), payload.ParentResourceID, &parentResourceID)
+	require.EqualValues(rest.T(), payload.ResourceOwnerID, resourceOwnerID.String())
 }
 
 func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
-	resourceDescription := "Resource description"
 	resourceID := ""
 	resourceScopes := []string{}
 
@@ -196,13 +216,12 @@ func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
 	resourceOwnerID := uuid.NewV4()
 
 	payload := &app.RegisterResourcePayload{
-		Description:      &resourceDescription,
 		Name:             "My new resource",
 		ParentResourceID: nil,
 		ResourceScopes:   resourceScopes,
 		ResourceID:       &resourceID,
 		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "Area",
+		Type:             "openshift.io/resource/area",
 	}
 
 	test.RegisterResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)

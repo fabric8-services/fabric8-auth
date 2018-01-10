@@ -18,6 +18,7 @@ type Application interface {
 	VerificationCodes() account.VerificationCodeRepository
 	ResourceRepository() resource.ResourceRepository
 	ResourceTypeRepository() resource.ResourceTypeRepository
+	ResourceTypeScopeRepository() resource.ResourceTypeScopeRepository
 }
 
 // A Transaction abstracts a database transaction. The repositories created for the transaction object make changes inside the the transaction

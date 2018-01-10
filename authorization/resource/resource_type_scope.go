@@ -27,8 +27,6 @@ type ResourceTypeScope struct {
 	ResourceTypeID uuid.UUID
 	// The name of this scope
 	Name string
-	// The description of this scope
-	Description string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -56,10 +54,8 @@ func NewResourceTypeScopeRepository(db *gorm.DB) ResourceTypeScopeRepository {
 type ResourceTypeScopeRepository interface {
 	CheckExists(ctx context.Context, id string) (bool, error)
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
-	Create(ctx context.Context, u *ResourceTypeScope) error
-	Save(ctx context.Context, u *ResourceTypeScope) error
+	LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error)
 	List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error)
-	Delete(ctx context.Context, ID uuid.UUID) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -104,6 +100,17 @@ func (m *GormResourceTypeScopeRepository) Load(ctx context.Context, id uuid.UUID
 		return nil, errors.NewNotFoundError("resource_type_scope", id.String())
 	}
 	return &native, errs.WithStack(err)
+}
+
+func (m *GormResourceTypeScopeRepository) LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "load"}, time.Now())
+	var native []ResourceTypeScope
+	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("resource_type_id = ?", resourceTypeID).Find(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		// If there are no records found then return an empty slice of the correct type
+		return []ResourceTypeScope{}, nil
+	}
+	return native, errs.WithStack(err)
 }
 
 // Create creates a new record.
