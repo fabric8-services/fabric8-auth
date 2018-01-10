@@ -850,7 +850,7 @@ func (s *UsersControllerTestSuite) TestVerifyEmail() {
 
 		rw := test.VerifyEmailUsersTemporaryRedirect(s.T(), secureService.Context, secureService, secureController, verificationCode)
 		redirectLocation := rw.Header().Get("Location")
-		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=true&error=", redirectLocation)
+		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=true", redirectLocation)
 
 		codes, err = s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
 		require.NoError(s.T(), err)
@@ -866,7 +866,7 @@ func (s *UsersControllerTestSuite) TestVerifyEmail() {
 		secureService, secureController := s.SecuredController(identity)
 		rw := test.VerifyEmailUsersTemporaryRedirect(s.T(), secureService.Context, secureService, secureController, "ABCD")
 		redirectLocation := rw.Header().Get("Location")
-		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=false&error=code with id 'ABCD' not found", redirectLocation)
+		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?error=code+with+id+%27ABCD%27+not+found", redirectLocation)
 	})
 
 }
