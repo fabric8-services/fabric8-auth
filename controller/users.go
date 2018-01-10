@@ -859,7 +859,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		return err
 	}
 	if errResponse != "" {
-		redirectURL, err = rest.AddParam(c.config.GetEmailVerifiedRedirectURL(), "error", errResponse)
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
 		if err != nil {
 			return err
 		}
