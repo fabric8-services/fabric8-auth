@@ -2,8 +2,6 @@ package controller_test
 
 import (
 	"context"
-	rand "math/rand"
-	"strconv"
 	"testing"
 	"time"
 
@@ -11,12 +9,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/login"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
-	netcontext "golang.org/x/net/context"
-	"golang.org/x/oauth2"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -25,28 +25,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/oauth2"
 )
 
 type TestTokenREST struct {
 	gormtestsupport.DBTestSuite
-	dummyOauth         dummyOauth2Config
 	sampleAccessToken  string
 	sampleRefreshToken string
-}
-
-type dummyOauth2Config struct {
-	oauth2.Config
-	accessToken string
+	exchangeStrategy   string
 }
 
 func TestRunTokenREST(t *testing.T) {
 	suite.Run(
 		t,
 		&TestTokenREST{
-			DBTestSuite:        gormtestsupport.NewDBTestSuite(),
-			sampleAccessToken:  strconv.Itoa(rand.Int()),
-			sampleRefreshToken: strconv.Itoa(rand.Int()),
+			DBTestSuite: gormtestsupport.NewDBTestSuite(),
 		})
+}
+
+func (rest *TestTokenREST) SetupSuite() {
+	rest.DBTestSuite.SetupSuite()
+
+	claims := make(map[string]interface{})
+	act, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(rest.T(), err)
+	rest.sampleAccessToken = act
+	rest.sampleRefreshToken = uuid.NewV4().String()
+}
+
+func (rest *TestTokenREST) SetupTest() {
+	rest.DBTestSuite.SetupTest()
+	rest.exchangeStrategy = ""
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -60,7 +69,16 @@ func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) 
 }
 
 func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	newTestKeycloakOAuthProvider(rest.Application)
+	loginService := &DummyKeycloakOAuthService{}
+	loginService.Identities = rest.Application.Identities()
+	loginService.Users = rest.Application.Users()
+	loginService.TokenManager = testtoken.TokenManager
+	loginService.DB = rest.Application
+	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
+	loginService.exchangeStrategy = rest.exchangeStrategy
+	loginService.accessToken = rest.sampleAccessToken
+	loginService.refreshToken = rest.sampleRefreshToken
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 
@@ -121,7 +139,6 @@ func (rest *TestTokenREST) TestExchangeFailsWithIncompletePayload() {
 	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
 	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString})
 	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString, RedirectURI: &someRandomString})
-
 }
 
 func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
@@ -133,7 +150,14 @@ func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
 	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: witID})
 }
 
+func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
+	rest.checkServiceAccountCredentials("fabric8-wit", "5dec5fdb-09e3-4453-b73f-5c828832b28e", "witsecret")
+	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretOld")
+	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretNew")
+}
+
 func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
+	rest.exchangeStrategy = "401"
 	service, controller := rest.SecuredController()
 
 	someRandomString := "someString"
@@ -141,6 +165,7 @@ func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
 	code := "INVALID_OAUTH2.0_CODE"
 	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
 
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID})
 }
 
 func (rest *TestTokenREST) TestExchangeWithWrongClientIDFailsWithGrantTypeAuthorizationCode() {
@@ -152,15 +177,9 @@ func (rest *TestTokenREST) TestExchangeWithWrongClientIDFailsWithGrantTypeAuthor
 	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
 }
 
-func (rest *TestTokenREST) TestExchangeWithCorrectCredentialsOK() {
-	rest.checkServiceAccountCredentials("fabric8-wit", "5dec5fdb-09e3-4453-b73f-5c828832b28e", "witsecret")
-	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretOld")
-	rest.checkServiceAccountCredentials("fabric8-tenant", "c211f1bd-17a7-4f8c-9f80-0917d167889d", "tenantsecretNew")
-}
-
 func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {
-	_, controller := rest.SecuredController()
-	rest.checkAuthorizationCode(controller.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE")
+	service, controller := rest.SecuredController()
+	rest.checkAuthorizationCode(service, controller, controller.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE")
 }
 
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
@@ -179,42 +198,15 @@ func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string
 	assert.True(rest.T(), token.IsSpecificServiceAccount(ctx, name))
 }
 
-func (rest *TestTokenREST) checkAuthorizationCode(name string, code string) {
-	service, _ := rest.SecuredController()
-	saToken, err := rest.Exchange(service.Context, code)
-	assert.Nil(rest.T(), err)
-	assert.NotNil(rest.T(), saToken.TokenType)
-	assert.Equal(rest.T(), "bearer", saToken.TokenType)
-	assert.NotNil(rest.T(), saToken.AccessToken)
-	assert.Equal(rest.T(), saToken.AccessToken, rest.sampleAccessToken)
-	assert.NotNil(rest.T(), saToken.RefreshToken)
-	assert.Equal(rest.T(), saToken.RefreshToken, rest.sampleRefreshToken)
-}
+func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controller *TokenController, name string, code string) {
+	_, token := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
 
-func (rest *TestTokenREST) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
-	var thirtyDays int64
-	thirtyDays = 60 * 60 * 24 * 30
-	token := &oauth2.Token{
-		TokenType:    "bearer",
-		AccessToken:  rest.sampleAccessToken,
-		RefreshToken: rest.sampleRefreshToken,
-		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
-	}
-	extra := make(map[string]interface{})
-	extra["expires_in"] = time.Now().Unix() + thirtyDays
-	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
-	token = token.WithExtra(extra)
-	return token, nil
-}
-
-func validateToken(t *testing.T, token *app.AuthToken, controler *TokenController) {
-	assert.NotNil(t, token, "Token data is nil")
-	assert.NotEmpty(t, token.Token.AccessToken, "Access token is empty")
-	assert.NotEmpty(t, token.Token.RefreshToken, "Refresh token is empty")
-	assert.NotEmpty(t, token.Token.TokenType, "Token type is empty")
-	assert.NotNil(t, token.Token.ExpiresIn, "Expires-in is nil")
-	assert.NotNil(t, token.Token.RefreshExpiresIn, "Refresh-expires-in is nil")
-	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
+	require.NotNil(rest.T(), token.TokenType)
+	require.Equal(rest.T(), "bearer", *token.TokenType)
+	require.NotNil(rest.T(), token.AccessToken)
+	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
+	require.NotNil(rest.T(), token.RefreshToken)
+	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
 }
 
 type DummyLinkService struct {
@@ -226,4 +218,30 @@ func (s *DummyLinkService) ProviderLocation(ctx context.Context, req *goa.Reques
 
 func (s *DummyLinkService) Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error) {
 	return "originalLocation", nil
+}
+
+type DummyKeycloakOAuthService struct {
+	login.KeycloakOAuthProvider
+	accessToken      string
+	refreshToken     string
+	exchangeStrategy string
+}
+
+func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+	if s.exchangeStrategy == "401" {
+		return nil, errors.NewUnauthorizedError("failed")
+	}
+	var thirtyDays int64
+	thirtyDays = 60 * 60 * 24 * 30
+	token := &oauth2.Token{
+		TokenType:    "bearer",
+		AccessToken:  s.accessToken,
+		RefreshToken: s.refreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	extra := make(map[string]interface{})
+	extra["expires_in"] = time.Now().Unix() + thirtyDays
+	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
+	token = token.WithExtra(extra)
+	return token, nil
 }
