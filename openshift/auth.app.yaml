@@ -127,6 +127,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: notification.serviceurl
+          - name: AUTH_EMAIL_VERIFY_URL
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: email.verify.url
           imagePullPolicy: Always
           name: auth
           ports:
