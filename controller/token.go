@@ -41,7 +41,6 @@ type TokenController struct {
 	Configuration                LoginConfiguration
 	keycloakExternalTokenService keycloak.KeycloakExternalTokenService
 	providerConfigFactory        link.OauthProviderFactory
-	InitTenant                   func(ctx context.Context) error
 }
 
 // NewTokenController creates a token controller.
