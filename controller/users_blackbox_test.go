@@ -171,7 +171,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 		t.Run("internal level allowed", func(t *testing.T) {
 			// given
-			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress("user@redhat.com"), WithEmailAddressVerified(true))
+			user := s.createRandomUser("TestUpdateUserOK", WithEmailAddress(uuid.NewV4().String()+"user@redhat.com"), WithEmailAddressVerified(true))
 			identity, err := testsupport.CreateTestUser(s.DB, &user)
 			require.NoError(t, err)
 			// when

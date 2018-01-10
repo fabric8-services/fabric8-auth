@@ -15,7 +15,7 @@ import (
 )
 
 type EmailVerificationService interface {
-	SendVerificationCode(ctx context.Context, req *goa.RequestData, user account.User) (*account.VerificationCode, error)
+	SendVerificationCode(ctx context.Context, req *goa.RequestData, identity account.Identity) (*account.VerificationCode, error)
 	VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error)
 }
 
@@ -37,16 +37,16 @@ func NewEmailVerificationClient(db application.DB, notificationChannel notificat
 }
 
 // SendVerificationCode generates and sends out an email with verification code.
-func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req *goa.RequestData, user account.User) (*account.VerificationCode, error) {
+func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req *goa.RequestData, identity account.Identity) (*account.VerificationCode, error) {
 
 	generatedCode := uuid.NewV4().String()
 	newVerificationCode := account.VerificationCode{
-		User: user,
+		User: identity.User,
 		Code: generatedCode,
 	}
 
 	log.Info(ctx, map[string]interface{}{
-		"email": user.Email,
+		"email": identity.User.Email,
 	}, "verification code to be sent")
 
 	err := application.Transactional(c.db, func(appl application.Application) error {
@@ -61,7 +61,7 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req 
 		"verifyURL": c.generateVerificationURL(ctx, req, generatedCode),
 	}
 
-	emailMessage := notification.NewUserEmailUpdated(user.ID.String(), notificationCustomAttributes)
+	emailMessage := notification.NewUserEmailUpdated(identity.ID.String(), notificationCustomAttributes)
 	c.notification.Send(ctx, emailMessage)
 
 	return &newVerificationCode, err

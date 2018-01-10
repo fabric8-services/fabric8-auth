@@ -614,6 +614,8 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			return err
 		}
 
+		identity.User = *user
+
 		return nil
 	})
 
@@ -626,7 +628,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	if isEmailVerificationNeeded {
-		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *user)
+		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *identity)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id.String(),
