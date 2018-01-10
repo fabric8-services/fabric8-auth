@@ -226,3 +226,29 @@ func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
 
 	test.RegisterResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
 }
+
+func (rest *TestResourceREST) TestDeleteResource() {
+
+	// Create the resource first
+	payload := &app.RegisterResourcePayload{
+		Name:             "My new resource",
+		ParentResourceID: nil,
+		ResourceScopes:   []string{},
+		ResourceOwnerID:  rest.testIdentity.ID.String(),
+		Type:             "openshift.io/resource/area",
+	}
+
+	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+
+	require.NotNil(rest.T(), created)
+	require.NotNil(rest.T(), created.ID)
+
+	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
+
+	require.EqualValues(rest.T(), created.ID, readResource.ResourceID)
+
+	test.DeleteResourceNoContent(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
+
+	test.ReadResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
+
+}

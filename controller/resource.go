@@ -29,7 +29,29 @@ func NewResourceController(service *goa.Service, db application.DB) *ResourceCon
 
 // Delete runs the delete action.
 func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
-	return ctx.MethodNotAllowed()
+	if !token.IsServiceAccount(ctx) {
+		log.Error(ctx, map[string]interface{}{}, "Unable to delete resource. Not a service account")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
+	}
+
+	err := application.Transactional(c.db, func(appl application.Application) error {
+
+		var error error
+		// Delete the resource
+		error = appl.ResourceRepository().Delete(ctx, ctx.ResourceID)
+
+		log.Debug(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+		}, "Deleted resource.")
+
+		return error
+	})
+
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.NoContent()
 }
 
 // Read runs the read action.
@@ -48,6 +70,10 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 		var error error
 		// Load the resource
 		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
+
+		if error != nil {
+			return error
+		}
 
 		// Load the resource type scopes
 		scopes, error = appl.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)

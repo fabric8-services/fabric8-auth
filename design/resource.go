@@ -70,7 +70,7 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
-		a.Response(d.MethodNotAllowed)
+		a.Response(d.NoContent)
 	})
 
 })
