@@ -854,7 +854,10 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		errResponse = "unable to verify code"
 		isVerified = "false"
 	}
-	redirectURL := fmt.Sprintf("%s?verified=%s&error=%s", c.config.GetEmailVerifiedRedirectURL(), isVerified, errResponse)
+	redirectURL := fmt.Sprintf("%s?verified=%s", c.config.GetEmailVerifiedRedirectURL(), isVerified)
+	if errResponse != "" {
+		redirectURL = fmt.Sprintf("%s&error=%s", redirectURL, errResponse)
+	}
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
 }
