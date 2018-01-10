@@ -19,6 +19,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -850,7 +851,7 @@ func (s *UsersControllerTestSuite) TestVerifyEmail() {
 
 		rw := test.VerifyEmailUsersTemporaryRedirect(s.T(), secureService.Context, secureService, secureController, verificationCode)
 		redirectLocation := rw.Header().Get("Location")
-		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=true&error=", redirectLocation)
+		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=true", redirectLocation)
 
 		codes, err = s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
 		require.NoError(s.T(), err)
@@ -866,9 +867,9 @@ func (s *UsersControllerTestSuite) TestVerifyEmail() {
 		secureService, secureController := s.SecuredController(identity)
 		rw := test.VerifyEmailUsersTemporaryRedirect(s.T(), secureService.Context, secureService, secureController, "ABCD")
 		redirectLocation := rw.Header().Get("Location")
-		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=false&error=code with id 'ABCD' not found", redirectLocation)
+		require.Nil(s.T(), err)
+		testsupport.EqualURLs(s.T(), "https://prod-preview.openshift.io/_home?verified=false&error=code+with+id+%27ABCD%27+not+found", redirectLocation)
 	})
-
 }
 
 func (s *UsersControllerTestSuite) TestShowUserOK() {
