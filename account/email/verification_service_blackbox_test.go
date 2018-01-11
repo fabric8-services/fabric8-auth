@@ -41,7 +41,7 @@ func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {
 		Request: &http.Request{Host: "example.com"},
 	}
 
-	generatedCode, err := s.verificationService.SendVerificationCode(context.Background(), r, identity.User)
+	generatedCode, err := s.verificationService.SendVerificationCode(context.Background(), r, identity)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), generatedCode)
 

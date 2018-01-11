@@ -340,6 +340,10 @@ func (g *GormTestBase) ResourceTypeRepository() res.ResourceTypeRepository {
 	return nil
 }
 
+func (g *GormTestBase) ResourceTypeScopeRepository() res.ResourceTypeScopeRepository {
+	return nil
+}
+
 func (g *GormTestBase) DB() *gorm.DB {
 	return nil
 }

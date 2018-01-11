@@ -97,6 +97,10 @@ func (g *GormBase) ResourceTypeRepository() resource.ResourceTypeRepository {
 	return resource.NewResourceTypeRepository(g.db)
 }
 
+func (g *GormBase) ResourceTypeScopeRepository() resource.ResourceTypeScopeRepository {
+	return resource.NewResourceTypeScopeRepository(g.db)
+}
+
 func (g *GormBase) DB() *gorm.DB {
 	return g.db
 }

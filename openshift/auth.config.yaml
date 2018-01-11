@@ -43,4 +43,6 @@ objects:
     redirect.valid: ".*"
     notapproved_redirect: ""
     keycloak.url: https://sso.openshift.io
+    notification.serviceurl: ""
+    email.verify.url: https://prod-preview.openshift.io/_home
   

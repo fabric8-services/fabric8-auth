@@ -7,6 +7,7 @@ import (
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/resource"
+
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -119,4 +120,22 @@ func TestAddParamSuccess(t *testing.T) {
 	generatedURL, err := AddParam("https://openshift.io", "param1", "a")
 	require.NoError(t, err)
 	assert.Equal(t, "https://openshift.io?param1=a", generatedURL)
+
+	generatedURL, err = AddParam(generatedURL, "param2", "abc")
+	require.NoError(t, err)
+	equalURLs(t, "https://openshift.io?param1=a&param2=abc", generatedURL)
+}
+
+// Can't use test.EqualURLs() because of cycle dependency
+func equalURLs(t *testing.T, expected string, actual string) {
+	expectedURL, err := url.Parse(expected)
+	require.Nil(t, err)
+	actualURL, err := url.Parse(actual)
+	require.Nil(t, err)
+	assert.Equal(t, expectedURL.Scheme, actualURL.Scheme)
+	assert.Equal(t, expectedURL.Host, actualURL.Host)
+	assert.Equal(t, len(expectedURL.Query()), len(actualURL.Query()))
+	for name, value := range expectedURL.Query() {
+		assert.Equal(t, value, actualURL.Query()[name])
+	}
 }

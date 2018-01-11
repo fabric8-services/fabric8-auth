@@ -70,7 +70,7 @@ func AddParams(urlString string, params map[string]string) (string, error) {
 		return "", err
 	}
 
-	parameters := url.Values{}
+	parameters := parsedURL.Query()
 	for k, v := range params {
 		parameters.Add(k, v)
 	}

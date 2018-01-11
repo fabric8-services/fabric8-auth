@@ -77,13 +77,11 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 func (s *resourceBlackBoxTest) TestOKToSave() {
 	resource := createAndLoadResource(s)
 
-	resource.Description = "foo"
 	err := s.repo.Save(s.Ctx, resource)
 	require.Nil(s.T(), err, "Could not update resource")
 
-	updatedResource, err := s.repo.Load(s.Ctx, resource.ResourceID)
+	_, err = s.repo.Load(s.Ctx, resource.ResourceID)
 	require.Nil(s.T(), err, "Could not load resource")
-	assert.Equal(s.T(), updatedResource.Description, "foo")
 }
 
 func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
@@ -95,23 +93,14 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	err := s.identityRepo.Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
 
-	resourceType := &resource.ResourceType{
-		ResourceTypeID: uuid.NewV4(),
-		Name:           "resource_blackbox_test_Area" + uuid.NewV4().String(),
-		Description:    "An area is a logical grouping within a space",
-	}
-
-	err = s.resourceTypeRepo.Create(s.Ctx, resourceType)
+	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
 	require.Nil(s.T(), err, "Could not create resource type")
-
-	description := "resource_blackbox_test_A description of the created resource"
 
 	resource := &resource.Resource{
 		ResourceID:     uuid.NewV4().String(),
 		ParentResource: nil,
 		Owner:          *identity,
 		ResourceType:   *resourceType,
-		Description:    description,
 	}
 
 	err = s.repo.Create(s.Ctx, resource)
@@ -119,8 +108,6 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 
 	createdResource, err := s.repo.Load(s.Ctx, resource.ResourceID)
 	require.Nil(s.T(), err, "Could not load resource")
-
-	require.Equal(s.T(), resource.Description, createdResource.Description)
 
 	return createdResource
 }

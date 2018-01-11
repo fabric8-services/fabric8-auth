@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"time"
 
-	"golang.org/x/oauth2"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -30,6 +28,7 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 )
 
 // TokenController implements the login resource.
@@ -45,7 +44,7 @@ type TokenController struct {
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, db application.DB, auth *login.KeycloakOAuthProvider, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, kclient keycloak.KeycloakExternalTokenService, configuration LoginConfiguration) *TokenController {
+func NewTokenController(service *goa.Service, db application.DB, auth login.KeycloakOAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, kclient keycloak.KeycloakExternalTokenService, configuration LoginConfiguration) *TokenController {
 	return &TokenController{
 		Controller:                   service.NewController("token"),
 		Auth:                         auth,
@@ -394,10 +393,6 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		}, "Service Account secret doesn't match")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid Service Account ID or secret"))
 	} else if payload.GrantType == authorizationCode {
-
-		if payload.RedirectURI == nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect_uri", "nil").Expected("redirect uri"))
-		}
 		if payload.Code == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("code", "nil").Expected("authorization code"))
 		}
@@ -432,9 +427,10 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		}
 
 		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
+
 		keycloakToken, err := c.Auth.Exchange(ctx, *payload.Code, oauth)
 
-		if err != nil || keycloakToken == nil {
+		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 
@@ -447,7 +443,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 
-		_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, *payload.Code, redirectURL, keycloakToken, ctx.RequestData, oauth, c.Configuration)
+		_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
 
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
@@ -460,6 +456,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			RefreshToken: &keycloakToken.RefreshToken,
 			TokenType:    &keycloakToken.TokenType,
 		}
+
 		return ctx.OK(token)
 	}
 

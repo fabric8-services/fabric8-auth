@@ -50,6 +50,7 @@ type UsersControllerConfiguration interface {
 	GetKeycloakSecret() string
 	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
 	GetEmailVerifiedRedirectURL() string
+	GetInternalUsersEmailAddressSuffix() string
 }
 
 // NewUsersController creates a users controller.
@@ -66,6 +67,8 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 
 // Show runs the show action.
 func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
+	isServiceAccount := token.IsSpecificServiceAccount(ctx, "fabric8-notification")
+
 	return application.Transactional(c.db, func(appl application.Application) error {
 		identityID, err := uuid.FromString(ctx.ID)
 		if err != nil {
@@ -85,7 +88,7 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			}
 		}
 		return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, false))
+			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, isServiceAccount))
 		})
 	})
 }
@@ -170,10 +173,10 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
-func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, protectedAccessToken string) error {
+func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
 	idpName := "rhd"
 	linkRequest := linkAPI.KeycloakLinkIDPRequest{
-		UserID:           &identityID,
+		UserID:           &rhdUserID,
 		Username:         &rhdUsername,
 		IdentityProvider: &idpName,
 	}
@@ -253,7 +256,8 @@ func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersConte
 
 	// Link only new accounts. Do not link already existing (and updated) ones
 	if created {
-		err = c.linkUserToRHD(ctx, identityID, rhdUserName(*ctx.Payload.Data.Attributes), protectedAccessToken)
+		rhdUserID := userAttributes.RhdUserID
+		err = c.linkUserToRHD(ctx, identityID, rhdUserName(*ctx.Payload.Data.Attributes), rhdUserID, protectedAccessToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":              err,
@@ -278,9 +282,11 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	// "username", "email", "cluster"
 
 	user = &account.User{
-		ID:      userID,
-		Email:   ctx.Payload.Data.Attributes.Email,
-		Cluster: ctx.Payload.Data.Attributes.Cluster,
+		ID:            userID,
+		Email:         ctx.Payload.Data.Attributes.Email,
+		Cluster:       ctx.Payload.Data.Attributes.Cluster,
+		EmailPrivate:  false,
+		EmailVerified: true,
 	}
 	identity = &account.Identity{
 		ID:           identityID,
@@ -593,6 +599,11 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 
+		err := c.updateFeatureLevel(ctx, user, ctx.Payload.Data.Attributes.FeatureLevel)
+		if err != nil {
+			return err
+		}
+
 		err = appl.Users().Save(ctx, user)
 		if err != nil {
 			return err
@@ -602,6 +613,8 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		if err != nil {
 			return err
 		}
+
+		identity.User = *user
 
 		return nil
 	})
@@ -615,7 +628,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	if isEmailVerificationNeeded {
-		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *user)
+		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *identity)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id.String(),
@@ -668,6 +681,37 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
+}
+
+func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.User, updatedFeatureLevel *string) error {
+	if log.IsDebug() {
+		currentFeatureLevel := "none"
+		newFeatureLevel := "none"
+		if user.FeatureLevel != nil {
+			currentFeatureLevel = *user.FeatureLevel
+		}
+		if updatedFeatureLevel != nil {
+			newFeatureLevel = *updatedFeatureLevel
+		}
+		log.Debug(ctx, map[string]interface{}{"current_feature_level": currentFeatureLevel, "new_feature_level": newFeatureLevel}, "updating feature level")
+	}
+	if updatedFeatureLevel != nil && (user.FeatureLevel == nil || *updatedFeatureLevel != *user.FeatureLevel) {
+		// handle the case where the value needs to be reset, when the new value is "" (empty string) or "released"
+		if *updatedFeatureLevel == "" || *updatedFeatureLevel == "released" {
+			log.Debug(ctx, map[string]interface{}{"user_id": user.ID}, "resetting feature level")
+			user.FeatureLevel = nil
+		} else {
+			// if the level is 'internal', we need to check against the email address to verify that the user is a Red Hat employee
+			if *updatedFeatureLevel == "internal" &&
+				// do not allow if email is not verified or if email belongs to another domain
+				(!user.EmailVerified || !strings.HasSuffix(user.Email, c.config.GetInternalUsersEmailAddressSuffix())) {
+				log.Error(ctx, map[string]interface{}{"user_id": user.ID, "user_email": user.Email}, "user is not an employee")
+				return errors.NewForbiddenError("User is not allowed to opt-in for the 'internal' level of features.")
+			}
+			user.FeatureLevel = updatedFeatureLevel
+		}
+	}
+	return nil
 }
 
 func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
@@ -810,7 +854,16 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		errResponse = "unable to verify code"
 		isVerified = "false"
 	}
-	redirectURL := fmt.Sprintf("%s?verified=%s&error=%s", c.config.GetEmailVerifiedRedirectURL(), isVerified, errResponse)
+	redirectURL, err := rest.AddParam(c.config.GetEmailVerifiedRedirectURL(), "verified", string(isVerified))
+	if err != nil {
+		return err
+	}
+	if errResponse != "" {
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		if err != nil {
+			return err
+		}
+	}
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
 }
@@ -924,6 +977,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
+	var featureLevel *string
 	var cluster string
 	var emailVerified bool
 	var contextInformation map[string]interface{}
@@ -943,6 +997,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 		company = user.Company
 		contextInformation = user.ContextInformation
 		cluster = user.Cluster
+		featureLevel = user.FeatureLevel
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
@@ -967,6 +1022,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				ProviderType:          &providerType,
 				Email:                 &email,
 				Company:               &company,
+				FeatureLevel:          featureLevel,
 				Cluster:               &cluster,
 				EmailVerified:         &emailVerified,
 				ContextInformation:    make(map[string]interface{}),

@@ -103,6 +103,10 @@ func NewKeycloakUserProfileClient() *KeycloakUserProfileClient {
 // If the user already exists then the user will be updated
 // Returns true if a new user has been created and false if the existing user has been updated
 func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error) {
+	defaultState := true
+	keycloakUserRequest.Enabled = &defaultState
+	keycloakUserRequest.EmailVerified = &defaultState
+
 	body, err := json.Marshal(keycloakUserRequest)
 	if err != nil {
 		return nil, false, errors.NewInternalError(ctx, err)

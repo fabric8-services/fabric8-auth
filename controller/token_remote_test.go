@@ -17,6 +17,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -78,7 +79,7 @@ func (rest *TestTokenRemoteREST) TestTestUserTokenObtainedFromKeycloakOK() {
 	require.Equal(t, resp.Header().Get("Cache-Control"), "no-cache")
 	require.Len(t, result, 2, "The size of token array is not 2")
 	for _, data := range result {
-		validateToken(t, data, controller)
+		validateToken(t, data)
 	}
 }
 
@@ -95,7 +96,7 @@ func (rest *TestTokenRemoteREST) TestRefreshTokenUsingValidRefreshTokenOK() {
 	resp, newToken := test.RefreshTokenOK(t, service.Context, service, controller, payload)
 
 	require.Equal(t, resp.Header().Get("Cache-Control"), "no-cache")
-	validateToken(t, newToken, controller)
+	validateToken(t, newToken)
 }
 
 func (rest *TestTokenRemoteREST) TestRefreshTokenUsingInvalidTokenFails() {
@@ -106,6 +107,16 @@ func (rest *TestTokenRemoteREST) TestRefreshTokenUsingInvalidTokenFails() {
 	payload := &app.RefreshToken{RefreshToken: &refreshToken}
 	_, err := test.RefreshTokenUnauthorized(t, service.Context, service, controller, payload)
 	require.NotNil(t, err)
+}
+
+func validateToken(t *testing.T, token *app.AuthToken) {
+	assert.NotNil(t, token, "Token data is nil")
+	assert.NotEmpty(t, token.Token.AccessToken, "Access token is empty")
+	assert.NotEmpty(t, token.Token.RefreshToken, "Refresh token is empty")
+	assert.NotEmpty(t, token.Token.TokenType, "Token type is empty")
+	assert.NotNil(t, token.Token.ExpiresIn, "Expires-in is nil")
+	assert.NotNil(t, token.Token.RefreshExpiresIn, "Refresh-expires-in is nil")
+	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
 }
 
 func (rest *TestTokenRemoteREST) checkPEM(keys *app.PublicKeys) {

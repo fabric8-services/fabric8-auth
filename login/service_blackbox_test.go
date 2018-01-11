@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -22,6 +22,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/goadesign/goa/uuid"
@@ -164,6 +166,48 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 	_, _, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+
+	_, err = s.unapprovedUserRedirected()
+	require.NotNil(s.T(), err)
+	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+}
+
+func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
+	env := os.Getenv("AUTH_NOTAPPROVED_REDIRECT")
+	defer func() {
+		os.Setenv("AUTH_NOTAPPROVED_REDIRECT", env)
+		s.resetConfiguration()
+	}()
+
+	os.Setenv("AUTH_NOTAPPROVED_REDIRECT", "https://xyz.io")
+	s.resetConfiguration()
+
+	redirect, err := s.unapprovedUserRedirected()
+	require.Nil(s.T(), err)
+	require.Equal(s.T(), "https://xyz.io", *redirect)
+}
+
+func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
+	redirect, err := url.Parse("https://openshift.io/_home")
+	require.Nil(s.T(), err)
+
+	req := &goa.RequestData{
+		Request: &http.Request{Host: "auth.openshift.io"},
+	}
+
+	claims := make(map[string]interface{})
+	claims["approved"] = false
+	tokenStr, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	token := &oauth2.Token{AccessToken: tokenStr, RefreshToken: tokenStr}
+	return s.loginService.CreateOrUpdateIdentityAndUser(context.Background(), redirect, token, req, s.Configuration)
+}
+
+func (s *serviceBlackBoxTest) resetConfiguration() {
+	var err error
+	s.Configuration, err = configuration.GetConfigurationData()
+	require.Nil(s.T(), err)
 }
 
 func (s *serviceBlackBoxTest) checkIfTokenMatchesIdentity(tokenString string, identity account.Identity) {
