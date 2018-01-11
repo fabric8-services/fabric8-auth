@@ -889,6 +889,10 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 
 			identity, err := loadKeyCloakIdentity(c.db, verfiedUser)
 			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":     err,
+					"user_id": verfiedUser.ID,
+				}, "failed to fetch identity for a specific user")
 				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 			}
 
