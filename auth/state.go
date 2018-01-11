@@ -50,7 +50,7 @@ func (r OauthStateReference) Equal(u convert.Equaler) bool {
 // OauthStateReferenceRepository encapsulate storage & retrieval of state references
 type OauthStateReferenceRepository interface {
 	Create(ctx context.Context, state *OauthStateReference) (*OauthStateReference, error)
-	Delete(ctx context.Context, state *OauthStateReference) error
+	Delete(ctx context.Context, ID uuid.UUID) error
 	Load(ctx context.Context, state string) (*OauthStateReference, error)
 }
 
@@ -66,8 +66,9 @@ type GormOauthStateReferenceRepository struct {
 
 // Delete deletes the reference with the given state
 // returns NotFoundError or InternalError
-func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, reference *OauthStateReference) error {
+func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, ID uuid.UUID) error {
 
+	reference := OauthStateReference{ID: ID}
 	tx := r.db.Delete(reference)
 
 	if err := tx.Error; err != nil {

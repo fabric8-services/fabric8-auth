@@ -129,7 +129,7 @@ func LoadReferrer(ctx context.Context, db application.DB, state string) (string,
 			return err
 		}
 		referrer = ref.Referrer
-		err = appl.OauthStates().Delete(ctx, ref)
+		err = appl.OauthStates().Delete(ctx, ref.ID)
 		return err
 	})
 	if err != nil {
