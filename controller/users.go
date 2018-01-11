@@ -846,15 +846,15 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 	verifiedCode, err := c.EmailVerificationService.VerifyCode(ctx, ctx.Code)
 	var errResponse string
-	isVerified := "true"
+	isVerified := true
 	if err != nil {
 		errResponse = err.Error()
-		isVerified = "false"
+		isVerified = false
 	} else if verifiedCode == nil {
 		errResponse = "unable to verify code"
-		isVerified = "false"
+		isVerified = false
 	}
-	redirectURL, err := rest.AddParam(c.config.GetEmailVerifiedRedirectURL(), "verified", string(isVerified))
+	redirectURL, err := rest.AddParam(c.config.GetEmailVerifiedRedirectURL(), "verified", fmt.Sprint(isVerified))
 	if err != nil {
 		return err
 	}
@@ -862,6 +862,54 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
 		if err != nil {
 			return err
+		}
+	}
+
+	verfiedUser := verifiedCode.User
+	if isVerified {
+		tokenEndpoint, err := c.config.GetKeycloakEndpointToken(ctx.RequestData)
+		if err != nil {
+			return errors.NewInternalError(ctx, err)
+		}
+		protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, c.config.GetKeycloakClientID(), c.config.GetKeycloakSecret())
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"keycloak_client_id": c.config.GetKeycloakClientID(),
+				"token_endpoint":     tokenEndpoint,
+			}, "error generating PAT")
+			// if there's an error, we are not gonna bother the user
+		}
+
+		if protectedAccessToken != "" {
+			// try hitting the admin user endpoint only if getting a PAT
+			// was successful.
+
+			usersEndpoint, err := c.config.GetKeycloakEndpointUsers(ctx.RequestData)
+
+			identity, err := loadKeyCloakIdentity(c.db, verfiedUser)
+			if err != nil {
+				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+			}
+
+			keycloakUser := login.KeytcloakUserRequest{
+				Username:      &identity.Username,
+				Email:         &verfiedUser.Email,
+				EmailVerified: &isVerified,
+			}
+
+			// not using userProfileService.Update() because it needs a user token
+			// and here we don't have one.
+			keycloakUserID, _, err := c.userProfileService.CreateOrUpdate(ctx.Context, &keycloakUser, protectedAccessToken, usersEndpoint)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err": err,
+				}, "failed to update user's emailVerified attribute in keycloak")
+				// we are not gonna bother the user with keycloak errors
+			} else {
+				log.Info(ctx, map[string]interface{}{
+					"keycloak_user_id": *keycloakUserID,
+				}, "successfully updated user's emailVerified attribute in keycloak")
+			}
 		}
 	}
 	ctx.ResponseData.Header().Set("Location", redirectURL)
