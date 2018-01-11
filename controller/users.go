@@ -876,6 +876,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_client_id": c.config.GetKeycloakClientID(),
 				"token_endpoint":     tokenEndpoint,
+				"err":                err,
 			}, "error generating PAT")
 			// if there's an error, we are not gonna bother the user
 		}
