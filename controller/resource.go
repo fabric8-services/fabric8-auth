@@ -85,12 +85,6 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	var parentResourceID *string
-
-	if res.ParentResource != nil {
-		parentResourceID = &res.ParentResource.ResourceID
-	}
-
 	var scopeValues []string
 
 	for index := range scopes {
@@ -101,7 +95,7 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 		ResourceID:       &res.ResourceID,
 		Type:             res.ResourceType.Name,
 		Name:             res.Name,
-		ParentResourceID: parentResourceID,
+		ParentResourceID: res.ParentResourceID,
 		ResourceScopes:   scopeValues,
 	})
 }
@@ -118,7 +112,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 	err := application.Transactional(c.db, func(appl application.Application) error {
 
-		// Lookup or create the resource type
+		// Lookup the resource type
 		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, ctx.Payload.Type)
 		if err != nil {
 			return errors.NewBadParameterError("type", ctx.Payload.Type)
@@ -128,8 +122,8 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		var parentResource *resource.Resource
 
 		if ctx.Payload.ParentResourceID != nil {
-			parentResourceID := *ctx.Payload.ParentResourceID
-			parentResource, err = appl.ResourceRepository().Load(ctx, parentResourceID)
+
+			parentResource, err = appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err":                err,
@@ -169,15 +163,21 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			resourceID = uuid.NewV4().String()
 		}
 
+		var parentResourceID *string
+
+		if parentResource != nil {
+			parentResourceID = &parentResource.ResourceID
+		}
+
 		// Create the new resource instance
 		res = &resource.Resource{
-			ResourceID:     resourceID,
-			Name:           ctx.Payload.Name,
-			ParentResource: parentResource,
-			Owner:          *identity,
-			OwnerID:        identity.ID,
-			ResourceType:   *resourceType,
-			ResourceTypeID: resourceType.ResourceTypeID,
+			ResourceID:       resourceID,
+			Name:             ctx.Payload.Name,
+			ParentResourceID: parentResourceID,
+			Owner:            *identity,
+			OwnerID:          identity.ID,
+			ResourceType:     *resourceType,
+			ResourceTypeID:   resourceType.ResourceTypeID,
 		}
 
 		// Persist the resource
@@ -189,8 +189,10 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	}
 
 	var parentResourceID string
-	if res.ParentResource != nil {
-		parentResourceID = res.ParentResource.ResourceID
+	if res.ParentResourceID != nil {
+		parentResourceID = *res.ParentResourceID
+	} else {
+		parentResourceID = ""
 	}
 
 	log.Debug(ctx, map[string]interface{}{
@@ -205,5 +207,85 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 // Update runs the update action.
 func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
-	return ctx.MethodNotAllowed()
+
+	if !token.IsServiceAccount(ctx) {
+		log.Error(ctx, map[string]interface{}{}, "Unable to register resource. Not a service account")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
+	}
+
+	var res *resource.Resource
+
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		var error error
+		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
+		if error != nil {
+			return error
+		}
+
+		// If a name attribute has been passed in, update the resource name
+		if ctx.Payload.Name != nil {
+			res.Name = *ctx.Payload.Name
+		}
+
+		// If a type attribute has been passed in, update the resource type
+		if ctx.Payload.Type != nil {
+			resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, *ctx.Payload.Type)
+			if err != nil {
+				return errors.NewBadParameterError("type", ctx.Payload.Type)
+			}
+			res.ResourceTypeID = resourceType.ResourceTypeID
+		}
+
+		// If a resource owner attribute has been passed in, update the resource owner
+		if ctx.Payload.ResourceOwnerID != nil {
+			// Extract the resource owner ID from the request
+			resourceOwnerID, err := uuid.FromString(*ctx.Payload.ResourceOwnerID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":               err,
+					"resource_owner_id": *ctx.Payload.ResourceOwnerID,
+				}, "Resource owner ID is not valid")
+
+				return errors.NewConversionError(fmt.Sprintf("resource owner ID is not a valid UUID %v", err.Error()))
+			}
+
+			// Lookup the identity record of the resource owner
+			identity, err := appl.Identities().Load(ctx, resourceOwnerID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":               err,
+					"resource_owner_id": resourceOwnerID,
+				}, "Resource owner could not be found")
+
+				return err
+			}
+
+			res.Owner = *identity
+			res.OwnerID = identity.ID
+		}
+
+		// If a parent resource ID has been passed in, update the parent resource
+		if ctx.Payload.ParentResourceID != nil {
+			// Lookup the parent resource
+			parentResource, err := appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":                err,
+					"parent_resource_id": *ctx.Payload.ParentResourceID,
+				}, "Parent resource could not be found.")
+
+				return errors.NewBadParameterError("invalid parent resource ID specified", err)
+			}
+
+			res.ParentResourceID = &parentResource.ResourceID
+		}
+
+		return appl.ResourceRepository().Save(ctx, res)
+	})
+
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.OK(&app.RegisterResource{ID: &res.ResourceID})
 }
