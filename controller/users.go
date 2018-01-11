@@ -865,8 +865,8 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		}
 	}
 
-	verfiedUser := verifiedCode.User
 	if isVerified {
+		verfiedUser := verifiedCode.User
 		tokenEndpoint, err := c.config.GetKeycloakEndpointToken(ctx.RequestData)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
