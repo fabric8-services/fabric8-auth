@@ -127,16 +127,18 @@ __Response:__
 
 == OAuth2.0 Friendly Login
 
-=== Steps for User Login:
+=== How it works:
 
-. Client sends a generated state. Auth "proxies" it to KC and thereby initiates the first in oauth2
-. KC redirects to IdP etc. User logs in..
-. KC calls back Auth with a code
+. Client sends a generated state. Auth "proxies" it to Keycloak and thereby initiates the first request in oauth2
+. Keycloak redirects to IdP etc. User logs in..
+. Keycloak calls back Auth with a code
 . Auth passes the code to Client ( UI or another services )
 . Client then calls KC to do the code \<\-> token exchange.
 . Auth works as a smart proxy here between client and KC.
 
-=== To get authorization_code
+=== Steps to login
+
+==== To get authorization_code
 [source]
 GET /api/authorize
 
@@ -162,9 +164,11 @@ required fields: response_type, client_id, state
 
 - _Response:_ 
 [source]
-authorization_code, state
+https://auth.prod-preview.openshift.io/api/status?
+    authorization_code=uss.gZs_vR-oBxlzUsYxesh71gBWIZfjYSxSP6xjC8T-WCM.12ca5270-c30f-4c41-90f8-ccbfc5fca498.98447a27-40de-450b-a987-1ddc97730839&
+    state=18184535-097d-473e-8dce-0688952d8439
 
-=== To get access_token
+==== To get access_token
 [source]
 POST /api/token
 
@@ -188,4 +192,9 @@ required fields: all
 
 - _Response:_ 
 [source]
-access_token, token_type, refresh_token, expires_in
+{
+"access_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13aXQiLCJzdWIiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw",
+"token_type":"bearer",
+"refresh_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw",
+"expires_in":3600
+}
