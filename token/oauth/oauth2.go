@@ -81,7 +81,7 @@ func (provider *OauthIdentityProvider) UserProfilePayload(ctx context.Context, t
 }
 
 // SaveReferrer validates referrer and saves it in DB
-func SaveReferrer(ctx context.Context, db application.DB, state uuid.UUID, referrer string, validReferrerURL string) error {
+func SaveReferrer(ctx context.Context, db application.DB, state string, referrer string, validReferrerURL string) error {
 	matched, err := regexp.MatchString(validReferrerURL, referrer)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -101,7 +101,7 @@ func SaveReferrer(ctx context.Context, db application.DB, state uuid.UUID, refer
 	// TODO The state reference table will be collecting dead states left from some failed login attempts.
 	// We need to clean up the old states from time to time.
 	ref := auth.OauthStateReference{
-		ID:       state,
+		State:    state,
 		Referrer: referrer,
 	}
 	err = application.Transactional(db, func(appl application.Application) error {
@@ -122,21 +122,14 @@ func SaveReferrer(ctx context.Context, db application.DB, state uuid.UUID, refer
 // LoadReferrer loads referrer from DB
 func LoadReferrer(ctx context.Context, db application.DB, state string) (string, error) {
 	var referrer string
-	stateID, err := uuid.FromString(state)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-			"err":   err,
-		}, "unable to convert oauth state to uuid")
-		return "", err
-	}
-	err = application.Transactional(db, func(appl application.Application) error {
-		ref, err := appl.OauthStates().Load(ctx, stateID)
+
+	err := application.Transactional(db, func(appl application.Application) error {
+		ref, err := appl.OauthStates().Load(ctx, state)
 		if err != nil {
 			return err
 		}
 		referrer = ref.Referrer
-		err = appl.OauthStates().Delete(ctx, stateID)
+		err = appl.OauthStates().Delete(ctx, ref.ID)
 		return err
 	})
 	if err != nil {

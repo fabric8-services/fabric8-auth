@@ -155,6 +155,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// version 15
 	m = append(m, steps{ExecuteSQLFile("015-clear-resources-create-resource-types.sql")})
 
+	// verion 16
+	m = append(m, steps{ExecuteSQLFile("016-add-state-to-auth-state-reference.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

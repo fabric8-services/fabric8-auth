@@ -46,8 +46,11 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	redirect := "https://openshift.io"
 	clientID := rest.Configuration.GetPublicOauthClientID()
 	responseType := "code"
-	state := uuid.NewV4()
+	state := uuid.NewV4().String()
 
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
+
+	state = "not-uuid"
 	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
 }
 
@@ -77,7 +80,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeUnauthorizedError() {
 	redirect := "https://openshift.io"
 	clientID := ""
 	responseType := "code"
-	state := uuid.NewV4()
+	state := uuid.NewV4().String()
 
 	test.AuthorizeAuthorizeUnauthorized(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
 }

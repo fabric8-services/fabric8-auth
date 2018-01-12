@@ -113,8 +113,8 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	if err != nil {
 		return "", err
 	}
-	stateID := uuid.NewV4()
-	err = oauth.SaveReferrer(ctx, service.db, stateID, redirectURL, service.config.GetValidRedirectURLs())
+	state := uuid.NewV4().String()
+	err = oauth.SaveReferrer(ctx, service.db, state, redirectURL, service.config.GetValidRedirectURLs())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url": redirectURL,
@@ -124,7 +124,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 		return "", err
 	}
 
-	return oauthProvider.AuthCodeURL(stateID.String(), oauth2.AccessTypeOnline), nil
+	return oauthProvider.AuthCodeURL(state, oauth2.AccessTypeOnline), nil
 }
 
 // Callback returns a redirect URL after callback from an external oauth2 resource provider such as GitHub during user's account linking

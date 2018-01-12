@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"context"
+
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
@@ -19,6 +20,7 @@ const (
 type OauthStateReference struct {
 	gormsupport.Lifecycle
 	ID       uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"`
+	State    string
 	Referrer string
 }
 
@@ -36,6 +38,9 @@ func (r OauthStateReference) Equal(u convert.Equaler) bool {
 	if r.ID != other.ID {
 		return false
 	}
+	if r.State != other.State {
+		return false
+	}
 	if r.Referrer != other.Referrer {
 		return false
 	}
@@ -46,7 +51,7 @@ func (r OauthStateReference) Equal(u convert.Equaler) bool {
 type OauthStateReferenceRepository interface {
 	Create(ctx context.Context, state *OauthStateReference) (*OauthStateReference, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
-	Load(ctx context.Context, ID uuid.UUID) (*OauthStateReference, error)
+	Load(ctx context.Context, state string) (*OauthStateReference, error)
 }
 
 // NewOauthStateReferenceRepository creates a new oauth state reference repo
@@ -105,15 +110,15 @@ func (r *GormOauthStateReferenceRepository) Create(ctx context.Context, referenc
 	return reference, nil
 }
 
-// Load loads state reference by ID
-func (r *GormOauthStateReferenceRepository) Load(ctx context.Context, id uuid.UUID) (*OauthStateReference, error) {
+// Load loads state reference by state
+func (r *GormOauthStateReferenceRepository) Load(ctx context.Context, state string) (*OauthStateReference, error) {
 	ref := OauthStateReference{}
-	tx := r.db.Where("id=?", id).First(&ref)
+	tx := r.db.Where("state=?", state).First(&ref)
 	if tx.RecordNotFound() {
 		log.Error(ctx, map[string]interface{}{
-			"id": id.String(),
+			"state": state,
 		}, "Could not find oauth state reference by state")
-		return nil, errors.NewNotFoundError("oauth state reference", id.String())
+		return nil, errors.NewNotFoundError("oauth state reference", state)
 	}
 	if tx.Error != nil {
 		return nil, errors.NewInternalError(ctx, tx.Error)

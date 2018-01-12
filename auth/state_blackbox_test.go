@@ -30,11 +30,11 @@ func (s *stateBlackBoxTest) SetupTest() {
 func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	// given
 	state := &auth.OauthStateReference{
-		ID:       uuid.NewV4(),
+		State:    uuid.NewV4().String(),
 		Referrer: "domain.org"}
 
 	state2 := &auth.OauthStateReference{
-		ID:       uuid.NewV4(),
+		State:    uuid.NewV4().String(),
 		Referrer: "anotherdomain.com"}
 
 	_, err := s.repo.Create(s.Ctx, state)
@@ -45,11 +45,11 @@ func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	err = s.repo.Delete(s.Ctx, state.ID)
 	// then
 	assert.Nil(s.T(), err)
-	_, err = s.repo.Load(s.Ctx, state.ID)
+	_, err = s.repo.Load(s.Ctx, state.State)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 
-	foundState, err := s.repo.Load(s.Ctx, state2.ID)
+	foundState, err := s.repo.Load(s.Ctx, state2.State)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), foundState)
 	require.True(s.T(), state2.Equal(*foundState))

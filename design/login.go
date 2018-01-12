@@ -45,7 +45,7 @@ var _ = a.Resource("authorize", func() {
 			a.Param("client_id", d.String, "")
 			a.Param("redirect_uri", d.String, "This is where authorization provider will send authorization_code")
 			a.Param("scope", d.String, "")
-			a.Param("state", d.UUID, "")
+			a.Param("state", d.String, "")
 			a.Param("api_client", d.String, "The name of the api client which is requesting a token")
 			a.Required("state", "response_type", "redirect_uri", "client_id")
 		})
@@ -61,7 +61,7 @@ var _ = a.Resource("authorize", func() {
 			a.GET("callback"),
 		)
 		a.Params(func() {
-			a.Param("state", d.UUID, "")
+			a.Param("state", d.String, "")
 			a.Param("code", d.String, "authorization_code")
 			a.Required("state", "code")
 		})
