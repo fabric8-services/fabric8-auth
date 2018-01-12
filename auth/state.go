@@ -64,26 +64,29 @@ type GormOauthStateReferenceRepository struct {
 	db *gorm.DB
 }
 
-// Delete deletes the reference with the given state
+// Delete deletes the reference with the given id
 // returns NotFoundError or InternalError
 func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, ID uuid.UUID) error {
-
+	if ID == uuid.Nil {
+		log.Error(ctx, map[string]interface{}{
+			"oauth_state_reference_id": ID.String(),
+		}, "unable to find the oauth state reference by ID")
+		return errors.NewNotFoundError("oauth state reference", ID.String())
+	}
 	reference := OauthStateReference{ID: ID}
 	tx := r.db.Delete(reference)
 
 	if err := tx.Error; err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"oauth_state_reference_id":    reference.ID,
-			"oauth_state_reference_state": reference.State,
+			"oauth_state_reference_id": ID.String(),
 		}, "unable to delete the oauth state reference")
 		return errors.NewInternalError(ctx, err)
 	}
 	if tx.RowsAffected == 0 {
 		log.Error(ctx, map[string]interface{}{
-			"oauth_state_reference_id": reference.ID,
-			"oauth state reference":    reference.State,
+			"oauth state reference": ID.String(),
 		}, "none row was affected by the deletion operation")
-		return errors.NewNotFoundError("oauth state reference", reference.State)
+		return errors.NewNotFoundError("oauth state reference", ID.String())
 	}
 
 	return nil

@@ -136,8 +136,8 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 	}
 
 	// First time access, redirect to oauth provider
-	stateID := uuid.NewV4().String()
-	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &stateID, ctx.RequestData, config, serviceConfig)
+	generatedState := uuid.NewV4().String()
+	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &generatedState, ctx.RequestData, config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
