@@ -222,6 +222,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	apiClient := referrerURL.Query().Get(apiClientParam)
 
 	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, config)
+
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -261,6 +262,18 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		"referrerURL": referrerURL.String(),
 		"user_name":   identity.Username,
 	}, "local user created/updated")
+
+	keycloakToken, err = keycloak.synchronizeAuthToKeycloak(ctx, request, keycloakToken, config, identity)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": identity.ID,
+			"username":    identity.Username,
+		}, "unable to synchronize user from auth to keycloak ")
+
+		// dont wish to cause a login error if something
+		// goes wrong here
+	}
 
 	// new user for WIT
 	if newUser {
