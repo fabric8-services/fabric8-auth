@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -37,6 +39,17 @@ type KeycloakUserProfile struct {
 
 // KeycloakUserProfileAttributes represents standard Keycloak profile payload Attributes
 type KeycloakUserProfileAttributes map[string][]string
+
+func equalsKeycloakAttribute(keycloakAttributes KeycloakUserProfileAttributes, attribute string, compareTo string) bool {
+	if v, ok := keycloakAttributes[attribute]; ok {
+		if len(v) > 0 {
+			if v[0] == compareTo {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 //KeycloakUserProfileResponse represents the user profile api response from keycloak
 type KeycloakUserProfileResponse struct {
@@ -405,4 +418,22 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 
 	err = json.NewDecoder(resp.Body).Decode(&keycloakUserProfileResponse)
 	return &keycloakUserProfileResponse, err
+}
+
+func keycloakUserProfileFromIdentity(identity account.Identity) KeycloakUserProfile {
+	identityID := identity.ID.String()
+	firstName := strings.Split(identity.User.FullName, " ")[0]
+	return KeycloakUserProfile{
+		ID:        &identityID,
+		Username:  &identity.Username,
+		FirstName: &firstName,
+		LastName:  &firstName,
+		Email:     &identity.User.Email,
+		Attributes: &KeycloakUserProfileAttributes{
+			BioAttributeName:      []string{identity.User.Bio},
+			ImageURLAttributeName: []string{identity.User.ImageURL},
+			URLAttributeName:      []string{identity.User.URL},
+			ClusterAttribute:      []string{identity.User.Cluster},
+		},
+	}
 }
