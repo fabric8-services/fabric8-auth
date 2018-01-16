@@ -97,10 +97,10 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resource := &resource.Resource{
-		ResourceID:     uuid.NewV4().String(),
-		ParentResource: nil,
-		Owner:          *identity,
-		ResourceType:   *resourceType,
+		ResourceID:       uuid.NewV4().String(),
+		ParentResourceID: nil,
+		Owner:            *identity,
+		ResourceType:     *resourceType,
 	}
 
 	err = s.repo.Create(s.Ctx, resource)
