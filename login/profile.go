@@ -434,6 +434,7 @@ func keycloakUserProfileFromIdentity(identity account.Identity) KeycloakUserProf
 			ImageURLAttributeName: []string{identity.User.ImageURL},
 			URLAttributeName:      []string{identity.User.URL},
 			ClusterAttribute:      []string{identity.User.Cluster},
+			ApprovedAttributeName: []string{"true"},
 		},
 	}
 }

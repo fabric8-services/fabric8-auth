@@ -37,6 +37,7 @@ import (
 
 type LoginServiceConfiguration interface {
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
+	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
 	GetKeycloakClientID() string
 	GetKeycloakSecret() string
 	GetValidRedirectURLs() string
@@ -47,24 +48,25 @@ type LoginServiceConfiguration interface {
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB, keycloakProfileService UserProfileService) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:       identities,
-		Users:            users,
-		TokenManager:     tokenManager,
-		DB:               db,
-		RemoteWITService: &wit.RemoteWITServiceCaller{},
+		Identities:             identities,
+		Users:                  users,
+		TokenManager:           tokenManager,
+		DB:                     db,
+		RemoteWITService:       &wit.RemoteWITServiceCaller{},
+		keycloakProfileService: keycloakProfileService,
 	}
 }
 
 // KeycloakOAuthProvider represents a keycloak IDP
 type KeycloakOAuthProvider struct {
-	Identities         account.IdentityRepository
-	Users              account.UserRepository
-	TokenManager       token.Manager
-	DB                 application.DB
-	RemoteWITService   wit.RemoteWITService
-	userProfileService UserProfileService
+	Identities             account.IdentityRepository
+	Users                  account.UserRepository
+	TokenManager           token.Manager
+	DB                     application.DB
+	RemoteWITService       wit.RemoteWITService
+	keycloakProfileService UserProfileService
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
@@ -332,6 +334,10 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 
 	accountAPIEndpoint, err := config.GetKeycloakAccountEndpoint(request)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":       err,
+			"user_name": identity.Username,
+		}, "error getting account endpoint")
 		return nil, err
 	}
 
@@ -342,21 +348,44 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 	if !tokenRefreshNeeded {
 		profileUpdateNeeded, err = keycloak.equalsKeycloakUserProfileAttributes(ctx, request, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":       err,
+				"user_name": identity.Username,
+			}, "keycloak profile comparison failed")
 			return nil, err
 		}
 	}
 
 	profileUpdatePayload := keycloakUserProfileFromIdentity(*identity)
 	if profileUpdateNeeded {
-		err = keycloak.userProfileService.Update(ctx, &profileUpdatePayload, keycloakToken.AccessToken, accountAPIEndpoint)
+		//profileUpdatePayload.Attributes[ApprovedAttributeName] = true
+		err = keycloak.keycloakProfileService.Update(ctx, &profileUpdatePayload, keycloakToken.AccessToken, accountAPIEndpoint)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":       err,
+				"user_name": identity.Username,
+			}, "keycloak profile update failed")
 			return nil, err
 		}
 	}
 
 	if tokenRefreshNeeded {
-		tokenSet, err := keycloakTokenService.RefreshToken(ctx, accountAPIEndpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret(), keycloakToken.AccessToken)
+		endpoint, err := config.GetKeycloakEndpointToken(request)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":       err,
+				"user_name": identity.Username,
+			}, "error getting endpoint")
+			return nil, err
+		}
+
+		tokenSet, err := keycloakTokenService.RefreshToken(ctx, endpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret(), keycloakToken.AccessToken)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":               err,
+				"keycloak_endpoint": endpoint,
+				"user_name":         identity.Username,
+			}, "refresh token failed")
 			return nil, err
 		}
 		oauth2Token := &oauth2.Token{
@@ -365,6 +394,10 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 			AccessToken:  *tokenSet.AccessToken,
 			RefreshToken: *tokenSet.RefreshToken,
 		}
+		oauth2Token = oauth2Token.WithExtra(map[string]interface{}{
+			"expires_in":         *tokenSet.ExpiresIn,
+			"refresh_expires_in": *tokenSet.RefreshExpiresIn,
+		})
 		return oauth2Token, nil
 	}
 
@@ -828,7 +861,7 @@ func (keycloak *KeycloakOAuthProvider) equalsTokenClaims(ctx context.Context, ac
 func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx context.Context, request *goa.RequestData, accessToken string, identity account.Identity, userAPIEndpoint string) (bool, error) {
 	profileUpdateNeeded := false
 
-	retrievedUserProfile, err := keycloak.userProfileService.Get(ctx, accessToken, userAPIEndpoint)
+	retrievedUserProfile, err := keycloak.keycloakProfileService.Get(ctx, accessToken, userAPIEndpoint)
 	if err != nil {
 		return false, err
 	}
