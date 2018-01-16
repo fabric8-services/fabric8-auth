@@ -184,7 +184,7 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenUnauthorized(for_ st
 
 	err = controller.Retrieve(tokenCtx)
 	require.NotNil(rest.T(), err)
-	expectedHeaderValue := fmt.Sprintf("LINK url=https://auth.localhost.io/api/token/link, description=\"%s token is missing. Link %s account\"", providerName, providerName)
+	expectedHeaderValue := fmt.Sprintf("LINK url=https://auth.localhost.io/api/token/link?for=%s, description=\"%s token is missing. Link %s account\"", for_, providerName, providerName)
 	assert.Contains(rest.T(), rw.Header().Get("WWW-Authenticate"), expectedHeaderValue)
 	assert.Contains(rest.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
