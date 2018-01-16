@@ -259,6 +259,9 @@ func (rest *TestResourceREST) TestUpdateResource() {
 	_, readResource = test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
 	require.EqualValues(rest.T(), updatedName, readResource.Name)
 
+	// Also confirm that no other fields have been updated
+	require.EqualValues(rest.T(), "openshift.io/resource/area", readResource.Type)
+
 	// Set the type to an invalid type and try to update it
 	invalidType := "invalid-type"
 	updatePayload = &app.UpdateResourcePayload{

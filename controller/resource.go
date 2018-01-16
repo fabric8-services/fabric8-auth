@@ -36,9 +36,8 @@ func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
 
 	err := application.Transactional(c.db, func(appl application.Application) error {
 
-		var error error
 		// Delete the resource
-		error = appl.ResourceRepository().Delete(ctx, ctx.ResourceID)
+		error := appl.ResourceRepository().Delete(ctx, ctx.ResourceID)
 
 		log.Debug(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
