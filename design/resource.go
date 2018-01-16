@@ -42,19 +42,20 @@ var _ = a.Resource("resource", func() {
 
 	a.Action("update", func() {
 		a.Routing(
-			a.PUT("/:resourceId"),
+			a.PATCH("/:resourceId"),
 		)
 		a.Params(func() {
 			a.Param("resourceId", d.String, "Identifier of the resource to update")
 		})
 		a.Description("Update the details of the specified resource")
+		a.Payload(UpdateResourceMedia)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.Forbidden, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
-		a.Response(d.MethodNotAllowed)
+		a.Response(d.OK, RegisterResourceMedia)
 	})
 
 	a.Action("delete", func() {
@@ -70,7 +71,7 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
-		a.Response(d.MethodNotAllowed)
+		a.Response(d.NoContent)
 	})
 
 })
@@ -93,6 +94,20 @@ var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 		a.Attribute("type")
 		a.Attribute("parent_resource_id")
 		a.Attribute("resource_id")
+	})
+})
+
+var UpdateResourceMedia = a.MediaType("application/vnd.update_resource+json", func() {
+	a.Description("Payload for updating a resource")
+	a.Attributes(func() {
+		a.Attribute("resource_owner_id", d.String, "Identifier for the owner of the resource")
+		a.Attribute("resource_scopes", a.ArrayOf(d.String), "The valid scopes for this resource")
+		a.Attribute("name", d.String, "The name of the resource")
+		a.Attribute("type", d.String, "The type of resource")
+		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs")
+	})
+	a.View("default", func() {
+		a.Attribute("name")
 	})
 })
 

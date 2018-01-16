@@ -109,10 +109,10 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	require.Nil(s.T(), err, "Could not lookup resource type")
 
 	res := &resource.Resource{
-		ResourceID:     uuid.NewV4().String(),
-		ParentResource: nil,
-		Owner:          *identity,
-		ResourceType:   *resourceType,
+		ResourceID:       uuid.NewV4().String(),
+		ParentResourceID: nil,
+		Owner:            *identity,
+		ResourceType:     *resourceType,
 	}
 
 	err = s.resourceRepo.Create(s.Ctx, res)
