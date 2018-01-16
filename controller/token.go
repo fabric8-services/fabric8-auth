@@ -272,7 +272,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 			"provider_name": providerName,
 		}, "Unable to obtain external token from Keycloak. Account linking may be required.")
 
-		linkURL := rest.AbsoluteURL(ctx.RequestData, client.LinkTokenPath())
+		linkURL := rest.AbsoluteURL(ctx.RequestData, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), ctx.For))
 		errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
