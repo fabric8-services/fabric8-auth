@@ -117,6 +117,7 @@ type OSOCluster struct {
 	Name                   string `mapstructure:"name"`
 	URL                    string `mapstructure:"url"`
 	ServiceAccountToken    string `mapstructure:"service-account-token"`
+	ServiceAccountUsername string `mapstructure:"service-account-username"`
 	TokenProviderID        string `mapstructure:"token-provider-id"`
 	AuthClientID           string `mapstructure:"auth-client-id"`
 	AuthClientSecret       string `mapstructure:"auth-client-secret"`

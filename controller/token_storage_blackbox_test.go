@@ -98,6 +98,8 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
 		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
 		assert.Equal(rest.T(), "bearer", tokenResponse.TokenType)
+		require.NotNil(rest.T(), tokenResponse.Username)
+		assert.Equal(rest.T(), "dsaas", *tokenResponse.Username)
 	}
 }
 
