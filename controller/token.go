@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -352,6 +353,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 	const clientCredentials = "client_credentials"
 	const authorizationCode = "authorization_code"
+	const refreshToken = "refresh_token"
 
 	payload := ctx.Payload
 	if payload == nil {
@@ -455,6 +457,56 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			Expiry:       &exp,
 			RefreshToken: &keycloakToken.RefreshToken,
 			TokenType:    &keycloakToken.TokenType,
+		}
+
+		return ctx.OK(token)
+	} else if payload.GrantType == refreshToken {
+		refreshToken := ctx.Payload.RefreshToken
+		if refreshToken == nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
+		}
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "Unable to get Keycloak token endpoint URL")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
+		}
+		res, err := client.PostForm(endpoint, url.Values{
+			"client_id":     {c.Configuration.GetKeycloakClientID()},
+			"client_secret": {c.Configuration.GetKeycloakSecret()},
+			"refresh_token": {*refreshToken},
+			"grant_type":    {"refresh_token"},
+		})
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "error when obtaining token")))
+		}
+		defer res.Body.Close()
+		switch res.StatusCode {
+		case 200:
+			// OK
+		case 401:
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(res.Status+" "+rest.ReadBody(res.Body)))
+		case 400:
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(res.Status+" "+rest.ReadBody(res.Body)))
+		default:
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New(res.Status+" "+rest.ReadBody(res.Body))))
+		}
+
+		t, err := token.ReadTokenSet(ctx, res)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
+
+		exp := strconv.FormatInt(int64(*t.ExpiresIn), 10)
+		token := &app.OauthToken{
+			AccessToken:  t.AccessToken,
+			Expiry:       &exp,
+			RefreshToken: t.RefreshToken,
+			TokenType:    t.TokenType,
 		}
 
 		return ctx.OK(token)
