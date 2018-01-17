@@ -139,6 +139,7 @@ func (rest *TestTokenREST) TestExchangeFailsWithIncompletePayload() {
 	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
 	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString})
 	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString, RedirectURI: &someRandomString})
+	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: someRandomString})
 }
 
 func (rest *TestTokenREST) TestExchangeWithWrongCredentialsFails() {
@@ -168,13 +169,24 @@ func (rest *TestTokenREST) TestExchangeWithWrongCodeFails() {
 	test.ExchangeTokenBadRequest(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID})
 }
 
-func (rest *TestTokenREST) TestExchangeWithWrongClientIDFailsWithGrantTypeAuthorizationCode() {
+func (rest *TestTokenREST) TestExchangeWithWrongClientIDFails() {
 	service, controller := rest.SecuredController()
 
 	someRandomString := "someString"
 	clientID := "someString"
 	code := "doesnt_matter"
+	refreshToken := "doesnt_matter "
 	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
+}
+
+func (rest *TestTokenREST) TestExchangeFailsWithWrongRefreshToken() {
+	rest.exchangeStrategy = "401"
+	service, controller := rest.SecuredController()
+	clientID := controller.Configuration.GetPublicOauthClientID()
+	refreshToken := "INVALID_REFRESH_TOKEN"
+
+	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
 }
 
 func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {

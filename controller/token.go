@@ -461,9 +461,17 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 		return ctx.OK(token)
 	} else if payload.GrantType == refreshToken {
-		refreshToken := ctx.Payload.RefreshToken
+		refreshToken := payload.RefreshToken
 		if refreshToken == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
+		}
+
+		// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+		if payload.ClientID != c.Configuration.GetPublicOauthClientID() {
+			log.Error(ctx, map[string]interface{}{
+				"client_id": payload.ClientID,
+			}, "unknown oauth client id")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid oauth client id"))
 		}
 
 		client := &http.Client{Timeout: 10 * time.Second}
