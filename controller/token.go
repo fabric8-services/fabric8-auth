@@ -240,6 +240,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 			Scope:       "<unknown>",
 			AccessToken: osConfig.Cluster.ServiceAccountToken,
 			TokenType:   "bearer",
+			Username:    &osConfig.Cluster.ServiceAccountUsername,
 		}
 		log.Info(ctx, map[string]interface{}{
 			"cluster": osConfig.Cluster.Name,
