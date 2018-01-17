@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -422,12 +421,12 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 
 func keycloakUserProfileFromIdentity(identity account.Identity) KeycloakUserProfile {
 	identityID := identity.ID.String()
-	firstName := strings.Split(identity.User.FullName, " ")[0]
+	firstName, lastName := account.SplitFullName(identity.User.FullName)
 	return KeycloakUserProfile{
 		ID:        &identityID,
 		Username:  &identity.Username,
 		FirstName: &firstName,
-		LastName:  &firstName,
+		LastName:  &lastName,
 		Email:     &identity.User.Email,
 		Attributes: &KeycloakUserProfileAttributes{
 			BioAttributeName:      []string{identity.User.Bio},
@@ -435,6 +434,7 @@ func keycloakUserProfileFromIdentity(identity account.Identity) KeycloakUserProf
 			URLAttributeName:      []string{identity.User.URL},
 			ClusterAttribute:      []string{identity.User.Cluster},
 			ApprovedAttributeName: []string{"true"},
+			CompanyAttributeName:  []string{identity.User.Company},
 		},
 	}
 }

@@ -342,11 +342,15 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 	}
 
 	claims, err := keycloak.TokenManager.ParseToken(ctx, keycloakToken.AccessToken)
-	tokenRefreshNeeded := keycloak.equalsTokenClaims(ctx, keycloakToken.AccessToken, claims, *identity)
+	tokenRefreshNeeded := !keycloak.equalsTokenClaims(ctx, keycloakToken.AccessToken, claims, *identity)
+	log.Info(ctx, map[string]interface{}{
+		"token_refresh_needed": tokenRefreshNeeded,
+		"user_name":            identity.Username,
+	}, "is token refresh needed ?")
 	profileUpdateNeeded := tokenRefreshNeeded
 
 	if !tokenRefreshNeeded {
-		profileUpdateNeeded, err = keycloak.equalsKeycloakUserProfileAttributes(ctx, request, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
+		profileEqual, err := keycloak.equalsKeycloakUserProfileAttributes(ctx, request, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":       err,
@@ -354,6 +358,11 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 			}, "keycloak profile comparison failed")
 			return nil, err
 		}
+		profileUpdateNeeded = !profileEqual
+		log.Info(ctx, map[string]interface{}{
+			"profile_updated_needed": profileUpdateNeeded,
+			"user_name":              identity.Username,
+		}, "is profile update needed ?")
 	}
 
 	profileUpdatePayload := keycloakUserProfileFromIdentity(*identity)
@@ -846,53 +855,59 @@ func generateGravatarURL(email string) (string, error) {
 // profile updated is needed & whether token refresh is needed.
 
 func (keycloak *KeycloakOAuthProvider) equalsTokenClaims(ctx context.Context, accessToken string, claims *token.TokenClaims, identity account.Identity) bool {
-
-	computedFullName := claims.Name + " " + claims.FamilyName
+	computedFullName := account.GenerateFullName(&claims.GivenName, &claims.FamilyName)
 	if identity.Username != claims.Username ||
 		identity.User.FullName != computedFullName ||
 		identity.User.Company != claims.Company ||
 		identity.User.Email != claims.Email {
-		return true
+		log.Error(ctx, map[string]interface{}{
+			"user":     identity.User,
+			"claims":   claims,
+			"fullName": computedFullName,
+		}, "claims and local db data don't match")
+		return false
 	}
-
-	return false
+	return true
 }
 
 func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx context.Context, request *goa.RequestData, accessToken string, identity account.Identity, userAPIEndpoint string) (bool, error) {
-	profileUpdateNeeded := false
+	profileEqual := true
 
 	retrievedUserProfile, err := keycloak.keycloakProfileService.Get(ctx, accessToken, userAPIEndpoint)
 	if err != nil {
+		log.Error(nil, map[string]interface{}{
+			"username": identity.Username,
+			"err":      err,
+		}, "error getting user's info from keycloak")
+
 		return false, err
 	}
 
-	computedFullName := ""
-	if retrievedUserProfile.FirstName != nil {
-		computedFullName = *retrievedUserProfile.FirstName
-	}
-	if retrievedUserProfile.LastName != nil && *retrievedUserProfile.LastName != "" {
-		computedFullName = computedFullName + " " + *retrievedUserProfile.LastName
-	}
+	computedFullName := account.GenerateFullName(retrievedUserProfile.FirstName, retrievedUserProfile.LastName)
 
 	if (retrievedUserProfile.Username == nil || identity.Username != *retrievedUserProfile.Username) ||
 		(retrievedUserProfile.Email == nil || identity.User.Email != *retrievedUserProfile.Email) ||
 		identity.User.FullName != computedFullName ||
 		retrievedUserProfile.Attributes == nil {
-		profileUpdateNeeded = true
+		profileEqual = false
 	}
 	keycloakAttributes := retrievedUserProfile.Attributes
 	if keycloakAttributes == nil ||
 		!equalsKeycloakAttribute(*keycloakAttributes, CompanyAttributeName, identity.User.Company) {
-		profileUpdateNeeded = true
+		profileEqual = false
 	}
 
 	if !equalsKeycloakAttribute(*keycloakAttributes, BioAttributeName, identity.User.Bio) ||
 		!equalsKeycloakAttribute(*keycloakAttributes, ImageURLAttributeName, identity.User.ImageURL) ||
 		!equalsKeycloakAttribute(*keycloakAttributes, ClusterAttribute, identity.User.Cluster) {
-
-		profileUpdateNeeded = true
+		profileEqual = false
 	}
-	return profileUpdateNeeded, nil
+
+	log.Info(ctx, map[string]interface{}{
+		"profile_equal": profileEqual,
+	}, "is keycloak profile in sync with auth db ?")
+
+	return profileEqual, nil
 }
 
 func fillUser(claims *token.TokenClaims, identity *account.Identity) (bool, error) {
