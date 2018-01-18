@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -26,17 +27,29 @@ const (
 
 // KeycloakUserProfile represents standard Keycloak User profile api request payload
 type KeycloakUserProfile struct {
-	ID         *string                        `json:"id,omitempty"`
-	CreatedAt  int64                          `json:"createdTimestamp,omitempty"`
-	Username   *string                        `json:"username,omitempty"`
-	FirstName  *string                        `json:"firstName,omitempty"`
-	LastName   *string                        `json:"lastName,omitempty"`
-	Email      *string                        `json:"email,omitempty"`
-	Attributes *KeycloakUserProfileAttributes `json:"attributes,omitempty"`
+	ID            *string                        `json:"id,omitempty"`
+	CreatedAt     int64                          `json:"createdTimestamp,omitempty"`
+	Username      *string                        `json:"username,omitempty"`
+	FirstName     *string                        `json:"firstName,omitempty"`
+	LastName      *string                        `json:"lastName,omitempty"`
+	Email         *string                        `json:"email,omitempty"`
+	EmailVerified *bool                          `json:"emailVerified"`
+	Attributes    *KeycloakUserProfileAttributes `json:"attributes,omitempty"`
 }
 
 // KeycloakUserProfileAttributes represents standard Keycloak profile payload Attributes
 type KeycloakUserProfileAttributes map[string][]string
+
+func equalsKeycloakAttribute(keycloakAttributes KeycloakUserProfileAttributes, attribute string, compareTo string) bool {
+	if v, ok := keycloakAttributes[attribute]; ok {
+		if len(v) > 0 {
+			if v[0] == compareTo {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 //KeycloakUserProfileResponse represents the user profile api response from keycloak
 type KeycloakUserProfileResponse struct {
@@ -405,4 +418,25 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 
 	err = json.NewDecoder(resp.Body).Decode(&keycloakUserProfileResponse)
 	return &keycloakUserProfileResponse, err
+}
+
+func keycloakUserRequestFromIdentity(identity account.Identity) KeytcloakUserRequest {
+	firstName, lastName := account.SplitFullName(identity.User.FullName)
+	return KeytcloakUserRequest{
+		Username:      &identity.Username,
+		FirstName:     &firstName,
+		LastName:      &lastName,
+		Email:         &identity.User.Email,
+		EmailVerified: &identity.User.EmailVerified,
+		Attributes: &KeycloakUserProfileAttributes{
+			BioAttributeName:      []string{identity.User.Bio},
+			ImageURLAttributeName: []string{identity.User.ImageURL},
+			URLAttributeName:      []string{identity.User.URL},
+			ClusterAttribute:      []string{identity.User.Cluster},
+			// Approved=true|false is not stored in the db, but if the program control
+			// reaches here, it implies that Approved was true.
+			ApprovedAttributeName: []string{"true"},
+			CompanyAttributeName:  []string{identity.User.Company},
+		},
+	}
 }

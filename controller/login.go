@@ -23,6 +23,7 @@ type LoginConfiguration interface {
 	GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error)
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
 	GetKeycloakEndpointEntitlement(*goa.RequestData) (string, error)
+	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
 	GetKeycloakClientID() string
 	GetKeycloakSecret() string
 	IsPostgresDeveloperModeEnabled() bool

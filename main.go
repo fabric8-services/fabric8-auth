@@ -173,8 +173,10 @@ func main() {
 	spaceAuthzService := authz.NewAuthzService(config)
 	service.Use(authz.InjectAuthzService(spaceAuthzService))
 
+	keycloakProfileService := login.NewKeycloakUserProfileClient()
+
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB)
+	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService)
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
@@ -219,7 +221,6 @@ func main() {
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
-	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
 
 	emailVerificationService := email.NewEmailVerificationClient(appDB, notificationChannel)
