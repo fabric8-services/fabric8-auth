@@ -390,8 +390,11 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 		"token_refresh_needed": tokenRefreshNeeded,
 		"user_name":            identity.Username,
 	}, "is token refresh needed ?")
-	profileUpdateNeeded := tokenRefreshNeeded
 
+	// if tokenRefreshNeeded = true, then we can deduce without GET-ing keycloak profile
+	// that we need to (1) update keycloak user profile (2) refresh token.
+
+	profileUpdateNeeded := tokenRefreshNeeded
 	if !tokenRefreshNeeded {
 		profileEqual, err := keycloak.equalsKeycloakUserProfileAttributes(ctx, request, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
 		if err != nil {
@@ -933,7 +936,7 @@ func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx c
 		(retrievedUserProfile.Email == nil || identity.User.Email != *retrievedUserProfile.Email) ||
 		identity.User.FullName != computedFullName ||
 		retrievedUserProfile.Attributes == nil ||
-		retrievedUserProfile.EmailVerified == nil || identity.User.EmailVerified != *retrievedUserProfile.EmailVerified {
+		(retrievedUserProfile.EmailVerified == nil || identity.User.EmailVerified != *retrievedUserProfile.EmailVerified) {
 		profileEqual = false
 	}
 	keycloakAttributes := retrievedUserProfile.Attributes
