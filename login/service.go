@@ -396,7 +396,7 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 
 	profileUpdateNeeded := tokenRefreshNeeded
 	if !tokenRefreshNeeded {
-		profileEqual, err := keycloak.equalsKeycloakUserProfileAttributes(ctx, request, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
+		profileEqual, err := keycloak.equalsKeycloakUserProfileAttributes(ctx, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":       err,
@@ -917,7 +917,7 @@ func (keycloak *KeycloakOAuthProvider) equalsTokenClaims(ctx context.Context, cl
 
 // equalsKeycloakUserProfileAttributes verifies the response from keycloak's user profile
 // and returns true if it matches with the user information managed locally by the auth service.
-func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx context.Context, request *goa.RequestData, accessToken string, identity account.Identity, userAPIEndpoint string) (bool, error) {
+func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx context.Context, accessToken string, identity account.Identity, userAPIEndpoint string) (bool, error) {
 	profileEqual := true
 
 	retrievedUserProfile, err := keycloak.keycloakProfileService.Get(ctx, accessToken, userAPIEndpoint)
@@ -941,13 +941,11 @@ func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx c
 	}
 	keycloakAttributes := retrievedUserProfile.Attributes
 	if keycloakAttributes == nil ||
-		!equalsKeycloakAttribute(*keycloakAttributes, CompanyAttributeName, identity.User.Company) {
-		profileEqual = false
-	}
-
-	if !equalsKeycloakAttribute(*keycloakAttributes, BioAttributeName, identity.User.Bio) ||
+		!equalsKeycloakAttribute(*keycloakAttributes, CompanyAttributeName, identity.User.Company) ||
+		!equalsKeycloakAttribute(*keycloakAttributes, BioAttributeName, identity.User.Bio) ||
 		!equalsKeycloakAttribute(*keycloakAttributes, ImageURLAttributeName, identity.User.ImageURL) ||
 		!equalsKeycloakAttribute(*keycloakAttributes, ClusterAttribute, identity.User.Cluster) {
+
 		profileEqual = false
 	}
 
