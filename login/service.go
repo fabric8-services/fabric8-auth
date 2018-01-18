@@ -922,7 +922,7 @@ func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx c
 
 	retrievedUserProfile, err := keycloak.keycloakProfileService.Get(ctx, accessToken, userAPIEndpoint)
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
+		log.Error(ctx, map[string]interface{}{
 			"username": identity.Username,
 			"err":      err,
 		}, "error getting user's info from keycloak")

@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateFullName(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
 	firstName := "john"
 	middleName := "doe"
 	lastname := "mike brown"
@@ -28,6 +30,7 @@ func TestGenerateFullName(t *testing.T) {
 }
 
 func TestSplitFullName(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
 	fullName := "john doe"
 	firstName, lastName := account.SplitFullName(fullName)
 	assert.Equal(t, "john", firstName)
@@ -42,4 +45,14 @@ func TestSplitFullName(t *testing.T) {
 	firstName, lastName = account.SplitFullName(fullName)
 	assert.Equal(t, "john,", firstName)
 	assert.Equal(t, "doe mike  brown", lastName)
+
+	fullName = "john"
+	firstName, lastName = account.SplitFullName(fullName)
+	assert.Equal(t, "john", firstName)
+	assert.Equal(t, "", lastName)
+
+	fullName = ""
+	firstName, lastName = account.SplitFullName(fullName)
+	assert.Equal(t, "", firstName)
+	assert.Equal(t, "", lastName)
 }
