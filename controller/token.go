@@ -346,36 +346,37 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	return ctx.OK([]byte{})
 }
 
-// Exchange provides OAuth2 token exchange. Currently only grant_type="client_credentials" is supported
-// allowing clients to authenticate using a service account ID and secret value.
+// Exchange provides OAuth2 and OpenID Connect token exchange.
+// Currently only grant_type="client_credentials", "authorization_code", and "refresh_token" are supported.
+//
+// grant_type="client_credentials" allows clients to authenticate using a service account ID and secret value.
 // A service account token is returned as the result of successful exchange.
-// May be expanded in the future to support other exchange types.
+//
+// grant_type="authorization_code" is part of OAuth2 authorization flow.
+//
+// grant_type="refresh_token" covers OpenID Connect token refresh flow.
 func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
-
-	const clientCredentials = "client_credentials"
-	const authorizationCode = "authorization_code"
-	const refreshToken = "refresh_token"
-
 	payload := ctx.Payload
 	if payload == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("payload", "nil").Expected("not empty payload"))
 	}
 
-	log.Info(ctx, map[string]interface{}{
+	log.Debug(ctx, map[string]interface{}{
 		"client_id":  payload.ClientID,
 		"grant_type": payload.GrantType,
-	}, "unknown oauth client id")
+	}, "token exchange")
 
 	var err error
 	var token *app.OauthToken
 
-	if payload.GrantType == clientCredentials {
+	switch payload.GrantType {
+	case "client_credentials":
 		token, err = c.exchangeWithGrantTypeClientCredentials(ctx)
-	} else if payload.GrantType == authorizationCode {
+	case "authorization_code":
 		token, err = c.exchangeWithGrantTypeAuthorizationCode(ctx)
-	} else if payload.GrantType == refreshToken {
+	case "refresh_token":
 		token, err = c.exchangeWithGrantTypeRefreshToken(ctx)
-	} else {
+	default:
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", payload.GrantType).Expected("grant_type=client_credentials or grant_type=authorization_code or grant_type=refresh_token"))
 	}
 
@@ -417,7 +418,10 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		"grant_type":    {"refresh_token"},
 	})
 	if err != nil {
-		return nil, errors.NewInternalErrorFromString(ctx, "error when obtaining token")
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to refresh token in Keycloak")
+		return nil, errors.NewInternalErrorFromString(ctx, "unable to refresh token in Keycloak")
 	}
 	defer res.Body.Close()
 	switch res.StatusCode {
@@ -433,6 +437,9 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 
 	t, err := token.ReadTokenSet(ctx, res)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to read token")
 		return nil, err
 	}
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
@@ -440,6 +447,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 	exp := strconv.FormatInt(int64(*t.ExpiresIn), 10)
 	token := &app.OauthToken{
 		AccessToken:  t.AccessToken,
+		ExpiresIn:    &exp,
 		Expiry:       &exp,
 		RefreshToken: t.RefreshToken,
 		TokenType:    t.TokenType,
@@ -509,6 +517,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 	exp := keycloakToken.Expiry.String()
 	token := &app.OauthToken{
 		AccessToken:  &keycloakToken.AccessToken,
+		ExpiresIn:    &exp,
 		Expiry:       &exp,
 		RefreshToken: &keycloakToken.RefreshToken,
 		TokenType:    &keycloakToken.TokenType,
@@ -552,7 +561,6 @@ func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.Exchan
 		"client_secret": *payload.ClientSecret,
 	}, "Service Account secret doesn't match")
 	return nil, errors.NewUnauthorizedError("invalid Service Account ID or secret")
-
 }
 
 func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
