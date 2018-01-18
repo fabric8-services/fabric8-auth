@@ -410,13 +410,6 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 
 	profileUpdatePayload := keycloakUserRequestFromIdentity(*identity)
 	if profileUpdateNeeded {
-		log.Info(ctx, map[string]interface{}{
-			"user_name": identity.Username,
-			"profile":   profileUpdatePayload,
-			"user":      identity.User,
-			"email_verified_keycloak": *profileUpdatePayload.EmailVerified,
-			"email_verified_identity": identity.User.EmailVerified,
-		}, "user info will be sync'd")
 		err = keycloak.updateUserInKeycloak(ctx, request, profileUpdatePayload, config, identity)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{

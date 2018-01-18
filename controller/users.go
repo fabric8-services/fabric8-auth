@@ -493,6 +493,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 			keycloakUserProfile.Email = updatedEmail
 		}
+		// ensure that the default value is not picked up by setting it explicitly.
 		keycloakUserProfile.EmailVerified = &user.EmailVerified
 
 		updatedUserName := ctx.Payload.Data.Attributes.Username
