@@ -94,7 +94,8 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application)
+	userProfileClient := NewKeycloakUserProfileClient()
+	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient)
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
@@ -139,22 +140,6 @@ func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
 	assert.True(s.T(), ok)
 	s.checkIfTokenMatchesIdentity(token, *identity)
 	assert.Equal(s.T(), s.Configuration.GetOpenShiftClientApiUrl(), identity.User.Cluster)
-
-	updatedClaims := make(map[string]interface{})
-	updatedClaims["company"] = "Updated company"
-	updatedClaims["preferred_username"] = uuid.NewV4().String()
-	updatedClaims["name"] = "Updated Name"
-	updatedClaims["given_name"] = "Updated"
-	updatedClaims["family_name"] = "Name"
-
-	token, err = testtoken.UpdateToken(token, updatedClaims)
-	require.Nil(s.T(), err)
-
-	identity, ok, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
-	require.Nil(s.T(), err)
-	require.NotNil(s.T(), identity)
-	assert.False(s.T(), ok)
-	s.checkIfTokenMatchesIdentity(token, *identity)
 }
 
 func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {

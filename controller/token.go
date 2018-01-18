@@ -77,7 +77,6 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
 	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -85,28 +84,8 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		}, "Unable to get Keycloak token endpoint URL")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
 	}
-	res, err := client.PostForm(endpoint, url.Values{
-		"client_id":     {c.Configuration.GetKeycloakClientID()},
-		"client_secret": {c.Configuration.GetKeycloakSecret()},
-		"refresh_token": {*refreshToken},
-		"grant_type":    {"refresh_token"},
-	})
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "error when obtaining token")))
-	}
-	defer res.Body.Close()
-	switch res.StatusCode {
-	case 200:
-		// OK
-	case 401:
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(res.Status+" "+rest.ReadBody(res.Body)))
-	case 400:
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(res.Status+" "+rest.ReadBody(res.Body)))
-	default:
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New(res.Status+" "+rest.ReadBody(res.Body))))
-	}
 
-	t, err := token.ReadTokenSet(ctx, res)
+	t, err := keycloak.RefreshToken(ctx, endpoint, c.Configuration.GetKeycloakClientID(), c.Configuration.GetKeycloakSecret(), *refreshToken)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

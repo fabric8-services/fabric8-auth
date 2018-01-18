@@ -12,16 +12,19 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/auth"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+	keycloakTokenService "github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
@@ -35,30 +38,37 @@ import (
 
 type LoginServiceConfiguration interface {
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
+	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
+	GetKeycloakClientID() string
+	GetKeycloakSecret() string
+	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
 	GetValidRedirectURLs() string
 	GetNotApprovedRedirect() string
 	GetWITURL(*goa.RequestData) (string, error)
 	GetOpenShiftClientApiUrl() string
+	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB, keycloakProfileService UserProfileService) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:       identities,
-		Users:            users,
-		TokenManager:     tokenManager,
-		DB:               db,
-		RemoteWITService: &wit.RemoteWITServiceCaller{},
+		Identities:             identities,
+		Users:                  users,
+		TokenManager:           tokenManager,
+		DB:                     db,
+		RemoteWITService:       &wit.RemoteWITServiceCaller{},
+		keycloakProfileService: keycloakProfileService,
 	}
 }
 
 // KeycloakOAuthProvider represents a keycloak IDP
 type KeycloakOAuthProvider struct {
-	Identities       account.IdentityRepository
-	Users            account.UserRepository
-	TokenManager     token.Manager
-	DB               application.DB
-	RemoteWITService wit.RemoteWITService
+	Identities             account.IdentityRepository
+	Users                  account.UserRepository
+	TokenManager           token.Manager
+	DB                     application.DB
+	RemoteWITService       wit.RemoteWITService
+	keycloakProfileService UserProfileService
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
@@ -216,6 +226,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	apiClient := referrerURL.Query().Get(apiClientParam)
 
 	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, config)
+
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -255,6 +266,20 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		"referrerURL": referrerURL.String(),
 		"user_name":   identity.Username,
 	}, "local user created/updated")
+
+	updatedKeycloakToken, err := keycloak.synchronizeAuthToKeycloak(ctx, request, keycloakToken, config, identity)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": identity.ID,
+			"username":    identity.Username,
+		}, "unable to synchronize user from auth to keycloak ")
+
+		// dont wish to cause a login error if something
+		// goes wrong here
+	} else if updatedKeycloakToken != nil {
+		keycloakToken = updatedKeycloakToken
+	}
 
 	// new user for WIT
 	if newUser {
@@ -306,6 +331,131 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	redirectTo := referrerURL.String()
 	return &redirectTo, nil
+}
+
+func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeytcloakUserRequest, config LoginServiceConfiguration, identity *account.Identity) error {
+	tokenEndpoint, err := config.GetKeycloakEndpointToken(request)
+	if err != nil {
+		return autherrors.NewInternalError(ctx, err)
+	}
+	protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret())
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"keycloak_client_id": config.GetKeycloakClientID(),
+			"token_endpoint":     tokenEndpoint,
+			"err":                err,
+		}, "error generating PAT")
+		return err
+	}
+
+	if protectedAccessToken != "" {
+		// try hitting the admin user endpoint only if getting a PAT
+		// was successful.
+
+		usersEndpoint, err := config.GetKeycloakEndpointUsers(request)
+
+		// not using userProfileService.Update() because it needs a user token
+		// and here we don't have one.
+		keycloakUserID, _, err := keycloak.keycloakProfileService.CreateOrUpdate(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "failed to update user in keycloak")
+			return err
+		} else {
+			log.Info(ctx, map[string]interface{}{
+				"keycloak_user_id": *keycloakUserID,
+			}, "successfully updated user in keycloak")
+			return nil
+		}
+	}
+	return autherrors.NewInternalErrorFromString(ctx, "couldn't update profile because PAT wasn't generated")
+}
+
+func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Context, request *goa.RequestData, keycloakToken *oauth2.Token, config LoginServiceConfiguration, identity *account.Identity) (*oauth2.Token, error) {
+	// Sync from auth db to keycloak.
+
+	accountAPIEndpoint, err := config.GetKeycloakAccountEndpoint(request)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":       err,
+			"user_name": identity.Username,
+		}, "error getting account endpoint")
+		return nil, err
+	}
+
+	claims, err := keycloak.TokenManager.ParseToken(ctx, keycloakToken.AccessToken)
+	tokenRefreshNeeded := !keycloak.equalsTokenClaims(ctx, claims, *identity)
+	log.Info(ctx, map[string]interface{}{
+		"token_refresh_needed": tokenRefreshNeeded,
+		"user_name":            identity.Username,
+	}, "is token refresh needed ?")
+
+	// if tokenRefreshNeeded = true, then we can deduce without GET-ing keycloak profile
+	// that we need to (1) update keycloak user profile (2) refresh token.
+
+	profileUpdateNeeded := tokenRefreshNeeded
+	if !tokenRefreshNeeded {
+		profileEqual, err := keycloak.equalsKeycloakUserProfileAttributes(ctx, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":       err,
+				"user_name": identity.Username,
+			}, "keycloak profile comparison failed")
+			return nil, err
+		}
+		profileUpdateNeeded = !profileEqual
+		log.Info(ctx, map[string]interface{}{
+			"profile_updated_needed": profileUpdateNeeded,
+			"user_name":              identity.Username,
+		}, "is profile update needed ?")
+	}
+
+	profileUpdatePayload := keycloakUserRequestFromIdentity(*identity)
+	if profileUpdateNeeded {
+		err = keycloak.updateUserInKeycloak(ctx, request, profileUpdatePayload, config, identity)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":       err,
+				"user_name": identity.Username,
+			}, "keycloak profile update failed")
+			return nil, err
+		}
+	}
+
+	if tokenRefreshNeeded {
+		endpoint, err := config.GetKeycloakEndpointToken(request)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":       err,
+				"user_name": identity.Username,
+			}, "error getting endpoint")
+			return nil, err
+		}
+
+		tokenSet, err := keycloakTokenService.RefreshToken(ctx, endpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret(), keycloakToken.AccessToken)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":               err,
+				"keycloak_endpoint": endpoint,
+				"user_name":         identity.Username,
+			}, "refresh token failed")
+			return nil, err
+		}
+		oauth2Token := &oauth2.Token{
+			Expiry:       time.Unix(*tokenSet.ExpiresIn, 0),
+			TokenType:    *tokenSet.TokenType,
+			AccessToken:  *tokenSet.AccessToken,
+			RefreshToken: *tokenSet.RefreshToken,
+		}
+		oauth2Token = oauth2Token.WithExtra(map[string]interface{}{
+			"expires_in":         *tokenSet.ExpiresIn,
+			"refresh_expires_in": *tokenSet.RefreshExpiresIn,
+		})
+		return oauth2Token, nil
+	}
+
+	return keycloakToken, err
 }
 
 // AuthCodeCallback takes care of authorization callback.
@@ -677,7 +827,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			identity.ProviderType = account.KeycloakIDP
 			identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
 			identity.User = *user
-
 			err = appl.Identities().Create(ctx, identity)
 			return err
 		})
@@ -702,45 +851,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 				"identity_id": keycloakIdentityID,
 			}, "Found Keycloak identity is not linked to any User")
 			return nil, false, errors.New("found Keycloak identity is not linked to any User")
-		}
-		// let's update the existing user with the fullname, email and avatar from Keycloak,
-		// in case the user changed them since the last time he/she logged in
-		isChanged, err := fillUser(claims, identity)
-		user := &identity.User
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"keycloak_identity_id": keycloakIdentityID,
-				"err": err,
-			}, "unable to create user/identity")
-			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
-		} else if isChanged {
-			err = application.Transactional(keycloak.DB, func(appl application.Application) error {
-				err = appl.Users().Save(ctx, user)
-				if err != nil {
-					log.Error(ctx, map[string]interface{}{
-						"user_id": user.ID,
-						"err":     err,
-					}, "unable to update user")
-					return errors.New("failed to update user " + err.Error())
-				}
-				err = appl.Identities().Save(ctx, identity)
-				if err != nil {
-					log.Error(ctx, map[string]interface{}{
-						"user_id": identity.ID,
-						"err":     err,
-					}, "unable to update identity")
-					return errors.New("failed to update identity " + err.Error())
-				}
-				return err
-			})
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"keycloak_identity_id": keycloakIdentityID,
-					"username":             claims.Username,
-					"err":                  err,
-				}, "unable to update user/identity")
-				return nil, false, errors.New("failed to update user/identity " + err.Error())
-			}
 		}
 	}
 	return identity, newIdentityCreated, err
@@ -785,6 +895,67 @@ func generateGravatarURL(email string) (string, error) {
 	return urlStr, nil
 }
 
+// equalsKeycloakUserProfile returns whether
+// profile updated is needed & whether token refresh is needed.
+
+func (keycloak *KeycloakOAuthProvider) equalsTokenClaims(ctx context.Context, claims *token.TokenClaims, identity account.Identity) bool {
+	computedFullName := account.GenerateFullName(&claims.GivenName, &claims.FamilyName)
+	if identity.Username != claims.Username ||
+		identity.User.FullName != computedFullName ||
+		identity.User.Company != claims.Company ||
+		identity.User.Email != claims.Email ||
+		identity.User.EmailVerified != claims.EmailVerified {
+		log.Error(ctx, map[string]interface{}{
+			"user":     identity.User,
+			"claims":   claims,
+			"fullName": computedFullName,
+		}, "claims and local db data don't match")
+		return false
+	}
+	return true
+}
+
+// equalsKeycloakUserProfileAttributes verifies the response from keycloak's user profile
+// and returns true if it matches with the user information managed locally by the auth service.
+func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx context.Context, accessToken string, identity account.Identity, userAPIEndpoint string) (bool, error) {
+	profileEqual := true
+
+	retrievedUserProfile, err := keycloak.keycloakProfileService.Get(ctx, accessToken, userAPIEndpoint)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"username": identity.Username,
+			"err":      err,
+		}, "error getting user's info from keycloak")
+
+		return false, err
+	}
+
+	computedFullName := account.GenerateFullName(retrievedUserProfile.FirstName, retrievedUserProfile.LastName)
+
+	if (retrievedUserProfile.Username == nil || identity.Username != *retrievedUserProfile.Username) ||
+		(retrievedUserProfile.Email == nil || identity.User.Email != *retrievedUserProfile.Email) ||
+		identity.User.FullName != computedFullName ||
+		retrievedUserProfile.Attributes == nil ||
+		(retrievedUserProfile.EmailVerified == nil || identity.User.EmailVerified != *retrievedUserProfile.EmailVerified) {
+		profileEqual = false
+	}
+	keycloakAttributes := retrievedUserProfile.Attributes
+	if keycloakAttributes == nil ||
+		!equalsKeycloakAttribute(*keycloakAttributes, CompanyAttributeName, identity.User.Company) ||
+		!equalsKeycloakAttribute(*keycloakAttributes, BioAttributeName, identity.User.Bio) ||
+		!equalsKeycloakAttribute(*keycloakAttributes, ImageURLAttributeName, identity.User.ImageURL) ||
+		!equalsKeycloakAttribute(*keycloakAttributes, ClusterAttribute, identity.User.Cluster) {
+
+		profileEqual = false
+	}
+
+	log.Info(ctx, map[string]interface{}{
+		"profile_equal": profileEqual,
+	}, "is keycloak profile in sync with auth db ?")
+
+	return profileEqual, nil
+}
+
 func fillUser(claims *token.TokenClaims, identity *account.Identity) (bool, error) {
 	isChanged := false
 	if identity.User.FullName != claims.Name || identity.User.Email != claims.Email || identity.User.Company != claims.Company || identity.Username != claims.Username || identity.User.ImageURL == "" {
@@ -795,6 +966,7 @@ func fillUser(claims *token.TokenClaims, identity *account.Identity) (bool, erro
 	identity.User.FullName = claims.Name
 	identity.User.Email = claims.Email
 	identity.User.Company = claims.Company
+	identity.User.EmailVerified = claims.EmailVerified
 	identity.Username = claims.Username
 	if identity.User.ImageURL == "" {
 		image, err := generateGravatarURL(claims.Email)
