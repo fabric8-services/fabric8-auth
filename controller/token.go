@@ -361,6 +361,11 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("payload", "nil").Expected("not empty payload"))
 	}
 
+	log.Info(ctx, map[string]interface{}{
+		"client_id":  payload.ClientID,
+		"grant_type": payload.GrantType,
+	}, "unknown oauth client id")
+
 	var err error
 	var token *app.OauthToken
 
@@ -371,7 +376,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	} else if payload.GrantType == refreshToken {
 		token, err = c.exchangeWithGrantTypeRefreshToken(ctx)
 	} else {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", payload.GrantType).Expected("grant_type=client_credentials or grant_type=authorization_code"))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("grant_type", payload.GrantType).Expected("grant_type=client_credentials or grant_type=authorization_code or grant_type=refresh_token"))
 	}
 
 	if err != nil {
@@ -403,7 +408,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "Unable to get Keycloak token endpoint URL")
-		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL"))
+		return nil, errors.NewInternalErrorFromString(ctx, "unable to get Keycloak token endpoint URL")
 	}
 	res, err := client.PostForm(endpoint, url.Values{
 		"client_id":     {c.Configuration.GetKeycloakClientID()},
@@ -412,7 +417,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		"grant_type":    {"refresh_token"},
 	})
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "error when obtaining token"))
+		return nil, errors.NewInternalErrorFromString(ctx, "error when obtaining token")
 	}
 	defer res.Body.Close()
 	switch res.StatusCode {
@@ -460,7 +465,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to get keycloak auth endpoint url")
-		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak auth endpoint url"))
+		return nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak auth endpoint url")
 	}
 
 	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
@@ -468,7 +473,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to get keycloak token endpoint url")
-		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak token endpoint url"))
+		return nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak token endpoint url")
 	}
 
 	oauth := &oauth2.Config{
