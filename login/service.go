@@ -385,7 +385,7 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 	}
 
 	claims, err := keycloak.TokenManager.ParseToken(ctx, keycloakToken.AccessToken)
-	tokenRefreshNeeded := !keycloak.equalsTokenClaims(ctx, keycloakToken.AccessToken, claims, *identity)
+	tokenRefreshNeeded := !keycloak.equalsTokenClaims(ctx, claims, *identity)
 	log.Info(ctx, map[string]interface{}{
 		"token_refresh_needed": tokenRefreshNeeded,
 		"user_name":            identity.Username,
@@ -895,7 +895,7 @@ func generateGravatarURL(email string) (string, error) {
 // equalsKeycloakUserProfile returns whether
 // profile updated is needed & whether token refresh is needed.
 
-func (keycloak *KeycloakOAuthProvider) equalsTokenClaims(ctx context.Context, accessToken string, claims *token.TokenClaims, identity account.Identity) bool {
+func (keycloak *KeycloakOAuthProvider) equalsTokenClaims(ctx context.Context, claims *token.TokenClaims, identity account.Identity) bool {
 	computedFullName := account.GenerateFullName(&claims.GivenName, &claims.FamilyName)
 	if identity.Username != claims.Username ||
 		identity.User.FullName != computedFullName ||

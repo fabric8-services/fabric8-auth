@@ -69,3 +69,48 @@ func TestEncodeTokenOK(t *testing.T) {
 	assert.Equal(t, int64(expiresIn), *tokenData.ExpiresIn)
 	assert.Equal(t, int64(refreshExpiresIn), *tokenData.RefreshExpiresIn)
 }
+
+func TestEqualsTokenClaimsNotEqual(t *testing.T) {
+	claims := token.TokenClaims{
+		GivenName:  "testfirstname",
+		FamilyName: "testlastname",
+		Username:   "test",
+		Company:    "test",
+	}
+
+	identity := account.Identity{
+		Username: claims.Username + "noise",
+		User: account.User{
+			FullName:      account.GenerateFullName(&claims.GivenName, &claims.FamilyName),
+			Email:         claims.Email + "noise",
+			EmailVerified: !claims.EmailVerified,
+		},
+	}
+
+	keycloakOAuthProvider := KeycloakOAuthProvider{}
+	assert.Equal(t, false, keycloakOAuthProvider.equalsTokenClaims(context.Background(), &claims, identity))
+}
+
+func TestEqualsTokenClaimsEqual(t *testing.T) {
+	claims := token.TokenClaims{
+		GivenName:     "testfirstname",
+		FamilyName:    "testlastname",
+		Username:      "test",
+		Company:       "test",
+		EmailVerified: false,
+		Email:         "test",
+	}
+
+	identity := account.Identity{
+		Username: claims.Username,
+		User: account.User{
+			FullName:      account.GenerateFullName(&claims.GivenName, &claims.FamilyName),
+			Email:         claims.Email,
+			Company:       claims.Company,
+			EmailVerified: false,
+		},
+	}
+
+	keycloakOAuthProvider := KeycloakOAuthProvider{}
+	assert.Equal(t, true, keycloakOAuthProvider.equalsTokenClaims(context.Background(), &claims, identity))
+}
