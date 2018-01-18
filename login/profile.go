@@ -27,13 +27,14 @@ const (
 
 // KeycloakUserProfile represents standard Keycloak User profile api request payload
 type KeycloakUserProfile struct {
-	ID         *string                        `json:"id,omitempty"`
-	CreatedAt  int64                          `json:"createdTimestamp,omitempty"`
-	Username   *string                        `json:"username,omitempty"`
-	FirstName  *string                        `json:"firstName,omitempty"`
-	LastName   *string                        `json:"lastName,omitempty"`
-	Email      *string                        `json:"email,omitempty"`
-	Attributes *KeycloakUserProfileAttributes `json:"attributes,omitempty"`
+	ID            *string                        `json:"id,omitempty"`
+	CreatedAt     int64                          `json:"createdTimestamp,omitempty"`
+	Username      *string                        `json:"username,omitempty"`
+	FirstName     *string                        `json:"firstName,omitempty"`
+	LastName      *string                        `json:"lastName,omitempty"`
+	Email         *string                        `json:"email,omitempty"`
+	EmailVerified *bool                          `json:"emailVerified"`
+	Attributes    *KeycloakUserProfileAttributes `json:"attributes,omitempty"`
 }
 
 // KeycloakUserProfileAttributes represents standard Keycloak profile payload Attributes
@@ -419,20 +420,21 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 	return &keycloakUserProfileResponse, err
 }
 
-func keycloakUserProfileFromIdentity(identity account.Identity) KeycloakUserProfile {
-	identityID := identity.ID.String()
+func keycloakUserRequestFromIdentity(identity account.Identity) KeytcloakUserRequest {
 	firstName, lastName := account.SplitFullName(identity.User.FullName)
-	return KeycloakUserProfile{
-		ID:        &identityID,
-		Username:  &identity.Username,
-		FirstName: &firstName,
-		LastName:  &lastName,
-		Email:     &identity.User.Email,
+	return KeytcloakUserRequest{
+		Username:      &identity.Username,
+		FirstName:     &firstName,
+		LastName:      &lastName,
+		Email:         &identity.User.Email,
+		EmailVerified: &identity.User.EmailVerified,
 		Attributes: &KeycloakUserProfileAttributes{
 			BioAttributeName:      []string{identity.User.Bio},
 			ImageURLAttributeName: []string{identity.User.ImageURL},
 			URLAttributeName:      []string{identity.User.URL},
 			ClusterAttribute:      []string{identity.User.Cluster},
+			// Approved=true|false is not stored in the db, but if the program control
+			// reaches here, it implies that Approved was true.
 			ApprovedAttributeName: []string{"true"},
 			CompanyAttributeName:  []string{identity.User.Company},
 		},

@@ -53,6 +53,7 @@ type TokenClaims struct {
 	GivenName     string                `json:"given_name"`
 	FamilyName    string                `json:"family_name"`
 	Email         string                `json:"email"`
+	EmailVerified bool                  `json:"email_verified"`
 	Company       string                `json:"company"`
 	SessionState  string                `json:"session_state"`
 	Approved      bool                  `json:"approved"`

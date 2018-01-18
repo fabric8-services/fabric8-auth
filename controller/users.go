@@ -493,6 +493,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 			keycloakUserProfile.Email = updatedEmail
 		}
+		keycloakUserProfile.EmailVerified = &user.EmailVerified
 
 		updatedUserName := ctx.Payload.Data.Attributes.Username
 		if updatedUserName != nil && *updatedUserName != identity.Username {
