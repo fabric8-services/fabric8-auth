@@ -423,11 +423,14 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 	}
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 
-	exp := strconv.FormatInt(int64(*t.ExpiresIn), 10)
+	var expiresIn *string
+	if t.ExpiresIn != nil {
+		expIn := strconv.FormatInt(int64(*t.ExpiresIn), 10)
+		expiresIn = &expIn
+	}
 	token := &app.OauthToken{
 		AccessToken:  t.AccessToken,
-		ExpiresIn:    &exp,
-		Expiry:       &exp,
+		ExpiresIn:    expiresIn,
 		RefreshToken: t.RefreshToken,
 		TokenType:    t.TokenType,
 	}
@@ -493,11 +496,20 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		return nil, err
 	}
 
-	exp := keycloakToken.Expiry.String()
+	// Convert expiry to expire_in
+	expiry := keycloakToken.Expiry
+	var expireIn *string
+	if expiry != *new(time.Time) {
+		exp := expiry.Sub(time.Now())
+		if exp > 0 {
+			seconds := strconv.FormatInt(int64(exp/time.Second), 10)
+			expireIn = &seconds
+		}
+	}
+
 	token := &app.OauthToken{
 		AccessToken:  &keycloakToken.AccessToken,
-		ExpiresIn:    &exp,
-		Expiry:       &exp,
+		ExpiresIn:    expireIn,
 		RefreshToken: &keycloakToken.RefreshToken,
 		TokenType:    &keycloakToken.TokenType,
 	}
