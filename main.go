@@ -208,6 +208,10 @@ func main() {
 	spaceCtrl := controller.NewSpaceController(service, appDB, config, auth.NewKeycloakResourceManager(config))
 	app.MountSpaceController(service, spaceCtrl)
 
+	// Mount ".well-known" controller
+	wellKnownCtrl := controller.NewWellKnownController(service)
+	app.MountWellknownController(service, wellKnownCtrl)
+
 	// Mount "user" controller
 	userCtrl := controller.NewUserController(service, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
