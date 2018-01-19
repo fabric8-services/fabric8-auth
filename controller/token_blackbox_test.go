@@ -221,6 +221,8 @@ func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controll
 	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
 	require.NotNil(rest.T(), token.RefreshToken)
 	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
+	thirtyDays := string(60 * 60 * 24 * 30)
+	require.Equal(rest.T(), thirtyDays, *token.ExpiresIn)
 }
 
 type DummyLinkService struct {
