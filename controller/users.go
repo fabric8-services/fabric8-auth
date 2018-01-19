@@ -271,7 +271,7 @@ func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersConte
 }
 
 func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID uuid.UUID) (*account.Identity, *account.User, error) {
-
+	log.Debug(ctx, map[string]interface{}{"identity_id": identityID, "user attributes": ctx.Payload.Data.Attributes}, "creating a new user in DB...")
 	userID := uuid.NewV4()
 	var err error
 
@@ -287,6 +287,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 		Cluster:       ctx.Payload.Data.Attributes.Cluster,
 		EmailPrivate:  false,
 		EmailVerified: true,
+		FeatureLevel:  account.DefaultFeatureLevel,
 	}
 	identity = &account.Identity{
 		ID:           identityID,
@@ -298,7 +299,6 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
 
 	// Optional Attributes
-
 	registrationCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
 	if registrationCompleted != nil {
 		identity.RegistrationCompleted = true
@@ -327,6 +327,11 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	url := ctx.Payload.Data.Attributes.URL
 	if url != nil {
 		user.URL = *url
+	}
+
+	featureLevel := ctx.Payload.Data.Attributes.FeatureLevel
+	if featureLevel != nil {
+		user.FeatureLevel = *featureLevel
 	}
 
 	contextInformation := ctx.Payload.Data.Attributes.ContextInformation
@@ -687,21 +692,17 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.User, updatedFeatureLevel *string) error {
 	if log.IsDebug() {
-		currentFeatureLevel := "none"
-		newFeatureLevel := "none"
-		if user.FeatureLevel != nil {
-			currentFeatureLevel = *user.FeatureLevel
-		}
+		newFeatureLevel := "<nil>"
 		if updatedFeatureLevel != nil {
 			newFeatureLevel = *updatedFeatureLevel
 		}
-		log.Debug(ctx, map[string]interface{}{"current_feature_level": currentFeatureLevel, "new_feature_level": newFeatureLevel}, "updating feature level")
+		log.Debug(ctx, map[string]interface{}{"current_feature_level": user.FeatureLevel, "new_feature_level": newFeatureLevel}, "updating feature level")
 	}
-	if updatedFeatureLevel != nil && (user.FeatureLevel == nil || *updatedFeatureLevel != *user.FeatureLevel) {
+	if updatedFeatureLevel != nil && *updatedFeatureLevel != user.FeatureLevel {
 		// handle the case where the value needs to be reset, when the new value is "" (empty string) or "released"
-		if *updatedFeatureLevel == "" || *updatedFeatureLevel == "released" {
-			log.Debug(ctx, map[string]interface{}{"user_id": user.ID}, "resetting feature level")
-			user.FeatureLevel = nil
+		if *updatedFeatureLevel == "" || *updatedFeatureLevel == account.DefaultFeatureLevel {
+			log.Debug(ctx, map[string]interface{}{"user_id": user.ID}, "resetting feature level to %s", account.DefaultFeatureLevel)
+			user.FeatureLevel = account.DefaultFeatureLevel
 		} else {
 			// if the level is 'internal', we need to check against the email address to verify that the user is a Red Hat employee
 			if *updatedFeatureLevel == "internal" &&
@@ -710,7 +711,7 @@ func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.
 				log.Error(ctx, map[string]interface{}{"user_id": user.ID, "user_email": user.Email}, "user is not an employee")
 				return errors.NewForbiddenError("User is not allowed to opt-in for the 'internal' level of features.")
 			}
-			user.FeatureLevel = updatedFeatureLevel
+			user.FeatureLevel = *updatedFeatureLevel
 		}
 	}
 	return nil
@@ -1032,7 +1033,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
-	var featureLevel *string
+	var featureLevel string
 	var cluster string
 	var emailVerified bool
 	var contextInformation map[string]interface{}
@@ -1077,7 +1078,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 				ProviderType:          &providerType,
 				Email:                 &email,
 				Company:               &company,
-				FeatureLevel:          featureLevel,
+				FeatureLevel:          &featureLevel,
 				Cluster:               &cluster,
 				EmailVerified:         &emailVerified,
 				ContextInformation:    make(map[string]interface{}),
