@@ -52,7 +52,8 @@ var openIDConfigurationData = a.Type("OpenIDConfigurationData", func() {
 	a.Attribute("ui_locales_supported", a.ArrayOf(d.String), "")
 })
 
-var _ = a.Resource(".well-known", func() {
+var _ = a.Resource("well-known", func() {
+	a.BasePath("/.well-known")
 
 	a.Action("show", func() {
 		a.Routing(
@@ -60,7 +61,9 @@ var _ = a.Resource(".well-known", func() {
 		)
 		a.Description("Show Indentity Provider Configuration. It list all endpoints supported by Auth Service")
 
-		a.UseTrait("conditional")
+		// Check if "NotModified" can be used here
+		// a.UseTrait("conditional")
+		// a.Response(d.NotModified)
 		a.Response(d.OK, openIDConfiguration)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
