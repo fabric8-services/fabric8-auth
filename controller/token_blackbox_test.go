@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
+	"strconv"
 )
 
 type TestTokenREST struct {
@@ -221,8 +222,9 @@ func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controll
 	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
 	require.NotNil(rest.T(), token.RefreshToken)
 	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
-	thirtyDays := string(60 * 60 * 24 * 30)
-	require.Equal(rest.T(), thirtyDays, *token.ExpiresIn)
+	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
+	require.Nil(rest.T(), err)
+	require.True(rest.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 
 type DummyLinkService struct {
@@ -256,8 +258,8 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
 	}
 	extra := make(map[string]interface{})
-	extra["expires_in"] = time.Now().Unix() + thirtyDays
-	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
+	extra["expires_in"] = thirtyDays
+	extra["refresh_expires_in"] = thirtyDays
 	token = token.WithExtra(extra)
 	return token, nil
 }
