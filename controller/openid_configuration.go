@@ -1,8 +1,15 @@
 package controller
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 )
@@ -10,6 +17,7 @@ import (
 // OpenidConfigurationController implements the openid_configuration resource.
 type OpenidConfigurationController struct {
 	*goa.Controller
+	Configuration LoginConfiguration
 }
 
 // NewOpenidConfigurationController creates a openid_configuration controller.
@@ -19,49 +27,35 @@ func NewOpenidConfigurationController(service *goa.Service) *OpenidConfiguration
 
 // Show runs the show action.
 func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationContext) error {
-	// OpenidConfigurationController_Show: start_implement
+	//keycloakOpenIDConfigurationEndpoint := c.Configuration.GetKeycloakURL() + "/auth/realms/" + c.Configuration.GetKeycloakRealm() + "/.well-known/openid-configuration"
+	// TODO: Instead of using the hardcoded URL, get it from function(s)^
+	keycloakOpenIDConfigurationEndpoint := "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/.well-known/openid-configuration"
+	response, err := http.Get(keycloakOpenIDConfigurationEndpoint)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{}, "request to achieve openid-configuration of keycloak failed")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
-	// Put your logic here
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		panic(err.Error())
+	}
+	keycloakOpenIDConfiguration := &app.OpenIDConfiguration{}
+	err = json.Unmarshal(body, keycloakOpenIDConfiguration)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{}, "unable to unmashal to json")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
 
-	// OpenidConfigurationController_Show: end_implement
-	/*
-			a.Attribute("issuer", d.String, "")
-		a.Attribute("authorization_endpoint", d.String, "")
-		a.Attribute("token_endpoint", d.String, "")
-		a.Attribute("token_endpoint_auth_methods_supported", a.ArrayOf(d.String), "")
-		a.Attribute("token_endpoint_auth_signing_alg_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("userinfo_endpoint", d.String, "")
-		a.Attribute("check_session_iframe", d.String, "")
-		a.Attribute("end_session_endpoint", d.String, "")
-		a.Attribute("jwks_uri", d.String, "")
-		a.Attribute("registration_endpoint", d.String, "")
-		a.Attribute("scopes_supported", a.ArrayOf(d.String), "")
-		a.Attribute("response_types_supported", a.ArrayOf(d.String), "")
-		a.Attribute("acr_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("subject_types_supported", a.ArrayOf(d.String), "")
-		a.Attribute("userinfo_signing_alg_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("userinfo_encryption_alg_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("userinfo_encryption_enc_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("id_token_signing_alg_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("id_token_encryption_alg_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("id_token_encryption_enc_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("request_object_signing_alg_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("display_values_supported", a.ArrayOf(d.String), "")
-		a.Attribute("claim_types_supported", a.ArrayOf(d.String), "")
-		a.Attribute("claims_supported", a.ArrayOf(d.String), "")
-		a.Attribute("claim_types_supported", a.ArrayOf(d.String), "")
-		a.Attribute("claims_parameter_supported", d.Boolean, "")
-		a.Attribute("service_documentation", d.String, "")
-		a.Attribute("ui_locales_supported", a.ArrayOf(d.String), "")
-	*/
-
+	issuer := rest.AbsoluteURL(ctx.RequestData, "")
 	authorizationEndpoint := rest.AbsoluteURL(ctx.RequestData, client.AuthorizeAuthorizePath())
 	tokenEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ExchangeTokenPath())
 
-	res := &app.OpenIDConfiguration{
+	authOpenIDConfiguration := &app.OpenIDConfiguration{
+		Issuer:                &issuer,
 		AuthorizationEndpoint: &authorizationEndpoint,
 		TokenEndpoint:         &tokenEndpoint,
 	}
 
-	return ctx.OK(res)
+	return ctx.OK(authOpenIDConfiguration)
 }
