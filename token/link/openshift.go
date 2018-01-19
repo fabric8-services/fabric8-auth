@@ -34,7 +34,7 @@ func NewOpenShiftIdentityProvider(cluster configuration.OSOCluster, authURL stri
 	provider.ClientSecret = cluster.AuthClientSecret
 	provider.Endpoint = oauth2.Endpoint{
 		AuthURL:  fmt.Sprintf("%s/oauth/authorize", cluster.URL),
-		TokenURL: fmt.Sprintf("%s/oauth/access_token", cluster.URL),
+		TokenURL: fmt.Sprintf("%s/oauth/token", cluster.URL),
 	}
 	provider.RedirectURL = authURL + client.CallbackTokenPath()
 	provider.ScopeStr = cluster.AuthClientDefaultScope
