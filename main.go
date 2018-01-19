@@ -208,9 +208,9 @@ func main() {
 	spaceCtrl := controller.NewSpaceController(service, appDB, config, auth.NewKeycloakResourceManager(config))
 	app.MountSpaceController(service, spaceCtrl)
 
-	// Mount "well-known" controller
-	wellKnownCtrl := controller.NewWellKnownController(service)
-	app.MountWellKnownController(service, wellKnownCtrl)
+	// Mount "open-configuration" controller
+	openidConfigurationCtrl := controller.NewOpenidConfigurationController(service)
+	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
 	userCtrl := controller.NewUserController(service, appDB, tokenManager, config)
