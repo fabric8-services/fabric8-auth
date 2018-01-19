@@ -218,13 +218,13 @@ var OauthToken = a.MediaType("application/vnd.oauthtoken+json", func() {
 	a.Description("Oauth 2.0 token payload")
 	a.Attributes(func() {
 		a.Attribute("access_token", d.String, "Access token")
-		a.Attribute("expiry", d.String, "Expiry")
+		a.Attribute("expires_in", d.String, "Access token expires in seconds")
 		a.Attribute("refresh_token", d.String, "RefreshToken")
 		a.Attribute("token_type", d.String, "Token type")
 	})
 	a.View("default", func() {
 		a.Attribute("access_token")
-		a.Attribute("expiry")
+		a.Attribute("expires_in")
 		a.Attribute("refresh_token")
 		a.Attribute("token_type")
 	})

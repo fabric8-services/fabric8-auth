@@ -127,7 +127,7 @@ __Response:__
 
 == OAuth2.0 Friendly Login
 
-=== How it works:
+=== How it works
 
 . Client sends a generated state. Auth "proxies" it to Keycloak and thereby initiates the first request in oauth2
 . Keycloak redirects to IdP etc. User logs in..
@@ -193,8 +193,44 @@ required fields: all
 - _Response:_ 
 [source]
 {
-"access_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13aXQiLCJzdWIiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw",
+"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
 "token_type":"bearer",
-"refresh_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw",
+"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
 "expires_in":3600
 }
+
+== Automated Tests
+
+=== Offline Tokens
+
+When an access token is required in automated tests it can be tricky to get the required token via regular the login workflow
+because the login flow requires user interaction in a browser. Using an offline tokens is the preferable way to get an access token in automated tests.
+
+An Offline token is a special refresh token which does not expire and can be stored in a test as a secret.
+
+==== How to get an Offline Token
+
+1. Open in our browser: https://auth.openshift.io/api/login/authorize?scope=offline_access&redirect=https%3A%2F%2Fauth.openshift.io%2Fapi%2Fstatus
+The browser will be redirected to https://developers.redhat.com where you need to login using your test account credentials. If you are not asked for credentials then it means you are already logged in (maybe as another user if you have a few RHD accounts). Re-login if you want to login as different user (logout then login again).
+
+2. After successful login, you will be redirected to https://auth.openshift.io/api/status?token_json=<JSON>
+You need to copy <JSON> for that URL. It's an encoded JSON with both access and offline tokens. Decode this parameter and you will get the JSON. A decoded JSON will look something like this:
+
+[source]
+{
+ "access_token" : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+ "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ"
+}
+
+*refresh_token* is an offline token for the logged-in user.
+You now can store this offline token in a test (as a secret!!!). Offline tokens do not expire but they should be used at least *once in 30 days* to stay valid.
+
+==== How to use an Offline Token
+
+Before running a test, obtain a new access token. Please do not obtain a new access token multiple times during the test
+because generating a new token is an expensive operation. Get the access token in the beginning of the test and then re-use it for subsequent API calls.
+
+[source]
+curl -H "Content-Type: application/json" -X POST -d '{"refresh_token":"<REFRESH_TOKEN>"}' https://auth.openshift.io/api/token/refresh
+
+As a result, you will get a JSON with an access token which you can use in your test.
