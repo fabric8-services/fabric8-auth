@@ -210,7 +210,7 @@ An Offline token is a special refresh token which does not expire and can be sto
 
 ==== How to get an Offline Token
 
-1. Open in our browser: https://auth.openshift.io/api/login/authorize?scope=offline_access&redirect=https%3A%2F%2Fauth.openshift.io%2Fapi%2Fstatus
+1. Open in our browser: https://auth.openshift.io/api/login?scope=offline_access&redirect=https%3A%2F%2Fauth.openshift.io%2Fapi%2Fstatus
 The browser will be redirected to https://developers.redhat.com where you need to login using your test account credentials. If you are not asked for credentials then it means you are already logged in (maybe as another user if you have a few RHD accounts). Re-login if you want to login as different user (logout then login again).
 
 2. After successful login, you will be redirected to https://auth.openshift.io/api/status?token_json=<JSON>
