@@ -100,13 +100,12 @@ func CreateTestUser(db *gorm.DB, user *account.User) (account.Identity, error) {
 		ProviderType: account.KeycloakIDP,
 	}
 	err := models.Transactional(db, func(tx *gorm.DB) error {
-		userCreationError := userRepository.Create(context.Background(), user)
-		if userCreationError != nil {
-			return userCreationError
+		err := userRepository.Create(context.Background(), user)
+		if err != nil {
+			return err
 		}
 		identity.User = *user
 		identity.UserID.UUID = user.ID
-
 		return identityRepository.Create(context.Background(), &identity)
 	})
 	return identity, err
