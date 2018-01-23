@@ -14,6 +14,8 @@ type RemoteTestSuite struct {
 	UnitTestSuite
 }
 
-func (s *RemoteTestSuite) testType() string {
-	return resource.Remote
+// SetupSuite implements suite.SetupAllSuite
+func (s *RemoteTestSuite) SetupSuite() {
+	resource.Require(s.T(), resource.Remote)
+	s.setupConfig()
 }

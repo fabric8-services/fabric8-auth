@@ -21,7 +21,11 @@ type UnitTestSuite struct {
 
 // SetupSuite implements suite.SetupAllSuite
 func (s *UnitTestSuite) SetupSuite() {
-	resource.Require(s.T(), s.testType())
+	resource.Require(s.T(), resource.UnitTest)
+	s.setupConfig()
+}
+
+func (s *UnitTestSuite) setupConfig() {
 	config, err := configuration.GetConfigurationData()
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -29,10 +33,6 @@ func (s *UnitTestSuite) SetupSuite() {
 		}, "failed to setup the configuration")
 	}
 	s.Config = config
-}
-
-func (s *UnitTestSuite) testType() string {
-	return resource.UnitTest
 }
 
 // TearDownSuite implements suite.TearDownAllSuite
