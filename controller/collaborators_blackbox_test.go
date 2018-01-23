@@ -231,9 +231,10 @@ func (rest *TestCollaboratorsREST) TestListCollaboratorsNotModifiedUsingIfModifi
 	svc, ctrl := rest.UnSecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	rest.policy.AddUserToPolicy(rest.testIdentity2.ID.String())
+	res := test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
+	lastModified := res.Header()[app.LastModified]
 	// when
-	ifModifiedSince := app.ToHTTPTime(rest.testIdentity1.UpdatedAt)
-	res := test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, &ifModifiedSince, nil)
+	res = test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, &lastModified, nil)
 	// then
 	assertResponseHeaders(rest.T(), res)
 }
@@ -243,12 +244,10 @@ func (rest *TestCollaboratorsREST) TestListCollaboratorsNotModifiedUsingIfNoneMa
 	svc, ctrl := rest.UnSecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	rest.policy.AddUserToPolicy(rest.testIdentity2.ID.String())
+	res := test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
+	etag := res.Header()[app.ETag]
 	// when
-	ifNoneMatch := app.GenerateEntitiesTag([]app.ConditionalRequestEntity{
-		rest.testIdentity1.User,
-		rest.testIdentity2.User,
-	})
-	res := test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, &ifNoneMatch)
+	res = test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, &etag)
 	// then
 	assertResponseHeaders(rest.T(), res)
 }
