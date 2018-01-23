@@ -60,19 +60,7 @@ func (s *TestOpenIDConfigurationREST) TestShowOpenIDConfiguration() {
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "OpenIDConfigurationTest"), rw, req, prms)
 	openIDConfigurationCtx, err := app.NewShowOpenidConfigurationContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(t, err)
-	/*
-		_, openIDConfiguration := test.ShowOpenidConfigurationOK(t, svc.Context, svc, ctrl)*/
-	// err = ctrl.Show(openIDConfigurationCtx)
-	// require.Nil(t, err)
-	/*
-		body, err := ioutil.ReadAll(rw.Body)
-		if err != nil {
-			panic(err.Error())
-		}
 
-		authOpenIDConfiguration := &app.OpenIDConfiguration{}
-		err = json.Unmarshal(body, authOpenIDConfiguration)
-	*/
 	issuer := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, "")
 	authorizationEndpoint := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, client.AuthorizeAuthorizePath())
 	tokenEndpoint := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, client.ExchangeTokenPath())
