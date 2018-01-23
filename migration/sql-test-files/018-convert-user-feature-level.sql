@@ -1,0 +1,1 @@
+insert into users (id, cluster, email_private, feature_level) values ('00000000-0000-0000-0000-000000000001', 'cluster_1', false, 'nopreproduction');
