@@ -67,7 +67,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 
 // Show runs the show action.
 func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
-	isServiceAccount := token.IsSpecificServiceAccount(ctx, "fabric8-notification")
+	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification)
 
 	return application.Transactional(c.db, func(appl application.Application) error {
 		identityID, err := uuid.FromString(ctx.ID)
@@ -96,7 +96,7 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 // Create creates a user when requested using a service account token
 func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
-	isSvcAccount := token.IsSpecificServiceAccount(ctx, "online-registration")
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.OnlineRegistration)
 	if !isSvcAccount {
 		log.Error(ctx, nil, "The account is not an authorized service account allowed to create a new user")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))

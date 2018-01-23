@@ -399,7 +399,8 @@ func TestLoadClusterConfigurationFromFile(t *testing.T) {
 func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.OSOCluster) {
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2",
-		URL:                    "https://api.starter-us-east-2.openshift.com",
+		APIURL:                 "https://api.starter-us-east-2.openshift.com",
+		AppDNS:                 "8a09.starter-us-east-2.openshiftapps.com",
 		ServiceAccountToken:    "fX0nH3d68LQ6SK5wBE6QeKJ6X8AZGVQO3dGQZZETakhmgmWAqr2KDFXE65KUwBO69aWoq",
 		ServiceAccountUsername: "dsaas",
 		TokenProviderID:        "f867ac10-5e05-4359-a0c6-b855ece59090",
@@ -409,7 +410,8 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 	})
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2a",
-		URL:                    "https://api.starter-us-east-2a.openshift.com",
+		APIURL:                 "https://api.starter-us-east-2a.openshift.com",
+		AppDNS:                 "1234.starter-us-east-2a.openshiftapps.com",
 		ServiceAccountToken:    "ak61T6RSAacWFruh1vZP8cyUOBtQ3Chv1rdOBddSuc9nZ2wEcs81DHXRO55NpIpVQ8uiH",
 		ServiceAccountUsername: "dsaas",
 		TokenProviderID:        "886c7ea3-ef97-443d-b345-de94b94bb65d",
@@ -420,9 +422,9 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 }
 
 func checkCluster(t *testing.T, clusters map[string]configuration.OSOCluster, expected configuration.OSOCluster) {
-	require.Contains(t, clusters, expected.URL)
-	require.Equal(t, expected, clusters[expected.URL])
-	_, err := uuid.FromString(clusters[expected.URL].TokenProviderID)
+	require.Contains(t, clusters, expected.APIURL)
+	require.Equal(t, expected, clusters[expected.APIURL])
+	_, err := uuid.FromString(clusters[expected.APIURL].TokenProviderID)
 	require.Nil(t, err)
 }
 

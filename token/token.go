@@ -33,6 +33,13 @@ import (
 
 const (
 	AuthServiceAccountID = "8f558668-4db7-4280-8e65-408bcb95f9d9"
+
+	// Service Account Names
+
+	OsoProxy           = "fabric8-oso-proxy"
+	Tenant             = "fabric8-tenant"
+	Notification       = "fabric8-notification"
+	OnlineRegistration = "online-registration"
 )
 
 // configuration represents configuration needed to construct a token manager
