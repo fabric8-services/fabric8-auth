@@ -158,6 +158,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// verion 16
 	m = append(m, steps{ExecuteSQLFile("016-add-state-to-auth-state-reference.sql")})
 
+	// verion 17
+	m = append(m, steps{ExecuteSQLFile("017-feature-level-not-null.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
