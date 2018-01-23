@@ -50,11 +50,20 @@ func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationCon
 	issuer := rest.AbsoluteURL(ctx.RequestData, "")
 	authorizationEndpoint := rest.AbsoluteURL(ctx.RequestData, client.AuthorizeAuthorizePath())
 	tokenEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ExchangeTokenPath())
+	logoutEndpoint := rest.AbsoluteURL(ctx.RequestData, client.LogoutLogoutPath())
 
 	authOpenIDConfiguration := &app.OpenIDConfiguration{
 		Issuer:                &issuer,
 		AuthorizationEndpoint: &authorizationEndpoint,
 		TokenEndpoint:         &tokenEndpoint,
+		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_jwt", "private_key_jwt"},
+		// UserinfoEndpoint is not OAuth2.0 compliant. http://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+		// UserinfoEndpoint:
+		EndSessionEndpoint: &logoutEndpoint,
+		// CheckSessionIframe is not supported yet
+		// RegistrationEndpoint is not supported yet
+		//ScopesSupported
+		ResponseTypesSupported: []string{"code", "token"}
 	}
 
 	return ctx.OK(authOpenIDConfiguration)
