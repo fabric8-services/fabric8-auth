@@ -40,6 +40,7 @@ type LoginConfiguration interface {
 	GetKeycloakRealm() string
 	GetServiceAccounts() map[string]configuration.ServiceAccount
 	GetPublicOauthClientID() string
+	GetKeycloakEndpointCerts() string
 }
 
 // LoginController implements the login resource.

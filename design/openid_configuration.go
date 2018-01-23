@@ -40,6 +40,7 @@ var openIDConfiguration = a.MediaType("application/vnd.openIDConfiguration+json"
 		a.Attribute("claims_parameter_supported", d.Boolean, "")
 		a.Attribute("service_documentation", d.String, "")
 		a.Attribute("ui_locales_supported", a.ArrayOf(d.String), "")
+		a.Attribute("grant_types_supported", a.ArrayOf(d.String), "")
 	})
 	a.View("default", func() {
 		a.Attribute("issuer", d.String, "")
@@ -70,6 +71,7 @@ var openIDConfiguration = a.MediaType("application/vnd.openIDConfiguration+json"
 		a.Attribute("claims_parameter_supported", d.Boolean, "")
 		a.Attribute("service_documentation", d.String, "")
 		a.Attribute("ui_locales_supported", a.ArrayOf(d.String), "")
+		a.Attribute("grant_types_supported", a.ArrayOf(d.String), "")
 	})
 })
 

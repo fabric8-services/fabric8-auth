@@ -17,19 +17,17 @@ import (
 // OpenidConfigurationController implements the openid_configuration resource.
 type OpenidConfigurationController struct {
 	*goa.Controller
-	Configuration LoginConfiguration
+	configuration LoginConfiguration
 }
 
 // NewOpenidConfigurationController creates a openid_configuration controller.
-func NewOpenidConfigurationController(service *goa.Service) *OpenidConfigurationController {
-	return &OpenidConfigurationController{Controller: service.NewController("OpenidConfigurationController")}
+func NewOpenidConfigurationController(service *goa.Service, configuration LoginConfiguration) *OpenidConfigurationController {
+	return &OpenidConfigurationController{Controller: service.NewController("OpenidConfigurationController"), configuration: configuration}
 }
 
 // Show runs the show action.
 func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationContext) error {
-	//keycloakOpenIDConfigurationEndpoint := c.Configuration.GetKeycloakURL() + "/auth/realms/" + c.Configuration.GetKeycloakRealm() + "/.well-known/openid-configuration"
-	// TODO: Instead of using the hardcoded URL, get it from function(s)^
-	keycloakOpenIDConfigurationEndpoint := "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/.well-known/openid-configuration"
+	keycloakOpenIDConfigurationEndpoint := c.configuration.GetKeycloakURL() + "/auth/realms/" + c.configuration.GetKeycloakRealm() + "/.well-known/openid-configuration"
 	response, err := http.Get(keycloakOpenIDConfigurationEndpoint)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{}, "request to achieve openid-configuration of keycloak failed")
@@ -51,19 +49,28 @@ func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationCon
 	authorizationEndpoint := rest.AbsoluteURL(ctx.RequestData, client.AuthorizeAuthorizePath())
 	tokenEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ExchangeTokenPath())
 	logoutEndpoint := rest.AbsoluteURL(ctx.RequestData, client.LogoutLogoutPath())
+	jwksURI := c.configuration.GetKeycloakEndpointCerts()
 
 	authOpenIDConfiguration := &app.OpenIDConfiguration{
 		Issuer:                &issuer,
 		AuthorizationEndpoint: &authorizationEndpoint,
 		TokenEndpoint:         &tokenEndpoint,
-		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_jwt", "private_key_jwt"},
-		// UserinfoEndpoint is not OAuth2.0 compliant. http://openid.net/specs/openid-connect-core-1_0.html#UserInfo
+		// Our UserinfoEndpoint is not OAuth2.0 compliant. http://openid.net/specs/openid-connect-core-1_0.html#UserInfo
 		// UserinfoEndpoint:
 		EndSessionEndpoint: &logoutEndpoint,
 		// CheckSessionIframe is not supported yet
 		// RegistrationEndpoint is not supported yet
-		//ScopesSupported
-		ResponseTypesSupported: []string{"code", "token"}
+		ResponseTypesSupported: []string{"code"},
+		JwksURI:                &jwksURI,
+		// AcrValuesSupported OPTIONAL. JSON array containing a list of the Authentication Context Class References that this OP supports.
+		GrantTypesSupported: []string{"authorization_code", "refresh_token", "client_credentials"},
+		// subject_types_supported REQUIRED. JSON array containing a list of the Subject Identifier types that this OP supports. Valid types include pairwise and public.
+		// A Subject Identifier is a locally unique and never reassigned identifier within the Issuer for the End-User, which is intended to be consumed by the Client.
+		// http://openid.net/specs/openid-connect-core-1_0.html#SubjectIDTypes
+		SubjectTypesSupported: []string{},
+		// id_token_signing_alg_values_supported REQUIRED. JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for the ID Token to encode the Claims in a JWT [JWT].
+		// The algorithm RS256 MUST be included. The value none MAY be supported, but MUST NOT be used unless the Response Type used returns no ID Token from the Authorization Endpoint (such as when using the Authorization Code Flow).
+		IDTokenSigningAlgValuesSupported: []string{"RS256"},
 	}
 
 	return ctx.OK(authOpenIDConfiguration)

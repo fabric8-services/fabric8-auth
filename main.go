@@ -209,7 +209,7 @@ func main() {
 	app.MountSpaceController(service, spaceCtrl)
 
 	// Mount "open-configuration" controller
-	openidConfigurationCtrl := controller.NewOpenidConfigurationController(service)
+	openidConfigurationCtrl := controller.NewOpenidConfigurationController(service, config)
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
