@@ -411,7 +411,7 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2a",
 		APIURL:                 "https://api.starter-us-east-2a.openshift.com",
-		AppDNS:                 "1234.starter-us-east-2a.openshiftapps.com",
+		AppDNS:                 "b542.starter-us-east-2a.openshiftapps.com",
 		ServiceAccountToken:    "ak61T6RSAacWFruh1vZP8cyUOBtQ3Chv1rdOBddSuc9nZ2wEcs81DHXRO55NpIpVQ8uiH",
 		ServiceAccountUsername: "dsaas",
 		TokenProviderID:        "886c7ea3-ef97-443d-b345-de94b94bb65d",
