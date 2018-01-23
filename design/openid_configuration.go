@@ -21,6 +21,8 @@ var openIDConfiguration = a.MediaType("application/vnd.openIDConfiguration+json"
 		a.Attribute("subject_types_supported", a.ArrayOf(d.String), "")
 		a.Attribute("id_token_signing_alg_values_supported", a.ArrayOf(d.String), "")
 		a.Attribute("grant_types_supported", a.ArrayOf(d.String), "")
+		a.Attribute("scopes_supported", a.ArrayOf(d.String), "")
+		a.Attribute("claims_supported", a.ArrayOf(d.String), "")
 	})
 	a.View("default", func() {
 		a.Attribute("issuer", d.String, "")
@@ -32,6 +34,8 @@ var openIDConfiguration = a.MediaType("application/vnd.openIDConfiguration+json"
 		a.Attribute("subject_types_supported", a.ArrayOf(d.String), "")
 		a.Attribute("id_token_signing_alg_values_supported", a.ArrayOf(d.String), "")
 		a.Attribute("grant_types_supported", a.ArrayOf(d.String), "")
+		a.Attribute("scopes_supported", a.ArrayOf(d.String), "")
+		a.Attribute("claims_supported", a.ArrayOf(d.String), "")
 	})
 })
 

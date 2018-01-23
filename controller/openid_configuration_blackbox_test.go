@@ -75,8 +75,10 @@ func (s *TestOpenIDConfigurationREST) TestShowOpenIDConfiguration() {
 		ResponseTypesSupported:           []string{"code"},
 		JwksURI:                          &jwksURI,
 		GrantTypesSupported:              []string{"authorization_code", "refresh_token", "client_credentials"},
-		SubjectTypesSupported:            []string{},
+		SubjectTypesSupported:            []string{"public"},
 		IDTokenSigningAlgValuesSupported: []string{"RS256"},
+		ScopesSupported:                  []string{"openid", "offline_access"},
+		ClaimsSupported:                  []string{"email", "full_name", "email", "image_url", "bio", "url", "company", "cluster", "email_verified", "email_private", "feature_level"},
 	}
 
 	require.Equal(t, openIDConfiguration, expectedOpenIDConfiguration)
