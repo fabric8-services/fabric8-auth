@@ -44,7 +44,7 @@ func NewCollaboratorsController(service *goa.Service, db application.DB, config 
 
 // List collaborators for the given space ID.
 func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error {
-	isServiceAccount := token.IsSpecificServiceAccount(ctx, "fabric8-notification")
+	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification)
 
 	policy, _, err := c.getPolicy(ctx, ctx.RequestData, ctx.SpaceID)
 	if err != nil {

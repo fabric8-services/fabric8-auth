@@ -36,6 +36,15 @@ var TestUser3 = account.User{
 	Cluster:  "Test Cluster",
 }
 
+// TestUserPrivate only creates in memory obj for testing purposes
+var TestUserPrivate = account.User{
+	ID:           uuid.NewV4(),
+	Email:        uuid.NewV4().String(),
+	FullName:     "Test Developer",
+	Cluster:      "Test Cluster",
+	EmailPrivate: true,
+}
+
 // TestIdentity only creates in memory obj for testing purposes
 var TestIdentity = account.Identity{
 	ID:       uuid.NewV4(),
