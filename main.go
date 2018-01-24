@@ -236,6 +236,10 @@ func main() {
 	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, config, auth.NewKeycloakPolicyManager(config))
 	app.MountCollaboratorsController(service, collaboratorsCtrl)
 
+	// Mount "clusters" controller
+	clustersCtrl := controller.NewClustersController(service, config)
+	app.MountClustersController(service, clustersCtrl)
+
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)

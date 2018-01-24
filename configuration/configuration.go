@@ -115,7 +115,8 @@ type ServiceAccount struct {
 // OSOCluster represents an OSO cluster configuration
 type OSOCluster struct {
 	Name                   string `mapstructure:"name"`
-	URL                    string `mapstructure:"url"`
+	APIURL                 string `mapstructure:"api-url"`
+	AppDNS                 string `mapstructure:"app-dns"`
 	ServiceAccountToken    string `mapstructure:"service-account-token"`
 	ServiceAccountUsername string `mapstructure:"service-account-username"`
 	TokenProviderID        string `mapstructure:"token-provider-id"`
@@ -185,7 +186,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	c.clusters = map[string]OSOCluster{}
 	for _, cluster := range clusterConf.Clusters {
-		c.clusters[cluster.URL] = cluster
+		c.clusters[cluster.APIURL] = cluster
 	}
 
 	// Check sensitive default configuration
