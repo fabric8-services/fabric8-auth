@@ -23,6 +23,7 @@ var openIDConfiguration = a.MediaType("application/vnd.openIDConfiguration+json"
 		a.Attribute("grant_types_supported", a.ArrayOf(d.String), "")
 		a.Attribute("scopes_supported", a.ArrayOf(d.String), "")
 		a.Attribute("claims_supported", a.ArrayOf(d.String), "")
+		a.Attribute("token_endpoint_auth_methods_supported", a.ArrayOf(d.String), "")
 	})
 	a.View("default", func() {
 		a.Attribute("issuer", d.String, "")
@@ -36,6 +37,7 @@ var openIDConfiguration = a.MediaType("application/vnd.openIDConfiguration+json"
 		a.Attribute("grant_types_supported", a.ArrayOf(d.String), "")
 		a.Attribute("scopes_supported", a.ArrayOf(d.String), "")
 		a.Attribute("claims_supported", a.ArrayOf(d.String), "")
+		a.Attribute("token_endpoint_auth_methods_supported", a.ArrayOf(d.String), "")
 	})
 })
 
