@@ -93,7 +93,7 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
 	for _, cluster := range rest.Configuration.GetOSOClusters() {
-		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.URL, nil)
+		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
 		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
@@ -111,7 +111,7 @@ func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSA
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
 	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
 	for _, cluster := range rest.Configuration.GetOSOClusters() {
-		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.URL, nil)
+		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 	}
 }
 
