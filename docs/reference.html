@@ -427,9 +427,9 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_architecture_overview">Architecture Overview</a>
 <ul class="sectlevel2">
 <li><a href="#_sign_up">Sign Up</a></li>
-<li><a href="#_approving_user">Approving User</a></li>
+<li><a href="#_user_approval">User Approval</a></li>
 <li><a href="#_login">Login</a></li>
-<li><a href="#_login_continue_linking_openshift_io_account_to_github_and_openshift_online">Login Continue. Linking OpenShift.io account to GitHub and OpenShift Online</a></li>
+<li><a href="#__login_continued_linking_openshift_io_account_to_github_and_openshift_online">( Login continued ) Linking OpenShift.io account to GitHub and OpenShift Online</a></li>
 </ul>
 </li>
 <li><a href="#_service_accounts">Service Accounts</a>
@@ -475,7 +475,7 @@ able to build and/or develop the project, please refer to the <a href="developer
 </div>
 </div>
 <div class="sect2">
-<h3 id="_approving_user">Approving User</h3>
+<h3 id="_user_approval">User Approval</h3>
 <div class="imageblock">
 <div class="content">
 <img src="./assets/approval.png" alt="approval">
@@ -493,7 +493,7 @@ able to build and/or develop the project, please refer to the <a href="developer
 </div>
 </div>
 <div class="sect2">
-<h3 id="_login_continue_linking_openshift_io_account_to_github_and_openshift_online">Login Continue. Linking OpenShift.io account to GitHub and OpenShift Online</h3>
+<h3 id="__login_continued_linking_openshift_io_account_to_github_and_openshift_online">( Login continued ) Linking OpenShift.io account to GitHub and OpenShift Online</h3>
 <div class="imageblock">
 <div class="content">
 <img src="./assets/login2.png" alt="login2">
@@ -507,7 +507,7 @@ able to build and/or develop the project, please refer to the <a href="developer
 <h2 id="_service_accounts">Service Accounts</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Service accounts are used to authenticate other services in order for them to participate in service-to-service interactions.</p>
+<p>Service accounts are used to authenticate other services to enable them to participate in privileged service-to-service interactions.</p>
 </div>
 <div class="paragraph">
 <p>Credentials for service accounts are stored in Openshift using <a href="https://docs.openshift.com/enterprise/3.0/dev_guide/secrets.html">secrets</a>,
@@ -519,7 +519,7 @@ which enable the credentials to be stored outside of the project source code and
 <div class="ulist">
 <ul>
 <li>
-<p><strong>name</strong> This field is used to describe the account, and has no bearing on authentication logic</p>
+<p><strong>name</strong> This field is used to describe the account, and has no bearing on the authentication logic</p>
 </li>
 <li>
 <p><strong>id</strong> The unique identifier of the service account</p>
@@ -933,7 +933,7 @@ because generating a new token is an expensive operation. Get the access token i
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-01-23 17:44:41 PST
+Last updated 2018-01-24 06:33:17 PST
 </div>
 </div>
 </body>
