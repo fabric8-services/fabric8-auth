@@ -13,7 +13,7 @@ able to build and/or develop the project, please refer to the link:developer.htm
 .Signup
 image::signup.png[]
 
-=== Approving User
+=== User Approval
 
 .User approval
 image::approval.png[]
@@ -23,21 +23,21 @@ image::approval.png[]
 .Login
 image::login1.png[]
 
-=== Login Continue. Linking OpenShift.io account to GitHub and OpenShift Online
+=== ( Login continued ) Linking OpenShift.io account to GitHub and OpenShift Online
 
 .Login
 image::login2.png[]
 
 == Service Accounts
 
-Service accounts are used to authenticate other services in order for them to participate in service-to-service interactions.
+Service accounts are used to authenticate other services to enable them to participate in privileged service-to-service interactions.
 
 Credentials for service accounts are stored in Openshift using link:https://docs.openshift.com/enterprise/3.0/dev_guide/secrets.html[secrets], 
 which enable the credentials to be stored outside of the project source code and only made available to fabric8-auth at runtime.
 
 The service account credentials are defined in a JSON document, with each account having the following attributes:
 
-* *name* This field is used to describe the account, and has no bearing on authentication logic
+* *name* This field is used to describe the account, and has no bearing on the authentication logic
 * *id* The unique identifier of the service account
 * *secrets* An array of credential values.  Use of an array allows new credentials to be added while retaining older credentials.  This strategy allows
 for a smoother deployment process, eliminating the need to "juggle" the deployment of various services in order to ensure synchronized credentials between
