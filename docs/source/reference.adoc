@@ -6,6 +6,28 @@ This is the Reference documentation for fabric8-auth. You may find it useful if 
 with its authentication and authorization services via its REST endpoints.  If you wish to understand more about the inner workings of fabric8-auth and be
 able to build and/or develop the project, please refer to the link:developer.html[Developer documentation] instead.
 
+== Architecture Overview
+
+=== Sign Up
+
+.Signup
+image::signup.png[]
+
+=== Approving User
+
+.User approval
+image::approval.png[]
+
+=== Login
+
+.Login
+image::login1.png[]
+
+=== Login Continue. Linking OpenShift.io account to GitHub and OpenShift Online
+
+.Login
+image::login2.png[]
+
 == Service Accounts
 
 Service accounts are used to authenticate other services in order for them to participate in service-to-service interactions.
