@@ -1,19 +1,12 @@
 package controller_test
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/client"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/rest"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/require"
@@ -40,23 +33,11 @@ func (s *TestOpenIDConfigurationREST) TestShowOpenIDConfiguration() {
 
 	_, openIDConfiguration := test.ShowOpenidConfigurationOK(t, svc.Context, svc, ctrl)
 
-	u := &url.URL{
-		Path: fmt.Sprintf(client.ShowOpenidConfigurationPath()),
-	}
-	prms := url.Values{}
-	req, err := http.NewRequest("GET", u.String(), nil)
-
-	ctx := context.Background()
-	rw := httptest.NewRecorder()
-	goaCtx := goa.NewContext(goa.WithAction(ctx, "OpenIDConfigurationTest"), rw, req, prms)
-	openIDConfigurationCtx, err := app.NewShowOpenidConfigurationContext(goaCtx, req, goa.New("LoginService"))
-	require.Nil(t, err)
-
-	issuer := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, "")
-	authorizationEndpoint := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, client.AuthorizeAuthorizePath())
-	tokenEndpoint := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, client.ExchangeTokenPath())
-	logoutEndpoint := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, client.LogoutLogoutPath())
-	jwksURI := rest.AbsoluteURL(openIDConfigurationCtx.RequestData, client.KeysTokenPath())
+	issuer := "http://"
+	authorizationEndpoint := "http:///api/authorize"
+	tokenEndpoint := "http:///api/token"
+	logoutEndpoint := "http:///api/logout"
+	jwksURI := "http:///api/token/keys"
 
 	expectedOpenIDConfiguration := &app.OpenIDConfiguration{
 		Issuer:                            &issuer,
@@ -69,7 +50,7 @@ func (s *TestOpenIDConfigurationREST) TestShowOpenIDConfiguration() {
 		SubjectTypesSupported:             []string{"public"},
 		IDTokenSigningAlgValuesSupported:  []string{"RS256"},
 		ScopesSupported:                   []string{"openid", "offline_access"},
-		ClaimsSupported:                   []string{"email", "full_name", "email", "image_url", "bio", "url", "company", "cluster", "email_verified", "email_private", "feature_level"},
+		ClaimsSupported:                   []string{"sub", "iss", "auth_time", "name", "given_name", "family_name", "preferred_username", "email"},
 		TokenEndpointAuthMethodsSupported: []string{"client_secret_post", "client_secret_jwt"},
 	}
 

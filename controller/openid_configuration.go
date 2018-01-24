@@ -24,7 +24,6 @@ func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationCon
 	authorizationEndpoint := rest.AbsoluteURL(ctx.RequestData, client.AuthorizeAuthorizePath())
 	tokenEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ExchangeTokenPath())
 	logoutEndpoint := rest.AbsoluteURL(ctx.RequestData, client.LogoutLogoutPath())
-	// jwksURI := c.configuration.GetKeycloakEndpointCerts()//
 	jwksURI := rest.AbsoluteURL(ctx.RequestData, client.KeysTokenPath())
 
 	authOpenIDConfiguration := &app.OpenIDConfiguration{
@@ -48,7 +47,7 @@ func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationCon
 		// RECOMMENDED properties
 		// userinfo_endpoint : We don't have a OpenID compliant userinfo_endpoint
 		ScopesSupported: []string{"openid", "offline_access"},
-		ClaimsSupported: []string{"email", "full_name", "email", "image_url", "bio", "url", "company", "cluster", "email_verified", "email_private", "feature_level"},
+		ClaimsSupported: []string{"sub", "iss", "auth_time", "name", "given_name", "family_name", "preferred_username", "email"},
 
 		// OPTIONAL properties
 		GrantTypesSupported: []string{"authorization_code", "refresh_token", "client_credentials"},
