@@ -156,7 +156,6 @@ func (rest *TestCollaboratorsREST) TestListCollaboratorsPrivateEmailsOK() {
 	// when
 	res, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	// then
-	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID}, actualUsers)
 	assertResponseHeaders(rest.T(), res)
 	rest.checkPrivateCollaborators([]uuid.UUID{rest.testIdentity1.ID}, actualUsers)
 }
@@ -504,6 +503,11 @@ func (rest *TestCollaboratorsREST) checkCollaborators(expectedUserIDs []uuid.UUI
 	for i, id := range expectedUserIDs {
 		require.NotNil(rest.T(), actualUsers.Data[i].ID)
 		require.Equal(rest.T(), id.String(), *actualUsers.Data[i].ID)
+
+		// in general, when we make an unauthenticated call, private emails don't show up.
+		if actualUsers.Data[i].Attributes.EmailPrivate != nil && *actualUsers.Data[i].Attributes.EmailPrivate {
+			assert.Empty(rest.T(), *actualUsers.Data[i].Attributes.Email)
+		}
 	}
 }
 
