@@ -103,6 +103,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration09", testMigration09)
 	t.Run("TestMigration10", testMigration10)
 	t.Run("TestMigration11", testMigration11)
+	t.Run("TestMigration18", testMigration18)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -174,6 +175,25 @@ func testMigration11(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(12)], (12))
 
 	assert.True(t, dialect.HasColumn("external_tokens", "username"))
+}
+
+func testMigration18(t *testing.T) {
+	// given
+	migrateToVersion(sqlDB, migrations[:(18)], 18)
+	require.Nil(t, runSQLscript(sqlDB, "018-convert-user-feature-level.sql"))
+	var featureLevel string
+	stmt, err := sqlDB.Prepare("select feature_level from users where id = $1")
+	require.NoError(t, err)
+	err = stmt.QueryRow("00000000-0000-0000-0000-000000000001").Scan(&featureLevel)
+	require.NoError(t, err)
+	require.Equal(t, "nopreproduction", featureLevel)
+	// when
+	migrateToVersion(sqlDB, migrations[:(19)], 19)
+	// then
+	stmt2, err := sqlDB.Prepare("select feature_level from users where id = $1")
+	err = stmt2.QueryRow("00000000-0000-0000-0000-000000000001").Scan(&featureLevel)
+	require.NoError(t, err)
+	require.Equal(t, "released", featureLevel)
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

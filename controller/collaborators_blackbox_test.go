@@ -1,6 +1,7 @@
 package controller_test
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -17,13 +18,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -231,9 +232,11 @@ func (rest *TestCollaboratorsREST) TestListCollaboratorsNotModifiedUsingIfModifi
 	svc, ctrl := rest.UnSecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	rest.policy.AddUserToPolicy(rest.testIdentity2.ID.String())
+	res, _ := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
+	lastModified, err := getHeader(res, app.LastModified)
+	require.NoError(rest.T(), err)
 	// when
-	ifModifiedSince := app.ToHTTPTime(rest.testIdentity1.UpdatedAt)
-	res := test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, &ifModifiedSince, nil)
+	res = test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, lastModified, nil)
 	// then
 	assertResponseHeaders(rest.T(), res)
 }
@@ -243,12 +246,11 @@ func (rest *TestCollaboratorsREST) TestListCollaboratorsNotModifiedUsingIfNoneMa
 	svc, ctrl := rest.UnSecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	rest.policy.AddUserToPolicy(rest.testIdentity2.ID.String())
+	res, _ := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
+	etag, err := getHeader(res, app.ETag)
+	require.NoError(rest.T(), err)
 	// when
-	ifNoneMatch := app.GenerateEntitiesTag([]app.ConditionalRequestEntity{
-		rest.testIdentity1.User,
-		rest.testIdentity2.User,
-	})
-	res := test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, &ifNoneMatch)
+	res = test.ListCollaboratorsNotModified(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, etag)
 	// then
 	assertResponseHeaders(rest.T(), res)
 }
@@ -553,13 +555,23 @@ func (s *TestSpaceAuthzService) Configuration() authz.AuthzConfiguration {
 }
 
 func assertResponseHeaders(t *testing.T, res http.ResponseWriter) (string, string, string) {
-	lastModified := res.Header()[app.LastModified]
-	eTag := res.Header()[app.ETag]
-	cacheControl := res.Header()[app.CacheControl]
-	assert.NotEmpty(t, lastModified)
-	assert.NotEmpty(t, eTag)
-	assert.NotEmpty(t, cacheControl)
-	return eTag[0], lastModified[0], cacheControl[0]
+	lastModified, err := getHeader(res, app.LastModified)
+	require.NoError(t, err)
+	eTag, err := getHeader(res, app.ETag)
+	require.NoError(t, err)
+	cacheControl, err := getHeader(res, app.CacheControl)
+	require.NoError(t, err)
+	return *eTag, *lastModified, *cacheControl
+}
+
+func getHeader(res http.ResponseWriter, headerName string) (*string, error) {
+	values := res.Header()[headerName]
+	if len(values) == 0 {
+		return nil, fmt.Errorf("No '%s' header was found in the response", values)
+	}
+	value := values[0]
+	log.Debug(nil, map[string]interface{}{headerName: value}, "retrieved response header")
+	return &value, nil
 }
 
 type DummyResourceManager struct {
