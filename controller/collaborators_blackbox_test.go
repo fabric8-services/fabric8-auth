@@ -25,6 +25,7 @@ import (
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -94,7 +95,9 @@ func (rest *TestCollaboratorsREST) SetupTest() {
 		Logic:            auth.PolicyLogicPossitive,
 		DecisionStrategy: auth.PolicyDecisionStrategyUnanimous,
 	}
-	testIdentity, err := testsupport.CreateTestIdentity(rest.DB, "TestCollaborators-"+uuid.NewV4().String(), "TestCollaborators")
+
+	// out of the 3 identities, have one with a user which has a private email.
+	testIdentity, err := testsupport.CreateTestUser(rest.DB, &testsupport.TestUserPrivate)
 	require.Nil(rest.T(), err)
 	rest.testIdentity1 = testIdentity
 	testIdentity, err = testsupport.CreateTestIdentity(rest.DB, "TestCollaborators-"+uuid.NewV4().String(), "TestCollaborators")
@@ -108,6 +111,11 @@ func (rest *TestCollaboratorsREST) SetupTest() {
 
 func (rest *TestCollaboratorsREST) SecuredController() (*goa.Service, *CollaboratorsController) {
 	svc := testsupport.ServiceAsSpaceUser("Collaborators-Service", rest.testIdentity1, &DummySpaceAuthzService{rest})
+	return svc, NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
+}
+
+func (rest *TestCollaboratorsREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *CollaboratorsController) {
+	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
 	return svc, NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
 }
 
@@ -139,6 +147,17 @@ func (rest *TestCollaboratorsREST) TestListCollaboratorsOK() {
 	// then
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID}, actualUsers)
 	assertResponseHeaders(rest.T(), res)
+}
+
+func (rest *TestCollaboratorsREST) TestListCollaboratorsPrivateEmailsOK() {
+	// given
+	svc, ctrl := rest.SecuredControllerWithServiceAccount(testsupport.TestNotificationIdentity)
+	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
+	// when
+	res, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
+	// then
+	assertResponseHeaders(rest.T(), res)
+	rest.checkPrivateCollaborators([]uuid.UUID{rest.testIdentity1.ID}, actualUsers)
 }
 
 func (rest *TestCollaboratorsREST) TestListCollaboratorsByPagesOK() {
@@ -484,6 +503,20 @@ func (rest *TestCollaboratorsREST) checkCollaborators(expectedUserIDs []uuid.UUI
 	for i, id := range expectedUserIDs {
 		require.NotNil(rest.T(), actualUsers.Data[i].ID)
 		require.Equal(rest.T(), id.String(), *actualUsers.Data[i].ID)
+
+		// in general, when we make an unauthenticated call, private emails don't show up.
+		if actualUsers.Data[i].Attributes.EmailPrivate != nil && *actualUsers.Data[i].Attributes.EmailPrivate {
+			assert.Empty(rest.T(), *actualUsers.Data[i].Attributes.Email)
+		}
+	}
+}
+
+func (rest *TestCollaboratorsREST) checkPrivateCollaborators(expectedUserIDs []uuid.UUID, actualUsers *app.UserList) {
+	for i, id := range expectedUserIDs {
+		require.NotNil(rest.T(), actualUsers.Data[i].ID)
+		require.Equal(rest.T(), id.String(), *actualUsers.Data[i].ID)
+		assert.True(rest.T(), *actualUsers.Data[i].Attributes.EmailPrivate)
+		require.NotEmpty(rest.T(), *actualUsers.Data[i].Attributes.Email)
 	}
 }
 
