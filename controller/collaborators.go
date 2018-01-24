@@ -13,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
+	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
@@ -43,6 +44,8 @@ func NewCollaboratorsController(service *goa.Service, db application.DB, config 
 
 // List collaborators for the given space ID.
 func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error {
+	isServiceAccount := token.IsSpecificServiceAccount(ctx, "fabric8-notification")
+
 	policy, _, err := c.getPolicy(ctx, ctx.RequestData, ctx.SpaceID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -102,7 +105,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 	return ctx.ConditionalEntities(resultUsers, c.config.GetCacheControlCollaborators, func() error {
 		data := make([]*app.UserData, len(page))
 		for i := range resultUsers {
-			appUser := ConvertToAppUser(ctx.RequestData, &resultUsers[i], &resultIdentities[i], false)
+			appUser := ConvertToAppUser(ctx.RequestData, &resultUsers[i], &resultIdentities[i], isServiceAccount)
 			data[i] = appUser.Data
 		}
 		response := app.UserList{
