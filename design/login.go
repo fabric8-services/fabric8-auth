@@ -42,6 +42,10 @@ var _ = a.Resource("authorize", func() {
 				a.Enum("code")
 				a.Description("response_type=code for grant_type authorization_code")
 			})
+			a.Param("response_mode", d.String, func() {
+				a.Enum("fragment", "query")
+				a.Description("By default the api would work as response_mode=query (if response_mode is not passed), if desired response_mode is fragment, passing response_mode=fragment is necessary")
+			})
 			a.Param("client_id", d.String, "")
 			a.Param("redirect_uri", d.String, "This is where authorization provider will send authorization_code")
 			a.Param("scope", d.String, "")

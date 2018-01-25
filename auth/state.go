@@ -19,9 +19,10 @@ const (
 // OauthStateReference represents a oauth state reference
 type OauthStateReference struct {
 	gormsupport.Lifecycle
-	ID       uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"`
-	State    string
-	Referrer string
+	ID           uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"`
+	State        string
+	Referrer     string
+	ResponseMode string
 }
 
 // TableName implements gorm.tabler
