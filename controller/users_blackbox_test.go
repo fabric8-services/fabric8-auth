@@ -836,18 +836,22 @@ func (s *UsersControllerTestSuite) TestShowUserOKUsingExpiredIfNoneMatchHeader()
 
 func (s *UsersControllerTestSuite) TestShowUserNotModifiedUsingIfModifedSinceHeader() {
 	// given user
-	user, identity := s.createRandomUserIdentity(s.T(), "TestShowUserNotModifiedUsingIfModifedSinceHeader")
+	_, identity := s.createRandomUserIdentity(s.T(), "TestShowUserNotModifiedUsingIfModifedSinceHeader")
+	res, _ := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
+	lastModified, err := getHeader(res, app.LastModified)
+	require.NoError(s.T(), err)
 	// when/then
-	ifModifiedSince := app.ToHTTPTime(user.UpdatedAt.UTC())
-	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), &ifModifiedSince, nil)
+	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), lastModified, nil)
 }
 
 func (s *UsersControllerTestSuite) TestShowUserNotModifiedUsingIfNoneMatchHeader() {
 	// given user
-	user, identity := s.createRandomUserIdentity(s.T(), "TestShowUserNotModifiedUsingIfNoneMatchHeader")
+	_, identity := s.createRandomUserIdentity(s.T(), "TestShowUserNotModifiedUsingIfNoneMatchHeader")
+	res, _ := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
+	etag, err := getHeader(res, app.ETag)
+	require.NoError(s.T(), err)
 	// when/then
-	ifNoneMatch := app.GenerateEntityTag(user)
-	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), nil, &ifNoneMatch)
+	test.ShowUsersNotModified(s.T(), nil, nil, s.controller, identity.ID.String(), nil, etag)
 }
 
 func (s *UsersControllerTestSuite) TestShowUserNotFound() {
@@ -927,10 +931,12 @@ func (s *UsersControllerTestSuite) TestListUsersOKUsingExpiredIfNoneMatchHeader(
 
 func (s *UsersControllerTestSuite) TestListUsersNotModifiedUsingIfModifiedSinceHeader() {
 	// given user
-	user, _ := s.createRandomUserIdentity(s.T(), "TestListUsersNotModifiedUsingIfModifiedSinceHeader2")
+	s.createRandomUserIdentity(s.T(), "TestListUsersNotModifiedUsingIfModifiedSinceHeader2")
+	res, _ := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, nil, nil, nil)
+	lastModified, err := getHeader(res, app.LastModified)
+	require.NoError(s.T(), err)
 	// when
-	ifModifiedSinceHeader := app.ToHTTPTime(user.UpdatedAt)
-	res := test.ListUsersNotModified(s.T(), nil, nil, s.controller, nil, nil, &ifModifiedSinceHeader, nil)
+	res = test.ListUsersNotModified(s.T(), nil, nil, s.controller, nil, nil, lastModified, nil)
 	// then
 	assertResponseHeaders(s.T(), res)
 }
@@ -965,11 +971,11 @@ func (s *UsersControllerTestSuite) TestListUsersByUsernameOKEmptyResult() {
 func (s *UsersControllerTestSuite) TestListUsersByUsernameNotModifiedUsingIfNoneMatchHeader() {
 	// given user1
 	_, identity := s.createRandomUserIdentity(s.T(), "TestListUsersOK1")
-	_, filteredUsers := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity.Username, nil, nil)
-	// when/then
-	ifNoneMatch := s.generateUsersTag(*filteredUsers)
+	res, _ := test.ListUsersOK(s.T(), nil, nil, s.controller, nil, &identity.Username, nil, nil)
+	etag, err := getHeader(res, app.ETag)
+	require.NoError(s.T(), err)
 	// when
-	res := test.ListUsersNotModified(s.T(), nil, nil, s.controller, nil, &identity.Username, nil, &ifNoneMatch)
+	res = test.ListUsersNotModified(s.T(), nil, nil, s.controller, nil, &identity.Username, nil, etag)
 	// then
 	assertResponseHeaders(s.T(), res)
 }
@@ -1008,10 +1014,11 @@ func (s *UsersControllerTestSuite) TestListUsersByEmailNotModifiedUsingIfNoneMat
 	user1, _ := s.createRandomUserIdentity(s.T(), "TestListUsersOK1")
 	// given user2
 	s.createRandomUserIdentity(s.T(), "TestListUsersOK2")
-	_, filteredUsers := test.ListUsersOK(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, nil)
+	res, _ := test.ListUsersOK(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, nil)
+	etag, err := getHeader(res, app.ETag)
+	require.NoError(s.T(), err)
 	// when
-	ifNoneMatch := s.generateUsersTag(*filteredUsers)
-	res := test.ListUsersNotModified(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, &ifNoneMatch)
+	res = test.ListUsersNotModified(s.T(), nil, nil, s.controller, &user1.Email, nil, nil, etag)
 	// then
 	assertResponseHeaders(s.T(), res)
 }
