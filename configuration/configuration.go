@@ -203,7 +203,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 			}
 		}
 		if cluster.MetricsURL == "" {
-			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "hawkular/metrics/m/stats/query")
+			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
 			if err != nil {
 				return nil, err
 			}
