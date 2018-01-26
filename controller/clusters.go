@@ -38,9 +38,11 @@ func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
 	var data []*app.ClusterData
 	for _, clusterConfig := range c.config.GetOSOClusters() {
 		cluster := &app.ClusterData{
-			Name:   clusterConfig.Name,
-			APIURL: clusterConfig.APIURL,
-			AppDNS: clusterConfig.AppDNS,
+			Name:       clusterConfig.Name,
+			APIURL:     clusterConfig.APIURL,
+			ConsoleURL: clusterConfig.ConsoleURL,
+			MetricsURL: clusterConfig.MetricsURL,
+			AppDNS:     clusterConfig.AppDNS,
 		}
 		data = append(data, cluster)
 	}
