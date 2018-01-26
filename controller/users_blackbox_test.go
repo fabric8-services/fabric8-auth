@@ -543,6 +543,12 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			require.Equal(s.T(), user.Email, *showUserResponse.Data.Attributes.Email)
 			require.True(s.T(), *showUserResponse.Data.Attributes.EmailPrivate)
 
+			// On using the tenant service account token, email would magically show up too.
+			secureService, secureController = s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
+			_, showUserResponse = test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
+			require.Equal(s.T(), user.Email, *showUserResponse.Data.Attributes.Email)
+			require.True(s.T(), *showUserResponse.Data.Attributes.EmailPrivate)
+
 			// On using the online-registration service account token, email would NOT show up.
 			secureService, secureController = s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 			_, showUserResponse = test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)

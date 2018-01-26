@@ -67,7 +67,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 
 // Show runs the show action.
 func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
-	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification)
+	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification, token.Tenant)
 
 	return application.Transactional(c.db, func(appl application.Application) error {
 		identityID, err := uuid.FromString(ctx.ID)
