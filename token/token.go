@@ -216,7 +216,7 @@ func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusOK {
 		log.Error(nil, map[string]interface{}{

@@ -141,7 +141,7 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 		}, "Unable to create Keycloak user")
 		return nil, false, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
-		defer resp.Body.Close()
+		defer rest.CloseResponse(resp)
 	}
 
 	bodyString := rest.ReadBody(resp.Body)
@@ -237,7 +237,7 @@ func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Co
 		}, "Unable to update Keycloak user")
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer rest.CloseResponse(resp)
 
 	bodyString := rest.ReadBody(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
@@ -290,7 +290,7 @@ func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context
 		}, "Unable to load Keycloak user")
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer rest.CloseResponse(resp)
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -347,7 +347,7 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 		}, "Unable to update Keycloak user profile")
 		return errors.NewInternalError(ctx, err)
 	} else if resp != nil {
-		defer resp.Body.Close()
+		defer rest.CloseResponse(resp)
 	}
 
 	bodyString := rest.ReadBody(resp.Body)
@@ -400,7 +400,7 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 		}, "Unable to fetch Keycloak user profile")
 		return nil, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
-		defer resp.Body.Close()
+		defer rest.CloseResponse(resp)
 	}
 
 	if resp.StatusCode != http.StatusOK {

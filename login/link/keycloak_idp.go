@@ -63,7 +63,7 @@ func (c *KeycloakIDPServiceClient) Create(ctx context.Context, keycloakLinkIDPRe
 		}, "Unable to create idp link for RHD")
 		return errors.NewInternalError(ctx, err)
 	} else if resp != nil {
-		defer resp.Body.Close()
+		defer rest.CloseResponse(resp)
 	}
 
 	bodyString := rest.ReadBody(resp.Body)
