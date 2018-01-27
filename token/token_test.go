@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -18,7 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/oauth2"
 )
 
 func TestToken(t *testing.T) {
@@ -53,26 +53,54 @@ func (s *TestTokenSuite) TestValidOAuthAccessToken() {
 	}
 	generatedToken, err := testtoken.GenerateToken(identity.ID.String(), identity.Username, s.privateKey)
 	assert.Nil(s.T(), err)
-	accessToken := &oauth2.Token{
-		AccessToken: generatedToken,
-		TokenType:   "Bearer",
-	}
 
-	claims, err := s.tokenManager.ParseToken(context.Background(), accessToken.AccessToken)
-	assert.Nil(s.T(), err)
+	claims, err := s.tokenManager.ParseToken(context.Background(), generatedToken)
+	require.Nil(s.T(), err)
 	assert.Equal(s.T(), identity.ID.String(), claims.Subject)
 	assert.Equal(s.T(), identity.Username, claims.Username)
+
+	jwtToken, err := s.tokenManager.Parse(context.Background(), generatedToken)
+	require.Nil(s.T(), err)
+
+	s.checkClaim(jwtToken, "sub", identity.ID.String())
+	s.checkClaim(jwtToken, "preferred_username", identity.Username)
 }
 
-func (s *TestTokenSuite) TestInvalidOAuthAccessToken() {
-	invalidAccessToken := "7423742yuuiy-INVALID-73842342389h"
+func (s *TestTokenSuite) checkClaim(token *jwt.Token, claimName string, expectedValue string) {
+	jwtClaims := token.Claims.(jwt.MapClaims)
+	claim, ok := jwtClaims[claimName]
+	require.True(s.T(), ok)
+	assert.Equal(s.T(), expectedValue, claim)
+}
 
-	accessToken := &oauth2.Token{
-		AccessToken: invalidAccessToken,
-		TokenType:   "Bearer",
-	}
+func (s *TestTokenSuite) TestInvalidOAuthAccessTokenFails() {
+	// Invalid token format
+	s.checkInvalidToken("7423742yuuiy-INVALID-73842342389h")
 
-	_, err := s.tokenManager.ParseToken(context.Background(), accessToken.AccessToken)
+	// Missing kid
+	s.checkInvalidToken("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwMjgyYjI5Yy01MTczLTQyZDgtODE0NS1iNDVmYTFlMzUzOGIiLCJleHAiOjE1MTk2MDc5NTIsIm5iZiI6MCwiaWF0IjoxNTE3MDE1OTUyLCJpc3MiOiJ0ZXN0IiwiYXVkIjoiZmFicmljOC1vbmxpbmUtcGxhdGZvcm0iLCJzdWIiOiIyMzk4NDM5OC04NTVhLTQyZDYtYTdmZS05MzZiYjRlOTJhMGMiLCJ0eXAiOiJCZWFyZXIiLCJzZXNzaW9uX3N0YXRlIjoiZWFkYzA2NmMtMTIzNC00YTU2LTlmMzUtY2U3MDdiNTdhNGU5IiwiYWNyIjoiMCIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sImFwcHJvdmVkIjp0cnVlLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6IlRlc3QiLCJjb21wYW55IjoiIiwicHJlZmVycmVkX3VzZXJuYW1lIjoidGVzdHVzZXIiLCJnaXZlbl9uYW1lIjoiIiwiZmFtaWx5X25hbWUiOiIiLCJlbWFpbCI6InRAdGVzdC50In0.B1WIoalbVhhExZ1YEbRqXhGhi-WesUBaIGF22LP-Lz4")
+
+	// Unknown kid
+	s.checkInvalidToken("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InVua25vd25raWQifQ.eyJqdGkiOiIwMjgyYjI5Yy01MTczLTQyZDgtODE0NS1iNDVmYTFlMzUzOGIiLCJleHAiOjE1MTk2MDc5NTIsIm5iZiI6MCwiaWF0IjoxNTE3MDE1OTUyLCJpc3MiOiJ0ZXN0IiwiYXVkIjoiZmFicmljOC1vbmxpbmUtcGxhdGZvcm0iLCJzdWIiOiIyMzk4NDM5OC04NTVhLTQyZDYtYTdmZS05MzZiYjRlOTJhMGMiLCJ0eXAiOiJCZWFyZXIiLCJzZXNzaW9uX3N0YXRlIjoiZWFkYzA2NmMtMTIzNC00YTU2LTlmMzUtY2U3MDdiNTdhNGU5IiwiYWNyIjoiMCIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sImFwcHJvdmVkIjp0cnVlLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6IlRlc3QiLCJjb21wYW55IjoiIiwicHJlZmVycmVkX3VzZXJuYW1lIjoidGVzdHVzZXIiLCJnaXZlbl9uYW1lIjoiIiwiZmFtaWx5X25hbWUiOiIiLCJlbWFpbCI6InRAdGVzdC5jb20ifQ.8JpAbRXtEQX0S-jkXNRDXsj1IuGbXKlCJmBTqc_18Y0")
+
+	// Invalid signature
+	s.checkInvalidToken("eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5In0.eyJqdGkiOiIwMjgyYjI5Yy01MTczLTQyZDgtODE0NS1iNDVmYTFlMzUzOGIiLCJleHAiOjE1MTk2MDc5NTIsIm5iZiI6MCwiaWF0IjoxNTE3MDE1OTUyLCJpc3MiOiJ0ZXN0IiwiYXVkIjoiZmFicmljOC1vbmxpbmUtcGxhdGZvcm0iLCJzdWIiOiIyMzk4NDM5OC04NTVhLTQyZDYtYTdmZS05MzZiYjRlOTJhMGMiLCJ0eXAiOiJCZWFyZXIiLCJzZXNzaW9uX3N0YXRlIjoiZWFkYzA2NmMtMTIzNC00YTU2LTlmMzUtY2U3MDdiNTdhNGU5IiwiYWNyIjoiMCIsImFsbG93ZWQtb3JpZ2lucyI6WyIqIl0sImFwcHJvdmVkIjp0cnVlLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6IlRlc3QiLCJjb21wYW55IjoiIiwicHJlZmVycmVkX3VzZXJuYW1lIjoidGVzdHVzZXIiLCJnaXZlbl9uYW1lIjoiIiwiZmFtaWx5X25hbWUiOiIiLCJlbWFpbCI6InRAdGVzdC50In0.MC6kQwHTaevCOdEd3eqDIXrDB68Rtq1LRSJMluO4n6c")
+
+	// Expired
+	claims := make(map[string]interface{})
+	claims["iat"] = time.Now().Unix() - 60*60*24*100
+	claims["exp"] = time.Now().Unix() - 60*60*24*30
+	generatedToken, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+	s.checkInvalidToken(generatedToken)
+}
+
+func (s *TestTokenSuite) checkInvalidToken(token string) {
+	_, err := s.tokenManager.ParseToken(context.Background(), token)
+	assert.NotNil(s.T(), err)
+	_, err = s.tokenManager.ParseTokenWithMapClaims(context.Background(), token)
+	assert.NotNil(s.T(), err)
+	_, err = s.tokenManager.Parse(context.Background(), token)
 	assert.NotNil(s.T(), err)
 }
 
