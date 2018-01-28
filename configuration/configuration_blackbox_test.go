@@ -396,10 +396,47 @@ func TestLoadClusterConfigurationFromFile(t *testing.T) {
 	checkClusterConfiguration(t, clusters)
 }
 
+func TestClusterConfigurationWithMissingKeys(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	clusterConfig, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-missing-keys.conf")
+	require.Nil(t, err)
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key name is missing")
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key app-dns is missing")
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key service-account-token is missing")
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key service-account-username is missing")
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key token-provider-id is missing")
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-id is missing")
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-secret is missing")
+	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-default-scope is missing")
+}
+
+func TestClusterConfigurationWithGeneratedURLs(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	clusterConfig, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-custom-urls.conf")
+	require.Nil(t, err)
+	checkCluster(t, clusterConfig.GetOSOClusters(), configuration.OSOCluster{
+		Name:                   "us-east-2",
+		APIURL:                 "https://api.starter-us-east-2.openshift.com",
+		ConsoleURL:             "custom.console.url",
+		MetricsURL:             "custom.metrics.url",
+		AppDNS:                 "8a09.starter-us-east-2.openshiftapps.com",
+		ServiceAccountToken:    "fX0nH3d68LQ6SK5wBE6QeKJ6X8AZGVQO3dGQZZETakhmgmWAqr2KDFXE65KUwBO69aWoq",
+		ServiceAccountUsername: "dsaas",
+		TokenProviderID:        "f867ac10-5e05-4359-a0c6-b855ece59090",
+		AuthClientID:           "autheast2",
+		AuthClientSecret:       "autheast2secret",
+		AuthClientDefaultScope: "user:full",
+	})
+}
+
 func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.OSOCluster) {
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2",
 		APIURL:                 "https://api.starter-us-east-2.openshift.com",
+		ConsoleURL:             "https://console.starter-us-east-2.openshift.com/console",
+		MetricsURL:             "https://metrics.starter-us-east-2.openshift.com",
 		AppDNS:                 "8a09.starter-us-east-2.openshiftapps.com",
 		ServiceAccountToken:    "fX0nH3d68LQ6SK5wBE6QeKJ6X8AZGVQO3dGQZZETakhmgmWAqr2KDFXE65KUwBO69aWoq",
 		ServiceAccountUsername: "dsaas",
@@ -411,6 +448,8 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2a",
 		APIURL:                 "https://api.starter-us-east-2a.openshift.com",
+		ConsoleURL:             "https://console.starter-us-east-2a.openshift.com/console",
+		MetricsURL:             "https://metrics.starter-us-east-2a.openshift.com",
 		AppDNS:                 "b542.starter-us-east-2a.openshiftapps.com",
 		ServiceAccountToken:    "ak61T6RSAacWFruh1vZP8cyUOBtQ3Chv1rdOBddSuc9nZ2wEcs81DHXRO55NpIpVQ8uiH",
 		ServiceAccountUsername: "dsaas",

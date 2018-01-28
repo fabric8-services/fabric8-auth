@@ -14,6 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+	"net/url"
+	"reflect"
 )
 
 // String returns the current configuration as a string
@@ -116,6 +118,8 @@ type ServiceAccount struct {
 type OSOCluster struct {
 	Name                   string `mapstructure:"name"`
 	APIURL                 string `mapstructure:"api-url"`
+	ConsoleURL             string `mapstructure:"console-url"` // Optional in oso-clusters.conf
+	MetricsURL             string `mapstructure:"metrics-url"` // Optional in oso-clusters.conf
 	AppDNS                 string `mapstructure:"app-dns"`
 	ServiceAccountToken    string `mapstructure:"service-account-token"`
 	ServiceAccountUsername string `mapstructure:"service-account-username"`
@@ -141,7 +145,7 @@ type ConfigurationData struct {
 
 // NewConfigurationData creates a configuration reader object using configurable configuration file paths
 func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string, osoClusterConfigFile string) (*ConfigurationData, error) {
-	c := ConfigurationData{
+	c := &ConfigurationData{
 		v: viper.New(),
 	}
 
@@ -163,6 +167,9 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 
 	// Set up the service account configuration (stored in a separate config file)
 	saViper, defaultConfigErrorMsg, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
+	if err != nil {
+		return nil, err
+	}
 	c.appendDefaultConfigErrorMessage(defaultConfigErrorMsg)
 
 	var saConf serviceAccountConfig
@@ -177,15 +184,30 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
 	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
+	if err != nil {
+		return nil, err
+	}
 	c.appendDefaultConfigErrorMessage(defaultConfigErrorMsg)
 
 	var clusterConf osoClusterConfig
-	err = clusterViper.UnmarshalExact(&clusterConf)
+	err = clusterViper.Unmarshal(&clusterConf)
 	if err != nil {
 		return nil, err
 	}
 	c.clusters = map[string]OSOCluster{}
 	for _, cluster := range clusterConf.Clusters {
+		if cluster.ConsoleURL == "" {
+			cluster.ConsoleURL, err = convertAPIURL(cluster.APIURL, "console", "console")
+			if err != nil {
+				return nil, err
+			}
+		}
+		if cluster.MetricsURL == "" {
+			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
+			if err != nil {
+				return nil, err
+			}
+		}
 		c.clusters[cluster.APIURL] = cluster
 	}
 
@@ -227,13 +249,50 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		msg := "notification service url is empty"
 		c.appendDefaultConfigErrorMessage(&msg)
 	}
+	c.checkClusterConfig()
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
 			"default_configuration_error": c.defaultConfigurationError.Error(),
 		}).Warningln("Default config is used! This is OK in Dev Mode.")
 	}
 
-	return &c, nil
+	return c, nil
+}
+
+// checkClusterConfig checks if there is any missing keys or empty values in oso-clusters.conf
+func (c *ConfigurationData) checkClusterConfig() {
+	for _, cluster := range c.clusters {
+		iVal := reflect.ValueOf(&cluster).Elem()
+		typ := iVal.Type()
+		for i := 0; i < iVal.NumField(); i++ {
+			f := iVal.Field(i)
+			tag := typ.Field(i).Tag.Get("mapstructure")
+			switch f.Interface().(type) {
+			case string:
+				if f.String() == "" {
+					msg := fmt.Sprintf("key %v is missing in cluster config", tag)
+					c.appendDefaultConfigErrorMessage(&msg)
+				}
+			default:
+				msg := fmt.Sprintf("wront type of key %v", tag)
+				c.appendDefaultConfigErrorMessage(&msg)
+			}
+		}
+	}
+}
+
+func convertAPIURL(apiURL string, newPrefix string, newPath string) (string, error) {
+	newURL, err := url.Parse(apiURL)
+	if err != nil {
+		return "", err
+	}
+	newHost, err := rest.ReplaceDomainPrefix(newURL.Host, newPrefix)
+	if err != nil {
+		return "", err
+	}
+	newURL.Host = newHost
+	newURL.Path = newPath
+	return newURL.String(), nil
 }
 
 func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, *string, error) {

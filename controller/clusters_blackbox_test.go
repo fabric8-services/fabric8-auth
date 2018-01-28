@@ -47,6 +47,8 @@ func (rest *TestClustersREST) checkShowForServiceAccount(saName string) {
 		require.True(rest.T(), ok)
 		require.Equal(rest.T(), configCluster.Name, cluster.Name)
 		require.Equal(rest.T(), configCluster.APIURL, cluster.APIURL)
+		require.Equal(rest.T(), configCluster.ConsoleURL, cluster.ConsoleURL)
+		require.Equal(rest.T(), configCluster.MetricsURL, cluster.MetricsURL)
 		require.Equal(rest.T(), configCluster.AppDNS, cluster.AppDNS)
 	}
 }

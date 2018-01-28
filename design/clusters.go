@@ -16,8 +16,10 @@ var clusterList = JSONList(
 var clusterData = a.Type("ClusterData", func() {
 	a.Attribute("name", d.String, "Cluster name")
 	a.Attribute("api-url", d.String, "API URL")
+	a.Attribute("console-url", d.String, "Web console URL")
+	a.Attribute("metrics-url", d.String, "Metrics URL")
 	a.Attribute("app-dns", d.String, "User application domain name in the cluster")
-	a.Required("name", "api-url", "app-dns")
+	a.Required("name", "console-url", "metrics-url", "api-url", "app-dns")
 })
 
 var _ = a.Resource("clusters", func() {
