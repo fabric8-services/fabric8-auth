@@ -57,6 +57,9 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	state = uuid.NewV4().String()
 	responseMode = "fragment"
 	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
+
+	state = uuid.NewV4().String()
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, nil, responseType, nil, state)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
