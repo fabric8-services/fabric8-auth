@@ -83,7 +83,7 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 
 // Callback takes care of Authorize callback
 func (c *AuthorizeController) Callback(ctx *app.CallbackAuthorizeContext) error {
-	redirectTo, _, err := c.Auth.AuthCodeCallback(ctx)
+	redirectTo, err := c.Auth.AuthCodeCallback(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

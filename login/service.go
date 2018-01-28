@@ -76,7 +76,7 @@ type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
 	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, *string, error)
+	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig LoginServiceConfiguration) (*string, error)
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
@@ -468,19 +468,24 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 // AuthCodeCallback takes care of authorization callback.
 // When authorization_code is requested with /api/authorize, keycloak would return authorization_code at /api/authorize/callback,
 // which would pass on the code along with the state to client using this method
-func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, *string, error) {
+func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error) {
 	referrerURL, responseMode, err := keycloak.reclaimReferrerAndResponseMode(ctx, ctx.State, ctx.Code)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
+	var redirectTo string
 	parameters := referrerURL.Query()
 	parameters.Add("code", ctx.Code)
 	parameters.Add("state", ctx.State)
-	referrerURL.RawQuery = parameters.Encode()
-	redirectTo := referrerURL.String()
 
-	return &redirectTo, responseMode, nil
+	if *responseMode == "fragment" {
+		referrerURL.Fragment = parameters.Encode()
+	} else {
+		referrerURL.RawQuery = parameters.Encode()
+	}
+	redirectTo = referrerURL.String()
+
+	return &redirectTo, nil
 }
 
 // reclaimReferrer reclaims referrerURL and verifies the state
