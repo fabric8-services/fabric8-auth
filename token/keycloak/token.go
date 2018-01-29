@@ -2,13 +2,14 @@ package keycloak
 
 import (
 	"context"
+	"net/http"
+	"net/url"
+	"time"
+
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	errs "github.com/pkg/errors"
-	"net/http"
-	"net/url"
-	"time"
 )
 
 func RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
@@ -23,7 +24,7 @@ func RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID str
 	if err != nil {
 		return nil, autherrors.NewInternalError(ctx, errs.Wrap(err, "error when obtaining token"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	switch res.StatusCode {
 	case 200:
 		// OK

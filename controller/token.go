@@ -620,7 +620,7 @@ func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration 
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "error when obtaining token"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	if res.StatusCode != http.StatusOK {
 		bodyString := rest.ReadBody(res.Body)
 		log.Error(ctx, map[string]interface{}{

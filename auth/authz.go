@@ -198,7 +198,7 @@ func CreateResource(ctx context.Context, resource KeycloakResource, authzEndpoin
 		}, "unable to create a Keycloak resource")
 		return "", errors.NewInternalError(ctx, errs.Wrap(err, "unable to create a Keycloak resource"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusCreated {
 		log.Error(ctx, map[string]interface{}{
@@ -247,7 +247,7 @@ func GetClientID(ctx context.Context, clientsEndpoint string, publicClientID str
 		}, "unable to obtain keycloak client ID")
 		return "", errors.NewInternalError(ctx, errs.Wrap(err, "unable to obtain keycloak client ID"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{
@@ -308,7 +308,7 @@ func CreatePolicy(ctx context.Context, clientsEndpoint string, clientID string, 
 		}, "unable to create the Keycloak policy")
 		return "", errors.NewInternalError(ctx, errs.Wrap(err, "unable to create the Keycloak policy"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusCreated {
 		log.Error(ctx, map[string]interface{}{
@@ -363,7 +363,7 @@ func CreatePermission(ctx context.Context, clientsEndpoint string, clientID stri
 		}, "unable to create the Keycloak permission")
 		return "", errors.NewInternalError(ctx, errs.Wrap(err, "unable to create the Keycloak permission"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusCreated {
 		log.Error(ctx, map[string]interface{}{
@@ -415,7 +415,7 @@ func DeleteResource(ctx context.Context, kcResourceID string, authzEndpoint stri
 		}, "unable to delete the Keycloak resource")
 		return errors.NewInternalError(ctx, errs.Wrap(err, "unable to delete the Keycloak resource"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusNoContent {
 		log.Error(ctx, map[string]interface{}{
@@ -455,7 +455,7 @@ func DeletePolicy(ctx context.Context, clientsEndpoint string, clientID string, 
 		}, "unable to delete the Keycloak policy")
 		return errors.NewInternalError(ctx, errs.Wrap(err, "unable to delete the Keycloak policy"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusNoContent {
 		log.Error(ctx, map[string]interface{}{
@@ -495,7 +495,7 @@ func DeletePermission(ctx context.Context, clientsEndpoint string, clientID stri
 		}, "unable to delete the Keycloak permission")
 		return errors.NewInternalError(ctx, errs.Wrap(err, "unable to delete the Keycloak permission"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusNoContent {
 		log.Error(ctx, map[string]interface{}{
@@ -536,7 +536,7 @@ func GetPolicy(ctx context.Context, clientsEndpoint string, clientID string, pol
 		}, "unable to obtain a Keycloak policy")
 		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to obtain a Keycloak policy"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	switch res.StatusCode {
 	case http.StatusOK:
@@ -604,7 +604,7 @@ func UpdatePolicy(ctx context.Context, clientsEndpoint string, clientID string, 
 		}, "unable to update the Keycloak policy")
 		return errors.NewInternalError(ctx, errs.Wrap(err, "unable to update the Keycloak policy"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusCreated {
 		log.Error(ctx, map[string]interface{}{
@@ -656,7 +656,7 @@ func GetEntitlement(ctx context.Context, entitlementEndpoint string, entitlement
 		}, "unable to obtain entitlement resource")
 		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to obtain entitlement resource"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	switch res.StatusCode {
 	case http.StatusOK:
@@ -702,7 +702,7 @@ func GetUserInfo(ctx context.Context, userInfoEndpoint string, userAccessToken s
 		}, "unable to get user info from Keycloak")
 		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get user info from Keycloak"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{
@@ -739,7 +739,7 @@ func ValidateKeycloakUser(ctx context.Context, adminEndpoint string, userID, pro
 		}, "unable to get user from Keycloak")
 		return false, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get user from Keycloak"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	switch res.StatusCode {
 	case http.StatusOK:
@@ -767,7 +767,7 @@ func GetProtectedAPIToken(ctx context.Context, openidConnectTokenURL string, cli
 	if err != nil {
 		return "", errors.NewInternalError(ctx, errs.Wrap(err, "error when obtaining token"))
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	switch res.StatusCode {
 	case http.StatusOK:
 		// OK

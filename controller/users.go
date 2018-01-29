@@ -1052,7 +1052,7 @@ func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *ac
 
 		company = user.Company
 		contextInformation = user.ContextInformation
-		cluster = user.Cluster
+		cluster = rest.AddTrailingSlashToURL(user.Cluster)
 		featureLevel = user.FeatureLevel
 		// CreatedAt and UpdatedAt fields in the resulting app.Identity are based on the 'user' entity
 		createdAt = user.CreatedAt
