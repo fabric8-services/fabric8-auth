@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
@@ -39,9 +40,9 @@ func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
 	for _, clusterConfig := range c.config.GetOSOClusters() {
 		cluster := &app.ClusterData{
 			Name:       clusterConfig.Name,
-			APIURL:     clusterConfig.APIURL,
-			ConsoleURL: clusterConfig.ConsoleURL,
-			MetricsURL: clusterConfig.MetricsURL,
+			APIURL:     rest.AddTrailingSlashToURL(clusterConfig.APIURL),
+			ConsoleURL: rest.AddTrailingSlashToURL(clusterConfig.ConsoleURL),
+			MetricsURL: rest.AddTrailingSlashToURL(clusterConfig.MetricsURL),
 			AppDNS:     clusterConfig.AppDNS,
 		}
 		data = append(data, cluster)

@@ -78,3 +78,12 @@ func AddParams(urlString string, params map[string]string) (string, error) {
 
 	return parsedURL.String(), nil
 }
+
+// AddTrailingSlashToURL adds a trailing slash to the URL if it doesn't have it already
+// If URL is an empty string the function returns an empty string too
+func AddTrailingSlashToURL(url string) string {
+	if url != "" && !strings.HasSuffix(url, "/") {
+		return url + "/"
+	}
+	return url
+}

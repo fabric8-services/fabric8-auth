@@ -1057,7 +1057,7 @@ func (s *UsersControllerTestSuite) createRandomUserIdentity(t *testing.T, fullna
 		ImageURL:     "someURLForUpdate",
 		ID:           uuid.NewV4(),
 		Company:      uuid.NewV4().String() + "company",
-		Cluster:      "My OSO cluster url",
+		Cluster:      "https://api.openshift.com",
 		EmailPrivate: false,                       // being explicit
 		FeatureLevel: account.DefaultFeatureLevel, // being explicit
 	}
@@ -1091,7 +1091,7 @@ func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser account.
 	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
 	assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
 	assert.Equal(t, expectedUser.Company, *actual.Attributes.Company)
-	assert.Equal(t, expectedUser.Cluster, *actual.Attributes.Cluster)
+	assert.Equal(t, expectedUser.Cluster+"/", *actual.Attributes.Cluster)
 	assert.Equal(t, expectedUser.URL, *actual.Attributes.URL)
 	assert.Equal(t, expectedUser.Bio, *actual.Attributes.Bio)
 	assert.Equal(t, expectedUser.FeatureLevel, *actual.Attributes.FeatureLevel)
@@ -1127,7 +1127,7 @@ func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, e
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.Attributes.IdentityID)
 	assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	assert.Equal(t, expectedUser.Company, *actual.Attributes.Company)
-	assert.Equal(t, expectedUser.Cluster, *actual.Attributes.Cluster)
+	assert.Equal(t, expectedUser.Cluster+"/", *actual.Attributes.Cluster)
 }
 
 func assertSingleUserResponseHeaders(t *testing.T, res http.ResponseWriter, appUser *app.User, modelUser account.User) {
@@ -1320,7 +1320,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	user.Bio = "some bio"
 	user.ImageURL = "some image"
 	user.URL = "some url"
-	user.Cluster = "some cluster"
+	user.Cluster = "https://some.cluster.com"
 	user.FeatureLevel = account.DefaultFeatureLevel
 	rhdUserName := "somerhdusername"
 	approved := false
@@ -1340,7 +1340,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	identity := testsupport.TestIdentity
 	identity.User = user
 	identity.ProviderType = ""
-	user.Cluster = "some cluster"
+	user.Cluster = "https://some.cluster.com"
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
