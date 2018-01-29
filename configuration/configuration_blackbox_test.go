@@ -2,13 +2,11 @@ package configuration_test
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
-
-	"net/http"
-
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -385,6 +383,15 @@ func TestLoadDefaultClusterConfiguration(t *testing.T) {
 
 	clusters := config.GetOSOClusters()
 	checkClusterConfiguration(t, clusters)
+
+	cluster := config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.com")
+	assert.NotNil(t, cluster)
+	cluster = config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.com/")
+	assert.NotNil(t, cluster)
+	cluster = config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.com/path")
+	assert.NotNil(t, cluster)
+	cluster = config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.unknown")
+	assert.Nil(t, cluster)
 }
 
 func TestLoadClusterConfigurationFromFile(t *testing.T) {
