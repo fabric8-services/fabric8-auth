@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/rest"
 
 	"github.com/satori/go.uuid"
 	netcontext "golang.org/x/net/context"
@@ -60,7 +61,7 @@ func (provider *OauthIdentityProvider) UserProfilePayload(ctx context.Context, t
 		}, "unable to get user profile")
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

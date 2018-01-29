@@ -67,7 +67,7 @@ func (c *KeycloakExternalTokenServiceClient) Get(ctx context.Context, accessToke
 		}, "Unable to fetch external keycloak token")
 		return nil, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
-		defer resp.Body.Close()
+		defer rest.CloseResponse(resp)
 	}
 	if resp.StatusCode != http.StatusOK {
 		bodyString := rest.ReadBody(resp.Body)
@@ -124,7 +124,7 @@ func (c *KeycloakExternalTokenServiceClient) Delete(ctx context.Context, keycloa
 		}, "Unable to delete Identity Provider link from Keycloak")
 		return err
 	} else if resp != nil {
-		defer resp.Body.Close()
+		defer rest.CloseResponse(resp)
 	}
 	if resp.StatusCode != http.StatusNoContent {
 		log.Info(ctx, map[string]interface{}{
