@@ -18,6 +18,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"strconv"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -26,7 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
-	"strconv"
 )
 
 type TestTokenREST struct {
@@ -98,6 +99,35 @@ func (rest *TestTokenREST) TestRefreshTokenUsingNilTokenFails() {
 	assert.NotNil(t, err)
 }
 
+func (rest *TestTokenREST) TestRefreshTokenUsingWrongRefreshTokenFails() {
+	t := rest.T()
+	rest.exchangeStrategy = "401"
+	service, controller := rest.SecuredController()
+
+	refreshToken := "WRONG_REFRESH_TOKEN"
+	payload := &app.RefreshToken{
+		RefreshToken: &refreshToken,
+	}
+	test.RefreshTokenUnauthorized(t, service.Context, service, controller, payload)
+}
+
+func (rest *TestTokenREST) TestRefreshTokenUsingCorrectRefreshTokenOK() {
+	t := rest.T()
+	service, controller := rest.SecuredController()
+
+	refreshToken := "SOME_REFRESH_TOKEN"
+	payload := &app.RefreshToken{
+		RefreshToken: &refreshToken,
+	}
+	_, authToken := test.RefreshTokenOK(t, service.Context, service, controller, payload)
+	token := authToken.Token
+	require.NotNil(rest.T(), token.TokenType)
+	require.Equal(rest.T(), "bearer", *token.TokenType)
+	require.NotNil(rest.T(), token.AccessToken)
+	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
+	require.NotNil(rest.T(), token.RefreshToken)
+	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
+}
 func (rest *TestTokenREST) TestLinkForNonExistentUserFails() {
 	service, controller := rest.SecuredControllerWithNonExistentIdentity()
 
@@ -197,6 +227,11 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {
 	rest.checkAuthorizationCode(service, controller, controller.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE")
 }
 
+func (rest *TestTokenREST) TestExchangeWithCorrectRefreshTokenOK() {
+	service, controller := rest.SecuredController()
+	rest.checkExchangeWithRefreshToken(service, controller, controller.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN")
+}
+
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
 	service, controller := rest.SecuredController()
 
@@ -215,6 +250,20 @@ func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string
 
 func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controller *TokenController, name string, code string) {
 	_, token := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
+
+	require.NotNil(rest.T(), token.TokenType)
+	require.Equal(rest.T(), "bearer", *token.TokenType)
+	require.NotNil(rest.T(), token.AccessToken)
+	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
+	require.NotNil(rest.T(), token.RefreshToken)
+	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
+	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
+	require.Nil(rest.T(), err)
+	require.True(rest.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+}
+
+func (rest *TestTokenREST) checkExchangeWithRefreshToken(service *goa.Service, controller *TokenController, name string, refreshToken string) {
+	_, token := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: rest.Configuration.GetPublicOauthClientID(), RefreshToken: &refreshToken})
 
 	require.NotNil(rest.T(), token.TokenType)
 	require.Equal(rest.T(), "bearer", *token.TokenType)
@@ -261,5 +310,22 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	extra["expires_in"] = thirtyDays
 	extra["refresh_expires_in"] = thirtyDays
 	token = token.WithExtra(extra)
+	return token, nil
+}
+
+func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig login.LoginServiceConfiguration) (*token.TokenSet, error) {
+	if s.exchangeStrategy == "401" {
+		return nil, errors.NewUnauthorizedError("failed")
+	}
+
+	var thirtyDays int64
+	thirtyDays = 60 * 60 * 24 * 30
+	bearer := "bearer"
+	token := &token.TokenSet{
+		TokenType:    &bearer,
+		AccessToken:  &s.accessToken,
+		RefreshToken: &s.refreshToken,
+		ExpiresIn:    &thirtyDays,
+	}
 	return token, nil
 }

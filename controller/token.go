@@ -85,7 +85,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
 	}
 
-	t, err := keycloak.RefreshToken(ctx, endpoint, c.Configuration.GetKeycloakClientID(), c.Configuration.GetKeycloakSecret(), *refreshToken)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -382,7 +382,6 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
 	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -390,35 +389,9 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		}, "Unable to get Keycloak token endpoint URL")
 		return nil, errors.NewInternalErrorFromString(ctx, "unable to get Keycloak token endpoint URL")
 	}
-	res, err := client.PostForm(endpoint, url.Values{
-		"client_id":     {c.Configuration.GetKeycloakClientID()},
-		"client_secret": {c.Configuration.GetKeycloakSecret()},
-		"refresh_token": {*refreshToken},
-		"grant_type":    {"refresh_token"},
-	})
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to refresh token in Keycloak")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to refresh token in Keycloak")
-	}
-	defer res.Body.Close()
-	switch res.StatusCode {
-	case 200:
-		// OK
-	case 401:
-		return nil, errors.NewUnauthorizedError(res.Status + " " + rest.ReadBody(res.Body))
-	case 400:
-		return nil, errors.NewUnauthorizedError(res.Status + " " + rest.ReadBody(res.Body))
-	default:
-		return nil, errors.NewInternalError(ctx, errs.New(res.Status+" "+rest.ReadBody(res.Body)))
-	}
 
-	t, err := token.ReadTokenSet(ctx, res)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to read token")
 		return nil, err
 	}
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
