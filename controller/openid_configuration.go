@@ -23,6 +23,7 @@ func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationCon
 	issuer := rest.AbsoluteURL(ctx.RequestData, "")
 	authorizationEndpoint := rest.AbsoluteURL(ctx.RequestData, client.AuthorizeAuthorizePath())
 	tokenEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ExchangeTokenPath())
+	userinfoEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ShowUserinfoPath())
 	logoutEndpoint := rest.AbsoluteURL(ctx.RequestData, client.LogoutLogoutPath())
 	jwksURI := rest.AbsoluteURL(ctx.RequestData, client.KeysTokenPath())
 
@@ -45,9 +46,9 @@ func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationCon
 		IDTokenSigningAlgValuesSupported: []string{"RS256"},
 
 		// RECOMMENDED properties
-		// userinfo_endpoint : We don't have a OpenID compliant userinfo_endpoint
-		ScopesSupported: []string{"openid", "offline_access"},
-		ClaimsSupported: []string{"sub", "iss", "auth_time", "name", "given_name", "family_name", "preferred_username", "email"},
+		UserinfoEndpoint: &userinfoEndpoint,
+		ScopesSupported:  []string{"openid", "offline_access"},
+		ClaimsSupported:  []string{"sub", "iss", "auth_time", "name", "given_name", "family_name", "preferred_username", "email"},
 
 		// OPTIONAL properties
 		GrantTypesSupported: []string{"authorization_code", "refresh_token", "client_credentials"},

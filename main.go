@@ -233,7 +233,7 @@ func main() {
 	app.MountUsersController(service, usersCtrl)
 
 	//Mount "userinfo" controller
-	userInfoCtrl := controller.NewUserinfoController(service, appDB, tokenManager)
+	userInfoCtrl := controller.NewUserinfoController(service, tokenManager)
 	app.MountUserinfoController(service, userInfoCtrl)
 
 	// Mount "collaborators" controller
