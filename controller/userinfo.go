@@ -1,9 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
-	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -11,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
 // UserinfoController implements the userinfo resource.
@@ -31,41 +29,21 @@ func NewUserinfoController(service *goa.Service, db application.DB, tokenManager
 
 // Show runs the show action.
 func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
-	id, err := c.tokenManager.Locate(ctx)
+
+	tokenClaims, err := c.tokenManager.ParseToken(ctx, goajwt.ContextJWT(ctx).Raw)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "Bad Token")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Bad Token"))
+		}, "Couldn't parse token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	return application.Transactional(c.db, func(appl application.Application) error {
-		identity, err := appl.Identities().Load(ctx, id)
-		if err != nil || identity == nil {
-			log.Error(ctx, map[string]interface{}{
-				"identity_id": id,
-			}, "Auth token containers id %s of unknown Identity", id)
-			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(fmt.Sprintf("Auth token contains id %s of unknown Identity\n", id)))
-		}
-		var user *account.User
-		userID := identity.UserID
-		if userID.Valid {
-			user, err = appl.Users().Load(ctx.Context, userID.UUID)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, fmt.Sprintf("Can't load user with id %s", userID.UUID)))
-			}
-		}
-
-		sub := identity.ID.String()
-		userInfo := &app.UserInfo{
-			Sub:           &sub,
-			GivenName:     &user.FullName,
-			PreferredName: &identity.Username,
-			FamilyName:    &user.FullName,
-			Email:         &user.Email,
-		}
-
-		return ctx.OK(userInfo)
-	})
-
+	userInfo := &app.UserInfo{
+		Sub:           &tokenClaims.Id,
+		GivenName:     &tokenClaims.GivenName,
+		PreferredName: &tokenClaims.Username,
+		FamilyName:    &tokenClaims.FamilyName,
+		Email:         &tokenClaims.Email,
+	}
+	return ctx.OK(userInfo)
 }
