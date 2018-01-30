@@ -232,6 +232,10 @@ func main() {
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 
+	//Mount "userinfo" controller
+	userInfoCtrl := controller.NewUserinfoController(service, appDB, tokenManager)
+	app.MountUserinfoController(service, userInfoCtrl)
+
 	// Mount "collaborators" controller
 	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, config, auth.NewKeycloakPolicyManager(config))
 	app.MountCollaboratorsController(service, collaboratorsCtrl)

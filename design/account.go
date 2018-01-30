@@ -93,6 +93,46 @@ var userList = JSONList(
 	pagingLinks,
 	userListMeta)
 
+// userInfo represents an userInfo object
+var userInfo = a.MediaType("application/vnd.userInfo+json", func() {
+	a.UseTrait("jsonapi-media-type")
+	a.TypeName("UserInfo")
+	a.Description("User Information")
+	a.Attributes(func() {
+		a.Attribute("sub", d.String)
+		a.Attribute("given_name", d.String)
+		a.Attribute("family_name", d.String)
+		a.Attribute("preferred_name", d.String)
+		a.Attribute("email", d.String)
+	})
+	a.View("default", func() {
+		a.Attribute("sub", d.String)
+		a.Attribute("given_name", d.String)
+		a.Attribute("family_name", d.String)
+		a.Attribute("preferred_name", d.String)
+		a.Attribute("email", d.String)
+		a.Required("sub", "given_name", "family_name", "preferred_name", "email")
+	})
+})
+
+var _ = a.Resource("userinfo", func() {
+	a.BasePath("/userinfo")
+
+	a.Action("show", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET(""),
+		)
+		a.Description("Get the authenticated user")
+		//a.UseTrait("conditional")
+		a.Response(d.OK, userInfo)
+		//a.Response(d.NotModified)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+})
+
 var _ = a.Resource("user", func() {
 	a.BasePath("/user")
 
