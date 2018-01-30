@@ -81,7 +81,7 @@ func (provider *OauthIdentityProvider) UserProfilePayload(ctx context.Context, t
 }
 
 // SaveReferrer validates referrer and saves it in DB
-func SaveReferrer(ctx context.Context, db application.DB, state string, referrer string, responseMode, validReferrerURL string) error {
+func SaveReferrer(ctx context.Context, db application.DB, state string, referrer string, responseMode *string, validReferrerURL string) error {
 	matched, err := regexp.MatchString(validReferrerURL, referrer)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -100,10 +100,18 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 	}
 	// TODO The state reference table will be collecting dead states left from some failed login attempts.
 	// We need to clean up the old states from time to time.
-	ref := auth.OauthStateReference{
-		State:        state,
-		Referrer:     referrer,
-		ResponseMode: responseMode,
+	var ref auth.OauthStateReference
+	if responseMode != nil {
+		ref = auth.OauthStateReference{
+			State:        state,
+			Referrer:     referrer,
+			ResponseMode: *responseMode,
+		}
+	} else {
+		ref = auth.OauthStateReference{
+			State:    state,
+			Referrer: referrer,
+		}
 	}
 	err = application.Transactional(db, func(appl application.Application) error {
 		_, err := appl.OauthStates().Create(ctx, &ref)

@@ -89,17 +89,19 @@ func (rest *TestAuthorizeREST) TestAuthorizeUnauthorizedError() {
 	clientID := ""
 	responseType := "code"
 	state := uuid.NewV4().String()
-	responseMode := "query"
 
-	test.AuthorizeAuthorizeUnauthorized(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
+	test.AuthorizeAuthorizeUnauthorized(t, svc.Context, svc, ctrl, nil, clientID, redirect, nil, responseType, nil, state)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
-	rest.checkAuthorizeCallbackOK("query")
-	rest.checkAuthorizeCallbackOK("fragment")
+	rest.checkAuthorizeCallbackOK(nil)
+	responseMode := "query"
+	rest.checkAuthorizeCallbackOK(&responseMode)
+	responseMode = "fragment"
+	rest.checkAuthorizeCallbackOK(&responseMode)
 }
 
-func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode string) {
+func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	t := rest.T()
 	_, ctrl := rest.UnSecuredController()
 
@@ -116,8 +118,9 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode string) {
 	prms.Add("redirect_uri", redirectURI)
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
 	prms.Add("state", uuid.NewV4().String())
-	prms.Add("response_mode", responseMode)
-
+	if responseMode != nil {
+		prms.Add("response_mode", *responseMode)
+	}
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
 	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
@@ -175,7 +178,7 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode string) {
 	require.True(t, strings.HasPrefix(locationString, redirectURI))
 	require.Nil(t, err)
 
-	if responseMode != "fragment" {
+	if responseMode == nil || *responseMode != "fragment" {
 		require.NotNil(t, locationUrl.RawQuery)
 		allQueryParameters = locationUrl.Query()
 
@@ -184,14 +187,11 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode string) {
 		require.Equal(t, returnedState, allQueryParameters["state"][0])
 		require.NotNil(t, allQueryParameters["code"][0])
 		require.Equal(t, code, allQueryParameters["code"][0])
-	}
-
-	if responseMode == "fragment" {
+	} else {
 		require.NotNil(t, locationUrl.Fragment)
 		require.True(t, strings.HasPrefix(locationUrl.Fragment, "code"))
 		require.Contains(t, locationUrl.Fragment, "state")
 	}
-
 }
 func (rest *TestAuthorizeREST) TestAuthorizeCallbackBadRequest() {
 	t := rest.T()

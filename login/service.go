@@ -147,8 +147,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 
 	// First time access, redirect to oauth provider
 	generatedState := uuid.NewV4().String()
-	responseMode := "query"
-	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &generatedState, &responseMode, ctx.RequestData, config, serviceConfig)
+	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &generatedState, nil, ctx.RequestData, config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -160,11 +159,6 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
-
-	query := "query"
-	if responseMode == nil {
-		responseMode = &query
-	}
 
 	// First time access, redirect to oauth provider
 	referrer := request.Header.Get("Referer")
@@ -184,8 +178,12 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect
 	if err != nil {
 		return nil, err
 	}
-
-	err = keycloak.saveReferrer(ctx, *state, *redirect, *responseMode, validRedirectURL)
+	/*
+		if *responseMode == "query" {
+			responseMode = nil
+		}
+	*/
+	err = keycloak.saveReferrer(ctx, *state, *redirect, responseMode, validRedirectURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state":         state,
@@ -642,8 +640,7 @@ func (keycloak *KeycloakOAuthProvider) linkAccountToProviders(ctx linkInterface,
 	}
 
 	state := uuid.NewV4().String()
-	responseMode := "query"
-	err := keycloak.saveReferrer(ctx, state, *rdr, responseMode, validRedirectURL)
+	err := keycloak.saveReferrer(ctx, state, *rdr, nil, validRedirectURL)
 	if err != nil {
 		return err
 	}
@@ -721,7 +718,7 @@ func (keycloak *KeycloakOAuthProvider) linkProvider(ctx linkInterface, req *goa.
 	return ctx.TemporaryRedirect()
 }
 
-func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state string, referrer string, responseMode string, validReferrerURL string) error {
+func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state string, referrer string, responseMode *string, validReferrerURL string) error {
 	err := oauth.SaveReferrer(ctx, keycloak.DB, state, referrer, responseMode, validReferrerURL)
 	if err != nil {
 		return err

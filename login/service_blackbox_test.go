@@ -761,9 +761,6 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 	ctx = context.Background()
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
 	authorizeCtx, err = app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
-	if err != nil {
-		panic("invalid test data " + err.Error()) // bug
-	}
 	require.Nil(s.T(), err)
 	redirectTo, err = s.loginService.AuthCodeURL(authorizeCtx, &authorizeCtx.RedirectURI, authorizeCtx.APIClient, &authorizeCtx.State, authorizeCtx.ResponseMode, authorizeCtx.RequestData, s.oauth, s.Configuration)
 	require.Nil(s.T(), err)
