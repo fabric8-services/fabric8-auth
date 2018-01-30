@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,8 +18,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
-
-	"strconv"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -127,6 +126,9 @@ func (rest *TestTokenREST) TestRefreshTokenUsingCorrectRefreshTokenOK() {
 	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
 	require.NotNil(rest.T(), token.RefreshToken)
 	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
+	expiresIn, ok := token.ExpiresIn.(*int64)
+	require.True(rest.T(), ok)
+	require.True(rest.T(), *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 func (rest *TestTokenREST) TestLinkForNonExistentUserFails() {
 	service, controller := rest.SecuredControllerWithNonExistentIdentity()
