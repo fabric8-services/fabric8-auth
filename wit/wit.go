@@ -55,7 +55,7 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{
@@ -97,7 +97,7 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{

@@ -48,6 +48,7 @@ type LinkConfig interface {
 	GetGitHubClientSecret() string
 	IsTLSInsecureSkipVerify() bool
 	GetOSOClusters() map[string]configuration.OSOCluster
+	GetOSOClusterByURL(url string) *configuration.OSOCluster
 }
 
 // OauthProviderFactory represents oauth provider factory
@@ -265,11 +266,9 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 	if resourceURL.Host == "github.com" {
 		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
 	}
-	clusters := service.config.GetOSOClusters()
-	for apiURL, cluster := range clusters {
-		if strings.HasPrefix(forResource, apiURL) {
-			return NewOpenShiftIdentityProvider(cluster, authURL)
-		}
+	cluster := service.config.GetOSOClusterByURL(forResource)
+	if cluster != nil {
+		return NewOpenShiftIdentityProvider(*cluster, authURL)
 	}
 	log.Error(ctx, map[string]interface{}{
 		"for": forResource,

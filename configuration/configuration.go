@@ -9,13 +9,14 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"net/url"
+	"reflect"
+
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"net/url"
-	"reflect"
 )
 
 // String returns the current configuration as a string
@@ -401,6 +402,21 @@ func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 // GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
 func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 	return c.clusters
+}
+
+// GetOSOClusterByURL returns a OSO cluster configurations by matching URL
+// Regardles of trailing slashes if cluster API URL == "https://api.openshift.com"
+// or "https://api.openshift.com/" it will match any "https://api.openshift.com*"
+// like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
+// Returns nil if no matching API URL found
+func (c *ConfigurationData) GetOSOClusterByURL(url string) *OSOCluster {
+	for apiURL, cluster := range c.GetOSOClusters() {
+		if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
+			return &cluster
+		}
+	}
+
+	return nil
 }
 
 // GetDefaultConfigurationFile returns the default configuration file.

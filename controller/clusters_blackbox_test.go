@@ -3,12 +3,13 @@ package controller_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
+	authrest "github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -43,12 +44,12 @@ func (rest *TestClustersREST) checkShowForServiceAccount(saName string) {
 	require.NotNil(rest.T(), clusters.Data)
 	require.Equal(rest.T(), len(rest.Config.GetOSOClusters()), len(clusters.Data))
 	for _, cluster := range clusters.Data {
-		configCluster, ok := rest.Config.GetOSOClusters()[cluster.APIURL]
-		require.True(rest.T(), ok)
+		configCluster := rest.Config.GetOSOClusterByURL(cluster.APIURL)
+		require.NotNil(rest.T(), configCluster)
 		require.Equal(rest.T(), configCluster.Name, cluster.Name)
-		require.Equal(rest.T(), configCluster.APIURL, cluster.APIURL)
-		require.Equal(rest.T(), configCluster.ConsoleURL, cluster.ConsoleURL)
-		require.Equal(rest.T(), configCluster.MetricsURL, cluster.MetricsURL)
+		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.APIURL), cluster.APIURL)
+		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.ConsoleURL), cluster.ConsoleURL)
+		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.MetricsURL), cluster.MetricsURL)
 		require.Equal(rest.T(), configCluster.AppDNS, cluster.AppDNS)
 	}
 }

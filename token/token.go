@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -82,6 +83,7 @@ type Permissions struct {
 // Manager generate and find auth token information
 type Manager interface {
 	Locate(ctx context.Context) (uuid.UUID, error)
+	Parse(ctx context.Context, tokenString string) (*jwt.Token, error)
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
@@ -216,7 +218,7 @@ func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 	if res.StatusCode != http.StatusOK {
 		log.Error(nil, map[string]interface{}{
@@ -445,6 +447,18 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestDat
 	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
 	token.Claims.(jwt.MapClaims)["scopes"] = []string{"uma_protection"}
 	return token
+}
+
+func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {
+	keyFunc := mgm.keyFunction(ctx)
+	jwtToken, err := jwt.Parse(tokenString, keyFunc)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to parse token")
+		return nil, autherrors.NewUnauthorizedError(err.Error())
+	}
+	return jwtToken, nil
 }
 
 // IsSpecificServiceAccount checks if the request is done by a service account listed in the names param
