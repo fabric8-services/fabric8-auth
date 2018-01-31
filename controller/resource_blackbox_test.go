@@ -206,25 +206,6 @@ func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated()
 	require.EqualValues(rest.T(), payload.ResourceOwnerID, resourceOwnerID.String())
 }
 
-func (rest *TestResourceREST) TestFailRegisterResourceUnknownOwner() {
-	resourceID := ""
-	resourceScopes := []string{}
-
-	// Attempt to register the resource with an unknown owner
-	resourceOwnerID := uuid.NewV4()
-
-	payload := &app.RegisterResourcePayload{
-		Name:             "My new resource",
-		ParentResourceID: nil,
-		ResourceScopes:   resourceScopes,
-		ResourceID:       &resourceID,
-		ResourceOwnerID:  resourceOwnerID.String(),
-		Type:             "openshift.io/resource/area",
-	}
-
-	test.RegisterResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
-}
-
 func (rest *TestResourceREST) TestUpdateResource() {
 	// Create the resource first
 	payload := &app.RegisterResourcePayload{
