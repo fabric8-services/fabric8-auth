@@ -262,7 +262,9 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenInvalidOnForcePullInt
 	forProvider := "https://github.com/a/b"
 	rest.dummyProviderConfigFactory.LoadProfileFail = true
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
-	test.RetrieveTokenInternalServerError(rest.T(), service.Context, service, controller, forProvider, &forcePull)
+	rw, _ := test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, forProvider, &forcePull)
+	assert.Equal(rest.T(), rw.Header().Get("WWW-Authenticate"), "LINK url=http:///api/token/link?for=https://github.com/a/b, description=\"github token is not valid or expired. Relink github account\"")
+	assert.Contains(rest.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 	rest.dummyProviderConfigFactory.LoadProfileFail = false // reset to default
 }
 
