@@ -85,21 +85,12 @@ func (s *resourceBlackBoxTest) TestOKToSave() {
 }
 
 func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
-	identity := &account.Identity{
-		ID:           uuid.NewV4(),
-		Username:     "resource_blackbox_test_someuserTestIdentity2",
-		ProviderType: account.KeycloakIDP}
-
-	err := s.identityRepo.Create(s.Ctx, identity)
-	require.Nil(s.T(), err, "Could not create identity")
-
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resource := &resource.Resource{
 		ResourceID:       uuid.NewV4().String(),
 		ParentResourceID: nil,
-		Owner:            *identity,
 		ResourceType:     *resourceType,
 	}
 
