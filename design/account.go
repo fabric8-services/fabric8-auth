@@ -124,9 +124,7 @@ var _ = a.Resource("userinfo", func() {
 			a.GET(""),
 		)
 		a.Description("Get the authenticated user")
-		//a.UseTrait("conditional")
 		a.Response(d.OK, userInfo)
-		//a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
