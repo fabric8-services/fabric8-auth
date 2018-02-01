@@ -6,7 +6,6 @@ import (
 	tkn "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
@@ -17,7 +16,7 @@ import (
 )
 
 type TestUserInfoREST struct {
-	gormtestsupport.DBTestSuite
+	suite.Suite
 }
 
 func TestRunUserInfoREST(t *testing.T) {
