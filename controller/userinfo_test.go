@@ -3,14 +3,15 @@ package controller_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-
+	tkn "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -52,4 +53,24 @@ func (s *TestUserInfoREST) TestShowUserInfoOK() {
 	require.Equal(t, *userInfo.Email, "someEmail")
 	require.Equal(t, *userInfo.PreferredName, "someUserName")
 	require.Equal(t, *userInfo.Sub, "someUUID")
+}
+
+func (s *TestUserInfoREST) TestShowUserInfoFailsWithInvalidToken() {
+	t := s.T()
+	svc, ctrl := s.UnSecuredController()
+
+	// Creates an unsigned Token
+	jwtToken := tkn.NewWithClaims(tkn.SigningMethodRS256, tkn.MapClaims{
+		"sub":                uuid.NewV4().String(),
+		"given_name":         "someGivenName",
+		"family_name":        "someFamilyName",
+		"preferred_username": "someUserName",
+		"email":              "someEmail",
+	})
+	ctx := jwt.WithJWT(svc.Context, jwtToken)
+
+	_, err := test.ShowUserinfoInternalServerError(t, ctx, svc, ctrl)
+	require.NotNil(t, err)
+	require.Equal(t, *err.Errors[0].Status, "500")
+	require.Equal(t, err.Errors[0].Detail, "token contains an invalid number of segments")
 }
