@@ -5,12 +5,13 @@ import (
 
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"time"
 )
 
 var (
@@ -69,6 +70,22 @@ func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
 		return "", errors.WithStack(err)
 	}
 	return tokenStr, nil
+}
+
+// GenerateSampleSignedToken returns a signed token
+func GenerateSampleSignedTokenwithUserInfo() (*string, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = "test-key"
+	token.Claims.(jwt.MapClaims)["given_name"] = "someGivenName"
+	token.Claims.(jwt.MapClaims)["sub"] = "someUUID"
+	token.Claims.(jwt.MapClaims)["family_name"] = "someFamilyName"
+	token.Claims.(jwt.MapClaims)["email"] = "someEmail"
+	token.Claims.(jwt.MapClaims)["preferred_username"] = "someUserName"
+	tokenStr, err := token.SignedString(PrivateKey())
+	if err != nil {
+		return nil, err
+	}
+	return &tokenStr, nil
 }
 
 // UpdateToken generates a new token based on the existing one with additional claims

@@ -36,7 +36,7 @@ func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
 	}
 
 	userInfo := &app.UserInfo{
-		Sub:           &tokenClaims.Id,
+		Sub:           &tokenClaims.Subject,
 		GivenName:     &tokenClaims.GivenName,
 		PreferredName: &tokenClaims.Username,
 		FamilyName:    &tokenClaims.FamilyName,
