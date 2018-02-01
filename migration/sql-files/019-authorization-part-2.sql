@@ -1,20 +1,22 @@
 ALTER TABLE resource DROP CONSTRAINT resource_parent_resource_id_fkey;
 ALTER TABLE identity_role DROP CONSTRAINT identity_role_resource_id_fkey;
 
-ALTER TABLE resource ALTER COLUMN resource_id TYPE varchar;
-ALTER TABLE resource ALTER COLUMN parent_resource_id TYPE varchar;
-ALTER TABLE resource ALTER COLUMN name TYPE varchar;
+ALTER TABLE resource ALTER COLUMN resource_id TYPE varchar(256);
+ALTER TABLE resource ALTER COLUMN parent_resource_id TYPE varchar(256);
+ALTER TABLE resource ALTER COLUMN name TYPE varchar(256);
 ALTER TABLE resource DROP COLUMN owner_id;
 
 ALTER TABLE resource ADD CONSTRAINT resource_parent_resource_id_fkey FOREIGN KEY (parent_resource_id) REFERENCES resource (resource_id);
 
-ALTER TABLE identity_role ALTER COLUMN resource_id TYPE varchar;
+ALTER TABLE resource ADD COLUMN creator_id uuid REFERENCES Identities (id);
+
+ALTER TABLE identity_role ALTER COLUMN resource_id TYPE varchar(256);
 ALTER TABLE identity_role ADD CONSTRAINT identity_role_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES resource (resource_id);
 
-ALTER TABLE identities ADD COLUMN identity_resource_id varchar;
+ALTER TABLE identities ADD COLUMN identity_resource_id varchar(256);
 ALTER TABLE identities ADD CONSTRAINT identities_identity_resource_id_fkey FOREIGN KEY (identity_resource_id) REFERENCES resource (resource_id);
 
-ALTER TABLE role ALTER COLUMN name TYPE varchar;
+ALTER TABLE role ALTER COLUMN name TYPE varchar(256);
 
 CREATE TABLE membership (
   member_of uuid NOT NULL references identities (id),
