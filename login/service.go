@@ -179,11 +179,7 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect
 	if err != nil {
 		return nil, err
 	}
-	/*
-		if *responseMode == "query" {
-			responseMode = nil
-		}
-	*/
+
 	err = keycloak.saveReferrer(ctx, *state, *redirect, responseMode, validRedirectURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
