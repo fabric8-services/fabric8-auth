@@ -551,12 +551,21 @@ func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenRe
 
 // updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
 // loads the user profile from the identity provider and saves the username in the external token
-func (c *TokenController) updateProfileIfEmpty(ctx context.Context, providerConfig link.ProviderConfig, token *provider.ExternalToken, forcePull *bool) (provider.ExternalToken, error) {
+func (c *TokenController) updateProfileIfEmpty(ctx *app.RetrieveTokenContext, providerConfig link.ProviderConfig, token *provider.ExternalToken, forcePull *bool) (provider.ExternalToken, error) {
 	externalToken := *token
 	if externalToken.Username == "" || (forcePull != nil && *forcePull) {
 		userProfile, err := providerConfig.Profile(ctx, oauth2.Token{AccessToken: token.Token})
 		if err != nil {
-			return externalToken, err
+			log.Error(ctx, map[string]interface{}{
+				"err":           err,
+				"for":           ctx.For,
+				"provider_name": providerConfig.TypeName(),
+			}, "Unable to fetch user profile for external token. Account relinking may be required.")
+			linkURL := rest.AbsoluteURL(ctx.RequestData, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), ctx.For))
+			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"", linkURL, providerConfig.TypeName(), providerConfig.TypeName())
+			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+			ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
+			return externalToken, errors.NewUnauthorizedError(err.Error())
 		}
 		externalToken.Username = userProfile.Username
 		err = application.Transactional(c.db, func(appl application.Application) error {

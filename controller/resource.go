@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
@@ -133,28 +131,6 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			}
 		}
 
-		// Extract the resource owner ID from the request
-		resourceOwnerID, err := uuid.FromString(ctx.Payload.ResourceOwnerID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":               err,
-				"resource_owner_id": ctx.Payload.ResourceOwnerID,
-			}, "Resource owner ID is not valid")
-
-			return errors.NewConversionError(fmt.Sprintf("resource owner ID is not a valid UUID %v", err.Error()))
-		}
-
-		// Lookup the identity record of the resource owner
-		identity, err := appl.Identities().Load(ctx, resourceOwnerID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":               err,
-				"resource_owner_id": resourceOwnerID,
-			}, "Resource owner could not be found")
-
-			return err
-		}
-
 		var resourceID string
 		if ctx.Payload.ResourceID != nil {
 			resourceID = *ctx.Payload.ResourceID
@@ -173,8 +149,6 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 			ResourceID:       resourceID,
 			Name:             ctx.Payload.Name,
 			ParentResourceID: parentResourceID,
-			Owner:            *identity,
-			OwnerID:          identity.ID,
 			ResourceType:     *resourceType,
 			ResourceTypeID:   resourceType.ResourceTypeID,
 		}
@@ -197,7 +171,6 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	log.Debug(ctx, map[string]interface{}{
 		"resource_id":        res.ResourceID,
 		"parent_resource_id": parentResourceID,
-		"owner_id":           res.Owner.ID,
 		"resource_type":      res.ResourceType.Name,
 	}, "resource registered")
 
@@ -233,34 +206,6 @@ func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
 				return errors.NewBadParameterError("type", ctx.Payload.Type)
 			}
 			res.ResourceTypeID = resourceType.ResourceTypeID
-		}
-
-		// If a resource owner attribute has been passed in, update the resource owner
-		if ctx.Payload.ResourceOwnerID != nil {
-			// Extract the resource owner ID from the request
-			resourceOwnerID, err := uuid.FromString(*ctx.Payload.ResourceOwnerID)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":               err,
-					"resource_owner_id": *ctx.Payload.ResourceOwnerID,
-				}, "Resource owner ID is not valid")
-
-				return errors.NewConversionError(fmt.Sprintf("resource owner ID is not a valid UUID %v", err.Error()))
-			}
-
-			// Lookup the identity record of the resource owner
-			identity, err := appl.Identities().Load(ctx, resourceOwnerID)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":               err,
-					"resource_owner_id": resourceOwnerID,
-				}, "Resource owner could not be found")
-
-				return err
-			}
-
-			res.Owner = *identity
-			res.OwnerID = identity.ID
 		}
 
 		// If a parent resource ID has been passed in, update the parent resource
