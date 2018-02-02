@@ -395,6 +395,7 @@ func (c *ConfigurationData) DefaultConfigurationError() error {
 // "fabric8-oso-proxy : "secret"
 // "online-registration : "secret"
 // "fabric8-notification : "secret"
+// "rh-che : "secret"
 func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
