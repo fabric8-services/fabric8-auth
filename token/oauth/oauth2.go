@@ -101,19 +101,12 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 	}
 	// TODO The state reference table will be collecting dead states left from some failed login attempts.
 	// We need to clean up the old states from time to time.
-	var ref auth.OauthStateReference
-	if responseMode != nil {
-		ref = auth.OauthStateReference{
-			State:        state,
-			Referrer:     referrer,
-			ResponseMode: responseMode,
-		}
-	} else {
-		ref = auth.OauthStateReference{
-			State:    state,
-			Referrer: referrer,
-		}
+	ref := auth.OauthStateReference{
+		State:        state,
+		Referrer:     referrer,
+		ResponseMode: responseMode,
 	}
+
 	err = application.Transactional(db, func(appl application.Application) error {
 		_, err := appl.OauthStates().Create(ctx, &ref)
 		return err

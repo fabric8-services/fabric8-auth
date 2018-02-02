@@ -45,6 +45,18 @@ func (r OauthStateReference) Equal(u convert.Equaler) bool {
 	if r.Referrer != other.Referrer {
 		return false
 	}
+
+	if r.ResponseMode == nil {
+		if other.ResponseMode != nil {
+			return false
+		}
+	} else {
+		if other.ResponseMode == nil {
+			return false
+		} else if *r.ResponseMode != *other.ResponseMode {
+			return false
+		}
+	}
 	return true
 }
 

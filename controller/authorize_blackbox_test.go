@@ -190,7 +190,9 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	} else {
 		require.NotNil(t, locationUrl.Fragment)
 		require.True(t, strings.HasPrefix(locationUrl.Fragment, "code"))
+		require.Equal(t, code, strings.Split(strings.Split(locationUrl.Fragment, "&")[0], "=")[1])
 		require.Contains(t, locationUrl.Fragment, "state")
+		require.Equal(t, returnedState, strings.Split(strings.Split(locationUrl.Fragment, "&")[1], "=")[1])
 	}
 }
 func (rest *TestAuthorizeREST) TestAuthorizeCallbackBadRequest() {
