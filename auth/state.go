@@ -22,7 +22,7 @@ type OauthStateReference struct {
 	ID           uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"`
 	State        string
 	Referrer     string
-	ResponseMode string
+	ResponseMode *string
 }
 
 // TableName implements gorm.tabler

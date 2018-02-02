@@ -106,7 +106,7 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 		ref = auth.OauthStateReference{
 			State:        state,
 			Referrer:     referrer,
-			ResponseMode: *responseMode,
+			ResponseMode: responseMode,
 		}
 	} else {
 		ref = auth.OauthStateReference{
@@ -122,7 +122,7 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 		log.Error(ctx, map[string]interface{}{
 			"state":         state,
 			"referrer":      referrer,
-			"response_mode": responseMode,
+			"response_mode": *responseMode,
 			"err":           err,
 		}, "unable to create oauth state reference")
 		return err
@@ -131,9 +131,9 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 }
 
 // LoadReferrerAndResponseMode loads referrer and responseMode from DB
-func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state string) (string, string, error) {
+func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state string) (string, *string, error) {
 	var referrer string
-	var responseMode string
+	var responseMode *string
 
 	err := application.Transactional(db, func(appl application.Application) error {
 		ref, err := appl.OauthStates().Load(ctx, state)
@@ -150,7 +150,7 @@ func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state s
 			"state": state,
 			"err":   err,
 		}, "unable to delete oauth state reference")
-		return "", "", err
+		return "", nil, err
 	}
 	return referrer, responseMode, nil
 }

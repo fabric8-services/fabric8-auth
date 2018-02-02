@@ -34,10 +34,11 @@ func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 		Referrer: "domain.org",
 	}
 
+	responseMode := "fragment"
 	state2 := &auth.OauthStateReference{
 		State:        uuid.NewV4().String(),
 		Referrer:     "anotherdomain.com",
-		ResponseMode: "fragment",
+		ResponseMode: &responseMode,
 	}
 
 	_, err := s.repo.Create(s.Ctx, state)

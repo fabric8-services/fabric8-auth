@@ -478,7 +478,7 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthori
 	parameters.Add("code", ctx.Code)
 	parameters.Add("state", ctx.State)
 
-	if *responseMode == "fragment" {
+	if responseMode != nil && *responseMode == "fragment" {
 		referrerURL.Fragment = parameters.Encode()
 	} else {
 		referrerURL.RawQuery = parameters.Encode()
@@ -516,7 +516,7 @@ func (keycloak *KeycloakOAuthProvider) reclaimReferrerAndResponseMode(ctx contex
 		"response_mode":  responseMode,
 	}, "referrer found")
 
-	return referrerURL, &responseMode, nil
+	return referrerURL, responseMode, nil
 }
 
 func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
@@ -728,7 +728,7 @@ func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state s
 	return nil
 }
 
-func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Context, state string) (string, string, error) {
+func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error) {
 	return oauth.LoadReferrerAndResponseMode(ctx, keycloak.DB, state)
 }
 
