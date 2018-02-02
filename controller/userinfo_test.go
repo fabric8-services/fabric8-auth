@@ -33,7 +33,6 @@ func TestRunUserInfoREST(t *testing.T) {
 	suite.Run(t, &TestUserInfoREST{})
 }
 
-// Might not be needed
 func (s *TestUserInfoREST) UnSecuredController() (*goa.Service, *UserinfoController) {
 	svc := goa.New("Status-Service")
 	return svc, NewUserinfoController(svc, s.Application, testtoken.TokenManager)
