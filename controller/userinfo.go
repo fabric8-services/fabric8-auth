@@ -60,11 +60,11 @@ func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
 		fullName := strings.Split(user.FullName, " ")
 		sub := identity.ID.String()
 		userInfo := &app.UserInfo{
-			Sub:           &sub,
-			GivenName:     &fullName[0],
-			PreferredName: &identity.Username,
-			FamilyName:    &fullName[1],
-			Email:         &user.Email,
+			Sub:               &sub,
+			GivenName:         &fullName[0],
+			PreferredUsername: &identity.Username,
+			FamilyName:        &fullName[1],
+			Email:             &user.Email,
 		}
 
 		return ctx.OK(userInfo)
