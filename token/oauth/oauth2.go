@@ -115,7 +115,7 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 		log.Error(ctx, map[string]interface{}{
 			"state":         state,
 			"referrer":      referrer,
-			"response_mode": *responseMode,
+			"response_mode": log.PointerToString(responseMode),
 			"err":           err,
 		}, "unable to create oauth state reference")
 		return err

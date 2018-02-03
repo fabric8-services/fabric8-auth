@@ -5,11 +5,15 @@ import (
 	"encoding/json"
 	"testing"
 
-	logrus "github.com/sirupsen/logrus"
+	"github.com/fabric8-services/fabric8-auth/resource"
+
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func LogAndAssertJSON(t *testing.T, log func(), assertions func(fields logrus.Fields)) {
+	resource.Require(t, resource.UnitTest)
+
 	var buffer bytes.Buffer
 	var fields logrus.Fields
 
@@ -22,6 +26,14 @@ func LogAndAssertJSON(t *testing.T, log func(), assertions func(fields logrus.Fi
 	assert.Nil(t, err)
 
 	assertions(fields)
+}
+
+func TestPointerToString(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	str := "test"
+	assert.Equal(t, "test", PointerToString(&str))
+	assert.Equal(t, "<nil>", PointerToString(nil))
 }
 
 func TestInfo(t *testing.T) {
