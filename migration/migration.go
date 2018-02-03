@@ -167,6 +167,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 19
 	m = append(m, steps{ExecuteSQLFile("019-authorization-part-2.sql")})
 
+	// Version 20
+	m = append(m, steps{ExecuteSQLFile("020-add-response-mode-to-auth-state-reference.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
