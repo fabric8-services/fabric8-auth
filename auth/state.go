@@ -19,9 +19,10 @@ const (
 // OauthStateReference represents a oauth state reference
 type OauthStateReference struct {
 	gormsupport.Lifecycle
-	ID       uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"`
-	State    string
-	Referrer string
+	ID           uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"`
+	State        string
+	Referrer     string
+	ResponseMode *string
 }
 
 // TableName implements gorm.tabler
@@ -43,6 +44,18 @@ func (r OauthStateReference) Equal(u convert.Equaler) bool {
 	}
 	if r.Referrer != other.Referrer {
 		return false
+	}
+
+	if r.ResponseMode == nil {
+		if other.ResponseMode != nil {
+			return false
+		}
+	} else {
+		if other.ResponseMode == nil {
+			return false
+		} else if *r.ResponseMode != *other.ResponseMode {
+			return false
+		}
 	}
 	return true
 }

@@ -47,11 +47,19 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	clientID := rest.Configuration.GetPublicOauthClientID()
 	responseType := "code"
 	state := uuid.NewV4().String()
+	responseMode := "query"
 
-	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
 
 	state = "not-uuid"
-	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
+
+	state = uuid.NewV4().String()
+	responseMode = "fragment"
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
+
+	state = uuid.NewV4().String()
+	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, nil, responseType, nil, state)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
@@ -82,10 +90,18 @@ func (rest *TestAuthorizeREST) TestAuthorizeUnauthorizedError() {
 	responseType := "code"
 	state := uuid.NewV4().String()
 
-	test.AuthorizeAuthorizeUnauthorized(t, svc.Context, svc, ctrl, nil, clientID, redirect, responseType, nil, state)
+	test.AuthorizeAuthorizeUnauthorized(t, svc.Context, svc, ctrl, nil, clientID, redirect, nil, responseType, nil, state)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
+	rest.checkAuthorizeCallbackOK(nil)
+	responseMode := "query"
+	rest.checkAuthorizeCallbackOK(&responseMode)
+	responseMode = "fragment"
+	rest.checkAuthorizeCallbackOK(&responseMode)
+}
+
+func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	t := rest.T()
 	_, ctrl := rest.UnSecuredController()
 
@@ -102,7 +118,9 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 	prms.Add("redirect_uri", redirectURI)
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
 	prms.Add("state", uuid.NewV4().String())
-
+	if responseMode != nil {
+		prms.Add("response_mode", *responseMode)
+	}
 	ctx := context.Background()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
 	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
@@ -160,15 +178,23 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackOK() {
 	require.True(t, strings.HasPrefix(locationString, redirectURI))
 	require.Nil(t, err)
 
-	allQueryParameters = locationUrl.Query()
+	if responseMode == nil || *responseMode != "fragment" {
+		require.NotNil(t, locationUrl.RawQuery)
+		allQueryParameters = locationUrl.Query()
 
-	require.NotNil(t, allQueryParameters)
-	require.NotNil(t, allQueryParameters["state"][0])
-	require.Equal(t, returnedState, allQueryParameters["state"][0])
-	require.NotNil(t, allQueryParameters["code"][0])
-	require.Equal(t, code, allQueryParameters["code"][0])
+		require.NotNil(t, allQueryParameters)
+		require.NotNil(t, allQueryParameters["state"][0])
+		require.Equal(t, returnedState, allQueryParameters["state"][0])
+		require.NotNil(t, allQueryParameters["code"][0])
+		require.Equal(t, code, allQueryParameters["code"][0])
+	} else {
+		require.NotNil(t, locationUrl.Fragment)
+		require.True(t, strings.HasPrefix(locationUrl.Fragment, "code"))
+		require.Equal(t, code, strings.Split(strings.Split(locationUrl.Fragment, "&")[0], "=")[1])
+		require.Contains(t, locationUrl.Fragment, "state")
+		require.Equal(t, returnedState, strings.Split(strings.Split(locationUrl.Fragment, "&")[1], "=")[1])
+	}
 }
-
 func (rest *TestAuthorizeREST) TestAuthorizeCallbackBadRequest() {
 	t := rest.T()
 
