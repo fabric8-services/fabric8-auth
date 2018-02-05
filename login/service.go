@@ -28,9 +28,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -80,9 +78,6 @@ type KeycloakOAuthService interface {
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig LoginServiceConfiguration) (*string, error)
-	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
-	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
 }
 
 type linkInterface interface {
@@ -613,26 +608,6 @@ func (keycloak *KeycloakOAuthProvider) checkFederatedIdentity(ctx context.Contex
 	return res.StatusCode == http.StatusOK, nil
 }
 
-// Link links identity provider(s) to the user's account using user's access token
-func (keycloak *KeycloakOAuthProvider) Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
-	token := goajwt.ContextJWT(ctx)
-	claims := token.Claims.(jwt.MapClaims)
-	sessionState := claims["session_state"]
-	if sessionState == nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal("Session state is missing in token"))
-	}
-	ss := sessionState.(*string)
-	return keycloak.linkAccountToProviders(ctx, ctx.RequestData, ctx.ResponseData, ctx.Redirect, ctx.Provider, *ss, brokerEndpoint, clientID, validRedirectURL)
-}
-
-// LinkSession links identity provider(s) to the user's account using session state
-func (keycloak *KeycloakOAuthProvider) LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error {
-	if ctx.SessionState == nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("Authorization header or session state param is required"))
-	}
-	return keycloak.linkAccountToProviders(ctx, ctx.RequestData, ctx.ResponseData, ctx.Redirect, ctx.Provider, *ctx.SessionState, brokerEndpoint, clientID, validRedirectURL)
-}
-
 func (keycloak *KeycloakOAuthProvider) linkAccountToProviders(ctx linkInterface, req *goa.RequestData, res *goa.ResponseData, redirect *string, provider *string, sessionState string, brokerEndpoint string, clientID string, validRedirectURL string) error {
 	referrer := req.Header.Get("Referer")
 
@@ -652,51 +627,6 @@ func (keycloak *KeycloakOAuthProvider) linkAccountToProviders(ctx linkInterface,
 	}
 
 	return keycloak.linkProvider(ctx, req, res, state, sessionState, allProvidersToLink[0], &allProvidersToLink[1], brokerEndpoint, clientID)
-}
-
-// LinkCallback redirects to original referrer when Identity Provider account are linked to the user account
-func (keycloak *KeycloakOAuthProvider) LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error {
-	state := ctx.State
-	errorMessage := ctx.Params.Get("error")
-	if state == nil {
-		jsonapi.JSONErrorResponse(ctx, goa.ErrInternal("State is empty. "+errorMessage))
-	}
-	if errorMessage != "" {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(errorMessage))
-	}
-
-	next := ctx.Next
-	if next != nil {
-		// Link the next provider
-		sessionState := ctx.SessionState
-		if sessionState == nil {
-			log.Error(ctx, map[string]interface{}{
-				"state": state,
-			}, "session state is empty")
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrBadRequest("session state is empty"))
-			return ctx.Unauthorized(jerrors)
-		}
-		providerURL, err := getProviderURL(ctx.RequestData, *state, *sessionState, *next, nextProvider(*next), brokerEndpoint, clientID)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
-		}
-		ctx.ResponseData.Header().Set("Location", providerURL)
-		return ctx.TemporaryRedirect()
-	}
-
-	// No more providers to link. Redirect back to the original referrer
-	originalReferrer, _, err := keycloak.getReferrerAndResponseMode(ctx, *state)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-			"err":   err,
-		}, "uknown state")
-		jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, goa.ErrUnauthorized("uknown state. "+err.Error()))
-		return ctx.Unauthorized(jerrors)
-	}
-
-	ctx.ResponseData.Header().Set("Location", originalReferrer)
-	return ctx.TemporaryRedirect()
 }
 
 func nextProvider(currentProvider string) *string {
