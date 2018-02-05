@@ -163,6 +163,14 @@ func Error(ctx context.Context, fields map[string]interface{}, format string, ar
 	}
 }
 
+// PointerToString return a string pointer value or "<nil>" if the pointer == nil
+func PointerToString(str *string) string {
+	if str == nil {
+		return "<nil>"
+	}
+	return *str
+}
+
 // Warn logs a warning message that might contain the following attributes:
 // request id if provided by the context, the file and the
 // function name that invoked the Warn() function. In this function, we can use

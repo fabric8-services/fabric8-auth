@@ -78,14 +78,27 @@ func (s *LinkTestSuite) TestCallbackWithUnknownStateFails() {
 }
 
 func (s *LinkTestSuite) TestGitHubProviderRedirectsToAuthorize() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
+	s.checkGitHubProviderRedirectsToAuthorize("https://github.com")
+	s.checkGitHubProviderRedirectsToAuthorize("https://github.com/")
+	s.checkGitHubProviderRedirectsToAuthorize("https://github.com/org/repo")
+}
+
+func (s *LinkTestSuite) checkGitHubProviderRedirectsToAuthorize(for_ string) {
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	require.True(s.T(), strings.HasPrefix(location, "https://github.com/login/oauth/authorize"))
 	require.NotEmpty(s.T(), s.stateParam(location))
 }
 
 func (s *LinkTestSuite) TestOSOProviderRedirectsToAuthorize() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), s.Configuration.GetOpenShiftClientApiUrl(), "https://openshift.io/home")
+	s.checkOSOProviderRedirectsToAuthorize(s.Configuration.GetOpenShiftClientApiUrl())
+	s.checkOSOProviderRedirectsToAuthorize("https://api.starter-us-east-2.openshift.com")
+	s.checkOSOProviderRedirectsToAuthorize("https://api.starter-us-east-2.openshift.com/")
+	s.checkOSOProviderRedirectsToAuthorize("https://api.starter-us-east-2.openshift.com/path")
+}
+
+func (s *LinkTestSuite) checkOSOProviderRedirectsToAuthorize(for_ string) {
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), location, fmt.Sprintf("%s/oauth/authorize", s.Configuration.GetOpenShiftClientApiUrl()))
 	require.NotEmpty(s.T(), s.stateParam(location))

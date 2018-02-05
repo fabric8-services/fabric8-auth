@@ -111,7 +111,6 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	res := &resource.Resource{
 		ResourceID:       uuid.NewV4().String(),
 		ParentResourceID: nil,
-		Owner:            *identity,
 		ResourceType:     *resourceType,
 	}
 

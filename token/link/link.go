@@ -48,6 +48,7 @@ type LinkConfig interface {
 	GetGitHubClientSecret() string
 	IsTLSInsecureSkipVerify() bool
 	GetOSOClusters() map[string]configuration.OSOCluster
+	GetOSOClusterByURL(url string) *configuration.OSOCluster
 }
 
 // OauthProviderFactory represents oauth provider factory
@@ -114,7 +115,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 		return "", err
 	}
 	state := uuid.NewV4().String()
-	err = oauth.SaveReferrer(ctx, service.db, state, redirectURL, service.config.GetValidRedirectURLs())
+	err = oauth.SaveReferrer(ctx, service.db, state, redirectURL, nil, service.config.GetValidRedirectURLs())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url": redirectURL,
@@ -130,7 +131,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 // Callback returns a redirect URL after callback from an external oauth2 resource provider such as GitHub during user's account linking
 func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error) {
 	// validate known state
-	knownReferrer, err := oauth.LoadReferrer(ctx, service.db, state)
+	knownReferrer, _, err := oauth.LoadReferrerAndResponseMode(ctx, service.db, state)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state": state,
@@ -265,11 +266,9 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 	if resourceURL.Host == "github.com" {
 		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
 	}
-	clusters := service.config.GetOSOClusters()
-	for apiURL, cluster := range clusters {
-		if strings.HasPrefix(forResource, apiURL) {
-			return NewOpenShiftIdentityProvider(cluster, authURL)
-		}
+	cluster := service.config.GetOSOClusterByURL(forResource)
+	if cluster != nil {
+		return NewOpenShiftIdentityProvider(*cluster, authURL)
 	}
 	log.Error(ctx, map[string]interface{}{
 		"for": forResource,

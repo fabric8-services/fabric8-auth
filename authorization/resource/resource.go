@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -24,10 +23,6 @@ type Resource struct {
 	ResourceID string `sql:"type:string" gorm:"primary_key" gorm:"column:resource_id"`
 	// The parent resource ID
 	ParentResourceID *string
-	// The owning identity
-	Owner account.Identity
-	// The identifier for the owning identity
-	OwnerID uuid.UUID
 	// The resource type
 	ResourceType ResourceType
 	// The identifier for the resource type
