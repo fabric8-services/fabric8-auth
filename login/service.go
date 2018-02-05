@@ -83,6 +83,7 @@ type KeycloakOAuthService interface {
 	Link(ctx *app.LinkLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkSession(ctx *app.SessionLinkContext, brokerEndpoint string, clientID string, validRedirectURL string) error
 	LinkCallback(ctx *app.CallbackLinkContext, brokerEndpoint string, clientID string) error
+	UserInfo(ctx context.Context) (*account.User, *account.Identity, error)
 }
 
 type linkInterface interface {
@@ -1083,4 +1084,43 @@ func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
 	}
 
 	return string(b), nil
+}
+
+// UserInfo gets user infomation given a context containing access_token
+func (keycloak *KeycloakOAuthProvider) UserInfo(ctx context.Context) (*account.User, *account.Identity, error) {
+
+	id, err := keycloak.TokenManager.Locate(ctx)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Bad Token")
+		return nil, nil, autherrors.NewUnauthorizedError("bad token")
+	}
+	var user *account.User
+	var identity *account.Identity
+	err = application.Transactional(keycloak.DB, func(appl application.Application) error {
+
+		identity, err = appl.Identities().Load(ctx, id)
+		if err != nil || identity == nil {
+			log.Error(ctx, map[string]interface{}{
+				"identity_id": id,
+			}, "Auth token contains id %s of unknown Identity", id)
+			return autherrors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", id))
+		}
+
+		userID := identity.UserID
+		if userID.Valid {
+			user, err = appl.Users().Load(ctx, userID.UUID)
+			if err != nil {
+				return autherrors.NewUnauthorizedError(fmt.Sprintf("can't load user with id %s", userID.UUID))
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return user, identity, nil
 }
