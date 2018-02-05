@@ -210,7 +210,9 @@ func (m *GormRoleRepository) Lookup(ctx context.Context, name string, resourceTy
 	defer goa.MeasureSince([]string{"goa", "db", "role", "lookup"}, time.Now())
 
 	var native Role
-	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("name = ? and resource_type.name = ?", name, resourceType).Find(&native).Error
+	err := m.db.Table(m.TableName()).Joins(
+		"left join resource_type on resource_type.resource_type_id = role.resource_type_id").Preload(
+		"ResourceType").Where("role.name = ? and resource_type.name = ?", name, resourceType).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundError("role", name)
 	}

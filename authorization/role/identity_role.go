@@ -27,7 +27,7 @@ type IdentityRole struct {
 	IdentityID uuid.UUID
 	Identity   account.Identity
 	// The resource to which the role is applied
-	ResourceID *string
+	ResourceID string
 	Resource   resource.Resource
 	// The role that is assigned
 	RoleID uuid.UUID
