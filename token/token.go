@@ -80,10 +80,14 @@ type Permissions struct {
 	ResourceSetID   *string `json:"resource_set_id"`
 }
 
+type Parser interface {
+	Parse(ctx context.Context, tokenString string) (*jwt.Token, error)
+}
+
 // Manager generate and find auth token information
 type Manager interface {
+	Parser
 	Locate(ctx context.Context) (uuid.UUID, error)
-	Parse(ctx context.Context, tokenString string) (*jwt.Token, error)
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
