@@ -54,7 +54,6 @@ func newTestAccountProvider(db application.DB) *userprofile.AccountProvider {
 func (s *TestUserInfoREST) TestShowUserInfoOK() {
 
 	t := s.T()
-	//ctx, userinfoCtrl, usr, ident := s.initTest()
 	usr, ident, _ := getTestUserAndIdentity()
 	userinfoCtrl := s.newUserinfoController(ident, usr)
 

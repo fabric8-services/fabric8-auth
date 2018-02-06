@@ -99,11 +99,11 @@ var userInfo = a.MediaType("application/vnd.userInfo+json", func() {
 	a.TypeName("UserInfo")
 	a.Description("User Information")
 	a.Attributes(func() {
-		a.Attribute("sub", d.String)
-		a.Attribute("given_name", d.String)
-		a.Attribute("family_name", d.String)
-		a.Attribute("preferred_username", d.String)
-		a.Attribute("email", d.String)
+		a.Attribute("sub", d.String, "subject (identity is subject)")
+		a.Attribute("given_name", d.String, "first name, can be achieved from fullName rrom the user table")
+		a.Attribute("family_name", d.String, "last name, can be achieved from fullName from the user table")
+		a.Attribute("preferred_username", d.String, "username, each identity has a username")
+		a.Attribute("email", d.String, "email of the user")
 	})
 	a.View("default", func() {
 		a.Attribute("sub", d.String)
