@@ -26,7 +26,7 @@ func NewResourceRolesController(service *goa.Service) *ResourceRolesController {
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
-	var roles []role.Role
+	var roles []role.IdentityRole
 	err := application.Transactional(c.db, func(appl application.Application) error {
 		resourceExists, err := appl.RoleRepository().CheckExists(ctx, ctx.ID)
 		if err != nil {
@@ -35,7 +35,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 		if !resourceExists {
 			return errors.NewNotFoundError("resource", ctx.ID)
 		}
-		roles, err = appl.RoleRepository().ListByResource(ctx, ctx.ID)
+		roles, err = appl.IdentityRoleRepository().ListByResource(ctx, ctx.ID)
 		if err != nil {
 			return err
 		}
@@ -52,8 +52,8 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 		}, "error retrieving list of roles for a specific resource")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	roleList := convertToAppRoles(ctx, roles)
-	return ctx.OK(&app.Roles{
+	roleList := convertIdentityRoleToAppRoles(ctx, roles)
+	return ctx.OK(&app.Identityroles{
 		Data: roleList,
 	})
 }
@@ -100,16 +100,31 @@ func convertRoleToAppRoles(ctx context.Context, roles []role.Role) []*app.RolesD
 	return rolesList
 }
 func convertRoleToAppRole(ctx context.Context, r role.Role) *app.RolesData {
-	return &app.RolesData{}
+	return &app.RolesData{
+		RoleID:   r.RoleID.String(),
+		RoleName: r.Name,
+	}
 }
 
-func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRole) []*app.RolesData {
-	var rolesList []*app.RolesData
+func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRole) []*app.IdentityRolesData {
+	var rolesList []*app.IdentityRolesData
 	for _, r := range roles {
 		rolesList = append(rolesList, convertIdentityRoleToAppRole(ctx, r))
 	}
 	return rolesList
 }
-func convertIdentityRoleToAppRole(ctx context.Context, r role.IdentityRole) *app.RolesData {
-	return &app.RolesData{}
+func convertIdentityRoleToAppRole(ctx context.Context, r role.IdentityRole) *app.IdentityRolesData {
+	inherited := false
+	if r.Resource.ParentResourceID != nil {
+		inherited = true
+	}
+	return &app.IdentityRolesData{
+		Identifier:   r.IdentityRoleID.String(),
+		AssigneeID:   r.Identity.ID.String(),
+		AssigneeName: r.Identity.User.FullName,
+		AssigneeType: "user", // will change for teams/orgs/groups
+		Inherited:    inherited,
+		RoleID:       r.Role.RoleID.String(),
+		RoleName:     r.Role.Name,
+	}
 }

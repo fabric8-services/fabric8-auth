@@ -104,7 +104,7 @@ func (g *GormBase) ResourceTypeScopeRepository() resource.ResourceTypeScopeRepos
 func (g *GormBase) RoleRepository() role.RoleRepository {
 	return role.NewRoleRepository(g.db)
 }
-func (g *GormBase) IdentityRolesRepository() role.IdentityRoleRepository {
+func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return role.NewIdentityRoleRepository(g.db)
 }
 
