@@ -182,6 +182,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	for _, account := range saConf.Accounts {
 		c.sa[account.ID] = account
 	}
+	c.checkServiceAccountConfig()
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
 	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
@@ -258,6 +259,38 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	return c, nil
+}
+
+func (c *ConfigurationData) checkServiceAccountConfig() {
+	notFoundServiceAccountNames := map[string]bool{
+		"fabric8-wit":           true,
+		"fabric8-tenant":        true,
+		"fabric8-jenkins-idler": true,
+		"fabric8-oso-proxy":     true,
+		"online-registration":   true,
+		"fabric8-notification":  true,
+		"rh-che":                true,
+	}
+	for _, sa := range c.sa {
+		if sa.Name == "" {
+			msg := "service account name is empty in service account config"
+			c.appendDefaultConfigErrorMessage(&msg)
+		} else {
+			delete(notFoundServiceAccountNames, sa.Name)
+		}
+		if sa.ID == "" {
+			msg := fmt.Sprintf("%s service account ID is empty in service account config", sa.Name)
+			c.appendDefaultConfigErrorMessage(&msg)
+		}
+		if len(sa.Secrets) == 0 {
+			msg := fmt.Sprintf("%s service account secret array is empty in service account config", sa.Name)
+			c.appendDefaultConfigErrorMessage(&msg)
+		}
+	}
+	if len(notFoundServiceAccountNames) != 0 {
+		msg := "some expected service accounts are missing in service account config"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
 }
 
 // checkClusterConfig checks if there is any missing keys or empty values in oso-clusters.conf
@@ -395,6 +428,7 @@ func (c *ConfigurationData) DefaultConfigurationError() error {
 // "fabric8-oso-proxy : "secret"
 // "online-registration : "secret"
 // "fabric8-notification : "secret"
+// "rh-che : "secret"
 func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
