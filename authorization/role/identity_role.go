@@ -59,6 +59,7 @@ type IdentityRoleRepository interface {
 	Create(ctx context.Context, u *IdentityRole) error
 	Save(ctx context.Context, u *IdentityRole) error
 	List(ctx context.Context) ([]IdentityRole, error)
+	ListByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 }
 
@@ -152,6 +153,20 @@ func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) e
 	}, "Identity role deleted!")
 
 	return nil
+}
+
+// ListByResource returns all identity roles
+func (m *GormIdentityRoleRepository) ListByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
+	var rows []IdentityRole
+
+	// TODO: update query sql
+
+	err := m.db.Model(&resource.ResourceType{}).Find(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	return rows, nil
 }
 
 // List returns all identity roles

@@ -78,8 +78,8 @@ type RoleRepository interface {
 	Create(ctx context.Context, u *Role) error
 	Save(ctx context.Context, u *Role) error
 	List(ctx context.Context) ([]Role, error)
+	ListByResource(ctx context.Context, roleID string) ([]Role, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
-
 	ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error)
 	AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error
 }
@@ -197,6 +197,20 @@ func (m *GormRoleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 func (m *GormRoleRepository) List(ctx context.Context) ([]Role, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "list"}, time.Now())
 	var rows []Role
+
+	err := m.db.Model(&Role{}).Find(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	return rows, nil
+}
+
+// ListByResource returns all roles by resource ID
+func (m *GormRoleRepository) ListByResource(ctx context.Context, resourceID string) ([]Role, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "role", "list"}, time.Now())
+	var rows []Role
+
+	// TODO : update query sql
 
 	err := m.db.Model(&Role{}).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
