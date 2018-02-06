@@ -3,10 +3,11 @@ package controller
 import (
 	"context"
 
+	"github.com/fabric8-services/fabric8-auth/account/userprofile"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
@@ -15,11 +16,11 @@ import (
 // UserController implements the user resource.
 type UserController struct {
 	*goa.Controller
-	auth         *login.KeycloakOAuthProvider
-	db           application.DB
-	tokenManager token.Manager
-	config       UserControllerConfiguration
-	InitTenant   func(ctx context.Context) error
+	accountService userprofile.AccountService
+	db             application.DB
+	tokenManager   token.Manager
+	config         UserControllerConfiguration
+	InitTenant     func(ctx context.Context) error
 }
 
 // UserControllerConfiguration the Configuration for the UserController
@@ -28,20 +29,20 @@ type UserControllerConfiguration interface {
 }
 
 // NewUserController creates a user controller.
-func NewUserController(service *goa.Service, auth *login.KeycloakOAuthProvider, db application.DB, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
+func NewUserController(service *goa.Service, accountService userprofile.AccountService, db application.DB, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
 	return &UserController{
-		Controller:   service.NewController("UserController"),
-		auth:         auth,
-		db:           db,
-		tokenManager: tokenManager,
-		config:       config,
+		Controller:     service.NewController("UserController"),
+		accountService: accountService,
+		db:             db,
+		tokenManager:   tokenManager,
+		config:         config,
 	}
 }
 
 // Show returns the authorized user based on the provided Token
 func (c *UserController) Show(ctx *app.ShowUserContext) error {
 
-	user, identity, err := c.auth.UserInfo(ctx)
+	user, identity, err := c.accountService.UserInfo(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

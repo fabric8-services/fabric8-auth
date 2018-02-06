@@ -3,10 +3,10 @@ package controller
 import (
 	"strings"
 
+	"github.com/fabric8-services/fabric8-auth/account/userprofile"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 )
@@ -14,25 +14,25 @@ import (
 // UserinfoController implements the userinfo resource.
 type UserinfoController struct {
 	*goa.Controller
-	db           application.DB
-	tokenManager token.Manager
-	auth         login.KeycloakOAuthService
+	db             application.DB
+	tokenManager   token.Manager
+	accountService userprofile.AccountService
 }
 
 // NewUserinfoController creates a userinfo controller.
-func NewUserinfoController(service *goa.Service, auth *login.KeycloakOAuthProvider, db application.DB, tokenManager token.Manager) *UserinfoController {
+func NewUserinfoController(service *goa.Service, accountService userprofile.AccountService, db application.DB, tokenManager token.Manager) *UserinfoController {
 	return &UserinfoController{
-		Controller:   service.NewController("UserinfoController"),
-		auth:         auth,
-		db:           db,
-		tokenManager: tokenManager,
+		Controller:     service.NewController("UserinfoController"),
+		accountService: accountService,
+		db:             db,
+		tokenManager:   tokenManager,
 	}
 }
 
 // Show runs the show action.
 func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
 
-	user, identity, err := c.auth.UserInfo(ctx)
+	user, identity, err := c.accountService.UserInfo(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

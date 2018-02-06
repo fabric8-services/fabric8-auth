@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/account/userprofile"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
@@ -13,7 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	res "github.com/fabric8-services/fabric8-auth/authorization/resource"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormsupport"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space"
@@ -34,6 +37,7 @@ import (
 
 type TestUserREST struct {
 	gormtestsupport.DBTestSuite
+	userinfoStrategy string
 }
 
 func TestRunUserREST(t *testing.T) {
@@ -46,20 +50,43 @@ func (rest *TestUserREST) SetupSuite() {
 
 }
 
+type DummyAccountService struct {
+	userprofile.AccountProvider
+	userinfoStrategy string
+}
+
+func (dummyAccountService DummyAccountService) UserInfo(ctx context.Context) (*account.User, *account.Identity, error) {
+
+	if dummyAccountService.userinfoStrategy == "401" {
+		return nil, nil, autherrors.NewUnauthorizedError("failed")
+	}
+	user, identity, err := getTestUserAndIdentity()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return user, identity, nil
+}
+
 func (rest *TestUserREST) newUserController(identity *account.Identity, user *account.User) *UserController {
-	return NewUserController(goa.New("wit-test"), newGormTestBase(identity, user), testtoken.TokenManager, rest.Configuration)
+	dummyAccountService := DummyAccountService{
+		userinfoStrategy: rest.userinfoStrategy,
+	}
+	return NewUserController(goa.New("auth-test"), dummyAccountService, newGormTestBase(identity, user), testtoken.TokenManager, rest.Configuration)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingUUID() {
+	rest.userinfoStrategy = "401"
 	resource.Require(rest.T(), resource.UnitTest)
 	jwtToken := token.New(token.SigningMethodRS256)
 	ctx := jwt.WithJWT(context.Background(), jwtToken)
 
 	userCtrl := rest.newUserController(nil, nil)
-	test.ShowUserBadRequest(rest.T(), ctx, nil, userCtrl, nil, nil)
+	test.ShowUserUnauthorized(rest.T(), ctx, nil, userCtrl, nil, nil)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedNonUUID() {
+	rest.userinfoStrategy = "401"
 	// given
 	jwtToken := token.New(token.SigningMethodRS256)
 	jwtToken.Claims.(token.MapClaims)["sub"] = "aa"
@@ -67,10 +94,11 @@ func (rest *TestUserREST) TestCurrentAuthorizedNonUUID() {
 	// when
 	userCtrl := rest.newUserController(nil, nil)
 	// then
-	test.ShowUserBadRequest(rest.T(), ctx, nil, userCtrl, nil, nil)
+	test.ShowUserUnauthorized(rest.T(), ctx, nil, userCtrl, nil, nil)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingIdentity() {
+	rest.userinfoStrategy = "401"
 	// given
 	jwtToken := token.New(token.SigningMethodRS256)
 	jwtToken.Claims.(token.MapClaims)["sub"] = uuid.NewV4().String()
@@ -82,6 +110,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedMissingIdentity() {
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedOK() {
+	rest.userinfoStrategy = "200"
 	// given
 	ctx, userCtrl, usr, ident := rest.initTestCurrentAuthorized()
 	// when
@@ -92,6 +121,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedOK() {
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfModifiedSinceHeader() {
+	rest.userinfoStrategy = "200"
 	// given
 	ctx, userCtrl, usr, ident := rest.initTestCurrentAuthorized()
 	// when
@@ -103,6 +133,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfModifiedSinceHead
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfNoneMatchHeader() {
+	rest.userinfoStrategy = "200"
 	// given
 	ctx, userCtrl, usr, ident := rest.initTestCurrentAuthorized()
 	// when
@@ -114,6 +145,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfNoneMatchHeader()
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfModifiedSinceHeader() {
+	rest.userinfoStrategy = "304"
 	// given
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	// when
@@ -124,6 +156,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfModifiedSinceHe
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfNoneMatchHeader() {
+	rest.userinfoStrategy = "304"
 	// given
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	// when
@@ -134,6 +167,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfNoneMatchHeader
 }
 
 func (rest *TestUserREST) TestPrivateEmailVisibleIfNotPrivate() {
+	rest.userinfoStrategy = "200"
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	usr.EmailPrivate = false
 	_, err := testsupport.CreateTestUser(rest.DB, &usr)
@@ -144,6 +178,7 @@ func (rest *TestUserREST) TestPrivateEmailVisibleIfNotPrivate() {
 }
 
 func (rest *TestUserREST) TestPrivateEmailVisibleIfPrivate() {
+	rest.userinfoStrategy = "200"
 	ctx, userCtrl, usr, _ := rest.initTestCurrentAuthorized()
 	usr.EmailPrivate = true
 	_, err := testsupport.CreateTestUser(rest.DB, &usr)
@@ -156,10 +191,21 @@ func (rest *TestUserREST) TestPrivateEmailVisibleIfPrivate() {
 
 func (rest *TestUserREST) initTestCurrentAuthorized() (context.Context, app.UserController, account.User, account.Identity) {
 	jwtToken := token.New(token.SigningMethodRS256)
-	jwtToken.Claims.(token.MapClaims)["sub"] = uuid.NewV4().String()
+	jwtToken.Claims.(token.MapClaims)["sub"] = "7ca867c6-75e9-4a13-a8ee-d9c68c25ab06"
 	ctx := jwt.WithJWT(context.Background(), jwtToken)
+
+	usr, ident, _ := getTestUserAndIdentity()
+	userCtrl := rest.newUserController(ident, usr)
+	return ctx, userCtrl, *usr, *ident
+}
+
+func getTestUserAndIdentity() (*account.User, *account.Identity, error) {
+	userId, err := uuid.FromString("1000a13d-0889-4c00-9a61-b3ce559cbd57")
+	if err != nil {
+		return nil, nil, err
+	}
 	usr := account.User{
-		ID: uuid.NewV4(),
+		ID: userId,
 		Lifecycle: gormsupport.Lifecycle{
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -167,11 +213,15 @@ func (rest *TestUserREST) initTestCurrentAuthorized() (context.Context, app.User
 		FullName: "TestCurrentAuthorizedOK User",
 		ImageURL: "someURL",
 		Cluster:  "cluster",
-		Email:    uuid.NewV4().String() + "email@domain.com",
+		Email:    "email@domain.com",
 	}
-	ident := account.Identity{ID: uuid.NewV4(), Username: "TestUser", ProviderType: account.KeycloakIDP, User: usr, UserID: account.NullUUID{UUID: usr.ID, Valid: true}}
-	userCtrl := rest.newUserController(&ident, &usr)
-	return ctx, userCtrl, usr, ident
+	identityId, err := uuid.FromString("a7847bfb-31e9-4bbe-8244-3738151ccd93")
+	if err != nil {
+		return nil, nil, err
+	}
+	ident := account.Identity{ID: identityId, Username: "TestUser", ProviderType: account.KeycloakIDP, User: usr, UserID: account.NullUUID{UUID: usr.ID, Valid: true}}
+
+	return &usr, &ident, nil
 }
 
 func (rest *TestUserREST) assertCurrentUser(user app.User, ident account.Identity, usr account.User) {
