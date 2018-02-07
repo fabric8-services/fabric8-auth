@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"net/http"
 	"testing"
 	"time"
@@ -341,6 +342,14 @@ func (g *GormTestBase) ResourceTypeRepository() res.ResourceTypeRepository {
 }
 
 func (g *GormTestBase) ResourceTypeScopeRepository() res.ResourceTypeScopeRepository {
+	return nil
+}
+
+func (g *GormTestBase) RoleRepository() role.RoleRepository {
+	return nil
+}
+
+func (g *GormTestBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return nil
 }
 
