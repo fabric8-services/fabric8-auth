@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-auth/account/userprofile"
+	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -16,7 +16,7 @@ import (
 // UserController implements the user resource.
 type UserController struct {
 	*goa.Controller
-	accountService userprofile.AccountService
+	accountService userinfo.AccountService
 	db             application.DB
 	tokenManager   token.Manager
 	config         UserControllerConfiguration
@@ -29,7 +29,7 @@ type UserControllerConfiguration interface {
 }
 
 // NewUserController creates a user controller.
-func NewUserController(service *goa.Service, accountService userprofile.AccountService, db application.DB, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
+func NewUserController(service *goa.Service, accountService userinfo.AccountService, db application.DB, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
 	return &UserController{
 		Controller:     service.NewController("UserController"),
 		accountService: accountService,

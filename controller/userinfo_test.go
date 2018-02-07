@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account/userprofile"
+	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
 	uuid "github.com/satori/go.uuid"
@@ -47,8 +47,8 @@ func (s *TestUserInfoREST) newUserinfoController(identity *account.Identity, use
 	return NewUserinfoController(goa.New("auth-test"), dummyAccountService, newGormTestBase(identity, user), testtoken.TokenManager)
 }
 
-func newTestAccountProvider(db application.DB) *userprofile.AccountProvider {
-	return userprofile.NewAccountProvider(db.Identities(), db.Users(), testtoken.TokenManager, db)
+func newTestAccountProvider(db application.DB) *userinfo.AccountProvider {
+	return userinfo.NewAccountProvider(db.Identities(), db.Users(), testtoken.TokenManager, db)
 }
 
 func (s *TestUserInfoREST) TestShowUserInfoOK() {

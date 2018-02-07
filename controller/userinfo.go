@@ -3,7 +3,7 @@ package controller
 import (
 	"strings"
 
-	"github.com/fabric8-services/fabric8-auth/account/userprofile"
+	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -16,11 +16,11 @@ type UserinfoController struct {
 	*goa.Controller
 	db             application.DB
 	tokenManager   token.Manager
-	accountService userprofile.AccountService
+	accountService userinfo.AccountService
 }
 
 // NewUserinfoController creates a userinfo controller.
-func NewUserinfoController(service *goa.Service, accountService userprofile.AccountService, db application.DB, tokenManager token.Manager) *UserinfoController {
+func NewUserinfoController(service *goa.Service, accountService userinfo.AccountService, db application.DB, tokenManager token.Manager) *UserinfoController {
 	return &UserinfoController{
 		Controller:     service.NewController("UserinfoController"),
 		accountService: accountService,

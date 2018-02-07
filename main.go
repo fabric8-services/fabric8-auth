@@ -10,7 +10,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
-	"github.com/fabric8-services/fabric8-auth/account/userprofile"
+	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
@@ -214,7 +214,7 @@ func main() {
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
-	accountService := userprofile.NewAccountProvider(identityRepository, userRepository, tokenManager, appDB)
+	accountService := userinfo.NewAccountProvider(identityRepository, userRepository, tokenManager, appDB)
 	userCtrl := controller.NewUserController(service, accountService, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())

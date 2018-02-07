@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account/userprofile"
+	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -51,7 +51,7 @@ func (rest *TestUserREST) SetupSuite() {
 }
 
 type DummyAccountService struct {
-	userprofile.AccountProvider
+	userinfo.AccountProvider
 	userinfoStrategy string
 }
 
