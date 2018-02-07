@@ -4,11 +4,9 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	"github.com/satori/go.uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -58,10 +56,9 @@ func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	// when
 	err = s.repo.Delete(s.Ctx, state.ID)
 	// then
-	assert.Nil(s.T(), err)
-	_, err = s.repo.Load(s.Ctx, state.State)
-	require.NotNil(s.T(), err)
-	require.IsType(s.T(), errors.NotFoundError{}, err)
+	ref := auth.OauthStateReference{}
+	tx := s.DB.Unscoped().Where("id=?", state.ID).First(&ref)
+	require.True(s.T(), tx.RecordNotFound())
 
 	foundState, err = s.repo.Load(s.Ctx, state2.State)
 	require.Nil(s.T(), err)
