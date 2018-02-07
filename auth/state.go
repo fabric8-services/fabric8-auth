@@ -87,7 +87,7 @@ func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, ID uuid.
 		return errors.NewNotFoundError("oauth state reference", ID.String())
 	}
 	reference := OauthStateReference{ID: ID}
-	tx := r.db.Delete(reference)
+	tx := r.db.Unscoped().Delete(reference)
 
 	if err := tx.Error; err != nil {
 		log.Error(ctx, map[string]interface{}{

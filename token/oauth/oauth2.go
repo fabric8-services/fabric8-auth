@@ -136,13 +136,18 @@ func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state s
 		referrer = ref.Referrer
 		responseMode = ref.ResponseMode
 		err = appl.OauthStates().Delete(ctx, ref.ID)
-		return err
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"state": state,
+				"err":   err,
+			}, "unable to delete oauth state reference")
+			return err
+		}
+
+		return nil
 	})
+
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-			"err":   err,
-		}, "unable to delete oauth state reference")
 		return "", nil, err
 	}
 	return referrer, responseMode, nil
