@@ -20,20 +20,17 @@ type ResourceRolesController struct {
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service) *ResourceRolesController {
-	return &ResourceRolesController{Controller: service.NewController("ResourceRolesController")}
+func NewResourceRolesController(service *goa.Service, tokenManager token.Manager, db application.DB) *ResourceRolesController {
+	return &ResourceRolesController{Controller: service.NewController("ResourceRolesController"), db: db, TokenManager: tokenManager}
 }
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 	var roles []role.IdentityRole
 	err := application.Transactional(c.db, func(appl application.Application) error {
-		resourceExists, err := appl.RoleRepository().CheckExists(ctx, ctx.ID)
+		err := appl.ResourceRepository().CheckExists(ctx, ctx.ID)
 		if err != nil {
-			return err
-		}
-		if !resourceExists {
-			return errors.NewNotFoundError("resource", ctx.ID)
+			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 		roles, err = appl.IdentityRoleRepository().ListByResource(ctx, ctx.ID)
 		if err != nil {
@@ -58,7 +55,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 	})
 }
 
-// ListAssigned runs the list action.
+// List runs the list action.
 func (c *ResourceRolesController) List(ctx *app.ListResourceRolesContext) error {
 	var roles []role.Role
 	err := application.Transactional(c.db, func(appl application.Application) error {
@@ -121,7 +118,6 @@ func convertIdentityRoleToAppRole(ctx context.Context, r role.IdentityRole) *app
 	return &app.IdentityRolesData{
 		Identifier:   r.IdentityRoleID.String(),
 		AssigneeID:   r.Identity.ID.String(),
-		AssigneeName: r.Identity.User.FullName,
 		AssigneeType: "user", // will change for teams/orgs/groups
 		Inherited:    inherited,
 		RoleID:       r.Role.RoleID.String(),

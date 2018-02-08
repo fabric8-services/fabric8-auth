@@ -76,9 +76,8 @@ var identityRolesData = a.Type("identityRolesData", func() {
 	a.Attribute("role_id", d.String, "The ID of the role")
 	a.Attribute("role_name", d.String, "The name of the role")
 	a.Attribute("assignee_id", d.String, "The ID of the assignee")
-	a.Attribute("assignee_name", d.String, "The name of the assignee")
 	a.Attribute("assignee_type", d.String, "The type of assignee, example: user,groups,teams")
 	a.Attribute("inherited", d.Boolean)
 
-	a.Required("identifier", "role_id", "role_name", "assignee_id", "assignee_name", "assignee_type", "inherited")
+	a.Required("identifier", "role_id", "role_name", "assignee_id", "assignee_type", "inherited")
 })
