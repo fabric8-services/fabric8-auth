@@ -13,9 +13,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
+	"strings"
 )
 
-const RESOURCE_TYPE_ORGANIZATION = "identity/organization"
 const ORGANIZATION_OWNER_ROLE = "owner"
 
 // OrganizationController implements the organization resource.
@@ -37,6 +37,10 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
 	}
 
+	if len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
+		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("Organization name cannot be empty"))
+	}
+
 	var organizationId uuid.UUID
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
@@ -48,7 +52,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		}
 
 		// Lookup the organization resource type
-		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, RESOURCE_TYPE_ORGANIZATION)
+		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, account.IDENTITY_RESOURCE_TYPE_ORGANIZATION)
 		if err != nil {
 			return errors.NewInternalErrorFromString(ctx, "Error looking up resource type 'identity/organization'")
 		}
@@ -78,7 +82,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		organizationId = orgIdentity.ID
 
 		// Lookup the identity/organization owner role
-		ownerRole, err := appl.RoleRepository().Lookup(ctx, ORGANIZATION_OWNER_ROLE, RESOURCE_TYPE_ORGANIZATION)
+		ownerRole, err := appl.RoleRepository().Lookup(ctx, ORGANIZATION_OWNER_ROLE, account.IDENTITY_RESOURCE_TYPE_ORGANIZATION)
 
 		if err != nil {
 			return errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")

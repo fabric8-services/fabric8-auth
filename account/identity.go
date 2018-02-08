@@ -13,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -22,6 +23,11 @@ import (
 const (
 	// KeycloakIDP is the name of the main Keycloak Identity Provider
 	KeycloakIDP string = "kc"
+
+	IDENTITY_RESOURCE_TYPE_ORGANIZATION = "identity/organization"
+	IDENTITY_RESOURCE_TYPE_TEAM         = "identity/team"
+	IDENTITY_RESOURCE_TYPE_GROUP        = "identity/group"
+	IDENTITY_RESOURCE_TYPE_USER         = "identity/user"
 )
 
 // NullUUID can be used with the standard sql package to represent a
@@ -56,6 +62,14 @@ func (u NullUUID) Value() (driver.Value, error) {
 	}
 	// Delegate to UUID Value function
 	return u.UUID.Value()
+}
+
+// This struct is used to return the Organizations for which an Identity is associated
+type IdentityOrganization struct {
+	OrganizationID uuid.UUID
+	Name           string
+	Member         bool
+	Roles          []string
 }
 
 // Identity describes a federated identity provided by Identity Provider (IDP) such as Keycloak, GitHub, OSO, etc.
@@ -120,6 +134,7 @@ type IdentityRepository interface {
 	List(ctx context.Context) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
+	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]IdentityOrganization, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -414,4 +429,83 @@ func (m *GormIdentityRepository) Search(ctx context.Context, q string, start int
 	}
 
 	return result, count, nil
+}
+
+// Returns an array of all organizations in which the specified user is a member or is assigned a role
+func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]IdentityOrganization, error) {
+
+	db := m.db.Model(&Identity{})
+
+	getOrCreateEntry := func(orgs []IdentityOrganization, id uuid.UUID) IdentityOrganization {
+		for _, org := range orgs {
+			if org.OrganizationID == id {
+				return org
+			}
+		}
+
+		row := db.Raw("SELECT r.name FROM identity i, resource r WHERE i.identity_resource_id = r.resource_id and i.id = ?",
+			id).Row()
+
+		newOrg := IdentityOrganization{
+			OrganizationID: id,
+		}
+		row.Scan(newOrg.Name)
+
+		orgs = append(orgs, newOrg)
+		return newOrg
+	}
+
+	var results []IdentityOrganization
+
+	// query for organizations in which the user is a member
+	rows, err := db.Raw("SELECT	oi.ID FROM identity oi,	resource r,	resource_type rt "+
+		"WHERE oi.identity_resource_id = r.resource_id and r.resource_type_id = rt.resource_type_id "+
+		"and rt.name = ? and oi.ID in (WITH RECURSIVE m AS ("+
+		"SELECT	member_of	FROM members WHERE member_id = ? UNION SELECT	p.member_of	FROM members p "+
+		"INNER JOIN m ON m.member_of = p.member_id)	select member_of from m)",
+		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var value string
+		rows.Scan(&value)
+		organizationId, err := uuid.FromString(value)
+		if err != nil {
+			return nil, err
+		}
+		org := getOrCreateEntry(results, organizationId)
+		org.Member = true
+	}
+
+	// query for organizations for which the user has a role, or the user is a member of a team or group that has a role
+	rows, err = db.Raw("SELECT	ir.identity_id FROM	identity_role ir,	resource r,	resource_type rt "+
+		" WHERE	ir.resource_id = r.resource_id and r.resource_type_id = rt.resource_type_id "+
+		"and rt.name = ? and ir.identity_id in (WITH RECURSIVE m AS ( "+
+		"SELECT	member_id, member_of FROM	membership WHERE member_id = ? "+
+		"UNION SELECT	p.member_id, p.member_of FROM membership p INNER JOIN m ON m.member_of = p.member_id) "+
+		"select member_id from m",
+		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var value string
+		rows.Scan(&value)
+		organizationId, err := uuid.FromString(value)
+		if err != nil {
+			return nil, err
+		}
+		org := getOrCreateEntry(results, organizationId)
+    org.Roles =
+
+	}
+
+	return results, nil
 }

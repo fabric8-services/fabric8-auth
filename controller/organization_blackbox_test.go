@@ -66,3 +66,41 @@ func (rest *TestOrganizationREST) TestCreateOrganizationSuccess() {
 
 	require.NotEmpty(rest.T(), created.OrganizationID)
 }
+
+/*
+* This test will attempt to create a new organization
+ */
+func (rest *TestOrganizationREST) TestCreateOrganizationEmptyNameFail() {
+
+	service, controller := rest.SecuredController(rest.testIdentity)
+
+	orgName := ""
+
+	payload := &app.CreateOrganizationPayload{
+		Name: &orgName,
+	}
+
+	_, err := test.CreateOrganizationBadRequest(rest.T(), service.Context, service, controller, payload)
+
+	require.NotNil(rest.T(), err)
+}
+
+/*
+* This test will attempt to create a new organization
+ */
+func (rest *TestOrganizationREST) TestCreateOrganizationUnauthorizedFail() {
+	sa := account.Identity{
+		Username: "unknown-account",
+	}
+	service, controller := rest.SecuredController(sa)
+
+	orgName := "Acme Corporation"
+
+	payload := &app.CreateOrganizationPayload{
+		Name: &orgName,
+	}
+
+	_, err := test.CreateOrganizationUnauthorized(rest.T(), service.Context, service, controller, payload)
+
+	require.NotNil(rest.T(), err)
+}
