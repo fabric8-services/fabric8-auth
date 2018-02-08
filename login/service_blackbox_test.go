@@ -23,9 +23,7 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -339,106 +337,6 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
 	assert.Equal(s.T(), 307, rw.Code)
 	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
-}
-
-func (s *serviceBlackBoxTest) TestKeycloakLinkRedirect() {
-	keycloakLinkRedirect(s, "", "")
-	keycloakLinkRedirect(s, "", "https://some.redirect.io")
-	keycloakLinkRedirect(s, "github", "")
-	keycloakLinkRedirect(s, "github", "https://some.redirect.io")
-	keycloakLinkRedirect(s, "openshift-v3", "")
-	keycloakLinkRedirect(s, "openshift-v3", "https://some.redirect.io")
-}
-
-func keycloakLinkRedirect(s *serviceBlackBoxTest, provider string, redirect string) {
-	rw := httptest.NewRecorder()
-	p := "/api/link"
-
-	parameters := url.Values{}
-	if redirect != "" {
-		parameters.Add("redirect", redirect)
-	}
-	if provider != "" {
-		parameters.Add("provider", provider)
-	}
-
-	req, err := http.NewRequest("GET", p, nil)
-	require.Nil(s.T(), err)
-
-	referrerUrl := "https://example.org/path"
-	req.Header.Add("referer", referrerUrl)
-
-	ss := uuid.NewV4().String()
-	claims := jwt.MapClaims{}
-	claims["session_state"] = &ss
-	token := &jwt.Token{Claims: claims}
-	ctx := goajwt.WithJWT(context.Background(), token)
-	goaCtx := goa.NewContext(goa.WithAction(ctx, "LinkTest"), rw, req, parameters)
-
-	linkCtx, err := app.NewLinkLinkContext(goaCtx, req, goa.New("LinkService"))
-	require.Nil(s.T(), err)
-
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "api.example.org"},
-	}
-	brokerEndpoint, err := s.Configuration.GetKeycloakEndpointBroker(r)
-	require.Nil(s.T(), err)
-	clientID := s.Configuration.GetKeycloakClientID()
-
-	err = s.loginService.Link(linkCtx, brokerEndpoint, clientID, s.Configuration.GetValidRedirectURLs())
-	require.Nil(s.T(), err)
-
-	assert.Equal(s.T(), 307, rw.Code)
-	redirectLocation := rw.Header().Get("Location")
-	if provider == "" {
-		provider = "github"
-		assert.Contains(s.T(), redirectLocation, "next%3Dopenshift-v3")
-	} else {
-		assert.NotContains(s.T(), redirectLocation, "next%3D")
-	}
-	location := brokerEndpoint + "/" + provider + "/link?"
-	assert.Contains(s.T(), redirectLocation, location)
-}
-
-func keycloakLinkCallbackRedirect(s *serviceBlackBoxTest, next string) {
-	rw := httptest.NewRecorder()
-	p := "/api/link/callback"
-
-	parameters := url.Values{}
-	parameters.Add("state", uuid.NewV4().String())
-	parameters.Add("sessionState", uuid.NewV4().String())
-	if next != "" {
-		parameters.Add("next", next)
-	}
-	req, err := http.NewRequest("GET", p, nil)
-	require.Nil(s.T(), err)
-
-	referrerUrl := "https://sso.example.org/path"
-	req.Header.Add("referer", referrerUrl)
-
-	goaCtx := goa.NewContext(goa.WithAction(context.Background(), "LinkcallbackTest"), rw, req, parameters)
-
-	linkCtx, err := app.NewCallbackLinkContext(goaCtx, req, goa.New("LinkService"))
-	require.Nil(s.T(), err)
-
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "api.example.org"},
-	}
-	brokerEndpoint, err := s.Configuration.GetKeycloakEndpointBroker(r)
-	require.Nil(s.T(), err)
-	clientID := s.Configuration.GetKeycloakClientID()
-
-	err = s.loginService.LinkCallback(linkCtx, brokerEndpoint, clientID)
-	if next != "" {
-		require.Nil(s.T(), err)
-		assert.Equal(s.T(), 307, rw.Code)
-		redirectLocation := rw.Header().Get("Location")
-		assert.NotContains(s.T(), redirectLocation, "next%3D")
-		location := brokerEndpoint + "/openshift-v3/link?"
-		assert.Contains(s.T(), redirectLocation, location)
-	} else {
-		require.NotNil(s.T(), err)
-	}
 }
 
 func (s *serviceBlackBoxTest) TestInvalidState() {

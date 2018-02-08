@@ -199,10 +199,6 @@ func main() {
 	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, config)
 	app.MountTokenController(service, tokenCtrl)
 
-	// Mount "link" controller
-	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, config)
-	app.MountLinkController(service, linkCtrl)
-
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, controller.NewGormDBChecker(db), config)
 	app.MountStatusController(service, statusCtrl)

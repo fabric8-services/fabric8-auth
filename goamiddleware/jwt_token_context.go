@@ -17,7 +17,7 @@ import (
 // Authorization header when possible. If the Authorization header is missing in the request,
 // no error is returned. However, if the Authorization header contains a
 // token, it will be stored it in the context.
-func TokenContext(tokenManager token.Manager, scheme *goa.JWTSecurity) goa.Middleware {
+func TokenContext(tokenManager token.Parser, scheme *goa.JWTSecurity) goa.Middleware {
 	return func(nextHandler goa.Handler) goa.Handler {
 		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) error {
 			// TODO: implement the QUERY string handler too
