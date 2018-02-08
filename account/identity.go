@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -458,11 +457,11 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 	var results []IdentityOrganization
 
 	// query for organizations in which the user is a member
-	rows, err := db.Raw("SELECT	oi.ID FROM identity oi,	resource r,	resource_type rt "+
+	rows, err := db.Raw("SELECT oi.ID FROM identity oi, resource r, resource_type rt "+
 		"WHERE oi.identity_resource_id = r.resource_id and r.resource_type_id = rt.resource_type_id "+
 		"and rt.name = ? and oi.ID in (WITH RECURSIVE m AS ("+
-		"SELECT	member_of	FROM members WHERE member_id = ? UNION SELECT	p.member_of	FROM members p "+
-		"INNER JOIN m ON m.member_of = p.member_id)	select member_of from m)",
+		"SELECT member_of FROM membership WHERE member_id = ? UNION SELECT p.member_of FROM membership p "+
+		"INNER JOIN m ON m.member_of = p.member_id) select member_of from m)",
 		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
 
 	if err != nil {
@@ -482,11 +481,11 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 	}
 
 	// query for organizations for which the user has a role, or the user is a member of a team or group that has a role
-	rows, err = db.Raw("SELECT	ir.identity_id FROM	identity_role ir,	resource r,	resource_type rt "+
-		" WHERE	ir.resource_id = r.resource_id and r.resource_type_id = rt.resource_type_id "+
+	rows, err = db.Raw("SELECT  ir.identity_id FROM identity_role ir, resource r, resource_type rt "+
+		" WHERE ir.resource_id = r.resource_id and r.resource_type_id = rt.resource_type_id "+
 		"and rt.name = ? and ir.identity_id in (WITH RECURSIVE m AS ( "+
-		"SELECT	member_id, member_of FROM	membership WHERE member_id = ? "+
-		"UNION SELECT	p.member_id, p.member_of FROM membership p INNER JOIN m ON m.member_of = p.member_id) "+
+		"SELECT member_id, member_of FROM membership WHERE member_id = ? "+
+		"UNION SELECT p.member_id, p.member_of FROM membership p INNER JOIN m ON m.member_of = p.member_id) "+
 		"select member_id from m",
 		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
 
@@ -503,7 +502,7 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 			return nil, err
 		}
 		org := getOrCreateEntry(results, organizationId)
-    org.Roles =
+		org.Roles = []string{}
 
 	}
 
