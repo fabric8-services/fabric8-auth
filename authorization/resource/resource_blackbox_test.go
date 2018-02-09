@@ -22,7 +22,7 @@ type resourceBlackBoxTest struct {
 }
 
 func TestRunResourceBlackBoxTest(t *testing.T) {
-	suite.Run(t, &resourceTypeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+	suite.Run(t, &resourceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *resourceBlackBoxTest) SetupTest() {
@@ -92,6 +92,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 		ResourceID:       uuid.NewV4().String(),
 		ParentResourceID: nil,
 		ResourceType:     *resourceType,
+		ResourceTypeID:   resourceType.ResourceTypeID,
 	}
 
 	err = s.repo.Create(s.Ctx, resource)

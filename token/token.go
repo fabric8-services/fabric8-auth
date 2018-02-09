@@ -80,8 +80,10 @@ type Permissions struct {
 	ResourceSetID   *string `json:"resource_set_id"`
 }
 
+// Parser parses a token and exposes the public keys for the Goa JWT middleware.
 type Parser interface {
 	Parse(ctx context.Context, tokenString string) (*jwt.Token, error)
+	PublicKeys() []*rsa.PublicKey
 }
 
 // Manager generate and find auth token information
@@ -91,7 +93,6 @@ type Manager interface {
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
-	PublicKeys() []*rsa.PublicKey
 	JsonWebKeys() JsonKeys
 	PemKeys() JsonKeys
 	AuthServiceAccountToken(req *goa.RequestData) (string, error)
