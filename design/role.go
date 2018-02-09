@@ -20,19 +20,6 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 	})
-
-	a.Action("list", func() {
-		//a.Security("jwt")
-		a.Routing(
-			a.GET("/:id/roles"),
-		)
-		a.Description("List available roles by resource")
-		a.Response(d.OK, rolesMedia)
-		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.BadRequest, JSONAPIErrors)
-		a.Response(d.NotFound, JSONAPIErrors)
-	})
 })
 
 // ResourceMedia represents a protected resource

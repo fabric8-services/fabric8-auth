@@ -5,7 +5,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
-	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
@@ -51,40 +50,6 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 	}
 	roleList := convertIdentityRoleToAppRoles(ctx, roles)
 	return ctx.OK(&app.Identityroles{
-		Data: roleList,
-	})
-}
-
-// List runs the list action.
-func (c *ResourceRolesController) List(ctx *app.ListResourceRolesContext) error {
-	var roles []role.Role
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		resourceExists, err := appl.RoleRepository().CheckExists(ctx, ctx.ID)
-		if err != nil {
-			return err
-		}
-		if !resourceExists {
-			return errors.NewNotFoundError("resource", ctx.ID)
-		}
-		roles, err = appl.RoleRepository().ListByResource(ctx, ctx.ID)
-		if err != nil {
-			return err
-		}
-		log.Debug(ctx, map[string]interface{}{
-			"resource_id": ctx.ID,
-		}, "Fetched roles by resource.")
-
-		return err
-	})
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ID,
-			"err":         err,
-		}, "error retrieving list of roles for a specific resource")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	roleList := convertRoleToAppRoles(ctx, roles)
-	return ctx.OK(&app.Roles{
 		Data: roleList,
 	})
 }
