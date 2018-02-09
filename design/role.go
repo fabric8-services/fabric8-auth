@@ -20,20 +20,6 @@ var _ = a.Resource("resource_roles", func() {
 	})
 })
 
-// ResourceMedia represents a protected resource
-var rolesMedia = a.MediaType("application/vnd.roles+json", func() {
-	a.Description("Roles in a Protected Resource")
-	a.Attributes(func() {
-		// keeping one level of nesting so that it's easier to add metadata in future.
-		a.Attribute("data", a.ArrayOf(rolesData))
-		a.Required("data")
-	})
-	a.View("default", func() {
-		a.Attribute("data")
-		a.Required("data")
-	})
-})
-
 var rolesData = a.Type("rolesData", func() {
 	a.Attribute("role_id", d.String, "The ID of the role")
 	a.Attribute("role_name", d.String, "The name of the role")

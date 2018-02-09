@@ -78,7 +78,6 @@ type RoleRepository interface {
 	Create(ctx context.Context, u *Role) error
 	Save(ctx context.Context, u *Role) error
 	List(ctx context.Context) ([]Role, error)
-	ListByResource(ctx context.Context, roleID string) ([]Role, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 	ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error)
 	AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error

@@ -34,7 +34,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 			}, "does not exist")
 			return errors.NewNotFoundError("resource_id", ctx.ResourceID)
 		}
-		roles, err = appl.IdentityRoleRepository().ListByResource(ctx, ctx.ResourceID)
+		roles, err = appl.IdentityRoleRepository().ListAssignedRolesByResource(ctx, ctx.ResourceID)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}

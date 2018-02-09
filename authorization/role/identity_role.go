@@ -62,7 +62,7 @@ type IdentityRoleRepository interface {
 	Create(ctx context.Context, u *IdentityRole) error
 	Save(ctx context.Context, u *IdentityRole) error
 	List(ctx context.Context) ([]IdentityRole, error)
-	ListByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
+	ListAssignedRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 }
 
@@ -158,8 +158,8 @@ func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) e
 	return nil
 }
 
-// ListByResource returns all identity roles
-func (m *GormIdentityRoleRepository) ListByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
+// ListAssignedRolesByResource returns all assigned roles associated with a specific resource
+func (m *GormIdentityRoleRepository) ListAssignedRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []IdentityRole
 
