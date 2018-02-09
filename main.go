@@ -180,7 +180,7 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
-	resourceRoleCtrl := controller.NewResourceRolesController(service, tokenManager, appDB)
+	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
 
 	// Mount "authorize" controller

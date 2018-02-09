@@ -9,15 +9,13 @@ var _ = a.Resource("resource_roles", func() {
 
 	a.BasePath("/resources")
 	a.Action("listAssigned", func() {
-		//a.Security("jwt")
+		a.Security("jwt")
 		a.Routing(
-			a.GET("/:id/roles/assigned"),
+			a.GET("/:resourceID/roles/assigned"),
 		)
 		a.Description("List assigned roles by resource")
 		a.Response(d.OK, identityRolesMedia)
-		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 	})
 })

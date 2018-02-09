@@ -5,45 +5,48 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 )
 
 // ResourceRolesController implements the resource_roles resource.
 type ResourceRolesController struct {
 	*goa.Controller
-	db           application.DB
-	TokenManager token.Manager
+	db application.DB
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, tokenManager token.Manager, db application.DB) *ResourceRolesController {
-	return &ResourceRolesController{Controller: service.NewController("ResourceRolesController"), db: db, TokenManager: tokenManager}
+func NewResourceRolesController(service *goa.Service, db application.DB) *ResourceRolesController {
+	return &ResourceRolesController{Controller: service.NewController("ResourceRolesController"), db: db}
 }
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
+
 	var roles []role.IdentityRole
 	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.ResourceRepository().CheckExists(ctx, ctx.ID)
+		err := appl.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+			}, "does not exist")
+			return errors.NewNotFoundError("resource_id", ctx.ResourceID)
 		}
-		roles, err = appl.IdentityRoleRepository().ListByResource(ctx, ctx.ID)
+		roles, err = appl.IdentityRoleRepository().ListByResource(ctx, ctx.ResourceID)
 		if err != nil {
-			return err
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 		log.Debug(ctx, map[string]interface{}{
-			"resource_id": ctx.ID,
-		}, "Fetched roles by resource.")
+			"resource_id": ctx.ResourceID,
+		}, "fetched roles by resource")
 
 		return err
 	})
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ID,
+			"resource_id": ctx.ResourceID,
 			"err":         err,
 		}, "error retrieving list of roles for a specific resource")
 		return jsonapi.JSONErrorResponse(ctx, err)

@@ -12,9 +12,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-
 	"github.com/goadesign/goa"
+	"github.com/satori/go.uuid"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -31,9 +30,6 @@ type TestResourceRolesRest struct {
 func (s *TestResourceRolesRest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	var err error
-
-	s.DB = s.DB.Debug()
-
 	s.identityRolesRepository = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepository = resource.NewResourceRepository(s.DB)
 	s.rolesRepository = role.NewRoleRepository(s.DB)
@@ -43,17 +39,12 @@ func (s *TestResourceRolesRest) SetupSuite() {
 }
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
-	svc := testsupport.ServiceAsUser("Resource-roles-Service", identity)
-	return svc, NewResourceRolesController(svc, testtoken.TokenManager, rest.Application)
+	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
+	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
 func TestRunResourceRolesRest(t *testing.T) {
 	suite.Run(t, &TestResourceRolesRest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
-}
-
-func (rest *TestResourceRolesRest) SecuredController(identity account.Identity) (*goa.Service, *ResourceController) {
-	svc := testsupport.ServiceAsUser("Resource-Service", identity)
-	return svc, NewResourceController(svc, rest.Application)
 }
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
@@ -92,6 +83,11 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	require.Len(rest.T(), returnedIdentityRoles.Data, 2)
 	require.True(rest.T(), rest.checkExists(*identityRoleRef, returnedIdentityRoles, false))
 	require.True(rest.T(), rest.checkExists(*identityRoleRef2, returnedIdentityRoles, false))
+}
+
+func (rest *TestResourceRolesRest) TestListAssignedRolesNotFound() {
+	svc, ctrl := rest.SecuredControllerWithIdentity(testsupport.TestIdentity)
+	test.ListAssignedResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String())
 }
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
