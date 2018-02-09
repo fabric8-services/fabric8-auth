@@ -131,6 +131,10 @@ func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state s
 	err := application.Transactional(db, func(appl application.Application) error {
 		ref, err := appl.OauthStates().Load(ctx, state)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"state": state,
+				"err":   err,
+			}, "unable to load oauth state reference")
 			return err
 		}
 		referrer = ref.Referrer
