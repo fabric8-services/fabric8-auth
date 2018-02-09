@@ -447,6 +447,7 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 
 		newOrg := IdentityOrganization{
 			OrganizationID: id,
+			Roles:          []string{},
 		}
 		row.Scan(newOrg.Name)
 
@@ -454,14 +455,47 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 		return newOrg
 	}
 
+	appendRoleToEntry := func(org IdentityOrganization, role string) {
+		// Check if the role is already in the entry
+		for _, r := range org.Roles {
+			if r == role {
+				return
+			}
+		}
+		org.Roles = append(org.Roles, role)
+	}
+
 	var results []IdentityOrganization
 
 	// query for organizations in which the user is a member
-	rows, err := db.Raw("SELECT oi.ID FROM identity oi, resource r, resource_type rt "+
-		"WHERE oi.identity_resource_id = r.resource_id and r.resource_type_id = rt.resource_type_id "+
-		"and rt.name = ? and oi.ID in (WITH RECURSIVE m AS ("+
-		"SELECT member_of FROM membership WHERE member_id = ? UNION SELECT p.member_of FROM membership p "+
-		"INNER JOIN m ON m.member_of = p.member_id) select member_of from m)",
+	rows, err := db.Unscoped().Raw(`SELECT 
+      oi.ID 
+    FROM 
+      resource r, 
+      identities oi, 
+      resource_type rt
+		WHERE 
+      oi.identity_resource_id = r.resource_id 
+      and r.resource_type_id = rt.resource_type_id
+		  and rt.name = ? 
+      and oi.deleted_at IS NULL
+      and r.deleted_at IS NULL
+      and rt.deleted_at IS NULL
+      and oi.ID in (
+        WITH RECURSIVE m AS (
+		      SELECT 
+            member_of 
+          FROM 
+            membership 
+          WHERE 
+            member_id = ? 
+          UNION SELECT 
+            p.member_of 
+          FROM 
+            membership p INNER JOIN m ON m.member_of = p.member_id
+        ) 
+        select member_of from m
+      )`,
 		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
 
 	if err != nil {
@@ -481,12 +515,39 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 	}
 
 	// query for organizations for which the user has a role, or the user is a member of a team or group that has a role
-	rows, err = db.Raw("SELECT  ir.identity_id FROM identity_role ir, resource r, resource_type rt "+
-		" WHERE ir.resource_id = r.resource_id and r.resource_type_id = rt.resource_type_id "+
-		"and rt.name = ? and ir.identity_id in (WITH RECURSIVE m AS ( "+
-		"SELECT member_id, member_of FROM membership WHERE member_id = ? "+
-		"UNION SELECT p.member_id, p.member_of FROM membership p INNER JOIN m ON m.member_of = p.member_id) "+
-		"select member_id from m",
+	rows, err = db.Unscoped().Raw(`SELECT 
+      ir.identity_id, 
+      r.name 
+    FROM 
+      identity_role ir, 
+      resource r, 
+      resource_type rt, role
+		WHERE 
+      ir.resource_id = r.resource_id 
+      and ir.role_id = role.role_id 
+      and r.resource_type_id = rt.resource_type_id 
+		  and rt.name = ? 
+      and ir.deleted_at IS NULL
+      and r.deleted_at IS NULL
+      and rt.deleted_at IS NULL
+      and role.deleted_at IS NULL
+      and ir.identity_id in (
+        WITH RECURSIVE m AS ( 
+		      SELECT 
+            member_id, 
+            member_of 
+          FROM 
+            membership 
+          WHERE 
+            member_id = ? 
+		      UNION SELECT 
+            p.member_id, 
+            p.member_of 
+          FROM 
+            membership p INNER JOIN m ON m.member_of = p.member_id
+        )
+		    select member_id from m
+      )`,
 		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
 
 	if err != nil {
@@ -496,14 +557,14 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 	defer rows.Close()
 	for rows.Next() {
 		var value string
-		rows.Scan(&value)
+		var roleName string
+		rows.Scan(&value, &roleName)
 		organizationId, err := uuid.FromString(value)
 		if err != nil {
 			return nil, err
 		}
 		org := getOrCreateEntry(results, organizationId)
-		org.Roles = []string{}
-
+		appendRoleToEntry(org, roleName)
 	}
 
 	return results, nil

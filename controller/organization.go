@@ -118,11 +118,40 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 // List runs the list action.
 func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
-	// OrganizationController_List: start_implement
+	currentUser, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+	}
 
-	// Put your logic here
+	var orgs []account.IdentityOrganization
 
-	// OrganizationController_List: end_implement
-	res := &app.OrganizationArray{}
-	return ctx.OK(res)
+	err = application.Transactional(c.db, func(appl application.Application) error {
+
+		orgs, err = appl.Identities().ListOrganizations(ctx, *currentUser)
+
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
+		}
+
+		return err
+	})
+
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	results := []*app.OrganizationData{}
+
+	for _, org := range orgs {
+		orgData := &app.OrganizationData{
+			ID:     org.OrganizationID.String(),
+			Name:   org.Name,
+			Member: org.Member,
+			Roles:  org.Roles,
+		}
+
+		results = append(results, orgData)
+	}
+
+	return ctx.OK(&app.OrganizationArray{results})
 }

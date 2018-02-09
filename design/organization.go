@@ -26,7 +26,6 @@ var _ = a.Resource("organization", func() {
 			a.GET(""),
 		)
 		a.Description("Lists organizations that the user has access to")
-		a.Payload(CreateOrganizationRequestMedia)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.OK, organizationArray)
 		a.Response(d.InternalServerError, JSONAPIErrors)
