@@ -14,7 +14,7 @@ import (
 // TestUser only creates in memory obj for testing purposes
 var TestUser = account.User{
 	ID:       uuid.NewV4(),
-	Email:    "testdeveloper@testalm.io",
+	Email:    "testdeveloper@testalm.io" + uuid.NewV4().String(),
 	FullName: "Test Developer",
 	Cluster:  "Test Cluster",
 }
@@ -24,7 +24,8 @@ var TestUser = account.User{
 // can be later updated or deleted (or not) by another user.
 var TestUser2 = account.User{
 	ID:       uuid.NewV4(),
-	Email:    "testdeveloper2@testalm.io",
+	Email:    "testdeveloper2@testalm.io" + uuid.NewV4().String(),
+	Cluster:  "Test Cluster",
 	FullName: "Test Developer 2",
 }
 
@@ -47,9 +48,10 @@ var TestUserPrivate = account.User{
 
 // TestIdentity only creates in memory obj for testing purposes
 var TestIdentity = account.Identity{
-	ID:       uuid.NewV4(),
-	Username: "TestDeveloper",
-	User:     TestUser,
+	ID:           uuid.NewV4(),
+	Username:     "TestDeveloper" + uuid.NewV4().String(),
+	User:         TestUser,
+	ProviderType: account.KeycloakIDP,
 }
 
 // TestObserverIdentity only creates in memory obj for testing purposes
@@ -61,9 +63,10 @@ var TestObserverIdentity = account.Identity{
 
 // TestIdentity2 only creates in memory obj for testing purposes
 var TestIdentity2 = account.Identity{
-	ID:       uuid.NewV4(),
-	Username: "TestDeveloper2",
-	User:     TestUser2,
+	ID:           uuid.NewV4(),
+	Username:     "TestDeveloper2" + uuid.NewV4().String(),
+	User:         TestUser2,
+	ProviderType: account.KeycloakIDP,
 }
 
 var TestOnlineRegistrationAppIdentity = account.Identity{

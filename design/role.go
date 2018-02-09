@@ -78,6 +78,7 @@ var identityRolesData = a.Type("identityRolesData", func() {
 	a.Attribute("assignee_id", d.String, "The ID of the assignee")
 	a.Attribute("assignee_type", d.String, "The type of assignee, example: user,groups,teams")
 	a.Attribute("inherited", d.Boolean)
+	a.Attribute("inherited_from", d.String, "The ID of the resource from this role was inherited")
 
 	a.Required("identifier", "role_id", "role_name", "assignee_id", "assignee_type", "inherited")
 })

@@ -24,11 +24,14 @@ type IdentityRole struct {
 	// This is the primary key value
 	IdentityRoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:identity_role_id"`
 	// The identity to which the role is assigned
-	Identity account.Identity
+	Identity   account.Identity
+	IdentityID uuid.UUID `sql:"type:uuid"`
 	// The resource to which the role is applied
-	Resource resource.Resource
+	Resource   resource.Resource
+	ResourceID string `sql:"type:uuid"`
 	// The role that is assigned
-	Role Role
+	Role   Role
+	RoleID uuid.UUID `sql:"type:uuid"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -248,6 +251,9 @@ func (m *GormIdentityRoleRepository) ListByResource(ctx context.Context, resourc
 				RoleID: roleIDAsUUID,
 				Name:   roleName,
 			},
+		}
+		if parentResourceID != nil {
+			ir.Resource.ParentResourceID = parentResourceID
 		}
 		identityRoles = append(identityRoles, ir)
 	}
