@@ -92,6 +92,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 		ResourceID:       uuid.NewV4().String(),
 		ParentResourceID: nil,
 		ResourceType:     *resourceType,
+		ResourceTypeID:   resourceType.ResourceTypeID,
 	}
 
 	err = s.repo.Create(s.Ctx, resource)
