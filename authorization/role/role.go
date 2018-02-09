@@ -205,20 +205,6 @@ func (m *GormRoleRepository) List(ctx context.Context) ([]Role, error) {
 	return rows, nil
 }
 
-// ListByResource returns all roles by resource ID
-func (m *GormRoleRepository) ListByResource(ctx context.Context, resourceID string) ([]Role, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "role", "list"}, time.Now())
-	var rows []Role
-
-	// TODO : update query sql
-
-	err := m.db.Model(&Role{}).Find(&rows).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
-	}
-	return rows, nil
-}
-
 func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listscopes"}, time.Now())
 
