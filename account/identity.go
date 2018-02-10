@@ -435,41 +435,21 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 
 	db := m.db.Model(&Identity{})
 
-	getOrCreateEntry := func(orgs []IdentityOrganization, id uuid.UUID) IdentityOrganization {
-		for _, org := range orgs {
+	findOrganization := func(orgs []IdentityOrganization, id uuid.UUID) int {
+		for i, org := range orgs {
 			if org.OrganizationID == id {
-				return org
+				return i
 			}
 		}
-
-		row := db.Raw("SELECT r.name FROM identity i, resource r WHERE i.identity_resource_id = r.resource_id and i.id = ?",
-			id).Row()
-
-		newOrg := IdentityOrganization{
-			OrganizationID: id,
-			Roles:          []string{},
-		}
-		row.Scan(newOrg.Name)
-
-		orgs = append(orgs, newOrg)
-		return newOrg
+		return -1
 	}
 
-	appendRoleToEntry := func(org IdentityOrganization, role string) {
-		// Check if the role is already in the entry
-		for _, r := range org.Roles {
-			if r == role {
-				return
-			}
-		}
-		org.Roles = append(org.Roles, role)
-	}
-
-	var results []IdentityOrganization
+	results := []IdentityOrganization{}
 
 	// query for organizations in which the user is a member
 	rows, err := db.Unscoped().Raw(`SELECT 
-      oi.ID 
+      oi.ID,
+      r.name
     FROM 
       resource r, 
       identities oi, 
@@ -481,7 +461,8 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
       and oi.deleted_at IS NULL
       and r.deleted_at IS NULL
       and rt.deleted_at IS NULL
-      and oi.ID in (
+      and (oi.ID = ? 
+      OR oi.ID in (
         WITH RECURSIVE m AS (
 		      SELECT 
             member_of 
@@ -495,8 +476,8 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
             membership p INNER JOIN m ON m.member_of = p.member_id
         ) 
         select member_of from m
-      )`,
-		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
+      ))`,
+		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err
@@ -504,26 +485,40 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 
 	defer rows.Close()
 	for rows.Next() {
-		var value string
-		rows.Scan(&value)
-		organizationId, err := uuid.FromString(value)
+		var id string
+		var name string
+		rows.Scan(&id, &name)
+		organizationId, err := uuid.FromString(id)
 		if err != nil {
 			return nil, err
 		}
-		org := getOrCreateEntry(results, organizationId)
-		org.Member = true
+
+		idx := findOrganization(results, organizationId)
+		if idx == -1 {
+			results = append(results, IdentityOrganization{
+				OrganizationID: organizationId,
+				Name:           name,
+				Member:         true,
+				Roles:          []string{},
+			})
+		} else {
+			results[idx].Member = true
+		}
 	}
 
 	// query for organizations for which the user has a role, or the user is a member of a team or group that has a role
 	rows, err = db.Unscoped().Raw(`SELECT 
-      ir.identity_id, 
-      r.name 
+      i.id, 
+      r.name,
+      role.name
     FROM 
       identity_role ir, 
       resource r, 
+      identities i,
       resource_type rt, role
 		WHERE 
-      ir.resource_id = r.resource_id 
+      ir.resource_id = r.resource_id
+      and ir.resource_id = i.identity_resource_id
       and ir.role_id = role.role_id 
       and r.resource_type_id = rt.resource_type_id 
 		  and rt.name = ? 
@@ -531,7 +526,8 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
       and r.deleted_at IS NULL
       and rt.deleted_at IS NULL
       and role.deleted_at IS NULL
-      and ir.identity_id in (
+      and (ir.identity_id = ? 
+      OR ir.identity_id in (
         WITH RECURSIVE m AS ( 
 		      SELECT 
             member_id, 
@@ -547,8 +543,8 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
             membership p INNER JOIN m ON m.member_of = p.member_id
         )
 		    select member_id from m
-      )`,
-		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID).Rows()
+      ))`,
+		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err
@@ -556,15 +552,38 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
 
 	defer rows.Close()
 	for rows.Next() {
-		var value string
+		var id string
+		var name string
 		var roleName string
-		rows.Scan(&value, &roleName)
-		organizationId, err := uuid.FromString(value)
+		rows.Scan(&id, &name, &roleName)
+		organizationId, err := uuid.FromString(id)
 		if err != nil {
 			return nil, err
 		}
-		org := getOrCreateEntry(results, organizationId)
-		appendRoleToEntry(org, roleName)
+
+		idx := findOrganization(results, organizationId)
+		if idx == -1 {
+			results = append(results, IdentityOrganization{
+				OrganizationID: organizationId,
+				Name:           name,
+				Member:         false,
+				Roles:          []string{roleName},
+			})
+		} else {
+			found := false
+			// Check if the role is already in the entry
+			for _, r := range results[idx].Roles {
+				if r == roleName {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				results[idx].Roles = append(results[idx].Roles, roleName)
+			}
+
+		}
 	}
 
 	return results, nil

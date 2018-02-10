@@ -105,6 +105,13 @@ func (rest *TestOrganizationREST) TestListOrganizationSuccess() {
 	_, orgs := test.ListOrganizationOK(rest.T(), service.Context, service, controller)
 
 	require.Equal(rest.T(), 1, len(orgs.Organizations))
+
+	org := orgs.Organizations[0]
+
+	require.Equal(rest.T(), *created.OrganizationID, org.ID)
+	require.Equal(rest.T(), orgName, org.Name)
+	require.Equal(rest.T(), 1, len(org.Roles))
+	require.Equal(rest.T(), ORGANIZATION_OWNER_ROLE, org.Roles[0])
 }
 
 /*
