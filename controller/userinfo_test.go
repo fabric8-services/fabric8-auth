@@ -3,7 +3,6 @@ package controller_test
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account/userinfo"
@@ -62,9 +61,9 @@ func (s *TestUserInfoREST) TestShowUserInfoOK() {
 	require.Equal(t, *userInfo.Email, usr.Email)
 	require.Equal(t, *userInfo.PreferredUsername, ident.Username)
 	require.Equal(t, *userInfo.Sub, ident.ID.String())
-	fullName := strings.Split(usr.FullName, " ")
-	require.Equal(t, *userInfo.GivenName, fullName[0])
-	require.Equal(t, *userInfo.FamilyName, fullName[1])
+	givenName, familyName := account.SplitFullName(usr.FullName)
+	require.Equal(t, *userInfo.GivenName, givenName)
+	require.Equal(t, *userInfo.FamilyName, familyName)
 }
 
 func (s *TestUserInfoREST) TestShowUserInfoFailsWithInvalidToken() {

@@ -1,8 +1,7 @@
 package controller
 
 import (
-	"strings"
-
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -37,13 +36,13 @@ func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	fullName := strings.Split(user.FullName, " ")
+	givenName, familyName := account.SplitFullName(user.FullName)
 	sub := identity.ID.String()
 	userInfo := &app.UserInfo{
 		Sub:               &sub,
-		GivenName:         &fullName[0],
+		GivenName:         &givenName,
 		PreferredUsername: &identity.Username,
-		FamilyName:        &fullName[1],
+		FamilyName:        &familyName,
 		Email:             &user.Email,
 	}
 
