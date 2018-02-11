@@ -7,7 +7,7 @@ import (
 
 var _ = a.Resource("organization", func() {
 
-	a.BasePath("/organization")
+	a.BasePath("/organizations")
 
 	a.Action("create", func() {
 		a.Routing(
