@@ -36,19 +36,19 @@ func TestRunUserInfoREST(t *testing.T) {
 
 func (s *TestUserInfoREST) UnSecuredController() (*goa.Service, *UserinfoController) {
 	svc := goa.New("Status-Service")
-	accountService := newTestAccountProvider(s.Application)
-	return svc, NewUserinfoController(svc, accountService, s.Application, testtoken.TokenManager)
+	userInfoService := newTestUserInfoProvider(s.Application)
+	return svc, NewUserinfoController(svc, userInfoService, s.Application, testtoken.TokenManager)
 }
 
 func (s *TestUserInfoREST) newUserinfoController(identity *account.Identity, user *account.User) *UserinfoController {
-	dummyAccountService := DummyAccountService{
+	dummyUserInfoService := DummyUserInfoService{
 		userinfoStrategy: s.userinfoStrategy,
 	}
-	return NewUserinfoController(goa.New("auth-test"), dummyAccountService, newGormTestBase(identity, user), testtoken.TokenManager)
+	return NewUserinfoController(goa.New("auth-test"), dummyUserInfoService, newGormTestBase(identity, user), testtoken.TokenManager)
 }
 
-func newTestAccountProvider(db application.DB) *userinfo.AccountProvider {
-	return userinfo.NewAccountProvider(db.Identities(), db.Users(), testtoken.TokenManager, db)
+func newTestUserInfoProvider(db application.DB) *userinfo.UserInfoProvider {
+	return userinfo.NewUserInfoProvider(db.Identities(), db.Users(), testtoken.TokenManager, db)
 }
 
 func (s *TestUserInfoREST) TestShowUserInfoOK() {

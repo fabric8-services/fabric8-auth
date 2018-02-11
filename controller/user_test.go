@@ -50,14 +50,14 @@ func (rest *TestUserREST) SetupSuite() {
 
 }
 
-type DummyAccountService struct {
-	userinfo.AccountProvider
+type DummyUserInfoService struct {
+	userinfo.UserInfoProvider
 	userinfoStrategy string
 }
 
-func (dummyAccountService DummyAccountService) UserInfo(ctx context.Context) (*account.User, *account.Identity, error) {
+func (dummyUserInfoService DummyUserInfoService) UserInfo(ctx context.Context) (*account.User, *account.Identity, error) {
 
-	if dummyAccountService.userinfoStrategy == "401" {
+	if dummyUserInfoService.userinfoStrategy == "401" {
 		return nil, nil, autherrors.NewUnauthorizedError("failed")
 	}
 	user, identity, err := getTestUserAndIdentity()
@@ -69,10 +69,10 @@ func (dummyAccountService DummyAccountService) UserInfo(ctx context.Context) (*a
 }
 
 func (rest *TestUserREST) newUserController(identity *account.Identity, user *account.User) *UserController {
-	dummyAccountService := DummyAccountService{
+	dummyUserInfoService := DummyUserInfoService{
 		userinfoStrategy: rest.userinfoStrategy,
 	}
-	return NewUserController(goa.New("auth-test"), dummyAccountService, newGormTestBase(identity, user), testtoken.TokenManager, rest.Configuration)
+	return NewUserController(goa.New("auth-test"), dummyUserInfoService, newGormTestBase(identity, user), testtoken.TokenManager, rest.Configuration)
 }
 
 func (rest *TestUserREST) TestCurrentAuthorizedMissingUUID() {

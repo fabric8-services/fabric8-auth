@@ -11,8 +11,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 )
 
-func NewAccountProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB) *AccountProvider {
-	return &AccountProvider{
+func NewUserInfoProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB) *UserInfoProvider {
+	return &UserInfoProvider{
 		Identities:   identities,
 		Users:        users,
 		TokenManager: tokenManager,
@@ -20,22 +20,22 @@ func NewAccountProvider(identities account.IdentityRepository, users account.Use
 	}
 }
 
-type AccountProvider struct {
-	Identities     account.IdentityRepository
-	Users          account.UserRepository
-	TokenManager   token.Manager
-	DB             application.DB
-	AccountService AccountService
+type UserInfoProvider struct {
+	Identities      account.IdentityRepository
+	Users           account.UserRepository
+	TokenManager    token.Manager
+	DB              application.DB
+	UserInfoService UserInfoService
 }
 
-type AccountService interface {
+type UserInfoService interface {
 	UserInfo(ctx context.Context) (*account.User, *account.Identity, error)
 }
 
 // UserInfo gets user infomation given a context containing access_token
-func (accountProvider *AccountProvider) UserInfo(ctx context.Context) (*account.User, *account.Identity, error) {
+func (userInfoProvider *UserInfoProvider) UserInfo(ctx context.Context) (*account.User, *account.Identity, error) {
 
-	id, err := accountProvider.TokenManager.Locate(ctx)
+	id, err := userInfoProvider.TokenManager.Locate(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -44,12 +44,13 @@ func (accountProvider *AccountProvider) UserInfo(ctx context.Context) (*account.
 	}
 	var user *account.User
 	var identity *account.Identity
-	err = application.Transactional(accountProvider.DB, func(appl application.Application) error {
+	err = application.Transactional(userInfoProvider.DB, func(appl application.Application) error {
 
 		identity, err = appl.Identities().Load(ctx, id)
 		if err != nil || identity == nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
+				"err":         err,
 			}, "Auth token contains id %s of unknown Identity", id)
 			return autherrors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", id))
 		}
@@ -58,6 +59,10 @@ func (accountProvider *AccountProvider) UserInfo(ctx context.Context) (*account.
 		if userID.Valid {
 			user, err = appl.Users().Load(ctx, userID.UUID)
 			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"user_id": userID,
+					"err":     err,
+				}, "Can't load user with id %s", userID)
 				return autherrors.NewUnauthorizedError(fmt.Sprintf("can't load user with id %s", userID.UUID))
 			}
 		}

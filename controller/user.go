@@ -16,11 +16,11 @@ import (
 // UserController implements the user resource.
 type UserController struct {
 	*goa.Controller
-	accountService userinfo.AccountService
-	db             application.DB
-	tokenManager   token.Manager
-	config         UserControllerConfiguration
-	InitTenant     func(ctx context.Context) error
+	userInfoService userinfo.UserInfoService
+	db              application.DB
+	tokenManager    token.Manager
+	config          UserControllerConfiguration
+	InitTenant      func(ctx context.Context) error
 }
 
 // UserControllerConfiguration the Configuration for the UserController
@@ -29,20 +29,20 @@ type UserControllerConfiguration interface {
 }
 
 // NewUserController creates a user controller.
-func NewUserController(service *goa.Service, accountService userinfo.AccountService, db application.DB, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
+func NewUserController(service *goa.Service, userInfoService userinfo.UserInfoService, db application.DB, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
 	return &UserController{
-		Controller:     service.NewController("UserController"),
-		accountService: accountService,
-		db:             db,
-		tokenManager:   tokenManager,
-		config:         config,
+		Controller:      service.NewController("UserController"),
+		userInfoService: userInfoService,
+		db:              db,
+		tokenManager:    tokenManager,
+		config:          config,
 	}
 }
 
 // Show returns the authorized user based on the provided Token
 func (c *UserController) Show(ctx *app.ShowUserContext) error {
 
-	user, identity, err := c.accountService.UserInfo(ctx)
+	user, identity, err := c.userInfoService.UserInfo(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

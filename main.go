@@ -210,8 +210,8 @@ func main() {
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
-	accountService := userinfo.NewAccountProvider(identityRepository, userRepository, tokenManager, appDB)
-	userCtrl := controller.NewUserController(service, accountService, appDB, tokenManager, config)
+	userInfoProvider := userinfo.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
+	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
 		userCtrl.InitTenant = account.NewInitTenant(config)
@@ -231,7 +231,7 @@ func main() {
 	app.MountUsersController(service, usersCtrl)
 
 	//Mount "userinfo" controller
-	userInfoCtrl := controller.NewUserinfoController(service, accountService, appDB, tokenManager)
+	userInfoCtrl := controller.NewUserinfoController(service, userInfoProvider, appDB, tokenManager)
 	app.MountUserinfoController(service, userInfoCtrl)
 
 	// Mount "collaborators" controller

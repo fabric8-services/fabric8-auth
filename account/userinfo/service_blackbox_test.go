@@ -22,7 +22,7 @@ import (
 
 type serviceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	accountService userinfo.AccountProvider
+	userInfoProvider userinfo.UserInfoProvider
 }
 
 func TestRunServiceBlackBoxTest(t *testing.T) {
@@ -35,7 +35,7 @@ func TestRunServiceBlackBoxTest(t *testing.T) {
 // It sets up a database connection for all the tests in this suite without polluting global space.
 func (s *serviceBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.accountService = userinfo.AccountProvider{
+	s.userInfoProvider = userinfo.UserInfoProvider{
 		TokenManager: testtoken.TokenManager,
 		Identities:   account.NewIdentityRepository(s.DB),
 		Users:        account.NewUserRepository(s.DB),
@@ -51,8 +51,8 @@ func (s *serviceBlackBoxTest) TestShowUserInfoOK() {
 	user, identity, err := getTestUserAndIdentity()
 
 	// Populate your sample user and identities in DB
-	s.accountService.Users.Create(goaCtx, user)
-	s.accountService.Identities.Create(goaCtx, identity)
+	s.userInfoProvider.Users.Create(goaCtx, user)
+	s.userInfoProvider.Identities.Create(goaCtx, identity)
 
 	// Generate Token
 	tokenString, err := testtoken.GenerateToken("a7847bfb-31e9-4bbe-8244-3738151ccd93", "someUserName", testtoken.PrivateKey())
@@ -66,7 +66,7 @@ func (s *serviceBlackBoxTest) TestShowUserInfoOK() {
 	ctx := jwt.WithJWT(goaCtx, extracted)
 	require.NotNil(s.T(), ctx)
 
-	retrievedUser, retrievedIdentity, err := s.accountService.UserInfo(ctx)
+	retrievedUser, retrievedIdentity, err := s.userInfoProvider.UserInfo(ctx)
 	require.Nil(s.T(), err)
 
 	require.Equal(s.T(), retrievedUser.Email, user.Email)
@@ -78,7 +78,7 @@ func (s *serviceBlackBoxTest) TestShowUserInfoOK() {
 
 func (s *serviceBlackBoxTest) TestShowUserInfoUnauthorized() {
 	goaCtx := context.Background()
-	_, _, err := s.accountService.UserInfo(goaCtx)
+	_, _, err := s.userInfoProvider.UserInfo(goaCtx)
 	require.NotNil(s.T(), err)
 	require.Equal(s.T(), err.Error(), fmt.Sprintf("bad token"))
 
@@ -95,7 +95,7 @@ func (s *serviceBlackBoxTest) TestShowUserInfoUnauthorized() {
 	ctx := jwt.WithJWT(goaCtx, extracted)
 	require.NotNil(s.T(), ctx)
 
-	_, _, err = s.accountService.UserInfo(ctx)
+	_, _, err = s.userInfoProvider.UserInfo(ctx)
 	require.NotNil(s.T(), err)
 	require.Equal(s.T(), err.Error(), fmt.Sprintf("auth token contains id %s of unknown Identity\n", sub))
 }

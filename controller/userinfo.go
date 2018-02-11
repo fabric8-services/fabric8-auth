@@ -14,25 +14,25 @@ import (
 // UserinfoController implements the userinfo resource.
 type UserinfoController struct {
 	*goa.Controller
-	db             application.DB
-	tokenManager   token.Manager
-	accountService userinfo.AccountService
+	db              application.DB
+	tokenManager    token.Manager
+	userInfoService userinfo.UserInfoService
 }
 
 // NewUserinfoController creates a userinfo controller.
-func NewUserinfoController(service *goa.Service, accountService userinfo.AccountService, db application.DB, tokenManager token.Manager) *UserinfoController {
+func NewUserinfoController(service *goa.Service, userInfoService userinfo.UserInfoService, db application.DB, tokenManager token.Manager) *UserinfoController {
 	return &UserinfoController{
-		Controller:     service.NewController("UserinfoController"),
-		accountService: accountService,
-		db:             db,
-		tokenManager:   tokenManager,
+		Controller:      service.NewController("UserinfoController"),
+		userInfoService: userInfoService,
+		db:              db,
+		tokenManager:    tokenManager,
 	}
 }
 
 // Show runs the show action.
 func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
 
-	user, identity, err := c.accountService.UserInfo(ctx)
+	user, identity, err := c.userInfoService.UserInfo(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
