@@ -16,7 +16,7 @@ import (
 	"strings"
 )
 
-const ORGANIZATION_OWNER_ROLE = "owner"
+const OrganizationOwnerRole = "owner"
 
 // OrganizationController implements the organization resource.
 type OrganizationController struct {
@@ -25,7 +25,7 @@ type OrganizationController struct {
 	TokenManager token.Manager
 }
 
-// NewOrganizationController creates a organization controller.
+// NewOrganizationController creates an organization controller.
 func NewOrganizationController(service *goa.Service, db application.DB) *OrganizationController {
 	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db}
 }
@@ -34,7 +34,7 @@ func NewOrganizationController(service *goa.Service, db application.DB) *Organiz
 func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) error {
 	currentUser, err := login.ContextIdentity(ctx)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return errors.NewUnauthorizedError(err.Error())
 	}
 
 	if len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
@@ -52,7 +52,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		}
 
 		// Lookup the organization resource type
-		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, account.IDENTITY_RESOURCE_TYPE_ORGANIZATION)
+		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, account.IdentityResourceTypeOrganization)
 		if err != nil {
 			return errors.NewInternalErrorFromString(ctx, "Error looking up resource type 'identity/organization'")
 		}
@@ -66,7 +66,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 		err = appl.ResourceRepository().Create(ctx, res)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
+			return errors.NewInternalError(ctx, err)
 		}
 
 		// Create the organization identity
@@ -76,13 +76,13 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 		err = appl.Identities().Create(ctx, orgIdentity)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
+			return errors.NewInternalError(ctx, err)
 		}
 
 		organizationId = orgIdentity.ID
 
 		// Lookup the identity/organization owner role
-		ownerRole, err := appl.RoleRepository().Lookup(ctx, ORGANIZATION_OWNER_ROLE, account.IDENTITY_RESOURCE_TYPE_ORGANIZATION)
+		ownerRole, err := appl.RoleRepository().Lookup(ctx, OrganizationOwnerRole, account.IdentityResourceTypeOrganization)
 
 		if err != nil {
 			return errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
@@ -97,7 +97,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 		err = appl.IdentityRoleRepository().Create(ctx, identityRole)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
+			return errors.NewInternalError(ctx, err)
 		}
 
 		return err
@@ -120,7 +120,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 	currentUser, err := login.ContextIdentity(ctx)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return errors.NewUnauthorizedError(err.Error())
 	}
 
 	var orgs []account.IdentityOrganization
@@ -130,16 +130,20 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		orgs, err = appl.Identities().ListOrganizations(ctx, *currentUser)
 
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
+			return errors.NewInternalError(ctx, err)
 		}
 
 		return err
 	})
 
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return errors.NewInternalError(ctx, err)
 	}
 
+	return ctx.OK(&app.OrganizationArray{convertToAppOrganization(orgs)})
+}
+
+func convertToAppOrganization(orgs []account.IdentityOrganization) []*app.OrganizationData {
 	results := []*app.OrganizationData{}
 
 	for _, org := range orgs {
@@ -153,5 +157,5 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		results = append(results, orgData)
 	}
 
-	return ctx.OK(&app.OrganizationArray{results})
+	return results
 }

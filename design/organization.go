@@ -58,13 +58,13 @@ var organizationArray = a.MediaType("application/vnd.organization-array+json", f
 	a.TypeName("OrganizationArray")
 	a.Description("Organization Array")
 	a.Attributes(func() {
-		a.Attribute("organizations", a.ArrayOf(organizationData))
-		a.Required("organizations")
+		a.Attribute("data", a.ArrayOf(organizationData))
+		a.Required("data")
 
 	})
 	a.View("default", func() {
-		a.Attribute("organizations")
-		a.Required("organizations")
+		a.Attribute("data")
+		a.Required("data")
 	})
 })
 

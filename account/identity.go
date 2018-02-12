@@ -23,10 +23,10 @@ const (
 	// KeycloakIDP is the name of the main Keycloak Identity Provider
 	KeycloakIDP string = "kc"
 
-	IDENTITY_RESOURCE_TYPE_ORGANIZATION = "identity/organization"
-	IDENTITY_RESOURCE_TYPE_TEAM         = "identity/team"
-	IDENTITY_RESOURCE_TYPE_GROUP        = "identity/group"
-	IDENTITY_RESOURCE_TYPE_USER         = "identity/user"
+	IdentityResourceTypeOrganization = "identity/organization"
+	IdentityResourceTypeTeam         = "identity/team"
+	IdentityResourceTypeGroup        = "identity/group"
+	IdentityResourceTypeUser         = "identity/user"
 )
 
 // NullUUID can be used with the standard sql package to represent a
@@ -477,7 +477,7 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
         ) 
         select member_of from m
       ))`,
-		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID, identityID).Rows()
+		IdentityResourceTypeOrganization, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err
@@ -544,7 +544,7 @@ func (m *GormIdentityRepository) ListOrganizations(ctx context.Context, identity
         )
 		    select member_id from m
       ))`,
-		IDENTITY_RESOURCE_TYPE_ORGANIZATION, identityID, identityID).Rows()
+		IdentityResourceTypeOrganization, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err

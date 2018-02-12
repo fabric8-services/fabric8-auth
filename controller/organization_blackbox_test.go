@@ -104,32 +104,12 @@ func (rest *TestOrganizationREST) TestListOrganizationSuccess() {
 
 	_, orgs := test.ListOrganizationOK(rest.T(), service.Context, service, controller)
 
-	require.Equal(rest.T(), 1, len(orgs.Organizations))
+	require.Equal(rest.T(), 1, len(orgs.Data))
 
-	org := orgs.Organizations[0]
+	org := orgs.Data[0]
 
 	require.Equal(rest.T(), *created.OrganizationID, org.ID)
 	require.Equal(rest.T(), orgName, org.Name)
 	require.Equal(rest.T(), 1, len(org.Roles))
-	require.Equal(rest.T(), ORGANIZATION_OWNER_ROLE, org.Roles[0])
-}
-
-/*
-* This test will attempt to create a new organization
- */
-func (rest *TestOrganizationREST) TestCreateOrganizationUnauthorizedFail() {
-	/*sa := account.Identity{
-		Username: "unknown-account",
-	}
-	service, controller := rest.SecuredController(sa)
-
-	orgName := "Acme Corporation"
-
-	payload := &app.CreateOrganizationPayload{
-		Name: &orgName,
-	}
-
-	_, err := test.CreateOrganizationUnauthorized(rest.T(), service.Context, service, controller, payload)
-
-	require.NotNil(rest.T(), err)*/
+	require.Equal(rest.T(), OrganizationOwnerRole, org.Roles[0])
 }
