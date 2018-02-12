@@ -34,7 +34,7 @@ func NewOrganizationController(service *goa.Service, db application.DB) *Organiz
 func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) error {
 	currentUser, err := login.ContextIdentity(ctx)
 	if err != nil {
-		return errors.NewUnauthorizedError(err.Error())
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
 	if len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
@@ -48,13 +48,13 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		// Lookup the identity for the current user
 		userIdentity, err := appl.Identities().Load(ctx, *currentUser)
 		if err != nil {
-			return errors.NewInternalErrorFromString(ctx, "Error looking up current user")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, "Error looking up current user"))
 		}
 
 		// Lookup the organization resource type
 		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, account.IdentityResourceTypeOrganization)
 		if err != nil {
-			return errors.NewInternalErrorFromString(ctx, "Error looking up resource type 'identity/organization'")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, "Error looking up resource type 'identity/organization'"))
 		}
 
 		// Create the organization resource
@@ -66,7 +66,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 		err = appl.ResourceRepository().Create(ctx, res)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 
 		// Create the organization identity
@@ -76,7 +76,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 		err = appl.Identities().Create(ctx, orgIdentity)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 
 		organizationId = orgIdentity.ID
@@ -85,7 +85,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		ownerRole, err := appl.RoleRepository().Lookup(ctx, OrganizationOwnerRole, account.IdentityResourceTypeOrganization)
 
 		if err != nil {
-			return errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type"))
 		}
 
 		// Assign the owner role for the new organization to the current user
@@ -97,7 +97,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 		err = appl.IdentityRoleRepository().Create(ctx, identityRole)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 
 		return err
@@ -120,7 +120,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 	currentUser, err := login.ContextIdentity(ctx)
 	if err != nil {
-		return errors.NewUnauthorizedError(err.Error())
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
 	var orgs []account.IdentityOrganization
@@ -130,14 +130,14 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		orgs, err = appl.Identities().ListOrganizations(ctx, *currentUser)
 
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
 
 		return err
 	})
 
 	if err != nil {
-		return errors.NewInternalError(ctx, err)
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	return ctx.OK(&app.OrganizationArray{convertToAppOrganization(orgs)})
