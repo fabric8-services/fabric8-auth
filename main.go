@@ -242,6 +242,14 @@ func main() {
 	clustersCtrl := controller.NewClustersController(service, config)
 	app.MountClustersController(service, clustersCtrl)
 
+	// Mount "resources" controller
+	resourcesCtrl := controller.NewResourceController(service, appDB)
+	app.MountResourceController(service, resourcesCtrl)
+
+	// Mount "organizations" controller
+	organizationsCtrl := controller.NewOrganizationController(service, appDB)
+	app.MountOrganizationController(service, organizationsCtrl)
+
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
 	log.Logger().Infoln("UTC Start Time: ", controller.StartTime)
