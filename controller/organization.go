@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -37,7 +38,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
-	if len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
+	if ctx.Payload.Name == nil || len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("Organization name cannot be empty"))
 	}
 
@@ -48,13 +49,13 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		// Lookup the identity for the current user
 		userIdentity, err := appl.Identities().Load(ctx, *currentUser)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, "Error looking up current user"))
+			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", *currentUser))
 		}
 
 		// Lookup the organization resource type
 		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, account.IdentityResourceTypeOrganization)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, "Error looking up resource type 'identity/organization'"))
+			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 
 		// Create the organization resource
