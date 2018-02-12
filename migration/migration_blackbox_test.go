@@ -104,6 +104,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration10", testMigration10)
 	t.Run("TestMigration11", testMigration11)
 	t.Run("TestMigration18", testMigration18)
+	t.Run("TestMigration21", testMigration21)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -194,6 +195,11 @@ func testMigration18(t *testing.T) {
 	err = stmt2.QueryRow("00000000-0000-0000-0000-000000000001").Scan(&featureLevel)
 	require.NoError(t, err)
 	require.Equal(t, "released", featureLevel)
+}
+
+func testMigration21(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(22)], (22))
+	assert.Nil(t, runSQLscript(sqlDB, "021-test-organizations.sql"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
