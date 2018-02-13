@@ -256,3 +256,102 @@ because generating a new token is an expensive operation. Get the access token i
 curl -H "Content-Type: application/json" -X POST -d '{"refresh_token":"<REFRESH_TOKEN>"}' https://auth.openshift.io/api/token/refresh
 
 As a result, you will get a JSON with an access token which you can use in your test.
+
+== OpenID support in Auth API
+
+=== To get OpenID Configuration of Fabric8-Auth Service
+
+To get OpenID Configuration of Auth Service, use the following endpoint
+
+- _Request:_
+[source]
+GET /api/.well-known/openid-configuration
+
+Sample Response (The fields added so far are REQUIRED and some RECOMMENDED as per OpenID Specs. Overtime new fields will be added to this configuration as per needs of different services)
+
+- _Response:_
+[source]
+{  
+   "authorization_endpoint":"https://auth.openshift.io/api/authorize",
+   "claims_supported":[  
+      "sub",
+      "iss",
+      "auth_time",
+      "name",
+      "given_name",
+      "family_name",
+      "preferred_username",
+      "email"
+   ],
+   "end_session_endpoint":"https://auth.openshift.io/api/logout",
+   "grant_types_supported":[  
+      "authorization_code",
+      "refresh_token",
+      "client_credentials"
+   ],
+   "id_token_signing_alg_values_supported":[  
+      "RS256"
+   ],
+   "issuer":"https://auth.openshift.io",
+   "jwks_uri":"https://auth.openshift.io/api/token/keys",
+   "response_types_supported":[  
+      "code"
+   ],
+   "scopes_supported":[  
+      "openid",
+      "offline_access"
+   ],
+   "subject_types_supported":[  
+      "public"
+   ],
+   "token_endpoint":"https://auth.openshift.io/api/token",
+   "token_endpoint_auth_methods_supported":[  
+      "client_secret_post",
+      "client_secret_jwt"
+   ]
+}
+
+=== To get User Information
+
+We have created an OpenID Compliant UserInfo endpoint (`/api/userinfo`) which would return stardard openid claims. The list of claims may increase as per the requirements of OpenID Clients ( Different services which are using Auth service).
+
+- _Request:_
+[source]
+GET /api/userinfo 
+    Accept: application/json
+    Authorization: bearer $TKN
+// Token used here is access_token of user token
+
+- _Response:_ 
+[source]
+{
+  "email": "testuser@redhat.com",
+  "family_name": "Test",
+  "given_name": "User",
+  "preferred_username": "testuser",
+  "sub": "c818cb96-211b-8796-8d3f-25c72aada04d"
+}
+
+
+=== To refresh token
+
+Use the following endpoint to refresh user token
+
+- _Request:_
+[source]
+POST /api/token
+        grant_type=refresh_token
+        client_id=740650a2-9c44-4db5-b067-a3d1b2cd2d01
+        refresh_token=$REFRESH_TOKEN
+        scope=openid
+
+required fields: all
+
+- _Response:_ 
+[source]
+{
+"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"token_type":"bearer",
+"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"expires_in":3600
+}
