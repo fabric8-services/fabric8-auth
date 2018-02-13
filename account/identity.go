@@ -120,7 +120,6 @@ type IdentityRepository interface {
 	List(ctx context.Context) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
-	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]IdentityOrganization, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name

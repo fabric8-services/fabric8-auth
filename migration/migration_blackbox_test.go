@@ -14,7 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
@@ -203,7 +203,7 @@ func testMigration21(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(22)], (22))
 	assert.Nil(t, runSQLscript(sqlDB, "021-test-organizations.sql"))
 
-	rows, err := sqlDB.Query("SELECT name FROM resource_type WHERE name = $1", account.IdentityResourceTypeOrganization)
+	rows, err := sqlDB.Query("SELECT name FROM resource_type WHERE name = $1", authorization.IdentityResourceTypeOrganization)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,11 +211,11 @@ func testMigration21(t *testing.T) {
 	for rows.Next() {
 		var resourceTypeName string
 		err = rows.Scan(&resourceTypeName)
-		require.Equal(t, account.IdentityResourceTypeOrganization, resourceTypeName)
+		require.Equal(t, authorization.IdentityResourceTypeOrganization, resourceTypeName)
 	}
 
 	rows, err = sqlDB.Query("SELECT r.name FROM role r, resource_type rt WHERE r.resource_type_id = rt.resource_type_id and r.name = $1 and rt.name = $2",
-		controller.OrganizationOwnerRole, account.IdentityResourceTypeOrganization)
+		controller.OrganizationOwnerRole, authorization.IdentityResourceTypeOrganization)
 	if err != nil {
 		t.Fatal(err)
 	}
