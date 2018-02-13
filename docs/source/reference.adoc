@@ -147,7 +147,7 @@ __Response:__
 [source,json]
 {"access_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13aXQiLCJzdWIiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw","token_type":"bearer"}
 
-== OAuth2.0 Friendly Login
+== OAuth2.0 login
 
 === How it works
 
@@ -221,6 +221,106 @@ required fields: all
 "expires_in":3600
 }
 
+== OpenID support
+
+=== OpenID Configuration endpoint
+
+To get OpenID Configuration of Auth Service, use the following endpoint
+
+- _Request:_
+[source]
+GET /api/.well-known/openid-configuration
+
+Sample Response (The fields added so far are REQUIRED and some RECOMMENDED as per OpenID Specs. Overtime new fields will be added to this configuration as per needs of different services)
+
+- _Response:_
+[source]
+{
+   "authorization_endpoint":"https://auth.openshift.io/api/authorize",
+   "claims_supported":[
+      "sub",
+      "iss",
+      "auth_time",
+      "name",
+      "given_name",
+      "family_name",
+      "preferred_username",
+      "email"
+   ],
+   "end_session_endpoint":"https://auth.openshift.io/api/logout",
+   "grant_types_supported":[
+      "authorization_code",
+      "refresh_token",
+      "client_credentials"
+   ],
+   "id_token_signing_alg_values_supported":[
+      "RS256"
+   ],
+   "issuer":"https://auth.openshift.io",
+   "jwks_uri":"https://auth.openshift.io/api/token/keys",
+   "response_types_supported":[
+      "code"
+   ],
+   "scopes_supported":[
+      "openid",
+      "offline_access"
+   ],
+   "subject_types_supported":[
+      "public"
+   ],
+   "token_endpoint":"https://auth.openshift.io/api/token",
+   "token_endpoint_auth_methods_supported":[
+      "client_secret_post",
+      "client_secret_jwt"
+   ],
+   "userinfo_endpoint": "https://auth.openshift.io/api/userinfo"
+}
+
+=== User Information endpoint
+
+OpenID Connect compliant UserInfo endpoint (`/api/userinfo`) is to be used for retrieving details (claims) about the logged-in user. The list of claims may increase as per the requirements of OpenID Clients ( Different services which are using Auth service).
+
+- _Request:_
+[source]
+GET /api/userinfo
+    Accept: application/json
+    Authorization: bearer $TKN
+// Token used here is access_token of user token
+
+- _Response:_
+[source]
+{
+  "email": "testuser@redhat.com",
+  "family_name": "Test",
+  "given_name": "User",
+  "preferred_username": "testuser",
+  "sub": "c818cb96-211b-8796-8d3f-25c72aada04d"
+}
+
+
+=== Refresh token endpoint
+
+Use the following endpoint to refresh user token
+
+- _Request:_
+[source]
+POST /api/token
+        grant_type=refresh_token
+        client_id=740650a2-9c44-4db5-b067-a3d1b2cd2d01
+        refresh_token=$REFRESH_TOKEN
+        scope=openid
+
+required fields: all
+
+- _Response:_
+[source]
+{
+"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"token_type":"bearer",
+"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"expires_in":3600
+}
+
 == Automated Tests
 
 === Offline Tokens
@@ -256,102 +356,3 @@ because generating a new token is an expensive operation. Get the access token i
 curl -H "Content-Type: application/json" -X POST -d '{"refresh_token":"<REFRESH_TOKEN>"}' https://auth.openshift.io/api/token/refresh
 
 As a result, you will get a JSON with an access token which you can use in your test.
-
-== OpenID support in Auth API
-
-=== To get OpenID Configuration of Fabric8-Auth Service
-
-To get OpenID Configuration of Auth Service, use the following endpoint
-
-- _Request:_
-[source]
-GET /api/.well-known/openid-configuration
-
-Sample Response (The fields added so far are REQUIRED and some RECOMMENDED as per OpenID Specs. Overtime new fields will be added to this configuration as per needs of different services)
-
-- _Response:_
-[source]
-{  
-   "authorization_endpoint":"https://auth.openshift.io/api/authorize",
-   "claims_supported":[  
-      "sub",
-      "iss",
-      "auth_time",
-      "name",
-      "given_name",
-      "family_name",
-      "preferred_username",
-      "email"
-   ],
-   "end_session_endpoint":"https://auth.openshift.io/api/logout",
-   "grant_types_supported":[  
-      "authorization_code",
-      "refresh_token",
-      "client_credentials"
-   ],
-   "id_token_signing_alg_values_supported":[  
-      "RS256"
-   ],
-   "issuer":"https://auth.openshift.io",
-   "jwks_uri":"https://auth.openshift.io/api/token/keys",
-   "response_types_supported":[  
-      "code"
-   ],
-   "scopes_supported":[  
-      "openid",
-      "offline_access"
-   ],
-   "subject_types_supported":[  
-      "public"
-   ],
-   "token_endpoint":"https://auth.openshift.io/api/token",
-   "token_endpoint_auth_methods_supported":[  
-      "client_secret_post",
-      "client_secret_jwt"
-   ]
-}
-
-=== To get User Information
-
-We have created an OpenID Compliant UserInfo endpoint (`/api/userinfo`) which would return stardard openid claims. The list of claims may increase as per the requirements of OpenID Clients ( Different services which are using Auth service).
-
-- _Request:_
-[source]
-GET /api/userinfo 
-    Accept: application/json
-    Authorization: bearer $TKN
-// Token used here is access_token of user token
-
-- _Response:_ 
-[source]
-{
-  "email": "testuser@redhat.com",
-  "family_name": "Test",
-  "given_name": "User",
-  "preferred_username": "testuser",
-  "sub": "c818cb96-211b-8796-8d3f-25c72aada04d"
-}
-
-
-=== To refresh token
-
-Use the following endpoint to refresh user token
-
-- _Request:_
-[source]
-POST /api/token
-        grant_type=refresh_token
-        client_id=740650a2-9c44-4db5-b067-a3d1b2cd2d01
-        refresh_token=$REFRESH_TOKEN
-        scope=openid
-
-required fields: all
-
-- _Response:_ 
-[source]
-{
-"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
-"token_type":"bearer",
-"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
-"expires_in":3600
-}
