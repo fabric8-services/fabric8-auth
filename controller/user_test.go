@@ -190,4 +190,5 @@ func (rest *TestUserREST) assertResponseHeaders(res http.ResponseWriter, usr acc
 	assert.Equal(rest.T(), rest.Configuration.GetCacheControlUser(), res.Header()[app.CacheControl][0])
 	require.NotNil(rest.T(), res.Header()[app.ETag])
 	assert.Equal(rest.T(), app.GenerateEntityTag(usr), res.Header()[app.ETag][0])
+
 }
