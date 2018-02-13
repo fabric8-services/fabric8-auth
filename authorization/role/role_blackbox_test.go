@@ -21,6 +21,15 @@ type roleBlackBoxTest struct {
 	resourceTypeScopeRepo resource.ResourceTypeScopeRepository
 }
 
+type KnownRole struct {
+	ResourceTypeName string
+	RoleName         string
+}
+
+var knownRoles = []KnownRole{
+	{ResourceTypeName: "identity/organization", RoleName: "owner"},
+}
+
 func TestRunRoleBlackBoxTest(t *testing.T) {
 	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
@@ -90,24 +99,6 @@ func (s *roleBlackBoxTest) TestOKToSave() {
 	assert.Equal(s.T(), role.Name, updatedRole.Name)
 }
 
-// Test disabled until we have some predefined scopes
-/*
-func (s *roleBlackBoxTest) TestScopes() {
-	role := createAndLoadRole(s)
-
-	resourceTypeScopes, err := s.resourceTypeScopeRepo.List(s.Ctx, &role.ResourceType)
-	require.Nil(s.T(), err, "Could not load resource type scopes")
-	require.NotZero(s.T(), len(resourceTypeScopes))
-
-	err = s.repo.AddScope(s.Ctx, role, &resourceTypeScopes[0])
-	require.Nil(s.T(), err, "Role scope not created")
-
-	roleScopes, err := s.repo.ListScopes(s.Ctx, role)
-	require.NotNil(s.T(), roleScopes, "Could not load role scopes")
-
-	require.Equal(s.T(), len(roleScopes), 1, "Should be exactly one role scope")
-}*/
-
 func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
@@ -130,4 +121,17 @@ func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
 	require.Equal(s.T(), role.ResourceTypeID, createdRole.ResourceTypeID)
 
 	return createdRole
+}
+
+func (s *roleBlackBoxTest) TestKnownRolesExist() {
+	t := s.T()
+
+	t.Run("role exists", func(t *testing.T) {
+
+		for _, r := range knownRoles {
+			_, err := s.repo.Lookup(s.Ctx, r.RoleName, r.ResourceTypeName)
+			// then
+			require.Nil(t, err)
+		}
+	})
 }

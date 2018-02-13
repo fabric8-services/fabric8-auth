@@ -80,6 +80,7 @@ type RoleRepository interface {
 	List(ctx context.Context) ([]Role, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 
+	Lookup(ctx context.Context, name string, resourceType string) (*Role, error)
 	ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error)
 	AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error
 }
@@ -203,6 +204,19 @@ func (m *GormRoleRepository) List(ctx context.Context) ([]Role, error) {
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
+}
+
+func (m *GormRoleRepository) Lookup(ctx context.Context, name string, resourceType string) (*Role, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "role", "lookup"}, time.Now())
+
+	var native Role
+	err := m.db.Table(m.TableName()).Joins(
+		"left join resource_type on resource_type.resource_type_id = role.resource_type_id").Preload(
+		"ResourceType").Where("role.name = ? and resource_type.name = ?", name, resourceType).Find(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, errors.NewNotFoundError("role", name)
+	}
+	return &native, errs.WithStack(err)
 }
 
 func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error) {

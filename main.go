@@ -29,6 +29,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/model"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -241,6 +243,16 @@ func main() {
 	// Mount "clusters" controller
 	clustersCtrl := controller.NewClustersController(service, config)
 	app.MountClustersController(service, clustersCtrl)
+
+	// Mount "resources" controller
+	resourcesCtrl := controller.NewResourceController(service, appDB)
+	app.MountResourceController(service, resourcesCtrl)
+
+	// Mount "organizations" controller
+	organizationModelService := model.NewOrganizationModelService(db, appDB)
+	organizationService := authorization.NewOrganizationService(organizationModelService, appDB)
+	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationService)
+	app.MountOrganizationController(service, organizationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)

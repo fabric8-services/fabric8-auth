@@ -135,6 +135,9 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		Role:           *r,
 	}
 
+	err = s.repo.Create(s.Ctx, identityRole)
+	require.Nil(s.T(), err, "Could not create identity role")
+
 	createdIdentityRole, err := s.repo.Load(s.Ctx, identityRole.IdentityRoleID)
 	require.Nil(s.T(), err, "Could not load identity role")
 	require.Equal(s.T(), identityRole.Identity.Username, createdIdentityRole.Identity.Username)
