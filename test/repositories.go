@@ -1,4 +1,4 @@
-package model_test
+package test
 
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -7,29 +7,29 @@ import (
 )
 
 type TestRepositories struct {
-	identityRepository     account.IdentityRepository
-	resourceRepository     resource.ResourceRepository
-	resourceTypeRepository resource.ResourceTypeRepository
-	roleRepository         role.RoleRepository
-	identityRoleRepository role.IdentityRoleRepository
+	FIdentityRepository     account.IdentityRepository
+	FResourceRepository     resource.ResourceRepository
+	FResourceTypeRepository resource.ResourceTypeRepository
+	FRoleRepository         role.RoleRepository
+	FIdentityRoleRepository role.IdentityRoleRepository
 }
 
 func (m TestRepositories) Identities() account.IdentityRepository {
-	return m.identityRepository
+	return m.FIdentityRepository
 }
 
 func (m TestRepositories) ResourceRepository() resource.ResourceRepository {
-	return m.resourceRepository
+	return m.FResourceRepository
 }
 
 func (m TestRepositories) ResourceTypeRepository() resource.ResourceTypeRepository {
-	return m.resourceTypeRepository
+	return m.FResourceTypeRepository
 }
 
 func (m TestRepositories) RoleRepository() role.RoleRepository {
-	return m.roleRepository
+	return m.FRoleRepository
 }
 
 func (m TestRepositories) IdentityRoleRepository() role.IdentityRoleRepository {
-	return m.identityRoleRepository
+	return m.FIdentityRoleRepository
 }
