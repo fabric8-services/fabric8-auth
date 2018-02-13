@@ -11,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
-	"github.com/satori/go.uuid"
 	"strings"
 )
 
@@ -37,22 +36,15 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
+	if currentUser == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Error finding the current user"))
+	}
+
 	if ctx.Payload.Name == nil || len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("Organization name cannot be empty"))
 	}
 
-	var organizationId *uuid.UUID
-
-	err = application.Transactional(c.db, func(appl application.Application) error {
-
-		organizationId, err = c.orgService.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
-
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-
-		return err
-	})
+	organizationId, err := c.orgService.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
 
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -74,18 +66,11 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
-	var orgs []common.IdentityOrganization
+	if currentUser == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Error finding the current user"))
+	}
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
-
-		orgs, err = c.orgService.ListOrganizations(ctx, *currentUser)
-
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-		}
-
-		return err
-	})
+	orgs, err := c.orgService.ListOrganizations(ctx, *currentUser)
 
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
