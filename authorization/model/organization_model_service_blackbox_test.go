@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/common"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -72,7 +73,7 @@ func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {
 	orgResource, err := s.resourceRepo.Load(s.Ctx, *orgIdentity.IdentityResourceID)
 	require.Nil(s.T(), err, "Could not load the organization's resource")
 
-	require.Equal(s.T(), authorization.IdentityResourceTypeOrganization, orgResource.ResourceType.Name, "Organization resource type is invalid")
+	require.Equal(s.T(), common.IdentityResourceTypeOrganization, orgResource.ResourceType.Name, "Organization resource type is invalid")
 }
 
 func (s *organizationServiceBlackBoxTest) TestListOrganization() {
@@ -99,5 +100,5 @@ func (s *organizationServiceBlackBoxTest) TestListOrganization() {
 	require.Equal(s.T(), false, org.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), "Test Organization MMMYYY", org.Name, "Organization name is different")
 	require.Equal(s.T(), 1, len(org.Roles), "New organization should have assigned exactly 1 role")
-	require.Equal(s.T(), authorization.OrganizationOwnerRole, org.Roles[0], "New organization should have assigned owner role")
+	require.Equal(s.T(), common.OrganizationOwnerRole, org.Roles[0], "New organization should have assigned owner role")
 }

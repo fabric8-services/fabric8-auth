@@ -4,6 +4,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/common"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -73,7 +74,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
-	var orgs []authorization.IdentityOrganization
+	var orgs []common.IdentityOrganization
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
 
@@ -93,7 +94,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 	return ctx.OK(&app.OrganizationArray{convertToAppOrganization(orgs)})
 }
 
-func convertToAppOrganization(orgs []authorization.IdentityOrganization) []*app.OrganizationData {
+func convertToAppOrganization(orgs []common.IdentityOrganization) []*app.OrganizationData {
 	results := []*app.OrganizationData{}
 
 	for _, org := range orgs {
