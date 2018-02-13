@@ -90,10 +90,6 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 
 	err = s.repo.IdentityRoleRepository().Create(ctx, identityRole)
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
-	}
-
-	if err != nil {
 		return nil, err
 	}
 
