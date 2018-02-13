@@ -74,6 +74,10 @@ func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 	require.Nil(s.T(), err, "Could not load the organization's resource")
 
 	require.Equal(s.T(), common.IdentityResourceTypeOrganization, orgResource.ResourceType.Name, "Organization resource type is invalid")
+
+	require.Equal(s.T(), orgResource.Name, "Test Organization ZXYAAA")
+
+	// TODO Check the owner role assigned to the creator
 }
 
 func (s *organizationModelServiceBlackBoxTest) TestListOrganization() {
