@@ -460,6 +460,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <ul class="sectlevel2">
 <li><a href="#_to_get_openid_configuration_of_fabric8_auth_service">To get OpenID Configuration of Fabric8-Auth Service</a></li>
 <li><a href="#_to_get_user_information">To get User Information</a></li>
+<li><a href="#_to_refresh_token">To refresh token</a></li>
 </ul>
 </li>
 </ul>
@@ -951,14 +952,25 @@ because generating a new token is an expensive operation. Get the access token i
 <div class="paragraph">
 <p>To get OpenID Configuration of Auth Service, use the following endpoint</p>
 </div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Request:</em></p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code>GET /api/.well-known/openid-configuration</code></pre>
 </div>
 </div>
+</li>
+</ul>
+</div>
 <div class="paragraph">
 <p>Sample Response (The fields added so far are REQUIRED and some RECOMMENDED as per OpenID Specs. Overtime new fields will be added to this configuration as per needs of different services)</p>
 </div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Response:</em></p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code>{
@@ -1002,12 +1014,19 @@ because generating a new token is an expensive operation. Get the access token i
 }</code></pre>
 </div>
 </div>
+</li>
+</ul>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_to_get_user_information">To get User Information</h3>
 <div class="paragraph">
 <p>We have created an OpenID Compliant UserInfo endpoint (<code>/api/userinfo</code>) which would return stardard openid claims. The list of claims may increase as per the requirements of OpenID Clients ( Different services which are using Auth service).</p>
 </div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Request:</em></p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code>GET /api/userinfo
@@ -1016,9 +1035,9 @@ because generating a new token is an expensive operation. Get the access token i
 // Token used here is access_token of user token</code></pre>
 </div>
 </div>
-<div class="paragraph">
-<p>Sample Response</p>
-</div>
+</li>
+<li>
+<p><em>Response:</em></p>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code>{
@@ -1030,13 +1049,58 @@ because generating a new token is an expensive operation. Get the access token i
 }</code></pre>
 </div>
 </div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_to_refresh_token">To refresh token</h3>
+<div class="paragraph">
+<p>Use the following endpoint to refresh user token</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Request:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>POST /api/token
+        grant_type=refresh_token
+        client_id=740650a2-9c44-4db5-b067-a3d1b2cd2d01
+        refresh_token=$REFRESH_TOKEN
+        scope=openid</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>required fields: all</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Response:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>{
+"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"token_type":"bearer",
+"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"expires_in":3600
+}</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-02-13 14:24:03 IST
+Last updated 2018-02-13 15:13:24 IST
 </div>
 </div>
 </body>

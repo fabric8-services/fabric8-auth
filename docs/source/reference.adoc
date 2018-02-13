@@ -263,11 +263,13 @@ As a result, you will get a JSON with an access token which you can use in your 
 
 To get OpenID Configuration of Auth Service, use the following endpoint
 
+- _Request:_
 [source]
 GET /api/.well-known/openid-configuration
 
 Sample Response (The fields added so far are REQUIRED and some RECOMMENDED as per OpenID Specs. Overtime new fields will be added to this configuration as per needs of different services)
 
+- _Response:_
 [source]
 {  
    "authorization_endpoint":"https://auth.openshift.io/api/authorize",
@@ -313,14 +315,14 @@ Sample Response (The fields added so far are REQUIRED and some RECOMMENDED as pe
 
 We have created an OpenID Compliant UserInfo endpoint (`/api/userinfo`) which would return stardard openid claims. The list of claims may increase as per the requirements of OpenID Clients ( Different services which are using Auth service).
 
+- _Request:_
 [source]
 GET /api/userinfo 
     Accept: application/json
     Authorization: bearer $TKN
 // Token used here is access_token of user token
 
-Sample Response
-
+- _Response:_ 
 [source]
 {
   "email": "testuser@redhat.com",
@@ -328,4 +330,28 @@ Sample Response
   "given_name": "User",
   "preferred_username": "testuser",
   "sub": "c818cb96-211b-8796-8d3f-25c72aada04d"
+}
+
+
+=== To refresh token
+
+Use the following endpoint to refresh user token
+
+- _Request:_
+[source]
+POST /api/token
+        grant_type=refresh_token
+        client_id=740650a2-9c44-4db5-b067-a3d1b2cd2d01
+        refresh_token=$REFRESH_TOKEN
+        scope=openid
+
+required fields: all
+
+- _Response:_ 
+[source]
+{
+"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"token_type":"bearer",
+"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"expires_in":3600
 }
