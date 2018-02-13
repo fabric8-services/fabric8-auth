@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"strings"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -10,8 +12,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/token"
+
 	"github.com/goadesign/goa"
-	"strings"
 )
 
 const OrganizationOwnerRole = "owner"
@@ -37,16 +39,22 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 	}
 
 	if currentUser == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Error finding the current user"))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
 	}
 
 	if ctx.Payload.Name == nil || len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("Organization name cannot be empty"))
+		log.Error(ctx, map[string]interface{}{}, "organization name cannot be empty")
+		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("organization name cannot be empty"))
 	}
 
 	organizationId, err := c.orgService.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
 
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"org_name": *ctx.Payload.Name,
+		}, "failed to create organization")
+
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -67,12 +75,15 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 	}
 
 	if currentUser == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Error finding the current user"))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
 	}
 
 	orgs, err := c.orgService.ListOrganizations(ctx, *currentUser)
 
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to list organizations")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
