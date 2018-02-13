@@ -21,11 +21,12 @@ type OrganizationController struct {
 	*goa.Controller
 	db           application.DB
 	TokenManager token.Manager
+	orgService   authorization.OrganizationService
 }
 
 // NewOrganizationController creates an organization controller.
-func NewOrganizationController(service *goa.Service, db application.DB) *OrganizationController {
-	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db}
+func NewOrganizationController(service *goa.Service, db application.DB, orgService authorization.OrganizationService) *OrganizationController {
+	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db, orgService: orgService}
 }
 
 // Create runs the create action.
@@ -43,7 +44,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
 
-		organizationId, err = appl.OrganizationService().CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
+		organizationId, err = c.orgService.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
 
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
@@ -76,7 +77,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
 
-		orgs, err = appl.OrganizationService().ListOrganizations(ctx, *currentUser)
+		orgs, err = c.orgService.ListOrganizations(ctx, *currentUser)
 
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))

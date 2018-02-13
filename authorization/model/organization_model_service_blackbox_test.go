@@ -1,10 +1,11 @@
-package authorization_test
+package model_test
 
 import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/model"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
@@ -38,7 +39,7 @@ func (s *organizationServiceBlackBoxTest) SetupTest() {
 	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
 
-	s.orgService = authorization.NewOrganizationService(s.DB, &TestRepositories{
+	s.orgService = model.NewOrganizationModelService(s.DB, &TestRepositories{
 		identityRepository:     s.identityRepo,
 		identityRoleRepository: s.identityRoleRepo,
 		resourceRepository:     s.resourceRepo,

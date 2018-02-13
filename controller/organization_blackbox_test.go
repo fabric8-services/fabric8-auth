@@ -13,6 +13,8 @@ import (
 
 	"github.com/goadesign/goa"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/model"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -22,6 +24,7 @@ type TestOrganizationREST struct {
 	gormtestsupport.DBTestSuite
 	testIdentity      account.Identity
 	service           *goa.Service
+	orgService        authorization.OrganizationService
 	securedController *OrganizationController
 }
 
@@ -37,7 +40,8 @@ func (s *TestOrganizationREST) SetupSuite() {
 		Username: "fabric8-wit",
 	}
 	s.service = testsupport.ServiceAsServiceAccountUser("Organization-Service", sa)
-	s.securedController = NewOrganizationController(s.service, s.Application)
+	s.orgService = model.NewOrganizationModelService(s.DB, s.Application)
+	s.securedController = NewOrganizationController(s.service, s.Application, s.orgService)
 }
 
 func TestRunOrganizationREST(t *testing.T) {
@@ -46,7 +50,7 @@ func TestRunOrganizationREST(t *testing.T) {
 
 func (rest *TestOrganizationREST) SecuredController(identity account.Identity) (*goa.Service, *OrganizationController) {
 	svc := testsupport.ServiceAsUser("Organization-Service", identity)
-	return svc, NewOrganizationController(svc, rest.Application)
+	return svc, NewOrganizationController(svc, rest.Application, rest.orgService)
 }
 
 /*

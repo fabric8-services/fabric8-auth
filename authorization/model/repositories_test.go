@@ -1,4 +1,4 @@
-package authorization_test
+package model_test
 
 import (
 	"github.com/fabric8-services/fabric8-auth/account"

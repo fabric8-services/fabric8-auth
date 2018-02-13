@@ -29,6 +29,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/model"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -247,7 +248,8 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationsCtrl := controller.NewOrganizationController(service, appDB)
+	organizationService := model.NewOrganizationModelService(db, appDB)
+	organizationsCtrl := controller.NewOrganizationController(service, appDB, organizationService)
 	app.MountOrganizationController(service, organizationsCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
