@@ -10,6 +10,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
+	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
@@ -209,7 +210,8 @@ func main() {
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
-	userCtrl := controller.NewUserController(service, appDB, tokenManager, config)
+	userInfoProvider := userinfo.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
+	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
 		userCtrl.InitTenant = account.NewInitTenant(config)
@@ -227,6 +229,10 @@ func main() {
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
+
+	//Mount "userinfo" controller
+	userInfoCtrl := controller.NewUserinfoController(service, userInfoProvider, appDB, tokenManager)
+	app.MountUserinfoController(service, userInfoCtrl)
 
 	// Mount "collaborators" controller
 	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, config, auth.NewKeycloakPolicyManager(config))
