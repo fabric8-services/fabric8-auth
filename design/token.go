@@ -37,12 +37,29 @@ var _ = a.Resource("token", func() {
 			a.GET(""),
 		)
 		a.Params(func() {
-			a.Param("for", d.String, "The resource for which the external token is being fetched, example https://github.com/fabric8-services/fabric8-auth or https://api.starter-us-east-2.openshift.com")
+			a.Param("for", d.String, "The resource for which the external token is being fetched, example https://github.com or https://api.starter-us-east-2.openshift.com")
 			a.Param("force_pull", d.Boolean, "Pull the user's details for the specific connected account, example, the user's updated github username would be fetched from github. If this is not set or false, then the user profile will be pulled only if the stored user's details did not have the username")
 			a.Required("for")
 		})
 		a.Description("Get the external token for resources belonging to external providers like Github and OpenShift")
 		a.Response(d.OK, externalToken)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+
+	a.Action("Status", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("status"),
+		)
+		a.Params(func() {
+			a.Param("for", d.String, "The resource for which the external token is being checked, example https://github.com or https://api.starter-us-east-2.openshift.com")
+			a.Param("force_pull", d.Boolean, "Pull the user's details for the specific connected account, example, the user's updated github username would be fetched from github. If this is not set or false, then the user profile will be pulled only if the stored user's details did not have the username")
+			a.Required("for")
+		})
+		a.Description("Check if the external token is available. Returns 200 OK if the token is available and 401 Unauthorized if no token available")
+		a.Response(d.OK)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
@@ -54,7 +71,7 @@ var _ = a.Resource("token", func() {
 			a.DELETE(""),
 		)
 		a.Params(func() {
-			a.Param("for", d.String, "The resource for which the external token is being deleted, example https://github.com/fabric8-services/fabric8-auth or https://api.starter-us-east-2.openshift.com")
+			a.Param("for", d.String, "The resource for which the external token is being deleted, example https://github.com or https://api.starter-us-east-2.openshift.com")
 			a.Required("for")
 		})
 		a.Description("Delete the external token for resources belonging to external providers like Github and OpenShift")
