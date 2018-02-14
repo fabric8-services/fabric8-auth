@@ -72,7 +72,18 @@ func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 
 	require.Equal(s.T(), orgResource.Name, "Test Organization ZXYAAA")
 
-	// TODO Check the owner role assigned to the creator
+	rows, err := s.DB.Raw("SELECT r.name FROM identities i, identity_role ir, role r 	WHERE i.identity_resource_id = ir.resource_id and ir.role_id = r.role_id and i.id = ?", *orgId).Rows()
+	defer rows.Close()
+	roleCount := 0
+	for rows.Next() {
+		var roleName string
+		rows.Scan(&roleName)
+
+		require.Equal(s.T(), common.OrganizationOwnerRole, roleName, "Only 'owner' role should be assigned during organization creation")
+		roleCount++
+	}
+
+	require.Equal(s.T(), 1, roleCount, "Found more than 1 role")
 }
 
 func (s *organizationModelServiceBlackBoxTest) TestListOrganization() {
@@ -99,11 +110,21 @@ func (s *organizationModelServiceBlackBoxTest) TestListOrganization() {
 	// Check we get two organizations back
 	require.Equal(s.T(), 2, len(orgs), "Did not get exactly 2 organizations in list")
 
-	s.equalOrganization(*orgId, "Test Organization MMMYYY", orgs[0])
-	s.equalOrganization(*orgId2, "One More Test Organization MMMYYY", orgs[1])
+	s.equalOrganization(*orgId, "Test Organization MMMYYY", s.findOrganizationWithID(*orgId, orgs))
+	s.equalOrganization(*orgId2, "One More Test Organization MMMYYY", s.findOrganizationWithID(*orgId2, orgs))
 }
 
-func (s *organizationModelServiceBlackBoxTest) equalOrganization(expectedOrgID uuid.UUID, expectedOrgName string, actualOrg common.IdentityOrganization) {
+func (s *organizationModelServiceBlackBoxTest) findOrganizationWithID(orgId uuid.UUID, orgs []common.IdentityOrganization) *common.IdentityOrganization {
+	for _, org := range orgs {
+		if org.OrganizationID == orgId {
+			return &org
+		}
+	}
+	return nil
+}
+
+func (s *organizationModelServiceBlackBoxTest) equalOrganization(expectedOrgID uuid.UUID, expectedOrgName string, actualOrg *common.IdentityOrganization) {
+	require.NotNil(s.T(), actualOrg, "Organization is nil")
 	require.Equal(s.T(), expectedOrgID, actualOrg.OrganizationID, "Organization ID is different")
 	require.Equal(s.T(), false, actualOrg.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), expectedOrgName, actualOrg.Name, "Organization name is different")
