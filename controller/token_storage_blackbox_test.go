@@ -351,7 +351,7 @@ func (rest *TestTokenStorageREST) checkStatusExternalTokenUnauthorized(for_ stri
 	u := &url.URL{
 		Scheme: "https",
 		Host:   "auth.localhost.io",
-		Path:   fmt.Sprintf("/api/token"),
+		Path:   fmt.Sprintf("/api/token/status"),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
