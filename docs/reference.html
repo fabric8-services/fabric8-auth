@@ -438,10 +438,17 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_service_account_authentication">Service Account Authentication</a></li>
 </ul>
 </li>
-<li><a href="#_oauth2_0_friendly_login">OAuth2.0 Friendly Login</a>
+<li><a href="#_oauth2_0_login">OAuth2.0 login</a>
 <ul class="sectlevel2">
 <li><a href="#_how_it_works">How it works</a></li>
 <li><a href="#_steps_to_login">Steps to login</a></li>
+</ul>
+</li>
+<li><a href="#_openid_support">OpenID support</a>
+<ul class="sectlevel2">
+<li><a href="#_openid_configuration_endpoint">OpenID Configuration endpoint</a></li>
+<li><a href="#_user_information_endpoint">User Information endpoint</a></li>
+<li><a href="#_refresh_token_endpoint">Refresh token endpoint</a></li>
 </ul>
 </li>
 <li><a href="#_automated_tests">Automated Tests</a>
@@ -695,7 +702,7 @@ The secret value must be mounted as <strong>/etc/fabric8/service-account-secrets
 </div>
 </div>
 <div class="sect1">
-<h2 id="_oauth2_0_friendly_login">OAuth2.0 Friendly Login</h2>
+<h2 id="_oauth2_0_login">OAuth2.0 login</h2>
 <div class="sectionbody">
 <div class="sect2">
 <h3 id="_how_it_works">How it works</h3>
@@ -874,6 +881,160 @@ The secret value must be mounted as <strong>/etc/fabric8/service-account-secrets
 </div>
 </div>
 <div class="sect1">
+<h2 id="_openid_support">OpenID support</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_openid_configuration_endpoint">OpenID Configuration endpoint</h3>
+<div class="paragraph">
+<p>To get OpenID Configuration of Auth Service, use the following endpoint</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Request:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>GET /api/.well-known/openid-configuration</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Sample Response (The fields added so far are REQUIRED and some RECOMMENDED as per OpenID Specs. Overtime new fields will be added to this configuration as per needs of different services)</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Response:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>{
+   "authorization_endpoint":"https://auth.openshift.io/api/authorize",
+   "claims_supported":[
+      "sub",
+      "iss",
+      "auth_time",
+      "name",
+      "given_name",
+      "family_name",
+      "preferred_username",
+      "email"
+   ],
+   "end_session_endpoint":"https://auth.openshift.io/api/logout",
+   "grant_types_supported":[
+      "authorization_code",
+      "refresh_token",
+      "client_credentials"
+   ],
+   "id_token_signing_alg_values_supported":[
+      "RS256"
+   ],
+   "issuer":"https://auth.openshift.io",
+   "jwks_uri":"https://auth.openshift.io/api/token/keys",
+   "response_types_supported":[
+      "code"
+   ],
+   "scopes_supported":[
+      "openid",
+      "offline_access"
+   ],
+   "subject_types_supported":[
+      "public"
+   ],
+   "token_endpoint":"https://auth.openshift.io/api/token",
+   "token_endpoint_auth_methods_supported":[
+      "client_secret_post",
+      "client_secret_jwt"
+   ],
+   "userinfo_endpoint": "https://auth.openshift.io/api/userinfo"
+}</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_user_information_endpoint">User Information endpoint</h3>
+<div class="paragraph">
+<p>OpenID Connect compliant UserInfo endpoint (<code>/api/userinfo</code>) is to be used for retrieving details (claims) about the logged-in user. The list of claims may increase as per the requirements of OpenID Clients ( Different services which are using Auth service).</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Request:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>GET /api/userinfo
+    Accept: application/json
+    Authorization: bearer $TKN
+// Token used here is access_token of user token</code></pre>
+</div>
+</div>
+</li>
+<li>
+<p><em>Response:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>{
+  "email": "testuser@redhat.com",
+  "family_name": "Test",
+  "given_name": "User",
+  "preferred_username": "testuser",
+  "sub": "c818cb96-211b-8796-8d3f-25c72aada04d"
+}</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_refresh_token_endpoint">Refresh token endpoint</h3>
+<div class="paragraph">
+<p>Use the following endpoint to refresh user token</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Request:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>POST /api/token
+        grant_type=refresh_token
+        client_id=740650a2-9c44-4db5-b067-a3d1b2cd2d01
+        refresh_token=$REFRESH_TOKEN
+        scope=openid</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>required fields: all</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><em>Response:</em></p>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>{
+"access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"token_type":"bearer",
+"refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
+"expires_in":3600
+}</code></pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
 <h2 id="_automated_tests">Automated Tests</h2>
 <div class="sectionbody">
 <div class="sect2">
@@ -933,7 +1094,7 @@ because generating a new token is an expensive operation. Get the access token i
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-01-24 06:33:17 PST
+Last updated 2018-02-13 09:21:44 PST
 </div>
 </div>
 </body>

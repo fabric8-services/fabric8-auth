@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 	"github.com/jinzhu/gorm"
@@ -99,6 +100,14 @@ func (g *GormBase) ResourceTypeRepository() resource.ResourceTypeRepository {
 
 func (g *GormBase) ResourceTypeScopeRepository() resource.ResourceTypeScopeRepository {
 	return resource.NewResourceTypeScopeRepository(g.db)
+}
+
+func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
+	return role.NewIdentityRoleRepository(g.db)
+}
+
+func (g *GormBase) RoleRepository() role.RoleRepository {
+	return role.NewRoleRepository(g.db)
 }
 
 func (g *GormBase) DB() *gorm.DB {
