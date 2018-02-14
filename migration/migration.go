@@ -170,8 +170,8 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 20
 	m = append(m, steps{ExecuteSQLFile("020-add-response-mode-to-auth-state-reference.sql")})
 
-	// Version 21
-	m = append(m, steps{ExecuteSQLFile("021-identity-role.sql")})
+	// verion 21
+	m = append(m, steps{ExecuteSQLFile("021-organizations-list-create.sql")})
 
 	// Version N
 	//

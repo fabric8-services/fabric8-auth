@@ -6,9 +6,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
+	"github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // TestUser only creates in memory obj for testing purposes
@@ -100,13 +101,39 @@ func CreateTestIdentity(db *gorm.DB, username, providerType string) (account.Ide
 
 // CreateTestIdentityAndUser creates an identity & user with the given `username` in the database. For testing purpose only.
 func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (account.Identity, error) {
+	testUser := account.User{
+		ID:       uuid.NewV4(),
+		Email:    uuid.NewV4().String(),
+		FullName: "Test Developer",
+		Cluster:  "Test Cluster",
+	}
 	testIdentity := account.Identity{
 		Username:     username,
 		ProviderType: providerType,
-		User:         TestUser3,
+		User:         testUser,
 	}
 	err := CreateTestIdentityAndUserInDB(db, &testIdentity)
 	return testIdentity, err
+}
+
+// CreateTestIdentityAndUserWithDefaultProviderType creates an identity & user with the given `username` in the database. For testing purpose only.
+func CreateTestIdentityAndUserWithDefaultProviderType(db *gorm.DB, username string) (account.Identity, error) {
+	return CreateTestIdentityAndUser(db, username, account.KeycloakIDP)
+}
+
+// EmbedTestIdentityTokenInContext creates an identity & user with the given `username` in the database.
+// Generates a token for that identity and embed the token in the context.
+func EmbedTestIdentityTokenInContext(db *gorm.DB, username string) (account.Identity, context.Context, error) {
+	// Create a Sample user and identity
+	identity, err := CreateTestIdentityAndUserWithDefaultProviderType(db, username)
+	if err != nil {
+		return identity, nil, err
+	}
+
+	// Embed Token in the context
+	ctx, err := token.EmbedTokenInContext(identity.ID.String(), identity.Username)
+
+	return identity, ctx, err
 }
 
 // CreateTestUser creates a new user from a given user object

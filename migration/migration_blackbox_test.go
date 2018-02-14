@@ -14,6 +14,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/common"
+	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 	errs "github.com/pkg/errors"
@@ -199,7 +201,30 @@ func testMigration18(t *testing.T) {
 
 func testMigration21(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(22)], (22))
-	assert.Nil(t, runSQLscript(sqlDB, "021-insert-identity-role.sql"))
+	assert.Nil(t, runSQLscript(sqlDB, "021-test-organizations.sql"))
+
+	rows, err := sqlDB.Query("SELECT name FROM resource_type WHERE name = $1", common.IdentityResourceTypeOrganization)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var resourceTypeName string
+		err = rows.Scan(&resourceTypeName)
+		require.Equal(t, common.IdentityResourceTypeOrganization, resourceTypeName)
+	}
+
+	rows, err = sqlDB.Query("SELECT r.name FROM role r, resource_type rt WHERE r.resource_type_id = rt.resource_type_id and r.name = $1 and rt.name = $2",
+		controller.OrganizationOwnerRole, common.IdentityResourceTypeOrganization)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var roleName string
+		err = rows.Scan(&roleName)
+		require.Equal(t, controller.OrganizationOwnerRole, roleName)
+	}
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

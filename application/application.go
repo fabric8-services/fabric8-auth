@@ -20,8 +20,8 @@ type Application interface {
 	ResourceRepository() resource.ResourceRepository
 	ResourceTypeRepository() resource.ResourceTypeRepository
 	ResourceTypeScopeRepository() resource.ResourceTypeScopeRepository
-	RoleRepository() role.RoleRepository
 	IdentityRoleRepository() role.IdentityRoleRepository
+	RoleRepository() role.RoleRepository
 }
 
 // A Transaction abstracts a database transaction. The repositories created for the transaction object make changes inside the the transaction

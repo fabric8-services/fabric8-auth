@@ -1,16 +1,18 @@
 package token
 
 import (
-	"crypto/rsa"
-
 	"context"
+	"crypto/rsa"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/token"
+
+	"github.com/dgrijalva/jwt-go"
+	jwtgoa "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"time"
 )
 
 var (
@@ -19,6 +21,24 @@ var (
 
 func init() {
 	TokenManager = NewManager()
+}
+
+// EmbedTokenInContext generates a token and embed it into the context
+func EmbedTokenInContext(sub, username string) (context.Context, error) {
+	// Generate Token with an identity that doesn't exist in the database
+	tokenString, err := GenerateToken(sub, username, PrivateKey())
+	if err != nil {
+		return nil, err
+	}
+
+	extracted, err := TokenManager.Parse(context.Background(), tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	// Embed Token in the context
+	ctx := jwtgoa.WithJWT(context.Background(), extracted)
+	return ctx, nil
 }
 
 // GenerateToken generates a JWT token and signs it using the given private key

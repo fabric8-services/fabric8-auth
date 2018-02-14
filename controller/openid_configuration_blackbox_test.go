@@ -36,6 +36,7 @@ func (s *TestOpenIDConfigurationREST) TestShowOpenIDConfiguration() {
 	issuer := "http://"
 	authorizationEndpoint := "http:///api/authorize"
 	tokenEndpoint := "http:///api/token"
+	userInfoEndpoint := "http:///api/userinfo"
 	logoutEndpoint := "http:///api/logout"
 	jwksURI := "http:///api/token/keys"
 
@@ -43,6 +44,7 @@ func (s *TestOpenIDConfigurationREST) TestShowOpenIDConfiguration() {
 		Issuer:                            &issuer,
 		AuthorizationEndpoint:             &authorizationEndpoint,
 		TokenEndpoint:                     &tokenEndpoint,
+		UserinfoEndpoint:                  &userInfoEndpoint,
 		EndSessionEndpoint:                &logoutEndpoint,
 		ResponseTypesSupported:            []string{"code"},
 		JwksURI:                           &jwksURI,
