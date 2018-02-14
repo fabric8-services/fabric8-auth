@@ -10,6 +10,7 @@ var _ = a.Resource("organization", func() {
 	a.BasePath("/organizations")
 
 	a.Action("create", func() {
+		a.Security("jwt")
 		a.Routing(
 			a.POST(""),
 		)
@@ -22,6 +23,7 @@ var _ = a.Resource("organization", func() {
 	})
 
 	a.Action("list", func() {
+		a.Security("jwt")
 		a.Routing(
 			a.GET(""),
 		)

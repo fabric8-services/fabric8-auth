@@ -30,18 +30,13 @@ type TestOrganizationREST struct {
 
 func (s *TestOrganizationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
+	s.orgService = model.NewOrganizationModelService(s.DB, s.Application)
+
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
-		"TestOrganizationCreated-"+uuid.NewV4().String(),
+		"OrganizationCreatorUser-"+uuid.NewV4().String(),
 		"TestOrganization")
 	require.Nil(s.T(), err)
-
-	sa := account.Identity{
-		Username: "fabric8-wit",
-	}
-	s.service = testsupport.ServiceAsServiceAccountUser("Organization-Service", sa)
-	s.orgService = model.NewOrganizationModelService(s.DB, s.Application)
-	s.securedController = NewOrganizationController(s.service, s.Application, s.orgService)
 }
 
 func TestRunOrganizationREST(t *testing.T) {
@@ -51,6 +46,12 @@ func TestRunOrganizationREST(t *testing.T) {
 func (rest *TestOrganizationREST) SecuredController(identity account.Identity) (*goa.Service, *OrganizationController) {
 	svc := testsupport.ServiceAsUser("Organization-Service", identity)
 	return svc, NewOrganizationController(svc, rest.Application, rest.orgService)
+}
+
+func (rest *TestOrganizationREST) UnsecuredController() (*goa.Service, *OrganizationController) {
+	svc := goa.New("Organization-Service")
+	controller := NewOrganizationController(svc, rest.Application, rest.orgService)
+	return svc, controller
 }
 
 /*
@@ -69,6 +70,17 @@ func (rest *TestOrganizationREST) TestCreateOrganizationSuccess() {
 	_, created := test.CreateOrganizationCreated(rest.T(), service.Context, service, controller, payload)
 
 	require.NotEmpty(rest.T(), created.OrganizationID)
+}
+
+func (rest *TestOrganizationREST) TestCreateOrganizationUnauthorized() {
+	service, controller := rest.UnsecuredController()
+
+	orgName := "Unauthorized Organization Creation"
+	payload := &app.CreateOrganizationPayload{
+		Name: &orgName,
+	}
+
+	test.CreateOrganizationUnauthorized(rest.T(), service.Context, service, controller, payload)
 }
 
 /*
@@ -116,4 +128,9 @@ func (rest *TestOrganizationREST) TestListOrganizationSuccess() {
 	require.Equal(rest.T(), orgName, org.Name)
 	require.Equal(rest.T(), 1, len(org.Roles))
 	require.Equal(rest.T(), OrganizationOwnerRole, org.Roles[0])
+}
+
+func (rest *TestOrganizationREST) TestListOrganizationUnauthorized() {
+	service, controller := rest.UnsecuredController()
+	test.ListOrganizationUnauthorized(rest.T(), service.Context, service, controller)
 }
