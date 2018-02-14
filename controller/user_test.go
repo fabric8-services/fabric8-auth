@@ -2,7 +2,6 @@ package controller_test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"net/http"
 	"testing"
 	"time"
