@@ -1,18 +1,17 @@
 package gormtestsupport
 
 import (
+	"context"
 	"os"
 
+	"github.com/fabric8-services/fabric8-auth/application"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
-	"context"
-
-	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq" // need to import postgres driver
 	"github.com/stretchr/testify/suite"
@@ -32,7 +31,8 @@ type DBTestSuite struct {
 	Configuration *config.ConfigurationData
 	DB            *gorm.DB
 	Application   application.DB
-	clean         func()
+	cleanTest     func()
+	cleanSuite    func()
 	Ctx           context.Context
 }
 
@@ -58,16 +58,17 @@ func (s *DBTestSuite) SetupSuite() {
 	s.Application = gormapplication.NewGormDB(s.DB)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
+	s.cleanSuite = cleaner.DeleteCreatedEntities(s.DB)
 }
 
 // SetupTest implements suite.SetupTest
 func (s *DBTestSuite) SetupTest() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
+	s.cleanTest = cleaner.DeleteCreatedEntities(s.DB)
 }
 
 // TearDownTest implements suite.TearDownTest
 func (s *DBTestSuite) TearDownTest() {
-	s.clean()
+	s.cleanTest()
 }
 
 // PopulateDBTestSuite populates the DB with common values
@@ -76,6 +77,7 @@ func (s *DBTestSuite) PopulateDBTestSuite(ctx context.Context) {
 
 // TearDownSuite implements suite.TearDownAllSuite
 func (s *DBTestSuite) TearDownSuite() {
+	s.cleanSuite()
 	s.DB.Close()
 }
 
