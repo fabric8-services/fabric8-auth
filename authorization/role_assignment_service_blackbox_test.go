@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/model"
+	"github.com/fabric8-services/fabric8-auth/authorization/assignment"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -25,7 +25,7 @@ func TestRunRoleAssignmentServiceBlackboxTest(t *testing.T) {
 
 func (s *roleAssignmentServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	modelService := model.NewRoleAssignmentModelService(s.DB, s.Application)
+	modelService := assignment.NewRoleAssignmentModelService(s.DB, s.Application)
 	s.assignmentService = authorization.NewRoleAssignmentService(modelService, s.Application)
 }
 func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRoleByResource() {

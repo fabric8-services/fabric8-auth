@@ -1,9 +1,9 @@
-package model
+package assignment
 
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/model/repositories"
+	"github.com/fabric8-services/fabric8-auth/authorization/repositories"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -15,7 +15,6 @@ import (
 )
 
 type RoleAssignmentModelService interface {
-	//Assign(ctx context.Context, resourceID string) ([]role.IdentityRole,error)
 	ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error)
 }
 

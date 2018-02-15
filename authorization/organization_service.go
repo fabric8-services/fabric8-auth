@@ -3,8 +3,8 @@ package authorization
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization/common"
-	"github.com/fabric8-services/fabric8-auth/authorization/model"
+	"github.com/fabric8-services/fabric8-auth/authorization/organization"
+	"github.com/fabric8-services/fabric8-auth/authorization/organization/common"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -14,11 +14,11 @@ type OrganizationService interface {
 }
 
 type OrganizationServiceImpl struct {
-	modelService model.OrganizationModelService
+	modelService organization.OrganizationModelService
 	db           application.DB
 }
 
-func NewOrganizationService(modelService model.OrganizationModelService, db application.DB) OrganizationService {
+func NewOrganizationService(modelService organization.OrganizationModelService, db application.DB) OrganizationService {
 	return &OrganizationServiceImpl{modelService: modelService, db: db}
 }
 

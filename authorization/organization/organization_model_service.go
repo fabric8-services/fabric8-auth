@@ -1,11 +1,11 @@
-package model
+package organization
 
 import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/common"
-	"github.com/fabric8-services/fabric8-auth/authorization/model/repositories"
+	"github.com/fabric8-services/fabric8-auth/authorization/organization/common"
+	"github.com/fabric8-services/fabric8-auth/authorization/repositories"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"

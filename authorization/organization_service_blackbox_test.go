@@ -5,13 +5,13 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/model"
+	"github.com/fabric8-services/fabric8-auth/authorization/organization"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/satori/go.uuid"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/common"
+	"github.com/fabric8-services/fabric8-auth/authorization/organization/common"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -41,7 +41,7 @@ func (s *organizationServiceBlackBoxTest) SetupTest() {
 	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
 
-	s.orgService = model.NewOrganizationModelService(s.DB, &test.TestRepositories{
+	s.orgService = organization.NewOrganizationModelService(s.DB, &test.TestRepositories{
 		FIdentityRepository:     s.identityRepo,
 		FIdentityRoleRepository: s.identityRoleRepo,
 		FResourceRepository:     s.resourceRepo,
