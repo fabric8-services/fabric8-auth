@@ -14,11 +14,12 @@ import (
 	"time"
 )
 
+// RoleAssignmentModelService defines the service contract for managing role assignments
 type RoleAssignmentModelService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error)
 }
 
-// NewOrganizationModelService creates a new service.
+// NewRoleAssignmentModelService creates a new service to manage role assignments
 func NewRoleAssignmentModelService(db *gorm.DB, repo repositories.Repositories) *GormRoleAssignmentModelService {
 	return &GormRoleAssignmentModelService{
 		db:           db,
@@ -26,11 +27,13 @@ func NewRoleAssignmentModelService(db *gorm.DB, repo repositories.Repositories) 
 	}
 }
 
+// GormRoleAssignmentModelService implements the RoleAssignmentModelService to manage role assignments
 type GormRoleAssignmentModelService struct {
 	db           *gorm.DB
 	repositories repositories.Repositories
 }
 
+// ListByResource lists role assignments of a specific resource.
 func (r *GormRoleAssignmentModelService) ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []role.IdentityRole

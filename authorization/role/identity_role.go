@@ -62,7 +62,6 @@ type IdentityRoleRepository interface {
 	Create(ctx context.Context, u *IdentityRole) error
 	Save(ctx context.Context, u *IdentityRole) error
 	List(ctx context.Context) ([]IdentityRole, error)
-	ListAssignedRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 }
 
@@ -156,109 +155,6 @@ func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) e
 	}, "Identity role deleted!")
 
 	return nil
-}
-
-// ListAssignedRolesByResource returns all assigned roles associated with a specific resource
-func (m *GormIdentityRoleRepository) ListAssignedRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
-	var identityRoles []IdentityRole
-
-	m.db = m.db.Debug()
-	db := m.db.Raw(`WITH RECURSIVE q AS ( 
-		SELECT 
-		  resource_id, parent_resource_id 
-		FROM 
-		  resource 
-		WHERE 
-		  resource_id = ?
-		UNION ALL
-		SELECT 
-		  p.resource_id, p.parent_resource_id
-		FROM 
-		  resource p
-		JOIN q ON 
-		  q.parent_resource_id = p.resource_id)
-	  SELECT 
-		q.parent_resource_id,q.resource_id, ir.identity_role_id, ir.identity_id, r.role_id, r.name 
-	  FROM 
-		identity_role ir, q, role r
-	  WHERE 
-		ir.resource_id = q.resource_id 
-		and ir.role_id = r.role_id`, resourceID)
-
-	rows, err := db.Rows()
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": resourceID,
-			"err":         err,
-		}, "error running custom sql to get identity roles")
-		return identityRoles, err
-	}
-	defer rows.Close()
-
-	columns, err := rows.Columns()
-	columnValues := make([]interface{}, len(columns))
-
-	var ignore interface{}
-	for index := range columnValues {
-		columnValues[index] = &ignore
-	}
-
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": resourceID,
-			"err":         err,
-		}, "error getting columns")
-		return identityRoles, errors.NewInternalError(ctx, err)
-	}
-
-	for rows.Next() {
-		var parentResourceID *string
-		var returnedResourceID string
-		var identityRoleID string
-		var identityID string
-		var roleID string
-		var roleName string
-
-		columnValues[0] = &parentResourceID
-		columnValues[1] = &returnedResourceID
-		columnValues[2] = &identityRoleID
-		columnValues[3] = &identityID
-		columnValues[4] = &roleID
-		columnValues[5] = &roleName
-
-		if err = rows.Scan(columnValues...); err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": resourceID,
-				"err":         err,
-			}, "error getting rows")
-			return identityRoles, errors.NewInternalError(ctx, err)
-		}
-		identityRoleIDAsUUID, _ := uuid.FromString(identityRoleID)
-		identityIDAsUUID, _ := uuid.FromString(identityID)
-		roleIDAsUUID, _ := uuid.FromString(roleID)
-
-		ir := IdentityRole{
-			IdentityRoleID: identityRoleIDAsUUID,
-			Identity: account.Identity{
-				ID: identityIDAsUUID,
-			},
-			Resource: resource.Resource{
-				ResourceID:       resourceID,
-				ParentResourceID: parentResourceID,
-			},
-			Role: Role{
-				RoleID: roleIDAsUUID,
-				Name:   roleName,
-			},
-		}
-		if parentResourceID != nil {
-			ir.Resource.ParentResourceID = parentResourceID
-		}
-		identityRoles = append(identityRoles, ir)
-	}
-	return identityRoles, nil
-
 }
 
 // List returns all identity roles
