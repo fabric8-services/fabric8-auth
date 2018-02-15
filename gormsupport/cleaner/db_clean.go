@@ -15,8 +15,6 @@ import (
 // and returns a function which can be called on defer to delete created
 // entities in reverse order on function exit.
 //
-// In addition to that, the WIT cache is cleared as well in order to respect any
-// deletions made to the db.
 //
 // Usage:
 //

@@ -8,11 +8,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/goadesign/goa"
-
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -25,19 +23,13 @@ type TestResourceREST struct {
 	securedController *ResourceController
 }
 
-func (s *TestResourceREST) SetupSuite() {
-	s.DBTestSuite.SetupSuite()
-	var err error
-	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
-		"TestRegisterResourceCreated-"+uuid.NewV4().String(),
-		"TestRegisterResourceCreated")
-	require.Nil(s.T(), err)
-
+func (rest *TestResourceREST) SetupSuite() {
+	rest.DBTestSuite.SetupSuite()
 	sa := account.Identity{
 		Username: "fabric8-wit",
 	}
-	s.service = testsupport.ServiceAsServiceAccountUser("Resource-Service", sa)
-	s.securedController = NewResourceController(s.service, s.Application)
+	rest.service = testsupport.ServiceAsServiceAccountUser("Resource-Service", sa)
+	rest.securedController = NewResourceController(rest.service, rest.Application)
 }
 
 func TestRunResourceREST(t *testing.T) {
@@ -45,6 +37,12 @@ func TestRunResourceREST(t *testing.T) {
 }
 
 func (rest *TestResourceREST) SecuredController(identity account.Identity) (*goa.Service, *ResourceController) {
+	var err error
+	rest.testIdentity, err = testsupport.CreateTestIdentity(rest.DB,
+		"TestRegisterResourceCreated-"+uuid.NewV4().String(),
+		"TestRegisterResourceCreated")
+	require.Nil(rest.T(), err)
+
 	svc := testsupport.ServiceAsUser("Resource-Service", identity)
 	return svc, NewResourceController(svc, rest.Application)
 }
