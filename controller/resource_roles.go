@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
-	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
@@ -14,36 +14,44 @@ import (
 // ResourceRolesController implements the resource_roles resource.
 type ResourceRolesController struct {
 	*goa.Controller
-	db application.DB
+	db                    application.DB
+	roleAssignmentService authorization.RoleAssignmentService
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, db application.DB) *ResourceRolesController {
-	return &ResourceRolesController{Controller: service.NewController("ResourceRolesController"), db: db}
+func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService authorization.RoleAssignmentService) *ResourceRolesController {
+	return &ResourceRolesController{
+		Controller: service.NewController("ResourceRolesController"),
+		db:         db,
+		roleAssignmentService: assignmentService,
+	}
 }
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 
 	var roles []role.IdentityRole
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
+	/*
+		err := application.Transactional(c.db, func(appl application.Application) error {
+			err := appl.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"resource_id": ctx.ResourceID,
+				}, "does not exist")
+				return errors.NewNotFoundError("resource_id", ctx.ResourceID)
+			}
+			roles, err = appl.IdentityRoleRepository().ListAssignedRolesByResource(ctx, ctx.ResourceID)
+			if err != nil {
+				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+			}
+			log.Debug(ctx, map[string]interface{}{
 				"resource_id": ctx.ResourceID,
-			}, "does not exist")
-			return errors.NewNotFoundError("resource_id", ctx.ResourceID)
-		}
-		roles, err = appl.IdentityRoleRepository().ListAssignedRolesByResource(ctx, ctx.ResourceID)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-		}
-		log.Debug(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-		}, "fetched roles by resource")
+			}, "fetched roles by resource")
 
-		return err
-	})
+			return err
+		})
+	*/
+	roles, err := c.roleAssignmentService.ListByResource(ctx, ctx.ResourceID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
