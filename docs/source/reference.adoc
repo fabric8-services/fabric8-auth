@@ -28,6 +28,10 @@ image::login1.png[]
 .Login
 image::login2.png[]
 
+== Swagger API Documentation
+
+Full API documentation can be found on the link:http://swagger.goa.design/?url=github.com%2Ffabric8-services%2Ffabric8-auth%2Fdesign#[Goa Swagger generator site].
+
 == Service Accounts
 
 Service accounts are used to authenticate other services to enable them to participate in privileged service-to-service interactions.
