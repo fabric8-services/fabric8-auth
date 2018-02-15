@@ -5,6 +5,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/model"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/log"
 )
 
 type RoleAssignmentService interface {
@@ -26,6 +28,14 @@ func (r *RoleAssignmentServiceImpl) ListByResource(ctx context.Context, resource
 	var roles []role.IdentityRole
 	var err error
 	err = application.Transactional(r.db, func(appl application.Application) error {
+		err = appl.ResourceRepository().CheckExists(ctx, resourceID)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": resourceID,
+			}, "does not exist")
+			return errors.NewNotFoundError("resource_id", resourceID)
+		}
+
 		roles, err = r.modelService.ListByResource(ctx, resourceID)
 		return err
 	})

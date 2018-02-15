@@ -31,26 +31,7 @@ func NewResourceRolesController(service *goa.Service, db application.DB, assignm
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 
 	var roles []role.IdentityRole
-	/*
-		err := application.Transactional(c.db, func(appl application.Application) error {
-			err := appl.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"resource_id": ctx.ResourceID,
-				}, "does not exist")
-				return errors.NewNotFoundError("resource_id", ctx.ResourceID)
-			}
-			roles, err = appl.IdentityRoleRepository().ListAssignedRolesByResource(ctx, ctx.ResourceID)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-			}
-			log.Debug(ctx, map[string]interface{}{
-				"resource_id": ctx.ResourceID,
-			}, "fetched roles by resource")
 
-			return err
-		})
-	*/
 	roles, err := c.roleAssignmentService.ListByResource(ctx, ctx.ResourceID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
