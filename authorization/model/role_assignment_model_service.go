@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/authorization/model/repositories"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -19,7 +20,7 @@ type RoleAssignmentModelService interface {
 }
 
 // NewOrganizationModelService creates a new service.
-func NewRoleAssignmentModelService(db *gorm.DB, repo Repositories) *GormRoleAssignmentModelService {
+func NewRoleAssignmentModelService(db *gorm.DB, repo repositories.Repositories) *GormRoleAssignmentModelService {
 	return &GormRoleAssignmentModelService{
 		db:           db,
 		repositories: repo,
@@ -28,7 +29,7 @@ func NewRoleAssignmentModelService(db *gorm.DB, repo Repositories) *GormRoleAssi
 
 type GormRoleAssignmentModelService struct {
 	db           *gorm.DB
-	repositories Repositories
+	repositories repositories.Repositories
 }
 
 func (r *GormRoleAssignmentModelService) ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error) {

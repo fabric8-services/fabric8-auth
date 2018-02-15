@@ -1,4 +1,4 @@
-package model
+package repositories
 
 import (
 	"github.com/fabric8-services/fabric8-auth/account"

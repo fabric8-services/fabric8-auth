@@ -84,24 +84,6 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 	})
 }
 
-func (s *identityRoleBlackBoxTest) TestGetIdentityRoleByResource() {
-	t := s.T()
-	identityRole := createAndLoadIdentityRole(s)
-
-	identityRoles, err := s.repo.ListAssignedRolesByResource(s.Ctx, identityRole.Resource.ResourceID)
-	require.NoError(t, err)
-	require.Equal(t, identityRole.Resource.ResourceID, identityRoles[0].Resource.ResourceID)
-}
-
-func (s *identityRoleBlackBoxTest) TestGetIdentityRoleByResourceNotFound() {
-	t := s.T()
-	createAndLoadIdentityRole(s)
-
-	identityRoles, err := s.repo.ListAssignedRolesByResource(s.Ctx, uuid.NewV4().String())
-	require.NoError(t, err)
-	require.Equal(t, 0, len(identityRoles))
-}
-
 func (s *identityRoleBlackBoxTest) TestOKToSave() {
 	//identityRole := createAndLoadIdentityRole(s)
 

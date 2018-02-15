@@ -76,3 +76,29 @@ func CreateInheritedTestResource(ctx context.Context, db *gorm.DB, resourceType 
 	err := roleRepository.Create(ctx, &resourceRef)
 	return &resourceRef, err
 }
+
+func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityRole, error) {
+	resourceTypeRepo := resource.NewResourceTypeRepository(db)
+	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
+
+	if err != nil {
+		return nil, err
+	}
+
+	testResource, err := CreateTestResource(ctx, db, *resourceType, uuid.NewV4().String())
+	if err != nil {
+		return nil, err
+	}
+
+	testRole, err := CreateTestRole(ctx, db, *resourceType, uuid.NewV4().String())
+	if err != nil {
+		return nil, err
+	}
+
+	testIdentityRole, err := CreateTestIdentityRole(ctx, db, *testResource, *testRole)
+	if err != nil {
+		return nil, err
+	}
+
+	return testIdentityRole, nil
+}
