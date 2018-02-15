@@ -6,7 +6,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -21,21 +20,10 @@ import (
 
 type TestResourceRolesRest struct {
 	gormtestsupport.DBTestSuite
-	rolesRepository         role.RoleRepository
-	resourceRepository      resource.ResourceRepository
-	identityRolesRepository role.IdentityRoleRepository
-	resourceTypeRepository  resource.ResourceTypeRepository
 }
 
 func (s *TestResourceRolesRest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	var err error
-	s.identityRolesRepository = role.NewIdentityRoleRepository(s.DB)
-	s.resourceRepository = resource.NewResourceRepository(s.DB)
-	s.rolesRepository = role.NewRoleRepository(s.DB)
-	s.resourceTypeRepository = resource.NewResourceTypeRepository(s.DB)
-
-	require.Nil(s.T(), err)
 }
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
@@ -57,7 +45,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	err := testsupport.CreateTestIdentityAndUserInDB(rest.DB, &resourceOwner)
 	require.NoError(rest.T(), err)
 
-	areaResourceType, err := rest.resourceTypeRepository.Lookup(rest.Ctx, "openshift.io/resource/area")
+	areaResourceType, err := rest.Application.ResourceTypeRepository().Lookup(rest.Ctx, "openshift.io/resource/area")
 	require.NoError(rest.T(), err)
 
 	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceR")
@@ -102,7 +90,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 	err := testsupport.CreateTestIdentityAndUserInDB(rest.DB, &resourceOwner)
 	require.NoError(rest.T(), err)
 
-	areaResourceType, err := rest.resourceTypeRepository.Lookup(rest.Ctx, "openshift.io/resource/area")
+	areaResourceType, err := rest.Application.ResourceTypeRepository().Lookup(rest.Ctx, "openshift.io/resource/area")
 	require.NoError(rest.T(), err)
 
 	parentResourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceR")
