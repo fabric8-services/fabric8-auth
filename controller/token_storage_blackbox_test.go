@@ -269,7 +269,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenInvalidOnForcePullInt
 }
 
 // This test demonstrates that the token retrieval works successfully without the ForcePull option
-// When the ForcePull option is passed, we determine that the token is valid.
+// When the ForcePull option is passed, we determine that the token is invalid.
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenValidOnForcePullInternalError() {
 
