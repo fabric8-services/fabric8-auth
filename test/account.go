@@ -17,7 +17,7 @@ var TestUser = account.User{
 	ID:       uuid.NewV4(),
 	Email:    "testdeveloper@testalm.io",
 	FullName: "Test Developer",
-	Cluster:  "Test Cluster",
+	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUser2 only creates in memory obj for testing purposes.
@@ -27,6 +27,7 @@ var TestUser2 = account.User{
 	ID:       uuid.NewV4(),
 	Email:    "testdeveloper2@testalm.io",
 	FullName: "Test Developer 2",
+	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUser only creates in memory obj for testing purposes
@@ -34,7 +35,7 @@ var TestUser3 = account.User{
 	ID:       uuid.NewV4(),
 	Email:    uuid.NewV4().String(),
 	FullName: "Test Developer",
-	Cluster:  "Test Cluster",
+	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUserPrivate only creates in memory obj for testing purposes
@@ -42,7 +43,7 @@ var TestUserPrivate = account.User{
 	ID:           uuid.NewV4(),
 	Email:        uuid.NewV4().String(),
 	FullName:     "Test Developer",
-	Cluster:      "Test Cluster",
+	Cluster:      "https://api.starter-us-east-2.openshift.com",
 	EmailPrivate: true,
 }
 
@@ -102,7 +103,7 @@ func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (acco
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
 		FullName: "Test Developer",
-		Cluster:  "Test Cluster",
+		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
 	testIdentity := account.Identity{
 		Username:     username,

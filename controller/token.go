@@ -208,7 +208,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
 // Status checks if the stored external provider token is available.
 func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
-	_, errorResponse, err := c.retrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
+	appToken, errorResponse, err := c.retrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
 	if errorResponse != nil {
 		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
@@ -216,7 +216,12 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	return ctx.OK([]byte{})
+
+	tokeStatus := &app.ExternalTokenStatus{
+		Username:    appToken.Username,
+		ProviderURL: appToken.ProviderURL,
+	}
+	return ctx.OK(tokeStatus)
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
@@ -232,7 +237,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
 
-	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, req, forResource)
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, *currentIdentity, req, forResource)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -244,7 +249,8 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 			Scope:       "<unknown>",
 			AccessToken: osConfig.Cluster.ServiceAccountToken,
 			TokenType:   "bearer",
-			Username:    &osConfig.Cluster.ServiceAccountUsername,
+			Username:    osConfig.Cluster.ServiceAccountUsername,
+			ProviderURL: osConfig.Cluster.APIURL,
 		}
 		log.Info(ctx, map[string]interface{}{
 			"cluster": osConfig.Cluster.Name,
@@ -261,7 +267,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 		if err != nil {
 			return nil, errorResponse, err
 		}
-		appResponse = modelToAppExternalToken(updatedToken)
+		appResponse = modelToAppExternalToken(updatedToken, providerConfig.URL())
 		return &appResponse, nil, nil
 	}
 
@@ -291,7 +297,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 	if err != nil {
 		return nil, errorResponse, err
 	}
-	appResponse = modelToAppExternalToken(updatedToken)
+	appResponse = modelToAppExternalToken(updatedToken, providerConfig.URL())
 
 	return &appResponse, nil, nil
 }
@@ -305,7 +311,7 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
-	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, *currentIdentity, ctx.RequestData, ctx.For)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -615,12 +621,13 @@ func (c *TokenController) loadToken(ctx context.Context, providerConfig link.Pro
 	return externalToken, err
 }
 
-func modelToAppExternalToken(externalToken provider.ExternalToken) app.ExternalToken {
+func modelToAppExternalToken(externalToken provider.ExternalToken, providerURL string) app.ExternalToken {
 	return app.ExternalToken{
 		Scope:       externalToken.Scope,
 		AccessToken: externalToken.Token,
 		TokenType:   "bearer", // We aren't saving the token_type in the database
-		Username:    &externalToken.Username,
+		Username:    externalToken.Username,
+		ProviderURL: providerURL,
 	}
 }
 

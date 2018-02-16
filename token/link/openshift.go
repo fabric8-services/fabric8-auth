@@ -14,6 +14,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	OpenShiftProviderAlias = "openshift"
+)
+
 type OpenShiftIdentityProvider struct {
 	oauth.OauthIdentityProvider
 	Cluster configuration.OSOCluster
@@ -58,6 +62,10 @@ func (provider *OpenShiftIdentityProvider) Scopes() string {
 
 func (provider *OpenShiftIdentityProvider) TypeName() string {
 	return "openshift-v3"
+}
+
+func (provider *OpenShiftIdentityProvider) URL() string {
+	return provider.Cluster.APIURL
 }
 
 // Profile fetches a user profile from the Identity Provider
