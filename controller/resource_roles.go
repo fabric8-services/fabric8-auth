@@ -54,10 +54,7 @@ func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRol
 	return rolesList
 }
 func convertIdentityRoleToAppRole(ctx context.Context, r role.IdentityRole) *app.IdentityRolesData {
-	inherited := false
-	if r.Resource.ParentResourceID != nil {
-		inherited = true
-	}
+	inherited := r.Resource.ParentResourceID != nil
 	rolesData := app.IdentityRolesData{
 		Identifier:   r.IdentityRoleID.String(),
 		AssigneeID:   r.Identity.ID.String(),
