@@ -139,7 +139,6 @@ func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, po
 func (rest *TestResourceRolesRest) compare(createdRole role.IdentityRole, retrievedRole app.IdentityRolesData, isInherited bool) bool {
 	require.Equal(rest.T(), createdRole.IdentityRoleID.String(), retrievedRole.Identifier)
 	require.Equal(rest.T(), createdRole.IdentityID.String(), retrievedRole.AssigneeID)
-	require.Equal(rest.T(), createdRole.RoleID.String(), retrievedRole.RoleID)
 	require.Equal(rest.T(), createdRole.Role.Name, retrievedRole.RoleName)
 	require.Equal(rest.T(), "user", retrievedRole.AssigneeType)
 	if isInherited {
