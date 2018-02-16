@@ -109,9 +109,21 @@ func (r *GormRoleAssignmentModelService) ListByResource(ctx context.Context, res
 			}, "error getting rows")
 			return identityRoles, errors.NewInternalError(ctx, err)
 		}
-		identityRoleIDAsUUID, _ := uuid.FromString(identityRoleID)
-		identityIDAsUUID, _ := uuid.FromString(identityID)
-		roleIDAsUUID, _ := uuid.FromString(roleID)
+
+		identityRoleIDAsUUID, err := uuid.FromString(identityRoleID)
+		if err != nil {
+			return identityRoles, errors.NewInternalError(ctx, err)
+		}
+
+		identityIDAsUUID, err := uuid.FromString(identityID)
+		if err != nil {
+			return identityRoles, errors.NewInternalError(ctx, err)
+		}
+
+		roleIDAsUUID, err := uuid.FromString(roleID)
+		if err != nil {
+			return identityRoles, errors.NewInternalError(ctx, err)
+		}
 
 		ir := role.IdentityRole{
 			IdentityRoleID: identityRoleIDAsUUID,
