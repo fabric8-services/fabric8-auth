@@ -46,20 +46,6 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 	})
 }
 
-func convertRoleToAppRoles(ctx context.Context, roles []role.Role) []*app.RolesData {
-	var rolesList []*app.RolesData
-	for _, r := range roles {
-		rolesList = append(rolesList, convertRoleToAppRole(ctx, r))
-	}
-	return rolesList
-}
-func convertRoleToAppRole(ctx context.Context, r role.Role) *app.RolesData {
-	return &app.RolesData{
-		RoleID:   r.RoleID.String(),
-		RoleName: r.Name,
-	}
-}
-
 func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRole) []*app.IdentityRolesData {
 	var rolesList []*app.IdentityRolesData
 	for _, r := range roles {
