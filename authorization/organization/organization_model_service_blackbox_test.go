@@ -39,13 +39,7 @@ func (s *organizationModelServiceBlackBoxTest) SetupTest() {
 	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
 
-	s.orgModelService = NewOrganizationModelService(s.DB, &test.TestRepositories{
-		FIdentityRepository:     s.identityRepo,
-		FIdentityRoleRepository: s.identityRoleRepo,
-		FResourceRepository:     s.resourceRepo,
-		FResourceTypeRepository: s.resourceTypeRepo,
-		FRoleRepository:         s.roleRepo,
-	})
+	s.orgModelService = NewOrganizationModelService(s.DB, s.Application)
 }
 
 func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
