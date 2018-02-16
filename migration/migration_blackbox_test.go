@@ -14,7 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/organization/common"
+	"github.com/fabric8-services/fabric8-auth/authorization/common"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"

@@ -1,10 +1,11 @@
-package organization
+package models_test
 
 import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/organization/common"
+	"github.com/fabric8-services/fabric8-auth/authorization/common"
+	"github.com/fabric8-services/fabric8-auth/authorization/models"
 	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -23,7 +24,7 @@ type organizationModelServiceBlackBoxTest struct {
 	resourceRepo     resource.ResourceRepository
 	resourceTypeRepo resource.ResourceTypeRepository
 	roleRepo         role.RoleRepository
-	orgModelService  OrganizationModelService
+	orgModelService  models.OrganizationModelService
 }
 
 func TestRunOrganizationModelServiceBlackBoxTest(t *testing.T) {
@@ -39,7 +40,7 @@ func (s *organizationModelServiceBlackBoxTest) SetupTest() {
 	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
 
-	s.orgModelService = NewOrganizationModelService(s.DB, s.Application)
+	s.orgModelService = models.NewOrganizationModelService(s.DB, s.Application)
 }
 
 func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {

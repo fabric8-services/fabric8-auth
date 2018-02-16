@@ -30,8 +30,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/assignment"
-	"github.com/fabric8-services/fabric8-auth/authorization/organization"
+	"github.com/fabric8-services/fabric8-auth/authorization/models"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -184,7 +183,7 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
-	roleAssignmentModelService := assignment.NewRoleAssignmentModelService(db, appDB)
+	roleAssignmentModelService := models.NewRoleAssignmentModelService(db, appDB)
 	roleAssignmentService := authorization.NewRoleAssignmentService(roleAssignmentModelService, appDB)
 	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleAssignmentService)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
@@ -255,7 +254,7 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationModelService := organization.NewOrganizationModelService(db, appDB)
+	organizationModelService := models.NewOrganizationModelService(db, appDB)
 	organizationService := authorization.NewOrganizationService(organizationModelService, appDB)
 	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationService)
 	app.MountOrganizationController(service, organizationCtrl)

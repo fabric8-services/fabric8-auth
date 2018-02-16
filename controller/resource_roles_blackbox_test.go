@@ -7,7 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/assignment"
+	"github.com/fabric8-services/fabric8-auth/authorization/models"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -30,7 +30,7 @@ func (s *TestResourceRolesRest) SetupSuite() {
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
 	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
-	roleAssignmentModelService := assignment.NewRoleAssignmentModelService(rest.DB, rest.Application)
+	roleAssignmentModelService := models.NewRoleAssignmentModelService(rest.DB, rest.Application)
 	roleAssignmentService := authorization.NewRoleAssignmentService(roleAssignmentModelService, rest.Application)
 	return svc, NewResourceRolesController(svc, rest.Application, roleAssignmentService)
 }

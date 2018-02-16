@@ -14,7 +14,7 @@ import (
 	"github.com/goadesign/goa"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/organization"
+	"github.com/fabric8-services/fabric8-auth/authorization/models"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -30,7 +30,7 @@ type TestOrganizationREST struct {
 
 func (s *TestOrganizationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.orgService = organization.NewOrganizationModelService(s.DB, s.Application)
+	s.orgService = models.NewOrganizationModelService(s.DB, s.Application)
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,

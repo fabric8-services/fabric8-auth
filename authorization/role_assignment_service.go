@@ -3,7 +3,7 @@ package authorization
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization/assignment"
+	"github.com/fabric8-services/fabric8-auth/authorization/models"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -16,12 +16,12 @@ type RoleAssignmentService interface {
 
 // RoleAssignmentServiceImpl implements the RoleAssignmentService for managing role assignments.
 type RoleAssignmentServiceImpl struct {
-	modelService assignment.RoleAssignmentModelService
+	modelService models.RoleAssignmentModelService
 	db           application.DB
 }
 
 // NewRoleAssignmentService creates a reference to new RoleAssignmentService implementation
-func NewRoleAssignmentService(modelService assignment.RoleAssignmentModelService, db application.DB) *RoleAssignmentServiceImpl {
+func NewRoleAssignmentService(modelService models.RoleAssignmentModelService, db application.DB) *RoleAssignmentServiceImpl {
 	return &RoleAssignmentServiceImpl{modelService: modelService, db: db}
 }
 
