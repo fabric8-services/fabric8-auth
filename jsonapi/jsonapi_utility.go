@@ -17,6 +17,7 @@ const (
 	ErrorCodeNotFound          = "not_found"
 	ErrorCodeBadParameter      = "bad_parameter"
 	ErrorCodeVersionConflict   = "version_conflict"
+	ErrorCodeDataConflict      = "data_conflict"
 	ErrorCodeUnknownError      = "unknown_error"
 	ErrorCodeConversionError   = "conversion_error"
 	ErrorCodeInternalError     = "internal_error"
@@ -52,6 +53,10 @@ func ErrorToJSONAPIError(ctx context.Context, err error) (app.JSONAPIError, int)
 	case errors.VersionConflictError:
 		code = ErrorCodeVersionConflict
 		title = "Version conflict error"
+		statusCode = http.StatusConflict
+	case errors.DataConflictError:
+		code = ErrorCodeDataConflict
+		title = "Data conflict error"
 		statusCode = http.StatusConflict
 	case errors.InternalError:
 		code = ErrorCodeInternalError

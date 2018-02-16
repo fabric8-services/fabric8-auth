@@ -64,7 +64,44 @@ func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resource.
 	return &resourceRef, err
 }
 
+func CreateTestResourceWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*resource.Resource, error) {
+
+	resourceTypeRepo := resource.NewResourceTypeRepository(db)
+	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
+
+	if err != nil {
+		return nil, err
+	}
+	resourceRef := resource.Resource{
+		ResourceType:   *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
+		Name:           name,
+		ResourceID:     uuid.NewV4().String(),
+	}
+	roleRepository := resource.NewResourceRepository(db)
+	err = roleRepository.Create(ctx, &resourceRef)
+	return &resourceRef, err
+}
+
+func CreateTestRoleWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*role.Role, error) {
+	resourceTypeRepo := resource.NewResourceTypeRepository(db)
+	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
+
+	if err != nil {
+		return nil, err
+	}
+	roleRef := role.Role{
+		ResourceType:   *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
+		Name:           name,
+	}
+	roleRepository := role.NewRoleRepository(db)
+	err = roleRepository.Create(ctx, &roleRef)
+	return &roleRef, err
+}
+
 func CreateInheritedTestResource(ctx context.Context, db *gorm.DB, resourceType resource.ResourceType, name string, parentResource resource.Resource) (*resource.Resource, error) {
+
 	resourceRef := resource.Resource{
 		ResourceType:     resourceType,
 		ResourceTypeID:   resourceType.ResourceTypeID,
