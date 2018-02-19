@@ -5,11 +5,13 @@ These instructions will help you run your services on OpenShift using MiniShift.
 ### Prerequisites
 
 
-[Kedge](kedgeproject.org)
+[Kedge 0.9.0](kedgeproject.org)
 
-[MiniShift](https://docs.openshift.org/latest/minishift/getting-started/installing.html)
+[MiniShift v1.13.1](https://docs.openshift.org/latest/minishift/getting-started/installing.html)
 
-[Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+[Kubectl 1.9.3](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+
+[KVM Hypervisor](https://www.linux-kvm.org/page/Downloads)
 
 
 ### Installation (Linux)
@@ -19,7 +21,7 @@ These instructions will help you run your services on OpenShift using MiniShift.
 Following steps will download and install Kedge on your machine and put it in your $PATH. For more detailed information please visit [kedgeproject.org](http://kedgeproject.org/)
 
 ```
-curl -L https://github.com/kedgeproject/kedge/releases/download/v0.5.1/kedge-linux-amd64 -o kedge
+curl -L https://github.com/kedgeproject/kedge/releases/download/v0.9.0/kedge-linux-amd64 -o kedge
 ```
 
 Verify installation by running following command, you should get version number.
