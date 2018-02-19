@@ -41,8 +41,8 @@ func TestRunResourceRolesRest(t *testing.T) {
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 
+	// Create a role for the inbuild resource type
 	// Create a resource of the inbuilt resource type
-	// Create a role for that resource type
 	// Create two assignments for that role.
 
 	resourceOwner := testsupport.TestIdentity2
@@ -53,6 +53,10 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	require.NoError(rest.T(), err)
 
 	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceR")
+	require.NoError(rest.T(), err)
+
+	// assigned roles for this should not be returned.
+	resourceRefUnrelated, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceRUnrelated")
 	require.NoError(rest.T(), err)
 
 	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
@@ -69,6 +73,13 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	require.NoError(rest.T(), err)
 	require.NotNil(rest.T(), identityRoleRef2)
 	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRef2)
+
+	// this assigned role should not be returned when we later
+	// on list the assigned roles.
+	identityRoleRefUnrelated, err := testsupport.CreateTestIdentityRole(rest.Ctx, rest.DB, *resourceRefUnrelated, *roleRef)
+	require.NoError(rest.T(), err)
+	require.NotNil(rest.T(), identityRoleRefUnrelated)
+	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRefUnrelated)
 
 	svc, ctrl := rest.SecuredControllerWithIdentity(testsupport.TestIdentity)
 	_, returnedIdentityRoles := test.ListAssignedResourceRolesOK(rest.T(), rest.Ctx, svc, ctrl, resourceRef.ResourceID)
@@ -87,8 +98,8 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 	// Create a resource of the inbuilt resource type
 	// Create a child resource of the above resource
 	// Create a role for that resource type
-	// Create two assignments for that role.
-	// Validate for 'Inherited' field's response.
+	// Create two assignments for that role
+	// Validate for 'Inherited' field's response
 
 	resourceOwner := testsupport.TestIdentity2
 	err := testsupport.CreateTestIdentityAndUserInDB(rest.DB, &resourceOwner)
