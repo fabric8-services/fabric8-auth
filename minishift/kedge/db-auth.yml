@@ -9,5 +9,7 @@ deployments:
 
 services:
 - name: db-auth
-  portMappings:
-  - 5432:31001
+  type: NodePort
+  ports:
+  - port: 5432
+    nodePort: 31001
