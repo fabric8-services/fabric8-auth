@@ -62,7 +62,7 @@ func TestErrorToJSONAPIError(t *testing.T) {
 	require.Equal(t, jsonapi.ErrorCodeUnauthorizedError, *jerr.Code)
 	require.Equal(t, strconv.Itoa(httpStatus), *jerr.Status)
 
-	// test unauthorized error
+	// test dataConfict error
 	jerr, httpStatus = jsonapi.ErrorToJSONAPIError(nil, errors.NewDataConflictError("foo"))
 	require.Equal(t, http.StatusConflict, httpStatus)
 	require.NotNil(t, jerr.Code)

@@ -35,6 +35,7 @@ func (r *RoleAssignmentServiceImpl) ListByResource(ctx context.Context, resource
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"resource_id": resourceID,
+				"err":         err,
 			}, "does not exist")
 			return errors.NewNotFoundError("resource_id", resourceID)
 		}
