@@ -217,11 +217,11 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	tokeStatus := &app.ExternalTokenStatus{
-		Username:    appToken.Username,
-		ProviderURL: appToken.ProviderURL,
+	tokenStatus := &app.ExternalTokenStatus{
+		Username:       appToken.Username,
+		ProviderAPIURL: appToken.ProviderAPIURL,
 	}
-	return ctx.OK(tokeStatus)
+	return ctx.OK(tokenStatus)
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
@@ -246,11 +246,11 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant) {
 		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
 		clusterToken := app.ExternalToken{
-			Scope:       "<unknown>",
-			AccessToken: osConfig.Cluster.ServiceAccountToken,
-			TokenType:   "bearer",
-			Username:    osConfig.Cluster.ServiceAccountUsername,
-			ProviderURL: osConfig.Cluster.APIURL,
+			Scope:          "<unknown>",
+			AccessToken:    osConfig.Cluster.ServiceAccountToken,
+			TokenType:      "bearer",
+			Username:       osConfig.Cluster.ServiceAccountUsername,
+			ProviderAPIURL: osConfig.Cluster.APIURL,
 		}
 		log.Info(ctx, map[string]interface{}{
 			"cluster": osConfig.Cluster.Name,
@@ -621,13 +621,13 @@ func (c *TokenController) loadToken(ctx context.Context, providerConfig link.Pro
 	return externalToken, err
 }
 
-func modelToAppExternalToken(externalToken provider.ExternalToken, providerURL string) app.ExternalToken {
+func modelToAppExternalToken(externalToken provider.ExternalToken, providerAPIURL string) app.ExternalToken {
 	return app.ExternalToken{
-		Scope:       externalToken.Scope,
-		AccessToken: externalToken.Token,
-		TokenType:   "bearer", // We aren't saving the token_type in the database
-		Username:    externalToken.Username,
-		ProviderURL: providerURL,
+		Scope:          externalToken.Scope,
+		AccessToken:    externalToken.Token,
+		TokenType:      "bearer", // We aren't saving the token_type in the database
+		Username:       externalToken.Username,
+		ProviderAPIURL: providerAPIURL,
 	}
 }
 

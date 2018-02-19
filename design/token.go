@@ -14,8 +14,8 @@ var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 		a.Attribute("scope", d.String, "The scope associated with the token")
 		a.Attribute("token_type", d.String, "The type of the toke, example : bearer")
 		a.Attribute("username", d.String, "The username of the identity loaded from the specific external provider")
-		a.Attribute("provider_url", d.String, "The external provider URL.")
-		a.Required("access_token", "scope", "token_type", "username", "provider_url")
+		a.Attribute("provider_api_url", d.String, "The external provider URL.")
+		a.Required("access_token", "scope", "token_type", "username", "provider_api_url")
 	})
 
 	a.View("default", func() {
@@ -23,8 +23,8 @@ var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 		a.Attribute("scope")
 		a.Attribute("token_type")
 		a.Attribute("username")
-		a.Attribute("provider_url")
-		a.Required("access_token", "scope", "token_type", "username", "provider_url")
+		a.Attribute("provider_api_url")
+		a.Required("access_token", "scope", "token_type", "username", "provider_api_url")
 	})
 })
 
@@ -34,14 +34,14 @@ var externalTokenStatus = a.MediaType("application/vnd.externalTokenStatus+json"
 	a.Description("This endpoint can be used to obtain a status of the available token from external providers such as GitHub or OpenShift")
 	a.Attributes(func() {
 		a.Attribute("username", d.String, "The username of the identity loaded from the specific external provider.")
-		a.Attribute("provider_url", d.String, "The external provider URL.")
-		a.Required("username", "provider_url")
+		a.Attribute("provider_api_url", d.String, "The external provider URL.")
+		a.Required("username", "provider_api_url")
 	})
 
 	a.View("default", func() {
 		a.Attribute("username")
-		a.Attribute("provider_url")
-		a.Required("username", "provider_url")
+		a.Attribute("provider_api_url")
+		a.Required("username", "provider_api_url")
 	})
 })
 

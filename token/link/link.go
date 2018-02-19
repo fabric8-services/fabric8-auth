@@ -17,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -276,19 +277,17 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 		// Look up the user's OpenShift cluster
 		var clusterURL string
 		err := application.Transactional(service.db, func(appl application.Application) error {
-			identity, err := appl.Identities().Load(ctx, identityID)
+			identities, err := appl.Identities().Query(account.IdentityFilterByID(identityID), account.IdentityWithUser())
 			if err != nil {
 				return err
 			}
-			userID := identity.UserID
-			if !userID.Valid {
+			if len(identities) == 0 {
+				return errors.New("identity not found")
+			}
+			if identities[0].User.ID == uuid.Nil {
 				return errors.New("unable to load user for identity")
 			}
-			user, err := appl.Users().Load(ctx, userID.UUID)
-			if err != nil {
-				return err
-			}
-			clusterURL = user.Cluster
+			clusterURL = identities[0].User.Cluster
 			return nil
 		})
 		if err != nil {

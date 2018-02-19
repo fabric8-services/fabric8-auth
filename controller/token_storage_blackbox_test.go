@@ -100,7 +100,7 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 		assert.Equal(rest.T(), "bearer", tokenResponse.TokenType)
 		require.NotNil(rest.T(), tokenResponse.Username)
 		assert.Equal(rest.T(), "dsaas", tokenResponse.Username)
-		assert.Equal(rest.T(), cluster.APIURL, tokenResponse.ProviderURL)
+		assert.Equal(rest.T(), cluster.APIURL, tokenResponse.ProviderAPIURL)
 	}
 }
 
@@ -137,7 +137,7 @@ func (rest *TestTokenStorageREST) assertKeycloakTokenResponse(expectedProviderUR
 	require.Equal(rest.T(), expected.Scope, actual.Scope)
 	require.Equal(rest.T(), expected.TokenType, actual.TokenType)
 	require.Equal(rest.T(), expected.AccessToken+"testuser", actual.Username)
-	require.Equal(rest.T(), expectedProviderURL, actual.ProviderURL)
+	require.Equal(rest.T(), expectedProviderURL, actual.ProviderAPIURL)
 }
 
 // Not present in DB but present in Keycloak
@@ -270,7 +270,7 @@ func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess(scena
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
-	require.Equal(rest.T(), "https://github.com", tokenResponse.ProviderURL)
+	require.Equal(rest.T(), "https://github.com", tokenResponse.ProviderAPIURL)
 
 	// Alias
 	_, tokenResponse = test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "github", nil)
@@ -278,7 +278,7 @@ func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess(scena
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
-	require.Equal(rest.T(), "https://github.com", tokenResponse.ProviderURL)
+	require.Equal(rest.T(), "https://github.com", tokenResponse.ProviderAPIURL)
 
 	return identity, expectedToken
 }
@@ -311,7 +311,7 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess(scenario
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
-	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com", tokenResponse.ProviderURL)
+	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com", tokenResponse.ProviderAPIURL)
 
 	// Alias
 	_, tokenResponse = test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "openshift", nil)
@@ -319,7 +319,7 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess(scenario
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
-	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com", tokenResponse.ProviderURL)
+	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com", tokenResponse.ProviderAPIURL)
 
 	return identity, expectedToken
 }
@@ -416,13 +416,13 @@ func (rest *TestTokenStorageREST) TestStatusExternalTokenGithubOK() {
 func (rest *TestTokenStorageREST) assertTokenStatusAndTokenResponse(expectedTokenResponse *keycloak.KeycloakExternalTokenResponse, expectedURL string, actualStatus *app.ExternalTokenStatus) {
 	require.NotNil(rest.T(), actualStatus)
 	assert.Equal(rest.T(), expectedTokenResponse.AccessToken+"testuser", actualStatus.Username)
-	assert.Equal(rest.T(), expectedURL, actualStatus.ProviderURL)
+	assert.Equal(rest.T(), expectedURL, actualStatus.ProviderAPIURL)
 }
 
 func (rest *TestTokenStorageREST) assertTokenStatus(expectedUsername, expectedURL string, actualStatus *app.ExternalTokenStatus) {
 	require.NotNil(rest.T(), actualStatus)
 	assert.Equal(rest.T(), expectedUsername, actualStatus.Username)
-	assert.Equal(rest.T(), expectedURL, actualStatus.ProviderURL)
+	assert.Equal(rest.T(), expectedURL, actualStatus.ProviderAPIURL)
 }
 
 // Not present in Keycloak but present in DB.
