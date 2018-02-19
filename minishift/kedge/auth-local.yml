@@ -1,16 +1,15 @@
 name: auth
-containers:
-- image: fabric8/fabric8-auth:dev
-  env:
-  - name: AUTH_DEVELOPER_MODE_ENABLED
-    value: "true"
-  - name: AUTH_POSTGRES_HOST
-    value: "db-auth"
-  - name: AUTH_POSTGRES_PORT
-    value: "5432"
+deployments:
+- containers:
+  - image: fabric8/fabric8-auth:dev
+    env:
+    - name: AUTH_DEVELOPER_MODE_ENABLED
+      value: "true"
+    - name: AUTH_POSTGRES_HOST
+      value: "db-auth"
+    - name: AUTH_POSTGRES_PORT
+      value: "5432"
 services:
 - name: auth
-  type: NodePort
-  ports:
-  - port: 8089
-    nodePort: 31000
+  portMappings:
+  - 8089:31000
