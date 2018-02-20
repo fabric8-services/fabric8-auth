@@ -231,7 +231,7 @@ func (s *roleAssignmentServiceBlackboxTest) compare(createdRole role.IdentityRol
 
 	if isInherited {
 		require.NotNil(s.T(), createdRole.Resource.ParentResourceID)
-		require.Equal(s.T(), *createdRole.Resource.ParentResourceID, *createdRole.Resource.ParentResourceID)
+		require.Equal(s.T(), *createdRole.Resource.ParentResourceID, *retrievedRole.Resource.ParentResourceID)
 	} else {
 		require.Nil(s.T(), retrievedRole.Resource.ParentResourceID)
 	}
