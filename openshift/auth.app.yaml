@@ -82,6 +82,11 @@ objects:
               secretKeyRef:
                 name: auth
                 key: github.client.secret
+          - name: SENTRY_DSN
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: sentry.dsn
           - name: AUTH_OSO_CLIENT_APIURL
             valueFrom:
               secretKeyRef:
