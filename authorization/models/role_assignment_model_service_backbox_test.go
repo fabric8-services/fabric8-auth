@@ -32,10 +32,17 @@ func (s *roleAssignmentModelServiceBlackboxTest) TestGetIdentityRoleByResource()
 	require.NoError(t, err)
 	require.NotNil(t, identityRole)
 
+	// something that we dont want to be returned
+	identityRoleUnrelated, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	require.NoError(t, err)
+	require.NotNil(t, identityRoleUnrelated)
+
 	identityRoles, err := s.repo.ListByResource(s.Ctx, identityRole.Resource.ResourceID)
 	require.NoError(t, err)
-	require.Equal(t, true, len(identityRoles) >= 1)
+	require.Len(t, identityRoles, 1)
 	require.Equal(t, identityRole.Resource.ResourceID, identityRoles[0].Resource.ResourceID)
+	require.Equal(t, identityRole.Identity.ID, identityRoles[0].Identity.ID)
+	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
 }
 
 func (s *roleAssignmentModelServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
