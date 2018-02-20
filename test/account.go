@@ -26,7 +26,6 @@ var TestUser = account.User{
 var TestUser2 = account.User{
 	ID:       uuid.NewV4(),
 	Email:    "testdeveloper2@testalm.io" + uuid.NewV4().String(),
-	Cluster:  "Test Cluster",
 	FullName: "Test Developer 2",
 	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
