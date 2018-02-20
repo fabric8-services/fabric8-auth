@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	GitHubProviderID = "2f6b7176-8f4b-4204-962d-606033275397" // Do not change! This ID is used as provider ID in the external token table
+	GitHubProviderID    = "2f6b7176-8f4b-4204-962d-606033275397" // Do not change! This ID is used as provider ID in the external token table
+	GitHubProviderAlias = "github"
 )
 
 type GitHubIdentityProvider struct {
@@ -48,6 +49,10 @@ func (provider *GitHubIdentityProvider) Scopes() string {
 
 func (provider *GitHubIdentityProvider) TypeName() string {
 	return "github"
+}
+
+func (provider *GitHubIdentityProvider) URL() string {
+	return "https://github.com"
 }
 
 // Profile fetches a user profile from the Identity Provider

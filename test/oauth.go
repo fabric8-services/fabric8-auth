@@ -3,8 +3,8 @@ package test
 import (
 	"context"
 	"errors"
-	"fmt"
 
+	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
@@ -13,31 +13,27 @@ import (
 	"github.com/satori/go.uuid"
 	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	"strings"
 )
 
 type DummyProviderFactory struct {
 	Token           string
 	Config          *configuration.ConfigurationData
 	LoadProfileFail bool
+	DB              application.DB
 }
 
-func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (link.ProviderConfig, error) {
-	if strings.HasPrefix(forResource, "https://github.com") {
-		return &DummyProvider{factory: factory, id: link.GitHubProviderID, url: forResource, name: "github"}, nil
+func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (link.ProviderConfig, error) {
+	providerFactory := link.NewOauthProviderFactory(factory.Config, factory.DB)
+	provider, err := providerFactory.NewOauthProvider(ctx, identityID, req, forResource)
+	if err != nil {
+		return nil, err
 	}
-	if strings.HasPrefix(forResource, "https://api.starter-us-east-2.openshift.com") {
-		cluster := factory.Config.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"]
-		return &DummyProvider{factory: factory, id: cluster.TokenProviderID, url: forResource, name: "openshift-v3"}, nil
-	}
-	return nil, errors.New("unknown provider")
+	return &DummyProvider{factory: factory, providerConfig: provider}, nil
 }
 
 type DummyProvider struct {
-	factory *DummyProviderFactory
-	id      string
-	url     string
-	name    string
+	factory        *DummyProviderFactory
+	providerConfig link.ProviderConfig
 }
 
 func (provider *DummyProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
@@ -45,20 +41,23 @@ func (provider *DummyProvider) Exchange(ctx netcontext.Context, code string) (*o
 }
 
 func (provider *DummyProvider) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
-	return fmt.Sprintf("%s/oauth/authorize?state=%s", provider.url, state)
+	return provider.providerConfig.AuthCodeURL(state)
 }
 
 func (provider *DummyProvider) ID() uuid.UUID {
-	id, _ := uuid.FromString(provider.id)
-	return id
+	return provider.providerConfig.ID()
 }
 
 func (provider *DummyProvider) Scopes() string {
-	return "testscope"
+	return provider.providerConfig.Scopes()
 }
 
 func (provider *DummyProvider) TypeName() string {
-	return provider.name
+	return provider.providerConfig.TypeName()
+}
+
+func (provider *DummyProvider) URL() string {
+	return provider.providerConfig.URL()
 }
 
 func (provider *DummyProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {

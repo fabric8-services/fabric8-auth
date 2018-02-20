@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -33,6 +35,7 @@ type ProviderConfig interface {
 	ID() uuid.UUID
 	Scopes() string
 	TypeName() string
+	URL() string
 }
 
 // LinkOAuthService represents OAuth service interface for linking accounts
@@ -53,19 +56,21 @@ type LinkConfig interface {
 
 // OauthProviderFactory represents oauth provider factory
 type OauthProviderFactory interface {
-	NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error)
+	NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (ProviderConfig, error)
 }
 
 // NewOauthProviderFactory returns the default Oauth provider factory.
-func NewOauthProviderFactory(config LinkConfig) *OauthProviderFactoryService {
+func NewOauthProviderFactory(config LinkConfig, db application.DB) *OauthProviderFactoryService {
 	service := &OauthProviderFactoryService{
 		config: config,
+		db:     db,
 	}
 	return service
 }
 
 type OauthProviderFactoryService struct {
 	config LinkConfig
+	db     application.DB
 }
 
 // LinkService represents service for linking accounts
@@ -110,7 +115,11 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	linkURL.RawQuery = parameters.Encode()
 	redirectURL = linkURL.String()
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResources[0])
+	identityUUID, err := uuid.FromString(identityID)
+	if err != nil {
+		return "", err
+	}
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, identityUUID, req, forResources[0])
 	if err != nil {
 		return "", err
 	}
@@ -159,7 +168,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, req, forResource)
+	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, identityUUID, req, forResource)
 	if err != nil {
 		return "", err
 	}
@@ -256,9 +265,50 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 	return knownReferrer, nil
 }
 
-// NewOauthProvider creates a new oauth provider for the given resource URL
-func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context, req *goa.RequestData, forResource string) (ProviderConfig, error) {
+// NewOauthProvider creates a new oauth provider for the given resource URL or provider alias
+func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (ProviderConfig, error) {
 	authURL := rest.AbsoluteURL(req, "")
+
+	// Check if the forResource is actually a provider alias like "github" or "openshift"
+	if forResource == GitHubProviderAlias {
+		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
+	}
+	if forResource == OpenShiftProviderAlias {
+		// Look up the user's OpenShift cluster
+		var clusterURL string
+		err := application.Transactional(service.db, func(appl application.Application) error {
+			identities, err := appl.Identities().Query(account.IdentityFilterByID(identityID), account.IdentityWithUser())
+			if err != nil {
+				return err
+			}
+			if len(identities) == 0 {
+				return errors.New("identity not found")
+			}
+			if identities[0].User.ID == uuid.Nil {
+				return errors.New("unable to load user for identity")
+			}
+			clusterURL = identities[0].User.Cluster
+			return nil
+		})
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"identity_id": identityID,
+				"err":         err,
+			}, "unable to lookup user's cluster URL for identity %s", identityID)
+			return nil, errs.NewUnauthorizedError(err.Error())
+		}
+		cluster := service.config.GetOSOClusterByURL(clusterURL)
+		if cluster == nil {
+			log.Error(ctx, map[string]interface{}{
+				"for":         forResource,
+				"cluster_url": clusterURL,
+			}, "unable to find oauth config for provider alias")
+			return nil, errs.NewInternalErrorFromString(ctx, fmt.Sprintf("unable to load provider for cluster URL %s", clusterURL))
+		}
+		return NewOpenShiftIdentityProvider(*cluster, authURL)
+	}
+
+	// Check if the forResource is some known resource URL like "https://github.com" or "https://api.starter-us-east-2.openshift.com"
 	resourceURL, err := url.Parse(forResource)
 	if err != nil {
 		return nil, err

@@ -13,8 +13,9 @@ var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 		a.Attribute("access_token", d.String, "The token associated with the identity for the specific external provider")
 		a.Attribute("scope", d.String, "The scope associated with the token")
 		a.Attribute("token_type", d.String, "The type of the toke, example : bearer")
-		a.Attribute("username", d.String, "The username of the identity loaded from the specific external provider. Optional attribute.")
-		a.Required("access_token", "scope", "token_type")
+		a.Attribute("username", d.String, "The username of the identity loaded from the specific external provider")
+		a.Attribute("provider_api_url", d.String, "The external provider URL.")
+		a.Required("access_token", "scope", "token_type", "username", "provider_api_url")
 	})
 
 	a.View("default", func() {
@@ -22,9 +23,26 @@ var externalToken = a.MediaType("application/vnd.externalToken+json", func() {
 		a.Attribute("scope")
 		a.Attribute("token_type")
 		a.Attribute("username")
-		a.Required("access_token", "scope", "token_type")
+		a.Attribute("provider_api_url")
+		a.Required("access_token", "scope", "token_type", "username", "provider_api_url")
+	})
+})
+
+// externalTokenStatus represents a token status object
+var externalTokenStatus = a.MediaType("application/vnd.externalTokenStatus+json", func() {
+	a.TypeName("ExternalTokenStatus")
+	a.Description("This endpoint can be used to obtain a status of the available token from external providers such as GitHub or OpenShift")
+	a.Attributes(func() {
+		a.Attribute("username", d.String, "The username of the identity loaded from the specific external provider.")
+		a.Attribute("provider_api_url", d.String, "The external provider URL.")
+		a.Required("username", "provider_api_url")
 	})
 
+	a.View("default", func() {
+		a.Attribute("username")
+		a.Attribute("provider_api_url")
+		a.Required("username", "provider_api_url")
+	})
 })
 
 var _ = a.Resource("token", func() {
@@ -59,7 +77,7 @@ var _ = a.Resource("token", func() {
 			a.Required("for")
 		})
 		a.Description("Check if the external token is available. Returns 200 OK if the token is available and 401 Unauthorized if no token available")
-		a.Response(d.OK)
+		a.Response(d.OK, externalTokenStatus)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
