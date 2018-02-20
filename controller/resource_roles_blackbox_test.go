@@ -139,7 +139,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 
 func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, pool *app.Identityroles, isInherited bool) bool {
 	for _, retrievedRole := range pool.Data {
-		if retrievedRole.Identifier == createdRole.IdentityRoleID.String() {
+		if retrievedRole.AssigneeID == createdRole.IdentityID.String() {
 			rest.compare(createdRole, *retrievedRole, isInherited)
 			return true
 		}
@@ -148,7 +148,6 @@ func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, po
 }
 
 func (rest *TestResourceRolesRest) compare(createdRole role.IdentityRole, retrievedRole app.IdentityRolesData, isInherited bool) bool {
-	require.Equal(rest.T(), createdRole.IdentityRoleID.String(), retrievedRole.Identifier)
 	require.Equal(rest.T(), createdRole.IdentityID.String(), retrievedRole.AssigneeID)
 	require.Equal(rest.T(), createdRole.Role.Name, retrievedRole.RoleName)
 	require.Equal(rest.T(), "user", retrievedRole.AssigneeType)

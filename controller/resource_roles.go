@@ -56,7 +56,6 @@ func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRol
 func convertIdentityRoleToAppRole(ctx context.Context, r role.IdentityRole) *app.IdentityRolesData {
 	inherited := r.Resource.ParentResourceID != nil
 	rolesData := app.IdentityRolesData{
-		Identifier:   r.IdentityRoleID.String(),
 		AssigneeID:   r.Identity.ID.String(),
 		AssigneeType: "user", // will change for teams/orgs/groups
 		Inherited:    inherited,
