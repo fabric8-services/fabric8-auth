@@ -77,13 +77,13 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), identityRoleRefUnrelated)
 
-	// creating an AssignedRole for an inherited resource
+	// creating an AssignedRole for an child resource
 	identityRoleRef1, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *resourceRef, *roleRef)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), identityRoleRef1)
 	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRef1)
 
-	// creating an AssignedRole for an inherited resource
+	// creating an AssignedRole for an child resource
 	identityRoleRef2, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *resourceRef, *roleRef)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), identityRoleRef1)
