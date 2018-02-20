@@ -61,10 +61,10 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	areaResourceType, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, "openshift.io/resource/area")
 	require.NoError(s.T(), err)
 
-	parentResourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaDev")
+	parentResourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaDev", nil)
 	require.NoError(s.T(), err)
 
-	resourceRef, err := testsupport.CreateInheritedTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", *parentResourceRef)
+	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", &parentResourceRef.ResourceID)
 	require.NoError(s.T(), err)
 
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
@@ -118,10 +118,10 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRolesOfParentResource
 	areaResourceType, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, "openshift.io/resource/area")
 	require.NoError(s.T(), err)
 
-	parentResourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaDev")
+	parentResourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaDev", nil)
 	require.NoError(s.T(), err)
 
-	resourceRef, err := testsupport.CreateInheritedTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", *parentResourceRef)
+	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", &parentResourceRef.ResourceID)
 	require.NoError(s.T(), err)
 
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
@@ -162,11 +162,11 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	areaResourceType, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, "openshift.io/resource/area")
 	require.NoError(s.T(), err)
 
-	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "SpaceR")
+	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "SpaceR", nil)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), resourceRef)
 
-	resourceRefUnrelated, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "SpaceRUnrelated")
+	resourceRefUnrelated, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "SpaceRUnrelated", nil)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), resourceRefUnrelated)
 

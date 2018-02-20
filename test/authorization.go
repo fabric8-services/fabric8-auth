@@ -52,12 +52,13 @@ func CreateTestRole(ctx context.Context, db *gorm.DB, resourceType resource.Reso
 	return &roleRef, err
 }
 
-func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resource.ResourceType, name string) (*resource.Resource, error) {
+func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resource.ResourceType, name string, parentResourceID *string) (*resource.Resource, error) {
 	resourceRef := resource.Resource{
-		ResourceType:   resourceType,
-		ResourceTypeID: resourceType.ResourceTypeID,
-		Name:           name,
-		ResourceID:     uuid.NewV4().String(),
+		ResourceType:     resourceType,
+		ResourceTypeID:   resourceType.ResourceTypeID,
+		Name:             name,
+		ResourceID:       uuid.NewV4().String(),
+		ParentResourceID: parentResourceID,
 	}
 	roleRepository := resource.NewResourceRepository(db)
 	err := roleRepository.Create(ctx, &resourceRef)
@@ -122,7 +123,7 @@ func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityR
 		return nil, err
 	}
 
-	testResource, err := CreateTestResource(ctx, db, *resourceType, uuid.NewV4().String())
+	testResource, err := CreateTestResource(ctx, db, *resourceType, uuid.NewV4().String(), nil)
 	if err != nil {
 		return nil, err
 	}

@@ -52,11 +52,11 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	areaResourceType, err := rest.Application.ResourceTypeRepository().Lookup(rest.Ctx, "openshift.io/resource/area")
 	require.NoError(rest.T(), err)
 
-	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceR")
+	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceR", nil)
 	require.NoError(rest.T(), err)
 
 	// assigned roles for this should not be returned.
-	resourceRefUnrelated, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceRUnrelated")
+	resourceRefUnrelated, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceRUnrelated", nil)
 	require.NoError(rest.T(), err)
 
 	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
@@ -108,11 +108,11 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 	areaResourceType, err := rest.Application.ResourceTypeRepository().Lookup(rest.Ctx, "openshift.io/resource/area")
 	require.NoError(rest.T(), err)
 
-	parentResourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceR")
+	parentResourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceR", nil)
 	require.NoError(rest.T(), err)
 	require.NotNil(rest.T(), parentResourceRef)
 
-	resourceRef, err := testsupport.CreateInheritedTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceH", *parentResourceRef)
+	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceH", &parentResourceRef.ResourceID)
 	require.NoError(rest.T(), err)
 
 	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
