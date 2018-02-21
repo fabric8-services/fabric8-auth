@@ -3,7 +3,7 @@ package role_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"

@@ -19,7 +19,7 @@ type resourceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	repo             resource.ResourceRepository
 	identityRepo     account.IdentityRepository
-	resourceTypeRepo resource.ResourceTypeRepository
+	resourceTypeRepo resourcetype.ResourceTypeRepository
 }
 
 func TestRunResourceBlackBoxTest(t *testing.T) {
@@ -30,7 +30,7 @@ func (s *resourceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = resource.NewResourceRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
+	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 }
 
 func (s *resourceBlackBoxTest) TestOKToDelete() {

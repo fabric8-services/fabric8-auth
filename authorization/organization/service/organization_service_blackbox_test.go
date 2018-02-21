@@ -5,13 +5,16 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/models"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	"github.com/fabric8-services/fabric8-auth/authorization/organization"
+	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+
 	"github.com/satori/go.uuid"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/common"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -20,11 +23,9 @@ type organizationServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	repo             resource.ResourceRepository
 	identityRepo     account.IdentityRepository
-	identityRoleRepo role.IdentityRoleRepository
+	identityRoleRepo identityrole.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
-	resourceTypeRepo resource.ResourceTypeRepository
-	roleRepo         role.RoleRepository
-	orgService       authorization.OrganizationService
+	orgService       organizationService.OrganizationService
 }
 
 func TestRunOrganizationServiceBlackBoxTest(t *testing.T) {
@@ -33,14 +34,10 @@ func TestRunOrganizationServiceBlackBoxTest(t *testing.T) {
 
 func (s *organizationServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = resource.NewResourceRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
+	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
-	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
-	s.roleRepo = role.NewRoleRepository(s.DB)
-
-	s.orgService = models.NewOrganizationModelService(s.DB, s.Application)
+	s.orgService = organizationModel.NewOrganizationModelService(s.DB, s.Application)
 }
 
 func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {
@@ -67,7 +64,7 @@ func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {
 	orgResource, err := s.resourceRepo.Load(s.Ctx, *orgIdentity.IdentityResourceID)
 	require.Nil(s.T(), err, "Could not load the organization's resource")
 
-	require.Equal(s.T(), common.IdentityResourceTypeOrganization, orgResource.ResourceType.Name, "Organization resource type is invalid")
+	require.Equal(s.T(), authorization.IdentityResourceTypeOrganization, orgResource.ResourceType.Name, "Organization resource type is invalid")
 }
 
 func (s *organizationServiceBlackBoxTest) TestListOrganization() {
@@ -94,5 +91,5 @@ func (s *organizationServiceBlackBoxTest) TestListOrganization() {
 	require.Equal(s.T(), false, org.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), "Test Organization MMMYYY", org.Name, "Organization name is different")
 	require.Equal(s.T(), 1, len(org.Roles), "New organization should have assigned exactly 1 role")
-	require.Equal(s.T(), common.OrganizationOwnerRole, org.Roles[0], "New organization should have assigned owner role")
+	require.Equal(s.T(), organization.OrganizationOwnerRole, org.Roles[0], "New organization should have assigned owner role")
 }

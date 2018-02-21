@@ -3,7 +3,7 @@ package models_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/models"
+	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -14,7 +14,7 @@ import (
 
 type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo models.RoleManagementModelService
+	repo rolemodel.RoleManagementModelService
 }
 
 func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
@@ -23,7 +23,7 @@ func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = models.NewRoleManagementModelService(s.DB, s.Application)
+	s.repo = rolemodel.NewRoleManagementModelService(s.DB, s.Application)
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {

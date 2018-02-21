@@ -3,9 +3,9 @@ package service_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/models"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -17,7 +17,7 @@ import (
 
 type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	roleManagementService authorization.RoleManagementService
+	roleManagementService roleservice.RoleManagementService
 }
 
 func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
@@ -26,8 +26,8 @@ func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	modelService := models.NewRoleManagementModelService(s.DB, s.Application)
-	s.roleManagementService = authorization.NewRoleManagementService(modelService, s.Application)
+	modelService := rolemodel.NewRoleManagementModelService(s.DB, s.Application)
+	s.roleManagementService = roleservice.NewRoleManagementService(modelService, s.Application)
 }
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
@@ -70,7 +70,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
 	require.NoError(s.T(), err)
 
-	var createdIdentityRoles []role.IdentityRole
+	var createdIdentityRoles []identityrole.IdentityRole
 
 	// creating an AssignedRole for a parent resource
 	identityRoleRefUnrelated, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *parentResourceRef, *roleRef)
@@ -127,7 +127,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesOfParentResource
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
 	require.NoError(s.T(), err)
 
-	var createdIdentityRoles []role.IdentityRole
+	var createdIdentityRoles []identityrole.IdentityRole
 
 	// creating an AssignedRole for a parent resource
 	identityRoleRefUnrelated, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *parentResourceRef, *roleRef)
@@ -173,7 +173,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
 	require.NoError(s.T(), err)
 
-	var createdIdentityRoles []role.IdentityRole
+	var createdIdentityRoles []identityrole.IdentityRole
 
 	// creating an AssignedRole for a different resource - not expected
 	// to show up in search results.
@@ -214,7 +214,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceNotFoun
 	require.Equal(t, 0, len(identityRoles))
 }
 
-func (s *roleManagementServiceBlackboxTest) checkExists(createdRole role.IdentityRole, pool []role.IdentityRole, isInherited bool) bool {
+func (s *roleManagementServiceBlackboxTest) checkExists(createdRole identityrole.IdentityRole, pool []identityrole.IdentityRole, isInherited bool) bool {
 	for _, retrievedRole := range pool {
 		if retrievedRole.IdentityRoleID.String() == createdRole.IdentityRoleID.String() {
 			s.compare(createdRole, retrievedRole, isInherited)
@@ -224,7 +224,7 @@ func (s *roleManagementServiceBlackboxTest) checkExists(createdRole role.Identit
 	return false
 }
 
-func (s *roleManagementServiceBlackboxTest) compare(createdRole role.IdentityRole, retrievedRole role.IdentityRole, isInherited bool) bool {
+func (s *roleManagementServiceBlackboxTest) compare(createdRole identityrole.IdentityRole, retrievedRole identityrole.IdentityRole, isInherited bool) bool {
 	require.Equal(s.T(), createdRole.IdentityRoleID.String(), retrievedRole.IdentityRoleID.String())
 	require.Equal(s.T(), createdRole.IdentityID.String(), retrievedRole.Identity.ID.String())
 	require.Equal(s.T(), createdRole.Role.Name, retrievedRole.Role.Name)

@@ -7,9 +7,11 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +21,7 @@ import (
 
 type identityRoleBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo                  role.IdentityRoleRepository
+	repo                  identityrole.IdentityRoleRepository
 	identityRepo          account.IdentityRepository
 	resourceRepo          resource.ResourceRepository
 	resourceTypeRepo      resourcetype.ResourceTypeRepository
@@ -28,16 +30,16 @@ type identityRoleBlackBoxTest struct {
 }
 
 func TestRunIdentityRoleBlackBoxTest(t *testing.T) {
-	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+	suite.Run(t, &identityRoleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *identityRoleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
-	s.repo = role.NewIdentityRoleRepository(s.DB)
+	s.repo = identityrole.NewIdentityRoleRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
-	s.resourceTypeScopeRepo = resource.NewResourceTypeScopeRepository(s.DB)
+	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
+	s.resourceTypeScopeRepo = scope.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
 }
 
@@ -82,8 +84,9 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 		// Check not existing
 		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
 		// then
-		require.IsType(s.T(), errors.NotFoundError{}, err)
+		require.IsType(t, errors.NotFoundError{}, err)
 	})
+
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToSave() {
@@ -98,52 +101,8 @@ func (s *identityRoleBlackBoxTest) TestOKToSave() {
 	//assert.Equal(s.T(), identityRole.Name, updatedIdentityRole.Name)
 }
 
-func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
-	identity := &account.Identity{
-		ID:           uuid.NewV4(),
-		Username:     "identity_role_blackbox_test_someuserTestIdentity2",
-		ProviderType: account.KeycloakIDP}
-
-	err := s.identityRepo.Create(s.Ctx, identity)
-	require.Nil(s.T(), err, "Could not create identity")
-
-	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
-	require.Nil(s.T(), err, "Could not lookup resource type")
-
-	res := &resource.Resource{
-		ResourceID:       uuid.NewV4().String(),
-		ParentResourceID: nil,
-		ResourceType:     *resourceType,
-	}
-
-	err = s.resourceRepo.Create(s.Ctx, res)
-	require.Nil(s.T(), err, "Could not create resource")
-
-	r := &role.Role{
-		RoleID:         uuid.NewV4(),
-		ResourceType:   *resourceType,
-		ResourceTypeID: resourceType.ResourceTypeID,
-		Name:           "identity_role_blackbox_test_admin" + uuid.NewV4().String(),
-		//Scopes:         []resource.ResourceTypeScope{*resourceTypeScope},
-	}
-
-	err = s.roleRepo.Create(s.Ctx, r)
-	require.Nil(s.T(), err, "Could not create role")
-
-	identityRole := &role.IdentityRole{
-		IdentityRoleID: uuid.NewV4(),
-		Identity:       *identity,
-		Resource:       *res,
-		Role:           *r,
-	}
-
-	err = s.repo.Create(s.Ctx, identityRole)
-	require.Nil(s.T(), err, "Could not create identity role")
-
-	createdIdentityRole, err := s.repo.Load(s.Ctx, identityRole.IdentityRoleID)
-	require.Nil(s.T(), err, "Could not load identity role")
-	require.Equal(s.T(), identityRole.Identity.Username, createdIdentityRole.Identity.Username)
-	require.Equal(s.T(), identityRole.Resource.ResourceID, createdIdentityRole.Resource.ResourceID)
-
-	return createdIdentityRole
+func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *identityrole.IdentityRole {
+	ir, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	require.NoError(s.T(), err)
+	return ir
 }

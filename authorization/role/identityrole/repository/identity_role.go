@@ -90,7 +90,12 @@ func (m *GormIdentityRoleRepository) Load(ctx context.Context, id uuid.UUID) (*I
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormIdentityRoleRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "exists"}, time.Now())
-	return applicationRepository.CheckExists(ctx, m.db, m.TableName(), id)
+	var native IdentityRole
+	err := m.db.Table(m.TableName()).Where("identity_role_id = ?", id).Find(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		return errors.NewNotFoundError("identity_role", id)
+	}
+	return nil
 }
 
 // Create creates a new record.
