@@ -3,7 +3,8 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -60,7 +61,7 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 	}
 
 	var res *resource.Resource
-	var scopes []resource.ResourceTypeScope
+	var scopes []scope.ResourceTypeScope
 
 	err := application.Transactional(c.db, func(appl application.Application) error {
 

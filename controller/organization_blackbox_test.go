@@ -13,8 +13,8 @@ import (
 
 	"github.com/goadesign/goa"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/models"
+	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -24,13 +24,13 @@ type TestOrganizationREST struct {
 	gormtestsupport.DBTestSuite
 	testIdentity      account.Identity
 	service           *goa.Service
-	orgService        authorization.OrganizationService
+	orgService        organizationservice.OrganizationService
 	securedController *OrganizationController
 }
 
 func (s *TestOrganizationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.orgService = models.NewOrganizationModelService(s.DB, s.Application)
+	s.orgService = organizationmodel.NewOrganizationModelService(s.DB, s.Application)
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,

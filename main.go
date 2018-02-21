@@ -29,8 +29,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/models"
+	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -183,8 +185,8 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
-	roleManagementModelService := models.NewRoleManagementModelService(db, appDB)
-	roleManagemenetService := authorization.NewRoleManagementService(roleManagementModelService, appDB)
+	roleManagementModelService := roleModel.NewRoleManagementModelService(db, appDB)
+	roleManagemenetService := roleService.NewRoleManagementService(roleManagementModelService, appDB)
 	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
 
@@ -253,9 +255,9 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationModelService := models.NewOrganizationModelService(db, appDB)
-	organizationService := authorization.NewOrganizationService(organizationModelService, appDB)
-	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationService)
+	organizationModelService := organizationModel.NewOrganizationModelService(db, appDB)
+	organizationServiceRef := organizationService.NewOrganizationService(organizationModelService, appDB)
+	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationServiceRef)
 	app.MountOrganizationController(service, organizationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

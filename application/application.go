@@ -3,8 +3,11 @@ package application
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 )
@@ -18,9 +21,9 @@ type Application interface {
 	ExternalTokens() provider.ExternalTokenRepository
 	VerificationCodes() account.VerificationCodeRepository
 	ResourceRepository() resource.ResourceRepository
-	ResourceTypeRepository() resource.ResourceTypeRepository
-	ResourceTypeScopeRepository() resource.ResourceTypeScopeRepository
-	IdentityRoleRepository() role.IdentityRoleRepository
+	ResourceTypeRepository() resourcetype.ResourceTypeRepository
+	ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository
+	IdentityRoleRepository() identityrole.IdentityRoleRepository
 	RoleRepository() role.RoleRepository
 }
 
