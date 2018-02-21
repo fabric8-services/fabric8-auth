@@ -101,20 +101,6 @@ func CreateTestRoleWithDefaultType(ctx context.Context, db *gorm.DB, name string
 	return &roleRef, err
 }
 
-func CreateInheritedTestResource(ctx context.Context, db *gorm.DB, resourceType resource.ResourceType, name string, parentResource resource.Resource) (*resource.Resource, error) {
-
-	resourceRef := resource.Resource{
-		ResourceType:     resourceType,
-		ResourceTypeID:   resourceType.ResourceTypeID,
-		Name:             name,
-		ResourceID:       uuid.NewV4().String(),
-		ParentResourceID: &parentResource.ResourceID,
-	}
-	roleRepository := resource.NewResourceRepository(db)
-	err := roleRepository.Create(ctx, &resourceRef)
-	return &resourceRef, err
-}
-
 func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityRole, error) {
 	resourceTypeRepo := resource.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
