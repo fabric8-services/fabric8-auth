@@ -5,10 +5,11 @@ import (
 )
 
 const (
+	// OrganizationOwnerRole is the constant used to denotee the name of the owner's role
 	OrganizationOwnerRole = "owner"
 )
 
-// This struct is used to return the Organizations for which an Identity is associated
+// IdentityOrganization is used to return the Organizations for which an Identity is associated
 type IdentityOrganization struct {
 	OrganizationID uuid.UUID
 	Name           string
