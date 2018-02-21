@@ -14,7 +14,7 @@ import (
 
 type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo models.RoleAssignmentModelService
+	repo models.RoleManagementModelService
 }
 
 func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
@@ -23,7 +23,7 @@ func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = models.NewRoleAssignmentModelService(s.DB, s.Application)
+	s.repo = models.NewRoleManagementModelService(s.DB, s.Application)
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {

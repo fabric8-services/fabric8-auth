@@ -17,7 +17,7 @@ import (
 
 type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	assignmentService authorization.RoleAssignmentService
+	roleManagementService authorization.RoleManagementService
 }
 
 func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
@@ -26,8 +26,8 @@ func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	modelService := models.NewRoleAssignmentModelService(s.DB, s.Application)
-	s.assignmentService = authorization.NewRoleAssignmentService(modelService, s.Application)
+	modelService := models.NewRoleManagementModelService(s.DB, s.Application)
+	s.roleManagementService = authorization.NewRoleManagementService(modelService, s.Application)
 }
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
@@ -35,7 +35,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	require.NoError(t, err)
 	require.NotNil(t, identityRole)
 
-	identityRoles, err := s.assignmentService.ListByResource(s.Ctx, identityRole.Resource.ResourceID)
+	identityRoles, err := s.roleManagementService.ListByResource(s.Ctx, identityRole.Resource.ResourceID)
 	require.NoError(t, err)
 	require.Equal(t, true, len(identityRoles) == 1)
 	require.Equal(t, identityRole.Resource.ResourceID, identityRoles[0].Resource.ResourceID)
@@ -89,7 +89,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	require.NotNil(s.T(), identityRoleRef1)
 	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRef2)
 
-	identityRoles, err := s.assignmentService.ListByResource(s.Ctx, identityRoleRef1.Resource.ResourceID)
+	identityRoles, err := s.roleManagementService.ListByResource(s.Ctx, identityRoleRef1.Resource.ResourceID)
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 3)
 	require.Equal(t, true, s.checkExists(*identityRoleRef1, identityRoles, true))
@@ -146,7 +146,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesOfParentResource
 	require.NotNil(s.T(), identityRoleRef1)
 	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRef2)
 
-	identityRoles, err := s.assignmentService.ListByResource(s.Ctx, identityRoleRefUnrelated.Resource.ResourceID)
+	identityRoles, err := s.roleManagementService.ListByResource(s.Ctx, identityRoleRefUnrelated.Resource.ResourceID)
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 1)
 	require.Equal(t, true, s.checkExists(*identityRoleRefUnrelated, identityRoles, false))
@@ -195,7 +195,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	require.NotNil(s.T(), identityRoleRef1)
 	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRef2)
 
-	identityRoles, err := s.assignmentService.ListByResource(s.Ctx, identityRoleRef1.Resource.ResourceID)
+	identityRoles, err := s.roleManagementService.ListByResource(s.Ctx, identityRoleRef1.Resource.ResourceID)
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 2)
 	require.Equal(t, true, s.checkExists(*identityRoleRef1, identityRoles, false))
@@ -209,7 +209,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceNotFoun
 	require.NoError(t, err)
 	require.NotNil(t, identityRole)
 
-	identityRoles, err := s.assignmentService.ListByResource(s.Ctx, uuid.NewV4().String())
+	identityRoles, err := s.roleManagementService.ListByResource(s.Ctx, uuid.NewV4().String())
 	require.Error(t, errors.NotFoundError{})
 	require.Equal(t, 0, len(identityRoles))
 }

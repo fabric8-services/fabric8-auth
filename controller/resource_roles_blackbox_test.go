@@ -30,8 +30,8 @@ func (s *TestResourceRolesRest) SetupSuite() {
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
 	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
-	roleAssignmentModelService := models.NewRoleAssignmentModelService(rest.DB, rest.Application)
-	roleAssignmentService := authorization.NewRoleAssignmentService(roleAssignmentModelService, rest.Application)
+	roleManagementModelService := models.NewRoleManagementModelService(rest.DB, rest.Application)
+	roleAssignmentService := authorization.NewRoleManagementService(roleManagementModelService, rest.Application)
 	return svc, NewResourceRolesController(svc, rest.Application, roleAssignmentService)
 }
 
