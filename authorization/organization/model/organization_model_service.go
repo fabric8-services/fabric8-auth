@@ -7,7 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	organization "github.com/fabric8-services/fabric8-auth/authorization/organization"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/repositories"
+	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
@@ -26,11 +26,11 @@ type OrganizationModelService interface {
 // OrganizationService. IMPORTANT NOTE: Transaction control is not provided by this service
 type GormOrganizationModelService struct {
 	db   *gorm.DB
-	repo repositories.Repositories
+	repo repository.Repositories
 }
 
 // NewOrganizationModelService creates a new service.
-func NewOrganizationModelService(db *gorm.DB, repo repositories.Repositories) OrganizationModelService {
+func NewOrganizationModelService(db *gorm.DB, repo repository.Repositories) OrganizationModelService {
 	return &GormOrganizationModelService{
 		db:   db,
 		repo: repo,

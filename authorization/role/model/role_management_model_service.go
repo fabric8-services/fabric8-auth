@@ -3,7 +3,7 @@ package models
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/repositories"
+	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -21,17 +21,17 @@ type RoleManagementModelService interface {
 }
 
 // NewRoleManagementModelService creates a new service to manage role assignments
-func NewRoleManagementModelService(db *gorm.DB, repo repositories.Repositories) *GormRoleManagementModelService {
+func NewRoleManagementModelService(db *gorm.DB, repo repository.Repositories) *GormRoleManagementModelService {
 	return &GormRoleManagementModelService{
-		db:           db,
-		repositories: repo,
+		db:         db,
+		repository: repo,
 	}
 }
 
 // GormRoleManagementModelService implements the RoleManagementModelService to manage role assignments
 type GormRoleManagementModelService struct {
-	db           *gorm.DB
-	repositories repositories.Repositories
+	db         *gorm.DB
+	repository repository.Repositories
 }
 
 // ListByResource lists role assignments of a specific resource.
