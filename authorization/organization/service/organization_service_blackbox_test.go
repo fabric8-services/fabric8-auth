@@ -1,4 +1,4 @@
-package authorization_test
+package service_test
 
 import (
 	"testing"

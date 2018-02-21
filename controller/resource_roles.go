@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
@@ -15,11 +15,11 @@ import (
 type ResourceRolesController struct {
 	*goa.Controller
 	db                    application.DB
-	roleManagementService authorization.RoleManagementService
+	roleManagementService roleservice.RoleManagementService
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService authorization.RoleManagementService) *ResourceRolesController {
+func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService roleservice.RoleManagementService) *ResourceRolesController {
 	return &ResourceRolesController{
 		Controller: service.NewController("ResourceRolesController"),
 		db:         db,
@@ -30,7 +30,7 @@ func NewResourceRolesController(service *goa.Service, db application.DB, assignm
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 
-	var roles []role.IdentityRole
+	var roles []identityrole.IdentityRole
 
 	roles, err := c.roleManagementService.ListByResource(ctx, ctx.ResourceID)
 	if err != nil {
@@ -46,14 +46,14 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 	})
 }
 
-func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRole) []*app.IdentityRolesData {
+func convertIdentityRoleToAppRoles(ctx context.Context, roles []identityrole.IdentityRole) []*app.IdentityRolesData {
 	var rolesList []*app.IdentityRolesData
 	for _, r := range roles {
 		rolesList = append(rolesList, convertIdentityRoleToAppRole(ctx, r))
 	}
 	return rolesList
 }
-func convertIdentityRoleToAppRole(ctx context.Context, r role.IdentityRole) *app.IdentityRolesData {
+func convertIdentityRoleToAppRole(ctx context.Context, r identityrole.IdentityRole) *app.IdentityRolesData {
 	inherited := r.Resource.ParentResourceID != nil
 	rolesData := app.IdentityRolesData{
 		AssigneeID:   r.Identity.ID.String(),

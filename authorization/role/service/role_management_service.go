@@ -1,34 +1,34 @@
-package authorization
+package service
 
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization/models"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 )
 
 // RoleManagementService defines the contract for managing roles assigments to a resource
 type RoleManagementService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error)
+	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
 }
 
 // RoleManagementServiceImpl implements the RoleManagementService for managing role assignments.
 type RoleManagementServiceImpl struct {
-	modelService models.RoleManagementModelService
+	modelService roleModel.RoleManagementModelService
 	db           application.DB
 }
 
 // NewRoleManagementService creates a reference to new RoleManagementService implementation
-func NewRoleManagementService(modelService models.RoleManagementModelService, db application.DB) *RoleManagementServiceImpl {
+func NewRoleManagementService(modelService roleModel.RoleManagementModelService, db application.DB) *RoleManagementServiceImpl {
 	return &RoleManagementServiceImpl{modelService: modelService, db: db}
 }
 
 // ListByResource lists assignments made for a specific resource
-func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error) {
+func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error) {
 
-	var roles []role.IdentityRole
+	var roles []identityrole.IdentityRole
 	var err error
 	err = application.Transactional(r.db, func(appl application.Application) error {
 		err = appl.ResourceRepository().CheckExists(ctx, resourceID)

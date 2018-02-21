@@ -1,12 +1,14 @@
-package role
+package repository
 
 import (
 	"context"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	applicationRepository "github.com/fabric8-services/fabric8-auth/application/repository"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -31,7 +33,7 @@ type IdentityRole struct {
 	Resource   resource.Resource
 	// The role that is assigned
 	RoleID uuid.UUID
-	Role   Role
+	Role   role.Role
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -57,7 +59,7 @@ func NewIdentityRoleRepository(db *gorm.DB) IdentityRoleRepository {
 
 // IdentityRoleRepository represents the storage interface.
 type IdentityRoleRepository interface {
-	repository.Exister
+	applicationRepository.Exister
 	Load(ctx context.Context, ID uuid.UUID) (*IdentityRole, error)
 	Create(ctx context.Context, u *IdentityRole) error
 	Save(ctx context.Context, u *IdentityRole) error
@@ -88,7 +90,7 @@ func (m *GormIdentityRoleRepository) Load(ctx context.Context, id uuid.UUID) (*I
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormIdentityRoleRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "exists"}, time.Now())
-	return repository.CheckExists(ctx, m.db, m.TableName(), id)
+	return applicationRepository.CheckExists(ctx, m.db, m.TableName(), id)
 }
 
 // Create creates a new record.
@@ -162,7 +164,7 @@ func (m *GormIdentityRoleRepository) List(ctx context.Context) ([]IdentityRole, 
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var rows []IdentityRole
 
-	err := m.db.Model(&resource.ResourceType{}).Find(&rows).Error
+	err := m.db.Model(&resourcetype.ResourceType{}).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

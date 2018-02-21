@@ -3,13 +3,15 @@ package test
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
 
-func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role) (*role.IdentityRole, error) {
+func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role) (*identityrole.IdentityRole, error) {
 
 	assignedIdentity := &account.Identity{
 		ID:           uuid.NewV4(),
@@ -23,7 +25,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 		return nil, err
 	}
 
-	identityRoleRef := role.IdentityRole{
+	identityRoleRef := identityrole.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
 		Identity:       *assignedIdentity,
 		IdentityID:     assignedIdentity.ID,
@@ -33,7 +35,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 		RoleID:         roleRef.RoleID,
 	}
 
-	identityRolesRepository := role.NewIdentityRoleRepository(db)
+	identityRolesRepository := identityrole.NewIdentityRoleRepository(db)
 	err = identityRolesRepository.Create(ctx, &identityRoleRef)
 	if err != nil {
 		return nil, err
@@ -41,7 +43,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 	return &identityRoleRef, err
 }
 
-func CreateTestRole(ctx context.Context, db *gorm.DB, resourceType resource.ResourceType, name string) (*role.Role, error) {
+func CreateTestRole(ctx context.Context, db *gorm.DB, resourceType resourcetype.ResourceType, name string) (*role.Role, error) {
 	roleRef := role.Role{
 		ResourceType:   resourceType,
 		ResourceTypeID: resourceType.ResourceTypeID,
@@ -52,7 +54,7 @@ func CreateTestRole(ctx context.Context, db *gorm.DB, resourceType resource.Reso
 	return &roleRef, err
 }
 
-func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resource.ResourceType, name string, parentResourceID *string) (*resource.Resource, error) {
+func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resourcetype.ResourceType, name string, parentResourceID *string) (*resource.Resource, error) {
 	resourceRef := resource.Resource{
 		ResourceType:     resourceType,
 		ResourceTypeID:   resourceType.ResourceTypeID,
@@ -67,7 +69,7 @@ func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resource.
 
 func CreateTestResourceWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*resource.Resource, error) {
 
-	resourceTypeRepo := resource.NewResourceTypeRepository(db)
+	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
 
 	if err != nil {
@@ -85,7 +87,7 @@ func CreateTestResourceWithDefaultType(ctx context.Context, db *gorm.DB, name st
 }
 
 func CreateTestRoleWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*role.Role, error) {
-	resourceTypeRepo := resource.NewResourceTypeRepository(db)
+	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
 
 	if err != nil {
@@ -101,8 +103,8 @@ func CreateTestRoleWithDefaultType(ctx context.Context, db *gorm.DB, name string
 	return &roleRef, err
 }
 
-func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityRole, error) {
-	resourceTypeRepo := resource.NewResourceTypeRepository(db)
+func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*identityrole.IdentityRole, error) {
+	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
 
 	if err != nil {

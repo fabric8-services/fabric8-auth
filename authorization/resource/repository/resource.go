@@ -1,4 +1,4 @@
-package resource
+package repository
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -24,7 +25,7 @@ type Resource struct {
 	// The parent resource ID
 	ParentResourceID *string
 	// The resource type
-	ResourceType ResourceType
+	ResourceType resourcetype.ResourceType
 	// The identifier for the resource type
 	ResourceTypeID uuid.UUID
 	// Resource name
@@ -45,12 +46,12 @@ func (m Resource) GetLastModified() time.Time {
 // GormResourceRepository is the implementation of the storage interface for Resource.
 type GormResourceRepository struct {
 	db               *gorm.DB
-	resourceTypeRepo ResourceTypeRepository
+	resourceTypeRepo resourcetype.ResourceTypeRepository
 }
 
 // NewResourceRepository creates a new storage type.
 func NewResourceRepository(db *gorm.DB) ResourceRepository {
-	return &GormResourceRepository{db: db, resourceTypeRepo: NewResourceTypeRepository(db)}
+	return &GormResourceRepository{db: db, resourceTypeRepo: resourcetype.NewResourceTypeRepository(db)}
 }
 
 // ResourceRepository represents the storage interface.
@@ -80,7 +81,7 @@ func (m *GormResourceRepository) Load(ctx context.Context, id string) (*Resource
 		return nil, errs.WithStack(errors.NewNotFoundError("resource", id))
 	}
 
-	err = m.db.Table(ResourceType{}.TableName()).Where("resource_type_id = ?", native.ResourceTypeID).Find(&native.ResourceType).Error
+	err = m.db.Table(resourcetype.ResourceType{}.TableName()).Where("resource_type_id = ?", native.ResourceTypeID).Find(&native.ResourceType).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(errors.NewNotFoundError("resource_type", id))
 	}

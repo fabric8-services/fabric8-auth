@@ -1,9 +1,10 @@
-package resource_test
+package repository_test
 
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	"github.com/stretchr/testify/suite"
@@ -11,8 +12,8 @@ import (
 
 type resourceTypeScopeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo             resource.ResourceTypeScopeRepository
-	resourceTypeRepo resource.ResourceTypeRepository
+	repo             scope.ResourceTypeScopeRepository
+	resourceTypeRepo resourcetype.ResourceTypeRepository
 }
 
 func TestRunResourceTypeScopeBlackBoxTest(t *testing.T) {

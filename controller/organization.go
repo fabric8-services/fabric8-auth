@@ -5,8 +5,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/common"
+	organizationtype "github.com/fabric8-services/fabric8-auth/authorization/organization"
+	organization "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -23,11 +23,11 @@ type OrganizationController struct {
 	*goa.Controller
 	db           application.DB
 	TokenManager token.Manager
-	orgService   authorization.OrganizationService
+	orgService   organization.OrganizationService
 }
 
 // NewOrganizationController creates an organization controller.
-func NewOrganizationController(service *goa.Service, db application.DB, orgService authorization.OrganizationService) *OrganizationController {
+func NewOrganizationController(service *goa.Service, db application.DB, orgService organization.OrganizationService) *OrganizationController {
 	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db, orgService: orgService}
 }
 
@@ -90,7 +90,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 	return ctx.OK(&app.OrganizationArray{convertToAppOrganization(orgs)})
 }
 
-func convertToAppOrganization(orgs []common.IdentityOrganization) []*app.OrganizationData {
+func convertToAppOrganization(orgs []organizationtype.IdentityOrganization) []*app.OrganizationData {
 	results := []*app.OrganizationData{}
 
 	for _, org := range orgs {

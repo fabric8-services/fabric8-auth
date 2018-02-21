@@ -1,4 +1,4 @@
-package common
+package organization
 
 import (
 	uuid "github.com/satori/go.uuid"
@@ -6,8 +6,6 @@ import (
 
 const (
 	IdentityResourceTypeOrganization = "identity/organization"
-	IdentityResourceTypeTeam         = "identity/team"
-	IdentityResourceTypeGroup        = "identity/group"
 	IdentityResourceTypeUser         = "identity/user"
 
 	OrganizationOwnerRole = "owner"

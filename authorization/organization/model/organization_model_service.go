@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/common"
+	organization "github.com/fabric8-services/fabric8-auth/authorization/organization"
+
 	"github.com/fabric8-services/fabric8-auth/authorization/repositories"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/jinzhu/gorm"
@@ -16,7 +18,7 @@ import (
 
 type OrganizationModelService interface {
 	CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error)
-	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]common.IdentityOrganization, error)
+	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]organization.IdentityOrganization, error)
 }
 
 // GormOrganizationModelService is the implementation of the interface for
@@ -46,7 +48,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 	}
 
 	// Lookup the organization resource type
-	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, common.IdentityResourceTypeOrganization)
+	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, organization.IdentityResourceTypeOrganization)
 	if err != nil {
 		return nil, err
 	}
@@ -76,14 +78,14 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 	organizationId = orgIdentity.ID
 
 	// Lookup the identity/organization owner role
-	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, common.OrganizationOwnerRole, common.IdentityResourceTypeOrganization)
+	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, organization.OrganizationOwnerRole, organization.IdentityResourceTypeOrganization)
 
 	if err != nil {
 		return nil, errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
 	}
 
 	// Assign the owner role for the new organization to the current user
-	identityRole := &role.IdentityRole{
+	identityRole := &identityrole.IdentityRole{
 		IdentityID: userIdentity.ID,
 		ResourceID: res.ResourceID,
 		RoleID:     ownerRole.RoleID,
@@ -102,11 +104,11 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 }
 
 // Returns an array of all organizations in which the specified user is a member or is assigned a role
-func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]common.IdentityOrganization, error) {
+func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]organization.IdentityOrganization, error) {
 
 	db := s.db.Model(&account.Identity{})
 
-	findOrganization := func(orgs []common.IdentityOrganization, id uuid.UUID) int {
+	findOrganization := func(orgs []organization.IdentityOrganization, id uuid.UUID) int {
 		for i, org := range orgs {
 			if org.OrganizationID == id {
 				return i
@@ -115,7 +117,7 @@ func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, id
 		return -1
 	}
 
-	results := []common.IdentityOrganization{}
+	results := []organization.IdentityOrganization{}
 
 	// query for organizations in which the user is a member
 	rows, err := db.Unscoped().Raw(`SELECT 
@@ -148,7 +150,7 @@ func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, id
         ) 
         select member_of from m
       ))`,
-		common.IdentityResourceTypeOrganization, identityID, identityID).Rows()
+		organization.IdentityResourceTypeOrganization, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err
@@ -166,7 +168,7 @@ func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, id
 
 		idx := findOrganization(results, organizationId)
 		if idx == -1 {
-			results = append(results, common.IdentityOrganization{
+			results = append(results, organization.IdentityOrganization{
 				OrganizationID: organizationId,
 				Name:           name,
 				Member:         true,
@@ -215,7 +217,7 @@ func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, id
         )
 		    select member_id from m
       ))`,
-		common.IdentityResourceTypeOrganization, identityID, identityID).Rows()
+		organization.IdentityResourceTypeOrganization, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err
@@ -234,7 +236,7 @@ func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, id
 
 		idx := findOrganization(results, organizationId)
 		if idx == -1 {
-			results = append(results, common.IdentityOrganization{
+			results = append(results, organization.IdentityOrganization{
 				OrganizationID: organizationId,
 				Name:           name,
 				Member:         false,

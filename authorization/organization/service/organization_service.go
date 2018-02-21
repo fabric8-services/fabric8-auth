@@ -1,24 +1,24 @@
-package authorization
+package service
 
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization/common"
-	"github.com/fabric8-services/fabric8-auth/authorization/models"
+	organization "github.com/fabric8-services/fabric8-auth/authorization/organization"
+	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	uuid "github.com/satori/go.uuid"
 )
 
 type OrganizationService interface {
 	CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error)
-	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]common.IdentityOrganization, error)
+	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]organization.IdentityOrganization, error)
 }
 
 type OrganizationServiceImpl struct {
-	modelService models.OrganizationModelService
+	modelService organizationModel.OrganizationModelService
 	db           application.DB
 }
 
-func NewOrganizationService(modelService models.OrganizationModelService, db application.DB) OrganizationService {
+func NewOrganizationService(modelService organizationModel.OrganizationModelService, db application.DB) OrganizationService {
 	return &OrganizationServiceImpl{modelService: modelService, db: db}
 }
 
@@ -35,8 +35,8 @@ func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identi
 	return organizationId, err
 }
 
-func (s *OrganizationServiceImpl) ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]common.IdentityOrganization, error) {
-	var orgs []common.IdentityOrganization
+func (s *OrganizationServiceImpl) ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]organization.IdentityOrganization, error) {
+	var orgs []organization.IdentityOrganization
 	var err error
 	err = application.Transactional(s.db, func(appl application.Application) error {
 		orgs, err = s.modelService.ListOrganizations(ctx, identityID)

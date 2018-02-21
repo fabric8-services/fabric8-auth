@@ -1,11 +1,13 @@
-package role_test
+package repository_test
 
 import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
@@ -20,8 +22,8 @@ type identityRoleBlackBoxTest struct {
 	repo                  role.IdentityRoleRepository
 	identityRepo          account.IdentityRepository
 	resourceRepo          resource.ResourceRepository
-	resourceTypeRepo      resource.ResourceTypeRepository
-	resourceTypeScopeRepo resource.ResourceTypeScopeRepository
+	resourceTypeRepo      resourcetype.ResourceTypeRepository
+	resourceTypeScopeRepo scope.ResourceTypeScopeRepository
 	roleRepo              role.RoleRepository
 }
 

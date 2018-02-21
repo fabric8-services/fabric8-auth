@@ -1,9 +1,9 @@
-package resource_test
+package repository_test
 
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	//"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
@@ -13,7 +13,7 @@ import (
 
 type resourceTypeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo resource.ResourceTypeRepository
+	repo resourcetype.ResourceTypeRepository
 }
 
 var knownResourceTypes = [2]string{"openshift.io/resource/area", "identity/organization"}
@@ -24,7 +24,7 @@ func TestRunResourceTypeBlackBoxTest(t *testing.T) {
 
 func (s *resourceTypeBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = resource.NewResourceTypeRepository(s.DB)
+	s.repo = resourcetype.NewResourceTypeRepository(s.DB)
 }
 
 func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {

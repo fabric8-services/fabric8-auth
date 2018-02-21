@@ -4,7 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -22,7 +23,7 @@ type Role struct {
 	// This is the primary key value
 	RoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:role_id"`
 	// The resource type that this role applies to
-	ResourceType resource.ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
+	ResourceType resourcetype.ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
 	// The foreign key value for ResourceType
 	ResourceTypeID uuid.UUID
 	// The name of this role
@@ -30,7 +31,7 @@ type Role struct {
 }
 
 // The scopes associated with this role
-//Scopes []resource.ResourceTypeScope `gorm:"many2many:role_scope;AssociationForeignKey:resourceTypeScopeID;ForeignKey:roleID"`
+//Scopes []scope.ResourceTypeScope `gorm:"many2many:role_scope;AssociationForeignKey:resourceTypeScopeID;ForeignKey:roleID"`
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
@@ -48,8 +49,8 @@ type RoleScope struct {
 
 	RoleID uuid.UUID `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
 
-	Scope   resource.ResourceTypeScope `gorm:"ForeignKey:ScopeID;AssociationForeignKey:ResourceTypeScopeID"`
-	ScopeID uuid.UUID                  `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
+	Scope   scope.ResourceTypeScope `gorm:"ForeignKey:ScopeID;AssociationForeignKey:ResourceTypeScopeID"`
+	ScopeID uuid.UUID               `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
 }
 
 func (m RoleScope) TableName() string {
@@ -81,8 +82,8 @@ type RoleRepository interface {
 	Delete(ctx context.Context, ID uuid.UUID) error
 
 	Lookup(ctx context.Context, name string, resourceType string) (*Role, error)
-	ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error)
-	AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error
+	ListScopes(ctx context.Context, u *Role) ([]scope.ResourceTypeScope, error)
+	AddScope(ctx context.Context, u *Role, s *scope.ResourceTypeScope) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -235,7 +236,7 @@ func (m *GormRoleRepository) Lookup(ctx context.Context, name string, resourceTy
 	return &native, errs.WithStack(err)
 }
 
-func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resource.ResourceTypeScope, error) {
+func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listscopes"}, time.Now())
 
 	var scopes []RoleScope
@@ -245,7 +246,7 @@ func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resourc
 		return nil, errs.WithStack(err)
 	}
 
-	results := make([]resource.ResourceTypeScope, len(scopes))
+	results := make([]scope.ResourceTypeScope, len(scopes))
 	for index := 0; index < len(scopes); index++ {
 		results[index] = scopes[index].Scope
 	}
@@ -253,7 +254,7 @@ func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resourc
 	return results, nil
 }
 
-func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *resource.ResourceTypeScope) error {
+func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *scope.ResourceTypeScope) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "addscope"}, time.Now())
 
 	roleScope := &RoleScope{

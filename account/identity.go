@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/repository"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"

@@ -4,8 +4,9 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization/repositories"
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
@@ -16,7 +17,7 @@ import (
 
 // RoleManagementModelService defines the service contract for managing role assignments
 type RoleManagementModelService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error)
+	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
 }
 
 // NewRoleManagementModelService creates a new service to manage role assignments
@@ -34,9 +35,9 @@ type GormRoleManagementModelService struct {
 }
 
 // ListByResource lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error) {
+func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
-	var identityRoles []role.IdentityRole
+	var identityRoles []identityrole.IdentityRole
 
 	r.db = r.db.Debug()
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
@@ -125,7 +126,7 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 			return identityRoles, errors.NewInternalError(ctx, err)
 		}
 
-		ir := role.IdentityRole{
+		ir := identityrole.IdentityRole{
 			IdentityRoleID: identityRoleIDAsUUID,
 			Identity: account.Identity{
 				ID: identityIDAsUUID,
