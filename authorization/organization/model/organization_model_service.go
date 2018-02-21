@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	organization "github.com/fabric8-services/fabric8-auth/authorization/organization"
 
 	"github.com/fabric8-services/fabric8-auth/authorization/repositories"
@@ -48,7 +49,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 	}
 
 	// Lookup the organization resource type
-	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, organization.IdentityResourceTypeOrganization)
+	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeOrganization)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +79,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 	organizationId = orgIdentity.ID
 
 	// Lookup the identity/organization owner role
-	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, organization.OrganizationOwnerRole, organization.IdentityResourceTypeOrganization)
+	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, organization.OrganizationOwnerRole, authorization.IdentityResourceTypeOrganization)
 
 	if err != nil {
 		return nil, errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
@@ -150,7 +151,7 @@ func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, id
         ) 
         select member_of from m
       ))`,
-		organization.IdentityResourceTypeOrganization, identityID, identityID).Rows()
+		authorization.IdentityResourceTypeOrganization, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err
@@ -217,7 +218,7 @@ func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, id
         )
 		    select member_id from m
       ))`,
-		organization.IdentityResourceTypeOrganization, identityID, identityID).Rows()
+		authorization.IdentityResourceTypeOrganization, identityID, identityID).Rows()
 
 	if err != nil {
 		return nil, err

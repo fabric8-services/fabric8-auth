@@ -5,9 +5,6 @@ import (
 )
 
 const (
-	IdentityResourceTypeOrganization = "identity/organization"
-	IdentityResourceTypeUser         = "identity/user"
-
 	OrganizationOwnerRole = "owner"
 )
 
