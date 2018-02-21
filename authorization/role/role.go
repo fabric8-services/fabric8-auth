@@ -140,6 +140,14 @@ func (m *GormRoleRepository) Create(ctx context.Context, u *Role) error {
 			"role_id": u.RoleID,
 			"err":     err,
 		}, "unable to create the role")
+		if gormsupport.IsUniqueViolation(err, "uq_role_resource_type_name") {
+			log.Error(ctx, map[string]interface{}{
+				"err":              err,
+				"role_name":        u.Name,
+				"resource_type_id": u.ResourceTypeID,
+			}, "unable to create role because the same role already exists for this resource_type")
+			return errors.NewDataConflictError(fmt.Sprintf("role already exists with name = %s , resource_type_id = %s ", u.Name, u.ResourceTypeID.String()))
+		}
 		return errs.WithStack(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
@@ -162,6 +170,14 @@ func (m *GormRoleRepository) Save(ctx context.Context, model *Role) error {
 	}
 	err = m.db.Model(obj).Updates(model).Error
 	if err != nil {
+		if gormsupport.IsUniqueViolation(err, "uq_role_resource_type_name") {
+			log.Error(ctx, map[string]interface{}{
+				"err":              err,
+				"role_name":        model.Name,
+				"resource_type_id": model.ResourceTypeID,
+			}, "unable to create role because the same role already exists for this resource_type")
+			return errors.NewDataConflictError(fmt.Sprintf("role already exists with name = %s , resource_type_id = %s ", model.Name, model.ResourceTypeID.String()))
+		}
 		return errs.WithStack(err)
 	}
 
