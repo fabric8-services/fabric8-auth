@@ -6,17 +6,18 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
+	"github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // TestUser only creates in memory obj for testing purposes
 var TestUser = account.User{
 	ID:       uuid.NewV4(),
-	Email:    "testdeveloper@testalm.io",
+	Email:    "testdeveloper@testalm.io" + uuid.NewV4().String(),
 	FullName: "Test Developer",
-	Cluster:  "Test Cluster",
+	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUser2 only creates in memory obj for testing purposes.
@@ -24,8 +25,9 @@ var TestUser = account.User{
 // can be later updated or deleted (or not) by another user.
 var TestUser2 = account.User{
 	ID:       uuid.NewV4(),
-	Email:    "testdeveloper2@testalm.io",
+	Email:    "testdeveloper2@testalm.io" + uuid.NewV4().String(),
 	FullName: "Test Developer 2",
+	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUser only creates in memory obj for testing purposes
@@ -33,7 +35,7 @@ var TestUser3 = account.User{
 	ID:       uuid.NewV4(),
 	Email:    uuid.NewV4().String(),
 	FullName: "Test Developer",
-	Cluster:  "Test Cluster",
+	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUserPrivate only creates in memory obj for testing purposes
@@ -41,15 +43,16 @@ var TestUserPrivate = account.User{
 	ID:           uuid.NewV4(),
 	Email:        uuid.NewV4().String(),
 	FullName:     "Test Developer",
-	Cluster:      "Test Cluster",
+	Cluster:      "https://api.starter-us-east-2.openshift.com",
 	EmailPrivate: true,
 }
 
 // TestIdentity only creates in memory obj for testing purposes
 var TestIdentity = account.Identity{
-	ID:       uuid.NewV4(),
-	Username: "TestDeveloper",
-	User:     TestUser,
+	ID:           uuid.NewV4(),
+	Username:     "TestDeveloper" + uuid.NewV4().String(),
+	User:         TestUser,
+	ProviderType: account.KeycloakIDP,
 }
 
 // TestObserverIdentity only creates in memory obj for testing purposes
@@ -61,9 +64,10 @@ var TestObserverIdentity = account.Identity{
 
 // TestIdentity2 only creates in memory obj for testing purposes
 var TestIdentity2 = account.Identity{
-	ID:       uuid.NewV4(),
-	Username: "TestDeveloper2",
-	User:     TestUser2,
+	ID:           uuid.NewV4(),
+	Username:     "TestDeveloper2" + uuid.NewV4().String(),
+	User:         TestUser2,
+	ProviderType: account.KeycloakIDP,
 }
 
 var TestOnlineRegistrationAppIdentity = account.Identity{
@@ -97,13 +101,39 @@ func CreateTestIdentity(db *gorm.DB, username, providerType string) (account.Ide
 
 // CreateTestIdentityAndUser creates an identity & user with the given `username` in the database. For testing purpose only.
 func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (account.Identity, error) {
+	testUser := account.User{
+		ID:       uuid.NewV4(),
+		Email:    uuid.NewV4().String(),
+		FullName: "Test Developer",
+		Cluster:  "https://api.starter-us-east-2a.openshift.com",
+	}
 	testIdentity := account.Identity{
 		Username:     username,
 		ProviderType: providerType,
-		User:         TestUser3,
+		User:         testUser,
 	}
 	err := CreateTestIdentityAndUserInDB(db, &testIdentity)
 	return testIdentity, err
+}
+
+// CreateTestIdentityAndUserWithDefaultProviderType creates an identity & user with the given `username` in the database. For testing purpose only.
+func CreateTestIdentityAndUserWithDefaultProviderType(db *gorm.DB, username string) (account.Identity, error) {
+	return CreateTestIdentityAndUser(db, username, account.KeycloakIDP)
+}
+
+// EmbedTestIdentityTokenInContext creates an identity & user with the given `username` in the database.
+// Generates a token for that identity and embed the token in the context.
+func EmbedTestIdentityTokenInContext(db *gorm.DB, username string) (account.Identity, context.Context, error) {
+	// Create a Sample user and identity
+	identity, err := CreateTestIdentityAndUserWithDefaultProviderType(db, username)
+	if err != nil {
+		return identity, nil, err
+	}
+
+	// Embed Token in the context
+	ctx, err := token.EmbedTokenInContext(identity.ID.String(), identity.Username)
+
+	return identity, ctx, err
 }
 
 // CreateTestUser creates a new user from a given user object

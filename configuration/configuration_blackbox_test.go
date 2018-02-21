@@ -2,13 +2,11 @@ package configuration_test
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
-
-	"net/http"
-
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -360,6 +358,17 @@ func TestLoadServiceAccountConfigurationFromFile(t *testing.T) {
 	checkServiceAccountConfiguration(t, accounts)
 }
 
+func TestLoadServiceAccountConfigurationWithMissingExpectedSAReportsError(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	saConfig, err := configuration.NewConfigurationData("", "./conf-files/tests/service-account-missing-expected.conf", "")
+	require.Nil(t, err)
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "service account name is empty in service account config")
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "test-service service account ID is empty in service account config;")
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "test-service service account secret array is empty in service account config;")
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "some expected service accounts are missing in service account config;")
+}
+
 func TestGetPublicClientID(t *testing.T) {
 	require.Equal(t, "740650a2-9c44-4db5-b067-a3d1b2cd2d01", config.GetPublicOauthClientID())
 }
@@ -385,6 +394,15 @@ func TestLoadDefaultClusterConfiguration(t *testing.T) {
 
 	clusters := config.GetOSOClusters()
 	checkClusterConfiguration(t, clusters)
+
+	cluster := config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.com")
+	assert.NotNil(t, cluster)
+	cluster = config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.com/")
+	assert.NotNil(t, cluster)
+	cluster = config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.com/path")
+	assert.NotNil(t, cluster)
+	cluster = config.GetOSOClusterByURL("https://api.starter-us-east-2.openshift.unknown")
+	assert.Nil(t, cluster)
 }
 
 func TestLoadClusterConfigurationFromFile(t *testing.T) {

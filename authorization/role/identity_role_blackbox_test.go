@@ -111,7 +111,6 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	res := &resource.Resource{
 		ResourceID:       uuid.NewV4().String(),
 		ParentResourceID: nil,
-		Owner:            *identity,
 		ResourceType:     *resourceType,
 	}
 
@@ -135,6 +134,9 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 		Resource:       *res,
 		Role:           *r,
 	}
+
+	err = s.repo.Create(s.Ctx, identityRole)
+	require.Nil(s.T(), err, "Could not create identity role")
 
 	createdIdentityRole, err := s.repo.Load(s.Ctx, identityRole.IdentityRoleID)
 	require.Nil(s.T(), err, "Could not load identity role")

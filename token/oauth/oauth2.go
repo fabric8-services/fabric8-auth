@@ -82,7 +82,7 @@ func (provider *OauthIdentityProvider) UserProfilePayload(ctx context.Context, t
 }
 
 // SaveReferrer validates referrer and saves it in DB
-func SaveReferrer(ctx context.Context, db application.DB, state string, referrer string, validReferrerURL string) error {
+func SaveReferrer(ctx context.Context, db application.DB, state string, referrer string, responseMode *string, validReferrerURL string) error {
 	matched, err := regexp.MatchString(validReferrerURL, referrer)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -102,43 +102,56 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 	// TODO The state reference table will be collecting dead states left from some failed login attempts.
 	// We need to clean up the old states from time to time.
 	ref := auth.OauthStateReference{
-		State:    state,
-		Referrer: referrer,
+		State:        state,
+		Referrer:     referrer,
+		ResponseMode: responseMode,
 	}
+
 	err = application.Transactional(db, func(appl application.Application) error {
 		_, err := appl.OauthStates().Create(ctx, &ref)
 		return err
 	})
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"state":    state,
-			"referrer": referrer,
-			"err":      err,
+			"state":         state,
+			"referrer":      referrer,
+			"response_mode": log.PointerToString(responseMode),
+			"err":           err,
 		}, "unable to create oauth state reference")
 		return err
 	}
 	return nil
 }
 
-// LoadReferrer loads referrer from DB
-func LoadReferrer(ctx context.Context, db application.DB, state string) (string, error) {
+// LoadReferrerAndResponseMode loads referrer and responseMode from DB
+func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state string) (string, *string, error) {
 	var referrer string
+	var responseMode *string
 
 	err := application.Transactional(db, func(appl application.Application) error {
 		ref, err := appl.OauthStates().Load(ctx, state)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"state": state,
+				"err":   err,
+			}, "unable to load oauth state reference")
 			return err
 		}
 		referrer = ref.Referrer
+		responseMode = ref.ResponseMode
 		err = appl.OauthStates().Delete(ctx, ref.ID)
-		return err
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"state": state,
+				"err":   err,
+			}, "unable to delete oauth state reference")
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-			"err":   err,
-		}, "unable to delete oauth state reference")
-		return "", err
+		return "", nil, err
 	}
-	return referrer, nil
+	return referrer, responseMode, nil
 }

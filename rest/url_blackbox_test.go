@@ -1,10 +1,9 @@
 package rest
 
 import (
-	"testing"
-
 	"net/http"
 	"net/url"
+	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/resource"
 
@@ -124,6 +123,15 @@ func TestAddParamSuccess(t *testing.T) {
 	generatedURL, err = AddParam(generatedURL, "param2", "abc")
 	require.NoError(t, err)
 	equalURLs(t, "https://openshift.io?param1=a&param2=abc", generatedURL)
+}
+
+func TestAddTrailingSlashToURLSuccess(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	assert.Equal(t, "https://openshift.io/", AddTrailingSlashToURL("https://openshift.io"))
+	assert.Equal(t, "https://openshift.io/", AddTrailingSlashToURL("https://openshift.io/"))
+	assert.Equal(t, "", AddTrailingSlashToURL(""))
 }
 
 // Can't use test.EqualURLs() because of cycle dependency

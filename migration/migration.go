@@ -136,33 +136,42 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 9
 	m = append(m, steps{ExecuteSQLFile("009-external-token-hard-delete.sql")})
 
-	// version 10
+	// Version 10
 	defaultCluster := configuration.GetOpenShiftClientApiUrl()
 	m = append(m, steps{ExecuteSQLFile("010-add-cluster-to-user.sql", defaultCluster)})
 
-	// version 11
+	// Version 11
 	m = append(m, steps{ExecuteSQLFile("011-add-username-to-external-token.sql")})
 
-	// version 12
+	// Version 12
 	m = append(m, steps{ExecuteSQLFile("012-hide-email.sql")})
 
-	// version 13
+	// Version 13
 	m = append(m, steps{ExecuteSQLFile("013-add-email-verified.sql")})
 
-	// version 14
+	// Version 14
 	m = append(m, steps{ExecuteSQLFile("014-add-user-feature-level.sql")})
 
-	// version 15
+	// Version 15
 	m = append(m, steps{ExecuteSQLFile("015-clear-resources-create-resource-types.sql")})
 
-	// verion 16
+	// Version 16
 	m = append(m, steps{ExecuteSQLFile("016-add-state-to-auth-state-reference.sql")})
 
-	// verion 17
+	// Version 17
 	m = append(m, steps{ExecuteSQLFile("017-feature-level-not-null.sql")})
 
-	// verion 18
+	// Version 18
 	m = append(m, steps{ExecuteSQLFile("018-convert-user-feature-level.sql")})
+
+	// Version 19
+	m = append(m, steps{ExecuteSQLFile("019-authorization-part-2.sql")})
+
+	// Version 20
+	m = append(m, steps{ExecuteSQLFile("020-add-response-mode-to-auth-state-reference.sql")})
+
+	// verion 21
+	m = append(m, steps{ExecuteSQLFile("021-organizations-list-create.sql")})
 
 	// Version N
 	//

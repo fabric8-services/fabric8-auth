@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -74,6 +75,9 @@ type Identity struct {
 	// Link to User
 	UserID NullUUID `sql:"type:uuid"`
 	User   User
+	// Link to Resource
+	IdentityResourceID *string
+	IdentityResource   resource.Resource
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name

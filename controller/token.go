@@ -85,7 +85,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
 	}
 
-	t, err := keycloak.RefreshToken(ctx, endpoint, c.Configuration.GetKeycloakClientID(), c.Configuration.GetKeycloakSecret(), *refreshToken)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -195,49 +195,80 @@ func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, prov
 
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
+	appToken, errorResponse, err := c.retrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
+	if errorResponse != nil {
+		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
+	}
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.OK(appToken)
+}
+
+// Status checks if the stored external provider token is available.
+func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
+	appToken, errorResponse, err := c.retrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
+	if errorResponse != nil {
+		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
+	}
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	tokenStatus := &app.ExternalTokenStatus{
+		Username:       appToken.Username,
+		ProviderAPIURL: appToken.ProviderAPIURL,
+	}
+	return ctx.OK(tokenStatus)
+}
+
+func (c *TokenController) retrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
 	currentIdentity, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	var appResponse app.ExternalToken
 
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
 	tokenString := goajwt.ContextJWT(ctx).Raw
 
-	if ctx.For == "" {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
+	if forResource == "" {
+		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
 
-	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, *currentIdentity, req, forResource)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return nil, nil, err
 	}
 
 	osConfig, ok := providerConfig.(*link.OpenShiftIdentityProvider)
 	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant) {
 		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
 		clusterToken := app.ExternalToken{
-			Scope:       "<unknown>",
-			AccessToken: osConfig.Cluster.ServiceAccountToken,
-			TokenType:   "bearer",
-			Username:    &osConfig.Cluster.ServiceAccountUsername,
+			Scope:          "<unknown>",
+			AccessToken:    osConfig.Cluster.ServiceAccountToken,
+			TokenType:      "bearer",
+			Username:       osConfig.Cluster.ServiceAccountUsername,
+			ProviderAPIURL: osConfig.Cluster.APIURL,
 		}
 		log.Info(ctx, map[string]interface{}{
 			"cluster": osConfig.Cluster.Name,
 		}, "Returning a cluster wide token")
-		return ctx.OK(&clusterToken)
+		return &clusterToken, nil, nil
 	}
 
-	externalToken, err := c.retrieveToken(ctx, providerConfig, *currentIdentity)
+	externalToken, err := c.loadToken(ctx, providerConfig, *currentIdentity)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return nil, nil, err
 	}
 	if externalToken != nil {
-		updatedToken, err := c.updateProfileIfEmpty(ctx, providerConfig, externalToken, ctx.ForcePull)
+		updatedToken, errorResponse, err := c.updateProfileIfEmpty(ctx, forResource, req, providerConfig, externalToken, forcePull)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+			return nil, errorResponse, err
 		}
-		appResponse = modelToAppExternalToken(updatedToken)
-		return ctx.OK(&appResponse)
+		appResponse = modelToAppExternalToken(updatedToken, providerConfig.URL())
+		return &appResponse, nil, nil
 	}
 
 	providerName := providerConfig.TypeName()
@@ -249,28 +280,26 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	if err != nil {
 		log.Warn(ctx, map[string]interface{}{
 			"err":           err,
-			"for":           ctx.For,
+			"for":           forResource,
 			"provider_name": providerName,
 		}, "Unable to obtain external token from Keycloak. Account linking may be required.")
 
-		linkURL := rest.AbsoluteURL(ctx.RequestData, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), ctx.For))
+		linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource))
 		errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
-		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
-		ctx.ResponseData.Header().Set("WWW-Authenticate", errorResponse)
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("token is missing"))
+		return nil, &errorResponse, errors.NewUnauthorizedError("token is missing")
 	}
 
 	externalToken, err = c.saveKeycloakToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return nil, nil, err
 	}
-	updatedToken, err := c.updateProfileIfEmpty(ctx, providerConfig, externalToken, ctx.ForcePull)
+	updatedToken, errorResponse, err := c.updateProfileIfEmpty(ctx, forResource, req, providerConfig, externalToken, forcePull)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return nil, errorResponse, err
 	}
-	appResponse = modelToAppExternalToken(updatedToken)
+	appResponse = modelToAppExternalToken(updatedToken, providerConfig.URL())
 
-	return ctx.OK(&appResponse)
+	return &appResponse, nil, nil
 }
 
 // Delete deletes the stored external provider token.
@@ -282,7 +311,7 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
-	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, ctx.RequestData, ctx.For)
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, *currentIdentity, ctx.RequestData, ctx.For)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -382,7 +411,6 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
 	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -390,35 +418,9 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		}, "Unable to get Keycloak token endpoint URL")
 		return nil, errors.NewInternalErrorFromString(ctx, "unable to get Keycloak token endpoint URL")
 	}
-	res, err := client.PostForm(endpoint, url.Values{
-		"client_id":     {c.Configuration.GetKeycloakClientID()},
-		"client_secret": {c.Configuration.GetKeycloakSecret()},
-		"refresh_token": {*refreshToken},
-		"grant_type":    {"refresh_token"},
-	})
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to refresh token in Keycloak")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to refresh token in Keycloak")
-	}
-	defer rest.CloseResponse(res)
-	switch res.StatusCode {
-	case 200:
-		// OK
-	case 401:
-		return nil, errors.NewUnauthorizedError(res.Status + " " + rest.ReadBody(res.Body))
-	case 400:
-		return nil, errors.NewUnauthorizedError(res.Status + " " + rest.ReadBody(res.Body))
-	default:
-		return nil, errors.NewInternalError(ctx, errs.New(res.Status+" "+rest.ReadBody(res.Body)))
-	}
 
-	t, err := token.ReadTokenSet(ctx, res)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to read token")
 		return nil, err
 	}
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
@@ -515,7 +517,6 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 	}
 
 	return token, nil
-
 }
 
 func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
@@ -578,23 +579,30 @@ func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenRe
 
 // updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
 // loads the user profile from the identity provider and saves the username in the external token
-func (c *TokenController) updateProfileIfEmpty(ctx context.Context, providerConfig link.ProviderConfig, token *provider.ExternalToken, forcePull *bool) (provider.ExternalToken, error) {
+func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource string, req *goa.RequestData, providerConfig link.ProviderConfig, token *provider.ExternalToken, forcePull *bool) (provider.ExternalToken, *string, error) {
 	externalToken := *token
 	if externalToken.Username == "" || (forcePull != nil && *forcePull) {
 		userProfile, err := providerConfig.Profile(ctx, oauth2.Token{AccessToken: token.Token})
 		if err != nil {
-			return externalToken, err
+			log.Error(ctx, map[string]interface{}{
+				"err":           err,
+				"for":           forResource,
+				"provider_name": providerConfig.TypeName(),
+			}, "Unable to fetch user profile for external token. Account relinking may be required.")
+			linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource))
+			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"", linkURL, providerConfig.TypeName(), providerConfig.TypeName())
+			return externalToken, &errorResponse, errors.NewUnauthorizedError(err.Error())
 		}
 		externalToken.Username = userProfile.Username
 		err = application.Transactional(c.db, func(appl application.Application) error {
 			return appl.ExternalTokens().Save(ctx, &externalToken)
 		})
-		return externalToken, err
+		return externalToken, nil, err
 	}
-	return externalToken, nil
+	return externalToken, nil, nil
 }
 
-func (c *TokenController) retrieveToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
+func (c *TokenController) loadToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
 	var externalToken *provider.ExternalToken
 	err := application.Transactional(c.db, func(appl application.Application) error {
 		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
@@ -613,12 +621,13 @@ func (c *TokenController) retrieveToken(ctx context.Context, providerConfig link
 	return externalToken, err
 }
 
-func modelToAppExternalToken(externalToken provider.ExternalToken) app.ExternalToken {
+func modelToAppExternalToken(externalToken provider.ExternalToken, providerAPIURL string) app.ExternalToken {
 	return app.ExternalToken{
-		Scope:       externalToken.Scope,
-		AccessToken: externalToken.Token,
-		TokenType:   "bearer", // We aren't saving the token_type in the database
-		Username:    &externalToken.Username,
+		Scope:          externalToken.Scope,
+		AccessToken:    externalToken.Token,
+		TokenType:      "bearer", // We aren't saving the token_type in the database
+		Username:       externalToken.Username,
+		ProviderAPIURL: providerAPIURL,
 	}
 }
 

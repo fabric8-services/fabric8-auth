@@ -22,7 +22,7 @@ type resourceBlackBoxTest struct {
 }
 
 func TestRunResourceBlackBoxTest(t *testing.T) {
-	suite.Run(t, &resourceTypeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+	suite.Run(t, &resourceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *resourceBlackBoxTest) SetupTest() {
@@ -85,22 +85,14 @@ func (s *resourceBlackBoxTest) TestOKToSave() {
 }
 
 func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
-	identity := &account.Identity{
-		ID:           uuid.NewV4(),
-		Username:     "resource_blackbox_test_someuserTestIdentity2",
-		ProviderType: account.KeycloakIDP}
-
-	err := s.identityRepo.Create(s.Ctx, identity)
-	require.Nil(s.T(), err, "Could not create identity")
-
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
 	require.Nil(s.T(), err, "Could not create resource type")
 
 	resource := &resource.Resource{
 		ResourceID:       uuid.NewV4().String(),
 		ParentResourceID: nil,
-		Owner:            *identity,
 		ResourceType:     *resourceType,
+		ResourceTypeID:   resourceType.ResourceTypeID,
 	}
 
 	err = s.repo.Create(s.Ctx, resource)

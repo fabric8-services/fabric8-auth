@@ -9,13 +9,14 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"net/url"
+	"reflect"
+
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"net/url"
-	"reflect"
 )
 
 // String returns the current configuration as a string
@@ -181,6 +182,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	for _, account := range saConf.Accounts {
 		c.sa[account.ID] = account
 	}
+	c.checkServiceAccountConfig()
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
 	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
@@ -257,6 +259,38 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	return c, nil
+}
+
+func (c *ConfigurationData) checkServiceAccountConfig() {
+	notFoundServiceAccountNames := map[string]bool{
+		"fabric8-wit":           true,
+		"fabric8-tenant":        true,
+		"fabric8-jenkins-idler": true,
+		"fabric8-oso-proxy":     true,
+		"online-registration":   true,
+		"fabric8-notification":  true,
+		"rh-che":                true,
+	}
+	for _, sa := range c.sa {
+		if sa.Name == "" {
+			msg := "service account name is empty in service account config"
+			c.appendDefaultConfigErrorMessage(&msg)
+		} else {
+			delete(notFoundServiceAccountNames, sa.Name)
+		}
+		if sa.ID == "" {
+			msg := fmt.Sprintf("%s service account ID is empty in service account config", sa.Name)
+			c.appendDefaultConfigErrorMessage(&msg)
+		}
+		if len(sa.Secrets) == 0 {
+			msg := fmt.Sprintf("%s service account secret array is empty in service account config", sa.Name)
+			c.appendDefaultConfigErrorMessage(&msg)
+		}
+	}
+	if len(notFoundServiceAccountNames) != 0 {
+		msg := "some expected service accounts are missing in service account config"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
 }
 
 // checkClusterConfig checks if there is any missing keys or empty values in oso-clusters.conf
@@ -394,6 +428,7 @@ func (c *ConfigurationData) DefaultConfigurationError() error {
 // "fabric8-oso-proxy : "secret"
 // "online-registration : "secret"
 // "fabric8-notification : "secret"
+// "rh-che : "secret"
 func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
@@ -401,6 +436,21 @@ func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 // GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
 func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 	return c.clusters
+}
+
+// GetOSOClusterByURL returns a OSO cluster configurations by matching URL
+// Regardles of trailing slashes if cluster API URL == "https://api.openshift.com"
+// or "https://api.openshift.com/" it will match any "https://api.openshift.com*"
+// like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
+// Returns nil if no matching API URL found
+func (c *ConfigurationData) GetOSOClusterByURL(url string) *OSOCluster {
+	for apiURL, cluster := range c.GetOSOClusters() {
+		if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
+			return &cluster
+		}
+	}
+
+	return nil
 }
 
 // GetDefaultConfigurationFile returns the default configuration file.

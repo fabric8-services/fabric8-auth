@@ -3,10 +3,10 @@ package role_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/resource"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -16,9 +16,16 @@ import (
 
 type roleBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo                  role.RoleRepository
-	resourceTypeRepo      resource.ResourceTypeRepository
-	resourceTypeScopeRepo resource.ResourceTypeScopeRepository
+	repo role.RoleRepository
+}
+
+type KnownRole struct {
+	ResourceTypeName string
+	RoleName         string
+}
+
+var knownRoles = []KnownRole{
+	{ResourceTypeName: "identity/organization", RoleName: "owner"},
 }
 
 func TestRunRoleBlackBoxTest(t *testing.T) {
@@ -29,16 +36,18 @@ func (s *roleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
 	s.repo = role.NewRoleRepository(s.DB)
-	s.resourceTypeRepo = resource.NewResourceTypeRepository(s.DB)
-	s.resourceTypeScopeRepo = resource.NewResourceTypeScopeRepository(s.DB)
 }
 
 func (s *roleBlackBoxTest) TestOKToDelete() {
 	// create 2 roles, where the first one would be deleted.
-	role := createAndLoadRole(s)
-	createAndLoadRole(s)
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role)
 
-	err := s.repo.Delete(s.Ctx, role.RoleID)
+	_, err = testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	err = s.repo.Delete(s.Ctx, role.RoleID)
 	assert.Nil(s.T(), err)
 
 	// lets see how many are present.
@@ -54,7 +63,12 @@ func (s *roleBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *roleBlackBoxTest) TestOKToLoad() {
-	createAndLoadRole(s)
+	r, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), r)
+
+	_, err = s.repo.Load(s.Ctx, r.RoleID)
+	require.NoError(s.T(), err)
 }
 
 func (s *roleBlackBoxTest) TestExistsRole() {
@@ -62,9 +76,11 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 
 	t.Run("role exists", func(t *testing.T) {
 		//t.Parallel()
-		role := createAndLoadRole(s)
+		role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), role)
 		// when
-		_, err := s.repo.CheckExists(s.Ctx, role.RoleID.String())
+		_, err = s.repo.CheckExists(s.Ctx, role.RoleID.String())
 		// then
 		require.Nil(t, err)
 	})
@@ -79,10 +95,12 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 }
 
 func (s *roleBlackBoxTest) TestOKToSave() {
-	role := createAndLoadRole(s)
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role)
 
 	role.Name = "newRoleNameTestType"
-	err := s.repo.Save(s.Ctx, role)
+	err = s.repo.Save(s.Ctx, role)
 	require.Nil(s.T(), err, "Could not update role")
 
 	updatedRole, err := s.repo.Load(s.Ctx, role.RoleID)
@@ -90,44 +108,40 @@ func (s *roleBlackBoxTest) TestOKToSave() {
 	assert.Equal(s.T(), role.Name, updatedRole.Name)
 }
 
-// Test disabled until we have some predefined scopes
-/*
-func (s *roleBlackBoxTest) TestScopes() {
-	role := createAndLoadRole(s)
+func (s *roleBlackBoxTest) TestSaveConflictError() {
+	role1, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role1)
 
-	resourceTypeScopes, err := s.resourceTypeScopeRepo.List(s.Ctx, &role.ResourceType)
-	require.Nil(s.T(), err, "Could not load resource type scopes")
-	require.NotZero(s.T(), len(resourceTypeScopes))
+	role2, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role2)
 
-	err = s.repo.AddScope(s.Ctx, role, &resourceTypeScopes[0])
-	require.Nil(s.T(), err, "Role scope not created")
+	role2.Name = role1.Name
+	err = s.repo.Save(s.Ctx, role2)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.DataConflictError{}, err)
+}
 
-	roleScopes, err := s.repo.ListScopes(s.Ctx, role)
-	require.NotNil(s.T(), roleScopes, "Could not load role scopes")
+func (s *roleBlackBoxTest) TestCreateConflictError() {
+	role1, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role1)
 
-	require.Equal(s.T(), len(roleScopes), 1, "Should be exactly one role scope")
-}*/
+	_, err = testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, role1.Name)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.DataConflictError{}, err)
+}
 
-func createAndLoadRole(s *roleBlackBoxTest) *role.Role {
+func (s *roleBlackBoxTest) TestKnownRolesExist() {
+	t := s.T()
 
-	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
-	require.Nil(s.T(), err, "Could not create resource type")
+	t.Run("role exists", func(t *testing.T) {
 
-	role := &role.Role{
-		RoleID:         uuid.NewV4(),
-		ResourceType:   *resourceType,
-		ResourceTypeID: resourceType.ResourceTypeID,
-		Name:           "role_blackbox_test_admin" + uuid.NewV4().String(),
-		//Scopes:         []resource.ResourceTypeScope{*resourceTypeScope},
-	}
-
-	err = s.repo.Create(s.Ctx, role)
-	require.Nil(s.T(), err, "Could not create role")
-
-	createdRole, err := s.repo.Load(s.Ctx, role.RoleID)
-	require.Nil(s.T(), err, "Could not load role")
-	require.Equal(s.T(), role.Name, createdRole.Name)
-	require.Equal(s.T(), role.ResourceTypeID, createdRole.ResourceTypeID)
-
-	return createdRole
+		for _, r := range knownRoles {
+			_, err := s.repo.Lookup(s.Ctx, r.RoleName, r.ResourceTypeName)
+			// then
+			require.Nil(t, err)
+		}
+	})
 }

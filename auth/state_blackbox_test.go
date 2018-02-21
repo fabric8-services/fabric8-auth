@@ -31,16 +31,30 @@ func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	// given
 	state := &auth.OauthStateReference{
 		State:    uuid.NewV4().String(),
-		Referrer: "domain.org"}
+		Referrer: "domain.org",
+	}
 
+	responseMode := "fragment"
 	state2 := &auth.OauthStateReference{
-		State:    uuid.NewV4().String(),
-		Referrer: "anotherdomain.com"}
+		State:        uuid.NewV4().String(),
+		Referrer:     "anotherdomain.com",
+		ResponseMode: &responseMode,
+	}
 
 	_, err := s.repo.Create(s.Ctx, state)
 	require.Nil(s.T(), err, "Could not create state reference")
+	foundState, err := s.repo.Load(s.Ctx, state.State)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), foundState)
+	require.True(s.T(), state.Equal(*foundState))
+
 	_, err = s.repo.Create(s.Ctx, state2)
 	require.Nil(s.T(), err, "Could not create state reference")
+	foundState, err = s.repo.Load(s.Ctx, state2.State)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), foundState)
+	require.True(s.T(), state2.Equal(*foundState))
+
 	// when
 	err = s.repo.Delete(s.Ctx, state.ID)
 	// then
@@ -49,7 +63,7 @@ func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 
-	foundState, err := s.repo.Load(s.Ctx, state2.State)
+	foundState, err = s.repo.Load(s.Ctx, state2.State)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), foundState)
 	require.True(s.T(), state2.Equal(*foundState))

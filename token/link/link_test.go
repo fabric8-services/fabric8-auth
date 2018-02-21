@@ -39,7 +39,7 @@ func TestRunLinkTestSuite(t *testing.T) {
 
 func (s *LinkTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	providerFactory := NewOauthProviderFactory(s.Configuration)
+	providerFactory := NewOauthProviderFactory(s.Configuration, s.Application)
 	s.linkService = NewLinkServiceWithFactory(s.Configuration, s.Application, providerFactory)
 	s.requestData = &goa.RequestData{Request: &http.Request{
 		URL: &url.URL{Scheme: "https", Host: "auth.openshift.io"},
@@ -78,21 +78,57 @@ func (s *LinkTestSuite) TestCallbackWithUnknownStateFails() {
 }
 
 func (s *LinkTestSuite) TestGitHubProviderRedirectsToAuthorize() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
+	s.checkGitHubProviderRedirectsToAuthorize("https://github.com")
+	s.checkGitHubProviderRedirectsToAuthorize("https://github.com/")
+	s.checkGitHubProviderRedirectsToAuthorize("https://github.com/org/repo")
+	// Check alias
+	s.checkGitHubProviderRedirectsToAuthorize("github")
+}
+
+func (s *LinkTestSuite) checkGitHubProviderRedirectsToAuthorize(for_ string) {
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	require.True(s.T(), strings.HasPrefix(location, "https://github.com/login/oauth/authorize"))
 	require.NotEmpty(s.T(), s.stateParam(location))
 }
 
 func (s *LinkTestSuite) TestOSOProviderRedirectsToAuthorize() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), s.Configuration.GetOpenShiftClientApiUrl(), "https://openshift.io/home")
+	s.checkOSOProviderRedirectsToAuthorize(s.Configuration.GetOpenShiftClientApiUrl())
+	s.checkOSOProviderRedirectsToAuthorize("https://api.starter-us-east-2.openshift.com")
+	s.checkOSOProviderRedirectsToAuthorize("https://api.starter-us-east-2.openshift.com/")
+	s.checkOSOProviderRedirectsToAuthorize("https://api.starter-us-east-2.openshift.com/path")
+	s.checkOSO2aProviderRedirectsToAuthorize(s.testIdentity, "https://api.starter-us-east-2a.openshift.com/path")
+	// Check alias
+	s.checkOSOProviderRedirectsToAuthorize("openshift")
+
+	// Check another cluster
+	testIdentityCluster2a, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "testOSOProviderRedirectsToAuthorizeUser")
+	require.Nil(s.T(), err)
+	s.checkOSO2aProviderRedirectsToAuthorize(testIdentityCluster2a, "openshift")
+}
+
+func (s *LinkTestSuite) checkOSOProviderRedirectsToAuthorize(for_ string) {
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), location, fmt.Sprintf("%s/oauth/authorize", s.Configuration.GetOpenShiftClientApiUrl()))
 	require.NotEmpty(s.T(), s.stateParam(location))
 }
 
+func (s *LinkTestSuite) checkOSO2aProviderRedirectsToAuthorize(identity account.Identity, for_ string) {
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, identity.ID.String(), for_, "https://openshift.io/home")
+	require.Nil(s.T(), err)
+	require.Contains(s.T(), location, "https://api.starter-us-east-2a.openshift.com/oauth/authorize")
+	require.NotEmpty(s.T(), s.stateParam(location))
+}
+
 func (s *LinkTestSuite) TestMultipleProvidersRedirectsToAuthorize() {
 	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo,https://openshift.io/home", "https://openshift.io/_home")
+	require.Nil(s.T(), err)
+	require.True(s.T(), strings.HasPrefix(location, "https://github.com/login/oauth/authorize"))
+	require.NotEmpty(s.T(), s.stateParam(location))
+
+	// Aliases
+	location, err = s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "github,openshift", "https://openshift.io/_home")
 	require.Nil(s.T(), err)
 	require.True(s.T(), strings.HasPrefix(location, "https://github.com/login/oauth/authorize"))
 	require.NotEmpty(s.T(), s.stateParam(location))
@@ -113,7 +149,7 @@ func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: uuid.NewV4().String(), Config: s.Configuration})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: uuid.NewV4().String(), Config: s.Configuration, DB: s.Application})
 
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -126,7 +162,7 @@ func (s *LinkTestSuite) TestProviderSavesTokenOK() {
 	state := s.stateParam(location)
 
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, DB: s.Application})
 
 	code := uuid.NewV4().String()
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -142,7 +178,7 @@ func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
 	state := s.stateParam(location)
 
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, LoadProfileFail: true})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, LoadProfileFail: true, DB: s.Application})
 
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -167,9 +203,26 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 	s.checkCallback(s.Configuration.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"].TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
 }
 
+func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
+	// Redirect to GitHub first
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "github,openshift", "https://openshift.io/_home")
+	require.Nil(s.T(), err)
+	locationURL, err := url.Parse(location)
+	require.Nil(s.T(), err)
+	require.Equal(s.T(), "https", locationURL.Scheme)
+	require.Equal(s.T(), "github.com", locationURL.Host)
+	require.Equal(s.T(), "/login/oauth/authorize", locationURL.Path)
+
+	// Callback from GitHub should redirect to OSO
+	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
+
+	// Callback from OSO should redirect back to the original redirect URL
+	s.checkCallback(s.Configuration.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"].TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
+}
+
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, DB: s.Application})
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, uuid.NewV4().String())
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(callbackLocation)

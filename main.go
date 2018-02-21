@@ -10,6 +10,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
+	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
@@ -28,6 +29,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/models"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -180,6 +183,11 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
+	roleManagementModelService := models.NewRoleManagementModelService(db, appDB)
+	roleManagemenetService := authorization.NewRoleManagementService(roleManagementModelService, appDB)
+	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService)
+	app.MountResourceRolesController(service, resourceRoleCtrl)
+
 	// Mount "authorize" controller
 	authorizeCtrl := controller.NewAuthorizeController(service, loginService, tokenManager, config)
 	app.MountAuthorizeController(service, authorizeCtrl)
@@ -188,17 +196,12 @@ func main() {
 	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, config)
 	app.MountLogoutController(service, logoutCtrl)
 
-	providerFactory := link.NewOauthProviderFactory(config)
+	providerFactory := link.NewOauthProviderFactory(config, appDB)
 	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
-	//providerFactory := link.NewOauthProviderFactory(configuration, appDB)
 	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient(config)
 	// Mount "token" controller
 	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, config)
 	app.MountTokenController(service, tokenCtrl)
-
-	// Mount "link" controller
-	linkCtrl := controller.NewLinkController(service, loginService, tokenManager, config)
-	app.MountLinkController(service, linkCtrl)
 
 	// Mount "status" controller
 	statusCtrl := controller.NewStatusController(service, controller.NewGormDBChecker(db), config)
@@ -213,7 +216,8 @@ func main() {
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
-	userCtrl := controller.NewUserController(service, appDB, tokenManager, config)
+	userInfoProvider := userinfo.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
+	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
 		userCtrl.InitTenant = account.NewInitTenant(config)
@@ -232,6 +236,10 @@ func main() {
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 
+	//Mount "userinfo" controller
+	userInfoCtrl := controller.NewUserinfoController(service, userInfoProvider, appDB, tokenManager)
+	app.MountUserinfoController(service, userInfoCtrl)
+
 	// Mount "collaborators" controller
 	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, config, auth.NewKeycloakPolicyManager(config))
 	app.MountCollaboratorsController(service, collaboratorsCtrl)
@@ -239,6 +247,16 @@ func main() {
 	// Mount "clusters" controller
 	clustersCtrl := controller.NewClustersController(service, config)
 	app.MountClustersController(service, clustersCtrl)
+
+	// Mount "resources" controller
+	resourcesCtrl := controller.NewResourceController(service, appDB)
+	app.MountResourceController(service, resourcesCtrl)
+
+	// Mount "organizations" controller
+	organizationModelService := models.NewOrganizationModelService(db, appDB)
+	organizationService := authorization.NewOrganizationService(organizationModelService, appDB)
+	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationService)
+	app.MountOrganizationController(service, organizationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
