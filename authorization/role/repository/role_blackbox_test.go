@@ -1,4 +1,4 @@
-package role_test
+package repository_test
 
 import (
 	"testing"
