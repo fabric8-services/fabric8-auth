@@ -90,6 +90,7 @@ type Parser interface {
 type Manager interface {
 	Parser
 	Locate(ctx context.Context) (uuid.UUID, error)
+	Parse(ctx context.Context, tokenString string) (*jwt.Token, error)
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
