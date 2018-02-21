@@ -9,24 +9,24 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 )
 
-// RoleAssignmentService defines the contract for managing roles assigments to a resource
-type RoleAssignmentService interface {
+// RoleManagementService defines the contract for managing roles assigments to a resource
+type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error)
 }
 
-// RoleAssignmentServiceImpl implements the RoleAssignmentService for managing role assignments.
-type RoleAssignmentServiceImpl struct {
-	modelService models.RoleAssignmentModelService
+// RoleManagementServiceImpl implements the RoleManagementService for managing role assignments.
+type RoleManagementServiceImpl struct {
+	modelService models.RoleManagementModelService
 	db           application.DB
 }
 
-// NewRoleAssignmentService creates a reference to new RoleAssignmentService implementation
-func NewRoleAssignmentService(modelService models.RoleAssignmentModelService, db application.DB) *RoleAssignmentServiceImpl {
-	return &RoleAssignmentServiceImpl{modelService: modelService, db: db}
+// NewRoleManagementService creates a reference to new RoleManagementService implementation
+func NewRoleManagementService(modelService models.RoleManagementModelService, db application.DB) *RoleManagementServiceImpl {
+	return &RoleManagementServiceImpl{modelService: modelService, db: db}
 }
 
 // ListByResource lists assignments made for a specific resource
-func (r *RoleAssignmentServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error) {
+func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]role.IdentityRole, error) {
 
 	var roles []role.IdentityRole
 	var err error

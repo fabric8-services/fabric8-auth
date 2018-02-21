@@ -15,21 +15,21 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type roleAssignmentServiceBlackboxTest struct {
+type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	assignmentService authorization.RoleAssignmentService
 }
 
-func TestRunRoleAssignmentServiceBlackboxTest(t *testing.T) {
-	suite.Run(t, &roleAssignmentServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
+	suite.Run(t, &roleManagementServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *roleAssignmentServiceBlackboxTest) SetupTest() {
+func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	modelService := models.NewRoleAssignmentModelService(s.DB, s.Application)
 	s.assignmentService = authorization.NewRoleAssignmentService(modelService, s.Application)
 }
-func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRoleByResource() {
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)
@@ -41,7 +41,7 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	require.Equal(t, identityRole.Resource.ResourceID, identityRoles[0].Resource.ResourceID)
 }
 
-func (s *roleAssignmentServiceBlackboxTest) TestGetMultipleIdentityRoleByResourceInherited() {
+func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourceInherited() {
 
 	/*
 		Create resource "AreaDev"
@@ -98,7 +98,7 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 
 }
 
-func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRolesOfParentResource() {
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesOfParentResource() {
 
 	/*
 		Create resource "AreaDev"
@@ -153,7 +153,7 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRolesOfParentResource
 
 }
 
-func (s *roleAssignmentServiceBlackboxTest) TestGetMultipleIdentityRoleByResourceNotInherited() {
+func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourceNotInherited() {
 	t := s.T()
 	resourceOwner := testsupport.TestIdentity2
 	err := testsupport.CreateTestIdentityAndUserInDB(s.DB, &resourceOwner)
@@ -203,7 +203,7 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 
 }
 
-func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)
@@ -214,7 +214,7 @@ func (s *roleAssignmentServiceBlackboxTest) TestGetIdentityRoleByResourceNotFoun
 	require.Equal(t, 0, len(identityRoles))
 }
 
-func (s *roleAssignmentServiceBlackboxTest) checkExists(createdRole role.IdentityRole, pool []role.IdentityRole, isInherited bool) bool {
+func (s *roleManagementServiceBlackboxTest) checkExists(createdRole role.IdentityRole, pool []role.IdentityRole, isInherited bool) bool {
 	for _, retrievedRole := range pool {
 		if retrievedRole.IdentityRoleID.String() == createdRole.IdentityRoleID.String() {
 			s.compare(createdRole, retrievedRole, isInherited)
@@ -224,7 +224,7 @@ func (s *roleAssignmentServiceBlackboxTest) checkExists(createdRole role.Identit
 	return false
 }
 
-func (s *roleAssignmentServiceBlackboxTest) compare(createdRole role.IdentityRole, retrievedRole role.IdentityRole, isInherited bool) bool {
+func (s *roleManagementServiceBlackboxTest) compare(createdRole role.IdentityRole, retrievedRole role.IdentityRole, isInherited bool) bool {
 	require.Equal(s.T(), createdRole.IdentityRoleID.String(), retrievedRole.IdentityRoleID.String())
 	require.Equal(s.T(), createdRole.IdentityID.String(), retrievedRole.Identity.ID.String())
 	require.Equal(s.T(), createdRole.Role.Name, retrievedRole.Role.Name)

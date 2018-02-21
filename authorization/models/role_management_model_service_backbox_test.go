@@ -12,21 +12,21 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type roleAssignmentModelServiceBlackboxTest struct {
+type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	repo models.RoleAssignmentModelService
 }
 
-func TestRunRoleAssignmentModelServiceBlackboxTest(t *testing.T) {
-	suite.Run(t, &roleAssignmentModelServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
+	suite.Run(t, &roleManagementModelServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *roleAssignmentModelServiceBlackboxTest) SetupTest() {
+func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = models.NewRoleAssignmentModelService(s.DB, s.Application)
 }
 
-func (s *roleAssignmentModelServiceBlackboxTest) TestGetIdentityRoleByResource() {
+func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)
@@ -45,7 +45,7 @@ func (s *roleAssignmentModelServiceBlackboxTest) TestGetIdentityRoleByResource()
 	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
 }
 
-func (s *roleAssignmentModelServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
+func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)

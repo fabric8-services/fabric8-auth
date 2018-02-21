@@ -183,9 +183,9 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
-	roleAssignmentModelService := models.NewRoleAssignmentModelService(db, appDB)
-	roleAssignmentService := authorization.NewRoleAssignmentService(roleAssignmentModelService, appDB)
-	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleAssignmentService)
+	roleManagementModelService := models.NewRoleManagementModelService(db, appDB)
+	roleManagemenetService := authorization.NewRoleManagementService(roleManagementModelService, appDB)
+	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
 
 	// Mount "authorize" controller

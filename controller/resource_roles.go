@@ -15,15 +15,15 @@ import (
 type ResourceRolesController struct {
 	*goa.Controller
 	db                    application.DB
-	roleAssignmentService authorization.RoleAssignmentService
+	roleManagementService authorization.RoleManagementService
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService authorization.RoleAssignmentService) *ResourceRolesController {
+func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService authorization.RoleManagementService) *ResourceRolesController {
 	return &ResourceRolesController{
 		Controller: service.NewController("ResourceRolesController"),
 		db:         db,
-		roleAssignmentService: assignmentService,
+		roleManagementService: assignmentService,
 	}
 }
 
@@ -32,7 +32,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 
 	var roles []role.IdentityRole
 
-	roles, err := c.roleAssignmentService.ListByResource(ctx, ctx.ResourceID)
+	roles, err := c.roleManagementService.ListByResource(ctx, ctx.ResourceID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
