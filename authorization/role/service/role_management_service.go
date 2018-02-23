@@ -59,8 +59,10 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 			log.Error(ctx, map[string]interface{}{
 				"resource_type": resourceType,
 				"err":           err,
-			}, "does not exist")
-			return errors.NewNotFoundError("resource_type", resourceType)
+			}, "error getting toles for the resource type")
+			// if not found, then NotFoundError would be returned,
+			// hence returning the error as is.
+			return err
 		}
 
 		roleScopes, err = r.modelService.ListAvailableRolesByResourceType(ctx, resourceType)

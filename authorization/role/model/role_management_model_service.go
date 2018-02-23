@@ -150,9 +150,9 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 	return identityRoles, nil
 }
 
-// ListAvailableRolesByResource lists role assignments of a specific resource.
+// ListAvailableRolesByResourceType lists role assignments of a specific resource.
 func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]RoleScope, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailable"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
 	var roleScopes []RoleScope
 
 	r.db = r.db.Debug()
@@ -213,9 +213,10 @@ func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx co
 		}
 		scopesList := strings.Split(scopeNames, ",")
 		roleScope := RoleScope{
-			RoleName: roleName,
-			RoleID:   roleID,
-			Scopes:   scopesList,
+			RoleName:     roleName,
+			RoleID:       roleID,
+			Scopes:       scopesList,
+			ResourceType: resourceType,
 		}
 		roleScopes = append(roleScopes, roleScope)
 	}

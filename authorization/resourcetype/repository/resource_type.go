@@ -6,6 +6,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -63,6 +64,9 @@ func (m *GormResourceTypeRepository) Lookup(ctx context.Context, name string) (*
 
 	var native ResourceType
 	err := m.db.Table(m.TableName()).Where("name = ?", name).First(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, errors.NewNotFoundError("resource_type", name)
+	}
 	return &native, err
 }
 
