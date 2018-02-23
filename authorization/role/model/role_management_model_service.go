@@ -12,12 +12,14 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
+	"strings"
 	"time"
 )
 
 // RoleManagementModelService defines the service contract for managing role assignments
 type RoleManagementModelService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
+	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]RoleScope, error)
 }
 
 // NewRoleManagementModelService creates a new service to manage role assignments
@@ -146,4 +148,76 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 		identityRoles = append(identityRoles, ir)
 	}
 	return identityRoles, nil
+}
+
+// ListAvailableRolesByResource lists role assignments of a specific resource.
+func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]RoleScope, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailable"}, time.Now())
+	var roleScopes []RoleScope
+
+	r.db = r.db.Debug()
+	db := r.db.Raw(`SELECT r.role_id,
+		r.name role_name,
+		array_to_string(array_agg(rts.NAME), ',') scopes
+		FROM   resource_type_scope rts, 
+			   role_scope rs, 
+			   resource_type rt, 
+			   role r 
+		WHERE  rs.scope_id = rts.resource_type_scope_id 
+			   AND rs.role_id = r.role_id 
+			   AND rt.resource_type_id = r.resource_type_id 
+			   AND rt.NAME = ?
+		group by r.role_id, r.name`, resourceType)
+
+	rows, err := db.Rows()
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resourceType": resourceType,
+			"err":          err,
+		}, "error running custom sql to get available roles")
+		return roleScopes, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	columnValues := make([]interface{}, len(columns))
+
+	var ignore interface{}
+	for index := range columnValues {
+		columnValues[index] = &ignore
+	}
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_type": resourceType,
+			"err":           err,
+		}, "error getting columns")
+		return roleScopes, errors.NewInternalError(ctx, err)
+	}
+
+	for rows.Next() {
+		var roleName string
+		var scopeNames string
+		var roleID string
+
+		columnValues[0] = &roleID
+		columnValues[1] = &roleName
+		columnValues[2] = &scopeNames
+
+		if err = rows.Scan(columnValues...); err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_type": resourceType,
+				"err":           err,
+			}, "error getting rows")
+			return roleScopes, errors.NewInternalError(ctx, err)
+		}
+		scopesList := strings.Split(scopeNames, ",")
+		roleScope := RoleScope{
+			RoleName: roleName,
+			RoleID:   roleID,
+			Scopes:   scopesList,
+		}
+		roleScopes = append(roleScopes, roleScope)
+	}
+	return roleScopes, err
 }

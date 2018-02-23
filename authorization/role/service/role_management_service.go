@@ -12,6 +12,7 @@ import (
 // RoleManagementService defines the contract for managing roles assigments to a resource
 type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
+	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]roleModel.RoleScope, error)
 }
 
 // RoleManagementServiceImpl implements the RoleManagementService for managing role assignments.
@@ -45,4 +46,25 @@ func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resource
 	})
 
 	return roles, err
+}
+
+// ListAvailableRolesByResourceType lists assignments made for a specific resource
+func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]roleModel.RoleScope, error) {
+
+	var roleScopes []roleModel.RoleScope
+	var err error
+	err = application.Transactional(r.db, func(appl application.Application) error {
+		_, err = appl.ResourceTypeRepository().Lookup(ctx, resourceType)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_type": resourceType,
+				"err":           err,
+			}, "does not exist")
+			return errors.NewNotFoundError("resource_type", resourceType)
+		}
+
+		roleScopes, err = r.modelService.ListAvailableRolesByResourceType(ctx, resourceType)
+		return err
+	})
+	return roleScopes, err
 }
