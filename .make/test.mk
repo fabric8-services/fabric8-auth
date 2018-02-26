@@ -293,9 +293,7 @@ $(COV_PATH_OVERALL): $(GOCOVMERGE_BIN)
 # Console coverage output:
 
 # First parameter: file to do in-place replacement with.
-# Delete the lines containing /bindata_assetfs.go
 define cleanup-coverage-file
-@sed -i '/.*\/bindata_assetfs\.go.*/d' $(1)
 @sed -i '/.*\/sqlbindata\.go.*/d' $(1)
 @sed -i '/.*\/confbindata\.go.*/d' $(1)
 endef
