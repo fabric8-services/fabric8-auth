@@ -21,13 +21,13 @@ type RoleScope struct {
 	gormsupport.Lifecycle
 
 	// The associated scope
-	ResourceTypeScope resourceTypeScope.ResourceTypeScope `gorm:"ForeignKey:ResourceTypeScopeID;AssociationForeignKey:ResourceTypeScopeID"`
+	ResourceTypeScope resourceTypeScope.ResourceTypeScope `gorm:"ForeignKey:ResourceTypeScopeID"`
 
 	// The foreign key value for ResourceTypeScopeID
-	ResourceTypeScopeID uuid.UUID
+	ResourceTypeScopeID uuid.UUID `gorm:"column:scope_id"`
 
 	// The associated role
-	Role role.Role `gorm:"ForeignKey:RoleID;AssociationForeignKey:RoleID"`
+	Role role.Role `gorm:"ForeignKey:RoleID"`
 
 	// The foreign key value for RoleID
 	RoleID uuid.UUID
@@ -65,7 +65,7 @@ type RoleScopeRepository interface {
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
 func (m *GormRoleScopeRepository) TableName() string {
-	return "resource_type_scope"
+	return "role_scope"
 }
 
 // Create creates a new RoleScope
@@ -74,15 +74,15 @@ func (m *GormRoleScopeRepository) Create(ctx context.Context, roleScope *RoleSco
 	err := m.db.Create(roleScope).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"resource_scope_id": roleScope.ResourceTypeScopeID,
-			"role_id":           roleScope.RoleID,
-			"err":               err,
-		}, "unable to create the resource type scope")
+			"resource_type_scope_id": roleScope.ResourceTypeScope.ResourceTypeScopeID,
+			"role_id":                roleScope.Role.RoleID,
+			"err":                    err,
+		}, "unable to create the role scope")
 		return errs.WithStack(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
-		"resource_scope_id": roleScope.ResourceTypeScopeID,
-		"role_id":           roleScope.RoleID,
+		"resource_scope_id": roleScope.ResourceTypeScope.ResourceTypeScopeID,
+		"role_id":           roleScope.Role.RoleID,
 	}, "Role Scope created!")
 	return nil
 }
