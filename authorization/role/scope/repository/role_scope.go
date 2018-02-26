@@ -16,7 +16,7 @@ import (
 	errs "github.com/pkg/errors"
 )
 
-// RoleScope defines the association between a resource type's scopes and a resource type's role.
+// RoleScope defines the association between a resource type's scope(s) and a resource type's role.
 type RoleScope struct {
 	gormsupport.Lifecycle
 
@@ -68,33 +68,31 @@ func (m *GormRoleScopeRepository) TableName() string {
 	return "resource_type_scope"
 }
 
-// CRUD Functions
-
 // Create creates a new RoleScope
 func (m *GormRoleScopeRepository) Create(ctx context.Context, roleScope *RoleScope) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role_scope", "create"}, time.Now())
 	err := m.db.Create(roleScope).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"scope_id": roleScope.ResourceTypeScopeID,
-			"role_id":  roleScope.RoleID,
-			"err":      err,
+			"resource_scope_id": roleScope.ResourceTypeScopeID,
+			"role_id":           roleScope.RoleID,
+			"err":               err,
 		}, "unable to create the resource type scope")
 		return errs.WithStack(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
-		"scope_id": roleScope.ResourceTypeScopeID,
-		"role_id":  roleScope.RoleID,
+		"resource_scope_id": roleScope.ResourceTypeScopeID,
+		"role_id":           roleScope.RoleID,
 	}, "Role Scope created!")
 	return nil
 }
 
-//LoadByScope loads a role & scope assocation by the scope ID
+//LoadByScope loads a 'role & scope assocation' by the scope ID
 func (m *GormRoleScopeRepository) LoadByScope(ctx context.Context, ID uuid.UUID) ([]RoleScope, error) {
 	return m.Query(RoleScopeFilterByScope(ID))
 }
 
-//LoadByRole loads a role & scope assocation by the role ID
+//LoadByRole loads a 'role & scope assocation' by the role ID
 func (m *GormRoleScopeRepository) LoadByRole(ctx context.Context, ID uuid.UUID) ([]RoleScope, error) {
 	return m.Query(RoleScopeFilterByRole(ID))
 }
@@ -121,9 +119,9 @@ func RoleScopeFilterByScope(id uuid.UUID) func(db *gorm.DB) *gorm.DB {
 	}
 }
 
-// RoleScopeFilterByRole is a gorm filter by 'scope_id'
+// RoleScopeFilterByRole is a gorm filter by 'role'
 func RoleScopeFilterByRole(id uuid.UUID) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("role = ?", id)
+		return db.Where("role_id = ?", id)
 	}
 }
