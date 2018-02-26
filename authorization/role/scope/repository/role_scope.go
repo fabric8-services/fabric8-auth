@@ -30,9 +30,6 @@ type RoleScope struct {
 
 	// The foreign key value for RoleID
 	RoleID uuid.UUID
-
-	// The name of this scope
-	Name string
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
