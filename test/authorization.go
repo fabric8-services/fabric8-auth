@@ -5,8 +5,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/scope/repository"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
@@ -65,6 +67,45 @@ func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resourcet
 	roleRepository := resource.NewResourceRepository(db)
 	err := roleRepository.Create(ctx, &resourceRef)
 	return &resourceRef, err
+}
+
+func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*scope.ResourceTypeScope, error) {
+	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
+	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
+
+	if err != nil {
+		return nil, err
+	}
+
+	rts := scope.ResourceTypeScope{
+		ResourceTypeScopeID: uuid.NewV4(),
+		ResourceTypeID:      resourceType.ResourceTypeID,
+		Name:                uuid.NewV4().String(),
+	}
+
+	resourceTypeScopeRepo := scope.NewResourceTypeScopeRepository(db)
+	err = resourceTypeScopeRepo.Create(ctx, &rts)
+	if err != nil {
+		return nil, err
+	}
+	return &rts, nil
+}
+
+func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s scope.ResourceTypeScope, r role.Role) (*rolescope.RoleScope, error) {
+	roleScopeRepo := rolescope.NewRoleScopeRepository(db)
+
+	rs := rolescope.RoleScope{
+		ResourceTypeScope:   s,
+		ResourceTypeScopeID: s.ResourceTypeScopeID,
+		Role:                r,
+		RoleID:              r.RoleID,
+	}
+
+	err := roleScopeRepo.Create(ctx, &rs)
+	if err != nil {
+		return nil, err
+	}
+	return &rs, nil
 }
 
 func CreateTestResourceWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*resource.Resource, error) {

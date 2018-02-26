@@ -124,3 +124,7 @@ func (s *roleScopeBlackBoxTest) TestListRoleScopeByScopeOK() {
 	require.Equal(s.T(), randomRole.RoleID, retrievedRoles[0].RoleID)
 	require.Equal(s.T(), rs.ResourceTypeScopeID, retrievedRoles[0].ResourceTypeScopeID)
 }
+
+func (s *roleScopeBlackBoxTest) TestListRoleScopeByRoleMultipleScopesOK() {
+	s.T().Skip()
+}

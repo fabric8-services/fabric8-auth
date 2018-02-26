@@ -3,10 +3,18 @@ package model_test
 import (
 	"testing"
 
-	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roleDBEntity "github.com/fabric8-services/fabric8-auth/authorization/role/scope/repository"
+
+	//rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -14,7 +22,10 @@ import (
 
 type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo rolemodel.RoleManagementModelService
+	repo              rolescope.RoleManagementModelService
+	roleRepo          rolerepo.RoleRepository
+	resourcetypeRepo  resourcetype.ResourceTypeRepository
+	resourceTypeScope scope.ResourceTypeScopeRepository
 }
 
 func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
@@ -23,7 +34,10 @@ func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = rolemodel.NewRoleManagementModelService(s.DB, s.Application)
+	s.repo = rolescope.NewRoleManagementModelService(s.DB, s.Application)
+	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
+	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
+	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {
@@ -54,4 +68,89 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceNo
 	identityRoles, err := s.repo.ListByResource(s.Ctx, uuid.NewV4().String())
 	require.NoError(t, err)
 	require.Equal(t, 0, len(identityRoles))
+}
+
+func (s *roleManagementModelServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
+
+	var createdRoleScopes []roleDBEntity.RoleScope
+
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role)
+
+	scope, err := testsupport.CreateTestScopeWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), scope)
+
+	rs, err := testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rs)
+
+	createdRoleScopes = append(createdRoleScopes, *rs)
+
+	areaResourceType, err := s.resourcetypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), areaResourceType)
+
+	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, "openshift.io/resource/area")
+	require.NoError(s.T(), err)
+
+	// there might be other 'RoleScopes' returned too.
+	// That wouldn't be considered to be a failure, rather we are gonna check whether they all
+	// belong to the same resource type.
+	s.checkRoleBelongsToResourceType(s.DB, roleScopesRetrieved, *areaResourceType)
+
+	// Then let's check if the ones we created are there.
+	s.checkIfCreatedRoleScopesAreReturned(s.DB, roleScopesRetrieved, createdRoleScopes)
+}
+
+func (s *roleManagementModelServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, roleScopesRetrieved []rolescope.RoleScope, createdRoleScopes []roleDBEntity.RoleScope) {
+	foundCreatedRoleScope := false
+	for _, rsDB := range createdRoleScopes {
+		foundCreatedRoleScope = false
+		for _, rsRetrieved := range roleScopesRetrieved {
+			if rsDB.RoleID.String() == rsRetrieved.RoleID {
+				for _, sc := range rsRetrieved.Scopes {
+					if sc == rsDB.ResourceTypeScope.Name {
+						foundCreatedRoleScope = true
+					}
+				}
+			}
+		}
+	}
+	require.True(s.T(), foundCreatedRoleScope)
+}
+
+func (s *roleManagementModelServiceBlackboxTest) checkRoleBelongsToResourceType(db *gorm.DB, roleScopesRetrieved []rolescope.RoleScope, rt resourcetype.ResourceType) {
+	require.True(s.T(), len(roleScopesRetrieved) >= 1)
+	for _, r := range roleScopesRetrieved {
+		roleID, err := uuid.FromString(r.RoleID)
+		require.Nil(s.T(), err)
+
+		existingRole, err := s.roleRepo.Load(s.Ctx, roleID)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), existingRole)
+
+		// this role should belong to the specific resource type
+		require.Equal(s.T(), rt.ResourceTypeID, existingRole.ResourceTypeID)
+		for _, sc := range r.Scopes {
+			foundScope, err := s.checkScopeBelongsToResourceType(s.DB, sc, rt)
+			require.NoError(s.T(), err)
+			require.Equal(s.T(), true, foundScope)
+		}
+	}
+}
+
+func (s *roleManagementModelServiceBlackboxTest) checkScopeBelongsToResourceType(db *gorm.DB, scopeName string, rt resourcetype.ResourceType) (bool, error) {
+	scopesReturned, err := s.resourceTypeScope.ListByName(s.Ctx, scopeName)
+	if err != nil {
+		return false, err
+	}
+	foundScope := false
+	for _, returnedScope := range scopesReturned {
+		if returnedScope.ResourceTypeID.String() == rt.ResourceTypeID.String() {
+			foundScope = true
+		}
+	}
+	return foundScope, nil
 }
