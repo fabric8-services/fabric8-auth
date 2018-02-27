@@ -68,3 +68,7 @@ func (provider *DummyProvider) Profile(ctx context.Context, token oauth2.Token) 
 		Username: token.AccessToken + "testuser",
 	}, nil
 }
+
+func (provider *DummyProvider) OSOCluster() configuration.OSOCluster {
+	return *provider.factory.Config.GetOSOClusterByURL(provider.URL())
+}
