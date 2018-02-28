@@ -121,6 +121,7 @@ type OSOCluster struct {
 	APIURL                 string `mapstructure:"api-url"`
 	ConsoleURL             string `mapstructure:"console-url"` // Optional in oso-clusters.conf
 	MetricsURL             string `mapstructure:"metrics-url"` // Optional in oso-clusters.conf
+	LoggingURL             string `mapstructure:"logging-url"` // Optional in oso-clusters.conf
 	AppDNS                 string `mapstructure:"app-dns"`
 	ServiceAccountToken    string `mapstructure:"service-account-token"`
 	ServiceAccountUsername string `mapstructure:"service-account-username"`
@@ -206,6 +207,13 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		}
 		if cluster.MetricsURL == "" {
 			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
+			if err != nil {
+				return nil, err
+			}
+		}
+		if cluster.LoggingURL == "" {
+			// This is not a typo; the logging host is the same as the console host in current k8s
+			cluster.LoggingURL, err = convertAPIURL(cluster.APIURL, "console", "console")
 			if err != nil {
 				return nil, err
 			}

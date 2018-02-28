@@ -50,6 +50,7 @@ func (rest *TestClustersREST) checkShowForServiceAccount(saName string) {
 		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.APIURL), cluster.APIURL)
 		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.ConsoleURL), cluster.ConsoleURL)
 		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.MetricsURL), cluster.MetricsURL)
+		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.LoggingURL), cluster.LoggingURL)
 		require.Equal(rest.T(), configCluster.AppDNS, cluster.AppDNS)
 	}
 }
