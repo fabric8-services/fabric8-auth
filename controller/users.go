@@ -67,7 +67,8 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 
 // Show runs the show action.
 func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
-	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification, token.Tenant)
+	tenantSA := token.IsSpecificServiceAccount(ctx, token.Notification, token.Tenant)
+	isServiceAccount := tenantSA || token.IsSpecificServiceAccount(ctx, token.Notification)
 
 	return application.Transactional(c.db, func(appl application.Application) error {
 		identityID, err := uuid.FromString(ctx.ID)
@@ -79,6 +80,15 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			jerrors, httpStatusCode := jsonapi.ErrorToJSONAPIErrors(ctx, err)
 			return ctx.ResponseData.Service.Send(ctx.Context, httpStatusCode, jerrors)
 		}
+
+		if tenantSA && identity.Deprovisioned {
+			// Don't return deprovisioned users for calls made by Tenant SA
+			// TODO we should disable notifications for such users too but if we just return 401 for notification service request we may break it
+			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+			ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has benn deprovisioned"))
+		}
+
 		var user *account.User
 		userID := identity.UserID
 		if userID.Valid {
