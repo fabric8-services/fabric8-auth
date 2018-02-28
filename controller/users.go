@@ -690,6 +690,47 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
+// UpdateByServiceAccount updates the user by a service account
+func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccountUsersContext) error {
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.OnlineRegistration)
+	if !isSvcAccount {
+		log.Error(ctx, nil, "the account is not an authorized service account allowed to update a new user")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to update users."))
+	}
+
+	var identity *account.Identity
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		id, err := uuid.FromString(ctx.ID)
+		if err != nil {
+			return err
+		}
+		identity, err = appl.Identities().LoadWithUser(ctx, id)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": ctx.ID,
+		}, "failed to load identity")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("identity", ctx.ID))
+	}
+	// We support "deprovisioned" attribute update for now only
+	if ctx.Payload != nil && ctx.Payload.Data != nil && ctx.Payload.Data.Attributes != nil && ctx.Payload.Data.Attributes.Deprovisioned != nil {
+		identity.Deprovisioned = *ctx.Payload.Data.Attributes.Deprovisioned
+		err := application.Transactional(c.db, func(appl application.Application) error {
+			return appl.Identities().Save(ctx, identity)
+		})
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, err.Error()))
+		}
+	}
+
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
+}
+
 func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.User, updatedFeatureLevel *string) error {
 	if log.IsDebug() {
 		newFeatureLevel := "<nil>"

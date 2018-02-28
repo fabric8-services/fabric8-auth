@@ -72,6 +72,8 @@ type Identity struct {
 	ProviderType string `gorm:"column:provider_type"`
 	// the URL of the profile on the remote work item service
 	ProfileURL *string `gorm:"column:profile_url"`
+	// Whether the identity has been deprovisioned
+	Deprovisioned bool `gorm:"column:deprovisioned"`
 	// Link to User
 	UserID NullUUID `sql:"type:uuid"`
 	User   User
@@ -112,6 +114,7 @@ func NewIdentityRepository(db *gorm.DB) *GormIdentityRepository {
 type IdentityRepository interface {
 	repository.Exister
 	Load(ctx context.Context, id uuid.UUID) (*Identity, error)
+	LoadWithUser(ctx context.Context, id uuid.UUID) (*Identity, error)
 	Create(ctx context.Context, identity *Identity) error
 	Lookup(ctx context.Context, username, profileURL, providerType string) (*Identity, error)
 	Save(ctx context.Context, identity *Identity) error
@@ -143,6 +146,22 @@ func (m *GormIdentityRepository) Load(ctx context.Context, id uuid.UUID) (*Ident
 	}
 
 	return &native, errs.WithStack(err)
+}
+
+// LoadWithUser loads an identity and the assosiated User
+// Returns NotFoundError if either identity or user is not found
+func (m *GormIdentityRepository) LoadWithUser(ctx context.Context, id uuid.UUID) (*Identity, error) {
+	identities, err := m.Query(IdentityFilterByID(id), IdentityWithUser())
+	if err != nil {
+		return nil, err
+	}
+	if len(identities) == 0 {
+		return nil, errs.WithStack(errors.NewNotFoundError("identity", id.String()))
+	}
+	if identities[0].User.ID == uuid.Nil {
+		return nil, errs.WithStack(errors.NewNotFoundError("user for identity", id.String()))
+	}
+	return &identities[0], nil
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error

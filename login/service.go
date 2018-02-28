@@ -250,6 +250,14 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		return nil, err
 	}
 
+	if identity.Deprovisioned {
+		log.Warn(ctx, map[string]interface{}{
+			"identity_id": identity.ID,
+			"user_name":   identity.Username,
+		}, "deprovisioned user tried to login")
+		return nil, autherrors.NewUnauthorizedError("unauthorized access")
+	}
+
 	log.Debug(ctx, map[string]interface{}{
 		"referrerURL": referrerURL.String(),
 		"user_name":   identity.Username,
