@@ -717,7 +717,7 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 		}, "failed to load identity")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("identity", ctx.ID))
 	}
-	// We support "deprovisioned" attribute update for now only
+	// We support "deprovisioned" attribute update only for now
 	if ctx.Payload != nil && ctx.Payload.Data != nil && ctx.Payload.Data.Attributes != nil && ctx.Payload.Data.Attributes.Deprovisioned != nil {
 		identity.Deprovisioned = *ctx.Payload.Data.Attributes.Deprovisioned
 		err := application.Transactional(c.db, func(appl application.Application) error {

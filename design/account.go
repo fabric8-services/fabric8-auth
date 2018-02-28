@@ -170,7 +170,7 @@ var _ = a.Resource("users", func() {
 		)
 		a.Description("Retrieve user for the given ID.")
 		a.Params(func() {
-			a.Param("id", d.String, "id")
+			a.Param("id", d.String, "Identity ID")
 		})
 		a.UseTrait("conditional")
 		a.Response(d.OK, user)
@@ -221,7 +221,7 @@ var _ = a.Resource("users", func() {
 		)
 		a.Description("update the user")
 		a.Params(func() {
-			a.Param("id", d.String, "id")
+			a.Param("id", d.String, "Identity ID")
 		})
 		a.Payload(updateUser)
 		a.Response(d.OK, func() {
