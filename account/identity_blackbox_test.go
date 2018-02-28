@@ -98,6 +98,7 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNot
 	identity := createAndLoad(s)
 	_, err := s.repo.LoadWithUser(s.Ctx, identity.ID)
 	require.NotNil(s.T(), err)
+
 	assert.Equal(s.T(), errors.NewNotFoundError("user for identity", identity.ID.String()).Error(), err.Error())
 
 	// Identity does not exist

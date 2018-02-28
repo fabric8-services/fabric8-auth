@@ -199,6 +199,22 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
 func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig LoginServiceConfiguration) (*token.TokenSet, error) {
+	identity, err := LoadContextIdentity(ctx, keycloak.DB)
+	if identity != nil && identity.Deprovisioned {
+		log.Warn(ctx, map[string]interface{}{
+			"identity_id": identity.ID,
+			"user_name":   identity.Username,
+		}, "deprovisioned user tried to refresh token")
+		return nil, autherrors.NewUnauthorizedError("unauthorized access")
+	}
+	if err != nil {
+		// That's OK if we didn't find the identity if the token was issued for an API client
+		// Just log it and proceed.
+		log.Warn(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
+	}
+
 	return keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
 }
 
@@ -827,6 +843,25 @@ func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID,
 		return uuid.Nil, err
 	}
 	return *identity, nil
+}
+
+// LoadContextIdentity returns the identity found in given context if the identity exists in the Auth DB
+// If it doesn't exist then an Unauthorized error is returned
+func LoadContextIdentity(ctx context.Context, db application.DB) (*account.Identity, error) {
+	var identity *account.Identity
+	identityID, err := ContextIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Check if the identity exists
+	err = application.Transactional(db, func(appl application.Application) error {
+		identity, err = appl.Identities().Load(ctx, *identityID)
+		if err != nil {
+			return autherrors.NewUnauthorizedError(err.Error())
+		}
+		return nil
+	})
+	return identity, err
 }
 
 // InjectTokenManager is a middleware responsible for setting up tokenManager in the context for every request.
