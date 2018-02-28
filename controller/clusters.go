@@ -43,6 +43,7 @@ func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
 			APIURL:     rest.AddTrailingSlashToURL(clusterConfig.APIURL),
 			ConsoleURL: rest.AddTrailingSlashToURL(clusterConfig.ConsoleURL),
 			MetricsURL: rest.AddTrailingSlashToURL(clusterConfig.MetricsURL),
+			LoggingURL: rest.AddTrailingSlashToURL(clusterConfig.LoggingURL),
 			AppDNS:     clusterConfig.AppDNS,
 		}
 		data = append(data, cluster)
