@@ -17,6 +17,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/suite"
 )
 

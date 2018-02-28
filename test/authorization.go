@@ -103,6 +103,22 @@ func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name strin
 	return &rts, nil
 }
 
+func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype.ResourceType, name string) (*scope.ResourceTypeScope, error) {
+
+	rts := scope.ResourceTypeScope{
+		ResourceTypeScopeID: uuid.NewV4(),
+		ResourceTypeID:      resourceType.ResourceTypeID,
+		Name:                uuid.NewV4().String(),
+	}
+
+	resourceTypeScopeRepo := scope.NewResourceTypeScopeRepository(db)
+	err := resourceTypeScopeRepo.Create(ctx, &rts)
+	if err != nil {
+		return nil, err
+	}
+	return &rts, nil
+}
+
 func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s scope.ResourceTypeScope, r role.Role) (*rolescope.RoleScope, error) {
 	roleScopeRepo := rolescope.NewRoleScopeRepository(db)
 
