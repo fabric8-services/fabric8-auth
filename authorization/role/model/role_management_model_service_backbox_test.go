@@ -154,3 +154,28 @@ func (s *roleManagementModelServiceBlackboxTest) checkScopeBelongsToResourceType
 	}
 	return foundScope, nil
 }
+
+func (s *roleManagementModelServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() {
+
+	// create entities in the existing resource type
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role)
+
+	scope, err := testsupport.CreateTestScopeWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), scope)
+
+	rs, err := testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rs)
+
+	// create another resource type
+	newResourceTypeName := uuid.NewV4().String()
+	_, err = testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
+	require.NoError(s.T(), err)
+
+	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, newResourceTypeName)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), roleScopesRetrieved, 0)
+}

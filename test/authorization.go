@@ -69,6 +69,18 @@ func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resourcet
 	return &resourceRef, err
 }
 
+func CreateTestResourceType(ctx context.Context, db *gorm.DB, name string) (*resourcetype.ResourceType, error) {
+	resourcetypeRepoRef := resourcetype.NewResourceTypeRepository(db)
+	resourceTypeRef := resourcetype.ResourceType{
+		Name: name,
+	}
+	err := resourcetypeRepoRef.Create(ctx, &resourceTypeRef)
+	if err != nil {
+		return nil, err
+	}
+	return &resourceTypeRef, err
+}
+
 func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*scope.ResourceTypeScope, error) {
 	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
