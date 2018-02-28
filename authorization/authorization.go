@@ -12,4 +12,10 @@ const (
 
 	// IdentityResourceTypeUser defines the string constant to be used for denoting a user managed by the authorization framework
 	IdentityResourceTypeUser = "identity/user"
+
+	// OwnerRole is the constant used to denote the name of the organization, team or security group owner role
+	OwnerRole = "owner"
+
+	// InviteUserScope is the scope required for users wishing to invite other users to an organization, team or security group
+	InviteUserScope = "invite_user"
 )

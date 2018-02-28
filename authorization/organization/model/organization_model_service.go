@@ -79,7 +79,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 	organizationId = orgIdentity.ID
 
 	// Lookup the identity/organization owner role
-	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, organization.OrganizationOwnerRole, authorization.IdentityResourceTypeOrganization)
+	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
 
 	if err != nil {
 		return nil, errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")

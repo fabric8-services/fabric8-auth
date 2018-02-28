@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -95,6 +96,22 @@ func (m Identity) GetETagData() []interface{} {
 // GetLastModified returns the last modification time
 func (m Identity) GetLastModified() time.Time {
 	return m.UpdatedAt
+}
+
+func (m Identity) IsUser() bool {
+	return m.UserID.Valid
+}
+
+func (m Identity) IsOrganization() bool {
+	return m.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeOrganization
+}
+
+func (m Identity) IsTeam() bool {
+	return m.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam
+}
+
+func (m Identity) IsGroup() bool {
+	return m.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeGroup
 }
 
 // GormIdentityRepository is the implementation of the storage interface for
@@ -326,6 +343,13 @@ func IdentityFilterByID(identityID uuid.UUID) func(db *gorm.DB) *gorm.DB {
 func IdentityWithUser() func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Preload("User")
+	}
+}
+
+// IdentithWithResource is a gorm filter for preloading the IdentityResource relationship
+func IdentityWithResource() func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Preload("IdentityResource")
 	}
 }
 

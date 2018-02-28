@@ -2,20 +2,18 @@ package main
 
 import (
 	"flag"
-	"net/http"
-	"os"
-	"os/user"
-	"runtime"
-	"time"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	invitationModel "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
+	invitationService "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
+	permissionService "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -40,6 +38,11 @@ import (
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	"github.com/prometheus/client_golang/prometheus"
+	"net/http"
+	"os"
+	"os/user"
+	"runtime"
+	"time"
 )
 
 func main() {
@@ -256,6 +259,16 @@ func main() {
 	organizationServiceRef := organizationService.NewOrganizationService(organizationModelService, appDB)
 	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationServiceRef)
 	app.MountOrganizationController(service, organizationCtrl)
+
+	// Create a "permissions" controller
+	permissionModelService := permissionModel.NewPermissionModelService(db, appDB)
+	permissionServiceRef := permissionService.NewPermissionService(permissionModelService, appDB)
+
+	// Mount "invitations" controller
+	invitationModelService := invitationModel.NewInvitationModelService(db, appDB, permissionModelService)
+	invitationServiceRef := invitationService.NewInvitationService(invitationModelService, permissionServiceRef, appDB)
+	invitationCtrl := controller.NewInvitationController(service, invitationServiceRef)
+	app.MountInvitationController(service, invitationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)
