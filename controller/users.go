@@ -67,7 +67,7 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 
 // Show runs the show action.
 func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
-	tenantSA := token.IsSpecificServiceAccount(ctx, token.Notification, token.Tenant)
+	tenantSA := token.IsSpecificServiceAccount(ctx, token.Tenant)
 	isServiceAccount := tenantSA || token.IsSpecificServiceAccount(ctx, token.Notification)
 
 	return application.Transactional(c.db, func(appl application.Application) error {
