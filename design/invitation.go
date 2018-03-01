@@ -52,13 +52,13 @@ var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitatio
 })
 
 var invitee = a.Type("Invitee", func() {
-	a.Attribute("user-id", d.String, "unique id for the user")
+	a.Attribute("identity-id", d.String, "unique id for the user identity")
 	a.Attribute("username", d.String, "username of the user")
 	a.Attribute("user-email", d.String, "e-mail address of the user")
 })
 
 var invitedRole = a.Type("InvitedRole", func() {
-	a.Attribute("user-id", d.String, "unique id for the user")
+	a.Attribute("identity-id", d.String, "unique id for the user identity")
 	a.Attribute("username", d.String, "username of the user")
 	a.Attribute("user-email", d.String, "e-mail address of the user")
 	a.Attribute("roles", a.ArrayOf(d.String), "An array of role names")

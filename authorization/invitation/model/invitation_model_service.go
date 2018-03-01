@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
@@ -65,28 +66,61 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 	// Iterate through all of the invitations and confirm that for each one:
 	// 1) a valid user has been specified via its User ID, e-mail address or username
 	// 2) any roles specified are valid roles for the organization, team or security group
+	// For each invitation, ensure that the IdentityID value can be found and set it
 	for _, invitation := range invitations {
 		// If the UserID has been provided, confirm it is valid and that the identity is a user
-		if invitation.UserID != nil {
-			identity, err := s.repo.Identities().Load(ctx, *invitation.UserID)
+		if invitation.IdentityID != nil {
+			identity, err := s.repo.Identities().Load(ctx, *invitation.IdentityID)
 			if err != nil {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("invalid user ID specified: %s\n", invitation.UserID))
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("invalid identity ID specified: %s\n", invitation.IdentityID))
 			}
 
 			if !identity.IsUser() {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("identity with ID %s not a user", invitation.UserID))
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("identity with ID %s not a user", invitation.IdentityID))
+			}
+		} else if invitation.UserName != nil {
+			// If the username has been provided, confirm the user is valid and that the identity is a user, and set the UserID
+			identities, err := s.repo.Identities().Query(account.IdentityFilterByUsername(*invitation.UserName))
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
+			}
+			// If there is anything other than 1 result found, we have a problem
+			if len(identities) == 0 {
+				// If no users are found, return an error
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("user with username %s not found", invitation.UserName))
+			} else if len(identities) > 1 {
+				// If more than one user is found, return an error
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("more than one user with username %s found", invitation.UserName))
 			}
 
-		}
+			// Set the IdentityID to that of the identity found
+			invitation.IdentityID = &identities[0].ID
+		} else if invitation.UserEmail != nil {
+			// If the user's e-mail address has been provided, confirm the user is valid and that the identity is a user, and set the UserID
+			users, err := s.repo.Users().Query(account.UserFilterByEmail(*invitation.UserEmail))
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
+			}
+			// We expect exactly 1 user to be found, if not we return an error
+			if len(users) == 0 {
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("user with e-mail address %s not found", invitation.UserEmail))
+			} else if len(users) > 1 {
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("more than one user with e-mail address %s found", invitation.UserEmail))
+			}
 
-		// If the username has been provided, confirm the user is valid and that the identity is a user, and set the UserID
-		if invitation.UserName != nil {
-			// TODO
-		}
+			userID := &users[0].ID
 
-		// If the user's e-mail address has been provided, confirm the user is valid and that the identity is a user, and set the UserID
-		if invitation.UserEmail != nil {
-			// TODO
+			// Now that we have the user ID, we can lookup the identity ID
+			identities, err := s.repo.Identities().Query(account.IdentityFilterByUserID(*userID))
+			// If there is anything other than 1 result found, return an error
+			if len(identities) == 0 {
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("no identity found for user with e-mail address %s", invitation.UserEmail))
+			} else if len(identities) > 1 {
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("more than one identity found for user with e-mail address %s", invitation.UserEmail))
+			}
+
+			// Set the IdentityID to that of the identity found
+			invitation.IdentityID = &identities[0].ID
 		}
 
 		// TODO Confirm that any specified roles are valid for this resource type

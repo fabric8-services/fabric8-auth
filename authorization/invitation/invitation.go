@@ -5,9 +5,9 @@ import (
 )
 
 type Invitation struct {
-	UserID    *uuid.UUID
-	UserEmail *string
-	UserName  *string
-	Member    bool
-	Roles     []string
+	IdentityID *uuid.UUID
+	UserEmail  *string
+	UserName   *string
+	Member     bool
+	Roles      []string
 }

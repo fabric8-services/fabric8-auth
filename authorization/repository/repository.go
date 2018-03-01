@@ -14,4 +14,5 @@ type Repositories interface {
 	ResourceTypeRepository() resourcetype.ResourceTypeRepository
 	RoleRepository() role.RoleRepository
 	IdentityRoleRepository() role.IdentityRoleRepository
+	Users() account.UserRepository
 }
