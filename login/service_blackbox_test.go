@@ -20,6 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	. "github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
@@ -35,9 +36,10 @@ import (
 
 type serviceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	loginService KeycloakOAuthService
-	oauth        *oauth2.Config
-	dummyOauth   *dummyOauth2Config
+	loginService         KeycloakOAuthService
+	oauth                *oauth2.Config
+	dummyOauth           *dummyOauth2Config
+	keycloakTokenService *DummyTokenService
 }
 
 func TestRunServiceBlackBoxTest(t *testing.T) {
@@ -93,7 +95,12 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
 	userProfileClient := NewKeycloakUserProfileClient()
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient)
+
+	refreshToken := uuid.NewV4().String()
+	refreshTokenSet := token.TokenSet{AccessToken: &refreshToken}
+	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
+
+	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService)
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
@@ -513,6 +520,36 @@ func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
 	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "api_token")
 }
 
+func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
+	// Fails if no token in context because Keycloak service returns 401
+	s.keycloakTokenService.fail = true
+	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
+	require.NotNil(s.T(), err)
+	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.Equal(s.T(), "kc refresh failed", err.Error())
+
+	// Fails if identity is deprovisioned
+	s.keycloakTokenService.fail = false
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	ctx, err := testtoken.EmbedIdentityInContext(identity)
+	require.NoError(s.T(), err)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
+	require.NotNil(s.T(), err)
+	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.Equal(s.T(), "unauthorized access", err.Error())
+
+	// OK if identity is not deprovisioned
+	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	ctx, err = testtoken.EmbedIdentityInContext(identity)
+	require.NoError(s.T(), err)
+	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), tokenSet)
+	require.Equal(s.T(), s.keycloakTokenService.tokenSet, *tokenSet)
+}
+
 func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
@@ -796,4 +833,16 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.Resp
 	require.Nil(s.T(), err)
 
 	return rw, callbackCtx
+}
+
+type DummyTokenService struct {
+	tokenSet token.TokenSet
+	fail     bool
+}
+
+func (s *DummyTokenService) RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
+	if s.fail {
+		return nil, errors.NewUnauthorizedError("kc refresh failed")
+	}
+	return &s.tokenSet, nil
 }
