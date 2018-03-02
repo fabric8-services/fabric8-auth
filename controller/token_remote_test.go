@@ -8,11 +8,20 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/auth"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	. "github.com/fabric8-services/fabric8-auth/controller"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/space"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
@@ -42,11 +51,11 @@ func (rest *TestTokenRemoteREST) UnSecuredController() (*goa.Service, *TokenCont
 	svc := goa.New("Token-Service")
 	manager, err := token.NewManager(rest.Config)
 	require.Nil(rest.T(), err)
-	return svc, NewTokenController(svc, nil, nil, nil, nil, manager, nil, rest.Config)
+	return svc, NewTokenController(svc, &MockDBApp{}, nil, nil, nil, manager, nil, rest.Config)
 }
 
 func (rest *TestTokenRemoteREST) UnSecuredControllerWithDummyDB() (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(&gormapplication.GormDB{})
+	loginService := newTestKeycloakOAuthProvider(&MockDBApp{})
 
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
 	return svc, NewTokenController(svc, nil, loginService, nil, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Config)
@@ -127,72 +136,55 @@ func (rest *TestTokenRemoteREST) checkJWK(keys *app.PublicKeys) {
 	compareWithGolden(rest.T(), filepath.Join(rest.testDir, "keys", "ok_jwk.golden.json"), keys)
 }
 
-/* MockUserRepositoryService */
+type MockDBApp struct {
+}
+
+func (m *MockDBApp) Identities() account.IdentityRepository                         { return &MockIdentityRepository{} }
+func (m *MockDBApp) SpaceResources() space.ResourceRepository                       { return nil }
+func (m *MockDBApp) Users() account.UserRepository                                  { return nil }
+func (m *MockDBApp) OauthStates() auth.OauthStateReferenceRepository                { return nil }
+func (m *MockDBApp) ExternalTokens() provider.ExternalTokenRepository               { return nil }
+func (m *MockDBApp) VerificationCodes() account.VerificationCodeRepository          { return nil }
+func (m *MockDBApp) ResourceRepository() resource.ResourceRepository                { return nil }
+func (m *MockDBApp) ResourceTypeRepository() resourcetype.ResourceTypeRepository    { return nil }
+func (m *MockDBApp) ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository { return nil }
+func (m *MockDBApp) IdentityRoleRepository() identityrole.IdentityRoleRepository    { return nil }
+func (m *MockDBApp) RoleRepository() role.RoleRepository                            { return nil }
+
+func (m *MockDBApp) BeginTransaction() (application.Transaction, error) {
+	return &MockDBApp{}, nil
+}
+
+func (m *MockDBApp) Commit() error   { return nil }
+func (m *MockDBApp) Rollback() error { return nil }
 
 type MockIdentityRepository struct {
-	testIdentity *account.Identity
 }
 
-// Load returns a single Identity as a Database Model
-// This is more for use internally, and probably not what you want in  your controllers
+func (m *MockIdentityRepository) CheckExists(ctx context.Context, id string) error { return nil }
 func (m *MockIdentityRepository) Load(ctx context.Context, id uuid.UUID) (*account.Identity, error) {
-	return m.testIdentity, nil
+	return nil, errors.NotFoundError{}
 }
-
-// Exists returns true|false whether an identity exists with a specific identifier
-func (m *MockIdentityRepository) Exists(ctx context.Context, id string) (bool, error) {
-	return true, nil
+func (m *MockIdentityRepository) LoadWithUser(ctx context.Context, id uuid.UUID) (*account.Identity, error) {
+	return nil, errors.NotFoundError{}
 }
-
-// Create creates a new record.
-func (m *MockIdentityRepository) Create(ctx context.Context, model *account.Identity) error {
+func (m *MockIdentityRepository) Create(ctx context.Context, identity *account.Identity) error {
 	return nil
 }
-
-// Lookup looks for an existing identity with the given `profileURL` or creates a new one
 func (m *MockIdentityRepository) Lookup(ctx context.Context, username, profileURL, providerType string) (*account.Identity, error) {
-	return m.testIdentity, nil
+	return nil, errors.NotFoundError{}
 }
-
-// Save modifies a single record.
-func (m *MockIdentityRepository) Save(ctx context.Context, model *account.Identity) error {
-	m.testIdentity = model
+func (m *MockIdentityRepository) Save(ctx context.Context, identity *account.Identity) error {
 	return nil
 }
-
-// Delete removes a single record.
-func (m *MockIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return nil
-}
-
-// Query expose an open ended Query model
+func (m *MockIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *MockIdentityRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]account.Identity, error) {
-	var identities []account.Identity
-	identities = append(identities, *m.testIdentity)
-	return identities, nil
+	return nil, nil
 }
-
-// First returns the first Identity element that matches the given criteria
-func (m *MockIdentityRepository) First(funcs ...func(*gorm.DB) *gorm.DB) (*account.Identity, error) {
-	return m.testIdentity, nil
-}
-
 func (m *MockIdentityRepository) List(ctx context.Context) ([]account.Identity, error) {
-	var rows []account.Identity
-	rows = append(rows, *m.testIdentity)
-	return rows, nil
+	return nil, nil
 }
-
-func (m *MockIdentityRepository) CheckExists(ctx context.Context, id string) error {
-	return nil
-}
-
-func (m *MockIdentityRepository) IsValid(ctx context.Context, id uuid.UUID) bool {
-	return true
-}
-
+func (m *MockIdentityRepository) IsValid(context.Context, uuid.UUID) bool { return true }
 func (m *MockIdentityRepository) Search(ctx context.Context, q string, start int, limit int) ([]account.Identity, int, error) {
-	result := []account.Identity{}
-	result = append(result, *m.testIdentity)
-	return result, 1, nil
+	return nil, 1, nil
 }
