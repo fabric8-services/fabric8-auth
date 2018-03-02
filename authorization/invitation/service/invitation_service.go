@@ -10,7 +10,7 @@ import (
 )
 
 type InvitationService interface {
-	CreateInvitations(ctx context.Context, identityID uuid.UUID, invitations []invitation.Invitation) error
+	CreateInvitations(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID, invitations []invitation.Invitation) error
 	ListInvitations(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error)
 }
 
@@ -25,12 +25,12 @@ func NewInvitationService(invitationModelService invitationModel.InvitationModel
 	return &InvitationServiceImpl{invModelService: invitationModelService, permModelService: permissionModelService, db: db}
 }
 
-func (s *InvitationServiceImpl) CreateInvitations(ctx context.Context, identityID uuid.UUID, invitations []invitation.Invitation) error {
+func (s *InvitationServiceImpl) CreateInvitations(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID, invitations []invitation.Invitation) error {
 
 	var err error
 
 	err = application.Transactional(s.db, func(appl application.Application) error {
-		//err = s.modelService.CreateInvitations(ctx, identityID)
+		err = s.invModelService.CreateInvitations(ctx, issuingUserId, inviteTo, invitations)
 		return err
 	})
 

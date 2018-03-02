@@ -41,13 +41,11 @@ var _ = a.Resource("invitation", func() {
 var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitation_request+json", func() {
 	a.Description("Request payload required to create new invitations")
 	a.Attributes(func() {
-		a.Attribute("members", a.ArrayOf(invitee), "An array of prospective members that will be invited to join")
-		a.Attribute("roles", a.ArrayOf(invitedRole), "An array of users invited to accept a role")
+		a.Attribute("invitees", a.ArrayOf(invitee), "An array of users invited to become members or to accept a role")
 	})
-	a.Required("members", "roles")
+	a.Required("invitees")
 	a.View("default", func() {
-		a.Attribute("members")
-		a.Attribute("roles")
+		a.Attribute("invitees")
 	})
 })
 
@@ -55,12 +53,6 @@ var invitee = a.Type("Invitee", func() {
 	a.Attribute("identity-id", d.String, "unique id for the user identity")
 	a.Attribute("username", d.String, "username of the user")
 	a.Attribute("user-email", d.String, "e-mail address of the user")
-})
-
-var invitedRole = a.Type("InvitedRole", func() {
-	a.Attribute("identity-id", d.String, "unique id for the user identity")
-	a.Attribute("username", d.String, "username of the user")
-	a.Attribute("user-email", d.String, "e-mail address of the user")
+	a.Attribute("member", d.Boolean, "if true invites the user to become a member")
 	a.Attribute("roles", a.ArrayOf(d.String), "An array of role names")
-	a.Required("roles")
 })

@@ -76,7 +76,7 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 			}
 
 			if !identity.IsUser() {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("identity with ID %s not a user", invitation.IdentityID))
+				return errors.NewBadParameterErrorFromString("Identity ID", invitation.IdentityID, "identity is not a user")
 			}
 		} else if invitation.UserName != nil {
 			// If the username has been provided, confirm the user is valid and that the identity is a user, and set the UserID
@@ -87,10 +87,10 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 			// If there is anything other than 1 result found, we have a problem
 			if len(identities) == 0 {
 				// If no users are found, return an error
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("user with username %s not found", invitation.UserName))
+				return errors.NewBadParameterErrorFromString("Username", invitation.UserName, "username not found")
 			} else if len(identities) > 1 {
 				// If more than one user is found, return an error
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("more than one user with username %s found", invitation.UserName))
+				return errors.NewBadParameterErrorFromString("Username", invitation.UserName, "more than one user with same username found")
 			}
 
 			// Set the IdentityID to that of the identity found
@@ -103,9 +103,9 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 			}
 			// We expect exactly 1 user to be found, if not we return an error
 			if len(users) == 0 {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("user with e-mail address %s not found", invitation.UserEmail))
+				return errors.NewBadParameterErrorFromString("E-mail", invitation.UserEmail, "user with e-mail address not found")
 			} else if len(users) > 1 {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("more than one user with e-mail address %s found", invitation.UserEmail))
+				return errors.NewBadParameterErrorFromString("E-mail", invitation.UserEmail, "more than one user with e-mail address found")
 			}
 
 			userID := &users[0].ID
@@ -114,9 +114,9 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 			identities, err := s.repo.Identities().Query(account.IdentityFilterByUserID(*userID))
 			// If there is anything other than 1 result found, return an error
 			if len(identities) == 0 {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("no identity found for user with e-mail address %s", invitation.UserEmail))
+				return errors.NewBadParameterErrorFromString("E-mail", invitation.UserEmail, "no identity found for user with e-mail address")
 			} else if len(identities) > 1 {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("more than one identity found for user with e-mail address %s", invitation.UserEmail))
+				return errors.NewBadParameterErrorFromString("E-mail", invitation.UserEmail, "more than one identity found for user with e-mail address")
 			}
 
 			// Set the IdentityID to that of the identity found
@@ -124,6 +124,7 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 		}
 
 		// TODO Confirm that any specified roles are valid for this resource type
+
 	}
 
 	// TODO Create the invitation records
