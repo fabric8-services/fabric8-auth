@@ -520,6 +520,60 @@ func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
 	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "api_token")
 }
 
+func (s *serviceBlackBoxTest) TestDeprovisionedUserLoginUnauthorized() {
+	extra := make(map[string]string)
+	rw, authorizeCtx := s.loginCallback(extra)
+
+	// Fails if identity is deprovisioned
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	claims["preferred_username"] = identity.Username
+	claims["email"] = identity.User.Email
+	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	dummyOauth := &dummyOauth2Config{
+		Config:      oauth2.Config{},
+		accessToken: accessToken,
+	}
+
+	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
+	require.NoError(s.T(), err)
+
+	assert.Equal(s.T(), 401, rw.Code)
+
+	assert.Equal(s.T(), 1, len(rw.HeaderMap["Location"]))
+}
+
+func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
+	extra := make(map[string]string)
+	rw, authorizeCtx := s.loginCallback(extra)
+
+	// OK if identity is not deprovisioned
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	claims["preferred_username"] = identity.Username
+	claims["email"] = identity.User.Email
+	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	dummyOauth := &dummyOauth2Config{
+		Config:      oauth2.Config{},
+		accessToken: accessToken,
+	}
+
+	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
+	require.NoError(s.T(), err)
+
+	assert.Equal(s.T(), 307, rw.Code)
+}
+
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	// Fails if no token in context because Keycloak service returns 401
 	s.keycloakTokenService.fail = true
