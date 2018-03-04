@@ -253,11 +253,9 @@ Only files `+./*.go+`, `+./design/*.go+`, `+./models/*.go+` and `+./tool/wit-cli
 These files and directory are generated:
 
  * `./app/`
- * `./assets/js/`
  * `./client/`
  * `./swagger/`
  * `./tool/cli/`
- * `./bindata_asstfs.go`
 
 == Developer setup
 

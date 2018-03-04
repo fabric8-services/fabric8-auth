@@ -242,20 +242,10 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 		return nil, nil, err
 	}
 
-	osConfig, ok := providerConfig.(*link.OpenShiftIdentityProvider)
+	osConfig, ok := providerConfig.(link.OpenShiftIdentityProviderConfig)
 	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant) {
 		// This is a request from OSO proxy or tenant service to obtain a cluster wide token
-		clusterToken := app.ExternalToken{
-			Scope:          "<unknown>",
-			AccessToken:    osConfig.Cluster.ServiceAccountToken,
-			TokenType:      "bearer",
-			Username:       osConfig.Cluster.ServiceAccountUsername,
-			ProviderAPIURL: osConfig.Cluster.APIURL,
-		}
-		log.Info(ctx, map[string]interface{}{
-			"cluster": osConfig.Cluster.Name,
-		}, "Returning a cluster wide token")
-		return &clusterToken, nil, nil
+		return c.retrieveClusterToken(ctx, forResource, forcePull, osConfig)
 	}
 
 	externalToken, err := c.loadToken(ctx, providerConfig, *currentIdentity)
@@ -300,6 +290,41 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 	appResponse = modelToAppExternalToken(updatedToken, providerConfig.URL())
 
 	return &appResponse, nil, nil
+}
+
+func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, osConfig link.OpenShiftIdentityProviderConfig) (*app.ExternalToken, *string, error) {
+	username := osConfig.OSOCluster().ServiceAccountUsername
+	if forcePull != nil && *forcePull {
+		userProfile, err := osConfig.Profile(ctx, oauth2.Token{AccessToken: osConfig.OSOCluster().ServiceAccountToken})
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+				"for": forResource,
+			}, "unable to fetch user profile for cluster token")
+			errorResponse := fmt.Sprintf("LINK description=\"%s cluster token is not valid or expired", osConfig.OSOCluster().APIURL)
+			return nil, &errorResponse, errors.NewUnauthorizedError(err.Error())
+		}
+		if osConfig.OSOCluster().ServiceAccountUsername != userProfile.Username {
+			log.Warn(ctx, map[string]interface{}{
+				"for": forResource,
+				"configuration_username": osConfig.OSOCluster().ServiceAccountUsername,
+				"user_profile_username":  userProfile.Username,
+			}, "username from user profile for cluster token does not match username stored in configuration")
+			username = userProfile.Username
+		}
+	}
+
+	clusterToken := app.ExternalToken{
+		Scope:          "<unknown>",
+		AccessToken:    osConfig.OSOCluster().ServiceAccountToken,
+		TokenType:      "bearer",
+		Username:       username,
+		ProviderAPIURL: osConfig.OSOCluster().APIURL,
+	}
+	log.Info(ctx, map[string]interface{}{
+		"cluster": osConfig.OSOCluster().Name,
+	}, "Returning a cluster wide token")
+	return &clusterToken, nil, nil
 }
 
 // Delete deletes the stored external provider token.

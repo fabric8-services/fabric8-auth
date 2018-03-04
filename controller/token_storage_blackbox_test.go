@@ -80,6 +80,13 @@ func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAcc
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
 }
 
+func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccountAndDummyProviderFactory(serviceAccount account.Identity) (*goa.Service, *TokenController) {
+	loginService := newTestKeycloakOAuthProvider(rest.Application)
+
+	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
+	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.dummyProviderConfigFactory, loginService.TokenManager, rest.mockKeycloakExternalTokenServiceClient, rest.Configuration)
+}
+
 func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
 	rest.checkRetrieveOSOServiceAccountToken("fabric8-oso-proxy")
 	rest.checkRetrieveOSOServiceAccountToken("fabric8-tenant")
@@ -101,6 +108,59 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 		require.NotNil(rest.T(), tokenResponse.Username)
 		assert.Equal(rest.T(), "dsaas", tokenResponse.Username)
 		assert.Equal(rest.T(), cluster.APIURL, tokenResponse.ProviderAPIURL)
+	}
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenValidOnForcePull() {
+	rest.checkRetrieveOSOServiceAccountTokenValidOnForcePull("fabric8-oso-proxy")
+	rest.checkRetrieveOSOServiceAccountTokenValidOnForcePull("fabric8-tenant")
+}
+
+func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenValidOnForcePull(saName string) {
+	sa := account.Identity{
+		Username: saName,
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	rest.dummyProviderConfigFactory.LoadProfileFail = false
+	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
+
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	forcePull := true
+
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, &forcePull)
+
+		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
+		assert.Equal(rest.T(), "<unknown>", tokenResponse.Scope)
+		assert.Equal(rest.T(), "bearer", tokenResponse.TokenType)
+		require.NotNil(rest.T(), tokenResponse.Username)
+		assert.Equal(rest.T(), tokenResponse.AccessToken+"testuser", tokenResponse.Username)
+		assert.Equal(rest.T(), cluster.APIURL, tokenResponse.ProviderAPIURL)
+	}
+}
+
+func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenInvalidOnForcePull() {
+	rest.checkRetrieveOSOServiceAccountTokenInvalidOnForcePull("fabric8-oso-proxy")
+	rest.checkRetrieveOSOServiceAccountTokenInvalidOnForcePull("fabric8-tenant")
+}
+
+func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenInvalidOnForcePull(saName string) {
+	sa := account.Identity{
+		Username: saName,
+	}
+	rest.mockKeycloakExternalTokenServiceClient.scenario = "unlinked"
+	rest.dummyProviderConfigFactory.LoadProfileFail = true
+
+	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
+	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+
+	forcePull := true
+	for _, cluster := range rest.Configuration.GetOSOClusters() {
+		// Token status is OK, but when tested with provider it's invalid.
+		test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
+		rw, _ := test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.APIURL, &forcePull)
+		assert.Equal(rest.T(), fmt.Sprintf("LINK description=\"%s cluster token is not valid or expired", cluster.APIURL), rw.Header().Get("WWW-Authenticate"))
+		assert.Contains(rest.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 	}
 }
 
@@ -347,9 +407,10 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenInvalidOnForcePullIn
 	forcePull := true
 	rest.dummyProviderConfigFactory.LoadProfileFail = true
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, for_, nil)
 	rw, _ := test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, for_, &forcePull)
-	assert.Equal(rest.T(), rw.Header().Get("WWW-Authenticate"), fmt.Sprintf("LINK url=http:///api/token/link?for=%s, description=\"%s token is not valid or expired. Relink %s account\"", for_, providerName, providerName))
-	assert.Contains(rest.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
+	assert.Equal(rest.T(), fmt.Sprintf("LINK url=http:///api/token/link?for=%s, description=\"%s token is not valid or expired. Relink %s account\"", for_, providerName, providerName), rw.Header().Get("WWW-Authenticate"))
+	assert.Contains(rest.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 
 // This test demonstrates that the token retrieval works successfully without the ForcePull option
@@ -530,9 +591,10 @@ func (rest *TestTokenStorageREST) checkStatusExternalTokenInvalidOnForcePullInte
 	forcePull := true
 	rest.dummyProviderConfigFactory.LoadProfileFail = true
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, for_, nil)
 	rw, _ := test.StatusTokenUnauthorized(rest.T(), service.Context, service, controller, for_, &forcePull)
-	assert.Equal(rest.T(), rw.Header().Get("WWW-Authenticate"), fmt.Sprintf("LINK url=http:///api/token/link?for=%s, description=\"%s token is not valid or expired. Relink %s account\"", for_, providerName, providerName))
-	assert.Contains(rest.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
+	assert.Equal(rest.T(), fmt.Sprintf("LINK url=http:///api/token/link?for=%s, description=\"%s token is not valid or expired. Relink %s account\"", for_, providerName, providerName), rw.Header().Get("WWW-Authenticate"))
+	assert.Contains(rest.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 
 // This test demonstrates that the token status works successfully without the ForcePull option

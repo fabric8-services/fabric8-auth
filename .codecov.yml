@@ -20,10 +20,8 @@ coverage:
     
   # See http://docs.codecov.io/docs/ignoring-paths
   ignore:
-   - "*/bindata_assetfs.go"
    - "vendor/*"
    - "app/*"
-   - "assets/js/*"
    - "client/*"
    - "swagger/*"
    - "tool/cli/*"

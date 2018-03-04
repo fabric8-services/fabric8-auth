@@ -18,8 +18,9 @@ var clusterData = a.Type("ClusterData", func() {
 	a.Attribute("api-url", d.String, "API URL")
 	a.Attribute("console-url", d.String, "Web console URL")
 	a.Attribute("metrics-url", d.String, "Metrics URL")
+	a.Attribute("logging-url", d.String, "Logging URL")
 	a.Attribute("app-dns", d.String, "User application domain name in the cluster")
-	a.Required("name", "console-url", "metrics-url", "api-url", "app-dns")
+	a.Required("name", "console-url", "metrics-url", "api-url", "logging-url", "app-dns")
 })
 
 var _ = a.Resource("clusters", func() {

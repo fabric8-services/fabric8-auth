@@ -18,6 +18,12 @@ const (
 	OpenShiftProviderAlias = "openshift"
 )
 
+// OpenShiftIdentityProviderConfig represents an OpenShift Identity Provider
+type OpenShiftIdentityProviderConfig interface {
+	oauth.IdentityProvider
+	OSOCluster() configuration.OSOCluster
+}
+
 type OpenShiftIdentityProvider struct {
 	oauth.OauthIdentityProvider
 	Cluster configuration.OSOCluster
@@ -62,6 +68,10 @@ func (provider *OpenShiftIdentityProvider) Scopes() string {
 
 func (provider *OpenShiftIdentityProvider) TypeName() string {
 	return "openshift-v3"
+}
+
+func (provider *OpenShiftIdentityProvider) OSOCluster() configuration.OSOCluster {
+	return provider.Cluster
 }
 
 func (provider *OpenShiftIdentityProvider) URL() string {

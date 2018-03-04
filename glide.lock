@@ -29,10 +29,6 @@ imports:
   version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
   subpackages:
   - recorder
-- name: github.com/elazarl/go-bindata-assetfs
-  version: 9a6736ed45b44bf3835afeebb3034b57ed329f3e
-  subpackages:
-  - go-bindata-assetfs
 - name: github.com/fabric8-services/fabric8-wit
   version: 296f01addee8a560c9bb43fb291cf93ccd35ee8e
   subpackages:
