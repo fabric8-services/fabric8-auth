@@ -6,6 +6,7 @@ import (
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	"github.com/fabric8-services/fabric8-auth/errors"
+
 	"github.com/fabric8-services/fabric8-auth/log"
 )
 
