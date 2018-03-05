@@ -39,14 +39,9 @@ func (s *roleScopeBlackBoxTest) TestCreateRoleScopeOK() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rt)
 
-	// TODO: move to test/authorization.go
-	rts := scope.ResourceTypeScope{
-		ResourceTypeScopeID: uuid.NewV4(),
-		ResourceTypeID:      rt.ResourceTypeID,
-		Name:                uuid.NewV4().String(),
-	}
-
-	err = s.resourceTypeScopeRepo.Create(s.Ctx, &rts)
+	rts, err := testsupport.CreateTestScope(s.Ctx, s.DB, *rt, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rts)
 
 	randomRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, *rt, "collab-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
@@ -65,14 +60,9 @@ func (s *roleScopeBlackBoxTest) TestListRoleScopeByRoleOK() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rt)
 
-	// TODO: move to test/authorization.go
-	rts := scope.ResourceTypeScope{
-		ResourceTypeScopeID: uuid.NewV4(),
-		ResourceTypeID:      rt.ResourceTypeID,
-		Name:                uuid.NewV4().String(),
-	}
-
-	err = s.resourceTypeScopeRepo.Create(s.Ctx, &rts)
+	rts, err := testsupport.CreateTestScope(s.Ctx, s.DB, *rt, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rts)
 
 	randomRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, *rt, "collab-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)

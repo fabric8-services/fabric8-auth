@@ -6,7 +6,10 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -25,4 +28,19 @@ func (s *resourceTypeScopeBlackBoxTest) SetupTest() {
 	s.DB.LogMode(true)
 	s.repo = scope.NewResourceTypeScopeRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
+}
+
+func (s *resourceTypeScopeBlackBoxTest) TestListByName() {
+	rtRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rtRef)
+
+	rts, err := testsupport.CreateTestScope(s.Ctx, s.DB, *rtRef, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rts)
+
+	returnedScopes, err := s.repo.ListByName(s.Ctx, rts.Name)
+	require.Len(s.T(), returnedScopes, 1)
+	require.Equal(s.T(), rts.Name, returnedScopes[0].Name)
+	require.Equal(s.T(), rts.ResourceTypeScopeID, returnedScopes[0].ResourceTypeScopeID)
 }
