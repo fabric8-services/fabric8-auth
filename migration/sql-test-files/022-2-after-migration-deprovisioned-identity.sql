@@ -1,0 +1,4 @@
+insert into identities (id, username, registration_completed) values ('cc54c5de-ff3d-4381-8d48-195caf4bc5f1', 'migration-test-2-deprovisioned-identity-deafult', true);
+insert into identities (id, username, registration_completed, deprovisioned) values ('d45decfd-a4ec-41f7-bd03-160bb66b625d', 'migration-test-2-deprovisioned-identity-null', true, null);
+insert into identities (id, username, registration_completed, deprovisioned) values ('cba93725-85f8-4042-b847-e199ebe9d5f3', 'migration-test-2-deprovisioned-identity-false', true, false);
+insert into identities (id, username, registration_completed, deprovisioned) values ('a83a4508-3303-441e-863a-84ff9e7f745a', 'migration-test-2-deprovisioned-identity-true', true, true);

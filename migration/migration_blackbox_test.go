@@ -107,6 +107,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration11", testMigration11)
 	t.Run("TestMigration18", testMigration18)
 	t.Run("TestMigration21", testMigration21)
+	t.Run("TestMigration22", testMigration22)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -225,6 +226,29 @@ func testMigration21(t *testing.T) {
 		err = rows.Scan(&roleName)
 		require.Equal(t, controller.OrganizationOwnerRole, roleName)
 	}
+}
+
+func testMigration22(t *testing.T) {
+	// Before introducing deprovisioned field
+	migrateToVersion(sqlDB, migrations[:(22)], (22))
+	require.Nil(t, runSQLscript(sqlDB, "022-1-before-migration-deprovisioned-identity.sql"))
+
+	// After introducing deprovisioned field
+	migrateToVersion(sqlDB, migrations[:(23)], (23))
+	require.Nil(t, runSQLscript(sqlDB, "022-2-after-migration-deprovisioned-identity.sql"))
+
+	rows, err := sqlDB.Query("SELECT id FROM identities WHERE deprovisioned IS TRUE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	// Expecting only one deprovisioined identity
+	require.True(t, rows.Next())
+	var id string
+	err = rows.Scan(&id)
+	require.Equal(t, "a83a4508-3303-441e-863a-84ff9e7f745a", id)
+	require.False(t, rows.Next())
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
