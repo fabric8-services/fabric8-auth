@@ -20,6 +20,8 @@ import (
 type RoleScope struct {
 	gormsupport.Lifecycle
 
+	RoleScopeID uuid.UUID `gorm:"column:id" gorm:"primary_key"`
+
 	// The associated scope
 	ResourceTypeScope resourceTypeScope.ResourceTypeScope `gorm:"ForeignKey:ResourceTypeScopeID"`
 

@@ -123,16 +123,20 @@ func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s scope.ResourceTypeS
 	roleScopeRepo := rolescope.NewRoleScopeRepository(db)
 
 	rs := rolescope.RoleScope{
-		ResourceTypeScope:   s,
+		//ResourceTypeScope:   s,
 		ResourceTypeScopeID: s.ResourceTypeScopeID,
-		Role:                r,
-		RoleID:              r.RoleID,
+		//Role:                r,
+		RoleID: r.RoleID,
 	}
 
 	err := roleScopeRepo.Create(ctx, &rs)
 	if err != nil {
 		return nil, err
 	}
+
+	// adding the references help in comparing later on.
+	rs.ResourceTypeScope = s
+	rs.Role = r
 	return &rs, nil
 }
 
