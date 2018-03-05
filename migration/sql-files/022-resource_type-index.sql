@@ -1,1 +1,0 @@
-CREATE INDEX IF NOT EXISTS idx_name_rt ON resource_type USING btree(name);

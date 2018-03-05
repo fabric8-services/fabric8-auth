@@ -107,6 +107,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration11", testMigration11)
 	t.Run("TestMigration18", testMigration18)
 	t.Run("TestMigration21", testMigration21)
+	t.Run("TestMigration22", testMigration22)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -225,6 +226,12 @@ func testMigration21(t *testing.T) {
 		err = rows.Scan(&roleName)
 		require.Equal(t, controller.OrganizationOwnerRole, roleName)
 	}
+}
+
+func testMigration22(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(23)], (23))
+	assert.True(t, dialect.HasIndex("resource_type", "idx_name_rt_name"))
+
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

@@ -8,5 +8,3 @@ CREATE UNIQUE INDEX uq_role_resource_type_name ON role (resource_type_id, name);
 INSERT INTO resource_type (name) VALUES ('identity/organization');
 
 INSERT INTO role (role_id, resource_type_id, name) select uuid_generate_v4(), resource_type_id, 'owner' from resource_type where name = 'identity/organization';
-
-

@@ -173,6 +173,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// verion 21
 	m = append(m, steps{ExecuteSQLFile("021-organizations-list-create.sql")})
 
+	// verion 22
+	m = append(m, steps{ExecuteSQLFile("022-resource-type-index.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
