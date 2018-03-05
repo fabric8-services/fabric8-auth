@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
+	invRepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -123,11 +124,39 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 			invitation.IdentityID = &identities[0].ID
 		}
 
-		// TODO Confirm that any specified roles are valid for this resource type
+		// Confirm that any specified roles are valid for this resource type
+		for _, roleName := range invitation.Roles {
+			_, error := s.repo.RoleRepository().Lookup(ctx, roleName, res.ResourceType.Name)
 
+			if error != nil {
+				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", res.ResourceType.Name))
+			}
+		}
 	}
 
-	// TODO Create the invitation records
+	// Create the invitation records
+	for _, invitation := range invitations {
+		inv := &invRepo.Invitation{
+			InviteToID: inviteTo,
+			UserID:     *invitation.IdentityID,
+			Member:     invitation.Member,
+		}
+
+		error := s.repo.InvitationRepository().Create(ctx, inv)
+		if error != nil {
+			return errors.NewInternalError(ctx, error)
+		}
+
+		// For each role in the invitation, lookup the role and add it to the invitation
+		for _, roleName := range invitation.Roles {
+			role, error := s.repo.RoleRepository().Lookup(ctx, roleName, res.ResourceType.Name)
+
+			if error != nil {
+				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", res.ResourceType.Name))
+			}
+			s.repo.InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
+		}
+	}
 
 	return nil
 }

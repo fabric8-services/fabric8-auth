@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
@@ -90,6 +91,10 @@ func (g *GormBase) ExternalTokens() provider.ExternalTokenRepository {
 // VerificationCodes returns an VerificationCodes repository
 func (g *GormBase) VerificationCodes() account.VerificationCodeRepository {
 	return account.NewVerificationCodeRepository(g.db)
+}
+
+func (g *GormBase) InvitationRepository() invitation.InvitationRepository {
+	return invitation.NewInvitationRepository(g.db)
 }
 
 func (g *GormBase) ResourceRepository() resource.ResourceRepository {
