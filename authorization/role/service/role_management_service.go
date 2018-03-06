@@ -49,7 +49,7 @@ func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resource
 	return roles, err
 }
 
-// ListAvailableRolesByResourceType lists assignments made for a specific resource
+// ListAvailableRolesByResourceType lists assignments made for a specific resource type
 func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]roleModel.RoleScope, error) {
 
 	var roleScopes []roleModel.RoleScope
