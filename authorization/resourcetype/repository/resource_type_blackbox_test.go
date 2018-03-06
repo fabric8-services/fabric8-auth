@@ -62,3 +62,18 @@ func (s *resourceTypeBlackBoxTest) TestCreateResourceType() {
 	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
 
 }
+
+func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithoutID() {
+	t := s.T()
+	resourceTypeRef := resourcetype.ResourceType{
+		Name: uuid.NewV4().String(),
+	}
+	err := s.repo.Create(s.Ctx, &resourceTypeRef)
+	require.NoError(t, err)
+
+	rt, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
+	require.NoError(t, err)
+	require.Equal(t, resourceTypeRef.Name, rt.Name)
+	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
+
+}
