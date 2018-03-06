@@ -788,9 +788,9 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expected bool) {
 	identityRepository := account.NewIdentityRepository(s.DB)
-	identity, err := identityRepository.Load(context.Background(), id)
+	identity, err := identityRepository.LoadWithUser(context.Background(), id)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), expected, identity.Deprovisioned)
+	require.Equal(s.T(), expected, identity.User.Deprovisioned)
 }
 
 func (s *UsersControllerTestSuite) TestDeprovisionUser() {

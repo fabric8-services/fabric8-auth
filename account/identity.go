@@ -72,8 +72,6 @@ type Identity struct {
 	ProviderType string `gorm:"column:provider_type"`
 	// the URL of the profile on the remote work item service
 	ProfileURL *string `gorm:"column:profile_url"`
-	// Whether the identity has been deprovisioned
-	Deprovisioned bool `gorm:"column:deprovisioned"`
 	// Link to User
 	UserID NullUUID `sql:"type:uuid"`
 	User   User

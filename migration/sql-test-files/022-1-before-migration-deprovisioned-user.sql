@@ -1,0 +1,1 @@
+insert into users (id, cluster, email, email_private) values ('a2f82e0a-724c-4318-a8ef-38441f5205f6', 'test', 'migration-test-1-deprovisioned-user@mail.com', false);

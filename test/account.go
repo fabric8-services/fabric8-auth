@@ -128,16 +128,16 @@ func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (acco
 
 func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (account.Identity, error) {
 	testUser := account.User{
-		ID:       uuid.NewV4(),
-		Email:    uuid.NewV4().String(),
-		FullName: "Test Developer " + username,
-		Cluster:  "https://api.starter-us-east-2a.openshift.com",
+		ID:            uuid.NewV4(),
+		Email:         uuid.NewV4().String(),
+		FullName:      "Test Developer " + username,
+		Cluster:       "https://api.starter-us-east-2a.openshift.com",
+		Deprovisioned: true,
 	}
 	testIdentity := account.Identity{
-		Username:      username,
-		ProviderType:  account.KeycloakIDP,
-		User:          testUser,
-		Deprovisioned: true,
+		Username:     username,
+		ProviderType: account.KeycloakIDP,
+		User:         testUser,
 	}
 	err := CreateTestIdentityAndUserInDB(db, &testIdentity)
 	return testIdentity, err

@@ -1,1 +1,0 @@
-insert into identities (id, username, registration_completed) values ('a2f82e0a-724c-4318-a8ef-38441f5205f6', 'migration-test-1-deprovisioned-identity', true);

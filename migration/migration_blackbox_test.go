@@ -231,19 +231,19 @@ func testMigration21(t *testing.T) {
 func testMigration22(t *testing.T) {
 	// Before introducing deprovisioned field
 	migrateToVersion(sqlDB, migrations[:(22)], (22))
-	require.Nil(t, runSQLscript(sqlDB, "022-1-before-migration-deprovisioned-identity.sql"))
+	require.Nil(t, runSQLscript(sqlDB, "022-1-before-migration-deprovisioned-user.sql"))
 
 	// After introducing deprovisioned field
 	migrateToVersion(sqlDB, migrations[:(23)], (23))
-	require.Nil(t, runSQLscript(sqlDB, "022-2-after-migration-deprovisioned-identity.sql"))
+	require.Nil(t, runSQLscript(sqlDB, "022-2-after-migration-deprovisioned-user.sql"))
 
-	rows, err := sqlDB.Query("SELECT id FROM identities WHERE deprovisioned IS TRUE")
+	rows, err := sqlDB.Query("SELECT id FROM users WHERE deprovisioned IS TRUE")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close()
 
-	// Expecting only one deprovisioined identity
+	// Expecting only one deprovisioined user
 	require.True(t, rows.Next())
 	var id string
 	err = rows.Scan(&id)

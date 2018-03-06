@@ -75,13 +75,13 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, errs.Wrap(errors.NewBadParameterError("identity_id", ctx.ID), err.Error()))
 		}
-		identity, err := appl.Identities().Load(ctx.Context, identityID)
+		identity, err := appl.Identities().LoadWithUser(ctx.Context, identityID)
 		if err != nil {
 			jerrors, httpStatusCode := jsonapi.ErrorToJSONAPIErrors(ctx, err)
 			return ctx.ResponseData.Service.Send(ctx.Context, httpStatusCode, jerrors)
 		}
 
-		if tenantSA && identity.Deprovisioned {
+		if tenantSA && identity.User.Deprovisioned {
 			// Don't return deprovisioned users for calls made by Tenant SA
 			// TODO we should disable notifications for such users too but if we just return 401 for notification service request we may break it
 			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
@@ -89,16 +89,8 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has benn deprovisioned"))
 		}
 
-		var user *account.User
-		userID := identity.UserID
-		if userID.Valid {
-			user, err = appl.Users().Load(ctx.Context, userID.UUID)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError(fmt.Sprintf("User ID %s not valid", userID.UUID), err))
-			}
-		}
-		return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, isServiceAccount))
+		return ctx.ConditionalRequest(identity.User, c.config.GetCacheControlUser, func() error {
+			return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, isServiceAccount))
 		})
 	})
 }
@@ -729,9 +721,10 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 	}
 	// We support "deprovisioned" attribute update only for now
 	if ctx.Payload != nil && ctx.Payload.Data != nil && ctx.Payload.Data.Attributes != nil && ctx.Payload.Data.Attributes.Deprovisioned != nil {
-		identity.Deprovisioned = *ctx.Payload.Data.Attributes.Deprovisioned
+		user := &identity.User
+		user.Deprovisioned = *ctx.Payload.Data.Attributes.Deprovisioned
 		err := application.Transactional(c.db, func(appl application.Application) error {
-			return appl.Identities().Save(ctx, identity)
+			return appl.Users().Save(ctx, user)
 		})
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, err.Error()))

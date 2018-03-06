@@ -201,8 +201,8 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
 func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig LoginServiceConfiguration) (*token.TokenSet, error) {
-	identity, err := LoadContextIdentity(ctx, keycloak.DB)
-	if identity != nil && identity.Deprovisioned {
+	identity, err := LoadContextIdentityAndUser(ctx, keycloak.DB)
+	if identity != nil && identity.User.Deprovisioned {
 		log.Warn(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
 			"user_name":   identity.Username,
@@ -268,7 +268,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		return nil, err
 	}
 
-	if identity.Deprovisioned {
+	if identity.User.Deprovisioned {
 		log.Warn(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
 			"user_name":   identity.Username,
@@ -847,9 +847,9 @@ func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID,
 	return *identity, nil
 }
 
-// LoadContextIdentity returns the identity found in given context if the identity exists in the Auth DB
-// If it doesn't exist then an Unauthorized error is returned
-func LoadContextIdentity(ctx context.Context, db application.DB) (*account.Identity, error) {
+// LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
+// If it doesn't exist or not assosiated with any User then an Unauthorized error is returned
+func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*account.Identity, error) {
 	var identity *account.Identity
 	identityID, err := ContextIdentity(ctx)
 	if err != nil {
@@ -857,7 +857,7 @@ func LoadContextIdentity(ctx context.Context, db application.DB) (*account.Ident
 	}
 	// Check if the identity exists
 	err = application.Transactional(db, func(appl application.Application) error {
-		identity, err = appl.Identities().Load(ctx, *identityID)
+		identity, err = appl.Identities().LoadWithUser(ctx, *identityID)
 		if err != nil {
 			return autherrors.NewUnauthorizedError(err.Error())
 		}

@@ -174,7 +174,7 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("021-organizations-list-create.sql")})
 
 	// Version 22
-	m = append(m, steps{ExecuteSQLFile("022-add-deprovisioned-to-identity.sql")})
+	m = append(m, steps{ExecuteSQLFile("022-add-deprovisioned-to-user.sql")})
 
 	// Version N
 	//
