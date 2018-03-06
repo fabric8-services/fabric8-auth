@@ -35,7 +35,6 @@ func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB = s.DB.Debug()
 	s.repo = rolescope.NewRoleManagementModelService(s.DB, s.Application)
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)

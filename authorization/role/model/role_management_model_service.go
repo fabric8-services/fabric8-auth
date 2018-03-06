@@ -41,7 +41,6 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []identityrole.IdentityRole
 
-	r.db = r.db.Debug()
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
 		  resource_id, parent_resource_id 

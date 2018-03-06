@@ -27,10 +27,6 @@ type TestRolesRest struct {
 	gormtestsupport.DBTestSuite
 }
 
-func (s *TestRolesRest) SetupSuite() {
-	s.DBTestSuite.SetupSuite()
-}
-
 func (rest *TestRolesRest) SecuredRolesControllerWithIdentity(identity account.Identity) (*goa.Service, *RolesController) {
 	svc := testsupport.ServiceAsUser("Roles-Service", testsupport.TestIdentity)
 	roleManagementModelService := rolemodel.NewRoleManagementModelService(rest.DB, rest.Application)
