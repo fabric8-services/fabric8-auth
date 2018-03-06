@@ -20,6 +20,7 @@ var _ = a.Resource("roles", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 })
 
