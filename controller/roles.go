@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -30,7 +30,7 @@ func NewRolesController(service *goa.Service, db application.DB, roleManagementS
 
 // List runs the list action.
 func (c *RolesController) List(ctx *app.ListRolesContext) error {
-	var roles []rolemodel.RoleScope
+	var roles []role.RoleScope
 	if ctx.ResourceType == nil { // todo: check for empty string too?
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("resource_type", "nil"))
 	}
@@ -49,14 +49,14 @@ func (c *RolesController) List(ctx *app.ListRolesContext) error {
 	return ctx.OK(res)
 }
 
-func convertRoleScopeToAppRoles(ctx context.Context, roles []rolemodel.RoleScope) []*app.RolesData {
+func convertRoleScopeToAppRoles(ctx context.Context, roles []role.RoleScope) []*app.RolesData {
 	var rolesList []*app.RolesData
 	for _, r := range roles {
 		rolesList = append(rolesList, convertRoleScopeToAppRole(ctx, r))
 	}
 	return rolesList
 }
-func convertRoleScopeToAppRole(ctx context.Context, r rolemodel.RoleScope) *app.RolesData {
+func convertRoleScopeToAppRole(ctx context.Context, r role.RoleScope) *app.RolesData {
 	return &app.RolesData{
 		RoleName:     r.RoleName,
 		ResourceType: r.ResourceType,

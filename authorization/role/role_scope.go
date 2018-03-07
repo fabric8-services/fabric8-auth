@@ -1,4 +1,4 @@
-package model
+package role
 
 type RoleScope struct {
 	RoleID       string

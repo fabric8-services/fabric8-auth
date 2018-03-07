@@ -5,8 +5,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
-	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
@@ -19,7 +20,7 @@ import (
 // RoleManagementModelService defines the service contract for managing role assignments
 type RoleManagementModelService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
-	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]RoleScope, error)
+	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
 }
 
 // NewRoleManagementModelService creates a new service to manage role assignments
@@ -136,7 +137,7 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 				ResourceID:       resourceID,
 				ParentResourceID: parentResourceID,
 			},
-			Role: role.Role{
+			Role: rolerepo.Role{
 				RoleID: roleIDAsUUID,
 				Name:   roleName,
 			},
@@ -150,9 +151,9 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 }
 
 // ListAvailableRolesByResourceType lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]RoleScope, error) {
+func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
-	var roleScopes []RoleScope
+	var roleScopes []role.RoleScope
 
 	r.db = r.db.Debug()
 	db := r.db.Raw(`SELECT r.role_id,
@@ -211,7 +212,7 @@ func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx co
 			return roleScopes, errors.NewInternalError(ctx, err)
 		}
 		scopesList := strings.Split(scopeNames, ",")
-		roleScope := RoleScope{
+		roleScope := role.RoleScope{
 			RoleName:     roleName,
 			RoleID:       roleID,
 			Scopes:       scopesList,

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -13,7 +14,7 @@ import (
 // RoleManagementService defines the contract for managing roles assigments to a resource
 type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
-	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]roleModel.RoleScope, error)
+	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
 }
 
 // RoleManagementServiceImpl implements the RoleManagementService for managing role assignments.
@@ -50,9 +51,9 @@ func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resource
 }
 
 // ListAvailableRolesByResourceType lists assignments made for a specific resource type
-func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]roleModel.RoleScope, error) {
+func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error) {
 
-	var roleScopes []roleModel.RoleScope
+	var roleScopes []role.RoleScope
 	var err error
 	err = application.Transactional(r.db, func(appl application.Application) error {
 		_, err = appl.ResourceTypeRepository().Lookup(ctx, resourceType)
