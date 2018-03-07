@@ -23,17 +23,19 @@ import (
 // User describes a User account. A few identities can be assosiated with one user account
 type User struct {
 	gormsupport.Lifecycle
-	ID                 uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
-	Email              string    `sql:"unique_index"`
-	EmailPrivate       bool
-	FullName           string             // The fullname of the User
-	ImageURL           string             // The image URL for the User
-	Bio                string             // The bio of the User
-	URL                string             // The URL of the User
-	Company            string             // The (optional) Company of the User
-	FeatureLevel       string             // the level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
-	Cluster            string             // The OpenShift cluster allocted to the user.
-	EmailVerified      bool               // The verification status of the updated email.
+	ID            uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field
+	Email         string    `sql:"unique_index"`
+	EmailPrivate  bool
+	EmailVerified bool   // The verification status of the updated email.
+	FullName      string // The fullname of the User
+	ImageURL      string // The image URL for the User
+	Bio           string // The bio of the User
+	URL           string // The URL of the User
+	Company       string // The (optional) Company of the User
+	FeatureLevel  string // the level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
+	Cluster       string // The OpenShift cluster allocted to the user.
+	// Whether the user has been deprovisioned
+	Deprovisioned      bool               `gorm:"column:deprovisioned"`
 	Identities         []Identity         // has many Identities from different IDPs
 	ContextInformation ContextInformation `sql:"type:jsonb"` // context information of the user activity
 }

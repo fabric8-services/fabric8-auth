@@ -88,6 +88,16 @@ var TestTenantIdentity = account.Identity{
 	User:     TestUser,
 }
 
+// CreateLonelyTestIdentity creates an identity not assosiated with any user. For testing purpose only.
+func CreateLonelyTestIdentity(db *gorm.DB, username string) (account.Identity, error) {
+	testIdentity := account.Identity{
+		Username:     username,
+		ProviderType: "testProvider",
+	}
+	err := CreateTestIdentityForAccountIdentity(db, &testIdentity)
+	return testIdentity, err
+}
+
 // CreateTestIdentity creates an identity with the given `username` in the database. For testing purpose only.
 func CreateTestIdentity(db *gorm.DB, username, providerType string) (account.Identity, error) {
 	testIdentity := account.Identity{
@@ -110,6 +120,23 @@ func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (acco
 	testIdentity := account.Identity{
 		Username:     username,
 		ProviderType: providerType,
+		User:         testUser,
+	}
+	err := CreateTestIdentityAndUserInDB(db, &testIdentity)
+	return testIdentity, err
+}
+
+func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (account.Identity, error) {
+	testUser := account.User{
+		ID:            uuid.NewV4(),
+		Email:         uuid.NewV4().String(),
+		FullName:      "Test Developer " + username,
+		Cluster:       "https://api.starter-us-east-2a.openshift.com",
+		Deprovisioned: true,
+	}
+	testIdentity := account.Identity{
+		Username:     username,
+		ProviderType: account.KeycloakIDP,
 		User:         testUser,
 	}
 	err := CreateTestIdentityAndUserInDB(db, &testIdentity)

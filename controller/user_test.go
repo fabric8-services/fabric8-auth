@@ -92,6 +92,17 @@ func (rest *TestUserREST) TestCurrentAuthorizedOK() {
 	rest.assertResponseHeaders(res, identity.User)
 }
 
+func (rest *TestUserREST) TestShowDeprovisionedUserFails() {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestShowDeprovisionedUserFails"+uuid.NewV4().String())
+	require.NoError(rest.T(), err)
+
+	svc, userCtrl := rest.SecuredController(identity)
+	rw, _ := test.ShowUserUnauthorized(rest.T(), svc.Context, svc, userCtrl, nil, nil)
+
+	assert.Equal(rest.T(), "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Contains(rest.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
+}
+
 func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfModifiedSinceHeader() {
 	// given
 	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.NewV4().String())

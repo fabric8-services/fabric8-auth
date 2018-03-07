@@ -73,7 +73,7 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	newTestKeycloakOAuthProvider(rest.Application)
 	loginService := &DummyKeycloakOAuthService{}
 	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService)
+	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil)
 	loginService.Identities = rest.Application.Identities()
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = testtoken.TokenManager

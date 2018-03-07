@@ -20,7 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/token"
-	keycloakTokenService "github.com/fabric8-services/fabric8-auth/token/keycloak"
+	keycloaktoken "github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
@@ -44,7 +44,7 @@ type LoginServiceConfiguration interface {
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB, keycloakProfileService UserProfileService) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
 		Identities:             identities,
 		Users:                  users,
@@ -52,6 +52,7 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		DB:                     db,
 		RemoteWITService:       &wit.RemoteWITServiceCaller{},
 		keycloakProfileService: keycloakProfileService,
+		keycloakTokenService:   keycloakTokenService,
 	}
 }
 
@@ -63,6 +64,7 @@ type KeycloakOAuthProvider struct {
 	DB                     application.DB
 	RemoteWITService       wit.RemoteWITService
 	keycloakProfileService UserProfileService
+	keycloakTokenService   keycloaktoken.TokenService
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
@@ -199,7 +201,23 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
 func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig LoginServiceConfiguration) (*token.TokenSet, error) {
-	return keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
+	identity, err := LoadContextIdentityAndUser(ctx, keycloak.DB)
+	if identity != nil && identity.User.Deprovisioned {
+		log.Warn(ctx, map[string]interface{}{
+			"identity_id": identity.ID,
+			"user_name":   identity.Username,
+		}, "deprovisioned user tried to refresh token")
+		return nil, autherrors.NewUnauthorizedError("unauthorized access")
+	}
+	if err != nil {
+		// That's OK if we didn't find the identity if the token was issued for an API client
+		// Just log it and proceed.
+		log.Warn(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
+	}
+
+	return keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
 }
 
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
@@ -248,6 +266,14 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 			return nil, autherrors.NewUnauthorizedError(err.Error())
 		}
 		return nil, err
+	}
+
+	if identity.User.Deprovisioned {
+		log.Warn(ctx, map[string]interface{}{
+			"identity_id": identity.ID,
+			"user_name":   identity.Username,
+		}, "deprovisioned user tried to login")
+		return nil, autherrors.NewUnauthorizedError("unauthorized access")
 	}
 
 	log.Debug(ctx, map[string]interface{}{
@@ -411,7 +437,7 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 			return nil, err
 		}
 
-		tokenSet, err := keycloakTokenService.RefreshToken(ctx, endpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret(), keycloakToken.AccessToken)
+		tokenSet, err := keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret(), keycloakToken.AccessToken)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":               err,
@@ -819,6 +845,25 @@ func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID,
 		return uuid.Nil, err
 	}
 	return *identity, nil
+}
+
+// LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
+// If it doesn't exist or not assosiated with any User then an Unauthorized error is returned
+func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*account.Identity, error) {
+	var identity *account.Identity
+	identityID, err := ContextIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Check if the identity exists
+	err = application.Transactional(db, func(appl application.Application) error {
+		identity, err = appl.Identities().LoadWithUser(ctx, *identityID)
+		if err != nil {
+			return autherrors.NewUnauthorizedError(err.Error())
+		}
+		return nil
+	})
+	return identity, err
 }
 
 // InjectTokenManager is a middleware responsible for setting up tokenManager in the context for every request.

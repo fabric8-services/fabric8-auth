@@ -1,0 +1,3 @@
+insert into users (id, cluster, email, email_private) values ('cc54c5de-ff3d-4381-8d48-195caf4bc5f1', 'test', 'migration-test-2-deprovisioned-identity-deafult@mail.com', false);
+insert into users (id, cluster, email, email_private, deprovisioned) values ('cba93725-85f8-4042-b847-e199ebe9d5f3', 'test', 'migration-test-2-deprovisioned-identity-false@mail.com', false, false);
+insert into users (id, cluster, email, email_private, deprovisioned) values ('a83a4508-3303-441e-863a-84ff9e7f745a', 'test', 'migration-test-2-deprovisioned-identity-true@mail.com', false, true);
