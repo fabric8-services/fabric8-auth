@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/dgrijalva/jwt-go"
@@ -39,6 +41,15 @@ func EmbedTokenInContext(sub, username string) (context.Context, error) {
 	// Embed Token in the context
 	ctx := jwtgoa.WithJWT(context.Background(), extracted)
 	return ctx, nil
+}
+
+// EmbedIdentityInContext generates a token for the given identity and embed it into the context along with token manager
+func EmbedIdentityInContext(identity account.Identity) (context.Context, error) {
+	ctx, err := EmbedTokenInContext(identity.ID.String(), identity.Username)
+	if err != nil {
+		return nil, err
+	}
+	return tokencontext.ContextWithTokenManager(ctx, TokenManager), nil
 }
 
 // GenerateToken generates a JWT token and signs it using the given private key

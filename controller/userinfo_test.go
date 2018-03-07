@@ -18,6 +18,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -84,6 +85,17 @@ func (rest *TestUserInfoREST) TestShowUserInfoFailsWithInvalidToken() {
 	jwtToken.Claims.(jwtgo.MapClaims)["sub"] = sub
 	_, err = test.ShowUserinfoUnauthorized(rest.T(), ctx, svc, ctrl)
 	require.Equal(rest.T(), err.Errors[0].Detail, fmt.Sprintf("auth token contains id %s of unknown Identity\n", sub))
+}
+
+func (rest *TestUserInfoREST) TestShowUserinfoDeprovisionedUserFails() {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestShowUserinfoDeprovisionedUserFails"+uuid.NewV4().String())
+	require.NoError(rest.T(), err)
+
+	svc, userCtrl := rest.SecuredController(identity)
+	rw, _ := test.ShowUserinfoUnauthorized(rest.T(), svc.Context, svc, userCtrl)
+
+	assert.Equal(rest.T(), "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Contains(rest.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 
 func (rest *TestUserInfoREST) checkPrivateEmailVisible(emailPrivate bool) {

@@ -88,8 +88,30 @@ func (s *UsersControllerTestSuite) TestCreateRandomUser() {
 		assert.Equal(t, user.Company, *result.Data.Attributes.Company)
 		assert.Equal(t, account.DefaultFeatureLevel, *result.Data.Attributes.FeatureLevel)
 	})
-
 }
+
+func (s *UsersControllerTestSuite) updateDeprovisionedAttribute(deprovisioned bool) {
+	var identity account.Identity
+	var err error
+	if deprovisioned {
+		_, identity = s.createRandomUserIdentity(s.T(), "tes-updateDeprovisionedAttribute")
+	} else {
+		identity, err = testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "test-updateDeprovisionedAttribute")
+		require.NoError(s.T(), err)
+	}
+	secureService, secureController := s.SecuredController(identity)
+	updateUsersPayload := &app.UpdateUsersPayload{
+		Data: &app.UpdateUserData{
+			Attributes: &app.UpdateIdentityDataAttributes{Deprovisioned: &deprovisioned},
+			Type:       "identities",
+		},
+	}
+	s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+	// Try to deprovision
+	test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+	s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+}
+
 func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 	s.T().Run("ok", func(t *testing.T) {
@@ -144,6 +166,11 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			assert.True(t, ok)
 			assert.Equal(t, contextInformation["count"], int(countValue))
 			assert.Equal(t, contextInformation["rate"], updatedContextInformation["rate"])
+		})
+
+		t.Run("deprovisioned attribute ignored", func(t *testing.T) {
+			s.updateDeprovisionedAttribute(true)
+			s.updateDeprovisionedAttribute(false)
 		})
 
 		t.Run("add feature level", func(t *testing.T) {
@@ -759,6 +786,53 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 	})
 }
 
+func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expected bool) {
+	identityRepository := account.NewIdentityRepository(s.DB)
+	identity, err := identityRepository.LoadWithUser(context.Background(), id)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), expected, identity.User.Deprovisioned)
+}
+
+func (s *UsersControllerTestSuite) TestDeprovisionUser() {
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	deprovisioned := true
+	updateUsersPayload := &app.UpdateByServiceAccountUsersPayload{
+		Data: &app.UpdateUserData{
+			Attributes: &app.UpdateIdentityDataAttributes{Deprovisioned: &deprovisioned},
+			Type:       "identities",
+		},
+	}
+
+	// Reg app can update
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+	s.checkIfUserDeprovisioned(identity.ID, false)
+	_, result := test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
+	require.NotNil(s.T(), result)
+	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
+	s.checkIfUserDeprovisioned(identity.ID, true)
+
+	// Fails if unknown identity
+	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.NewV4().String(), updateUsersPayload)
+
+	// Fails if identity is not assosiated with any user
+	lonelyIdentity, err := testsupport.CreateLonelyTestIdentity(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, lonelyIdentity.ID.String(), updateUsersPayload)
+
+	// Another service account can't update
+	secureService, secureController = s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
+	test.UpdateByServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
+
+	// Regular user can't update either
+	secureService, secureController = s.SecuredController(identity)
+	test.UpdateByServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
+
+	// If no token present in the context then fails too
+	test.UpdateByServiceAccountUsersUnauthorized(s.T(), nil, nil, s.controller, identity.ID.String(), updateUsersPayload)
+}
+
 func (s *UsersControllerTestSuite) TestVerifyEmail() {
 
 	s.T().Run("ok", func(t *testing.T) {
@@ -816,6 +890,27 @@ func (s *UsersControllerTestSuite) TestShowUserOK() {
 	// then
 	assertUser(s.T(), result.Data, user, identity)
 	assertSingleUserResponseHeaders(s.T(), res, result, user)
+}
+
+func (s *UsersControllerTestSuite) TestShowDeprovisionedUsersFails() {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestShowDeprovisionedUsersFails"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	// User returned if no token present
+	_, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
+	assertUser(s.T(), result.Data, identity.User, identity)
+
+	// Still can get the user if called by the Notification Service
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestNotificationIdentity)
+	_, result = test.ShowUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), nil, nil)
+	assertUser(s.T(), result.Data, identity.User, identity)
+
+	// Get 401 if called by the Tenant Service
+	secureService, secureController = s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
+	rw, _ := test.ShowUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), nil, nil)
+
+	assert.Equal(s.T(), "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Contains(s.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 
 func (s *UsersControllerTestSuite) TestShowUserOKUsingExpiredIfModifedSinceHeader() {

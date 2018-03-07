@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -91,6 +91,51 @@ func (s *identityBlackBoxTest) TestOKToSave() {
 	err := s.repo.Save(s.Ctx, identity)
 	// then
 	require.Nil(s.T(), err, "Could not update identity")
+}
+
+func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNotExist() {
+	// Identity exists but not assosiated with any user
+	identity := createAndLoad(s)
+	_, err := s.repo.LoadWithUser(s.Ctx, identity.ID)
+	require.NotNil(s.T(), err)
+
+	assert.Equal(s.T(), errors.NewNotFoundError("user for identity", identity.ID.String()).Error(), err.Error())
+
+	// Identity does not exist
+	id := uuid.NewV4()
+	_, err = s.repo.LoadWithUser(s.Ctx, id)
+	require.NotNil(s.T(), err)
+	assert.Equal(s.T(), errors.NewNotFoundError("identity", id.String()).Error(), err.Error())
+}
+
+func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
+	// Create test user & identity
+	testUser := &account.User{
+		ID:       uuid.NewV4(),
+		Email:    uuid.NewV4().String(),
+		FullName: "TestLoadIdentityAndUserOK Developer",
+		Cluster:  "https://api.starter-us-east-2a.openshift.com",
+	}
+	testIdentity := &account.Identity{
+		Username:     "TestLoadIdentityAndUserOK" + uuid.NewV4().String(),
+		ProviderType: account.KeycloakIDP,
+		User:         *testUser,
+	}
+	userRepository := account.NewUserRepository(s.DB)
+	userRepository.Create(s.Ctx, testUser)
+	s.repo.Create(s.Ctx, testIdentity)
+
+	// Check load
+	identity, err := s.repo.LoadWithUser(s.Ctx, testIdentity.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), identity)
+	testIdentity.CreatedAt = identity.CreatedAt // Align timestamps
+	testIdentity.UpdatedAt = identity.UpdatedAt
+	testIdentity.Lifecycle = identity.Lifecycle
+	testIdentity.User.UpdatedAt = identity.User.UpdatedAt
+	testIdentity.User.CreatedAt = identity.User.CreatedAt
+	testIdentity.User.Lifecycle = identity.User.Lifecycle
+	assert.Equal(s.T(), testIdentity, identity)
 }
 
 func createAndLoad(s *identityBlackBoxTest) *account.Identity {

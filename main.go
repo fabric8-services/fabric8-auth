@@ -14,6 +14,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -29,10 +33,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
-	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
-	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -179,9 +179,10 @@ func main() {
 	service.Use(authz.InjectAuthzService(spaceAuthzService))
 
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
+	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService)
+	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService)
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 

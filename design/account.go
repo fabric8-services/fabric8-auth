@@ -170,7 +170,7 @@ var _ = a.Resource("users", func() {
 		)
 		a.Description("Retrieve user for the given ID.")
 		a.Params(func() {
-			a.Param("id", d.String, "id")
+			a.Param("id", d.String, "Identity ID")
 		})
 		a.UseTrait("conditional")
 		a.Response(d.OK, user)
@@ -178,6 +178,7 @@ var _ = a.Resource("users", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
 	a.Action("Create", func() {
@@ -212,7 +213,24 @@ var _ = a.Resource("users", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.Forbidden, JSONAPIErrors)
 		a.Response(d.Conflict, JSONAPIErrors)
+	})
 
+	a.Action("updateByServiceAccount", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PATCH(":id"),
+		)
+		a.Description("update the user")
+		a.Params(func() {
+			a.Param("id", d.String, "Identity ID")
+		})
+		a.Payload(updateUser)
+		a.Response(d.OK, func() {
+			a.Media(user)
+		})
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
 	a.Action("list", func() {
@@ -281,6 +299,7 @@ var updateUserDataAttributes = a.Type("UpdateIdentityDataAttributes", func() {
 	a.Attribute("contextInformation", a.HashOf(d.String, d.Any), "User context information of any type as a json", func() {
 		a.Example(map[string]interface{}{"last_visited_url": "https://a.openshift.io", "space": "3d6dab8d-f204-42e8-ab29-cdb1c93130ad"})
 	})
+	a.Attribute("deprovisioned", d.Boolean, "Whether the identity has been deprovisioned")
 })
 
 // identityData represents an identified identity object

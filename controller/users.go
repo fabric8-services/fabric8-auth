@@ -67,28 +67,30 @@ func NewUsersController(service *goa.Service, db application.DB, config UsersCon
 
 // Show runs the show action.
 func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
-	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification, token.Tenant)
+	tenantSA := token.IsSpecificServiceAccount(ctx, token.Tenant)
+	isServiceAccount := tenantSA || token.IsSpecificServiceAccount(ctx, token.Notification)
 
 	return application.Transactional(c.db, func(appl application.Application) error {
 		identityID, err := uuid.FromString(ctx.ID)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, errs.Wrap(errors.NewBadParameterError("identity_id", ctx.ID), err.Error()))
 		}
-		identity, err := appl.Identities().Load(ctx.Context, identityID)
+		identity, err := appl.Identities().LoadWithUser(ctx.Context, identityID)
 		if err != nil {
 			jerrors, httpStatusCode := jsonapi.ErrorToJSONAPIErrors(ctx, err)
 			return ctx.ResponseData.Service.Send(ctx.Context, httpStatusCode, jerrors)
 		}
-		var user *account.User
-		userID := identity.UserID
-		if userID.Valid {
-			user, err = appl.Users().Load(ctx.Context, userID.UUID)
-			if err != nil {
-				return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError(fmt.Sprintf("User ID %s not valid", userID.UUID), err))
-			}
+
+		if tenantSA && identity.User.Deprovisioned {
+			// Don't return deprovisioned users for calls made by Tenant SA
+			// TODO we should disable notifications for such users too but if we just return 401 for notification service request we may break it
+			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+			ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has benn deprovisioned"))
 		}
-		return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, isServiceAccount))
+
+		return ctx.ConditionalRequest(identity.User, c.config.GetCacheControlUser, func() error {
+			return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, isServiceAccount))
 		})
 	})
 }
@@ -688,6 +690,48 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
+}
+
+// UpdateByServiceAccount updates the user by a service account
+func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccountUsersContext) error {
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.OnlineRegistration)
+	if !isSvcAccount {
+		log.Error(ctx, nil, "the account is not an authorized service account allowed to update a new user")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to update users."))
+	}
+
+	var identity *account.Identity
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		id, err := uuid.FromString(ctx.ID)
+		if err != nil {
+			return err
+		}
+		identity, err = appl.Identities().LoadWithUser(ctx, id)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": ctx.ID,
+		}, "failed to load identity")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("identity", ctx.ID))
+	}
+	// We support "deprovisioned" attribute update only for now
+	if ctx.Payload != nil && ctx.Payload.Data != nil && ctx.Payload.Data.Attributes != nil && ctx.Payload.Data.Attributes.Deprovisioned != nil {
+		user := &identity.User
+		user.Deprovisioned = *ctx.Payload.Data.Attributes.Deprovisioned
+		err := application.Transactional(c.db, func(appl application.Application) error {
+			return appl.Users().Save(ctx, user)
+		})
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, err.Error()))
+		}
+	}
+
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
 }
 
 func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.User, updatedFeatureLevel *string) error {

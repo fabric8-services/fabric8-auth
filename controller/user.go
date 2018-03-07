@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/account/userinfo"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/token"
 
@@ -41,10 +41,14 @@ func NewUserController(service *goa.Service, userInfoService userinfo.UserInfoSe
 
 // Show returns the authorized user based on the provided Token
 func (c *UserController) Show(ctx *app.ShowUserContext) error {
-
 	user, identity, err := c.userInfoService.UserInfo(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	if user.Deprovisioned {
+		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+		ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has been deprovisioned"))
 	}
 
 	return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
@@ -55,5 +59,4 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 		}
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 	})
-
 }

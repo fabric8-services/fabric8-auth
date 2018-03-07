@@ -12,7 +12,16 @@ import (
 	errs "github.com/pkg/errors"
 )
 
-func RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
+// TokenService represents a Token Service
+type TokenService interface {
+	RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error)
+}
+
+// KeycloakTokenService implements TokenService
+type KeycloakTokenService struct {
+}
+
+func (s *KeycloakTokenService) RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	res, err := client.PostForm(refreshTokenEndpoint, url.Values{
 		"client_id":     {clientID},
@@ -37,5 +46,4 @@ func RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID str
 	}
 
 	return token.ReadTokenSet(ctx, res)
-
 }
