@@ -9,7 +9,6 @@ import (
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	scoperepo "github.com/fabric8-services/fabric8-auth/authorization/role/scope/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -280,7 +279,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() 
 
 func (s *roleManagementServiceBlackboxTest) TestGetRolesByNewResourceType() {
 
-	var createdRoleScopes []scoperepo.RoleScope
+	var createdRoleScopes []rolerepo.RoleScope
 
 	newResourceTypeName := uuid.NewV4().String()
 	testResourceTypeRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
@@ -329,7 +328,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByNewResourceType() {
 
 }
 
-func (s *roleManagementServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, createdRoleScopes []scoperepo.RoleScope, roleScopesRetrieved []role.RoleScope) {
+func (s *roleManagementServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, createdRoleScopes []rolerepo.RoleScope, roleScopesRetrieved []role.RoleScope) {
 	foundCreatedRoleScope := false
 	for _, rsDB := range createdRoleScopes {
 		foundCreatedRoleScope = false

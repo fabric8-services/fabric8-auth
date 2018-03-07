@@ -8,7 +8,6 @@ import (
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/scope/repository"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
@@ -119,10 +118,10 @@ func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype
 	return &rts, nil
 }
 
-func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s scope.ResourceTypeScope, r role.Role) (*rolescope.RoleScope, error) {
-	roleScopeRepo := rolescope.NewRoleScopeRepository(db)
+func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s scope.ResourceTypeScope, r role.Role) (*role.RoleScope, error) {
+	roleScopeRepo := role.NewRoleScopeRepository(db)
 
-	rs := rolescope.RoleScope{
+	rs := role.RoleScope{
 		//ResourceTypeScope:   s,
 		ResourceTypeScopeID: s.ResourceTypeScopeID,
 		//Role:                r,

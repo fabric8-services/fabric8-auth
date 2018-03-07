@@ -9,7 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	scoperepo "github.com/fabric8-services/fabric8-auth/authorization/role/scope/repository"
+	scoperepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 
 	. "github.com/fabric8-services/fabric8-auth/controller"

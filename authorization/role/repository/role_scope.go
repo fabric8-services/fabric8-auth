@@ -5,7 +5,6 @@ import (
 	"time"
 
 	resourceTypeScope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
-	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
@@ -29,7 +28,7 @@ type RoleScope struct {
 	ResourceTypeScopeID uuid.UUID `gorm:"column:scope_id"`
 
 	// The associated role
-	Role role.Role `gorm:"ForeignKey:RoleID"`
+	Role Role `gorm:"ForeignKey:RoleID"`
 
 	// The foreign key value for RoleID
 	RoleID uuid.UUID

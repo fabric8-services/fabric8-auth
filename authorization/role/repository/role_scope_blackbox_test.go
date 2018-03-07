@@ -5,7 +5,7 @@ import (
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
-	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/scope/repository"
+	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
