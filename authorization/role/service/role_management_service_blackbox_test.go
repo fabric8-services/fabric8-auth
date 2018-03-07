@@ -358,23 +358,13 @@ func (s *roleManagementServiceBlackboxTest) checkRoleBelongsToResourceType(db *g
 		// this role should belong to the specific resource type
 		require.Equal(s.T(), rt.ResourceTypeID, existingRole.ResourceTypeID)
 		for _, sc := range r.Scopes {
-			foundScope, err := s.checkScopeBelongsToResourceType(s.DB, sc, rt)
-			require.NoError(s.T(), err)
-			require.Equal(s.T(), true, foundScope)
+			s.checkScopeBelongsToResourceType(s.DB, sc, rt)
 		}
 	}
 }
 
-func (s *roleManagementServiceBlackboxTest) checkScopeBelongsToResourceType(db *gorm.DB, scopeName string, rt resourcetype.ResourceType) (bool, error) {
-	scopesReturned, err := s.resourceTypeScope.ListByName(s.Ctx, scopeName)
-	if err != nil {
-		return false, err
-	}
-	foundScope := false
-	for _, returnedScope := range scopesReturned {
-		if returnedScope.ResourceTypeID.String() == rt.ResourceTypeID.String() {
-			foundScope = true
-		}
-	}
-	return foundScope, nil
+func (s *roleManagementServiceBlackboxTest) checkScopeBelongsToResourceType(db *gorm.DB, scopeName string, rt resourcetype.ResourceType) {
+	scopesReturned, err := s.resourceTypeScope.ListByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
+	require.NotEmpty(s.T(), scopesReturned)
+	require.NoError(s.T(), err)
 }
