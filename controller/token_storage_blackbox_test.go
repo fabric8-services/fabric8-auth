@@ -90,6 +90,7 @@ func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccountAndDummyPro
 func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
 	rest.checkRetrieveOSOServiceAccountToken("fabric8-oso-proxy")
 	rest.checkRetrieveOSOServiceAccountToken("fabric8-tenant")
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-jenkins-idler")
 }
 
 func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName string) {

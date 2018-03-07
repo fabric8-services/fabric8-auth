@@ -40,6 +40,7 @@ const (
 	OsoProxy           = "fabric8-oso-proxy"
 	Tenant             = "fabric8-tenant"
 	Notification       = "fabric8-notification"
+	JenkinsIdler       = "fabric8-jenkins-idler"
 	OnlineRegistration = "online-registration"
 )
 
