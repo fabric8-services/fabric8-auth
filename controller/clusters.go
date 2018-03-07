@@ -32,7 +32,7 @@ func NewClustersController(service *goa.Service, config clusterConfiguration) *C
 
 // Show runs the list of available OSO clusters.
 func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
-	if !token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler) {
+	if !token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy) {
 		log.Error(ctx, nil, "unauthorized access to cluster info")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unauthorized access to cluster info"))
 	}

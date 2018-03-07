@@ -243,8 +243,8 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 	}
 
 	osConfig, ok := providerConfig.(link.OpenShiftIdentityProviderConfig)
-	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler) {
-		// This is a request from OSO proxy, tenant, or Jenkins Idler service to obtain a cluster wide token
+	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy) {
+		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
 		return c.retrieveClusterToken(ctx, forResource, forcePull, osConfig)
 	}
 

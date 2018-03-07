@@ -91,6 +91,7 @@ func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
 	rest.checkRetrieveOSOServiceAccountToken("fabric8-oso-proxy")
 	rest.checkRetrieveOSOServiceAccountToken("fabric8-tenant")
 	rest.checkRetrieveOSOServiceAccountToken("fabric8-jenkins-idler")
+	rest.checkRetrieveOSOServiceAccountToken("fabric8-jenkins-proxy")
 }
 
 func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName string) {
