@@ -22,9 +22,8 @@ type Invitation struct {
 
 	// This is the primary key value
 	InvitationID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:invitation_id"`
-	// The identity (organization, team or security group) to which the user is being invited to
-	InviteTo   account.Identity `gorm:"ForeignKey:InviteToID;AssociationForeignKey:ID"`
-	InviteToID uuid.UUID
+	// The identity ID (organization, team or security group) to which the user is being invited to
+	InviteTo uuid.UUID `sql:"type:uuid" gorm:"column:invite_to"`
 
 	User   account.Identity `gorm:"ForeignKey:UserID;AssociationForeignKey:ID"`
 	UserID uuid.UUID
@@ -32,7 +31,7 @@ type Invitation struct {
 	Member bool
 }
 
-func (m *GormInvitationRepository) TableName() string {
+func (m Invitation) TableName() string {
 	return "invitation"
 }
 
@@ -46,6 +45,10 @@ type InvitationRole struct {
 
 	Role   rolerepo.Role `gorm:"ForeignKey:RoleID;AssociationForeignKey:RoleID"`
 	RoleID uuid.UUID     `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_id"`
+}
+
+func (ir InvitationRole) TableName() string {
+	return "invitation_role"
 }
 
 // GormInvitationRepository is the implementation of the storage interface for Invitation.
@@ -69,6 +72,10 @@ type InvitationRepository interface {
 
 	ListRoles(ctx context.Context, id uuid.UUID) ([]rolerepo.Role, error)
 	AddRole(ctx context.Context, invitationId uuid.UUID, roleId uuid.UUID) error
+}
+
+func (m *GormInvitationRepository) TableName() string {
+	return "invitation"
 }
 
 func (m *GormInvitationRepository) CheckExists(ctx context.Context, id uuid.UUID) (bool, error) {
@@ -108,7 +115,7 @@ func (m *GormInvitationRepository) Create(ctx context.Context, i *Invitation) er
 	if i.InvitationID == uuid.Nil {
 		i.InvitationID = uuid.NewV4()
 	}
-	err := m.db.Create(i).Error
+	err := m.db.Debug().Create(i).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"invitation_id": i.InvitationID,
@@ -148,7 +155,7 @@ func (m *GormInvitationRepository) List(ctx context.Context, inviteToID uuid.UUI
 	defer goa.MeasureSince([]string{"goa", "db", "invitation", "list"}, time.Now())
 	var rows []Invitation
 
-	err := m.db.Model(&Invitation{}).Where("invite_to_id = ?", inviteToID).Find(&rows).Error
+	err := m.db.Model(&Invitation{}).Where("invite_to = ?", inviteToID).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
@@ -182,7 +189,7 @@ func (m *GormInvitationRepository) ListRoles(ctx context.Context, id uuid.UUID) 
 
 	var invitationRoles []InvitationRole
 
-	err := m.db.Where("invitation_id = ?", id).Preload("role").Find(&invitationRoles).Error
+	err := m.db.Where("invitation_id = ?", id).Preload("Role").Find(&invitationRoles).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
@@ -198,7 +205,6 @@ func (m *GormInvitationRepository) ListRoles(ctx context.Context, id uuid.UUID) 
 
 func (m *GormInvitationRepository) AddRole(ctx context.Context, invitationId uuid.UUID, roleId uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "invitation", "addrole"}, time.Now())
-
 	invitationRole := &InvitationRole{
 		InvitationID: invitationId,
 		RoleID:       roleId,

@@ -44,7 +44,7 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 	inviteToIdentity, err := s.repo.Identities().Load(ctx, inviteTo)
 
 	if err != nil {
-		return errors.NewNotFoundError(fmt.Sprintf("invalid identifier provided for organization, team or security group\n", inviteTo), inviteTo.String())
+		return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team or security group\n", inviteTo), inviteTo.String())
 	}
 
 	res := inviteToIdentity.IdentityResource
@@ -137,9 +137,9 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 	// Create the invitation records
 	for _, invitation := range invitations {
 		inv := &invRepo.Invitation{
-			InviteToID: inviteTo,
-			UserID:     *invitation.IdentityID,
-			Member:     invitation.Member,
+			InviteTo: inviteTo,
+			UserID:   *invitation.IdentityID,
+			Member:   invitation.Member,
 		}
 
 		error := s.repo.InvitationRepository().Create(ctx, inv)

@@ -3,7 +3,7 @@ package repository_test
 import (
 	"testing"
 
-	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	invitationRepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	roleRepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -15,7 +15,7 @@ import (
 
 type invitationBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo invitation.InvitationRepository
+	repo invitationRepo.InvitationRepository
 }
 
 func TestRunInvitationBlackBoxTest(t *testing.T) {
@@ -25,21 +25,21 @@ func TestRunInvitationBlackBoxTest(t *testing.T) {
 func (s *invitationBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
-	s.repo = invitation.NewInvitationRepository(s.DB)
+	s.repo = invitationRepo.NewInvitationRepository(s.DB)
 }
 
 func (s *invitationBlackBoxTest) TestOKToDelete() {
 	invitation, err := s.CreateTestInvitation()
 	require.NoError(s.T(), err)
 
-	invitations, err := s.repo.List(s.Ctx, invitation.InviteToID)
+	invitations, err := s.repo.List(s.Ctx, invitation.InviteTo)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, len(invitations))
 
 	err = s.repo.Delete(s.Ctx, invitation.InvitationID)
 	require.NoError(s.T(), err)
 
-	invitations, err = s.repo.List(s.Ctx, invitation.InviteToID)
+	invitations, err = s.repo.List(s.Ctx, invitation.InviteTo)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 0, len(invitations))
 }
@@ -107,8 +107,8 @@ func (s *invitationBlackBoxTest) TestListRoles() {
 	require.Equal(s.T(), authorization.OwnerRole, roles[0].Name)
 }
 
-func (s *invitationBlackBoxTest) CreateTestInvitation() (invitation.Invitation, error) {
-	var invitation invitation.Invitation
+func (s *invitationBlackBoxTest) CreateTestInvitation() (invitationRepo.Invitation, error) {
+	var invitation invitationRepo.Invitation
 
 	orgIdentity, err := testsupport.CreateTestOrganizationIdentity(s.DB)
 	if err != nil {
@@ -120,10 +120,10 @@ func (s *invitationBlackBoxTest) CreateTestInvitation() (invitation.Invitation, 
 		return invitation, err
 	}
 
-	invitation = invitation.Invitation{
-		InviteToID: orgIdentity.ID,
-		UserID:     userIdentity.ID,
-		Member:     false,
+	invitation = invitationRepo.Invitation{
+		InviteTo: orgIdentity.ID,
+		UserID:   userIdentity.ID,
+		Member:   false,
 	}
 
 	err = s.repo.Create(s.Ctx, &invitation)

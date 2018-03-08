@@ -10,13 +10,13 @@ create table invitation (
 
 create table invitation_role (
   invitation_id uuid NOT NULL references invitation (invitation_id),
-  role_id uuid NOT NULL references role (role_id)
+  role_id uuid NOT NULL references role (role_id),
   PRIMARY KEY (invitation_id, role_id)
 );
 
 create table role_mapping (
   role_mapping_id uuid primary key DEFAULT uuid_generate_v4(),
-  resource_id string NOT NULL references resource (resource_id),
+  resource_id varchar NOT NULL references resource (resource_id),
   from_role_id uuid NOT NULL references role (role_id),
   to_role_id uuid NOT NULL references role (role_id),
   created_at timestamp with time zone,

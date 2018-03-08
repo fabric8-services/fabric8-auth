@@ -5,7 +5,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/organization"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
@@ -91,5 +90,5 @@ func (s *organizationServiceBlackBoxTest) TestListOrganization() {
 	require.Equal(s.T(), false, org.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), "Test Organization MMMYYY", org.Name, "Organization name is different")
 	require.Equal(s.T(), 1, len(org.Roles), "New organization should have assigned exactly 1 role")
-	require.Equal(s.T(), organization.OrganizationOwnerRole, org.Roles[0], "New organization should have assigned owner role")
+	require.Equal(s.T(), authorization.OwnerRole, org.Roles[0], "New organization should have assigned owner role")
 }
