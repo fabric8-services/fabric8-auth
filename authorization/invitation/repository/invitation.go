@@ -64,7 +64,7 @@ type InvitationRepository interface {
 	Load(ctx context.Context, id uuid.UUID) (*Invitation, error)
 	Create(ctx context.Context, i *Invitation) error
 	Save(ctx context.Context, i *Invitation) error
-	List(ctx context.Context, resourceId string) ([]Invitation, error)
+	List(ctx context.Context, inviteToID uuid.UUID) ([]Invitation, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	ListRoles(ctx context.Context, id uuid.UUID) ([]rolerepo.Role, error)
@@ -144,11 +144,11 @@ func (m *GormInvitationRepository) Save(ctx context.Context, i *Invitation) erro
 	return nil
 }
 
-func (m *GormInvitationRepository) List(ctx context.Context, resourceId string) ([]Invitation, error) {
+func (m *GormInvitationRepository) List(ctx context.Context, inviteToID uuid.UUID) ([]Invitation, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "invitation", "list"}, time.Now())
 	var rows []Invitation
 
-	err := m.db.Model(&Invitation{}).Where("resource_id = ?", resourceId).Find(&rows).Error
+	err := m.db.Model(&Invitation{}).Where("invite_to_id = ?", inviteToID).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
