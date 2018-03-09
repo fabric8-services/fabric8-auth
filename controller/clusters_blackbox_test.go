@@ -33,6 +33,7 @@ func (rest *TestClustersREST) TestShowForServiceAccountsOK() {
 	rest.checkShowForServiceAccount("fabric8-oso-proxy")
 	rest.checkShowForServiceAccount("fabric8-tenant")
 	rest.checkShowForServiceAccount("fabric8-jenkins-idler")
+	rest.checkShowForServiceAccount("fabric8-jenkins-proxy")
 }
 
 func (rest *TestClustersREST) checkShowForServiceAccount(saName string) {
