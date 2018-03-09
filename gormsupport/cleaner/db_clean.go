@@ -41,7 +41,7 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 		table string
 		keys  map[string]interface{}
 	}
-	var entires []entity
+	var entities []entity
 	hookRegistered := db.Callback().Create().Get(hookName) != nil
 	if hookRegistered {
 		hookName += "-" + uuid.NewV4().String()
@@ -53,7 +53,7 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 			keys[field.DBName] = field.Field.Interface()
 		}
 		log.Logger().Debugln(fmt.Sprintf("Inserted entities from %s with keys %v", scope.TableName(), keys))
-		entires = append(entires, entity{table: scope.TableName(), keys: keys})
+		entities = append(entities, entity{table: scope.TableName(), keys: keys})
 	})
 	return func() {
 		defer db.Callback().Create().Remove(hookName)
@@ -63,14 +63,14 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 		if !inTransaction {
 			tx = db.Begin()
 		}
-		for i := len(entires) - 1; i >= 0; i-- {
-			entry := entires[i]
+		for i := len(entities) - 1; i >= 0; i-- {
+			entity := entities[i]
 			log.Info(nil, map[string]interface{}{
-				"table":     entry.table,
-				"keys":      entry.keys,
+				"table":     entity.table,
+				"keys":      entity.keys,
 				"hook_name": hookName,
-			}, "Deleting entities from '%s' table with keys %v", entry.table, entry.keys)
-			tx.Debug().Table(entry.table).Where(entry.keys).Delete("")
+			}, "Deleting entities from '%s' table with keys %v", entity.table, entity.keys)
+			tx.Table(entity.table).Where(entity.keys).Delete("")
 		}
 
 		if !inTransaction {
