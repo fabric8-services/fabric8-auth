@@ -874,7 +874,6 @@ func (s *UsersControllerTestSuite) TestSendEmailVerificationCode() {
 		test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
 
 		// when
-		// when
 		secureService, secureController := s.SecuredControllerWithDummyEmailService(identity, false)
 		test.SendEmailVerificationCodeUsersInternalServerError(s.T(), secureService.Context, secureService, secureController)
 	})
