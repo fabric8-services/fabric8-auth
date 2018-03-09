@@ -57,6 +57,14 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
 }
 
+func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersController) {
+	svc := testsupport.UnsecuredService("Users-Service")
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.RemoteWITService = &dummyRemoteWITService{}
+	return svc, controller
+}
+
 func (s *UsersControllerTestSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
@@ -846,7 +854,7 @@ func (s *UsersControllerTestSuite) TestSendEmailVerificationCode() {
 
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		_, identity := s.createRandomUserIdentity(t, "TestVerifyEmailOK")
+		_, identity := s.createRandomUserIdentity(t, "TestSendEmailVerificationCode-OK")
 		test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
 
 		// when
@@ -855,22 +863,23 @@ func (s *UsersControllerTestSuite) TestSendEmailVerificationCode() {
 
 	})
 
-	s.T().Run("not found", func(t *testing.T) {
+	s.T().Run("unauthorized when unknown identity in context", func(t *testing.T) {
 		// given
 		identity := testsupport.TestIdentity2
 
 		// when
 		secureService, secureController := s.SecuredControllerWithDummyEmailService(identity, true)
-		test.SendEmailVerificationCodeUsersNotFound(s.T(), secureService.Context, secureService, secureController)
+		test.SendEmailVerificationCodeUsersUnauthorized(s.T(), secureService.Context, secureService, secureController)
 	})
 
-	s.T().Run("unauthorized", func(t *testing.T) {
-		test.SendEmailVerificationCodeUsersUnauthorized(s.T(), context.Background(), nil, s.controller)
+	s.T().Run("unauthorized when no identity in context", func(t *testing.T) {
+		service, controller := s.UnsecuredController()
+		test.SendEmailVerificationCodeUsersUnauthorized(s.T(), service.Context, service, controller)
 	})
 
 	s.T().Run("email failure", func(t *testing.T) {
 		// given
-		_, identity := s.createRandomUserIdentity(t, "TestVerifyEmailFailure")
+		_, identity := s.createRandomUserIdentity(t, "TestSendEmailVerificationCode-EmailFailure")
 		test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
 
 		// when

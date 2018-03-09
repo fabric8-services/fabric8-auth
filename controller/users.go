@@ -15,13 +15,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	linkAPI "github.com/fabric8-services/fabric8-auth/login/link"
+	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/goadesign/goa"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -35,7 +35,7 @@ type UsersController struct {
 	userProfileService       login.UserProfileService
 	RemoteWITService         wit.RemoteWITService
 	EmailVerificationService email.EmailVerificationService
-	keycloakLinkService      linkAPI.KeycloakIDPService
+	keycloakLinkService      link.KeycloakIDPService
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -54,7 +54,7 @@ type UsersControllerConfiguration interface {
 }
 
 // NewUsersController creates a users controller.
-func NewUsersController(service *goa.Service, db application.DB, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService linkAPI.KeycloakIDPService) *UsersController {
+func NewUsersController(service *goa.Service, db application.DB, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService) *UsersController {
 	return &UsersController{
 		Controller:          service.NewController("UsersController"),
 		db:                  db,
@@ -177,7 +177,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
 	idpName := "rhd"
-	linkRequest := linkAPI.KeycloakLinkIDPRequest{
+	linkRequest := link.KeycloakLinkIDPRequest{
 		UserID:           &rhdUserID,
 		Username:         &rhdUsername,
 		IdentityProvider: &idpName,
@@ -459,7 +459,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	var isKeycloakUserProfileUpdateNeeded bool
 	var isEmailVerificationNeeded bool
 	// prepare for updating keycloak user profile
-	tokenString := goajwt.ContextJWT(ctx).Raw
+	tokenString := jwt.ContextJWT(ctx).Raw
 	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
 
 	var identity *account.Identity
@@ -891,26 +891,20 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 
 // SendEmailVerificationCode sends out a verification code to the user's email address
 func (c *UsersController) SendEmailVerificationCode(ctx *app.SendEmailVerificationCodeUsersContext) error {
-
-	id, err := login.ContextIdentity(ctx)
+	identity, err := login.LoadContextIdentityAndUser(ctx, c.db)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
-	}
-
-	var identity *account.Identity
-	err = application.Transactional(c.db, func(appl application.Application) error {
-		identity, err = appl.Identities().LoadWithUser(ctx, *id)
-		return err
-	})
-	if err != nil {
+		log.Error(ctx, map[string]interface{}{"err": err}, "unable to load identity or user")
 		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	if identity == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, fmt.Sprintf("error retrieving identity with user for identity id %s", id.String())))
 	}
 
 	_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *identity)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": identity.ID.String(),
+			"username":    identity.Username,
+			"email":       identity.User.Email,
+		}, "failed to send verification email for update on email")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return ctx.NoContent()

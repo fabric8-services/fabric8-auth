@@ -171,7 +171,6 @@ var _ = a.Resource("users", func() {
 		a.Description("Send a verification code to the user's email address")
 		a.Response(d.NoContent)
 		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
