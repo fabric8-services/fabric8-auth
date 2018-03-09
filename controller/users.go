@@ -889,6 +889,33 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 	})
 }
 
+// SendEmailVerificationCode verifies a user's email when updated.
+func (c *UsersController) SendEmailVerificationCode(ctx *app.SendEmailVerificationCodeUsersContext) error {
+
+	id, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	}
+
+	var identity *account.Identity
+	err = application.Transactional(c.db, func(appl application.Application) error {
+		identity, err = appl.Identities().LoadWithUser(ctx, *id)
+		return err
+	})
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	if identity == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, fmt.Sprintf("error retrieving identity with user for identity id %s", id.String())))
+	}
+
+	_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *identity)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.NoContent()
+}
+
 // VerifyEmail verifies a user's email when updated.
 func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 	verifiedCode, err := c.EmailVerificationService.VerifyCode(ctx, ctx.Code)

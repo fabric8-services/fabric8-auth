@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -60,6 +61,14 @@ func (s *UsersControllerTestSuite) SecuredController(identity account.Identity) 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.RemoteWITService = &dummyRemoteWITService{}
+	return svc, controller
+}
+
+func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identity account.Identity, emailSuccess bool) (*goa.Service, *UsersController) {
+	svc := testsupport.ServiceAsUser("Users-Service", identity)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller.EmailVerificationService = &DummyEmailVerificationService{success: emailSuccess}
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -833,6 +842,44 @@ func (s *UsersControllerTestSuite) TestDeprovisionUser() {
 	test.UpdateByServiceAccountUsersUnauthorized(s.T(), nil, nil, s.controller, identity.ID.String(), updateUsersPayload)
 }
 
+func (s *UsersControllerTestSuite) TestSendEmailVerificationCode() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		_, identity := s.createRandomUserIdentity(t, "TestVerifyEmailOK")
+		test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
+
+		// when
+		secureService, secureController := s.SecuredControllerWithDummyEmailService(identity, true)
+		test.SendEmailVerificationCodeUsersNoContent(s.T(), secureService.Context, secureService, secureController)
+
+	})
+
+	s.T().Run("not found", func(t *testing.T) {
+		// given
+		identity := testsupport.TestIdentity2
+
+		// when
+		secureService, secureController := s.SecuredControllerWithDummyEmailService(identity, true)
+		test.SendEmailVerificationCodeUsersNotFound(s.T(), secureService.Context, secureService, secureController)
+	})
+
+	s.T().Run("unauthorized", func(t *testing.T) {
+		test.SendEmailVerificationCodeUsersUnauthorized(s.T(), context.Background(), nil, s.controller)
+	})
+
+	s.T().Run("email failure", func(t *testing.T) {
+		// given
+		_, identity := s.createRandomUserIdentity(t, "TestVerifyEmailFailure")
+		test.ShowUsersOK(s.T(), nil, nil, s.controller, identity.ID.String(), nil, nil)
+
+		// when
+		// when
+		secureService, secureController := s.SecuredControllerWithDummyEmailService(identity, false)
+		test.SendEmailVerificationCodeUsersInternalServerError(s.T(), secureService.Context, secureService, secureController)
+	})
+}
+
 func (s *UsersControllerTestSuite) TestVerifyEmail() {
 
 	s.T().Run("ok", func(t *testing.T) {
@@ -1566,4 +1613,19 @@ func newCreateUsersPayload(email, fullName, bio, imageURL, profileURL, company, 
 			Attributes: &attributes,
 		},
 	}
+}
+
+type DummyEmailVerificationService struct {
+	success bool
+}
+
+func (s *DummyEmailVerificationService) SendVerificationCode(ctx context.Context, req *goa.RequestData, identity account.Identity) (*account.VerificationCode, error) {
+	if s.success {
+		return nil, nil
+	}
+	return nil, errors.NewInternalErrorFromString(ctx, "failed to send out email")
+}
+
+func (s *DummyEmailVerificationService) VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error) {
+	return nil, nil
 }
