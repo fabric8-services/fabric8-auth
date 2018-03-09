@@ -32,6 +32,7 @@ func (rest *TestClustersREST) TestShowForServiceAccountsOK() {
 	require.True(rest.T(), len(rest.Config.GetOSOClusters()) > 0)
 	rest.checkShowForServiceAccount("fabric8-oso-proxy")
 	rest.checkShowForServiceAccount("fabric8-tenant")
+	rest.checkShowForServiceAccount("fabric8-jenkins-idler")
 }
 
 func (rest *TestClustersREST) checkShowForServiceAccount(saName string) {
