@@ -33,3 +33,6 @@ create table default_role_mapping (
   updated_at timestamp with time zone,
   deleted_at timestamp with time zone
 );
+
+INSERT INTO resource_type (name) VALUES ('identity/team');
+INSERT INTO resource_type (name) VALUES ('identity/group');
