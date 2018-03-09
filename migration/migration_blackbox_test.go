@@ -256,8 +256,6 @@ func testMigration22(t *testing.T) {
 func testMigration23(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(24)], (24))
 	assert.True(t, dialect.HasIndex("resource_type", "idx_name_rt_name"))
-	assert.True(t, dialect.HasColumn("role_scope", "id"))
-	assert.True(t, dialect.HasIndex("role_scope", "ux_role_scope_id"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

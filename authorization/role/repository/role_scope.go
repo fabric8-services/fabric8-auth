@@ -19,19 +19,17 @@ import (
 type RoleScope struct {
 	gormsupport.Lifecycle
 
-	RoleScopeID uuid.UUID `gorm:"column:id" gorm:"primary_key"`
-
 	// The associated scope
 	ResourceTypeScope resourceTypeScope.ResourceTypeScope `gorm:"ForeignKey:ResourceTypeScopeID"`
 
 	// The foreign key value for ResourceTypeScopeID
-	ResourceTypeScopeID uuid.UUID `gorm:"column:scope_id"`
+	ResourceTypeScopeID uuid.UUID `sql:"type:uuid" gorm:"column:scope_id"`
 
 	// The associated role
 	Role Role `gorm:"ForeignKey:RoleID"`
 
 	// The foreign key value for RoleID
-	RoleID uuid.UUID
+	RoleID uuid.UUID `sql:"type:uuid" gorm:"column:role_id"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
