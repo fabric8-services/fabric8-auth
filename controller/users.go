@@ -889,7 +889,7 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 	})
 }
 
-// SendEmailVerificationCode verifies a user's email when updated.
+// SendEmailVerificationCode sends out a verification code to the user's email address
 func (c *UsersController) SendEmailVerificationCode(ctx *app.SendEmailVerificationCodeUsersContext) error {
 
 	id, err := login.ContextIdentity(ctx)
