@@ -41,6 +41,7 @@ const (
 	Tenant             = "fabric8-tenant"
 	Notification       = "fabric8-notification"
 	JenkinsIdler       = "fabric8-jenkins-idler"
+	JenkinsProxy       = "fabric8-jenkins-proxy"
 	OnlineRegistration = "online-registration"
 )
 

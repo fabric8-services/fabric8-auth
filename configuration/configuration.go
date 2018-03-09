@@ -274,6 +274,7 @@ func (c *ConfigurationData) checkServiceAccountConfig() {
 		"fabric8-wit":           true,
 		"fabric8-tenant":        true,
 		"fabric8-jenkins-idler": true,
+		"fabric8-jenkins-proxy": true,
 		"fabric8-oso-proxy":     true,
 		"online-registration":   true,
 		"fabric8-notification":  true,
@@ -433,6 +434,7 @@ func (c *ConfigurationData) DefaultConfigurationError() error {
 // "fabric8-wit" : "witsecret"
 // "fabric8-tenant : ["tenantsecretOld", "tenantsecretNew"]
 // "fabric8-jenkins-idler : "secret"
+// "fabric8-jenkins-proxy : "secret"
 // "fabric8-oso-proxy : "secret"
 // "online-registration : "secret"
 // "fabric8-notification : "secret"
