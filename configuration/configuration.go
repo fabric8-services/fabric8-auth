@@ -3,14 +3,13 @@ package configuration
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
-
-	"net/url"
-	"reflect"
 
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
@@ -36,68 +35,89 @@ const (
 	// Constants for viper variable names. Will be used to set
 	// default values as well as to get each value
 
-	varPostgresHost                         = "postgres.host"
-	varPostgresPort                         = "postgres.port"
-	varPostgresUser                         = "postgres.user"
-	varPostgresDatabase                     = "postgres.database"
-	varPostgresPassword                     = "postgres.password"
-	varPostgresSSLMode                      = "postgres.sslmode"
-	varPostgresConnectionTimeout            = "postgres.connection.timeout"
-	varPostgresTransactionTimeout           = "postgres.transaction.timeout"
-	varPostgresConnectionRetrySleep         = "postgres.connection.retrysleep"
-	varPostgresConnectionMaxIdle            = "postgres.connection.maxidle"
-	varPostgresConnectionMaxOpen            = "postgres.connection.maxopen"
-	varHTTPAddress                          = "http.address"
-	varMetricsHTTPAddress                   = "metrics.http.address"
-	varDeveloperModeEnabled                 = "developer.mode.enabled"
-	varKeycloakSecret                       = "keycloak.secret"
-	varKeycloakClientID                     = "keycloak.client.id"
-	varPublicOauthClientID                  = "public.oauth.client.id"
-	varKeycloakDomainPrefix                 = "keycloak.domain.prefix"
-	varKeycloakRealm                        = "keycloak.realm"
-	varKeycloakTesUserName                  = "keycloak.testuser.name"
-	varKeycloakTesUserSecret                = "keycloak.testuser.secret"
-	varKeycloakTesUser2Name                 = "keycloak.testuser2.name"
-	varKeycloakTesUser2Secret               = "keycloak.testuser2.secret"
-	varKeycloakURL                          = "keycloak.url"
-	varKeycloakEndpointAdmin                = "keycloak.endpoint.admin"
-	varKeycloakEndpointAuth                 = "keycloak.endpoint.auth"
-	varKeycloakEndpointToken                = "keycloak.endpoint.token"
-	varKeycloakEndpointUserinfo             = "keycloak.endpoint.userinfo"
-	varKeycloakEndpointAuthzResourceset     = "keycloak.endpoint.authz.resourceset"
-	varKeycloakEndpointClients              = "keycloak.endpoint.clients"
-	varKeycloakEndpointEntitlement          = "keycloak.endpoint.entitlement"
-	varKeycloakEndpointBroker               = "keycloak.endpoint.broker"
-	varKeycloakEndpointAccount              = "keycloak.endpoint.account"
-	varKeycloakEndpointLogout               = "keycloak.endpoint.logout"
+	// General
+	varHTTPAddress                     = "http.address"
+	varMetricsHTTPAddress              = "metrics.http.address"
+	varDeveloperModeEnabled            = "developer.mode.enabled"
+	varTLSInsecureSkipVerify           = "tls.insecureskipverify"
+	varNotApprovedRedirect             = "notapproved.redirect"
+	varHeaderMaxLength                 = "header.maxlength"
+	varUsersListLimit                  = "users.listlimit"
+	defaultConfigFile                  = "config.yaml"
+	varValidRedirectURLs               = "redirect.valid"
+	varLogLevel                        = "log.level"
+	varLogJSON                         = "log.json"
+	varEmailVerifiedRedirectURL        = "email.verify.url"
+	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
+	varKeycloakTestsDisabled           = "keycloak.tests.disabled"
+
+	// Postgres
+	varPostgresHost                 = "postgres.host"
+	varPostgresPort                 = "postgres.port"
+	varPostgresUser                 = "postgres.user"
+	varPostgresDatabase             = "postgres.database"
+	varPostgresPassword             = "postgres.password"
+	varPostgresSSLMode              = "postgres.sslmode"
+	varPostgresConnectionTimeout    = "postgres.connection.timeout"
+	varPostgresTransactionTimeout   = "postgres.transaction.timeout"
+	varPostgresConnectionRetrySleep = "postgres.connection.retrysleep"
+	varPostgresConnectionMaxIdle    = "postgres.connection.maxidle"
+	varPostgresConnectionMaxOpen    = "postgres.connection.maxopen"
+
+	// Public Client ID for logging into Auth service via OAuth2
+	varPublicOauthClientID = "public.oauth.client.id"
+
+	// Keycloak
+	varKeycloakSecret                   = "keycloak.secret"
+	varKeycloakClientID                 = "keycloak.client.id"
+	varKeycloakDomainPrefix             = "keycloak.domain.prefix"
+	varKeycloakRealm                    = "keycloak.realm"
+	varKeycloakTesUserName              = "keycloak.testuser.name"
+	varKeycloakTesUserSecret            = "keycloak.testuser.secret"
+	varKeycloakTesUser2Name             = "keycloak.testuser2.name"
+	varKeycloakTesUser2Secret           = "keycloak.testuser2.secret"
+	varKeycloakURL                      = "keycloak.url"
+	varKeycloakEndpointAdmin            = "keycloak.endpoint.admin"
+	varKeycloakEndpointAuth             = "keycloak.endpoint.auth"
+	varKeycloakEndpointToken            = "keycloak.endpoint.token"
+	varKeycloakEndpointUserinfo         = "keycloak.endpoint.userinfo"
+	varKeycloakEndpointAuthzResourceset = "keycloak.endpoint.authz.resourceset"
+	varKeycloakEndpointClients          = "keycloak.endpoint.clients"
+	varKeycloakEndpointEntitlement      = "keycloak.endpoint.entitlement"
+	varKeycloakEndpointBroker           = "keycloak.endpoint.broker"
+	varKeycloakEndpointAccount          = "keycloak.endpoint.account"
+	varKeycloakEndpointLogout           = "keycloak.endpoint.logout"
+
+	// Private keys for signing OSIO Serivice Account tokens
 	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.deprecated"
 	varServiceAccountPrivateKeyIDDeprecated = "serviceaccount.privatekeyid.deprecated"
 	varServiceAccountPrivateKey             = "serviceaccount.privatekey"
 	varServiceAccountPrivateKeyID           = "serviceaccount.privatekeyid"
-	varGitHubClientID                       = "github.client.id"
-	varGitHubClientSecret                   = "github.client.secret"
-	varGitHubClientDefaultScopes            = "github.client.defaultscopes"
-	varOSOClientApiUrl                      = "oso.client.apiurl"
-	varTLSInsecureSkipVerify                = "tls.insecureskipverify"
-	varNotApprovedRedirect                  = "notapproved.redirect"
-	varHeaderMaxLength                      = "header.maxlength"
-	varCacheControlUsers                    = "cachecontrol.users"
-	varCacheControlCollaborators            = "cachecontrol.collaborators"
-	varCacheControlUser                     = "cachecontrol.user"
-	varUsersListLimit                       = "users.listlimit"
-	defaultConfigFile                       = "config.yaml"
-	varValidRedirectURLs                    = "redirect.valid"
-	varLogLevel                             = "log.level"
-	varLogJSON                              = "log.json"
-	varWITDomainPrefix                      = "wit.domain.prefix"
-	varWITURL                               = "wit.url"
-	varNotificationServiceURL               = "notification.serviceurl"
-	varEmailVerifiedRedirectURL             = "email.verify.url"
-	varInternalUsersEmailAddressSuffix      = "internal.users.email.address.domain"
 
-	varTenantServiceURL = "tenant.serviceurl"
+	// Private keys for signing OSIO Access and Refresh tokens
+	varUserAccountPrivateKeyDeprecated   = "useraccount.privatekey.deprecated"
+	varUserAccountPrivateKeyIDDeprecated = "useraccount.privatekeyid.deprecated"
+	varUserAccountPrivateKey             = "useraccount.privatekey"
+	varUserAccountPrivateKeyID           = "useraccount.privatekeyid"
 
-	varKeycloakTestsDisabled = "keycloak.tests.disabled"
+	// GitHub linking
+	varGitHubClientID            = "github.client.id"
+	varGitHubClientSecret        = "github.client.secret"
+	varGitHubClientDefaultScopes = "github.client.defaultscopes"
+
+	// Default OSO cluster API URL
+	varOSOClientApiUrl = "oso.client.apiurl"
+
+	// Cache control
+	varCacheControlUsers         = "cachecontrol.users"
+	varCacheControlCollaborators = "cachecontrol.collaborators"
+	varCacheControlUser          = "cachecontrol.user"
+
+	// Other services URLs
+	varWITDomainPrefix        = "wit.domain.prefix"
+	varTenantServiceURL       = "tenant.serviceurl"
+	varWITURL                 = "wit.url"
+	varNotificationServiceURL = "notification.serviceurl"
 )
 
 type serviceAccountConfig struct {
@@ -233,6 +253,15 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	if kid == defaultServiceAccountPrivateKeyID {
 		msg := "default service account private key ID is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	key, kid = c.GetUserAccountPrivateKey()
+	if string(key) == DefaultUserAccountPrivateKey {
+		msg := "default user account private key is used"
+		c.appendDefaultConfigErrorMessage(&msg)
+	}
+	if kid == defaultUserAccountPrivateKeyID {
+		msg := "default user account private key ID is used"
 		c.appendDefaultConfigErrorMessage(&msg)
 	}
 	if c.GetPostgresPassword() == defaultDBPassword {
@@ -521,6 +550,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
 	c.v.SetDefault(varServiceAccountPrivateKey, DefaultServiceAccountPrivateKey)
 	c.v.SetDefault(varServiceAccountPrivateKeyID, defaultServiceAccountPrivateKeyID)
+	c.v.SetDefault(varUserAccountPrivateKey, DefaultUserAccountPrivateKey)
+	c.v.SetDefault(varUserAccountPrivateKeyID, defaultUserAccountPrivateKeyID)
 	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
 	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
 	c.v.SetDefault(varPublicOauthClientID, defaultPublicOauthClientID)
@@ -681,15 +712,27 @@ func (c *ConfigurationData) GetCacheControlUser() string {
 }
 
 // GetDeprecatedServiceAccountPrivateKey returns the deprecated service account private key (if any) and its ID
-// that is used to verify the service account authentication tokens during key rotation.
+// that is used to verify service account authentication tokens during key rotation.
 func (c *ConfigurationData) GetDeprecatedServiceAccountPrivateKey() ([]byte, string) {
 	return []byte(c.v.GetString(varServiceAccountPrivateKeyDeprecated)), c.v.GetString(varServiceAccountPrivateKeyIDDeprecated)
 }
 
 // GetServiceAccountPrivateKey returns the service account private key and its ID
-// that is used to sign the service account authentication tokens.
+// that is used to sign service account authentication tokens.
 func (c *ConfigurationData) GetServiceAccountPrivateKey() ([]byte, string) {
 	return []byte(c.v.GetString(varServiceAccountPrivateKey)), c.v.GetString(varServiceAccountPrivateKeyID)
+}
+
+// GetDeprecatedUserAccountPrivateKey returns the deprecated user account private key (if any) and its ID
+// that is used to verify user access and refresh tokens during key rotation.
+func (c *ConfigurationData) GetDeprecatedUserAccountPrivateKey() ([]byte, string) {
+	return []byte(c.v.GetString(varUserAccountPrivateKeyDeprecated)), c.v.GetString(varUserAccountPrivateKeyIDDeprecated)
+}
+
+// GetUserAccountPrivateKey returns the service account private key and its ID
+// that is used to sign user access and refresh tokens.
+func (c *ConfigurationData) GetUserAccountPrivateKey() ([]byte, string) {
+	return []byte(c.v.GetString(varUserAccountPrivateKey)), c.v.GetString(varUserAccountPrivateKeyID)
 }
 
 // GetGitHubClientID return GitHub client ID used to link GitHub accounts
@@ -1047,7 +1090,7 @@ const (
 	// Auth-related defaults
 
 	// RSAPrivateKey for signing JWT Tokens for service accounts
-	// ssh-keygen -f alm_rsa
+	// ssh-keygen -f auth_rsa
 	DefaultServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
 DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
@@ -1077,6 +1120,36 @@ OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
 -----END RSA PRIVATE KEY-----`
 
 	defaultServiceAccountPrivateKeyID = "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs"
+
+	DefaultUserAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA40yB6SNoU4SpWxTfG5ilu+BlLYikRyyEcJIGg//w/GyqtjvT
+/CVo92DRTh/DlrgwjSitmZrhauBnrCOoUBMin0/TXeSo3w2M5tEiiIFPbTDRf2jM
+fbSGEOke9O0USCCR+bM2TncrgZR74qlSwq38VCND4zHc89rAzqJ2LVM2aXkuBbO7
+TcgLNyooBrpOK9khVHAD64cyODAdJY4esUjcLdlcB7TMDGOgxGGn2RARU7+TUf32
+gZZbTMikbuPM5gXuzGlo/22ECbQSKuZpbGwgPIAZ5NN9QA4D1NRz9+KDoiXZ6deZ
+TTVCrZykJJ6RyLNfRh+XS+6G5nvcqAmfBpyOWwIDAQABAoIBAE5pBie23zZwfTu+
+Z3jNn96/+idLC+DBqq5qsXS3xhpOIlXbLbW98gfkjk+1BXPo9la7wadLlpeX8iuf
+4WA+OaNblj69ssO/mOvHGXKdqRixzpN1Q5XZwKX0xYkYf/ahxbmt6P4IfimlX1dB
+shsWigU8ZR7rBJ3ayMh/ouTf39ViIbXsHYpEubmACcLaOlXbEuZNr7ofkFQKl/mh
+XLWUeOoM97xY6Agw/gv60GIcxIC5OAg7iNqS+XNzhba7f2nf2YqodbN9H1BmEJsf
+RRaTTWlZAiQXC8lpZOKwP7DiMLOT78lfmlYtquEBhwRbXazfzsdf67Mr4Kdl2Cej
+Jy0EGwECgYEA/DZWB0Lb0tPdT1FmORNrBfGg3PjhX9FOilhbtUgX3nNKp8Zsi3yO
+yN6hf0/98qIGlmAQi5C92cXpdhqTiVAGktWD+q0a1W99udIjinS1tFrKgNtOyBWN
+uwDBZyhw8RrwpQinMe7B966SVDaphvvOWlB1TadMDh5kReJCYpvRCrMCgYEA5rZj
+djCU2UqMw6jIP07nCFjWgxPPjg7jP8aRo07oW2mv1sEA0doCyoZaMrdNeGd3fB0B
+sm+IvlQtWD7r0tWZI1GkYpdRkDFurdkIzVPV5pMwH4ByOq/Jf5ZqtjIpoMaRBirA
+whJyjmiGU3yDyPDLtEFpNgqM3mIyxS6M6UGKYbkCgYEAg6w+d6YBK+1uQiXGD5BC
+tKS0jgjlaOfWcEW3A0qzI3Dfjf3610vdI6OPfu8dLppGhCV9HdAgPdykiQNQ+UQt
+WmVcdPgA5WNCqUu7QGK0Joer52AXnkAacYHwdtHXPRkKf66n01rKK2wZexvan91A
+m0gcJcFs5IYbZZy9ecvNdB8CgYEAo4JZ5Vay93j1YGnLWcrixDCp/wXYUJbOidGC
+QBpZZQf3Hh11JkT7O2uSm2T727yAmw63uC2B3VotNOCLI8ZMHRLsjQ8vOCFAjqdF
+rLeg3iQss/bFfkA9b1Y8VNoiVJbGC3fbWu/WDoWXxa12fL/jruG43hsGEUnJL6Q5
+K8tOdskCgYABpoHFRxsvJ5Sp9CUS3BBTicVSkpAjoX2O3+cS9XL8IsIqZEMW7VKb
+16/H2BRvI0uUq12t+UCc0P0SyrWRGxwGR5zSYHVDOot5EDHqE8aYSbX4jiXtAAiu
+qCn3Rug8QWyBjjxnU3CxPRiLSmEllQAAVlzfRWn6kL4RKSyruUhZaA==
+-----END RSA PRIVATE KEY-----`
+
+	defaultUserAccountPrivateKeyID = "aUGv8mQA85jg4V1DU8Uk1W0uKsxn187KQONAGl6AMtc"
 
 	defaultDBPassword = "mysecretpassword"
 
