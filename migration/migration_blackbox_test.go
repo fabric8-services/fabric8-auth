@@ -108,7 +108,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration18", testMigration18)
 	t.Run("TestMigration21", testMigration21)
 	t.Run("TestMigration22", testMigration22)
-	t.Run("TestMigration22", testMigration23)
+	t.Run("TestMigration23", testMigration23)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
