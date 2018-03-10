@@ -824,10 +824,6 @@ func (c *ConfigurationData) GetKeycloakTestUser2Secret() string {
 	return c.v.GetString(varKeycloakTesUser2Secret)
 }
 
-func (c *ConfigurationData) GetKeycloakEndpointCerts() string {
-	return fmt.Sprintf("%s/auth/realms/%s/protocol/openid-connect/certs", c.v.GetString(varKeycloakURL), c.GetKeycloakRealm())
-}
-
 // GetKeycloakEndpointAuth returns the keycloak auth endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the defualt endopoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.

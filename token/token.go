@@ -1,33 +1,29 @@
 package token
 
 import (
+	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	errs "github.com/pkg/errors"
-
-	"bytes"
-	"io"
-	"strconv"
-	"strings"
-
-	"time"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"gopkg.in/square/go-jose.v2"
 )
@@ -47,9 +43,10 @@ const (
 
 // configuration represents configuration needed to construct a token manager
 type configuration interface {
-	GetKeycloakEndpointCerts() string
 	GetServiceAccountPrivateKey() ([]byte, string)
 	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
+	GetUserAccountPrivateKey() ([]byte, string)
+	GetDeprecatedUserAccountPrivateKey() ([]byte, string)
 }
 
 type JsonKeys struct {
@@ -117,6 +114,7 @@ type tokenManager struct {
 	publicKeysMap            map[string]*rsa.PublicKey
 	publicKeys               []*PublicKey
 	serviceAccountPrivateKey *PrivateKey
+	userAccountPrivateKey    *PrivateKey
 	jsonWebKeys              JsonKeys
 	pemKeys                  JsonKeys
 	serviceAccountToken      string
@@ -125,65 +123,29 @@ type tokenManager struct {
 
 // NewManager returns a new token Manager for handling tokens
 func NewManager(config configuration) (Manager, error) {
-	// Load public keys from Keycloak and add them to the manager
 	tm := &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{},
 	}
 
-	keycloakKeys, err := FetchKeys(config.GetKeycloakEndpointCerts())
-	if err != nil {
-		log.Error(nil, map[string]interface{}{}, "unable to load Keycloak public keys")
-		return nil, errors.New("unable to load Keycloak public keys")
-	}
-	for _, keycloakKey := range keycloakKeys {
-		tm.publicKeysMap[keycloakKey.KeyID] = keycloakKey.Key
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: keycloakKey.KeyID, Key: keycloakKey.Key})
-		log.Info(nil, map[string]interface{}{
-			"kid": keycloakKey.KeyID,
-		}, "Public key added")
-	}
-
-	// Load the service account private key and add it to the manager.
+	// Load the user account private key and add it to the manager.
 	// Extract the public key from it and add it to the map of public keys.
-	key, kid := config.GetServiceAccountPrivateKey()
-	if len(key) == 0 || kid == "" {
-		log.Error(nil, map[string]interface{}{
-			"kid":        kid,
-			"key_length": len(key),
-		}, "Service account private key or its ID are not set up")
-		return nil, errors.New("Service account private key or its ID are not set up")
-	}
-	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
+	var err error
+	key, kid := config.GetUserAccountPrivateKey()
+	deprecatedKey, deprecatedKid := config.GetDeprecatedUserAccountPrivateKey()
+	tm.userAccountPrivateKey, err = LoadPrivateKey(tm, key, kid, deprecatedKey, deprecatedKid)
 	if err != nil {
 		return nil, err
 	}
-	tm.serviceAccountPrivateKey = &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
-	pk := &rsaServiceAccountKey.PublicKey
-	tm.publicKeysMap[kid] = pk
-	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
-	log.Info(nil, map[string]interface{}{
-		"kid": kid,
-	}, "Service account private key added")
-	// Extract public key from deprecated service account private key if any and add it to the manager
-	key, kid = config.GetDeprecatedServiceAccountPrivateKey()
-	if len(key) == 0 || kid == "" {
-		log.Debug(nil, map[string]interface{}{
-			"kid":        kid,
-			"key_length": len(key),
-		}, "No deprecated service account private key found")
-	} else {
-		rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
-		if err != nil {
-			return nil, err
-		}
-		pk := &rsaServiceAccountKey.PublicKey
-		tm.publicKeysMap[kid] = pk
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
-		log.Info(nil, map[string]interface{}{
-			"kid": kid,
-		}, "Deprecated service account private key added")
+	// Load the service account private key and add it to the manager.
+	// Extract the public key from it and add it to the map of public keys.
+	key, kid = config.GetServiceAccountPrivateKey()
+	deprecatedKey, deprecatedKid = config.GetDeprecatedServiceAccountPrivateKey()
+	tm.serviceAccountPrivateKey, err = LoadPrivateKey(tm, key, kid, deprecatedKey, deprecatedKid)
+	if err != nil {
+		return nil, err
 	}
 
+	// Convert public keys to JWK format
 	jsonKeys, err := toJsonWebKeys(tm.publicKeys)
 	if err != nil {
 		log.Error(nil, map[string]interface{}{
@@ -193,6 +155,7 @@ func NewManager(config configuration) (Manager, error) {
 	}
 	tm.jsonWebKeys = jsonKeys
 
+	// Convert public keys to PEM format
 	jsonKeys, err = toPemKeys(tm.publicKeys)
 	if err != nil {
 		log.Error(nil, map[string]interface{}{
@@ -203,6 +166,52 @@ func NewManager(config configuration) (Manager, error) {
 	tm.pemKeys = jsonKeys
 
 	return tm, nil
+}
+
+// LoadPrivateKey loads a private key and a deprecated private key.
+// Extracts public keys from them and adds them to the manager
+// Returns the loaded private key.
+func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*PrivateKey, error) {
+	if len(key) == 0 || kid == "" {
+		log.Error(nil, map[string]interface{}{
+			"kid":        kid,
+			"key_length": len(key),
+		}, "private key or its ID are not set up")
+		return nil, errors.New("private key or its ID are not set up")
+	}
+
+	// Load the private key. Extract the public key from it
+	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
+	if err != nil {
+		return nil, err
+	}
+	privateKey := &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
+	pk := &rsaServiceAccountKey.PublicKey
+	tm.publicKeysMap[kid] = pk
+	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
+	log.Info(nil, map[string]interface{}{
+		"kid": kid,
+	}, "public key added")
+
+	// Extract public key from the deprecated key if any and add it to the manager
+	if len(deprecatedKey) == 0 || deprecatedKid == "" {
+		log.Debug(nil, map[string]interface{}{
+			"kid":        deprecatedKid,
+			"key_length": len(deprecatedKey),
+		}, "no deprecated private key found")
+	} else {
+		rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(deprecatedKey)
+		if err != nil {
+			return nil, err
+		}
+		pk := &rsaServiceAccountKey.PublicKey
+		tm.publicKeysMap[deprecatedKid] = pk
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: deprecatedKid, Key: pk})
+		log.Info(nil, map[string]interface{}{
+			"kid": deprecatedKid,
+		}, "deprecated public key added")
+	}
+	return privateKey, nil
 }
 
 // NewManagerWithPublicKey returns a new token Manager for handling tokens with the only public key
@@ -529,7 +538,7 @@ func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
 			"token": tm,
 		}, "missing token manager")
 
-		return nil, errs.New("missing token manager")
+		return nil, errors.New("missing token manager")
 	}
 	return tm.(*tokenManager), nil
 }
@@ -577,7 +586,7 @@ func ReadTokenSetFromJson(ctx context.Context, jsonString string) (*TokenSet, er
 	var token TokenSet
 	err := json.Unmarshal([]byte(jsonString), &token)
 	if err != nil {
-		return nil, errs.Wrapf(err, "error when unmarshal json with access token %s ", jsonString)
+		return nil, errors.Wrapf(err, "error when unmarshal json with access token %s ", jsonString)
 	}
 	return &token, nil
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
+	"path/filepath"
 )
 
 type TestTokenREST struct {
@@ -34,6 +35,7 @@ type TestTokenREST struct {
 	sampleAccessToken  string
 	sampleRefreshToken string
 	exchangeStrategy   string
+	testDir            string
 }
 
 func TestRunTokenREST(t *testing.T) {
@@ -52,11 +54,19 @@ func (rest *TestTokenREST) SetupSuite() {
 	require.Nil(rest.T(), err)
 	rest.sampleAccessToken = act
 	rest.sampleRefreshToken = uuid.NewV4().String()
+	rest.testDir = filepath.Join("test-files", "token")
 }
 
 func (rest *TestTokenREST) SetupTest() {
 	rest.DBTestSuite.SetupTest()
 	rest.exchangeStrategy = ""
+}
+
+func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController) {
+	svc := goa.New("Token-Service")
+	manager, err := token.NewManager(rest.Configuration)
+	require.Nil(rest.T(), err)
+	return svc, NewTokenController(svc, rest.Application, nil, nil, nil, manager, nil, rest.Configuration)
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -87,6 +97,33 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 
 	linkService := &DummyLinkService{}
 	return svc, NewTokenController(svc, rest.Application, loginService, linkService, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Configuration)
+}
+
+func (rest *TestTokenREST) TestPublicKeys() {
+	svc, ctrl := rest.UnSecuredController()
+
+	rest.T().Run("file not found", func(t *testing.T) {
+		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, nil)
+		rest.checkJWK(keys)
+	})
+	rest.T().Run("file not found", func(t *testing.T) {
+		jwk := "jwk"
+		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, &jwk)
+		rest.checkJWK(keys)
+	})
+	rest.T().Run("file not found", func(t *testing.T) {
+		pem := "pem"
+		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, &pem)
+		rest.checkPEM(keys)
+	})
+}
+
+func (rest *TestTokenREST) checkPEM(keys *app.PublicKeys) {
+	compareWithGolden(rest.T(), filepath.Join(rest.testDir, "keys", "ok_pem.golden.json"), keys)
+}
+
+func (rest *TestTokenREST) checkJWK(keys *app.PublicKeys) {
+	compareWithGolden(rest.T(), filepath.Join(rest.testDir, "keys", "ok_jwk.golden.json"), keys)
 }
 
 func (rest *TestTokenREST) TestRefreshTokenUsingNilTokenFails() {
@@ -130,6 +167,7 @@ func (rest *TestTokenREST) TestRefreshTokenUsingCorrectRefreshTokenOK() {
 	require.True(rest.T(), ok)
 	require.True(rest.T(), *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
+
 func (rest *TestTokenREST) TestLinkForNonExistentUserFails() {
 	service, controller := rest.SecuredControllerWithNonExistentIdentity()
 

@@ -2,7 +2,6 @@ package controller_test
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -33,18 +32,10 @@ import (
 
 type TestTokenRemoteREST struct {
 	testsuite.RemoteTestSuite
-	testDir string
 }
 
 func TestRunTokenRemoteREST(t *testing.T) {
 	suite.Run(t, &TestTokenRemoteREST{RemoteTestSuite: testsuite.NewRemoteTestSuite()})
-}
-
-func (rest *TestTokenRemoteREST) SetupTest() {
-	rest.testDir = filepath.Join("test-files", "token")
-}
-
-func (rest *TestTokenRemoteREST) TearDownTest() {
 }
 
 func (rest *TestTokenRemoteREST) UnSecuredController() (*goa.Service, *TokenController) {
@@ -59,25 +50,6 @@ func (rest *TestTokenRemoteREST) UnSecuredControllerWithDummyDB() (*goa.Service,
 
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
 	return svc, NewTokenController(svc, nil, loginService, nil, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Config)
-}
-
-func (rest *TestTokenRemoteREST) TestPublicKeys() {
-	svc, ctrl := rest.UnSecuredController()
-
-	rest.T().Run("file not found", func(t *testing.T) {
-		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, nil)
-		rest.checkJWK(keys)
-	})
-	rest.T().Run("file not found", func(t *testing.T) {
-		jwk := "jwk"
-		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, &jwk)
-		rest.checkJWK(keys)
-	})
-	rest.T().Run("file not found", func(t *testing.T) {
-		pem := "pem"
-		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, &pem)
-		rest.checkPEM(keys)
-	})
 }
 
 func (rest *TestTokenRemoteREST) TestTestUserTokenObtainedFromKeycloakOK() {
@@ -126,14 +98,6 @@ func validateToken(t *testing.T, token *app.AuthToken) {
 	assert.NotNil(t, token.Token.ExpiresIn, "Expires-in is nil")
 	assert.NotNil(t, token.Token.RefreshExpiresIn, "Refresh-expires-in is nil")
 	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
-}
-
-func (rest *TestTokenRemoteREST) checkPEM(keys *app.PublicKeys) {
-	compareWithGolden(rest.T(), filepath.Join(rest.testDir, "keys", "ok_pem.golden.json"), keys)
-}
-
-func (rest *TestTokenRemoteREST) checkJWK(keys *app.PublicKeys) {
-	compareWithGolden(rest.T(), filepath.Join(rest.testDir, "keys", "ok_jwk.golden.json"), keys)
 }
 
 type MockDBApp struct {
