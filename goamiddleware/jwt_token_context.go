@@ -33,7 +33,9 @@ func TokenContext(tokenManager token.Parser, scheme *goa.JWTSecurity) goa.Middle
 
 				token, err := tokenManager.Parse(ctx, incomingToken)
 				if err != nil {
-					return err
+					errUnauthorized := goa.NewErrorClass("validation_failed", 401)
+					log.Error(ctx, map[string]interface{}{"error": err}, "failed to handle JSON Web Token in TokenContext middleware")
+					return errUnauthorized("token is invalid")
 				}
 				ctx = jwt.WithJWT(ctx, token)
 			}
