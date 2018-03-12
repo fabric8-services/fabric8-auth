@@ -18,6 +18,7 @@ import (
 // no error is returned. However, if the Authorization header contains a
 // token, it will be stored it in the context.
 func TokenContext(tokenManager token.Parser, scheme *goa.JWTSecurity) goa.Middleware {
+	errUnauthorized := goa.NewErrorClass("token_validation_failed", 401)
 	return func(nextHandler goa.Handler) goa.Handler {
 		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) error {
 			// TODO: implement the QUERY string handler too
@@ -33,7 +34,6 @@ func TokenContext(tokenManager token.Parser, scheme *goa.JWTSecurity) goa.Middle
 
 				token, err := tokenManager.Parse(ctx, incomingToken)
 				if err != nil {
-					errUnauthorized := goa.NewErrorClass("validation_failed", 401)
 					log.Error(ctx, map[string]interface{}{"error": err}, "failed to handle JSON Web Token in TokenContext middleware")
 					return errUnauthorized("token is invalid")
 				}
