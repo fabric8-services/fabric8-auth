@@ -735,6 +735,16 @@ func (c *ConfigurationData) GetUserAccountPrivateKey() ([]byte, string) {
 	return []byte(c.v.GetString(varUserAccountPrivateKey)), c.v.GetString(varUserAccountPrivateKeyID)
 }
 
+// GetDevModePublicKey returns additional public key and its ID which should be used by the Auth service in Dev Mode
+// For example a public key from Keycloak
+// Returns false if in in Dev Mode
+func (c *ConfigurationData) GetDevModePublicKey() (bool, []byte, string) {
+	if c.IsPostgresDeveloperModeEnabled() {
+		return true, []byte(devModePublicKey), devModePublicKeyID
+	}
+	return false, nil, ""
+}
+
 // GetGitHubClientID return GitHub client ID used to link GitHub accounts
 func (c *ConfigurationData) GetGitHubClientID() string {
 	return c.v.GetString(varGitHubClientID)
@@ -1146,6 +1156,18 @@ qCn3Rug8QWyBjjxnU3CxPRiLSmEllQAAVlzfRWn6kL4RKSyruUhZaA==
 -----END RSA PRIVATE KEY-----`
 
 	defaultUserAccountPrivateKeyID = "aUGv8mQA85jg4V1DU8Uk1W0uKsxn187KQONAGl6AMtc"
+
+	devModePublicKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvQ8p+HsTMrgcsuIMoOR1
+LXRhynL9YAU0qoDON6PLKCpdBv0Xy/jnsPjo5DrtUOijuJcID8CR7E0hYpY9MgK5
+H5pDFwC4lbUVENquHEVS/E0pQSKCIzSmORcIhjYW2+wKfDOVjeudZwdFBIxJ6KpI
+ty/aF78hlUJZuvghFVqoHQYTq/DZOmKjS+PAVLw8FKE3wa/3WU0EkpP+iovRMCkl
+lzxqrcLPIvx+T2gkwe0bn0kTvdMOhTLTN2tuvKrFpVUxVi8RM/V8PtgdKroxnES7
+SyUqK8rLO830jKJzAYrByQL+sdGuSqInIY/geahQHEGTwMI0CLj6zfhpjSgCflst
+vwIDAQAB
+-----END RSA PRIVATE KEY-----`
+
+	devModePublicKeyID = "bNq-BCOR3ev-E6buGSaPrU-0SXX8whhDlmZ6geenkTE"
 
 	defaultDBPassword = "mysecretpassword"
 

@@ -47,6 +47,7 @@ type configuration interface {
 	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
 	GetUserAccountPrivateKey() ([]byte, string)
 	GetDeprecatedUserAccountPrivateKey() ([]byte, string)
+	GetDevModePublicKey() (bool, []byte, string)
 }
 
 type JsonKeys struct {
@@ -145,12 +146,22 @@ func NewManager(config configuration) (Manager, error) {
 		return nil, err
 	}
 
+	// Load Keycloak public key if run in dev mode.
+	devMode, key, kid := config.GetDevModePublicKey()
+	if devMode {
+		rsaKey, err := jwt.ParseRSAPublicKeyFromPEM(key)
+		if err != nil {
+			return nil, err
+		}
+		tm.publicKeysMap[kid] = rsaKey
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: rsaKey})
+		log.Info(nil, map[string]interface{}{"kid": kid}, "dev mode public key added")
+	}
+
 	// Convert public keys to JWK format
 	jsonKeys, err := toJsonWebKeys(tm.publicKeys)
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
-			"err": err,
-		}, "unable to convert public keys to JSON Web Keys")
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to convert public keys to JSON Web Keys")
 		return nil, errors.New("unable to convert public keys to JSON Web Keys")
 	}
 	tm.jsonWebKeys = jsonKeys
@@ -158,9 +169,7 @@ func NewManager(config configuration) (Manager, error) {
 	// Convert public keys to PEM format
 	jsonKeys, err = toPemKeys(tm.publicKeys)
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
-			"err": err,
-		}, "unable to convert public keys to PEM Keys")
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to convert public keys to PEM Keys")
 		return nil, errors.New("unable to convert public keys to PEM Keys")
 	}
 	tm.pemKeys = jsonKeys
@@ -189,9 +198,7 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 	pk := &rsaServiceAccountKey.PublicKey
 	tm.publicKeysMap[kid] = pk
 	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
-	log.Info(nil, map[string]interface{}{
-		"kid": kid,
-	}, "public key added")
+	log.Info(nil, map[string]interface{}{"kid": kid}, "public key added")
 
 	// Extract public key from the deprecated key if any and add it to the manager
 	if len(deprecatedKey) == 0 || deprecatedKid == "" {
@@ -207,9 +214,7 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 		pk := &rsaServiceAccountKey.PublicKey
 		tm.publicKeysMap[deprecatedKid] = pk
 		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: deprecatedKid, Key: pk})
-		log.Info(nil, map[string]interface{}{
-			"kid": deprecatedKid,
-		}, "deprecated public key added")
+		log.Info(nil, map[string]interface{}{"kid": deprecatedKid}, "deprecated public key added")
 	}
 	return privateKey, nil
 }
