@@ -2,7 +2,6 @@ package token_test
 
 import (
 	"context"
-	"crypto/rsa"
 	"fmt"
 	"testing"
 	"time"
@@ -28,9 +27,7 @@ func TestToken(t *testing.T) {
 
 type TestTokenSuite struct {
 	suite.Suite
-	config       *configuration.ConfigurationData
-	privateKey   *rsa.PrivateKey
-	tokenManager token.Manager
+	config *configuration.ConfigurationData
 }
 
 func (s *TestTokenSuite) SetupSuite() {
@@ -39,8 +36,6 @@ func (s *TestTokenSuite) SetupSuite() {
 	if err != nil {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
-	s.privateKey = testtoken.PrivateKey()
-	s.tokenManager = testtoken.NewManager()
 }
 
 func (s *TestTokenSuite) TearDownSuite() {
@@ -51,15 +46,15 @@ func (s *TestTokenSuite) TestValidOAuthAccessToken() {
 		ID:       uuid.NewV4(),
 		Username: "testuser",
 	}
-	generatedToken, err := testtoken.GenerateToken(identity.ID.String(), identity.Username, s.privateKey)
+	generatedToken, err := testtoken.GenerateToken(identity.ID.String(), identity.Username)
 	assert.Nil(s.T(), err)
 
-	claims, err := s.tokenManager.ParseToken(context.Background(), generatedToken)
+	claims, err := testtoken.TokenManager.ParseToken(context.Background(), generatedToken)
 	require.Nil(s.T(), err)
 	assert.Equal(s.T(), identity.ID.String(), claims.Subject)
 	assert.Equal(s.T(), identity.Username, claims.Username)
 
-	jwtToken, err := s.tokenManager.Parse(context.Background(), generatedToken)
+	jwtToken, err := testtoken.TokenManager.Parse(context.Background(), generatedToken)
 	require.Nil(s.T(), err)
 
 	s.checkClaim(jwtToken, "sub", identity.ID.String())
@@ -96,11 +91,11 @@ func (s *TestTokenSuite) TestInvalidOAuthAccessTokenFails() {
 }
 
 func (s *TestTokenSuite) checkInvalidToken(token string) {
-	_, err := s.tokenManager.ParseToken(context.Background(), token)
+	_, err := testtoken.TokenManager.ParseToken(context.Background(), token)
 	assert.NotNil(s.T(), err)
-	_, err = s.tokenManager.ParseTokenWithMapClaims(context.Background(), token)
+	_, err = testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), token)
 	assert.NotNil(s.T(), err)
-	_, err = s.tokenManager.Parse(context.Background(), token)
+	_, err = testtoken.TokenManager.Parse(context.Background(), token)
 	assert.NotNil(s.T(), err)
 }
 
@@ -141,7 +136,7 @@ func (s *TestTokenSuite) TestLocateTokenInContex() {
 	tk.Claims.(jwt.MapClaims)["sub"] = id.String()
 	ctx := goajwt.WithJWT(context.Background(), tk)
 
-	foundId, err := s.tokenManager.Locate(ctx)
+	foundId, err := testtoken.TokenManager.Locate(ctx)
 	require.Nil(s.T(), err)
 	assert.Equal(s.T(), id, foundId, "ID in created context not equal")
 }
@@ -149,7 +144,7 @@ func (s *TestTokenSuite) TestLocateTokenInContex() {
 func (s *TestTokenSuite) TestLocateMissingTokenInContext() {
 	ctx := context.Background()
 
-	_, err := s.tokenManager.Locate(ctx)
+	_, err := testtoken.TokenManager.Locate(ctx)
 	if err == nil {
 		s.T().Error("Should have returned error on missing token in contex", err)
 	}
@@ -159,7 +154,7 @@ func (s *TestTokenSuite) TestLocateMissingUUIDInTokenInContext() {
 	tk := jwt.New(jwt.SigningMethodRS256)
 	ctx := goajwt.WithJWT(context.Background(), tk)
 
-	_, err := s.tokenManager.Locate(ctx)
+	_, err := testtoken.TokenManager.Locate(ctx)
 	require.NotNil(s.T(), err)
 }
 
@@ -168,7 +163,7 @@ func (s *TestTokenSuite) TestLocateInvalidUUIDInTokenInContext() {
 	tk.Claims.(jwt.MapClaims)["sub"] = "131"
 	ctx := goajwt.WithJWT(context.Background(), tk)
 
-	_, err := s.tokenManager.Locate(ctx)
+	_, err := testtoken.TokenManager.Locate(ctx)
 	require.NotNil(s.T(), err)
 }
 func (s *TestTokenSuite) TestInt32ToInt64OK() {

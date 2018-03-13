@@ -219,16 +219,6 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 	return privateKey, nil
 }
 
-// NewManagerWithPublicKey returns a new token Manager for handling tokens with the only public key
-func NewManagerWithPublicKey(key *PublicKey, serviceAccountKey *PrivateKey) Manager {
-	saPublicKey := &serviceAccountKey.Key.PublicKey
-	return &tokenManager{
-		publicKeysMap:            map[string]*rsa.PublicKey{key.KeyID: key.Key, serviceAccountKey.KeyID: saPublicKey},
-		publicKeys:               []*PublicKey{key, {KeyID: serviceAccountKey.KeyID, Key: saPublicKey}},
-		serviceAccountPrivateKey: serviceAccountKey,
-	}
-}
-
 // FetchKeys fetches public JSON WEB Keys from a remote service
 func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	req, err := http.NewRequest("GET", keysEndpointURL, nil)

@@ -130,8 +130,8 @@ func createInvalidSAContext() context.Context {
 }
 
 func (s *TestWhiteboxTokenSuite) TestPrivateKeysLoaded() {
-	// One service account key and one user key
-	require.Equal(s.T(), 2, len(s.tokenManager.PublicKeys()))
+	// One service account key, one user key, and one dev mode key
+	require.Equal(s.T(), 3, len(s.tokenManager.PublicKeys()))
 
 	// SA key
 	_, serviceAccountKid := s.config.GetServiceAccountPrivateKey()
