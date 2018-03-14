@@ -203,15 +203,6 @@ objects:
       service: auth
     type: ClusterIP
     sessionAffinity: null
-- kind: Route
-  apiVersion: v1
-  metadata:
-    name: auth
-  spec:
-    host: ''
-    to:
-      kind: Service
-      name: auth
 parameters:
 - name: IMAGE_TAG
   value: latest
