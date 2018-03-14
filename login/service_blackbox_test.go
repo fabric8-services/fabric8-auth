@@ -191,7 +191,8 @@ func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
 	require.Nil(s.T(), err)
 
 	token := &oauth2.Token{AccessToken: tokenStr, RefreshToken: tokenStr}
-	return s.loginService.CreateOrUpdateIdentityAndUser(context.Background(), redirect, token, req, s.Configuration)
+	redirectURL, _, err := s.loginService.CreateOrUpdateIdentityAndUser(context.Background(), redirect, token, req, s.Configuration)
+	return redirectURL, err
 }
 
 func (s *serviceBlackBoxTest) resetConfiguration() {

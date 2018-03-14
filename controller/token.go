@@ -517,14 +517,14 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		return nil, errors.NewInternalError(ctx, err)
 	}
 
-	_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
+	_, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
 
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert expiry to expire_in
-	expiry := keycloakToken.Expiry
+	expiry := userToken.Expiry
 	var expireIn *string
 	if expiry != *new(time.Time) {
 		exp := expiry.Sub(time.Now())
@@ -535,10 +535,10 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 	}
 
 	token := &app.OauthToken{
-		AccessToken:  &keycloakToken.AccessToken,
+		AccessToken:  &userToken.AccessToken,
 		ExpiresIn:    expireIn,
-		RefreshToken: &keycloakToken.RefreshToken,
-		TokenType:    &keycloakToken.TokenType,
+		RefreshToken: &userToken.RefreshToken,
+		TokenType:    &userToken.TokenType,
 	}
 
 	return token, nil

@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
@@ -25,6 +26,7 @@ import (
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
+	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
 )
 
@@ -98,6 +100,7 @@ type Manager interface {
 	AuthServiceAccountToken(req *goa.RequestData) (string, error)
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
+	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error)
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -458,6 +461,18 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestDat
 	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
 	token.Claims.(jwt.MapClaims)["scopes"] = []string{"uma_protection"}
 	return token
+}
+
+// GenerateUserToken generates an OAuth2 user token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error) {
+	// TODO
+	//token := mgm.GenerateUnsignedServiceAccountToken(req, saID, saName)
+	//tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
+	//if err != nil {
+	//	return "", errors.WithStack(err)
+	//}
+	//return tokenStr, nil
+	return &keycloakToken, nil
 }
 
 func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {
