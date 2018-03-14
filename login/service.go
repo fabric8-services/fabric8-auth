@@ -816,9 +816,8 @@ func ContextIdentity(ctx context.Context) (*uuid.UUID, error) {
 	if err != nil {
 		// TODO : need a way to define user as Guest
 		log.Error(ctx, map[string]interface{}{
-			"uuid":          uuid,
-			"token_manager": manager,
-			"err":           err,
+			"uuid": uuid,
+			"err":  err,
 		}, "identity belongs to a Guest User")
 
 		return nil, errs.WithStack(err)
@@ -848,12 +847,13 @@ func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID,
 }
 
 // LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
-// If it doesn't exist or not assosiated with any User then an Unauthorized error is returned
+// If no token present in the context then an Unauthorized error is returned
+// If the identity represented by the token doesn't exist in the DB or not assosiated with any User then an Unauthorized error is returned
 func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*account.Identity, error) {
 	var identity *account.Identity
 	identityID, err := ContextIdentity(ctx)
 	if err != nil {
-		return nil, err
+		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
 	// Check if the identity exists
 	err = application.Transactional(db, func(appl application.Application) error {

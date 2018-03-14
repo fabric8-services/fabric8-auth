@@ -84,6 +84,14 @@ func ServiceAsUser(serviceName string, u account.Identity) *goa.Service {
 	return svc
 }
 
+// UnsecuredService creates a new service with token manager injected by without any identity in context
+func UnsecuredService(serviceName string) *goa.Service {
+	svc := goa.New(serviceName)
+	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
+	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: &dummySpaceAuthzService{}})
+	return svc
+}
+
 // ServiceAsSpaceUser creates a new service and fill the context with input Identity and space authz service
 func ServiceAsSpaceUser(serviceName string, u account.Identity, authzSrv authz.AuthzService) *goa.Service {
 	svc := service(serviceName, nil, u, nil)
