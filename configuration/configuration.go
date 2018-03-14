@@ -711,7 +711,8 @@ func (c *ConfigurationData) GetGitHubClientDefaultScopes() string {
 	return c.v.GetString(varGitHubClientDefaultScopes)
 }
 
-// GetOpenShiftClientApiUrl return the default OpenShift cluster client API URL used to link OpenShift accounts
+// GetOpenShiftClientApiUrl return the default OpenShift cluster client API URL.
+// If in a staging env a new user doesn't have the cluster set then this default cluster is used
 func (c *ConfigurationData) GetOpenShiftClientApiUrl() string {
 	return c.v.GetString(varOSOClientApiUrl)
 }
