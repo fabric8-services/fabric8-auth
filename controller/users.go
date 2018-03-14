@@ -52,6 +52,7 @@ type UsersControllerConfiguration interface {
 	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
 	GetEmailVerifiedRedirectURL() string
 	GetInternalUsersEmailAddressSuffix() string
+	GetIgnoreEmailInProd() string
 }
 
 // NewUsersController creates a users controller.
@@ -107,7 +108,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	// ----- Ignore users created for Preview environment
 	// TODO remove this when we start using our regular user registration flow in staging environment
-	preview, err := checkPreviewUser(ctx.Payload.Data.Attributes.Email)
+	preview, err := c.checkPreviewUser(ctx.Payload.Data.Attributes.Email)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "email": ctx.Payload.Data.Attributes.Email}, "unable to parse user's email")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
@@ -191,9 +192,9 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
-func checkPreviewUser(email string) (bool, error) {
+func (c *UsersController) checkPreviewUser(email string) (bool, error) {
 	// Any <username>+preview*@redhat.com email matches
-	return regexp.MatchString(".+\\+preview.*\\@redhat\\.com", strings.ToLower(email))
+	return regexp.MatchString(c.config.GetIgnoreEmailInProd(), strings.ToLower(email))
 }
 
 func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
