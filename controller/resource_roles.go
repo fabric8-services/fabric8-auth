@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
@@ -43,6 +44,28 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 	roleList := convertIdentityRoleToAppRoles(ctx, roles)
 	return ctx.OK(&app.Identityroles{
 		Data: roleList,
+	})
+}
+
+// ListAssignedByRoleName runs the list action.
+func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedByRoleNameResourceRolesContext) error {
+
+	var roles []identityrole.IdentityRole
+
+	roles, err := c.roleManagementService.ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"err":         err,
+		}, "error retrieving list of roles for a specific resource and a specific role")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	rolesList := convertIdentityRoleToAppRoles(ctx, roles)
+	if len(rolesList) == 0 {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("role", ctx.RoleName))
+	}
+	return ctx.OK(&app.Identityroles{
+		Data: rolesList,
 	})
 }
 

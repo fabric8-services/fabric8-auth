@@ -18,6 +18,16 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 	})
+	a.Action("listAssignedByRoleName", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/:resourceID/roles/:roleName/assigned"),
+		)
+		a.Description("List assigned roles for a specific role name, for a specific resource")
+		a.Response(d.OK, identityRolesMedia)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+	})
 })
 
 // ResourceMedia represents a protected resource
