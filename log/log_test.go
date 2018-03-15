@@ -9,6 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"context"
 )
 
 func LogAndAssertJSON(t *testing.T, log func(), assertions func(fields logrus.Fields)) {
@@ -38,7 +39,7 @@ func TestPointerToString(t *testing.T) {
 
 func TestInfo(t *testing.T) {
 	LogAndAssertJSON(t, func() {
-		Info(nil, nil, "test")
+		Info(context.Background(), nil, "test")
 	}, func(fields logrus.Fields) {
 		assert.Equal(t, fields["msg"], "test")
 		assert.Equal(t, fields["level"], "info")
@@ -48,7 +49,7 @@ func TestInfo(t *testing.T) {
 
 func TestInfoWithFields(t *testing.T) {
 	LogAndAssertJSON(t, func() {
-		Info(nil, map[string]interface{}{"key": "value"}, "test")
+		Info(context.Background(), map[string]interface{}{"key": "value"}, "test")
 	}, func(fields logrus.Fields) {
 		assert.Equal(t, fields["msg"], "test")
 		assert.Equal(t, fields["level"], "info")
@@ -59,7 +60,7 @@ func TestInfoWithFields(t *testing.T) {
 
 func TestWarn(t *testing.T) {
 	LogAndAssertJSON(t, func() {
-		Warn(nil, nil, "test")
+		Warn(context.Background(), nil, "test")
 	}, func(fields logrus.Fields) {
 		assert.Equal(t, fields["msg"], "test")
 		assert.Equal(t, fields["level"], "warning")
@@ -68,7 +69,7 @@ func TestWarn(t *testing.T) {
 
 func TestDebug(t *testing.T) {
 	LogAndAssertJSON(t, func() {
-		Debug(nil, nil, "test")
+		Debug(context.Background(), nil, "test")
 	}, func(fields logrus.Fields) {
 		assert.Equal(t, fields["msg"], "test")
 		assert.Equal(t, fields["level"], "debug")
@@ -77,7 +78,7 @@ func TestDebug(t *testing.T) {
 
 func TestDebugMsgFieldHasPrefix(t *testing.T) {
 	LogAndAssertJSON(t, func() {
-		Debug(nil, map[string]interface{}{"req": "PUT", "info": "hello"}, "msg with additional fields: %s", "value of my field")
+		Debug(context.Background() , map[string]interface{}{"req": "PUT", "info": "hello"}, "msg with additional fields: %s", "value of my field")
 	}, func(fields logrus.Fields) {
 		assert.Equal(t, fields["msg"], "msg with additional fields: value of my field")
 		assert.Equal(t, fields["req"], "PUT")
@@ -87,7 +88,7 @@ func TestDebugMsgFieldHasPrefix(t *testing.T) {
 
 func TestInfoMsgFieldHasPrefix(t *testing.T) {
 	LogAndAssertJSON(t, func() {
-		Info(nil, map[string]interface{}{"req": "GET"}, "message with additional fields: %s", "value of my field")
+		Info(context.Background(), map[string]interface{}{"req": "GET"}, "message with additional fields: %s", "value of my field")
 	}, func(fields logrus.Fields) {
 		assert.Equal(t, fields["msg"], "message with additional fields: value of my field")
 		assert.Equal(t, fields["req"], "GET")
