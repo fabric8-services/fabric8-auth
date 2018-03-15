@@ -17,6 +17,7 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.OK, identityRolesMedia)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 	a.Action("listAssignedByRoleName", func() {
 		a.Security("jwt")
@@ -27,6 +28,7 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.OK, identityRolesMedia)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 })
 

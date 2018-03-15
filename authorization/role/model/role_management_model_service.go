@@ -75,13 +75,6 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 	defer rows.Close()
 
 	columns, err := rows.Columns()
-	columnValues := make([]interface{}, len(columns))
-
-	var ignore interface{}
-	for index := range columnValues {
-		columnValues[index] = &ignore
-	}
-
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resourceID,
@@ -89,6 +82,8 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 		}, "error getting columns")
 		return identityRoles, errors.NewInternalError(ctx, err)
 	}
+
+	columnValues := make([]interface{}, len(columns))
 
 	for rows.Next() {
 		var parentResourceID *string
@@ -189,13 +184,6 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 	defer rows.Close()
 
 	columns, err := rows.Columns()
-	columnValues := make([]interface{}, len(columns))
-
-	var ignore interface{}
-	for index := range columnValues {
-		columnValues[index] = &ignore
-	}
-
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resourceID,
@@ -203,6 +191,8 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 		}, "error getting columns")
 		return identityRoles, errors.NewInternalError(ctx, err)
 	}
+
+	columnValues := make([]interface{}, len(columns))
 
 	for rows.Next() {
 		var parentResourceID *string
