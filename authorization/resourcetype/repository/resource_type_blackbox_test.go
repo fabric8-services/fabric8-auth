@@ -16,7 +16,7 @@ type resourceTypeBlackBoxTest struct {
 	repo resourcetype.ResourceTypeRepository
 }
 
-var knownResourceTypes = [2]string{"openshift.io/resource/area", "identity/organization"}
+var knownResourceTypes = [3]string{"openshift.io/resource/area", "identity/organization", "openshift.io/resource/space"}
 
 func TestRunResourceTypeBlackBoxTest(t *testing.T) {
 	suite.Run(t, &resourceTypeBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
