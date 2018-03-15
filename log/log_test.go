@@ -7,9 +7,9 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/resource"
 
+	"context"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"context"
 )
 
 func LogAndAssertJSON(t *testing.T, log func(), assertions func(fields logrus.Fields)) {
@@ -78,7 +78,7 @@ func TestDebug(t *testing.T) {
 
 func TestDebugMsgFieldHasPrefix(t *testing.T) {
 	LogAndAssertJSON(t, func() {
-		Debug(context.Background() , map[string]interface{}{"req": "PUT", "info": "hello"}, "msg with additional fields: %s", "value of my field")
+		Debug(context.Background(), map[string]interface{}{"req": "PUT", "info": "hello"}, "msg with additional fields: %s", "value of my field")
 	}, func(fields logrus.Fields) {
 		assert.Equal(t, fields["msg"], "msg with additional fields: value of my field")
 		assert.Equal(t, fields["req"], "PUT")
