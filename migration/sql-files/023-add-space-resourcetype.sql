@@ -33,9 +33,28 @@ VALUES     ('ab95b9d7-755a-4c25-8f78-ac1d613b59c9',
             '6422fda4-a0fa-4d3c-8b79-8061e5c05e12', 
             'createWorkItem');
 
+-- create a scope that allows updation of workitems.
+
+
+INSERT INTO resource_type_scope 
+            (resource_type_scope_id, 
+             resource_type_id, 
+             NAME) 
+VALUES     ('07da9f1a-081e-479e-b070-495b3108f027', 
+            '6422fda4-a0fa-4d3c-8b79-8061e5c05e12', 
+            'updateWorkItem');
+
+
+-- associate the role with the 2 scopes
 
 INSERT INTO role_scope 
             (scope_id, 
              role_id) 
 VALUES     ('ab95b9d7-755a-4c25-8f78-ac1d613b59c9', 
+            '0e05e7fb-406c-4ba4-acc6-1eb290d45d02'); 
+
+INSERT INTO role_scope 
+            (scope_id, 
+             role_id) 
+VALUES     ('07da9f1a-081e-479e-b070-495b3108f027', 
             '0e05e7fb-406c-4ba4-acc6-1eb290d45d02'); 

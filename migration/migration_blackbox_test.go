@@ -293,19 +293,26 @@ func testMigration23(t *testing.T) {
 	require.Equal(t, "ab95b9d7-755a-4c25-8f78-ac1d613b59c9", scopeID)
 	require.False(t, rows.Next())
 
-	rows, err = sqlDB.Query("SELECT count(1) FROM role_scope where role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' and scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9'")
+	rows, err = sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope where name = 'updateWorkItem' and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12'")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer rows.Close()
 
 	// Expecting only one row
 	require.True(t, rows.Next())
-	var countRows int
-	err = rows.Scan(&countRows)
-	require.Equal(t, 1, countRows)
+	err = rows.Scan(&scopeID)
+	require.Equal(t, "07da9f1a-081e-479e-b070-495b3108f027", scopeID)
 	require.False(t, rows.Next())
 
+	rows, err = sqlDB.Query("SELECT count(1) FROM role_scope where role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' group by role_id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	require.True(t, rows.Next())
+	var countRows int
+	err = rows.Scan(&countRows)
+	require.Equal(t, 2, countRows)
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
