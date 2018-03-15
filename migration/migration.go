@@ -176,6 +176,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 22
 	m = append(m, steps{ExecuteSQLFile("022-add-deprovisioned-to-user.sql")})
 
+	// Version 23
+	m = append(m, steps{ExecuteSQLFile("023-add-space-resourcetype.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

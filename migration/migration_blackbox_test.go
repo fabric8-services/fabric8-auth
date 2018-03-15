@@ -108,6 +108,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration18", testMigration18)
 	t.Run("TestMigration21", testMigration21)
 	t.Run("TestMigration22", testMigration22)
+	t.Run("TestMigration23", testMigration23)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -249,6 +250,62 @@ func testMigration22(t *testing.T) {
 	err = rows.Scan(&id)
 	require.Equal(t, "a83a4508-3303-441e-863a-84ff9e7f745a", id)
 	require.False(t, rows.Next())
+}
+
+func testMigration23(t *testing.T) {
+
+	migrateToVersion(sqlDB, migrations[:(24)], (24))
+
+	rows, err := sqlDB.Query("SELECT resource_type_id FROM resource_type where name = 'openshift.io/resource/space'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	// Expecting only one row
+	require.True(t, rows.Next())
+	var id string
+	err = rows.Scan(&id)
+	require.Equal(t, "6422fda4-a0fa-4d3c-8b79-8061e5c05e12", id)
+	require.False(t, rows.Next())
+
+	rows, err = sqlDB.Query("SELECT role_id FROM role where name = 'collaborator' and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12'")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Expecting only one row
+	require.True(t, rows.Next())
+	var roleId string
+	err = rows.Scan(&roleId)
+	require.Equal(t, "0e05e7fb-406c-4ba4-acc6-1eb290d45d02", roleId)
+	require.False(t, rows.Next())
+
+	rows, err = sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope where name = 'createWorkItem' and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12'")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Expecting only one row
+	require.True(t, rows.Next())
+	var scopeID string
+	err = rows.Scan(&scopeID)
+	require.Equal(t, "ab95b9d7-755a-4c25-8f78-ac1d613b59c9", scopeID)
+	require.False(t, rows.Next())
+
+	rows, err = sqlDB.Query("SELECT count(1) FROM role_scope where role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' and scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	// Expecting only one row
+	require.True(t, rows.Next())
+	var countRows int
+	err = rows.Scan(&countRows)
+	require.Equal(t, 1, countRows)
+	require.False(t, rows.Next())
+
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
