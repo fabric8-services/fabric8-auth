@@ -3,13 +3,14 @@ package configuration
 import (
 	"bytes"
 	"fmt"
-	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
+
+	"net/url"
+	"reflect"
 
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
@@ -50,6 +51,7 @@ const (
 	varEmailVerifiedRedirectURL        = "email.verify.url"
 	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
 	varKeycloakTestsDisabled           = "keycloak.tests.disabled"
+        varIgnoreEmailInProd               = "ignore.email.prod"
 
 	// Postgres
 	varPostgresHost                 = "postgres.host"
@@ -585,6 +587,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// default email address suffix
 	c.v.SetDefault(varInternalUsersEmailAddressSuffix, "@redhat.com")
+
+	// Regex to be used to check if the user with such email should be ignored during account provisioning
+	c.v.SetDefault(varIgnoreEmailInProd, ".+\\+preview.*\\@redhat\\.com")
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -760,7 +765,8 @@ func (c *ConfigurationData) GetGitHubClientDefaultScopes() string {
 	return c.v.GetString(varGitHubClientDefaultScopes)
 }
 
-// GetOpenShiftClientApiUrl return the default OpenShift cluster client API URL used to link OpenShift accounts
+// GetOpenShiftClientApiUrl return the default OpenShift cluster client API URL.
+// If in a staging env a new user doesn't have the cluster set then this default cluster is used
 func (c *ConfigurationData) GetOpenShiftClientApiUrl() string {
 	return c.v.GetString(varOSOClientApiUrl)
 }
@@ -1088,6 +1094,11 @@ func (c *ConfigurationData) GetValidRedirectURLs() string {
 // GetInternalUsersEmailAddressSuffix returns the email address suffix of employees who can opt-in for the 'internal' features.
 func (c *ConfigurationData) GetInternalUsersEmailAddressSuffix() string {
 	return c.v.GetString(varInternalUsersEmailAddressSuffix)
+}
+
+// GetIgnoreEmailInProd returns regex for checking if the user with such email should be ignored during account provisioning
+func (c *ConfigurationData) GetIgnoreEmailInProd() string {
+	return c.v.GetString(varIgnoreEmailInProd)
 }
 
 const (
