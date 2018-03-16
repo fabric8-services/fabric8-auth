@@ -190,6 +190,8 @@ func (s *roleManagementModelServiceBlackboxTest) checkScopeBelongsToResourceType
 	scopesReturned, err := s.resourceTypeScope.ListByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
 	require.NotEmpty(s.T(), scopesReturned)
 	require.NoError(s.T(), err)
+}
+
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleNameNotFound() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)

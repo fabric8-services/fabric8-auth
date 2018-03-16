@@ -14,11 +14,8 @@ import (
 // RoleManagementService defines the contract for managing roles assigments to a resource
 type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
-<<<<<<< HEAD
-	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
-=======
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
->>>>>>> upstream/master
+	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
 }
 
 // RoleManagementServiceImpl implements the RoleManagementService for managing role assignments.
@@ -75,6 +72,8 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 		return err
 	})
 	return roleScopes, err
+}
+
 // ListByResourceAndRoleName lists assignments made for a specific resource
 func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error) {
 
