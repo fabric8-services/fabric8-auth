@@ -76,6 +76,7 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	}
 	claims := make(map[string]interface{})
 	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
+	refreshToken, err := testtoken.GenerateTokenWithClaims(claims)
 	if err != nil {
 		panic(err)
 	}
@@ -89,15 +90,15 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 				TokenURL: tokenEndpoint,
 			},
 		},
-		accessToken: accessToken,
+		accessToken:  accessToken,
+		refreshToken: refreshToken,
 	}
 
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
 	userProfileClient := NewKeycloakUserProfileClient()
 
-	refreshToken := uuid.NewV4().String()
-	refreshTokenSet := token.TokenSet{AccessToken: &refreshToken}
+	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
 	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 
 	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService)
@@ -487,35 +488,31 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
 }
 
 func (s *serviceBlackBoxTest) TestAPIClientForApprovedUsersReturnOK() {
-	extra := make(map[string]string)
-	extra["api_client"] = "vscode"
-	rw, authorizeCtx := s.loginCallback(extra)
-
-	claims := make(map[string]interface{})
-	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-
-	dummyOauth := &dummyOauth2Config{
-		Config:      oauth2.Config{},
-		accessToken: accessToken,
-	}
-
-	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "api_token")
+	s.checkAPIClientForUsersReturnOK(true)
 }
 
 func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
+	s.checkAPIClientForUsersReturnOK(false)
+}
+
+func (s *serviceBlackBoxTest) checkAPIClientForUsersReturnOK(approved bool) {
 	extra := make(map[string]string)
 	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
 
 	claims := make(map[string]interface{})
-	claims["approved"] = nil
+	if !approved {
+		claims["approved"] = nil
+	}
 	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+	refreshToken, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
 	dummyOauth := &dummyOauth2Config{
-		Config:      oauth2.Config{},
-		accessToken: accessToken,
+		Config:       oauth2.Config{},
+		accessToken:  accessToken,
+		refreshToken: refreshToken,
 	}
 
 	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "api_token")
@@ -609,6 +606,7 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
+		Host: "openshift.io",
 		Path: fmt.Sprintf("/api/login"),
 	}
 	req, err := http.NewRequest("GET", u.String(), nil)
@@ -693,7 +691,8 @@ func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, 
 
 type dummyOauth2Config struct {
 	oauth2.Config
-	accessToken string
+	accessToken  string
+	refreshToken string
 }
 
 func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
@@ -702,7 +701,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 	token := &oauth2.Token{
 		TokenType:    "bearer",
 		AccessToken:  c.accessToken,
-		RefreshToken: "someRefreshToken",
+		RefreshToken: c.refreshToken,
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
 	}
 	extra := make(map[string]interface{})

@@ -274,7 +274,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 			"provider_name": providerName,
 		}, "Unable to obtain external token from Keycloak. Account linking may be required.")
 
-		linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource))
+		linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
 		errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 		return nil, &errorResponse, errors.NewUnauthorizedError("token is missing")
 	}
@@ -497,7 +497,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		ClientID:     c.Configuration.GetKeycloakClientID(),
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath()),
+		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
@@ -614,7 +614,7 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource 
 				"for":           forResource,
 				"provider_name": providerConfig.TypeName(),
 			}, "Unable to fetch user profile for external token. Account relinking may be required.")
-			linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource))
+			linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
 			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"", linkURL, providerConfig.TypeName(), providerConfig.TypeName())
 			return externalToken, &errorResponse, errors.NewUnauthorizedError(err.Error())
 		}

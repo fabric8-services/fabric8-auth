@@ -126,9 +126,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Load service accounts
-	//	application.s
-
 	// Create service
 	service := goa.New("auth")
 

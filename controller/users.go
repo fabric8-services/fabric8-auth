@@ -20,12 +20,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"regexp"
+
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"regexp"
 )
 
 // UsersController implements the users resource.
@@ -1205,7 +1206,7 @@ func ConvertUserSimple(request *goa.RequestData, identityID interface{}) *app.Ge
 }
 
 func createUserLinks(request *goa.RequestData, identityID interface{}) *app.GenericLinks {
-	relatedURL := rest.AbsoluteURL(request, app.UsersHref(identityID))
+	relatedURL := rest.AbsoluteURL(request, app.UsersHref(identityID), nil)
 	return &app.GenericLinks{
 		Self:    &relatedURL,
 		Related: &relatedURL,

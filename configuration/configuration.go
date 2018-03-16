@@ -51,7 +51,7 @@ const (
 	varEmailVerifiedRedirectURL        = "email.verify.url"
 	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
 	varKeycloakTestsDisabled           = "keycloak.tests.disabled"
-        varIgnoreEmailInProd               = "ignore.email.prod"
+	varIgnoreEmailInProd               = "ignore.email.prod"
 
 	// Postgres
 	varPostgresHost                 = "postgres.host"

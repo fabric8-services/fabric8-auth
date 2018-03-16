@@ -8,13 +8,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
@@ -50,6 +51,7 @@ type configuration interface {
 	GetUserAccountPrivateKey() ([]byte, string)
 	GetDeprecatedUserAccountPrivateKey() ([]byte, string)
 	GetDevModePublicKey() (bool, []byte, string)
+	IsPostgresDeveloperModeEnabled() bool
 }
 
 type JsonKeys struct {
@@ -123,6 +125,7 @@ type tokenManager struct {
 	pemKeys                  JsonKeys
 	serviceAccountToken      string
 	serviceAccountLock       sync.RWMutex
+	config                   configuration
 }
 
 // NewManager returns a new token Manager for handling tokens
@@ -130,6 +133,7 @@ func NewManager(config configuration) (Manager, error) {
 	tm := &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{},
 	}
+	tm.config = config
 
 	// Load the user account private key and add it to the manager.
 	// Extract the public key from it and add it to the map of public keys.
@@ -454,25 +458,172 @@ func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID 
 func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
-	token.Claims.(jwt.MapClaims)["service_accountname"] = saName
-	token.Claims.(jwt.MapClaims)["sub"] = saID
-	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
-	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
-	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
-	token.Claims.(jwt.MapClaims)["scopes"] = []string{"uma_protection"}
+	claims := token.Claims.(jwt.MapClaims)
+	claims["service_accountname"] = saName
+	claims["sub"] = saID
+	claims["jti"] = uuid.NewV4().String()
+	claims["iat"] = time.Now().Unix()
+	claims["iss"] = rest.AbsoluteURL(req, "", nil)
+	claims["scopes"] = []string{"uma_protection"}
 	return token
 }
 
 // GenerateUserToken generates an OAuth2 user token for the given identity based on the Keycloak token
 func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error) {
-	// TODO
-	//token := mgm.GenerateUnsignedServiceAccountToken(req, saID, saName)
-	//tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
-	//if err != nil {
-	//	return "", errors.WithStack(err)
-	//}
-	//return tokenStr, nil
-	return &keycloakToken, nil
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, keycloakToken, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	accessToken, err := unsignedAccessToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, keycloakToken, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	refreshToken, err := unsignedRefreshToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       keycloakToken.Expiry,
+		TokenType:    "Bearer",
+	}
+	return token, nil
+}
+
+// GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	kcClaims, err := mgm.ParseToken(ctx, keycloakToken.AccessToken)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	// exp := nowTime + 30*24*60*60 // In 30 days
+	claims["exp"] = kcClaims.ExpiresAt
+	// nbf := 0
+	claims["nbf"] = kcClaims.NotBefore
+	// iat := time.Now().Unix() // Now
+	claims["iat"] = kcClaims.IssuedAt
+	// iss := authOpenshiftIO
+	claims["iss"] = kcClaims.Issuer
+	// aud := openshiftIO
+	claims["aud"] = kcClaims.Audience
+	claims["typ"] = "Bearer"
+	// auth_time := iat // Now
+	claims["auth_time"] = kcClaims.IssuedAt
+	claims["approved"] = identity != nil && identity.User.Deprovisioned && kcClaims.Approved
+	if identity != nil {
+		claims["sub"] = identity.ID.String()
+		claims["email_verified"] = identity.User.EmailVerified
+		claims["name"] = identity.User.FullName
+		claims["company"] = identity.User.Company
+		claims["preferred_username"] = identity.Username
+		firstName, lastName := account.SplitFullName(identity.User.FullName)
+		claims["given_name"] = firstName
+		claims["family_name"] = lastName
+		claims["email"] = identity.User.Email
+	} else {
+		claims["sub"] = kcClaims.Subject
+		claims["email_verified"] = kcClaims.EmailVerified
+		claims["name"] = kcClaims.Name
+		claims["company"] = kcClaims.Company
+		claims["preferred_username"] = kcClaims.Username
+		claims["given_name"] = kcClaims.GivenName
+		claims["family_name"] = kcClaims.FamilyName
+		claims["email"] = kcClaims.Email
+	}
+
+	claims["allowed-origins"] = []string{
+		authOpenshiftIO,
+		openshiftIO,
+	}
+
+	// --- later we can drop all the claims below:
+	claims["azp"] = kcClaims.Audience
+	claims["session_state"] = kcClaims.SessionState
+	claims["acr"] = "1"
+
+	realmAccess := make(map[string]interface{})
+	realmAccess["roles"] = []string{"uma_authorization"}
+	claims["realm_access"] = realmAccess
+
+	resourceAccess := make(map[string]interface{})
+	broker := make(map[string]interface{})
+	broker["roles"] = []string{"read-token"}
+	resourceAccess["broker"] = broker
+
+	account := make(map[string]interface{})
+	account["roles"] = []string{"manage-account", "manage-account-links", "view-profile"}
+	resourceAccess["account"] = account
+
+	claims["resource_access"] = resourceAccess
+
+	return token, nil
+}
+
+// GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	kcClaims, err := mgm.ParseToken(ctx, keycloakToken.RefreshToken)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	// exp := nowTime + 30*24*60*60 // In 30 days
+	claims["exp"] = kcClaims.ExpiresAt
+	// nbf := 0
+	claims["nbf"] = kcClaims.NotBefore
+	// iat := time.Now().Unix() // Now
+	claims["iat"] = kcClaims.IssuedAt
+	//authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	//openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	// iss := authOpenshiftIO
+	claims["iss"] = kcClaims.Issuer
+	// aud := openshiftIO
+	claims["aud"] = kcClaims.Audience
+	claims["typ"] = "Refresh"
+	claims["auth_time"] = 0
+
+	if identity != nil {
+		claims["sub"] = identity.ID.String()
+	} else {
+		claims["sub"] = kcClaims.Subject
+	}
+
+	// --- later we can drop all the claims below:
+	claims["azp"] = kcClaims.Audience
+	claims["session_state"] = kcClaims.SessionState
+
+	return token, nil
 }
 
 func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {

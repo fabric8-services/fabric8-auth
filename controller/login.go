@@ -80,7 +80,7 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
 		Scopes:       []string{"user:email"},
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login"),
+		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login", nil),
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
