@@ -30,7 +30,11 @@ func LogRequest(verbose bool) goa.Middleware {
 		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) error {
 			reqID := ctx.Value(reqIDKey)
 			if reqID == nil {
-				reqID = shortID()
+				var err error
+				reqID, err = shortID()
+				if err != nil {
+					return err
+				}
 			}
 			ctx = goa.WithLogContext(ctx, "req_id", reqID)
 
@@ -55,14 +59,14 @@ func LogRequest(verbose bool) goa.Middleware {
 				if len(r.Header) > 0 {
 					properties := make(map[string]interface{}, len(r.Header))
 					for k, v := range r.Header {
-						properties[string(k)] = v
+						properties[k] = v
 					}
 					Info(ctx, properties, "request headers")
 				}
 				if len(r.Params) > 0 {
 					properties := make(map[string]interface{}, len(r.Params))
 					for k, v := range r.Params {
-						properties[string(k)] = v
+						properties[k] = v
 					}
 					Info(ctx, properties, "request params")
 				}
@@ -70,7 +74,7 @@ func LogRequest(verbose bool) goa.Middleware {
 					if mp, ok := r.Payload.(map[string]interface{}); ok {
 						properties := make(map[string]interface{}, len(mp))
 						for k, v := range mp {
-							properties[string(k)] = v
+							properties[k] = v
 						}
 						Info(ctx, properties, "request payload")
 					} else {
@@ -109,10 +113,12 @@ func LogRequest(verbose bool) goa.Middleware {
 
 // shortID produces a "unique" 6 bytes long string.
 // Do not use as a reliable way to get unique IDs, instead use for things like logging.
-func shortID() string {
+func shortID() (string, error) {
 	b := make([]byte, 6)
-	io.ReadFull(rand.Reader, b)
-	return base64.StdEncoding.EncodeToString(b)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
 // from makes a best effort to compute the request client IP.

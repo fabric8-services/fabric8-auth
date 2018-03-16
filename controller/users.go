@@ -25,6 +25,7 @@ import (
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"regexp"
 )
 
 // UsersController implements the users resource.
@@ -51,6 +52,7 @@ type UsersControllerConfiguration interface {
 	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
 	GetEmailVerifiedRedirectURL() string
 	GetInternalUsersEmailAddressSuffix() string
+	GetIgnoreEmailInProd() string
 }
 
 // NewUsersController creates a users controller.
@@ -103,6 +105,21 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		log.Error(ctx, nil, "The account is not an authorized service account allowed to create a new user")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))
 	}
+
+	// ----- Ignore users created for Preview environment
+	// TODO remove this when we start using our regular user registration flow in staging environment
+	preview, err := c.checkPreviewUser(ctx.Payload.Data.Attributes.Email)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"err": err, "email": ctx.Payload.Data.Attributes.Email}, "unable to parse user's email")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+	if preview {
+		log.Info(ctx, map[string]interface{}{"email": ctx.Payload.Data.Attributes.Email}, "ignoring preview user")
+		user := &account.User{Email: ctx.Payload.Data.Attributes.Email, Cluster: ctx.Payload.Data.Attributes.Cluster}
+		identity := &account.Identity{Username: ctx.Payload.Data.Attributes.Username, ProviderType: account.KeycloakIDP}
+		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
+	}
+	// -----
 
 	userExists, err := c.userExistsInDB(ctx, ctx.Payload.Data.Attributes.Email, ctx.Payload.Data.Attributes.Username)
 	if err != nil {
@@ -173,6 +190,11 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
+}
+
+func (c *UsersController) checkPreviewUser(email string) (bool, error) {
+	// Any <username>+preview*@redhat.com email matches
+	return regexp.MatchString(c.config.GetIgnoreEmailInProd(), strings.ToLower(email))
 }
 
 func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
