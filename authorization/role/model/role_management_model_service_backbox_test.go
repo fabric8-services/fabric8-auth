@@ -60,6 +60,27 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource()
 	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
 }
 
+func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleName() {
+	t := s.T()
+	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	require.NoError(t, err)
+	require.NotNil(t, identityRole)
+
+	// something that we don't want to be returned
+	for i := 0; i < 10; i++ {
+		identityRoleUnrelated, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+		require.NoError(t, err)
+		require.NotNil(t, identityRoleUnrelated)
+	}
+
+	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, identityRole.Resource.ResourceID, identityRole.Role.Name)
+	require.NoError(t, err)
+	require.Len(t, identityRoles, 1)
+	require.Equal(t, identityRole.Resource.ResourceID, identityRoles[0].Resource.ResourceID)
+	require.Equal(t, identityRole.Identity.ID, identityRoles[0].Identity.ID)
+	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
+}
+
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
@@ -169,4 +190,13 @@ func (s *roleManagementModelServiceBlackboxTest) checkScopeBelongsToResourceType
 	scopesReturned, err := s.resourceTypeScope.ListByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
 	require.NotEmpty(s.T(), scopesReturned)
 	require.NoError(s.T(), err)
+func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleNameNotFound() {
+	t := s.T()
+	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	require.NoError(t, err)
+	require.NotNil(t, identityRole)
+
+	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
+	require.NoError(t, err)
+	require.Equal(t, 0, len(identityRoles))
 }

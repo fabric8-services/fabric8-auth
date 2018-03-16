@@ -58,7 +58,6 @@ type ResourceTypeScopeRepository interface {
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
 	LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error)
 	List(ctx context.Context, resourceType *resourcetype.ResourceType) ([]ResourceTypeScope, error)
-	//ListByName(ctx context.Context, name string) ([]ResourceTypeScope, error)
 	ListByResourceTypeAndScope(ctx context.Context, resourceTypeID uuid.UUID, scopeName string) ([]ResourceTypeScope, error)
 }
 
@@ -200,13 +199,6 @@ func (m *GormResourceTypeScopeRepository) List(ctx context.Context, resourceType
 	return rows, nil
 }
 
-/*
-
-// ListByName returns all resource type scopes filtered by name
-func (m *GormResourceTypeScopeRepository) ListByName(ctx context.Context, name string) ([]ResourceTypeScope, error) {
-	return m.Query(FilterByScopeName(name))
-}
-*/
 // ListByResourceTypeAndScope returns all resource type scopes filtered by name and scope.
 func (m *GormResourceTypeScopeRepository) ListByResourceTypeAndScope(ctx context.Context, resourceTypeID uuid.UUID, name string) ([]ResourceTypeScope, error) {
 	return m.Query(FilterByScopeName(name), FilterByResourceTypeID(resourceTypeID))
