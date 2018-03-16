@@ -11,7 +11,7 @@ var _ = a.Resource("resource_roles", func() {
 	a.Action("listAssigned", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.GET("/:resourceID/roles/assigned"),
+			a.GET("/:resourceID/roles"),
 		)
 		a.Description("List assigned roles by resource")
 		a.Response(d.OK, identityRolesMedia)
@@ -22,7 +22,7 @@ var _ = a.Resource("resource_roles", func() {
 	a.Action("listAssignedByRoleName", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.GET("/:resourceID/roles/:roleName/assigned"),
+			a.GET("/:resourceID/roles/:roleName"),
 		)
 		a.Description("List assigned roles for a specific role name, for a specific resource")
 		a.Response(d.OK, identityRolesMedia)
