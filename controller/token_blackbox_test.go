@@ -19,6 +19,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"path/filepath"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -27,7 +29,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
-	"path/filepath"
 )
 
 type TestTokenREST struct {
@@ -50,10 +51,12 @@ func (rest *TestTokenREST) SetupSuite() {
 	rest.DBTestSuite.SetupSuite()
 
 	claims := make(map[string]interface{})
-	act, err := testtoken.GenerateTokenWithClaims(claims)
+	act, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	require.Nil(rest.T(), err)
 	rest.sampleAccessToken = act
-	rest.sampleRefreshToken = uuid.NewV4().String()
+	act, err = testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.Nil(rest.T(), err)
+	rest.sampleRefreshToken = act
 	rest.testDir = filepath.Join("test-files", "token")
 }
 
@@ -90,6 +93,12 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	loginService.DB = rest.Application
 	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
 	loginService.exchangeStrategy = rest.exchangeStrategy
+
+	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity)
+	require.Nil(rest.T(), err)
+	rest.sampleAccessToken = tokenSet.AccessToken
+	rest.sampleRefreshToken = tokenSet.RefreshToken
+
 	loginService.accessToken = rest.sampleAccessToken
 	loginService.refreshToken = rest.sampleRefreshToken
 
@@ -158,7 +167,7 @@ func (rest *TestTokenREST) TestRefreshTokenUsingCorrectRefreshTokenOK() {
 	_, authToken := test.RefreshTokenOK(t, service.Context, service, controller, payload)
 	token := authToken.Token
 	require.NotNil(rest.T(), token.TokenType)
-	require.Equal(rest.T(), "bearer", *token.TokenType)
+	require.Equal(rest.T(), "Bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
 	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
 	require.NotNil(rest.T(), token.RefreshToken)
@@ -294,9 +303,9 @@ func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controll
 	require.NotNil(rest.T(), token.TokenType)
 	require.Equal(rest.T(), "bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
-	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
+	assert.NoError(rest.T(), testtoken.Equal(context.Background(), rest.sampleAccessToken, *token.AccessToken))
 	require.NotNil(rest.T(), token.RefreshToken)
-	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
+	assert.NoError(rest.T(), testtoken.Equal(context.Background(), rest.sampleRefreshToken, *token.RefreshToken))
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(rest.T(), err)
 	require.True(rest.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
@@ -306,7 +315,7 @@ func (rest *TestTokenREST) checkExchangeWithRefreshToken(service *goa.Service, c
 	_, token := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: rest.Configuration.GetPublicOauthClientID(), RefreshToken: &refreshToken})
 
 	require.NotNil(rest.T(), token.TokenType)
-	require.Equal(rest.T(), "bearer", *token.TokenType)
+	require.Equal(rest.T(), "Bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
 	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
 	require.NotNil(rest.T(), token.RefreshToken)
@@ -341,7 +350,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	var thirtyDays int64
 	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		AccessToken:  s.accessToken,
 		RefreshToken: s.refreshToken,
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
@@ -360,7 +369,7 @@ func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, re
 
 	var thirtyDays int64
 	thirtyDays = 60 * 60 * 24 * 30
-	bearer := "bearer"
+	bearer := "Bearer"
 	token := &token.TokenSet{
 		TokenType:    &bearer,
 		AccessToken:  &s.accessToken,

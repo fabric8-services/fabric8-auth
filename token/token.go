@@ -103,6 +103,7 @@ type Manager interface {
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error)
+	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error)
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -470,7 +471,7 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestDat
 
 // GenerateUserToken generates an OAuth2 user token for the given identity based on the Keycloak token
 func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error) {
-	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, keycloakToken, identity)
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, keycloakToken.AccessToken, identity)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -478,7 +479,7 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, keycloakToken, identity)
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, keycloakToken.RefreshToken, identity)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -490,17 +491,70 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Expiry:       keycloakToken.Expiry,
-		TokenType:    "Bearer",
+		TokenType:    "bearer",
 	}
+
+	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
+	extra := make(map[string]interface{})
+	expiresIn := keycloakToken.Extra("expires_in")
+	if expiresIn != nil {
+		extra["expires_in"] = expiresIn
+	}
+	refreshExpiresIn := keycloakToken.Extra("refresh_expires_in")
+	if refreshExpiresIn != nil {
+		extra["refresh_expires_in"] = refreshExpiresIn
+	}
+	if len(extra) > 0 {
+		token = token.WithExtra(extra)
+	}
+
+	return token, nil
+}
+
+// GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
+func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error) {
+	nowTime := time.Now().Unix()
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	accessToken, err := unsignedAccessToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	refreshToken, err := unsignedRefreshToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var in30Days int64
+	in30Days = 30 * 24 * 60 * 60 // In 30 days
+
+	token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       time.Unix(nowTime+in30Days, 0),
+		TokenType:    "bearer",
+	}
+
+	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
+	extra := make(map[string]interface{})
+	extra["expires_in"] = in30Days
+	extra["refresh_expires_in"] = in30Days
+
 	return token, nil
 }
 
 // GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *account.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
-	kcClaims, err := mgm.ParseToken(ctx, keycloakToken.AccessToken)
+	kcClaims, err := mgm.ParseToken(ctx, keycloakAccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -518,20 +572,14 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
-	// exp := nowTime + 30*24*60*60 // In 30 days
 	claims["exp"] = kcClaims.ExpiresAt
-	// nbf := 0
 	claims["nbf"] = kcClaims.NotBefore
-	// iat := time.Now().Unix() // Now
 	claims["iat"] = kcClaims.IssuedAt
-	// iss := authOpenshiftIO
 	claims["iss"] = kcClaims.Issuer
-	// aud := openshiftIO
 	claims["aud"] = kcClaims.Audience
 	claims["typ"] = "Bearer"
-	// auth_time := iat // Now
 	claims["auth_time"] = kcClaims.IssuedAt
-	claims["approved"] = identity != nil && identity.User.Deprovisioned && kcClaims.Approved
+	claims["approved"] = identity != nil && !identity.User.Deprovisioned && kcClaims.Approved
 	if identity != nil {
 		claims["sub"] = identity.ID.String()
 		claims["email_verified"] = identity.User.EmailVerified
@@ -558,7 +606,6 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 		openshiftIO,
 	}
 
-	// --- later we can drop all the claims below:
 	claims["azp"] = kcClaims.Audience
 	claims["session_state"] = kcClaims.SessionState
 	claims["acr"] = "1"
@@ -581,12 +628,56 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 	return token, nil
 }
 
-// GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*jwt.Token, error) {
+// GenerateUnsignedUserAccessTokenForIdentity generates an unsigned OAuth2 user access token for the given identity
+func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Context, identity account.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
-	kcClaims, err := mgm.ParseToken(ctx, keycloakToken.RefreshToken)
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	iat := time.Now().Unix()
+	claims["exp"] = iat + 30*24*60*60 // In 30 days
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
+	claims["typ"] = "Bearer"
+	claims["auth_time"] = iat
+	claims["approved"] = !identity.User.Deprovisioned
+	claims["sub"] = identity.ID.String()
+	claims["email_verified"] = identity.User.EmailVerified
+	claims["name"] = identity.User.FullName
+	claims["company"] = identity.User.Company
+	claims["preferred_username"] = identity.Username
+	firstName, lastName := account.SplitFullName(identity.User.FullName)
+	claims["given_name"] = firstName
+	claims["family_name"] = lastName
+	claims["email"] = identity.User.Email
+	claims["allowed-origins"] = []string{
+		authOpenshiftIO,
+		openshiftIO,
+	}
+
+	return token, nil
+}
+
+// GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakRefreshToken string, identity *account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	kcClaims, err := mgm.ParseToken(ctx, keycloakRefreshToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -598,17 +689,10 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
-	// exp := nowTime + 30*24*60*60 // In 30 days
 	claims["exp"] = kcClaims.ExpiresAt
-	// nbf := 0
 	claims["nbf"] = kcClaims.NotBefore
-	// iat := time.Now().Unix() // Now
 	claims["iat"] = kcClaims.IssuedAt
-	//authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
-	//openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
-	// iss := authOpenshiftIO
 	claims["iss"] = kcClaims.Issuer
-	// aud := openshiftIO
 	claims["aud"] = kcClaims.Audience
 	claims["typ"] = "Refresh"
 	claims["auth_time"] = 0
@@ -619,9 +703,40 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 		claims["sub"] = kcClaims.Subject
 	}
 
-	// --- later we can drop all the claims below:
 	claims["azp"] = kcClaims.Audience
 	claims["session_state"] = kcClaims.SessionState
+
+	return token, nil
+}
+
+// GenerateUnsignedUserRefreshTokenForIdentity generates an unsigned OAuth2 user refresh token for the given identity
+func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	iat := time.Now().Unix()
+	exp := iat + 30*24*60*60 // In 30 days
+	claims["exp"] = exp
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
+	claims["typ"] = "Refresh"
+	claims["auth_time"] = 0
+	claims["sub"] = identity.ID.String()
 
 	return token, nil
 }

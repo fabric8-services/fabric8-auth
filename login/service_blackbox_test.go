@@ -75,8 +75,12 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 		},
 	}
 	claims := make(map[string]interface{})
-	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
-	refreshToken, err := testtoken.GenerateTokenWithClaims(claims)
+	claims["sub"] = uuid.NewV4().String()
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	if err != nil {
+		panic(err)
+	}
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	if err != nil {
 		panic(err)
 	}
@@ -188,10 +192,13 @@ func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
 
 	claims := make(map[string]interface{})
 	claims["approved"] = false
-	tokenStr, err := testtoken.GenerateTokenWithClaims(claims)
+	accessTokenStr, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	token := &oauth2.Token{AccessToken: tokenStr, RefreshToken: tokenStr}
+	refreshTokenStr, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	token := &oauth2.Token{AccessToken: accessTokenStr, RefreshToken: refreshTokenStr}
 	redirectURL, _, err := s.loginService.CreateOrUpdateIdentityAndUser(context.Background(), redirect, token, req, s.Configuration)
 	return redirectURL, err
 }
@@ -504,9 +511,10 @@ func (s *serviceBlackBoxTest) checkAPIClientForUsersReturnOK(approved bool) {
 	if !approved {
 		claims["approved"] = nil
 	}
+	claims["sub"] = uuid.NewV4().String()
 	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
-	refreshToken, err := testtoken.GenerateTokenWithClaims(claims)
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
 	dummyOauth := &dummyOauth2Config{
@@ -560,10 +568,13 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 	claims["email"] = identity.User.Email
 	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.Nil(s.T(), err)
 
 	dummyOauth := &dummyOauth2Config{
-		Config:      oauth2.Config{},
-		accessToken: accessToken,
+		Config:       oauth2.Config{},
+		accessToken:  accessToken,
+		refreshToken: refreshToken,
 	}
 
 	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
@@ -681,9 +692,10 @@ func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, 
 	require.True(s.T(), len(tokenJson) > 0)
 
 	tokenSet, err := token.ReadTokenSetFromJson(context.Background(), tokenJson[0])
-	require.Nil(s.T(), err)
-	assert.Equal(s.T(), dummyOauth.accessToken, *tokenSet.AccessToken)
-	assert.Equal(s.T(), "someRefreshToken", *tokenSet.RefreshToken)
+	require.NoError(s.T(), err)
+
+	assert.NoError(s.T(), testtoken.Equal(context.Background(), dummyOauth.accessToken, *tokenSet.AccessToken))
+	assert.NoError(s.T(), testtoken.Equal(context.Background(), dummyOauth.refreshToken, *tokenSet.RefreshToken))
 
 	assert.NotContains(s.T(), locationString, "https://keycloak-url.example.org/path-of-login")
 	assert.Contains(s.T(), locationString, "https://openshift.io/somepath")
