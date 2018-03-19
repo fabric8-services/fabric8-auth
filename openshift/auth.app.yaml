@@ -215,3 +215,5 @@ objects:
 parameters:
 - name: IMAGE_TAG
   value: latest
+- name: REPLICAS
+  value: "4"
