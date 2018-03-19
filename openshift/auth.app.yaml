@@ -215,5 +215,8 @@ objects:
 parameters:
 - name: IMAGE_TAG
   value: latest
-- name: REPLICAS
-  value: "4"
+- description: Number of deployment replicas
+  displayName: Number of deployment replicas
+  required: true
+  name: REPLICAS
+  value: 1
