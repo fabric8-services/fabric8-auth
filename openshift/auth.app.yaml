@@ -10,7 +10,7 @@ objects:
       service: auth
     name: auth
   spec:
-    replicas: 4
+    replicas: ${{REPLICAS}}
     selector:
       service: auth
     strategy:
