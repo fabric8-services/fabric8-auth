@@ -637,10 +637,9 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			// But when you try to access the same with an API which doesn't respect auth,
 			// it wouldn't be visible.
 			_, result = test.ListUsersOK(s.T(), nil, nil, s.controller, &email, nil, nil, nil)
-			returnedUserResult := result.Data[0]
-			require.Equal(s.T(), "", *returnedUserResult.Attributes.Email)
+			require.Empty(s.T(), result.Data)
 
-			// the /api/users/<ID> endpoint should hide out the email.
+			// the /api/users/<ID> endpoint should also hide out the email.
 			_, showUserResponse := test.ShowUsersOK(s.T(), secureService.Context, secureService, s.controller, identity.ID.String(), nil, nil)
 			require.NotEqual(s.T(), user.Email, *showUserResponse.Data.Attributes.Email)
 			require.Equal(s.T(), "", *showUserResponse.Data.Attributes.Email)

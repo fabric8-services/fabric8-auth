@@ -1038,7 +1038,8 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		// cumulatively filter out those not matching the user-based filters.
 		for _, identity := range filteredIdentities {
 			// this is where you keep trying all other filters one by one for 'user' fields like email.
-			if ctx.FilterEmail == nil || identity.User.Email == *ctx.FilterEmail {
+			// If email filter is present then ignore private emails
+			if ctx.FilterEmail == nil || (identity.User.Email == *ctx.FilterEmail && !identity.User.EmailPrivate) {
 				resultUsers = append(resultUsers, identity.User)
 				resultIdentities = append(resultIdentities, identity)
 			}
@@ -1052,6 +1053,13 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		// .. Add other filters in future when needed into the userFilters slice in the above manner.
 		if len(userFilters) != 0 {
 			filteredUsers, err = appl.Users().Query(userFilters...)
+			if err != nil {
+				return nil, nil, errs.Wrap(err, "error fetching users")
+			}
+			// Should be zero or the only user in the result. If the user's email is private then ignore the user
+			if len(filteredUsers) > 0 && filteredUsers[0].EmailPrivate {
+				filteredUsers = []account.User{}
+			}
 		} else {
 			// Soft-kill the API for listing all Users /api/users
 			resultUsers = []account.User{}
@@ -1061,7 +1069,7 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		if err != nil {
 			return nil, nil, errs.Wrap(err, "error fetching users")
 		}
-		resultUsers, resultIdentities, err = LoadKeyCloakIdentities(appl, filteredUsers)
+		resultUsers, resultIdentities, err = loadKeyCloakIdentities(appl, filteredUsers)
 		if err != nil {
 			return nil, nil, errs.Wrap(err, "error fetching keycloak identities")
 		}
@@ -1069,9 +1077,9 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 	return resultUsers, resultIdentities, nil
 }
 
-// LoadKeyCloakIdentities loads keycloak identities for the users and returns the valid users along with their KC identities
+// loadKeyCloakIdentities loads keycloak identities for the users and returns the valid users along with their KC identities
 // (if a user is missing his/her KC identity, he/she is filtered out of the result array)
-func LoadKeyCloakIdentities(appl application.Application, users []account.User) ([]account.User, []account.Identity, error) {
+func loadKeyCloakIdentities(appl application.Application, users []account.User) ([]account.User, []account.Identity, error) {
 	var resultUsers []account.User
 	var resultIdentities []account.Identity
 	for _, user := range users {
