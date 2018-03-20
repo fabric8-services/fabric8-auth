@@ -14,9 +14,6 @@ objects:
     selector:
       service: auth
     strategy:
-      resources:
-        limits:
-          memory: 1.5Gi
       rollingParams:
         intervalSeconds: 1
         maxSurge: 25%
@@ -162,6 +159,9 @@ objects:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 1.5Gi            
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /etc/fabric8/
