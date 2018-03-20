@@ -740,7 +740,7 @@ func (client mockKeycloakExternalTokenServiceClient) Delete(ctx context.Context,
 func positiveKCResponseGithub() *keycloak.KeycloakExternalTokenResponse {
 	return &keycloak.KeycloakExternalTokenResponse{
 		AccessToken: "1234-github",
-		Scope:       "admin:repo_hook read:org repo user gist",
+		Scope:       "admin:repo_hook read:org public_repo read:user",
 		TokenType:   "bearer",
 	}
 }
