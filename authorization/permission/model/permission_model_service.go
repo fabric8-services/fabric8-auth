@@ -94,7 +94,7 @@ WHERE
     WHERE
       rm.to_role_id = r.role_id
       AND r.resource_type_id = s.resource_type_id
-      AND s.scope = ? /* SCOPE */
+      AND s.name = ? /* SCOPE */
       AND rm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in the ancestor hierarchy */
       SELECT
         resource_id, parent_resource_id
@@ -144,11 +144,11 @@ WHERE
       ) AS rl (role_id)
   );`,
 		identityID, identityID, resourceID, scope, resourceID).Rows()
-	defer rows.Close()
 
 	if err != nil {
 		return false, err
 	}
 
+	defer rows.Close()
 	return rows.Next(), nil
 }

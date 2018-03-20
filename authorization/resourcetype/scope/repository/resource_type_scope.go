@@ -55,6 +55,9 @@ func NewResourceTypeScopeRepository(db *gorm.DB) ResourceTypeScopeRepository {
 type ResourceTypeScopeRepository interface {
 	Create(ctx context.Context, resourceTypeScope *ResourceTypeScope) error
 	CheckExists(ctx context.Context, id string) (bool, error)
+	Create(ctx context.Context, u *ResourceTypeScope) error
+	Save(ctx context.Context, u *ResourceTypeScope) error
+	Delete(ctx context.Context, ID uuid.UUID) error
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
 	LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error)
 	List(ctx context.Context, resourceType *resourcetype.ResourceType) ([]ResourceTypeScope, error)
