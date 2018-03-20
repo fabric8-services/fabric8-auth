@@ -98,6 +98,84 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 
 }
 
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesByRoleNameOK() {
+
+	/*
+		Create resource "AreaDev"
+		Create resource "AreaAuth"
+
+		Create 1 assigned role for "AreaDev"
+		Create 2 assigned roles for "AreaAuth"
+
+		List all roles for "AreaDev" : Should return the just 1 assigned role.
+	*/
+
+	t := s.T()
+	resourceOwner := testsupport.TestIdentity2
+	err := testsupport.CreateTestIdentityAndUserInDB(s.DB, &resourceOwner)
+	require.NoError(s.T(), err)
+
+	areaResourceType, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, "openshift.io/resource/area")
+	require.NoError(s.T(), err)
+
+	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", nil)
+	require.NoError(s.T(), err)
+
+	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
+	require.NoError(s.T(), err)
+
+	roleRef2, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collabx")
+	require.NoError(s.T(), err)
+
+	var createdIdentityRoles []identityrole.IdentityRole
+	var createdIdentityRoles2 []identityrole.IdentityRole
+
+	// role 1
+
+	identityRoleRef1ForRole2, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *resourceRef, *roleRef2)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), identityRoleRef1ForRole2)
+	createdIdentityRoles2 = append(createdIdentityRoles2, *identityRoleRef1ForRole2)
+
+	identityRoleRef2ForRole2, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *resourceRef, *roleRef2)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), identityRoleRef2ForRole2)
+	createdIdentityRoles2 = append(createdIdentityRoles2, *identityRoleRef2ForRole2)
+
+	// role 2
+	identityRoleRef1, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *resourceRef, *roleRef)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), identityRoleRef1)
+	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRef1)
+
+	identityRoleRef2, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *resourceRef, *roleRef)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), identityRoleRef1)
+	createdIdentityRoles = append(createdIdentityRoles, *identityRoleRef2)
+
+	// Validate
+
+	identityRoles, err := s.roleManagementService.ListByResourceAndRoleName(s.Ctx, identityRoleRef1.Resource.ResourceID, roleRef.Name)
+	require.NoError(t, err)
+	require.Len(t, identityRoles, 2)
+	require.Equal(t, true, s.checkExists(*identityRoleRef1, identityRoles, false))
+	require.Equal(t, true, s.checkExists(*identityRoleRef2, identityRoles, false))
+
+	identityRoles, err = s.roleManagementService.ListByResourceAndRoleName(s.Ctx, identityRoleRef2ForRole2.Resource.ResourceID, roleRef2.Name)
+	require.NoError(t, err)
+	require.Len(t, identityRoles, 2)
+	require.Equal(t, true, s.checkExists(*identityRoleRef1ForRole2, identityRoles, false))
+	require.Equal(t, true, s.checkExists(*identityRoleRef2ForRole2, identityRoles, false))
+
+	identityRoles, err = s.roleManagementService.ListByResourceAndRoleName(s.Ctx, identityRoleRef2ForRole2.Resource.ResourceID, uuid.NewV4().String())
+	require.NoError(t, err)
+	require.Len(t, identityRoles, 0)
+
+	identityRoles, err = s.roleManagementService.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
+	require.Error(t, err)
+	require.Len(t, identityRoles, 0)
+}
+
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesOfParentResource() {
 
 	/*
