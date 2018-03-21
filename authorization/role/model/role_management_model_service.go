@@ -19,6 +19,7 @@ import (
 type RoleManagementModelService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
+	Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error
 }
 
 // NewRoleManagementModelService creates a new service to manage role assignments
@@ -33,6 +34,27 @@ func NewRoleManagementModelService(db *gorm.DB, repo repository.Repositories) *G
 type GormRoleManagementModelService struct {
 	db         *gorm.DB
 	repository repository.Repositories
+}
+
+// Assign assigns a user identity with a role, for a specific resource
+func (r *GormRoleManagementModelService) Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error {
+
+	rt, err := r.repository.ResourceRepository().Load(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	roleRef, err := r.repository.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
+	if err != nil {
+		return err
+	}
+
+	ir := identityrole.IdentityRole{
+		ResourceID: resourceID,
+		IdentityID: identityID,
+		RoleID:     roleRef.RoleID,
+	}
+	return r.repository.IdentityRoleRepository().Create(ctx, &ir)
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.

@@ -7,12 +7,14 @@ import (
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+	uuid "github.com/satori/go.uuid"
 )
 
 // RoleManagementService defines the contract for managing roles assigments to a resource
 type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
+	Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error
 }
 
 // RoleManagementServiceImpl implements the RoleManagementService for managing role assignments.
@@ -68,4 +70,8 @@ func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Contex
 	})
 
 	return roles, err
+}
+
+func (r *RoleManagementServiceImpl) Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error {
+	return nil
 }
