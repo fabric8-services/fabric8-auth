@@ -173,6 +173,19 @@ func UpdateToken(tokenString string, claims map[string]interface{}) (string, err
 	return tokenStr, nil
 }
 
+func ContextWithRequest() context.Context {
+	u := &url.URL{
+		Scheme: "https",
+		Host:   "auth.openshift.io",
+	}
+	rw := httptest.NewRecorder()
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		panic("invalid test " + err.Error()) // bug
+	}
+	return goa.NewContext(goa.WithAction(context.Background(), "Test"), rw, req, url.Values{})
+}
+
 func configurationData() *configuration.ConfigurationData {
 	config, err := configuration.GetConfigurationData()
 	if err != nil {
@@ -219,9 +232,6 @@ func Equal(ctx context.Context, expectedToken, actualToken string) error {
 	}
 	if claims1.Approved != claims2.Approved {
 		return errors.Errorf("'approved' claims are not equal. Expected: %v. Actual: %v", claims1.Approved, claims2.Approved)
-	}
-	if claims1.Company != claims2.Company {
-		return errors.Errorf("'company' claims are not equal. Expected: %v. Actual: %v", claims1.Company, claims2.Company)
 	}
 	if claims1.Email != claims2.Email {
 		return errors.Errorf("'email' claims are not equal. Expected: %v. Actual: %v", claims1.Email, claims2.Email)

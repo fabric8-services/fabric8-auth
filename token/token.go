@@ -545,6 +545,7 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 	extra := make(map[string]interface{})
 	extra["expires_in"] = in30Days
 	extra["refresh_expires_in"] = in30Days
+	token = token.WithExtra(extra)
 
 	return token, nil
 }
@@ -584,7 +585,6 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 		claims["sub"] = identity.ID.String()
 		claims["email_verified"] = identity.User.EmailVerified
 		claims["name"] = identity.User.FullName
-		claims["company"] = identity.User.Company
 		claims["preferred_username"] = identity.Username
 		firstName, lastName := account.SplitFullName(identity.User.FullName)
 		claims["given_name"] = firstName
@@ -594,7 +594,6 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 		claims["sub"] = kcClaims.Subject
 		claims["email_verified"] = kcClaims.EmailVerified
 		claims["name"] = kcClaims.Name
-		claims["company"] = kcClaims.Company
 		claims["preferred_username"] = kcClaims.Username
 		claims["given_name"] = kcClaims.GivenName
 		claims["family_name"] = kcClaims.FamilyName
@@ -658,7 +657,6 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 	claims["sub"] = identity.ID.String()
 	claims["email_verified"] = identity.User.EmailVerified
 	claims["name"] = identity.User.FullName
-	claims["company"] = identity.User.Company
 	claims["preferred_username"] = identity.Username
 	firstName, lastName := account.SplitFullName(identity.User.FullName)
 	claims["given_name"] = firstName
