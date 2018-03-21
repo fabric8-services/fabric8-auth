@@ -530,7 +530,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 	c.v.SetDefault(varGitHubClientID, "c6a3a6280e9650ba27d8")
 	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
-	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org repo user gist")
+	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org public_repo read:user")
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
 	c.v.SetDefault(varTLSInsecureSkipVerify, false) // Do not set to true in production! True can be used only for testing.
 
