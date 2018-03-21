@@ -30,7 +30,7 @@ func (s *resourceTypeScopeBlackBoxTest) SetupTest() {
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 }
 
-func (s *resourceTypeScopeBlackBoxTest) TestListByResourceTypeAndScope() {
+func (s *resourceTypeScopeBlackBoxTest) TestLookupByResourceTypeAndScope() {
 	rtRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rtRef)
@@ -39,7 +39,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestListByResourceTypeAndScope() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rts)
 
-	returnedScope, err := s.repo.ListByResourceTypeAndScope(s.Ctx, rtRef.ResourceTypeID, rts.Name)
+	returnedScope, err := s.repo.LookupByResourceTypeAndScope(s.Ctx, rtRef.ResourceTypeID, rts.Name)
 	require.NotNil(s.T(), returnedScope)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), rts.Name, returnedScope.Name)

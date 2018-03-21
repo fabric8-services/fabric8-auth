@@ -442,7 +442,7 @@ func (s *roleManagementServiceBlackboxTest) checkRoleBelongsToResourceType(db *g
 }
 
 func (s *roleManagementServiceBlackboxTest) checkScopeBelongsToResourceType(db *gorm.DB, scopeName string, rt resourcetype.ResourceType) {
-	scopesReturned, err := s.resourceTypeScope.ListByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
+	scopesReturned, err := s.resourceTypeScope.LookupByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
 	require.NotEmpty(s.T(), scopesReturned)
 	require.NoError(s.T(), err)
 }
