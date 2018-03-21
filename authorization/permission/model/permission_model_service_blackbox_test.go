@@ -2,7 +2,9 @@ package model_test
 
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
-	organizationModelService "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	"github.com/fabric8-services/fabric8-auth/application"
+	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	"testing"
@@ -14,9 +16,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+)
+
+const (
+	testScopeName = "test_permission_scope"
 )
 
 type permissionModelServiceBlackBoxTest struct {
@@ -27,7 +34,7 @@ type permissionModelServiceBlackBoxTest struct {
 	resourceTypeRepo      resourcetype.ResourceTypeRepository
 	resourceTypeScopeRepo resourcetypescope.ResourceTypeScopeRepository
 	roleRepo              roleRepo.RoleRepository
-	orgModelService       organizationModelService.OrganizationModelService
+	orgModelService       organizationModel.OrganizationModelService
 	permissionService     permissionModelService.PermissionModelService
 	testRole              roleRepo.Role
 }
@@ -45,7 +52,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = resourcetypescope.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = roleRepo.NewRoleRepository(s.DB)
-	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB, s.Application)
+	s.orgModelService = organizationModel.NewOrganizationModelService(s.DB, s.Application)
 	s.permissionService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
 
 	// Lookup our default resource type
@@ -53,7 +60,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	require.Nil(s.T(), err, "Could not lookup resource type")
 
 	err = s.resourceTypeScopeRepo.Create(s.Ctx, &resourcetypescope.ResourceTypeScope{
-		Name:           "test_permission_scope",
+		Name:           testScopeName,
 		ResourceTypeID: resourceType.ResourceTypeID,
 	})
 	require.NoError(s.T(), err, "Could not create test scope")
@@ -92,9 +99,31 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirect
 	resource, err := s.createTestResourceAndAssignDefaultRole(identity)
 	require.NoError(s.T(), err)
 
-	result, err := s.permissionService.HasScope(s.Ctx, identity.ID, resource.ResourceID, "test-permission-scope")
+	result, err := s.permissionService.HasScope(s.Ctx, identity.ID, resource.ResourceID, testScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for resource")
+}
+
+func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrganizationMemberAssignedIndirectRoleForResource() {
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	require.NoError(s.T(), err, "Could not create test identity")
+
+	otherIdentity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	require.NoError(s.T(), err, "Could not create other test identity")
+
+	org, err := s.createTestOrganization(s.DB, s.Application, identity.ID, "test-permission-org")
+	require.NoError(s.T(), err, "Could not create test organization")
+
+	resource, err := s.createTestResourceAndAssignDefaultRole(org)
+	require.NoError(s.T(), err)
+
+	result, err := s.permissionService.HasScope(s.Ctx, identity.ID, resource.ResourceID, testScopeName)
+	require.NoError(s.T(), err)
+	require.True(s.T(), result, "User should have assigned scope for resource")
+
+	result, err = s.permissionService.HasScope(s.Ctx, otherIdentity.ID, resource.ResourceID, testScopeName)
+	require.NoError(s.T(), err)
+	require.False(s.T(), result, "Other user should not have assigned scope for resource")
 }
 
 func (s *permissionModelServiceBlackBoxTest) createTestResourceAndAssignDefaultRole(identity account.Identity) (*resource.Resource, error) {
@@ -132,4 +161,27 @@ func (s *permissionModelServiceBlackBoxTest) createTestResourceAndAssignDefaultR
 	}
 
 	return createdResource, nil
+}
+
+func (s *permissionModelServiceBlackBoxTest) createTestOrganization(db *gorm.DB, appDB application.DB,
+	creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
+
+	orgModelService := organizationModel.NewOrganizationModelService(db, appDB)
+	orgService := organizationService.NewOrganizationService(orgModelService, appDB)
+
+	var organization *account.Identity
+
+	orgID, err := orgService.CreateOrganization(s.Ctx, creatorIdentityID, name)
+	if err != nil {
+		return *organization, err
+	}
+
+	repo := account.NewIdentityRepository(db)
+
+	organization, err = repo.Load(s.Ctx, *orgID)
+	if err != nil {
+		return *organization, err
+	}
+
+	return *organization, nil
 }

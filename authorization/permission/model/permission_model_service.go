@@ -78,7 +78,21 @@ WHERE
   FROM
     m
   )
-  AND ir.role_id IN (
+  AND (ir.role_id IN (
+    SELECT
+      r.role_id
+    FROM
+      resource res,
+      role r,
+      role_scope rs,
+      resource_type_scope rts
+    WHERE
+      res.resource_id = ? /* RESOURCE_ID */
+      AND res.resource_type_id = r.resource_type_id
+      AND r.role_id = rs.role_id
+      AND rs.scope_id = rts.resource_type_scope_id
+      AND rts.name = ? /* SCOPE */
+  ) OR ir.role_id IN (
     SELECT DISTINCT
       rl.role_id
     FROM
@@ -90,11 +104,13 @@ WHERE
     FROM
       role_mapping rm,
       role r,
-      resource_type_scope s
+      role_scope rs,
+      resource_type_scope rts
     WHERE
       rm.to_role_id = r.role_id
-      AND r.resource_type_id = s.resource_type_id
-      AND s.name = ? /* SCOPE */
+      AND r.role_id = rs.role_id
+      AND rs.scope_id = rts.resource_type_scope_id
+      AND rts.name = ? /* SCOPE */
       AND rm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in the ancestor hierarchy */
       SELECT
         resource_id, parent_resource_id
@@ -117,7 +133,7 @@ WHERE
     FROM
       role_mapping trm INNER JOIN prm ON prm.from_role_id = trm.to_role_id
     WHERE
-      trm.resource_id in (with recursive m as ( /* only resources that are in this role mapping's ancestor hierarchy */
+      trm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in this role mapping's ancestor hierarchy */
       SELECT
         resource_id, parent_resource_id
       FROM
@@ -141,14 +157,23 @@ WHERE
       prm) AS mappings
     CROSS JOIN LATERAL (
       VALUES (from_role_id), (to_role_id)
-      ) AS rl (role_id)
+      ) AS rl (role_id))
   );`,
-		identityID, identityID, resourceID, scope, resourceID).Rows()
+		identityID, identityID, resourceID, resourceID, scope, scope, resourceID).Rows()
 
 	if err != nil {
 		return false, err
 	}
 
+	rolesFound := false
 	defer rows.Close()
-	return rows.Next(), nil
+	for rows.Next() {
+		var roles int
+		rows.Scan(&roles)
+		if roles > 0 {
+			rolesFound = true
+			break
+		}
+	}
+	return rolesFound, nil
 }

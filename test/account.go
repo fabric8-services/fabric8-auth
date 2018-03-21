@@ -7,7 +7,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
 	"github.com/fabric8-services/fabric8-auth/test/token"
-
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
