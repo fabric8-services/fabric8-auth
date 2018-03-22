@@ -40,7 +40,7 @@ func (s *TestTokenSuite) SetupSuite() {
 }
 
 func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
-	ctx := testtoken.ContextWithRequest()
+	ctx := testtoken.ContextWithRequest(nil)
 	user := account.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),

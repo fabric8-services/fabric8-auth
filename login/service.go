@@ -218,7 +218,20 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
 	}
 
-	return keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
+	// Refresh token in Keycloak
+	tokeSet, err := keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate token based on the Keycloak token
+	oauthToken := keycloak.TokenManager.ConvertTokenSet(*tokeSet)
+	generatedToken, err := keycloak.TokenManager.GenerateUserToken(ctx, *oauthToken, identity)
+	if err != nil {
+		return nil, err
+	}
+
+	return keycloak.TokenManager.ConvertToken(*generatedToken)
 }
 
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,

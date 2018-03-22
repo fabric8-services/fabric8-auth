@@ -592,6 +592,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	require.Equal(s.T(), "kc refresh failed", err.Error())
 
 	// Fails if identity is deprovisioned
+	//ctx:=testtoken.ContextWithRequest()
 	s.keycloakTokenService.fail = false
 	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
@@ -605,12 +606,34 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	// OK if identity is not deprovisioned
 	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
+
+	// Generate expected tokens returned by dummy KC service
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	typ := "bearer"
+	var in30days int64
+	in30days = 30 * 24 * 60 * 60
+	s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
+
+	// Refresh tokens
 	ctx, err = testtoken.EmbedIdentityInContext(identity)
 	require.NoError(s.T(), err)
 	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenSet)
-	require.Equal(s.T(), s.keycloakTokenService.tokenSet, *tokenSet)
+
+	// Compare tokens
+	err = testtoken.EqualAccessTokens(ctx, *s.keycloakTokenService.tokenSet.RefreshToken, *tokenSet.RefreshToken)
+	require.NoError(s.T(), err)
+	err = testtoken.EqualRefreshTokens(ctx, *s.keycloakTokenService.tokenSet.AccessToken, *tokenSet.AccessToken)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), typ, *tokenSet.TokenType)
+	assert.Equal(s.T(), in30days, *tokenSet.ExpiresIn)
+	assert.Equal(s.T(), in30days, *tokenSet.RefreshExpiresIn)
 }
 
 func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
@@ -694,8 +717,8 @@ func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, 
 	tokenSet, err := token.ReadTokenSetFromJson(context.Background(), tokenJson[0])
 	require.NoError(s.T(), err)
 
-	assert.NoError(s.T(), testtoken.Equal(context.Background(), dummyOauth.accessToken, *tokenSet.AccessToken))
-	assert.NoError(s.T(), testtoken.Equal(context.Background(), dummyOauth.refreshToken, *tokenSet.RefreshToken))
+	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.accessToken, *tokenSet.AccessToken))
+	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.refreshToken, *tokenSet.RefreshToken))
 
 	assert.NotContains(s.T(), locationString, "https://keycloak-url.example.org/path-of-login")
 	assert.Contains(s.T(), locationString, "https://openshift.io/somepath")

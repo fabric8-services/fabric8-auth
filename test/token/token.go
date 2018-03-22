@@ -49,6 +49,7 @@ func EmbedIdentityInContext(identity account.Identity) (context.Context, error) 
 	if err != nil {
 		return nil, err
 	}
+	ctx = ContextWithRequest(ctx)
 	return tokencontext.ContextWithTokenManager(ctx, TokenManager), nil
 }
 
@@ -173,7 +174,10 @@ func UpdateToken(tokenString string, claims map[string]interface{}) (string, err
 	return tokenStr, nil
 }
 
-func ContextWithRequest() context.Context {
+func ContextWithRequest(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	u := &url.URL{
 		Scheme: "https",
 		Host:   "auth.openshift.io",
@@ -183,7 +187,7 @@ func ContextWithRequest() context.Context {
 	if err != nil {
 		panic("invalid test " + err.Error()) // bug
 	}
-	return goa.NewContext(goa.WithAction(context.Background(), "Test"), rw, req, url.Values{})
+	return goa.NewContext(goa.WithAction(ctx, "Test"), rw, req, url.Values{})
 }
 
 func configurationData() *configuration.ConfigurationData {
@@ -208,45 +212,74 @@ func privateKey() (*rsa.PrivateKey, string, error) {
 	return pk, kid, err
 }
 
-// Equal returns an error if the tokens are not equal
-func Equal(ctx context.Context, expectedToken, actualToken string) error {
-	claims1, err := TokenManager.ParseToken(ctx, expectedToken)
+// EqualAccessTokens returns an error if the tokens are not equal
+func EqualAccessTokens(ctx context.Context, expectedToken, actualToken string) error {
+	expectedParsed, err := TokenManager.ParseToken(ctx, expectedToken)
 	if err != nil {
 		return err
 	}
-	mapClaims1, err := TokenManager.ParseTokenWithMapClaims(ctx, expectedToken)
+	expectedClaims, err := TokenManager.ParseTokenWithMapClaims(ctx, expectedToken)
 	if err != nil {
 		return err
 	}
-	claims2, err := TokenManager.ParseToken(ctx, actualToken)
+	actualClaims, err := TokenManager.ParseTokenWithMapClaims(ctx, actualToken)
 	if err != nil {
 		return err
 	}
-	mapClaims2, err := TokenManager.ParseTokenWithMapClaims(ctx, actualToken)
+	actualParsed, err := TokenManager.ParseToken(ctx, actualToken)
 	if err != nil {
 		return err
 	}
 
-	if mapClaims1["typ"] != mapClaims2["typ"] {
-		return errors.Errorf("'typ' claims are not equal. Expected: %v. Actual: %v", mapClaims1["typ"], mapClaims2["typ"])
+	err = equalTokenClaim("typ", expectedClaims, actualClaims)
+	if err != nil {
+		return err
 	}
-	if claims1.Approved != claims2.Approved {
-		return errors.Errorf("'approved' claims are not equal. Expected: %v. Actual: %v", claims1.Approved, claims2.Approved)
+	if expectedParsed.Approved != actualParsed.Approved {
+		return errors.Errorf("'approved' claims are not equal. Expected: %v. Actual: %v", expectedParsed.Approved, actualParsed.Approved)
 	}
-	if claims1.Email != claims2.Email {
-		return errors.Errorf("'email' claims are not equal. Expected: %v. Actual: %v", claims1.Email, claims2.Email)
+	err = equalTokenClaim("email", expectedClaims, actualClaims)
+	if err != nil {
+		return err
 	}
-	if claims1.EmailVerified != claims2.EmailVerified {
-		return errors.Errorf("'email_verified' claims are not equal. Expected: %v. Actual: %v", claims1.EmailVerified, claims2.EmailVerified)
+	err = equalTokenClaim("email_verified", expectedClaims, actualClaims)
+	if err != nil {
+		return err
 	}
-	if claims1.Username != claims2.Username {
-		return errors.Errorf("'preferred_username' claims are not equal. Expected: %v. Actual: %v", claims1.Username, claims2.Username)
+	err = equalTokenClaim("preferred_username", expectedClaims, actualClaims)
+	if err != nil {
+		return err
 	}
-	if claims1.Name != claims2.Name {
-		return errors.Errorf("'name' claims are not equal. Expected: %v. Actual: %v", claims1.Name, claims2.Name)
+	err = equalTokenClaim("name", expectedClaims, actualClaims)
+	if err != nil {
+		return err
 	}
-	if claims1.Subject != claims2.Subject {
-		return errors.Errorf("'sub' claims are not equal. Expected: %v. Actual: %v", claims1.Subject, claims2.Subject)
+	return equalTokenClaim("sub", expectedClaims, actualClaims)
+}
+
+// EqualRefreshTokens returns an error if the refresh tokens are not equal
+func EqualRefreshTokens(ctx context.Context, expectedToken, actualToken string) error {
+	expectedClaims, err := TokenManager.ParseTokenWithMapClaims(ctx, expectedToken)
+	if err != nil {
+		return err
+	}
+	actualClaims, err := TokenManager.ParseTokenWithMapClaims(ctx, actualToken)
+	if err != nil {
+		return err
+	}
+
+	err = equalTokenClaim("typ", expectedClaims, actualClaims)
+	if err != nil {
+		return err
+	}
+	return equalTokenClaim("sub", expectedClaims, actualClaims)
+
+	return nil
+}
+
+func equalTokenClaim(claimName string, expectedToken, actualToken jwt.MapClaims) error {
+	if expectedToken[claimName] != actualToken[claimName] {
+		return errors.Errorf("'%s' claims are not equal. Expected: %v. Actual: %v", claimName, expectedToken[claimName], actualToken[claimName])
 	}
 	return nil
 }

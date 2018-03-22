@@ -104,6 +104,8 @@ type Manager interface {
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error)
+	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
+	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -737,6 +739,68 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context
 	claims["sub"] = identity.ID.String()
 
 	return token, nil
+}
+
+// ConvertTokenSet converts the token set to oauth2.Token
+func (mgm *tokenManager) ConvertTokenSet(tokenSet TokenSet) *oauth2.Token {
+	var accessToken, refreshToken, tokenType string
+	extra := make(map[string]interface{})
+	if tokenSet.AccessToken != nil {
+		accessToken = *tokenSet.AccessToken
+	}
+	if tokenSet.RefreshToken != nil {
+		refreshToken = *tokenSet.RefreshToken
+	}
+	if tokenSet.TokenType != nil {
+		tokenType = *tokenSet.TokenType
+	}
+	var expire time.Time
+	if tokenSet.ExpiresIn != nil {
+		expire = time.Now().Add(time.Duration(*tokenSet.ExpiresIn))
+		extra["expires_in"] = *tokenSet.ExpiresIn
+	}
+	if tokenSet.RefreshExpiresIn != nil {
+		extra["refresh_expires_in"] = *tokenSet.RefreshExpiresIn
+	}
+
+	oauth2Token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    tokenType,
+		Expiry:       expire,
+	}
+	oauth2Token = oauth2Token.WithExtra(extra)
+
+	return oauth2Token
+}
+
+// ConvertToken converts the oauth2.Token to a token set
+func (mgm *tokenManager) ConvertToken(oauthToken oauth2.Token) (*TokenSet, error) {
+
+	tokenSet := &TokenSet{
+		AccessToken:  &oauthToken.AccessToken,
+		RefreshToken: &oauthToken.RefreshToken,
+		TokenType:    &oauthToken.TokenType,
+	}
+
+	expiresIn := oauthToken.Extra("expires_in")
+	if expiresIn != nil {
+		expiresInInt, err := NumberToInt(expiresIn)
+		if err != nil {
+			return nil, err
+		}
+		tokenSet.ExpiresIn = &expiresInInt
+	}
+	refreshExpiresIn := oauthToken.Extra("refresh_expires_in")
+	if refreshExpiresIn != nil {
+		refreshExpiresInInt, err := NumberToInt(refreshExpiresIn)
+		if err != nil {
+			return nil, err
+		}
+		tokenSet.RefreshExpiresIn = &refreshExpiresInInt
+	}
+
+	return tokenSet, nil
 }
 
 func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {

@@ -303,9 +303,9 @@ func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controll
 	require.NotNil(rest.T(), token.TokenType)
 	require.Equal(rest.T(), "bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
-	assert.NoError(rest.T(), testtoken.Equal(context.Background(), rest.sampleAccessToken, *token.AccessToken))
+	assert.NoError(rest.T(), testtoken.EqualAccessTokens(context.Background(), rest.sampleAccessToken, *token.AccessToken))
 	require.NotNil(rest.T(), token.RefreshToken)
-	assert.NoError(rest.T(), testtoken.Equal(context.Background(), rest.sampleRefreshToken, *token.RefreshToken))
+	assert.NoError(rest.T(), testtoken.EqualRefreshTokens(context.Background(), rest.sampleRefreshToken, *token.RefreshToken))
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(rest.T(), err)
 	require.True(rest.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
