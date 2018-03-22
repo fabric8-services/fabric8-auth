@@ -406,6 +406,36 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByNewResourceType() {
 
 }
 
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
+	t := s.T()
+
+	testIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
+	require.NoError(t, err)
+
+	testRT, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(t, err)
+	require.NotNil(t, testRT)
+
+	testRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testRT, uuid.NewV4().String())
+	require.NoError(t, err)
+	require.NotNil(t, testRole)
+
+	testR, err := testsupport.CreateTestResource(s.Ctx, s.DB, *testRT, uuid.NewV4().String(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, testR)
+
+	identityList := []uuid.UUID{testIdentity.ID}
+
+	err = s.roleManagementService.Assign(s.Ctx, identityList, testR.ResourceID, testRole.Name)
+	require.NoError(t, err)
+
+	identityRoles, err := s.roleManagementService.ListByResourceAndRoleName(s.Ctx, testR.ResourceID, testRole.Name)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(identityRoles))
+	require.Equal(t, testR.ResourceID, identityRoles[0].ResourceID)
+	require.Equal(t, testRole.RoleID, identityRoles[0].RoleID)
+}
+
 func (s *roleManagementServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, createdRoleScopes []rolerepo.RoleScope, roleScopesRetrieved []role.RoleScope) {
 	foundCreatedRoleScope := false
 	for _, rsDB := range createdRoleScopes {

@@ -16,7 +16,7 @@ import (
 type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
-	Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error
+	Assign(ctx context.Context, identityID []uuid.UUID, resourceID string, roleName string) error
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
 }
 
@@ -98,6 +98,28 @@ func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Contex
 	return roles, err
 }
 
-func (r *RoleManagementServiceImpl) Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error {
-	return nil
+// Assign assigns a user/identity to role, for a specific resource
+func (r *RoleManagementServiceImpl) Assign(ctx context.Context, identityIDs []uuid.UUID, resourceID string, roleName string) error {
+
+	// TODO: Check if the user is authorized to assign roles to other users.
+	var err error
+	return application.Transactional(r.db, func(appl application.Application) error {
+		err = appl.ResourceRepository().CheckExists(ctx, resourceID)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": resourceID,
+				"err":         err,
+			}, "does not exist")
+			return errors.NewNotFoundError("resource_id", resourceID)
+		}
+
+		for _, identityID := range identityIDs {
+			err = r.modelService.Assign(ctx, identityID, resourceID, roleName)
+			if err != nil {
+				// if any one fails, we return err - that should trigger a transaction rollback
+				return errors.NewInternalError(ctx, err)
+			}
+		}
+		return err
+	})
 }

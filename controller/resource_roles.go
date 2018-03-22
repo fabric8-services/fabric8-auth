@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
+	uuid "github.com/satori/go.uuid"
 )
 
 // ResourceRolesController implements the resource_roles resource.
@@ -67,6 +68,24 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 	return ctx.OK(&app.Identityroles{
 		Data: rolesList,
 	})
+}
+
+// AssignRole assigns a specific role for a resource, to one or more identities.
+func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
+	var identityIDs []uuid.UUID
+	var err error
+	for _, identity := range ctx.Payload.Data {
+		identityIDAsUUID, err := uuid.FromString(identity.ID)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identityID", identity.ID).Expected("uuid"))
+		}
+		identityIDs = append(identityIDs, identityIDAsUUID)
+	}
+	err = c.roleManagementService.Assign(ctx, identityIDs, ctx.ResourceID, ctx.RoleName)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.NoContent()
 }
 
 func convertIdentityRoleToAppRoles(ctx context.Context, roles []identityrole.IdentityRole) []*app.IdentityRolesData {

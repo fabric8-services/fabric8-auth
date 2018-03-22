@@ -209,11 +209,24 @@ func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
 	testIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
 	require.NoError(t, err)
 
-	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	testRT, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
 	require.NoError(t, err)
-	require.NotNil(t, identityRole)
+	require.NotNil(t, testRT)
 
-	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
+	testRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testRT, uuid.NewV4().String())
 	require.NoError(t, err)
-	require.Equal(t, 0, len(identityRoles))
+	require.NotNil(t, testRole)
+
+	testR, err := testsupport.CreateTestResource(s.Ctx, s.DB, *testRT, uuid.NewV4().String(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, testR)
+
+	err = s.repo.Assign(s.Ctx, testIdentity.ID, testR.ResourceID, testRole.Name)
+	require.NoError(t, err)
+
+	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, testR.ResourceID, testRole.Name)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(identityRoles))
+	require.Equal(t, testR.ResourceID, identityRoles[0].ResourceID)
+	require.Equal(t, testRole.RoleID, identityRoles[0].RoleID)
 }

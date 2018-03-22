@@ -156,10 +156,12 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 				ResourceID:       resourceID,
 				ParentResourceID: parentResourceID,
 			},
+			ResourceID: resourceID,
 			Role: rolerepo.Role{
 				RoleID: roleIDAsUUID,
 				Name:   roleName,
 			},
+			RoleID: roleIDAsUUID,
 		}
 		if parentResourceID != nil {
 			ir.Resource.ParentResourceID = parentResourceID
