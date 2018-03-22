@@ -90,6 +90,9 @@ func (s *permissionModelServiceBlackBoxTest) TeardownSuite() {
 	// Delete the test scope we created
 	s.DB.Unscoped().Exec(`DELETE FROM resource_type_scope WHERE
   name = 'test_permission_scope`)
+
+	// TODO remove this once we are creating memberships via the membership repository (and we have auto-cleanup)
+	s.DB.Unscoped().Exec("DELETE FROM membership")
 }
 
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirectRoleForResource() {
@@ -113,6 +116,9 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrganizationMember
 
 	org, err := s.createTestOrganization(s.DB, s.Application, identity.ID, "test-permission-org")
 	require.NoError(s.T(), err, "Could not create test organization")
+
+	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
+	require.NoError(s.T(), err, "Error adding member to organization")
 
 	resource, err := s.createTestResourceAndAssignDefaultRole(org)
 	require.NoError(s.T(), err)
@@ -184,4 +190,13 @@ func (s *permissionModelServiceBlackBoxTest) createTestOrganization(db *gorm.DB,
 	}
 
 	return *organization, nil
+}
+
+func (s *permissionModelServiceBlackBoxTest) addMember(db *gorm.DB, appDB application.DB,
+	memberOf uuid.UUID, memberId uuid.UUID) error {
+
+	// TODO replace this with the repository method once membership repo is implemented
+	db.Unscoped().Exec("INSERT INTO membership (member_of, member_id) VALUES (?, ?)", memberOf, memberId)
+
+	return nil
 }
