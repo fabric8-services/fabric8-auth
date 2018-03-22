@@ -55,6 +55,7 @@ func (s *DBTestSuite) SetupSuite() {
 			}, "failed to connect to the database")
 		}
 	}
+	s.DB = s.DB.Debug()
 	s.Application = gormapplication.NewGormDB(s.DB)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)

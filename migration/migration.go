@@ -176,6 +176,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 22
 	m = append(m, steps{ExecuteSQLFile("022-add-deprovisioned-to-user.sql")})
 
+	// verion 23
+	m = append(m, steps{ExecuteSQLFile("023-resource-type-index.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
