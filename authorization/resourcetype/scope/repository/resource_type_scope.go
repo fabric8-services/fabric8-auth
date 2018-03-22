@@ -53,7 +53,6 @@ func NewResourceTypeScopeRepository(db *gorm.DB) ResourceTypeScopeRepository {
 
 // ResourceTypeScopeRepository represents the storage interface.
 type ResourceTypeScopeRepository interface {
-	Create(ctx context.Context, resourceTypeScope *ResourceTypeScope) error
 	CheckExists(ctx context.Context, id string) (bool, error)
 	Create(ctx context.Context, u *ResourceTypeScope) error
 	Save(ctx context.Context, u *ResourceTypeScope) error

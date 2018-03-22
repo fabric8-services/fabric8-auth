@@ -39,6 +39,7 @@ type permissionModelServiceBlackBoxTest struct {
 	resourceTypeRepo        resourcetype.ResourceTypeRepository
 	resourceTypeScopeRepo   resourcetypescope.ResourceTypeScopeRepository
 	roleRepo                roleRepo.RoleRepository
+	roleMappingRepo         roleRepo.RoleMappingRepository
 	orgModelService         organizationModel.OrganizationModelService
 	permissionService       permissionModelService.PermissionModelService
 	testAreaRole            roleRepo.Role
@@ -59,6 +60,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = resourcetypescope.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = roleRepo.NewRoleRepository(s.DB)
+	s.roleMappingRepo = roleRepo.NewRoleMappingRepository(s.DB)
 	s.orgModelService = organizationModel.NewOrganizationModelService(s.DB, s.Application)
 	s.permissionService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
 
@@ -277,15 +279,13 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedMapped
 	require.NoError(s.T(), err)
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
-	s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, childResource.ResourceID, testWorkItemScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for child resource")
-
-	// TODO remove this cleanup code once role mapping repo is implemented
-	s.removeRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
 }
 
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedMappedRoleForResource() {
@@ -327,15 +327,13 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now we map the parent's role to the child
-	s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, childResource.ResourceID, testWorkItemScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for child resource")
-
-	// TODO remove this cleanup code once role mapping repo is implemented
-	s.removeRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
 
 	// TODO remove this cleanup code once membership repo is implemented
 	s.removeMember(s.DB, s.Application, org.ID, identity.ID)
@@ -388,15 +386,13 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now we map the grandparent's role to the child
-	s.createRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = s.createRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, childResource.ResourceID, testWorkItemScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for child resource")
-
-	// TODO remove this cleanup code once role mapping repo is implemented
-	s.removeRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
 
 	// TODO remove this cleanup code once membership repo is implemented
 	s.removeMember(s.DB, s.Application, org.ID, identity.ID)
@@ -449,7 +445,8 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedD
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now we map the grandparent's role to the parent
-	s.createRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = s.createRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope for the parent resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, parentResource.ResourceID, testWorkItemScopeName)
@@ -462,16 +459,13 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedD
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now the tricky bit... we map the parent's role to the child
-	s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testWorkItemRole.RoleID, s.testWorkItemCommentRole.RoleID)
+	err = s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testWorkItemRole.RoleID, s.testWorkItemCommentRole.RoleID)
+	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// Now they should have permissions for the child resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, childResource.ResourceID, testWorkItemCommentScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for child resource")
-
-	// TODO remove this cleanup code once role mapping repo is implemented
-	s.removeRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
-	s.removeRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testWorkItemRole.RoleID, s.testWorkItemCommentRole.RoleID)
 
 	// TODO remove this cleanup code once membership repo is implemented
 	s.removeMember(s.DB, s.Application, org.ID, identity.ID)
@@ -625,20 +619,10 @@ func (s *permissionModelServiceBlackBoxTest) removeMember(db *gorm.DB, appDB app
 
 func (s *permissionModelServiceBlackBoxTest) createRoleMapping(db *gorm.DB, appDB application.DB,
 	resourceID string, fromRoleID uuid.UUID, toRoleID uuid.UUID) error {
-
-	// TODO replace this with the repository method once role mapping repo is implemented
-	db.Unscoped().Exec("INSERT INTO role_mapping (resource_id, from_role_id, to_role_id) VALUES (?, ?, ?)",
-		resourceID, fromRoleID, toRoleID)
-
-	return nil
-}
-
-// TODO remove this once role mapping repo is implemented
-func (s *permissionModelServiceBlackBoxTest) removeRoleMapping(db *gorm.DB, appDB application.DB,
-	resourceID string, fromRoleID uuid.UUID, toRoleID uuid.UUID) error {
-
-	db.Unscoped().Exec("DELETE FROM role_mapping WHERE resource_id = ? AND from_role_id = ? AND to_role_id = ?",
-		resourceID, fromRoleID, toRoleID)
-
-	return nil
+	err := s.roleMappingRepo.Create(s.Ctx, &roleRepo.RoleMapping{
+		ResourceID: resourceID,
+		FromRoleID: fromRoleID,
+		ToRoleID:   toRoleID,
+	})
+	return err
 }
