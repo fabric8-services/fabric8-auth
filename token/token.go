@@ -756,7 +756,7 @@ func (mgm *tokenManager) ConvertTokenSet(tokenSet TokenSet) *oauth2.Token {
 	}
 	var expire time.Time
 	if tokenSet.ExpiresIn != nil {
-		expire = time.Now().Add(time.Duration(*tokenSet.ExpiresIn))
+		expire = time.Now().Add(time.Duration(*tokenSet.ExpiresIn) * time.Second)
 		extra["expires_in"] = *tokenSet.ExpiresIn
 	}
 	if tokenSet.RefreshExpiresIn != nil {

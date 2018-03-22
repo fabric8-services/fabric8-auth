@@ -40,25 +40,12 @@ func (s *TestTokenSuite) SetupSuite() {
 }
 
 func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
-	ctx := testtoken.ContextWithRequest(nil)
-	user := account.User{
-		ID:       uuid.NewV4(),
-		Email:    uuid.NewV4().String(),
-		FullName: uuid.NewV4().String(),
-		Cluster:  uuid.NewV4().String(),
-	}
-	identity := account.Identity{
-		ID:       uuid.NewV4(),
-		User:     user,
-		Username: uuid.NewV4().String(),
-	}
-	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
-	require.NoError(s.T(), err)
+	token, identity, ctx := s.generateToken()
 	s.assertGeneratedToken(token, identity)
 
 	// With verified email
 	identity.User.EmailVerified = true
-	token, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
 	require.NoError(s.T(), err)
 	s.assertGeneratedToken(token, identity)
 }
@@ -181,6 +168,41 @@ func (s *TestTokenSuite) assertInt(expectedValue, actualValue interface{}) {
 	expInt, err := token.NumberToInt(expectedValue)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), actInt, expInt)
+}
+
+func (s *TestTokenSuite) TestConvertToken() {
+	// Generate an oauth token first
+	generatedToken, identity, _ := s.generateToken()
+
+	// Now convert it to a token set
+	tokenSet, err := testtoken.TokenManager.ConvertToken(*generatedToken)
+	require.NoError(s.T(), err)
+
+	// Convert the token set back to an oauth token
+	token := testtoken.TokenManager.ConvertTokenSet(*tokenSet)
+	require.NoError(s.T(), err)
+
+	// Check the converted token
+	s.assertGeneratedToken(token, identity)
+}
+
+func (s *TestTokenSuite) generateToken() (*oauth2.Token, account.Identity, context.Context) {
+	ctx := testtoken.ContextWithRequest(nil)
+	user := account.User{
+		ID:       uuid.NewV4(),
+		Email:    uuid.NewV4().String(),
+		FullName: uuid.NewV4().String(),
+		Cluster:  uuid.NewV4().String(),
+	}
+	identity := account.Identity{
+		ID:       uuid.NewV4(),
+		User:     user,
+		Username: uuid.NewV4().String(),
+	}
+	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	require.NoError(s.T(), err)
+
+	return token, identity, ctx
 }
 
 func (s *TestTokenSuite) TestValidOAuthAccessToken() {
