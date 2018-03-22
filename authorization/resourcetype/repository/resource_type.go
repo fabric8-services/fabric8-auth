@@ -6,6 +6,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -44,6 +46,7 @@ func NewResourceTypeRepository(db *gorm.DB) ResourceTypeRepository {
 
 // ResourceTypeRepository represents the storage interface.
 type ResourceTypeRepository interface {
+	Create(ctx context.Context, u *ResourceType) error
 	Lookup(ctx context.Context, name string) (*ResourceType, error)
 	List(ctx context.Context) ([]ResourceType, error)
 }
@@ -63,7 +66,30 @@ func (m *GormResourceTypeRepository) Lookup(ctx context.Context, name string) (*
 
 	var native ResourceType
 	err := m.db.Table(m.TableName()).Where("name = ?", name).First(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, errors.NewNotFoundError("resource_type", name)
+	}
 	return &native, err
+}
+
+// Create creates a new record.
+func (m *GormResourceTypeRepository) Create(ctx context.Context, u *ResourceType) error {
+	defer goa.MeasureSince([]string{"goa", "db", "resource_type", "create"}, time.Now())
+	if u.ResourceTypeID == uuid.Nil {
+		u.ResourceTypeID = uuid.NewV4()
+	}
+	err := m.db.Create(u).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_type_id": u.ResourceTypeID,
+			"err":              err,
+		}, "unable to create the resource type")
+		return errs.WithStack(err)
+	}
+	log.Debug(ctx, map[string]interface{}{
+		"resource_type_id": u.ResourceTypeID,
+	}, "Resource Type Scope created!")
+	return nil
 }
 
 // List return all resource types

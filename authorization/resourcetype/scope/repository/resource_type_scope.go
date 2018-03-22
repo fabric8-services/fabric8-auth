@@ -53,10 +53,12 @@ func NewResourceTypeScopeRepository(db *gorm.DB) ResourceTypeScopeRepository {
 
 // ResourceTypeScopeRepository represents the storage interface.
 type ResourceTypeScopeRepository interface {
+	Create(ctx context.Context, resourceTypeScope *ResourceTypeScope) error
 	CheckExists(ctx context.Context, id string) (bool, error)
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
 	LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error)
 	List(ctx context.Context, resourceType *resourcetype.ResourceType) ([]ResourceTypeScope, error)
+	LookupByResourceTypeAndScope(ctx context.Context, resourceTypeID uuid.UUID, scopeName string) (*ResourceTypeScope, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -195,4 +197,42 @@ func (m *GormResourceTypeScopeRepository) List(ctx context.Context, resourceType
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
+}
+
+// LookupByResourceTypeAndScope  returns all resource type scopes filtered by name and scope.
+func (m *GormResourceTypeScopeRepository) LookupByResourceTypeAndScope(ctx context.Context, resourceTypeID uuid.UUID, name string) (*ResourceTypeScope, error) {
+	vals, err := m.Query(FilterByScopeName(name), FilterByResourceTypeID(resourceTypeID))
+	if len(vals) == 0 {
+		return nil, err
+	}
+	return &vals[0], err
+}
+
+// Query expose an open ended Query model
+func (m *GormResourceTypeScopeRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ResourceTypeScope, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "query"}, time.Now())
+	var resourcetypeScopes []ResourceTypeScope
+	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&resourcetypeScopes).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	log.Debug(nil, map[string]interface{}{
+		"resource_type_scopes": resourcetypeScopes,
+	}, "query executed successfully!")
+
+	return resourcetypeScopes, nil
+}
+
+// FilterByScopeName is a gorm filter by 'name'
+func FilterByScopeName(name string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("name = ?", name)
+	}
+}
+
+// FilterByResourceTypeID is a gorm filter by 'name'
+func FilterByResourceTypeID(id uuid.UUID) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("resource_type_id = ?", id.String())
+	}
 }
