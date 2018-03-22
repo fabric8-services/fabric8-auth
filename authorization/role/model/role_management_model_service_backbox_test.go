@@ -87,3 +87,18 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAn
 	require.NoError(t, err)
 	require.Equal(t, 0, len(identityRoles))
 }
+
+func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
+	t := s.T()
+
+	testIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
+	require.NoError(t, err)
+
+	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	require.NoError(t, err)
+	require.NotNil(t, identityRole)
+
+	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
+	require.NoError(t, err)
+	require.Equal(t, 0, len(identityRoles))
+}
