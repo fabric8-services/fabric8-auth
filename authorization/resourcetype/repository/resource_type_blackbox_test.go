@@ -6,6 +6,7 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	//"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/satori/go.uuid"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -44,4 +45,35 @@ func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
 
 		require.EqualValues(t, len(knownResourceTypes), len(types))
 	})
+}
+
+func (s *resourceTypeBlackBoxTest) TestCreateResourceType() {
+	t := s.T()
+	resourceTypeRef := resourcetype.ResourceType{
+		ResourceTypeID: uuid.NewV4(),
+		Name:           uuid.NewV4().String(),
+	}
+	err := s.repo.Create(s.Ctx, &resourceTypeRef)
+	require.NoError(t, err)
+
+	rt, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
+	require.NoError(t, err)
+	require.Equal(t, resourceTypeRef.Name, rt.Name)
+	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
+
+}
+
+func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithoutID() {
+	t := s.T()
+	resourceTypeRef := resourcetype.ResourceType{
+		Name: uuid.NewV4().String(),
+	}
+	err := s.repo.Create(s.Ctx, &resourceTypeRef)
+	require.NoError(t, err)
+
+	rt, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
+	require.NoError(t, err)
+	require.Equal(t, resourceTypeRef.Name, rt.Name)
+	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
+
 }

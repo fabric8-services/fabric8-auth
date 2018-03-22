@@ -3,14 +3,20 @@ package service_test
 import (
 	"testing"
 
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
+
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
 
-	"github.com/goadesign/goa/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,6 +24,9 @@ import (
 type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	roleManagementService roleservice.RoleManagementService
+	resourceTypeRepo      resourcetype.ResourceTypeRepository
+	roleRepo              rolerepo.RoleRepository
+	resourceTypeScope     scope.ResourceTypeScopeRepository
 }
 
 func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
@@ -28,6 +37,10 @@ func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	modelService := rolemodel.NewRoleManagementModelService(s.DB, s.Application)
 	s.roleManagementService = roleservice.NewRoleManagementService(modelService, s.Application)
+	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
+	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
+	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)
+
 }
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
@@ -315,4 +328,121 @@ func (s *roleManagementServiceBlackboxTest) compare(createdRole identityrole.Ide
 	}
 
 	return true
+}
+
+func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() {
+
+	// create entities in the existing resource type
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role)
+
+	scope, err := testsupport.CreateTestScopeWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), scope)
+
+	rs, err := testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rs)
+
+	// create another resource type
+	newResourceTypeName := uuid.NewV4().String()
+	_, err = testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
+	require.NoError(s.T(), err)
+
+	roleScopesRetrieved, err := s.roleManagementService.ListAvailableRolesByResourceType(s.Ctx, newResourceTypeName)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), roleScopesRetrieved, 0)
+}
+
+func (s *roleManagementServiceBlackboxTest) TestGetRolesByNewResourceType() {
+
+	var createdRoleScopes []rolerepo.RoleScope
+
+	newResourceTypeName := uuid.NewV4().String()
+	testResourceTypeRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
+	require.NoError(s.T(), err)
+
+	for i := 0; i < 10; i++ {
+		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testResourceTypeRef, uuid.NewV4().String())
+
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), role)
+
+		scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *testResourceTypeRef, uuid.NewV4().String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), scope)
+
+		rs, err := testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), rs)
+
+		createdRoleScopes = append(createdRoleScopes, *rs)
+	}
+
+	someOtherResourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	for i := 0; i < 3; i++ {
+		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *someOtherResourceType, uuid.NewV4().String())
+
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), role)
+
+		scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *someOtherResourceType, uuid.NewV4().String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), scope)
+
+		rs, err := testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), rs)
+	}
+
+	roleScopesRetrieved, err := s.roleManagementService.ListAvailableRolesByResourceType(s.Ctx, testResourceTypeRef.Name)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), roleScopesRetrieved, 10)
+	s.checkRoleBelongsToResourceType(s.DB, roleScopesRetrieved, *testResourceTypeRef)
+	s.checkIfCreatedRoleScopesAreReturned(s.DB, createdRoleScopes, roleScopesRetrieved)
+
+}
+
+func (s *roleManagementServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, createdRoleScopes []rolerepo.RoleScope, roleScopesRetrieved []role.RoleScope) {
+	foundCreatedRoleScope := false
+	for _, rsDB := range createdRoleScopes {
+		foundCreatedRoleScope = false
+		for _, rsRetrieved := range roleScopesRetrieved {
+			if rsDB.RoleID.String() == rsRetrieved.RoleID {
+				for _, sc := range rsRetrieved.Scopes {
+					if sc == rsDB.ResourceTypeScope.Name {
+						foundCreatedRoleScope = true
+					}
+				}
+			}
+		}
+	}
+	require.True(s.T(), foundCreatedRoleScope)
+}
+
+func (s *roleManagementServiceBlackboxTest) checkRoleBelongsToResourceType(db *gorm.DB, roleScopesRetrieved []role.RoleScope, rt resourcetype.ResourceType) {
+	require.True(s.T(), len(roleScopesRetrieved) >= 1)
+	for _, r := range roleScopesRetrieved {
+		roleID, err := uuid.FromString(r.RoleID)
+		require.Nil(s.T(), err)
+
+		existingRole, err := s.roleRepo.Load(s.Ctx, roleID)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), existingRole)
+
+		// this role should belong to the specific resource type
+		require.Equal(s.T(), rt.ResourceTypeID, existingRole.ResourceTypeID)
+		for _, sc := range r.Scopes {
+			s.checkScopeBelongsToResourceType(s.DB, sc, rt)
+		}
+	}
+}
+
+func (s *roleManagementServiceBlackboxTest) checkScopeBelongsToResourceType(db *gorm.DB, scopeName string, rt resourcetype.ResourceType) {
+	scopesReturned, err := s.resourceTypeScope.LookupByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
+	require.NotEmpty(s.T(), scopesReturned)
+	require.NoError(s.T(), err)
 }
