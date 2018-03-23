@@ -19,8 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
-	"path/filepath"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -29,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
+	"path/filepath"
 )
 
 type TestTokenREST struct {
@@ -69,7 +68,17 @@ func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController
 	svc := goa.New("Token-Service")
 	manager, err := token.NewManager(rest.Configuration)
 	require.Nil(rest.T(), err)
-	return svc, NewTokenController(svc, rest.Application, nil, nil, nil, manager, nil, rest.Configuration)
+
+	loginService := &DummyKeycloakOAuthService{}
+	profileService := login.NewKeycloakUserProfileClient()
+	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil)
+	loginService.Identities = rest.Application.Identities()
+	loginService.Users = rest.Application.Users()
+	loginService.TokenManager = manager
+	loginService.DB = rest.Application
+	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
+
+	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, nil, rest.Configuration)
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -279,6 +288,23 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {
 func (rest *TestTokenREST) TestExchangeWithCorrectRefreshTokenOK() {
 	service, controller := rest.SecuredController()
 	rest.checkExchangeWithRefreshToken(service, controller, controller.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN")
+}
+
+func (rest *TestTokenREST) TestGenerateOK() {
+	svc, ctrl := rest.UnSecuredController()
+	_, result := test.GenerateTokenOK(rest.T(), svc.Context, svc, ctrl)
+	require.Len(rest.T(), result, 1)
+	validateToken(rest.T(), result[0])
+}
+
+func validateToken(t *testing.T, token *app.AuthToken) {
+	assert.NotNil(t, token, "Token data is nil")
+	assert.NotEmpty(t, token.Token.AccessToken, "Access token is empty")
+	assert.NotEmpty(t, token.Token.RefreshToken, "Refresh token is empty")
+	assert.NotEmpty(t, token.Token.TokenType, "Token type is empty")
+	assert.NotNil(t, token.Token.ExpiresIn, "Expires-in is nil")
+	assert.NotNil(t, token.Token.RefreshExpiresIn, "Refresh-expires-in is nil")
+	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
 }
 
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
