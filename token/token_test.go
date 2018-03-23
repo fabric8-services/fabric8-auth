@@ -126,7 +126,7 @@ func (s *TestTokenSuite) assertExpiresIn(actualValue interface{}) {
 	now := time.Now().Unix()
 	expInt, err := token.NumberToInt(actualValue)
 	require.NoError(s.T(), err)
-	assert.True(s.T(), expInt >= now+30*24*60*60 && expInt < now+30*24*60*60+60, "expiration claim is not in 30 days: %d", actualValue) // Between 30 days from now and 30 days + 1 minute
+	assert.True(s.T(), expInt >= now+30*24*60*60 && expInt < now+30*24*60*60+60, "expiration claim is not in 30 days: %d", expInt) // Between 30 days from now and 30 days + 1 minute
 }
 
 func (s *TestTokenSuite) assertJti(claims jwt.MapClaims) {
