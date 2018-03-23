@@ -131,13 +131,6 @@ func (s *permissionModelServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 }
 
-func (s *permissionModelServiceBlackBoxTest) TeardownSuite() {
-	s.DBTestSuite.TearDownSuite()
-	// Delete the test scope we created
-	s.DB.Unscoped().Exec("DELETE FROM resource_type_scope WHERE name = ?", testAreaScopeName)
-	s.DB.Unscoped().Exec("DELETE FROM resource_type_scope WHERE name = ?", testWorkItemScopeName)
-}
-
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirectRoleForResource() {
 	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
 	require.NoError(s.T(), err, "Could not create test identity")
