@@ -42,12 +42,6 @@ func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
 			// then
 			require.Nil(t, err)
 		}
-
-		// Check that only these resource types exist
-		var types, errs = s.repo.List(s.Ctx)
-		require.Nil(t, errs)
-
-		require.EqualValues(t, len(knownResourceTypes), len(types))
 	})
 }
 
