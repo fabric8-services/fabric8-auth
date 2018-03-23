@@ -506,6 +506,10 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	if refreshExpiresIn != nil {
 		extra["refresh_expires_in"] = refreshExpiresIn
 	}
+	notBeforePolicy := keycloakToken.Extra("not_before_policy")
+	if notBeforePolicy != nil {
+		extra["not_before_policy"] = notBeforePolicy
+	}
 	if len(extra) > 0 {
 		token = token.WithExtra(extra)
 	}
@@ -533,7 +537,7 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 		return nil, errors.WithStack(err)
 	}
 
-	var in30Days int64
+	var in30Days, nbf int64
 	in30Days = 30 * 24 * 60 * 60 // In 30 days
 
 	token := &oauth2.Token{
@@ -547,6 +551,8 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 	extra := make(map[string]interface{})
 	extra["expires_in"] = in30Days
 	extra["refresh_expires_in"] = in30Days
+	extra["not_before_policy"] = nbf
+
 	token = token.WithExtra(extra)
 
 	return token, nil
@@ -762,6 +768,9 @@ func (mgm *tokenManager) ConvertTokenSet(tokenSet TokenSet) *oauth2.Token {
 	if tokenSet.RefreshExpiresIn != nil {
 		extra["refresh_expires_in"] = *tokenSet.RefreshExpiresIn
 	}
+	if tokenSet.NotBeforePolicy != nil {
+		extra["not_before_policy"] = *tokenSet.NotBeforePolicy
+	}
 
 	oauth2Token := &oauth2.Token{
 		AccessToken:  accessToken,
@@ -783,24 +792,33 @@ func (mgm *tokenManager) ConvertToken(oauthToken oauth2.Token) (*TokenSet, error
 		TokenType:    &oauthToken.TokenType,
 	}
 
-	expiresIn := oauthToken.Extra("expires_in")
-	if expiresIn != nil {
-		expiresInInt, err := NumberToInt(expiresIn)
-		if err != nil {
-			return nil, err
-		}
-		tokenSet.ExpiresIn = &expiresInInt
+	var err error
+	tokenSet.ExpiresIn, err = mgm.extraInt(oauthToken, "expires_in")
+	if err != nil {
+		return nil, err
 	}
-	refreshExpiresIn := oauthToken.Extra("refresh_expires_in")
-	if refreshExpiresIn != nil {
-		refreshExpiresInInt, err := NumberToInt(refreshExpiresIn)
-		if err != nil {
-			return nil, err
-		}
-		tokenSet.RefreshExpiresIn = &refreshExpiresInInt
+	tokenSet.RefreshExpiresIn, err = mgm.extraInt(oauthToken, "refresh_expires_in")
+	if err != nil {
+		return nil, err
+	}
+	tokenSet.NotBeforePolicy, err = mgm.extraInt(oauthToken, "not_before_policy")
+	if err != nil {
+		return nil, err
 	}
 
 	return tokenSet, nil
+}
+
+func (mgm *tokenManager) extraInt(oauthToken oauth2.Token, claimName string) (*int64, error) {
+	claim := oauthToken.Extra(claimName)
+	if claim != nil {
+		claimInt, err := NumberToInt(claim)
+		if err != nil {
+			return nil, err
+		}
+		return &claimInt, nil
+	}
+	return nil, nil
 }
 
 func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {

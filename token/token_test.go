@@ -59,6 +59,7 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	// Extra
 	s.assertInt(30*24*60*60, generatedToken.Extra("expires_in"))
 	s.assertInt(30*24*60*60, generatedToken.Extra("refresh_expires_in"))
+	s.assertInt(0, generatedToken.Extra("not_before_policy"))
 
 	// Access token
 
