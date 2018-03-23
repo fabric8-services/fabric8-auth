@@ -615,7 +615,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 
 	claims["azp"] = kcClaims.Audience
 	claims["session_state"] = kcClaims.SessionState
-	claims["acr"] = "1"
+	claims["acr"] = "0"
 
 	realmAccess := make(map[string]interface{})
 	realmAccess["roles"] = []string{"uma_authorization"}
@@ -660,7 +660,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 	claims["iss"] = authOpenshiftIO
 	claims["aud"] = openshiftIO
 	claims["typ"] = "Bearer"
-	claims["auth_time"] = iat
+	claims["auth_time"] = iat // TODO should use the time when user actually logged-in the last time. Will need to get this time from the RHD token
 	claims["approved"] = !identity.User.Deprovisioned
 	claims["sub"] = identity.ID.String()
 	claims["email_verified"] = identity.User.EmailVerified
