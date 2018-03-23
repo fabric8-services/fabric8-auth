@@ -59,6 +59,7 @@ func TestEncodeTokenOK(t *testing.T) {
 	var refreshExpiresIn float64
 	refreshExpiresIn = 2.59e6
 
+	var nbf int64
 	outhToken := &oauth2.Token{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -67,6 +68,7 @@ func TestEncodeTokenOK(t *testing.T) {
 	extra := map[string]interface{}{
 		"expires_in":         expiresIn,
 		"refresh_expires_in": refreshExpiresIn,
+		"not_before_policy":  nbf,
 	}
 	tokenJson, err := TokenToJson(context.Background(), outhToken.WithExtra(extra))
 	assert.Nil(t, err)

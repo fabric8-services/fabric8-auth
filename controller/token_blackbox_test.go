@@ -347,7 +347,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}
-	var thirtyDays int64
+	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
 		TokenType:    "Bearer",
@@ -358,6 +358,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	extra := make(map[string]interface{})
 	extra["expires_in"] = thirtyDays
 	extra["refresh_expires_in"] = thirtyDays
+	extra["not_before_policy"] = nbf
 	token = token.WithExtra(extra)
 	return token, nil
 }

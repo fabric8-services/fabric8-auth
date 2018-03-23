@@ -476,6 +476,7 @@ func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Con
 		oauth2Token = oauth2Token.WithExtra(map[string]interface{}{
 			"expires_in":         *tokenSet.ExpiresIn,
 			"refresh_expires_in": *tokenSet.RefreshExpiresIn,
+			"not_before_policy":  *tokenSet.NotBeforePolicy,
 		})
 		return oauth2Token, nil
 	}

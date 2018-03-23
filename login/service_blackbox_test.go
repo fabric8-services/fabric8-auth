@@ -731,7 +731,7 @@ type dummyOauth2Config struct {
 }
 
 func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
-	var thirtyDays int64
+	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
 		TokenType:    "bearer",
@@ -742,6 +742,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 	extra := make(map[string]interface{})
 	extra["expires_in"] = time.Now().Unix() + thirtyDays
 	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
+	extra["not_before_policy"] = nbf
 	token = token.WithExtra(extra)
 	return token, nil
 }
