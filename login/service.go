@@ -28,6 +28,7 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
+	"reflect"
 )
 
 type LoginServiceConfiguration interface {
@@ -41,6 +42,7 @@ type LoginServiceConfiguration interface {
 	GetWITURL(*goa.RequestData) (string, error)
 	GetOpenShiftClientApiUrl() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
+	IsPostgresDeveloperModeEnabled() bool
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
@@ -202,14 +204,25 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
 func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig LoginServiceConfiguration) (*token.TokenSet, error) {
-	identity, err := LoadContextIdentityAndUser(ctx, keycloak.DB)
-	if identity != nil && identity.User.Deprovisioned {
-		log.Warn(ctx, map[string]interface{}{
-			"identity_id": identity.ID,
-			"user_name":   identity.Username,
-		}, "deprovisioned user tried to refresh token")
-		return nil, autherrors.NewUnauthorizedError("unauthorized access")
+
+	// Load identity for the refresh token
+	var identity *account.Identity
+	claims, err := keycloak.TokenManager.ParseTokenWithMapClaims(ctx, refreshToken)
+	if err != nil {
+		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
+	sub := claims["sub"]
+	if sub == nil {
+		return nil, autherrors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+	}
+	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+	if err != nil {
+		return nil, autherrors.NewUnauthorizedError(err.Error())
+	}
+	err = application.Transactional(keycloak.DB, func(appl application.Application) error {
+		identity, err = appl.Identities().LoadWithUser(ctx, identityID)
+		return err
+	})
 	if err != nil {
 		// That's OK if we didn't find the identity if the token was issued for an API client
 		// Just log it and proceed.
@@ -217,10 +230,26 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 			"err": err,
 		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
 	}
+	if identity != nil && identity.User.Deprovisioned {
+		log.Warn(ctx, map[string]interface{}{
+			"identity_id": identity.ID,
+			"user_name":   identity.Username,
+		}, "deprovisioned user tried to refresh token")
+		return nil, autherrors.NewUnauthorizedError("unauthorized access")
+	}
 
 	// Refresh token in Keycloak
 	tokeSet, err := keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
 	if err != nil {
+		if serviceConfig.IsPostgresDeveloperModeEnabled() && identity != nil && reflect.TypeOf(keycloak.keycloakTokenService) == reflect.TypeOf(&keycloaktoken.KeycloakTokenService{}) {
+			// If running in dev mode but not in a test then we ignore an error from Keycloak and just generate a refresh token
+			fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity)
+			if err != nil {
+				return nil, err
+			}
+			return keycloak.TokenManager.ConvertToken(*generatedToken)
+		}
 		return nil, err
 	}
 

@@ -583,27 +583,30 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 	assert.Equal(s.T(), 307, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
-	// Fails if no token in context because Keycloak service returns 401
+func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
+	// Fails if invalid refresh token
 	s.keycloakTokenService.fail = true
 	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
-	require.Equal(s.T(), "kc refresh failed", err.Error())
+}
 
-	// Fails if identity is deprovisioned
-	//ctx:=testtoken.ContextWithRequest()
+func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
+	// 1. Fails if identity is deprovisioned
 	s.keycloakTokenService.fail = false
 	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
-	ctx, err := testtoken.EmbedIdentityInContext(identity)
+
+	// Refresh tokens
+	ctx := testtoken.ContextWithRequest(nil)
+	generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
 	require.NoError(s.T(), err)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 	require.Equal(s.T(), "unauthorized access", err.Error())
 
-	// OK if identity is not deprovisioned
+	// 2. OK if identity is not deprovisioned
 	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
@@ -620,9 +623,9 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
 
 	// Refresh tokens
-	ctx, err = testtoken.EmbedIdentityInContext(identity)
+	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
 	require.NoError(s.T(), err)
-	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
+	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenSet)
 
