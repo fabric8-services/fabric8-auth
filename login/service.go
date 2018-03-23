@@ -243,7 +243,6 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	if err != nil {
 		if serviceConfig.IsPostgresDeveloperModeEnabled() && identity != nil && reflect.TypeOf(keycloak.keycloakTokenService) == reflect.TypeOf(&keycloaktoken.KeycloakTokenService{}) {
 			// If running in dev mode but not in a test then we ignore an error from Keycloak and just generate a refresh token
-			fmt.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity)
 			if err != nil {
 				return nil, err
