@@ -27,7 +27,7 @@ func NewPermissionModelService(db *gorm.DB, repo repository.Repositories) Permis
 	}
 }
 
-// The HasScope method does a permission check for a user, to determine whether they have a particular scope for the
+// HasScope does a permission check for a user, to determine whether they have a particular scope for the
 // specified resource.  It does this by executing a rather complex query against the database, which checks whether the
 // user, or any of the identity groups (i.e. teams, organizations, security groups) that it is a member of has been
 // assigned a role that grants the specified scope.  It takes into account resource hierarchies, checking the roles of
