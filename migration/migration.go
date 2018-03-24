@@ -180,7 +180,7 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("023-resource-type-index.sql")})
 
 	// Version 24
-	m = append(m, steps{ExecuteSQLFile("024-permissions.sql")})
+	m = append(m, steps{ExecuteSQLFile("024-role-mapping-and-team-and-group-identities.sql")})
 
 	// Version N
 	//

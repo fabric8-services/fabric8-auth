@@ -4,7 +4,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	"testing"
@@ -65,71 +64,52 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.permissionService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
 
 	// Create a test "area" resource type
-	role, err := s.setupResourceType(testResourceTypeArea, testAreaScopeName, "test-permission-area-role")
-	require.NoError(s.T(), err, "Could not setup test area resource type")
+	role := s.setupResourceType(testResourceTypeArea, testAreaScopeName, "test-permission-area-role")
 	s.testAreaRole = *role
 
 	// Create a test "workitem" resource type
-	role, err = s.setupResourceType(testResourceTypeWorkItem, testWorkItemScopeName, "test-permission-workitem-role")
-	require.NoError(s.T(), err, "Could not setup test workitem resource type")
+	role = s.setupResourceType(testResourceTypeWorkItem, testWorkItemScopeName, "test-permission-workitem-role")
 	s.testWorkItemRole = *role
 
 	// Create a test "workitemcomment" resource type
-	role, err = s.setupResourceType(testResourceTypeWorkItemComment, testWorkItemCommentScopeName, "test-permission-workitemcomment-role")
-	require.NoError(s.T(), err, "Could not setup test workitemcomment resource type")
+	role = s.setupResourceType(testResourceTypeWorkItemComment, testWorkItemCommentScopeName, "test-permission-workitemcomment-role")
 	s.testWorkItemCommentRole = *role
 }
 
 // Creates a record structure that includes a resource type, plus a role and scope for that resource type
-func (s *permissionModelServiceBlackBoxTest) setupResourceType(resourceTypeName string, scopeName, roleName string) (*roleRepo.Role, error) {
+func (s *permissionModelServiceBlackBoxTest) setupResourceType(resourceTypeName string, scopeName, roleName string) *roleRepo.Role {
 	// Create a test resource type
 	err := s.resourceTypeRepo.Create(s.Ctx, &resourcetype.ResourceType{
 		Name: resourceTypeName,
 	})
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(s.T(), err, "Could not create resource type")
 
 	// Lookup our test resource type
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, resourceTypeName)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(s.T(), err, "Could not lookup resource type")
 
 	// Create a test scope
 	err = s.resourceTypeScopeRepo.Create(s.Ctx, &resourcetypescope.ResourceTypeScope{
 		Name:           scopeName,
 		ResourceTypeID: resourceType.ResourceTypeID,
 	})
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(s.T(), err, "Could not create resource type scope")
 
 	// Lookup the scope we created
 	scopes, err := s.resourceTypeScopeRepo.LookupForType(s.Ctx, resourceType.ResourceTypeID)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(s.T(), err, "Could not lookup resource type scope")
 	require.Equal(s.T(), 1, len(scopes))
 	testScope := scopes[0]
 
 	// Create a test role for the test resource type
 	role, err := test.CreateTestRole(s.Ctx, s.DB, *resourceType, roleName)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(s.T(), err, "Could not create role")
 
 	// Add the scope to the test role
 	err = s.roleRepo.AddScope(s.Ctx, role, &testScope)
-	if err != nil {
-		return nil, err
-	}
+	require.NoError(s.T(), err, "Could not add scope to role")
 
-	return role, nil
-}
-
-func (s *permissionModelServiceBlackBoxTest) SetupTest() {
-	s.DBTestSuite.SetupTest()
+	return role
 }
 
 /*
@@ -137,7 +117,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupTest() {
  */
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirectRoleForResource() {
 	// Create the user identity
-	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-jennifer", "")
 	require.NoError(s.T(), err, "Could not create test identity")
 
 	// Create the resource and assign our test role to the user
@@ -155,11 +135,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirect
  */
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirectRoleForParentResource() {
 	// Create the user identity
-	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-jane", "")
 	require.NoError(s.T(), err, "Could not create test identity")
 
 	// Create another user identity
-	otherIdentity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	otherIdentity, err := test.CreateTestIdentity(s.DB, "permission-service-test-bob", "")
 	require.NoError(s.T(), err, "Could not create other test identity")
 
 	// Create a resource and assign our test role to the user
@@ -167,7 +147,7 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirect
 	require.NoError(s.T(), err)
 
 	// Create another resource with no permissions assigned
-	otherResource, err := s.createTestResourceWithNoPermissions(identity)
+	otherResource, err := s.createTestResourceWithNoPermissions()
 	require.NoError(s.T(), err)
 
 	// Create a child resource for the first resource
@@ -206,11 +186,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedDirect
  */
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrganizationMemberAssignedIndirectRoleForParentResource() {
 	// Create the user identity
-	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-mary", "")
 	require.NoError(s.T(), err, "Could not create test identity")
 
 	// Create the organization identity
-	org, err := s.createTestOrganization(s.DB, s.Application, identity.ID, "test-permission-org")
+	org, err := test.CreateTestOrganization(s.Ctx, s.DB, s.Application, identity.ID, "test-permission-org")
 	require.NoError(s.T(), err, "Could not create test organization")
 
 	// Create a resource and assign our test role to the organization
@@ -230,8 +210,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrganizationMember
 	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
+	// TODO remove this once membership repo is implemented
+	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+
 	// Create another user identity
-	otherIdentity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	otherIdentity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-albert", "")
 	require.NoError(s.T(), err, "Could not create other test identity")
 
 	// Check that the user now has the scope for the child resource
@@ -253,9 +236,6 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrganizationMember
 	result, err = s.permissionService.HasScope(s.Ctx, otherIdentity.ID, resource.ResourceID, testAreaScopeName)
 	require.NoError(s.T(), err)
 	require.False(s.T(), result, "Other user should not have assigned scope for parent resource")
-
-	// TODO remove this once membership repo is implemented
-	s.removeMember(s.DB, s.Application, org.ID, identity.ID)
 }
 
 /*
@@ -264,7 +244,7 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrganizationMember
  */
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedMappedRoleForResource() {
 	// Create the user identity
-	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-jacques", "")
 	require.NoError(s.T(), err, "Could not create test identity")
 
 	// Create the parent resource
@@ -290,7 +270,7 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedMapped
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Create a role mapping that maps from the parent resource type to the child resource type
-	err = s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = test.CreateTestRoleMapping(s.Ctx, s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
 	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope
@@ -306,11 +286,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForUserAssignedMapped
  */
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedMappedRoleForResource() {
 	// Create the user identity
-	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-thomas", "")
 	require.NoError(s.T(), err, "Could not create test identity")
 
 	// Create the organization identity
-	org, err := s.createTestOrganization(s.DB, s.Application, identity.ID, "test-permission-org")
+	org, err := test.CreateTestOrganization(s.Ctx, s.DB, s.Application, identity.ID, "test-permission-org")
 	require.NoError(s.T(), err, "Could not create test organization")
 
 	// Create the parent resource
@@ -339,6 +319,9 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
+	// TODO remove this cleanup code once membership repo is implemented
+	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+
 	// They should now have the permission for the parent resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, parentResource.ResourceID, testAreaScopeName)
 	require.NoError(s.T(), err)
@@ -350,16 +333,13 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now we map the parent's role to the child
-	err = s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = test.CreateTestRoleMapping(s.Ctx, s.DB, s.Application, parentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
 	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, childResource.ResourceID, testWorkItemScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for child resource")
-
-	// TODO remove this cleanup code once membership repo is implemented
-	s.removeMember(s.DB, s.Application, org.ID, identity.ID)
 }
 
 /*
@@ -369,11 +349,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
  */
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedMappedRoleForGrandparentResource() {
 	// Create the user identity
-	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-richard", "")
 	require.NoError(s.T(), err, "Could not create test identity")
 
 	// Create the organization identity
-	org, err := s.createTestOrganization(s.DB, s.Application, identity.ID, "test-permission-org")
+	org, err := test.CreateTestOrganization(s.Ctx, s.DB, s.Application, identity.ID, "test-permission-org")
 	require.NoError(s.T(), err, "Could not create test organization")
 
 	// Create the grandparent resource
@@ -406,6 +386,9 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
+	// TODO remove this cleanup code once membership repo is implemented
+	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+
 	// They should now have the permission for the grandparent resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, grandparentResource.ResourceID, testAreaScopeName)
 	require.NoError(s.T(), err)
@@ -422,16 +405,13 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now we map the grandparent's role to the child
-	err = s.createRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = test.CreateTestRoleMapping(s.Ctx, s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
 	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, childResource.ResourceID, testWorkItemScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for child resource")
-
-	// TODO remove this cleanup code once membership repo is implemented
-	s.removeMember(s.DB, s.Application, org.ID, identity.ID)
 }
 
 /*
@@ -442,11 +422,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
  */
 func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedDoubleMappedRoleForGrandparentResource() {
 	// Create the user identity
-	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user", "")
+	identity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-harold", "")
 	require.NoError(s.T(), err, "Could not create test identity")
 
 	// Create the organization identity
-	org, err := s.createTestOrganization(s.DB, s.Application, identity.ID, "test-permission-org")
+	org, err := test.CreateTestOrganization(s.Ctx, s.DB, s.Application, identity.ID, "test-permission-org")
 	require.NoError(s.T(), err, "Could not create test organization")
 
 	// Create the grandparent resource
@@ -479,6 +459,9 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedD
 	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
+	// TODO remove this cleanup code once membership repo is implemented
+	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+
 	// They should now have the permission for the grandparent resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, grandparentResource.ResourceID, testAreaScopeName)
 	require.NoError(s.T(), err)
@@ -495,7 +478,7 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedD
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now we map the grandparent's role to the parent
-	err = s.createRoleMapping(s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
+	err = test.CreateTestRoleMapping(s.Ctx, s.DB, s.Application, grandparentResource.ResourceID, s.testAreaRole.RoleID, s.testWorkItemRole.RoleID)
 	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// After creating the role mapping the user should now have the scope for the parent resource
@@ -509,16 +492,13 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedD
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Now the tricky bit... we map the parent's role to the child
-	err = s.createRoleMapping(s.DB, s.Application, parentResource.ResourceID, s.testWorkItemRole.RoleID, s.testWorkItemCommentRole.RoleID)
+	err = test.CreateTestRoleMapping(s.Ctx, s.DB, s.Application, parentResource.ResourceID, s.testWorkItemRole.RoleID, s.testWorkItemCommentRole.RoleID)
 	require.NoError(s.T(), err, "Could not create role mapping")
 
 	// Now they should have permissions for the child resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, childResource.ResourceID, testWorkItemCommentScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for child resource")
-
-	// TODO remove this cleanup code once membership repo is implemented
-	s.removeMember(s.DB, s.Application, org.ID, identity.ID)
 }
 
 // Creates a test resource with the specified type
@@ -527,14 +507,7 @@ func (s *permissionModelServiceBlackBoxTest) createTestResource(resourceTypeName
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, resourceTypeName)
 	require.NoError(s.T(), err, "Could not lookup resource type")
 
-	resource := &resource.Resource{
-		ResourceID:       uuid.NewV4().String(),
-		ParentResourceID: nil,
-		ResourceType:     *resourceType,
-		ResourceTypeID:   resourceType.ResourceTypeID,
-	}
-
-	err = s.resourceRepo.Create(s.Ctx, resource)
+	resource, err := test.CreateTestResource(s.Ctx, s.DB, *resourceType, "test-permission-resource", nil)
 	require.NoError(s.T(), err, "Could not create resource")
 	if err != nil {
 		return nil, err
@@ -577,19 +550,12 @@ func (s *permissionModelServiceBlackBoxTest) createTestResourceAndAssignDefaultR
 }
 
 // Create a test resource of the default type with no assigned permissions
-func (s *permissionModelServiceBlackBoxTest) createTestResourceWithNoPermissions(identity account.Identity) (*resource.Resource, error) {
+func (s *permissionModelServiceBlackBoxTest) createTestResourceWithNoPermissions() (*resource.Resource, error) {
 	// Lookup our default resource type
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, testResourceTypeArea)
 	require.NoError(s.T(), err, "Could not lookup resource type")
 
-	resource := &resource.Resource{
-		ResourceID:       uuid.NewV4().String(),
-		ParentResourceID: nil,
-		ResourceType:     *resourceType,
-		ResourceTypeID:   resourceType.ResourceTypeID,
-	}
-
-	err = s.resourceRepo.Create(s.Ctx, resource)
+	resource, err := test.CreateTestResource(s.Ctx, s.DB, *resourceType, "test-permission-resource", nil)
 	require.NoError(s.T(), err, "Could not create resource")
 	if err != nil {
 		return nil, err
@@ -610,14 +576,7 @@ func (s *permissionModelServiceBlackBoxTest) createTestChildResource(parentResou
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, resourceTypeName)
 	require.NoError(s.T(), err, "Could not lookup resource type")
 
-	resource := &resource.Resource{
-		ResourceID:       uuid.NewV4().String(),
-		ParentResourceID: &parentResource.ResourceID,
-		ResourceType:     *resourceType,
-		ResourceTypeID:   resourceType.ResourceTypeID,
-	}
-
-	err = s.resourceRepo.Create(s.Ctx, resource)
+	resource, err := test.CreateTestResource(s.Ctx, s.DB, *resourceType, "test-permission-resource", &parentResource.ResourceID)
 	require.NoError(s.T(), err, "Could not create resource")
 	if err != nil {
 		return nil, err
@@ -630,30 +589,6 @@ func (s *permissionModelServiceBlackBoxTest) createTestChildResource(parentResou
 	}
 
 	return createdResource, nil
-}
-
-// Creates a test organization identity
-func (s *permissionModelServiceBlackBoxTest) createTestOrganization(db *gorm.DB, appDB application.DB,
-	creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
-
-	orgModelService := organizationModel.NewOrganizationModelService(db, appDB)
-	orgService := organizationService.NewOrganizationService(orgModelService, appDB)
-
-	var organization *account.Identity
-
-	orgID, err := orgService.CreateOrganization(s.Ctx, creatorIdentityID, name)
-	if err != nil {
-		return *organization, err
-	}
-
-	repo := account.NewIdentityRepository(db)
-
-	organization, err = repo.Load(s.Ctx, *orgID)
-	if err != nil {
-		return *organization, err
-	}
-
-	return *organization, nil
 }
 
 // Adds a member to the specified identity (i.e. organization)
@@ -673,15 +608,4 @@ func (s *permissionModelServiceBlackBoxTest) removeMember(db *gorm.DB, appDB app
 
 	db.Unscoped().Exec("DELETE FROM membership WHERE member_of = ? and member_id = ?", memberOf, memberId)
 	return nil
-}
-
-// Creates a role mapping
-func (s *permissionModelServiceBlackBoxTest) createRoleMapping(db *gorm.DB, appDB application.DB,
-	resourceID string, fromRoleID uuid.UUID, toRoleID uuid.UUID) error {
-	err := s.roleMappingRepo.Create(s.Ctx, &roleRepo.RoleMapping{
-		ResourceID: resourceID,
-		FromRoleID: fromRoleID,
-		ToRoleID:   toRoleID,
-	})
-	return err
 }

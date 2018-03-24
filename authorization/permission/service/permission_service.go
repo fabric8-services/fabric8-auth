@@ -20,10 +20,11 @@ func NewPermissionService(modelService permissionModel.PermissionModelService, d
 	return &PermissionServiceImpl{modelService: modelService, db: db}
 }
 
-func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scope string) (bool, error) {
+// This method returns true if the specified user has a particular scope for the specified resource
+func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
 	result := false
 	err := application.Transactional(s.db, func(appl application.Application) error {
-		hasScope, err := s.modelService.HasScope(ctx, identityID, resourceID, scope)
+		hasScope, err := s.modelService.HasScope(ctx, identityID, resourceID, scopeName)
 		if err == nil {
 			result = hasScope
 		}

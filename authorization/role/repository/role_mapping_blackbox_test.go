@@ -98,13 +98,37 @@ func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName str
 }
 
 func (s *roleMappingBlackBoxTest) TestOKToLoad() {
+	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "employee", authorization.IdentityResourceTypeTeam, "member")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rm1)
 
+	_, err = s.repo.Load(s.Ctx, rm1.RoleMappingID)
+	require.NoError(s.T(), err)
 }
 
 func (s *roleMappingBlackBoxTest) TestExistsRoleMapping() {
+	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "employee", authorization.IdentityResourceTypeTeam, "member")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rm1)
 
+	_, err = s.repo.CheckExists(s.Ctx, rm1.RoleMappingID)
+	require.NoError(s.T(), err)
 }
 
 func (s *roleMappingBlackBoxTest) TestOKToSave() {
+	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "contributor", authorization.IdentityResourceTypeTeam, "committer")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rm1)
 
+	otherResource, err := testsupport.CreateTestResourceWithDefaultType(s.Ctx, s.DB, "other-resource")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), otherResource)
+
+	rm1.ResourceID = otherResource.ResourceID
+	err = s.repo.Save(s.Ctx, &rm1)
+	require.Nil(s.T(), err, "Could not update role mapping")
+
+	updatedRm, err := s.repo.Load(s.Ctx, rm1.RoleMappingID)
+	require.Nil(s.T(), err, "Could not load role mapping")
+	require.Equal(s.T(), rm1.ResourceID, updatedRm.ResourceID)
 }

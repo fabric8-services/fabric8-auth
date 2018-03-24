@@ -5,11 +5,11 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 type PermissionModelService interface {
-	HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scope string) (bool, error)
+	HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error)
 }
 
 // GormPermissionModelService is the implementation of the interface for
@@ -27,11 +27,15 @@ func NewPermissionModelService(db *gorm.DB, repo repository.Repositories) Permis
 	}
 }
 
-// Creates a new organization.  The specified identityID is the user creating the organization, while the name parameter
-// specifies the organization name.  The organization's identity ID is returned.
-func (s *GormPermissionModelService) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scope string) (bool, error) {
+// The HasScope method does a permission check for a user, to determine whether they have a particular scope for the
+// specified resource.  It does this by executing a rather complex query against the database, which checks whether the
+// user, or any of the identity groups (i.e. teams, organizations, security groups) that it is a member of has been
+// assigned a role that grants the specified scope.  It takes into account resource hierarchies, checking the roles of
+// parent and other ancestor resources, and also takes into account role mappings, which allow roles assigned for a
+// certain type of resource in the resource ancestry to map to a role for a different resource type lower in the
+// resource hierarchy.
+func (s *GormPermissionModelService) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
 
-	// query for organizations in which the user is a member
 	rows, err := s.db.Unscoped().Raw(`SELECT
   count(1) roles
 FROM
@@ -159,7 +163,7 @@ WHERE
       VALUES (from_role_id), (to_role_id)
       ) AS rl (role_id))
   );`,
-		identityID, identityID, resourceID, resourceID, scope, scope, resourceID).Rows()
+		identityID, identityID, resourceID, resourceID, scopeName, scopeName, resourceID).Rows()
 
 	if err != nil {
 		return false, err

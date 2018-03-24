@@ -56,7 +56,7 @@ func NewRoleMappingRepository(db *gorm.DB) RoleMappingRepository {
 
 // RoleMappingRepository represents the storage interface.
 type RoleMappingRepository interface {
-	CheckExists(ctx context.Context, id string) (bool, error)
+	CheckExists(ctx context.Context, ID uuid.UUID) (bool, error)
 	Load(ctx context.Context, ID uuid.UUID) (*RoleMapping, error)
 	Create(ctx context.Context, u *RoleMapping) error
 	Save(ctx context.Context, u *RoleMapping) error
@@ -71,7 +71,7 @@ func (m *GormRoleMappingRepository) TableName() string {
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormRoleMappingRepository) CheckExists(ctx context.Context, id string) (bool, error) {
+func (m *GormRoleMappingRepository) CheckExists(ctx context.Context, ID uuid.UUID) (bool, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "exists"}, time.Now())
 
 	var exists bool
@@ -83,9 +83,9 @@ func (m *GormRoleMappingRepository) CheckExists(ctx context.Context, id string) 
 				AND deleted_at IS NULL
 		)`, m.TableName())
 
-	err := m.db.CommonDB().QueryRow(query, id).Scan(&exists)
+	err := m.db.CommonDB().QueryRow(query, ID.String()).Scan(&exists)
 	if err == nil && !exists {
-		return exists, errors.NewNotFoundError(m.TableName(), id)
+		return exists, errors.NewNotFoundError(m.TableName(), ID.String())
 	}
 	if err != nil {
 		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
