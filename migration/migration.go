@@ -176,8 +176,11 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 22
 	m = append(m, steps{ExecuteSQLFile("022-add-deprovisioned-to-user.sql")})
 
-	// verion 23
+	// Version 23
 	m = append(m, steps{ExecuteSQLFile("023-resource-type-index.sql")})
+
+	// Version 24
+	m = append(m, steps{ExecuteSQLFile("024-role-mapping-and-team-and-group-identities.sql")})
 
 	// Version N
 	//
