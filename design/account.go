@@ -162,6 +162,7 @@ var _ = a.Resource("users", func() {
 		})
 		a.Description("Verify if the new email updated by the user is a valid email")
 		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
 	a.Action("sendEmailVerificationCode", func() {
 		a.Security("jwt")

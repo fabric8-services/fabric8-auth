@@ -16,7 +16,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 const (
@@ -336,13 +336,6 @@ func IdentityFilterByProviderType(providerType string) func(db *gorm.DB) *gorm.D
 	}
 }
 
-// IdentityFilterByRegistrationCompleted is a gorm filter by 'registration_completed'
-func IdentityFilterByRegistrationCompleted(registrationCompleted bool) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("registration_completed = ?", registrationCompleted)
-	}
-}
-
 // List return all user identities
 func (m *GormIdentityRepository) List(ctx context.Context) ([]Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "list"}, time.Now())
@@ -369,7 +362,8 @@ func (m *GormIdentityRepository) IsValid(ctx context.Context, id uuid.UUID) bool
 	return true
 }
 
-// Search searches for Identites where FullName like %q% or users.email like %q% or users.username like %q%
+// Search searches for Identities where FullName like %q% or users.email like %q% (but ignores private emails)
+// or users.username like %q%
 func (m *GormIdentityRepository) Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error) {
 
 	db := m.db.Model(&Identity{})
@@ -379,7 +373,7 @@ func (m *GormIdentityRepository) Search(ctx context.Context, q string, start int
 	db = db.Select("count(*) over () as cnt2 ,identities.id as identity_id,identities.username,users.*")
 	db = db.Joins("LEFT JOIN users ON identities.user_id = users.id")
 	db = db.Where("LOWER(users.full_name) like ?", "%"+strings.ToLower(q)+"%")
-	db = db.Or("users.email like ?", "%"+strings.ToLower(q)+"%")
+	db = db.Or("LOWER(users.email) like ? and users.email_private is false", "%"+strings.ToLower(q)+"%")
 	db = db.Or("identities.username like ?", "%"+strings.ToLower(q)+"%")
 	db = db.Group("identities.id,identities.username,users.id")
 	//db = db.Preload("user")
