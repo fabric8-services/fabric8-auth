@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"fmt"
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -378,6 +379,9 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByNewResourceType() {
 		require.NotNil(s.T(), rs)
 
 		createdRoleScopes = append(createdRoleScopes, *rs)
+
+		s.T().Log(fmt.Sprintf("Created rolescope with role ID %s and scope ID %s", rs.RoleID.String(), rs.ResourceTypeScopeID.String()))
+
 	}
 
 	someOtherResourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
