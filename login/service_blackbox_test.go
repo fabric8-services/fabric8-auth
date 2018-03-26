@@ -587,7 +587,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	// Fails if invalid format of refresh token
 	s.keycloakTokenService.fail = false
 	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
-	require.NotNil(s.T(), err)
+	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 
 	// Fails if refresh token is expired
@@ -613,6 +613,12 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 
 	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
 	require.NoError(s.T(), err)
+
+	// Fails if KC fails
+	s.keycloakTokenService.fail = true
+	_, err = s.loginService.ExchangeRefreshToken(context.Background(), refreshToken, "", s.Configuration)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 }
 
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
