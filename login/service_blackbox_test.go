@@ -587,7 +587,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	// Fails if invalid format of refresh token
 	s.keycloakTokenService.fail = false
 	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
-	require.Error(s.T(), err)
+	require.EqualError(s.T(), err, "token contains an invalid number of segments")
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 
 	// Fails if refresh token is expired
@@ -603,7 +603,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 
 	ctx := testtoken.ContextWithRequest(nil)
 	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
-	require.Error(s.T(), err)
+	require.EqualError(s.T(), err, "Token is expired")
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 
 	// OK if not expired
@@ -617,7 +617,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	// Fails if KC fails
 	s.keycloakTokenService.fail = true
 	_, err = s.loginService.ExchangeRefreshToken(context.Background(), refreshToken, "", s.Configuration)
-	require.Error(s.T(), err)
+	require.EqualError(s.T(), err, "kc refresh failed")
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
 }
 
