@@ -31,10 +31,10 @@ func (s *roleMappingBlackBoxTest) SetupTest() {
 
 func (s *roleMappingBlackBoxTest) TestOKToDelete() {
 
-	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "employee", authorization.IdentityResourceTypeTeam, "member")
+	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "role_mapping_test_role_employee", authorization.IdentityResourceTypeTeam, "role_mapping_test_role_member")
 	require.NoError(s.T(), err)
 
-	_, err = s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "manager", authorization.IdentityResourceTypeGroup, "admin")
+	_, err = s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "role_mapping_test_role_manager", authorization.IdentityResourceTypeGroup, "role_mapping_test_role_admin")
 	require.NoError(s.T(), err)
 
 	mappings, err := s.repo.List(s.Ctx)
@@ -98,7 +98,7 @@ func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName str
 }
 
 func (s *roleMappingBlackBoxTest) TestOKToLoad() {
-	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "employee", authorization.IdentityResourceTypeTeam, "member")
+	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "role_mapping_test_role_personnel", authorization.IdentityResourceTypeTeam, "role_mapping_test_role_member")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rm1)
 
@@ -107,7 +107,7 @@ func (s *roleMappingBlackBoxTest) TestOKToLoad() {
 }
 
 func (s *roleMappingBlackBoxTest) TestExistsRoleMapping() {
-	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "employee", authorization.IdentityResourceTypeTeam, "member")
+	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "role_mapping_test_role_staff", authorization.IdentityResourceTypeTeam, "role_mapping_test_role_someOtherRoleName")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rm1)
 
@@ -116,13 +116,13 @@ func (s *roleMappingBlackBoxTest) TestExistsRoleMapping() {
 }
 
 func (s *roleMappingBlackBoxTest) TestOKToSave() {
-	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "contributor", authorization.IdentityResourceTypeTeam, "committer")
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), rm1)
-
 	otherResource, err := testsupport.CreateTestResourceWithDefaultType(s.Ctx, s.DB, "other-resource")
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), otherResource)
+
+	rm1, err := s.createTestRoleMapping(authorization.IdentityResourceTypeOrganization, "role_mapping_test_role_contributor", authorization.IdentityResourceTypeTeam, "role_mapping_test_role_committer")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rm1)
 
 	rm1.ResourceID = otherResource.ResourceID
 	err = s.repo.Save(s.Ctx, &rm1)

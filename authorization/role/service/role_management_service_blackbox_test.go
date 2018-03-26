@@ -378,6 +378,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByNewResourceType() {
 		require.NotNil(s.T(), rs)
 
 		createdRoleScopes = append(createdRoleScopes, *rs)
+
 	}
 
 	someOtherResourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
