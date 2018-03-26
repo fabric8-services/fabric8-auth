@@ -584,11 +584,35 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 }
 
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
-	// Fails if invalid refresh token
-	s.keycloakTokenService.fail = true
+	// Fails if invalid format of refresh token
+	s.keycloakTokenService.fail = false
 	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+
+	// Fails if refresh token is expired
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenFailsIfInvalidToken-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+
+	ctx := testtoken.ContextWithRequest(nil)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+
+	// OK if not expired
+	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+	refreshToken, err = testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+
+	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
+	require.NoError(s.T(), err)
 }
 
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
