@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"errors"
 	"strings"
 
@@ -16,7 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // CollaboratorsController implements the collaborators resource.
@@ -30,11 +29,6 @@ type CollaboratorsController struct {
 type collaboratorsConfiguration interface {
 	GetKeycloakEndpointEntitlement(*goa.RequestData) (string, error)
 	GetCacheControlCollaborators() string
-}
-
-type collaboratorContext interface {
-	context.Context
-	jsonapi.InternalServerError
 }
 
 // NewCollaboratorsController creates a collaborators controller.
@@ -161,7 +155,7 @@ func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsCon
 	return ctx.OK([]byte{})
 }
 
-func (c *CollaboratorsController) updatePolicy(ctx collaboratorContext, req *goa.RequestData, spaceID uuid.UUID, identityIDs []*app.UpdateUserID, update func(policy *auth.KeycloakPolicy, identityID string) bool) error {
+func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, req *goa.RequestData, spaceID uuid.UUID, identityIDs []*app.UpdateUserID, update func(policy *auth.KeycloakPolicy, identityID string) bool) error {
 	// Authorize current user
 	authorized, err := authz.Authorize(ctx, spaceID.String())
 	if err != nil {
@@ -253,7 +247,7 @@ func (c *CollaboratorsController) updatePolicy(ctx collaboratorContext, req *goa
 	return nil
 }
 
-func (c *CollaboratorsController) getPolicy(ctx collaboratorContext, req *goa.RequestData, spaceID uuid.UUID) (*auth.KeycloakPolicy, *string, error) {
+func (c *CollaboratorsController) getPolicy(ctx jsonapi.InternalServerError, req *goa.RequestData, spaceID uuid.UUID) (*auth.KeycloakPolicy, *string, error) {
 	var policyID string
 	err := application.Transactional(c.db, func(appl application.Application) error {
 		// Load associated space resource
