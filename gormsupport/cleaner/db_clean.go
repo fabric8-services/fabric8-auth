@@ -65,7 +65,7 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 		}
 		for i := len(entities) - 1; i >= 0; i-- {
 			entity := entities[i]
-			log.Info(nil, map[string]interface{}{
+			log.Debug(nil, map[string]interface{}{
 				"table":     entity.table,
 				"keys":      entity.keys,
 				"hook_name": hookName,
