@@ -89,7 +89,7 @@ COVERAGE_MODE ?= set
 
 # By default no go test calls will use the -v switch when running tests.
 # But if you want you can enable that by setting GO_TEST_VERBOSITY_FLAG=-v
-GO_TEST_VERBOSITY_FLAG ?=
+GO_TEST_VERBOSITY_FLAG ?= -v
 
 
 # By default use the "localhost" or specify manually during make invocation:
