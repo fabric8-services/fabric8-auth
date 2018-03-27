@@ -52,6 +52,8 @@ type configuration interface {
 	GetDeprecatedUserAccountPrivateKey() ([]byte, string)
 	GetDevModePublicKey() (bool, []byte, string)
 	IsPostgresDeveloperModeEnabled() bool
+	GetAccessTokenExpiresIn() int64
+	GetRefreshTokenExpiresIn() int64
 }
 
 type JsonKeys struct {
@@ -145,6 +147,7 @@ func NewManager(config configuration) (Manager, error) {
 	deprecatedKey, deprecatedKid := config.GetDeprecatedUserAccountPrivateKey()
 	tm.userAccountPrivateKey, err = LoadPrivateKey(tm, key, kid, deprecatedKey, deprecatedKid)
 	if err != nil {
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to load user account private keys")
 		return nil, err
 	}
 	// Load the service account private key and add it to the manager.
@@ -153,6 +156,7 @@ func NewManager(config configuration) (Manager, error) {
 	deprecatedKey, deprecatedKid = config.GetDeprecatedServiceAccountPrivateKey()
 	tm.serviceAccountPrivateKey, err = LoadPrivateKey(tm, key, kid, deprecatedKey, deprecatedKid)
 	if err != nil {
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to load service account private keys")
 		return nil, err
 	}
 
@@ -161,6 +165,7 @@ func NewManager(config configuration) (Manager, error) {
 	if devMode {
 		rsaKey, err := jwt.ParseRSAPublicKeyFromPEM(key)
 		if err != nil {
+			log.Error(nil, map[string]interface{}{"err": err}, "unable to load dev mode public key")
 			return nil, err
 		}
 		tm.publicKeysMap[kid] = rsaKey
@@ -202,6 +207,7 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 	// Load the private key. Extract the public key from it
 	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
 	if err != nil {
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to parse private key")
 		return nil, err
 	}
 	privateKey := &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
@@ -219,6 +225,7 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 	} else {
 		rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(deprecatedKey)
 		if err != nil {
+			log.Error(nil, map[string]interface{}{"err": err}, "unable to parse deprecated private key")
 			return nil, err
 		}
 		pk := &rsaServiceAccountKey.PublicKey
@@ -537,20 +544,19 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 		return nil, errors.WithStack(err)
 	}
 
-	var in30Days, nbf int64
-	in30Days = 30 * 24 * 60 * 60 // In 30 days
+	var nbf int64
 
 	token := &oauth2.Token{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		Expiry:       time.Unix(nowTime+in30Days, 0),
+		Expiry:       time.Unix(nowTime+mgm.config.GetAccessTokenExpiresIn(), 0),
 		TokenType:    "bearer",
 	}
 
 	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
 	extra := make(map[string]interface{})
-	extra["expires_in"] = in30Days
-	extra["refresh_expires_in"] = in30Days
+	extra["expires_in"] = mgm.config.GetAccessTokenExpiresIn()
+	extra["refresh_expires_in"] = mgm.config.GetRefreshTokenExpiresIn()
 	extra["not_before_policy"] = nbf
 
 	token = token.WithExtra(extra)
@@ -654,7 +660,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
 	iat := time.Now().Unix()
-	claims["exp"] = iat + 30*24*60*60 // In 30 days
+	claims["exp"] = iat + mgm.config.GetAccessTokenExpiresIn()
 	claims["nbf"] = 0
 	claims["iat"] = iat
 	claims["iss"] = authOpenshiftIO
@@ -734,7 +740,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
 	iat := time.Now().Unix()
-	exp := iat + 30*24*60*60 // In 30 days
+	exp := iat + mgm.config.GetRefreshTokenExpiresIn()
 	claims["exp"] = exp
 	claims["nbf"] = 0
 	claims["iat"] = iat

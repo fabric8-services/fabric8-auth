@@ -10,6 +10,8 @@ import (
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
+	"os"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -18,7 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"os"
 )
 
 func TestToken(t *testing.T) {
@@ -163,8 +164,8 @@ func (s *TestWhiteboxTokenSuite) TestPrivateKeysLoaded() {
 func (s *TestWhiteboxTokenSuite) TestPrivateKeysLoadedFromEnvVars() {
 	s.checkPrivateKeyLoaded("AUTH_SERVICEACCOUNT_PRIVATEKEY", config.DefaultServiceAccountPrivateKey, "AUTH_SERVICEACCOUNT_PRIVATEKEYID", "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs")
 	s.checkPrivateKeyLoaded("AUTH_USERACCOUNT_PRIVATEKEY", config.DefaultUserAccountPrivateKey, "AUTH_USERACCOUNT_PRIVATEKEYID", "aUGv8mQA85jg4V1DU8Uk1W0uKsxn187KQONAGl6AMtc")
-	s.checkPrivateKeyLoaded("AUTH_SERVICEACCOUNT_PRIVATEKEY_DEPRECATED", depricatedServiceAccountPrivateKey, "AUTH_SERVICEACCOUNT_PRIVATEKEYID_DEPRECATED", "bMa8r5iGklldtlb23HE6DBAeIwD1SpmCTEwm2TqyUTo")
-	s.checkPrivateKeyLoaded("AUTH_USERACCOUNT_PRIVATEKEY_DEPRECATED", depricatedUserAccountPrivateKey, "AUTH_USERACCOUNT_PRIVATEKEYID_DEPRECATED", "ATXsLMBt9YD8ZgSqCq84PMWNVai_Q2LjIp-lAneSi4s")
+	s.checkPrivateKeyLoaded("AUTH_SERVICEACCOUNT_PRIVATEKEY_DEPRECATED", deprecatedServiceAccountPrivateKey, "AUTH_SERVICEACCOUNT_PRIVATEKEYID_DEPRECATED", "bMa8r5iGklldtlb23HE6DBAeIwD1SpmCTEwm2TqyUTo")
+	s.checkPrivateKeyLoaded("AUTH_USERACCOUNT_PRIVATEKEY_DEPRECATED", deprecatedUserAccountPrivateKey, "AUTH_USERACCOUNT_PRIVATEKEYID_DEPRECATED", "ATXsLMBt9YD8ZgSqCq84PMWNVai_Q2LjIp-lAneSi4s")
 }
 
 func (s *TestWhiteboxTokenSuite) checkPrivateKeyLoaded(keyEnvVarName, keyEnvVarValue, kidEnvVarName, kidEnvVarValue string) {
@@ -230,7 +231,7 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 }
 
 const (
-	depricatedServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+	deprecatedServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAgYUCOars5k/zvFcm+GkLCviNftWWtXiva0Sp+mKwTRUpTw6+
 B6Fz8gPv2WbmcKFi02YiEETDKx5uNkJixMj0ujxYh7C8c0uAvcdEPVIlgcaP8mnV
 48my3Br278uhP2wsw51K/nehE829tRRpguMNQtjqqZerHqdEkFWAcRgsrSJVt2vP
@@ -258,7 +259,7 @@ UOuQUESja64DUJcIEMzgB3xngApvNL/3PnQlM6+ZL3fS+MXGOrpofNhxBLJbLuoN
 WA2V2idzoQRfDRW1xzJu11xJKMUAmnyU17iUePgZ2m0vO+EY4Tgc
 -----END RSA PRIVATE KEY-----`
 
-	depricatedUserAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+	deprecatedUserAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAk08FgfnXRPpH7muT60xJrvsYXkqJ3LIPKyEBR9wWWHmN8bR8
 c3SPPCsmI6ykAsa4IavnwS5vY64/4kcL2IFz9EqMbdNqSjT1dly3a7rwi/lT9E85
 fe6mzaBz7460SANmFdB/e/9e6NVQWZvSsZ2T0QQFmDq+peQg4CbdbuQ95cb5vnDI
