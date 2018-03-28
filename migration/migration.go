@@ -182,6 +182,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 24
 	m = append(m, steps{ExecuteSQLFile("024-role-mapping-and-team-and-group-identities.sql")})
 
+	// Version 25
+	m = append(m, steps{ExecuteSQLFile("025-fix-feature-level.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
