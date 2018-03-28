@@ -1,0 +1,1 @@
+UPDATE users SET feature_level = 'released' WHERE feature_level = '' and email like '%+preview%';
