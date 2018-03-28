@@ -261,7 +261,6 @@ func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx co
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
 	var roleScopes []role.RoleScope
 
-	//r.db = r.db.Debug()
 	db := r.db.Raw(`SELECT r.role_id,
 		r.name role_name,
 		array_to_string(array_agg(rts.NAME), ',') scopes
