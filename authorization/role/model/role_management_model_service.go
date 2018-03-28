@@ -318,7 +318,10 @@ func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx co
 			}, "error getting rows")
 			return roleScopes, errors.NewInternalError(ctx, err)
 		}
-		scopesList := strings.Split(scopeNames, ",")
+		var scopesList []string
+		if scopeNames != "" {
+			scopesList = strings.Split(scopeNames, ",")
+		}
 		roleScope := role.RoleScope{
 			RoleName:     roleName,
 			RoleID:       roleID,
