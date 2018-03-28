@@ -404,7 +404,27 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByNewResourceType() {
 	require.Len(s.T(), roleScopesRetrieved, 10)
 	s.checkRoleBelongsToResourceType(s.DB, roleScopesRetrieved, *testResourceTypeRef)
 	s.checkIfCreatedRoleScopesAreReturned(s.DB, createdRoleScopes, roleScopesRetrieved)
+}
 
+func (s *roleManagementServiceBlackboxTest) TestCanListRolesWithoutScopes() {
+	newResourceTypeName := uuid.NewV4().String()
+	testResourceTypeRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
+	require.NoError(s.T(), err)
+
+	role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testResourceTypeRef, uuid.NewV4().String())
+
+	roles, err := s.roleManagementService.ListAvailableRolesByResourceType(s.Ctx, testResourceTypeRef.Name)
+	require.NoError(s.T(), err)
+
+	found := false
+	for _, r := range roles {
+		if r.RoleID == role.RoleID.String() {
+			found = true
+			break
+		}
+	}
+
+	require.True(s.T(), found, "could not list role")
 }
 
 func (s *roleManagementServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, createdRoleScopes []rolerepo.RoleScope, roleScopesRetrieved []role.RoleScope) {

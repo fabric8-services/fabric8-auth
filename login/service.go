@@ -674,6 +674,9 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		if identity.User.Cluster == "" {
 			identity.User.Cluster = configuration.GetOpenShiftClientApiUrl()
 		}
+		if identity.User.FeatureLevel == "" {
+			identity.User.FeatureLevel = account.DefaultFeatureLevel
+		}
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,

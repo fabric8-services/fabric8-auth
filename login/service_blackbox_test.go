@@ -152,6 +152,19 @@ func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
 	assert.Equal(s.T(), s.Configuration.GetOpenShiftClientApiUrl(), identity.User.Cluster)
 }
 
+func (s *serviceBlackBoxTest) TestFeatureLevelOfUserCreatedAndUpdated() {
+	claims := make(map[string]interface{})
+	token, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	identity, ok, err := s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
+	require.Nil(s.T(), err)
+	require.NotNil(s.T(), identity)
+	assert.True(s.T(), ok)
+	s.checkIfTokenMatchesIdentity(token, *identity)
+	assert.Equal(s.T(), account.DefaultFeatureLevel, identity.User.FeatureLevel)
+}
+
 func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 	claims := make(map[string]interface{})
 	claims["approved"] = false

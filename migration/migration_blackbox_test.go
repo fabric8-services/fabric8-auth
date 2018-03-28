@@ -9,6 +9,7 @@ import (
 	logger "log"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
@@ -109,6 +110,8 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration21", testMigration21)
 	t.Run("TestMigration22", testMigration22)
 	t.Run("TestMigration23", testMigration23)
+	t.Run("TestMigration25ValidHits", testMigration25ValidHits)
+	t.Run("TestMigration25ValidMiss", testMigration25ValidMiss)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -256,6 +259,42 @@ func testMigration22(t *testing.T) {
 func testMigration23(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(24)], (24))
 	assert.True(t, dialect.HasIndex("resource_type", "idx_name_rt_name"))
+}
+
+func testMigration25ValidHits(t *testing.T) {
+
+	migrateToVersion(sqlDB, migrations[:(25)], (25))
+	require.Nil(t, runSQLscript(sqlDB, "025-before-fix-feature-level.sql"))
+
+	migrateToVersion(sqlDB, migrations[:(26)], (26))
+
+	rows, err := sqlDB.Query("SELECT feature_level FROM users WHERE email = 'migration-test-1025+preview@mail.com'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	require.True(t, rows.Next())
+	var featureLevel string
+	err = rows.Scan(&featureLevel)
+	require.Equal(t, account.DefaultFeatureLevel, featureLevel)
+
+}
+
+func testMigration25ValidMiss(t *testing.T) {
+
+	rows, err := sqlDB.Query("SELECT feature_level FROM users WHERE email = 'migration-test-1027+preview@mail.com'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	require.True(t, rows.Next())
+	var featureLevel string
+	err = rows.Scan(&featureLevel)
+	// doesn't change.
+	require.Equal(t, "somethingelse", featureLevel)
+
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
