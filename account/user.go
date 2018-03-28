@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -208,5 +209,12 @@ func UserFilterByID(userID uuid.UUID) func(db *gorm.DB) *gorm.DB {
 func UserFilterByEmail(email string) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("email = ?", email)
+	}
+}
+
+// UserFilterByEmailPrivacy is to be used to filter only public or only private emails
+func UserFilterByEmailPrivacy(privateEmails bool) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where(fmt.Sprintf("email_private IS %v", privateEmails))
 	}
 }

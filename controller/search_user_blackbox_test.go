@@ -70,7 +70,7 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 		{"with special chars", userSearchTestArgs{s.offset(0), s.limit(10), "&:\n!#%?*"}, userSearchTestExpects{s.totalCount(0)}},
 		{"with multi page", userSearchTestArgs{s.offset(0), s.limit(10), "TEST"}, userSearchTestExpects{s.hasLinks("Next")}},
 		{"with last page", userSearchTestArgs{s.offset(len(idents) - 1), s.limit(10), "TEST"}, userSearchTestExpects{s.hasNoLinks("Next"), s.hasLinks("Prev")}},
-		{"with different values", userSearchTestArgs{s.offset(0), s.limit(10), "TEST"}, userSearchTestExpects{s.differentValues()}},
+		{"with different values", userSearchTestArgs{s.offset(0), s.limit(10), "TEST"}, userSearchTestExpects{s.differentValues(s.createDifferentTestData())}},
 		{"With offset exceeded the max limit total count", userSearchTestArgs{s.offset(s.Configuration.GetMaxUsersListLimit() + 1), s.limit(1), "TEST_"}, userSearchTestExpects{s.totalCount(s.Configuration.GetMaxUsersListLimit())}},
 		{"With offset exceeded the max limit result size", userSearchTestArgs{s.offset(s.Configuration.GetMaxUsersListLimit() + 1), s.limit(1), "TEST_"}, userSearchTestExpects{s.resultLen(0)}},
 		{"With offset + limit exceeded the max limit total count", userSearchTestArgs{s.offset(0), s.limit(s.Configuration.GetMaxUsersListLimit() + 1), "TEST_"}, userSearchTestExpects{s.totalCount(s.Configuration.GetMaxUsersListLimit())}},
@@ -141,13 +141,25 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 	return idents
 }
 
+func (s *TestSearchUserSearch) createDifferentTestData() account.Identity {
+	user := &account.User{
+		Email:   uuid.NewV4().String(),
+		Cluster: "test cluster",
+		ID:      uuid.NewV4(),
+	}
+	result, err := testsupport.CreateTestUser(s.DB, user)
+	require.NoError(s.T(), err)
+	return result
+}
+
 func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 	randomName := uuid.NewV4().String()
+	email := uuid.NewV4().String()
 	user := account.User{
 		EmailPrivate: true,
 		FullName:     randomName,
 		ImageURL:     "http://example.org/" + randomName + ".png",
-		Email:        uuid.NewV4().String(),
+		Email:        email,
 		Cluster:      "default Cluster",
 	}
 
@@ -156,11 +168,16 @@ func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 
 	offset := "0"
 	pageLimit := 1
+	// OK to search by username
 	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
 
 	for _, result := range results.Data {
 		require.Equal(s.T(), "", *result.Attributes.Email)
 	}
+
+	// Empty result if searching by private email
+	_, results = test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, email)
+	require.Empty(s.T(), results.Data)
 }
 
 func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
@@ -243,27 +260,11 @@ func (s *TestSearchUserSearch) hasNoLinks(linkNames ...string) userSearchTestExp
 	}
 }
 
-func (s *TestSearchUserSearch) differentValues() userSearchTestExpect {
+func (s *TestSearchUserSearch) differentValues(identity account.Identity) userSearchTestExpect {
 	return func(t *testing.T, scenario okScenarioUserSearchTest, result *app.UserList) {
-		var prev *app.UserData
-
-		for i := range result.Data {
-			u := result.Data[i]
-			if prev == nil {
-				prev = u
-			} else {
-				if *prev.Attributes.FullName == *u.Attributes.FullName {
-					t.Errorf("%s got equal Fullname, wanted different %s", scenario.name, *u.Attributes.FullName)
-				}
-				if *prev.Attributes.ImageURL == *u.Attributes.ImageURL {
-					t.Errorf("%s got equal ImageURL, wanted different %s", scenario.name, *u.Attributes.ImageURL)
-				}
-				if *prev.ID == *u.ID {
-					t.Errorf("%s got equal ID, wanted different %s", scenario.name, *u.ID)
-				}
-				if prev.Type != u.Type {
-					t.Errorf("%s got non equal Type, wanted same %s", scenario.name, u.Type)
-				}
+		for _, u := range result.Data {
+			if identity.ID.String() == *u.ID {
+				t.Errorf("%s got equal ID, wanted different %s", scenario.name, *u.ID)
 			}
 		}
 	}

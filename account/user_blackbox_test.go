@@ -7,7 +7,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/resource"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -30,12 +29,9 @@ func (s *userBlackBoxTest) SetupTest() {
 }
 
 func (s *userBlackBoxTest) TestOKToDelete() {
-	t := s.T()
-	resource.Require(t, resource.Database)
-
 	// create 2 users, where the first one would be deleted.
-	user := createAndLoadUser(s)
-	createAndLoadUser(s)
+	user := createAndLoadUser(s, false)
+	createAndLoadUser(s, false)
 
 	err := s.repo.Delete(s.Ctx, user.ID)
 	assert.Nil(s.T(), err)
@@ -53,19 +49,15 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *userBlackBoxTest) TestOKToLoad() {
-	t := s.T()
-	resource.Require(t, resource.Database)
-
-	createAndLoadUser(s) // this function does the needful already
+	createAndLoadUser(s, false) // this function does the needful already
 }
 
 func (s *userBlackBoxTest) TestExistsUser() {
 	t := s.T()
-	resource.Require(t, resource.Database)
 
 	t.Run("user exists", func(t *testing.T) {
 		//t.Parallel()
-		user := createAndLoadUser(s)
+		user := createAndLoadUser(s, false)
 		// when
 		err := s.repo.CheckExists(s.Ctx, user.ID.String())
 		// then
@@ -82,10 +74,7 @@ func (s *userBlackBoxTest) TestExistsUser() {
 }
 
 func (s *userBlackBoxTest) TestOKToSave() {
-	t := s.T()
-	resource.Require(t, resource.Database)
-
-	user := createAndLoadUser(s)
+	user := createAndLoadUser(s, false)
 
 	user.FullName = "newusernameTestUser"
 	user.Cluster = "NewCluster" + uuid.NewV4().String()
@@ -104,7 +93,6 @@ func (s *userBlackBoxTest) TestOKToSave() {
 
 func (s *userBlackBoxTest) TestCreateUserWithoutClusterFails() {
 	t := s.T()
-	resource.Require(t, resource.Database)
 	user := &account.User{
 		ID:       uuid.NewV4(),
 		Email:    "noclustersomeuser@TestUser" + uuid.NewV4().String(),
@@ -130,8 +118,7 @@ func (s *userBlackBoxTest) TestCreateUserWithoutClusterFails() {
 
 func (s *userBlackBoxTest) TestUpdateUserWithoutClusterFails() {
 	t := s.T()
-	resource.Require(t, resource.Database)
-	user := createAndLoadUser(s)
+	user := createAndLoadUser(s, false)
 
 	// If we try to set an empty cluster for an existing user it should fail.
 	err := s.DB.Exec(fmt.Sprintf("update users set cluster = '' where id = '%s'", user.ID.String())).Error
@@ -158,8 +145,7 @@ func (s *userBlackBoxTest) TestUpdateUserWithoutClusterFails() {
 
 func (s *userBlackBoxTest) TestUpdateToEmptyString() {
 	t := s.T()
-	resource.Require(t, resource.Database)
-	user := createAndLoadUser(s)
+	user := createAndLoadUser(s, false)
 
 	err := s.repo.Save(s.Ctx, user)
 	require.Nil(t, err)
@@ -171,15 +157,78 @@ func (s *userBlackBoxTest) TestUpdateToEmptyString() {
 	require.Empty(t, u.Bio)
 }
 
-func createAndLoadUser(s *userBlackBoxTest) *account.User {
+func (s *userBlackBoxTest) TestEmailFilters() {
+	userWithPublicEmail := createAndLoadUser(s, false)
+	createAndLoadUser(s, false)
+	userWithPrivateEmail := createAndLoadUser(s, true)
+	createAndLoadUser(s, true)
+
+	// Filter users by email
+
+	users, err := s.repo.Query(account.UserFilterByEmail(userWithPublicEmail.Email))
+	require.NoError(s.T(), err)
+	require.Len(s.T(), users, 1)
+	require.Equal(s.T(), userWithPublicEmail.Email, users[0].Email)
+
+	users, err = s.repo.Query(account.UserFilterByEmail(userWithPrivateEmail.Email))
+	require.NoError(s.T(), err)
+	require.Len(s.T(), users, 1)
+	require.Equal(s.T(), userWithPrivateEmail.Email, users[0].Email)
+
+	// Filter users by email privacy
+
+	s.checkPrivateEmailFilter(false, userWithPublicEmail.Email)
+	s.checkPrivateEmailFilter(true, userWithPrivateEmail.Email)
+
+	// Filter users by email and email privacy
+
+	// Search for a public email and the give email is public. User is found
+	users, err = s.repo.Query(account.UserFilterByEmail(userWithPublicEmail.Email), account.UserFilterByEmailPrivacy(false))
+	require.NoError(s.T(), err)
+	require.Len(s.T(), users, 1)
+	require.Equal(s.T(), userWithPublicEmail.Email, users[0].Email)
+
+	// Search for a public email but the give email is private. User is not found
+	users, err = s.repo.Query(account.UserFilterByEmail(userWithPrivateEmail.Email), account.UserFilterByEmailPrivacy(false))
+	require.NoError(s.T(), err)
+	require.Len(s.T(), users, 0)
+
+	// Search for a private email and the give email is private. User is found
+	users, err = s.repo.Query(account.UserFilterByEmail(userWithPrivateEmail.Email), account.UserFilterByEmailPrivacy(true))
+	require.NoError(s.T(), err)
+	require.Len(s.T(), users, 1)
+	require.Equal(s.T(), userWithPrivateEmail.Email, users[0].Email)
+
+	// Search for a private email but the give email is public. User is not found
+	users, err = s.repo.Query(account.UserFilterByEmail(userWithPublicEmail.Email), account.UserFilterByEmailPrivacy(true))
+	require.NoError(s.T(), err)
+	require.Len(s.T(), users, 0)
+}
+
+func (s *userBlackBoxTest) checkPrivateEmailFilter(privateEmails bool, expectedEmail string) {
+	users, err := s.repo.Query(account.UserFilterByEmailPrivacy(privateEmails))
+	require.NoError(s.T(), err)
+	require.True(s.T(), len(users) > 0)
+	var found bool
+	for _, user := range users {
+		if user.Email == expectedEmail {
+			found = true
+			break
+		}
+	}
+	require.True(s.T(), found)
+}
+
+func createAndLoadUser(s *userBlackBoxTest, emailPrivate bool) *account.User {
 	user := &account.User{
-		ID:       uuid.NewV4(),
-		Email:    "someuser@TestUser" + uuid.NewV4().String(),
-		FullName: "someuserTestUser" + uuid.NewV4().String(),
-		ImageURL: "someImageUrl" + uuid.NewV4().String(),
-		Bio:      "somebio" + uuid.NewV4().String(),
-		URL:      "someurl" + uuid.NewV4().String(),
-		Cluster:  "somecluster" + uuid.NewV4().String(),
+		ID:           uuid.NewV4(),
+		Email:        "someuser@TestUser" + uuid.NewV4().String(),
+		EmailPrivate: emailPrivate,
+		FullName:     "someuserTestUser" + uuid.NewV4().String(),
+		ImageURL:     "someImageUrl" + uuid.NewV4().String(),
+		Bio:          "somebio" + uuid.NewV4().String(),
+		URL:          "someurl" + uuid.NewV4().String(),
+		Cluster:      "somecluster" + uuid.NewV4().String(),
 		ContextInformation: account.ContextInformation{
 			"space":        uuid.NewV4(),
 			"last_visited": "http://www.google.com",
