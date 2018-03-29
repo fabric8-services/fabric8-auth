@@ -73,7 +73,7 @@ objects:
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: usereaccount.privatekey
+                key: useraccount.privatekey
           - name: AUTH_USERACCOUNT_PRIVATEKEYID
             valueFrom:
               secretKeyRef:
