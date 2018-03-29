@@ -19,7 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -513,28 +512,6 @@ func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.Exchan
 		"client_secret": *payload.ClientSecret,
 	}, "Service Account secret doesn't match")
 	return nil, errors.NewUnauthorizedError("invalid Service Account ID or secret")
-}
-
-func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
-	var externalToken provider.ExternalToken
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		externalToken = provider.ExternalToken{
-			Token:      keycloakTokenResponse.AccessToken,
-			IdentityID: currentIdentity,
-			Scope:      providerConfig.Scopes(),
-			ProviderID: providerConfig.ID(),
-		}
-		err := appl.ExternalTokens().Create(ctx, &externalToken)
-		if err == nil {
-			log.Info(ctx, map[string]interface{}{
-				"provider_name":     providerConfig.TypeName(),
-				"identity_id":       currentIdentity,
-				"external_token_id": externalToken.ID,
-			}, "no old token found. account linked & new token saved.")
-		}
-		return err
-	})
-	return &externalToken, err
 }
 
 // updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
