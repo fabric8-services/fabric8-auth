@@ -54,7 +54,7 @@ func (s *TestAuthzSuite) SetupSuite() {
 		panic(fmt.Errorf("failed to get endpoint from configuration: %s", err.Error()))
 	}
 
-	token, err := controller.GenerateUserToken(context.Background(), tokenEndpoint, s.Config, s.Config.GetKeycloakTestUserName(), s.Config.GetKeycloakTestUserSecret())
+	token, err := controller.ObtainKeycloakUserToken(context.Background(), tokenEndpoint, s.Config, s.Config.GetKeycloakTestUserName(), s.Config.GetKeycloakTestUserSecret())
 	if err != nil {
 		panic(fmt.Errorf("failed to generate token: %s", err.Error()))
 	}
@@ -64,7 +64,7 @@ func (s *TestAuthzSuite) SetupSuite() {
 
 	s.test1Token = *token.Token.AccessToken
 
-	token, err = controller.GenerateUserToken(context.Background(), tokenEndpoint, s.Config, s.Config.GetKeycloakTestUser2Name(), s.Config.GetKeycloakTestUser2Secret())
+	token, err = controller.ObtainKeycloakUserToken(context.Background(), tokenEndpoint, s.Config, s.Config.GetKeycloakTestUser2Name(), s.Config.GetKeycloakTestUser2Secret())
 	if err != nil {
 		panic(fmt.Errorf("failed to generate token: %s", err.Error()))
 	}

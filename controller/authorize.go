@@ -68,7 +68,7 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
 		Scopes:       scope,
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath()),
+		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
 	}
 
 	redirectTo, err := c.Auth.AuthCodeURL(ctx, &ctx.RedirectURI, ctx.APIClient, &ctx.State, ctx.ResponseMode, ctx.RequestData, oauth, c.Configuration)

@@ -1,34 +1,33 @@
 package token
 
 import (
+	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
+	"github.com/pkg/errors"
+
+	"github.com/fabric8-services/fabric8-auth/account"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	errs "github.com/pkg/errors"
-
-	"bytes"
-	"io"
-	"strconv"
-	"strings"
-
-	"time"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
 )
 
@@ -47,9 +46,14 @@ const (
 
 // configuration represents configuration needed to construct a token manager
 type configuration interface {
-	GetKeycloakEndpointCerts() string
 	GetServiceAccountPrivateKey() ([]byte, string)
 	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
+	GetUserAccountPrivateKey() ([]byte, string)
+	GetDeprecatedUserAccountPrivateKey() ([]byte, string)
+	GetDevModePublicKey() (bool, []byte, string)
+	IsPostgresDeveloperModeEnabled() bool
+	GetAccessTokenExpiresIn() int64
+	GetRefreshTokenExpiresIn() int64
 }
 
 type JsonKeys struct {
@@ -100,6 +104,10 @@ type Manager interface {
 	AuthServiceAccountToken(req *goa.RequestData) (string, error)
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
+	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error)
+	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error)
+	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
+	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 }
 
 // PrivateKey represents an RSA private key with a Key ID
@@ -117,87 +125,66 @@ type tokenManager struct {
 	publicKeysMap            map[string]*rsa.PublicKey
 	publicKeys               []*PublicKey
 	serviceAccountPrivateKey *PrivateKey
+	userAccountPrivateKey    *PrivateKey
 	jsonWebKeys              JsonKeys
 	pemKeys                  JsonKeys
 	serviceAccountToken      string
 	serviceAccountLock       sync.RWMutex
+	config                   configuration
 }
 
 // NewManager returns a new token Manager for handling tokens
 func NewManager(config configuration) (Manager, error) {
-	// Load public keys from Keycloak and add them to the manager
 	tm := &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{},
 	}
+	tm.config = config
 
-	keycloakKeys, err := FetchKeys(config.GetKeycloakEndpointCerts())
-	if err != nil {
-		log.Error(nil, map[string]interface{}{}, "unable to load Keycloak public keys")
-		return nil, errors.New("unable to load Keycloak public keys")
-	}
-	for _, keycloakKey := range keycloakKeys {
-		tm.publicKeysMap[keycloakKey.KeyID] = keycloakKey.Key
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: keycloakKey.KeyID, Key: keycloakKey.Key})
-		log.Info(nil, map[string]interface{}{
-			"kid": keycloakKey.KeyID,
-		}, "Public key added")
-	}
-
-	// Load the service account private key and add it to the manager.
+	// Load the user account private key and add it to the manager.
 	// Extract the public key from it and add it to the map of public keys.
-	key, kid := config.GetServiceAccountPrivateKey()
-	if len(key) == 0 || kid == "" {
-		log.Error(nil, map[string]interface{}{
-			"kid":        kid,
-			"key_length": len(key),
-		}, "Service account private key or its ID are not set up")
-		return nil, errors.New("Service account private key or its ID are not set up")
-	}
-	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
+	var err error
+	key, kid := config.GetUserAccountPrivateKey()
+	deprecatedKey, deprecatedKid := config.GetDeprecatedUserAccountPrivateKey()
+	tm.userAccountPrivateKey, err = LoadPrivateKey(tm, key, kid, deprecatedKey, deprecatedKid)
 	if err != nil {
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to load user account private keys")
 		return nil, err
 	}
-	tm.serviceAccountPrivateKey = &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
-	pk := &rsaServiceAccountKey.PublicKey
-	tm.publicKeysMap[kid] = pk
-	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
-	log.Info(nil, map[string]interface{}{
-		"kid": kid,
-	}, "Service account private key added")
-	// Extract public key from deprecated service account private key if any and add it to the manager
-	key, kid = config.GetDeprecatedServiceAccountPrivateKey()
-	if len(key) == 0 || kid == "" {
-		log.Debug(nil, map[string]interface{}{
-			"kid":        kid,
-			"key_length": len(key),
-		}, "No deprecated service account private key found")
-	} else {
-		rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
-		if err != nil {
-			return nil, err
-		}
-		pk := &rsaServiceAccountKey.PublicKey
-		tm.publicKeysMap[kid] = pk
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
-		log.Info(nil, map[string]interface{}{
-			"kid": kid,
-		}, "Deprecated service account private key added")
+	// Load the service account private key and add it to the manager.
+	// Extract the public key from it and add it to the map of public keys.
+	key, kid = config.GetServiceAccountPrivateKey()
+	deprecatedKey, deprecatedKid = config.GetDeprecatedServiceAccountPrivateKey()
+	tm.serviceAccountPrivateKey, err = LoadPrivateKey(tm, key, kid, deprecatedKey, deprecatedKid)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to load service account private keys")
+		return nil, err
 	}
 
+	// Load Keycloak public key if run in dev mode.
+	devMode, key, kid := config.GetDevModePublicKey()
+	if devMode {
+		rsaKey, err := jwt.ParseRSAPublicKeyFromPEM(key)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"err": err}, "unable to load dev mode public key")
+			return nil, err
+		}
+		tm.publicKeysMap[kid] = rsaKey
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: rsaKey})
+		log.Info(nil, map[string]interface{}{"kid": kid}, "dev mode public key added")
+	}
+
+	// Convert public keys to JWK format
 	jsonKeys, err := toJsonWebKeys(tm.publicKeys)
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
-			"err": err,
-		}, "unable to convert public keys to JSON Web Keys")
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to convert public keys to JSON Web Keys")
 		return nil, errors.New("unable to convert public keys to JSON Web Keys")
 	}
 	tm.jsonWebKeys = jsonKeys
 
+	// Convert public keys to PEM format
 	jsonKeys, err = toPemKeys(tm.publicKeys)
 	if err != nil {
-		log.Error(nil, map[string]interface{}{
-			"err": err,
-		}, "unable to convert public keys to PEM Keys")
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to convert public keys to PEM Keys")
 		return nil, errors.New("unable to convert public keys to PEM Keys")
 	}
 	tm.pemKeys = jsonKeys
@@ -205,14 +192,48 @@ func NewManager(config configuration) (Manager, error) {
 	return tm, nil
 }
 
-// NewManagerWithPublicKey returns a new token Manager for handling tokens with the only public key
-func NewManagerWithPublicKey(key *PublicKey, serviceAccountKey *PrivateKey) Manager {
-	saPublicKey := &serviceAccountKey.Key.PublicKey
-	return &tokenManager{
-		publicKeysMap:            map[string]*rsa.PublicKey{key.KeyID: key.Key, serviceAccountKey.KeyID: saPublicKey},
-		publicKeys:               []*PublicKey{key, {KeyID: serviceAccountKey.KeyID, Key: saPublicKey}},
-		serviceAccountPrivateKey: serviceAccountKey,
+// LoadPrivateKey loads a private key and a deprecated private key.
+// Extracts public keys from them and adds them to the manager
+// Returns the loaded private key.
+func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*PrivateKey, error) {
+	if len(key) == 0 || kid == "" {
+		log.Error(nil, map[string]interface{}{
+			"kid":        kid,
+			"key_length": len(key),
+		}, "private key or its ID are not set up")
+		return nil, errors.New("private key or its ID are not set up")
 	}
+
+	// Load the private key. Extract the public key from it
+	rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(key)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{"err": err}, "unable to parse private key")
+		return nil, err
+	}
+	privateKey := &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
+	pk := &rsaServiceAccountKey.PublicKey
+	tm.publicKeysMap[kid] = pk
+	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
+	log.Info(nil, map[string]interface{}{"kid": kid}, "public key added")
+
+	// Extract public key from the deprecated key if any and add it to the manager
+	if len(deprecatedKey) == 0 || deprecatedKid == "" {
+		log.Debug(nil, map[string]interface{}{
+			"kid":        deprecatedKid,
+			"key_length": len(deprecatedKey),
+		}, "no deprecated private key found")
+	} else {
+		rsaServiceAccountKey, err := jwt.ParseRSAPrivateKeyFromPEM(deprecatedKey)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{"err": err}, "unable to parse deprecated private key")
+			return nil, err
+		}
+		pk := &rsaServiceAccountKey.PublicKey
+		tm.publicKeysMap[deprecatedKid] = pk
+		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: deprecatedKid, Key: pk})
+		log.Info(nil, map[string]interface{}{"kid": deprecatedKid}, "deprecated public key added")
+	}
+	return privateKey, nil
 }
 
 // FetchKeys fetches public JSON WEB Keys from a remote service
@@ -447,13 +468,363 @@ func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID 
 func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
-	token.Claims.(jwt.MapClaims)["service_accountname"] = saName
-	token.Claims.(jwt.MapClaims)["sub"] = saID
-	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
-	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
-	token.Claims.(jwt.MapClaims)["iss"] = rest.AbsoluteURL(req, "")
-	token.Claims.(jwt.MapClaims)["scopes"] = []string{"uma_protection"}
+	claims := token.Claims.(jwt.MapClaims)
+	claims["service_accountname"] = saName
+	claims["sub"] = saID
+	claims["jti"] = uuid.NewV4().String()
+	claims["iat"] = time.Now().Unix()
+	claims["iss"] = rest.AbsoluteURL(req, "", nil)
+	claims["scopes"] = []string{"uma_protection"}
 	return token
+}
+
+// GenerateUserToken generates an OAuth2 user token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error) {
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, keycloakToken.AccessToken, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	accessToken, err := unsignedAccessToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, keycloakToken.RefreshToken, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	refreshToken, err := unsignedRefreshToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       keycloakToken.Expiry,
+		TokenType:    "bearer",
+	}
+
+	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
+	extra := make(map[string]interface{})
+	expiresIn := keycloakToken.Extra("expires_in")
+	if expiresIn != nil {
+		extra["expires_in"] = expiresIn
+	}
+	refreshExpiresIn := keycloakToken.Extra("refresh_expires_in")
+	if refreshExpiresIn != nil {
+		extra["refresh_expires_in"] = refreshExpiresIn
+	}
+	notBeforePolicy := keycloakToken.Extra("not_before_policy")
+	if notBeforePolicy != nil {
+		extra["not_before_policy"] = notBeforePolicy
+	}
+	if len(extra) > 0 {
+		token = token.WithExtra(extra)
+	}
+
+	return token, nil
+}
+
+// GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
+func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error) {
+	nowTime := time.Now().Unix()
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	accessToken, err := unsignedAccessToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	refreshToken, err := unsignedRefreshToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var nbf int64
+
+	token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       time.Unix(nowTime+mgm.config.GetAccessTokenExpiresIn(), 0),
+		TokenType:    "bearer",
+	}
+
+	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
+	extra := make(map[string]interface{})
+	extra["expires_in"] = mgm.config.GetAccessTokenExpiresIn()
+	extra["refresh_expires_in"] = mgm.config.GetRefreshTokenExpiresIn()
+	extra["not_before_policy"] = nbf
+
+	token = token.WithExtra(extra)
+
+	return token, nil
+}
+
+// GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	kcClaims, err := mgm.ParseToken(ctx, keycloakAccessToken)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	claims["exp"] = kcClaims.ExpiresAt
+	claims["nbf"] = kcClaims.NotBefore
+	claims["iat"] = kcClaims.IssuedAt
+	claims["iss"] = kcClaims.Issuer
+	claims["aud"] = kcClaims.Audience
+	claims["typ"] = "Bearer"
+	claims["auth_time"] = kcClaims.IssuedAt
+	claims["approved"] = identity != nil && !identity.User.Deprovisioned && kcClaims.Approved
+	if identity != nil {
+		claims["sub"] = identity.ID.String()
+		claims["email_verified"] = identity.User.EmailVerified
+		claims["name"] = identity.User.FullName
+		claims["preferred_username"] = identity.Username
+		firstName, lastName := account.SplitFullName(identity.User.FullName)
+		claims["given_name"] = firstName
+		claims["family_name"] = lastName
+		claims["email"] = identity.User.Email
+	} else {
+		claims["sub"] = kcClaims.Subject
+		claims["email_verified"] = kcClaims.EmailVerified
+		claims["name"] = kcClaims.Name
+		claims["preferred_username"] = kcClaims.Username
+		claims["given_name"] = kcClaims.GivenName
+		claims["family_name"] = kcClaims.FamilyName
+		claims["email"] = kcClaims.Email
+	}
+
+	claims["allowed-origins"] = []string{
+		authOpenshiftIO,
+		openshiftIO,
+	}
+
+	claims["azp"] = kcClaims.Audience
+	claims["session_state"] = kcClaims.SessionState
+	claims["acr"] = "0"
+
+	realmAccess := make(map[string]interface{})
+	realmAccess["roles"] = []string{"uma_authorization"}
+	claims["realm_access"] = realmAccess
+
+	resourceAccess := make(map[string]interface{})
+	broker := make(map[string]interface{})
+	broker["roles"] = []string{"read-token"}
+	resourceAccess["broker"] = broker
+
+	account := make(map[string]interface{})
+	account["roles"] = []string{"manage-account", "manage-account-links", "view-profile"}
+	resourceAccess["account"] = account
+
+	claims["resource_access"] = resourceAccess
+
+	return token, nil
+}
+
+// GenerateUnsignedUserAccessTokenForIdentity generates an unsigned OAuth2 user access token for the given identity
+func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Context, identity account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	iat := time.Now().Unix()
+	claims["exp"] = iat + mgm.config.GetAccessTokenExpiresIn()
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
+	claims["typ"] = "Bearer"
+	claims["auth_time"] = iat // TODO should use the time when user actually logged-in the last time. Will need to get this time from the RHD token
+	claims["approved"] = !identity.User.Deprovisioned
+	claims["sub"] = identity.ID.String()
+	claims["email_verified"] = identity.User.EmailVerified
+	claims["name"] = identity.User.FullName
+	claims["preferred_username"] = identity.Username
+	firstName, lastName := account.SplitFullName(identity.User.FullName)
+	claims["given_name"] = firstName
+	claims["family_name"] = lastName
+	claims["email"] = identity.User.Email
+	claims["allowed-origins"] = []string{
+		authOpenshiftIO,
+		openshiftIO,
+	}
+
+	return token, nil
+}
+
+// GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakRefreshToken string, identity *account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	kcClaims, err := mgm.ParseToken(ctx, keycloakRefreshToken)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	claims["exp"] = kcClaims.ExpiresAt
+	claims["nbf"] = kcClaims.NotBefore
+	claims["iat"] = kcClaims.IssuedAt
+	claims["iss"] = kcClaims.Issuer
+	claims["aud"] = kcClaims.Audience
+	claims["typ"] = "Refresh"
+	claims["auth_time"] = 0
+
+	if identity != nil {
+		claims["sub"] = identity.ID.String()
+	} else {
+		claims["sub"] = kcClaims.Subject
+	}
+
+	claims["azp"] = kcClaims.Audience
+	claims["session_state"] = kcClaims.SessionState
+
+	return token, nil
+}
+
+// GenerateUnsignedUserRefreshTokenForIdentity generates an unsigned OAuth2 user refresh token for the given identity
+func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity account.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	iat := time.Now().Unix()
+	exp := iat + mgm.config.GetRefreshTokenExpiresIn()
+	claims["exp"] = exp
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
+	claims["typ"] = "Refresh"
+	claims["auth_time"] = 0
+	claims["sub"] = identity.ID.String()
+
+	return token, nil
+}
+
+// ConvertTokenSet converts the token set to oauth2.Token
+func (mgm *tokenManager) ConvertTokenSet(tokenSet TokenSet) *oauth2.Token {
+	var accessToken, refreshToken, tokenType string
+	extra := make(map[string]interface{})
+	if tokenSet.AccessToken != nil {
+		accessToken = *tokenSet.AccessToken
+	}
+	if tokenSet.RefreshToken != nil {
+		refreshToken = *tokenSet.RefreshToken
+	}
+	if tokenSet.TokenType != nil {
+		tokenType = *tokenSet.TokenType
+	}
+	var expire time.Time
+	if tokenSet.ExpiresIn != nil {
+		expire = time.Now().Add(time.Duration(*tokenSet.ExpiresIn) * time.Second)
+		extra["expires_in"] = *tokenSet.ExpiresIn
+	}
+	if tokenSet.RefreshExpiresIn != nil {
+		extra["refresh_expires_in"] = *tokenSet.RefreshExpiresIn
+	}
+	if tokenSet.NotBeforePolicy != nil {
+		extra["not_before_policy"] = *tokenSet.NotBeforePolicy
+	}
+
+	oauth2Token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    tokenType,
+		Expiry:       expire,
+	}
+	oauth2Token = oauth2Token.WithExtra(extra)
+
+	return oauth2Token
+}
+
+// ConvertToken converts the oauth2.Token to a token set
+func (mgm *tokenManager) ConvertToken(oauthToken oauth2.Token) (*TokenSet, error) {
+
+	tokenSet := &TokenSet{
+		AccessToken:  &oauthToken.AccessToken,
+		RefreshToken: &oauthToken.RefreshToken,
+		TokenType:    &oauthToken.TokenType,
+	}
+
+	var err error
+	tokenSet.ExpiresIn, err = mgm.extraInt(oauthToken, "expires_in")
+	if err != nil {
+		return nil, err
+	}
+	tokenSet.RefreshExpiresIn, err = mgm.extraInt(oauthToken, "refresh_expires_in")
+	if err != nil {
+		return nil, err
+	}
+	tokenSet.NotBeforePolicy, err = mgm.extraInt(oauthToken, "not_before_policy")
+	if err != nil {
+		return nil, err
+	}
+
+	return tokenSet, nil
+}
+
+func (mgm *tokenManager) extraInt(oauthToken oauth2.Token, claimName string) (*int64, error) {
+	claim := oauthToken.Extra(claimName)
+	if claim != nil {
+		claimInt, err := NumberToInt(claim)
+		if err != nil {
+			return nil, err
+		}
+		return &claimInt, nil
+	}
+	return nil, nil
 }
 
 func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {
@@ -529,7 +900,7 @@ func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
 			"token": tm,
 		}, "missing token manager")
 
-		return nil, errs.New("missing token manager")
+		return nil, errors.New("missing token manager")
 	}
 	return tm.(*tokenManager), nil
 }
@@ -577,7 +948,7 @@ func ReadTokenSetFromJson(ctx context.Context, jsonString string) (*TokenSet, er
 	var token TokenSet
 	err := json.Unmarshal([]byte(jsonString), &token)
 	if err != nil {
-		return nil, errs.Wrapf(err, "error when unmarshal json with access token %s ", jsonString)
+		return nil, errors.Wrapf(err, "error when unmarshal json with access token %s ", jsonString)
 	}
 	return &token, nil
 }

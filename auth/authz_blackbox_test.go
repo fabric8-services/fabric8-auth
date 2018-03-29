@@ -205,7 +205,7 @@ func (s *TestAuthSuite) TestGetEntitlement() {
 	require.Nil(s.T(), err)
 	tokenEndpoint, err := configuration.GetKeycloakEndpointToken(r)
 	require.Nil(s.T(), err)
-	testUserToken, err := controller.GenerateUserToken(ctx, tokenEndpoint, configuration, configuration.GetKeycloakTestUserName(), configuration.GetKeycloakTestUserSecret())
+	testUserToken, err := controller.ObtainKeycloakUserToken(ctx, tokenEndpoint, configuration, configuration.GetKeycloakTestUserName(), configuration.GetKeycloakTestUserSecret())
 	// {"permissions" : [{"resource_set_name" : "<spaceID>"}]}
 	entitlementResource := auth.EntitlementResource{
 		Permissions: []auth.ResourceSet{{Name: resourceName}},
@@ -426,7 +426,7 @@ func getUserID(t *testing.T, username string, usersecret string) string {
 	require.Nil(t, err)
 
 	ctx := context.Background()
-	testToken, err := controller.GenerateUserToken(ctx, tokenEndpoint, configuration, username, usersecret)
+	testToken, err := controller.ObtainKeycloakUserToken(ctx, tokenEndpoint, configuration, username, usersecret)
 	require.Nil(t, err)
 	accessToken := testToken.Token.AccessToken
 	require.NotNil(t, accessToken)

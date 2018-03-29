@@ -34,14 +34,14 @@ func TestRunUserInfoREST(t *testing.T) {
 
 func (rest *TestUserInfoREST) SecuredController(identity account.Identity) (*goa.Service, *UserinfoController) {
 	svc := testsupport.ServiceAsUser("Userinfo-Service", identity)
-	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.NewManager(), rest.Application)
+	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
 	controller := NewUserinfoController(svc, userInfoProvider, rest.Application, testtoken.TokenManager)
 	return svc, controller
 }
 
 func (rest *TestUserInfoREST) UnsecuredController() (*goa.Service, *UserinfoController) {
 	svc := goa.New("Userinfo-Service")
-	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.NewManager(), rest.Application)
+	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
 	controller := NewUserinfoController(svc, userInfoProvider, rest.Application, testtoken.TokenManager)
 	return svc, controller
 }

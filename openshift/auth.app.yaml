@@ -69,6 +69,16 @@ objects:
               secretKeyRef:
                 name: auth
                 key: serviceaccount.privatekeyid
+          - name: AUTH_USERACCOUNT_PRIVATEKEY
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: useraccount.privatekey
+          - name: AUTH_USERACCOUNT_PRIVATEKEYID
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: useraccount.privatekeyid
           - name: AUTH_GITHUB_CLIENT_ID
             valueFrom:
               secretKeyRef:

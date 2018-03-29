@@ -22,7 +22,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
-	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -106,78 +105,54 @@ func convertToken(t token.TokenSet) *app.AuthToken {
 
 // Generate obtain the access token from Keycloak for the test user
 func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
-	var tokens app.AuthTokenCollection
-
-	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get Keycloak token endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
+	if !c.Configuration.IsPostgresDeveloperModeEnabled() {
+		log.Error(ctx, map[string]interface{}{}, "developer mode not enabled")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled")))
 	}
 
-	testuser, err := GenerateUserToken(ctx, tokenEndpoint, c.Configuration, c.Configuration.GetKeycloakTestUserName(), c.Configuration.GetKeycloakTestUserSecret())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get Generate User token")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token ")))
-	}
-
-	identity, _, err := c.Auth.CreateOrUpdateIdentityInDB(ctx, *testuser.Token.AccessToken, c.Configuration)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to persist user properly")
-	}
-	tokens = append(tokens, testuser)
-
-	var remoteWITService wit.RemoteWITServiceCaller
-	witURL, err := c.Configuration.GetWITURL(ctx.RequestData)
+	devUsername := "developer"
+	var identities []account.Identity
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		var err error
+		identities, err = appl.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		return err
+	})
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	if identity != nil {
-		err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
-		if err != nil {
-			log.Warn(ctx, map[string]interface{}{
-				"err":         err,
-				"identity_id": identity.ID,
-				"username":    identity.Username,
-				"wit_url":     witURL,
-			}, "unable to create user in WIT ")
+	var devIdentity account.Identity
+	if len(identities) == 0 {
+		// Dev user doesn't exist yet. Let's create it.
+		devUser := account.User{
+			EmailVerified: true,
+			FullName:      "OSIO Developer",
+			Email:         "osio-developer@email.com",
 		}
-	}
-
-	testuser, err = GenerateUserToken(ctx, tokenEndpoint, c.Configuration, c.Configuration.GetKeycloakTestUser2Name(), c.Configuration.GetKeycloakTestUser2Secret())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to generate test token")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to generate test token")))
-	}
-
-	// Creates the testuser2 user and identity if they don't yet exist
-	identity, _, err = c.Auth.CreateOrUpdateIdentityInDB(ctx, *testuser.Token.AccessToken, c.Configuration)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to persist user properly")
-	}
-	tokens = append(tokens, testuser)
-
-	if identity != nil {
-		err = remoteWITService.CreateWITUser(ctx, ctx.RequestData, identity, witURL, identity.ID.String())
-		if err != nil {
-			log.Warn(ctx, map[string]interface{}{
-				"err":         err,
-				"identity_id": identity.ID,
-				"username":    identity.Username,
-				"wit_url":     witURL,
-			}, "unable to create user in WIT ")
+		devIdentity = account.Identity{
+			User:                  devUser,
+			Username:              devUsername,
+			ProviderType:          account.KeycloakIDP,
+			RegistrationCompleted: true,
 		}
+	} else {
+		devIdentity = identities[0]
 	}
+
+	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	_, token, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, ctx.RequestData.URL, generatedToken, ctx.RequestData, c.Configuration)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	tokenSet, err := c.TokenManager.ConvertToken(*token)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	tokens := app.AuthTokenCollection{convertToken(*tokenSet)}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return ctx.OK(tokens)
@@ -274,7 +249,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 			"provider_name": providerName,
 		}, "Unable to obtain external token from Keycloak. Account linking may be required.")
 
-		linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource))
+		linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
 		errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 		return nil, &errorResponse, errors.NewUnauthorizedError("token is missing")
 	}
@@ -497,7 +472,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		ClientID:     c.Configuration.GetKeycloakClientID(),
 		ClientSecret: c.Configuration.GetKeycloakSecret(),
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath()),
+		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
@@ -517,14 +492,14 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		return nil, errors.NewInternalError(ctx, err)
 	}
 
-	_, err = c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
+	_, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
 
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert expiry to expire_in
-	expiry := keycloakToken.Expiry
+	expiry := userToken.Expiry
 	var expireIn *string
 	if expiry != *new(time.Time) {
 		exp := expiry.Sub(time.Now())
@@ -535,10 +510,10 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 	}
 
 	token := &app.OauthToken{
-		AccessToken:  &keycloakToken.AccessToken,
+		AccessToken:  &userToken.AccessToken,
 		ExpiresIn:    expireIn,
-		RefreshToken: &keycloakToken.RefreshToken,
-		TokenType:    &keycloakToken.TokenType,
+		RefreshToken: &userToken.RefreshToken,
+		TokenType:    &userToken.TokenType,
 	}
 
 	return token, nil
@@ -614,7 +589,7 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource 
 				"for":           forResource,
 				"provider_name": providerConfig.TypeName(),
 			}, "Unable to fetch user profile for external token. Account relinking may be required.")
-			linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource))
+			linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
 			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"", linkURL, providerConfig.TypeName(), providerConfig.TypeName())
 			return externalToken, &errorResponse, errors.NewUnauthorizedError(err.Error())
 		}
@@ -656,8 +631,8 @@ func modelToAppExternalToken(externalToken provider.ExternalToken, providerAPIUR
 	}
 }
 
-// GenerateUserToken obtains the access token from Keycloak for the user
-func GenerateUserToken(ctx context.Context, tokenEndpoint string, configuration LoginConfiguration, username string, userSecret string) (*app.AuthToken, error) {
+// ObtainKeycloakUserToken obtains the access token from Keycloak for the user
+func ObtainKeycloakUserToken(ctx context.Context, tokenEndpoint string, configuration LoginConfiguration, username string, userSecret string) (*app.AuthToken, error) {
 	if !configuration.IsPostgresDeveloperModeEnabled() {
 		log.Error(ctx, map[string]interface{}{
 			"method": "Generate",
