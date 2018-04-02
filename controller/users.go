@@ -1219,7 +1219,7 @@ func ConvertUserSimple(request *goa.RequestData, identityID interface{}) *app.Ge
 }
 
 func createUserLinks(request *goa.RequestData, identityID interface{}) *app.GenericLinks {
-	relatedURL := rest.AbsoluteURL(request, app.UsersHref(identityID))
+	relatedURL := rest.AbsoluteURL(request, app.UsersHref(identityID), nil)
 	return &app.GenericLinks{
 		Self:    &relatedURL,
 		Related: &relatedURL,

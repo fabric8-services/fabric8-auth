@@ -48,7 +48,7 @@ func resetConfiguration() {
 	}
 }
 
-func TestGetKeycloakEndpointSetByUrlEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointSetByUrlEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	env := os.Getenv("AUTH_KEYCLOAK_URL")
 	defer func() {
@@ -94,9 +94,9 @@ func TestGetKeycloakEndpointAdminDevModeOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm(), config.GetKeycloakEndpointAdmin)
 }
 
-func TestGetKeycloakEndpointAdminSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointAdminSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_ADMIN", config.GetKeycloakEndpointAdmin)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ADMIN", config.GetKeycloakEndpointAdmin)
 }
 
 func TestGetKeycloakEndpointAuthzResourcesetDevModeOK(t *testing.T) {
@@ -105,9 +105,9 @@ func TestGetKeycloakEndpointAuthzResourcesetDevModeOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/authz/protection/resource_set", config.GetKeycloakEndpointAuthzResourceset)
 }
 
-func TestGetKeycloakEndpointAuthzResourcesetSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointAuthzResourcesetSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_AUTHZ_RESOURCESET", config.GetKeycloakEndpointAuthzResourceset)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_AUTHZ_RESOURCESET", config.GetKeycloakEndpointAuthzResourceset)
 }
 
 func TestGetKeycloakEndpointClientsDevModeOK(t *testing.T) {
@@ -116,9 +116,9 @@ func TestGetKeycloakEndpointClientsDevModeOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/clients", config.GetKeycloakEndpointClients)
 }
 
-func TestGetKeycloakEndpoinClientsSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpoinClientsSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_CLIENTS", config.GetKeycloakEndpointClients)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_CLIENTS", config.GetKeycloakEndpointClients)
 }
 
 func TestGetKeycloakEndpointAuthDevModeOK(t *testing.T) {
@@ -127,9 +127,9 @@ func TestGetKeycloakEndpointAuthDevModeOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/auth", config.GetKeycloakEndpointAuth)
 }
 
-func TestGetKeycloakEndpointAuthSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointAuthSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_AUTH", config.GetKeycloakEndpointAuth)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_AUTH", config.GetKeycloakEndpointAuth)
 }
 
 func TestGetKeycloakEndpointLogoutDevModeOK(t *testing.T) {
@@ -138,9 +138,9 @@ func TestGetKeycloakEndpointLogoutDevModeOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/logout", config.GetKeycloakEndpointLogout)
 }
 
-func TestGetKeycloakEndpointLogoutSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointLogoutSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_LOGOUT", config.GetKeycloakEndpointLogout)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_LOGOUT", config.GetKeycloakEndpointLogout)
 }
 
 func TestGetKeycloakEndpointTokenOK(t *testing.T) {
@@ -149,9 +149,9 @@ func TestGetKeycloakEndpointTokenOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/token", config.GetKeycloakEndpointToken)
 }
 
-func TestGetKeycloakEndpointTokenSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointTokenSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_TOKEN", config.GetKeycloakEndpointToken)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_TOKEN", config.GetKeycloakEndpointToken)
 }
 
 func TestGetKeycloakEndpointUserInfoOK(t *testing.T) {
@@ -168,12 +168,12 @@ func TestGetKeycloakEndpointLinkIDPOK(t *testing.T) {
 	expectedEndpoint := config.GetKeycloakDevModeURL() + "/auth/admin/realms/" + config.GetKeycloakRealm() + "/users/" + sampleID + "/federated-identity/" + idp
 	url, err := config.GetKeycloakEndpointLinkIDP(reqLong, sampleID, idp)
 	assert.Nil(t, err)
-	// In dev mode it's always the defualt value regardless of the request
+	// In dev mode it's always the default value regardless of the request
 	assert.Equal(t, expectedEndpoint, url)
 
 	url, err = config.GetKeycloakEndpointLinkIDP(reqShort, sampleID, idp)
 	assert.Nil(t, err)
-	// In dev mode it's always the defualt value regardless of the request
+	// In dev mode it's always the default value regardless of the request
 	assert.Equal(t, expectedEndpoint, url)
 }
 
@@ -183,9 +183,9 @@ func TestGetKeycloakEndpointUsersOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/users", config.GetKeycloakEndpointUsers)
 }
 
-func TestGetKeycloakEndpointUserInfoSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointUserInfoSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_USERINFO", config.GetKeycloakEndpointUserInfo)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_USERINFO", config.GetKeycloakEndpointUserInfo)
 }
 
 func TestGetKeycloakEndpointEntitlementOK(t *testing.T) {
@@ -194,9 +194,9 @@ func TestGetKeycloakEndpointEntitlementOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/authz/entitlement/fabric8-online-platform", config.GetKeycloakEndpointEntitlement)
 }
 
-func TestGetKeycloakEndpointEntitlementSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointEntitlementSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_ENTITLEMENT", config.GetKeycloakEndpointEntitlement)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ENTITLEMENT", config.GetKeycloakEndpointEntitlement)
 }
 
 func TestGetKeycloakEndpointBrokerOK(t *testing.T) {
@@ -205,9 +205,9 @@ func TestGetKeycloakEndpointBrokerOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/broker", config.GetKeycloakEndpointBroker)
 }
 
-func TestGetKeycloakEndpointBrokerSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakEndpointBrokerSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_BROKER", config.GetKeycloakEndpointBroker)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_BROKER", config.GetKeycloakEndpointBroker)
 }
 
 func TestGetKeycloakUserInfoEndpointOK(t *testing.T) {
@@ -216,9 +216,9 @@ func TestGetKeycloakUserInfoEndpointOK(t *testing.T) {
 	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/account", config.GetKeycloakAccountEndpoint)
 }
 
-func TestGetKeycloakUserInfoEndpointOKrSetByEnvVaribaleOK(t *testing.T) {
+func TestGetKeycloakUserInfoEndpointOKrSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVaribaleOK(t, "AUTH_KEYCLOAK_ENDPOINT_ACCOUNT", config.GetKeycloakAccountEndpoint)
+	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ACCOUNT", config.GetKeycloakAccountEndpoint)
 }
 
 func TestGetWITURLNotDevModeOK(t *testing.T) {
@@ -285,12 +285,12 @@ func TestGetWITURLSetViaEnvVarOK(t *testing.T) {
 func checkGetKeycloakEndpointOK(t *testing.T, expectedEndpoint string, getEndpoint func(req *goa.RequestData) (string, error)) {
 	url, err := getEndpoint(reqLong)
 	assert.Nil(t, err)
-	// In dev mode it's always the defualt value regardless of the request
+	// In dev mode it's always the default value regardless of the request
 	assert.Equal(t, expectedEndpoint, url)
 
 	url, err = getEndpoint(reqShort)
 	assert.Nil(t, err)
-	// In dev mode it's always the defualt value regardless of the request
+	// In dev mode it's always the default value regardless of the request
 	assert.Equal(t, expectedEndpoint, url)
 }
 
@@ -324,7 +324,7 @@ func TestGetMaxHeaderSizeUsingDefaults(t *testing.T) {
 	assert.Equal(t, int64(5000), viperValue)
 }
 
-func TestGetMaxHeaderSizeSetByEnvVaribaleOK(t *testing.T) {
+func TestGetMaxHeaderSizeSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	envName := "AUTH_HEADER_MAXLENGTH"
 	envValue := time.Now().Unix()
@@ -488,6 +488,33 @@ func checkCluster(t *testing.T, clusters map[string]configuration.OSOCluster, ex
 	require.Nil(t, err)
 }
 
+func TestExpiresIn(t *testing.T) {
+	checkExpiresIn(t, "AUTH_USERACCOUNT_TOKEN_ACCESS_EXPIRESIN", "too short lifespan of access tokens")
+	checkExpiresIn(t, "AUTH_USERACCOUNT_TOKEN_REFRESH_EXPIRESIN", "too short lifespan of refresh tokens")
+}
+
+func checkExpiresIn(t *testing.T, envVarName, expectedErrorMessage string) {
+	resource.Require(t, resource.UnitTest)
+
+	tokenExpiresIn := os.Getenv(envVarName)
+	defer func() {
+		os.Setenv(envVarName, tokenExpiresIn)
+		resetConfiguration()
+	}()
+
+	// There should be an error message if expiresIn is less than 3 minutes
+	os.Setenv(envVarName, "179")
+	resetConfiguration()
+
+	assert.Contains(t, config.DefaultConfigurationError().Error(), expectedErrorMessage)
+
+	// No error message if expiresIn is >= 3 minutes
+	os.Setenv(envVarName, "180")
+	resetConfiguration()
+
+	assert.NotContains(t, config.DefaultConfigurationError().Error(), expectedErrorMessage)
+}
+
 func TestIsTLSInsecureSkipVerifySetToFalse(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	require.False(t, config.IsTLSInsecureSkipVerify())
@@ -497,7 +524,7 @@ func generateEnvKey(yamlKey string) string {
 	return "AUTH_" + strings.ToUpper(strings.Replace(yamlKey, ".", "_", -1))
 }
 
-func checkGetKeycloakEndpointSetByEnvVaribaleOK(t *testing.T, envName string, getEndpoint func(req *goa.RequestData) (string, error)) {
+func checkGetKeycloakEndpointSetByEnvVariableOK(t *testing.T, envName string, getEndpoint func(req *goa.RequestData) (string, error)) {
 	envValue := uuid.NewV4().String()
 	env := os.Getenv(envName)
 	defer func() {

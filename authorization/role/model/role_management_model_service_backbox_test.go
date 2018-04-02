@@ -29,7 +29,7 @@ type roleManagementModelServiceBlackboxTest struct {
 	resourceTypeScope scope.ResourceTypeScopeRepository
 }
 
-func TestRunroleManagementModelServiceBlackboxTest(t *testing.T) {
+func TestRunRoleManagementModelServiceBlackboxTest(t *testing.T) {
 	suite.Run(t, &roleManagementModelServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 

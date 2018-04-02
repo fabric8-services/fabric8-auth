@@ -20,12 +20,12 @@ func NewOpenidConfigurationController(service *goa.Service) *OpenidConfiguration
 // Show runs the show action.
 func (c *OpenidConfigurationController) Show(ctx *app.ShowOpenidConfigurationContext) error {
 
-	issuer := rest.AbsoluteURL(ctx.RequestData, "")
-	authorizationEndpoint := rest.AbsoluteURL(ctx.RequestData, client.AuthorizeAuthorizePath())
-	tokenEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ExchangeTokenPath())
-	userinfoEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ShowUserinfoPath())
-	logoutEndpoint := rest.AbsoluteURL(ctx.RequestData, client.LogoutLogoutPath())
-	jwksURI := rest.AbsoluteURL(ctx.RequestData, client.KeysTokenPath())
+	issuer := rest.AbsoluteURL(ctx.RequestData, "", nil)
+	authorizationEndpoint := rest.AbsoluteURL(ctx.RequestData, client.AuthorizeAuthorizePath(), nil)
+	tokenEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ExchangeTokenPath(), nil)
+	userinfoEndpoint := rest.AbsoluteURL(ctx.RequestData, client.ShowUserinfoPath(), nil)
+	logoutEndpoint := rest.AbsoluteURL(ctx.RequestData, client.LogoutLogoutPath(), nil)
+	jwksURI := rest.AbsoluteURL(ctx.RequestData, client.KeysTokenPath(), nil)
 
 	authOpenIDConfiguration := &app.OpenIDConfiguration{
 		// REQUIRED properties

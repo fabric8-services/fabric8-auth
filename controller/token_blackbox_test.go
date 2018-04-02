@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
+	"path/filepath"
 )
 
 type TestTokenREST struct {
@@ -34,6 +35,7 @@ type TestTokenREST struct {
 	sampleAccessToken  string
 	sampleRefreshToken string
 	exchangeStrategy   string
+	testDir            string
 }
 
 func TestRunTokenREST(t *testing.T) {
@@ -48,15 +50,35 @@ func (rest *TestTokenREST) SetupSuite() {
 	rest.DBTestSuite.SetupSuite()
 
 	claims := make(map[string]interface{})
-	act, err := testtoken.GenerateTokenWithClaims(claims)
+	act, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	require.Nil(rest.T(), err)
 	rest.sampleAccessToken = act
-	rest.sampleRefreshToken = uuid.NewV4().String()
+	act, err = testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.Nil(rest.T(), err)
+	rest.sampleRefreshToken = act
+	rest.testDir = filepath.Join("test-files", "token")
 }
 
 func (rest *TestTokenREST) SetupTest() {
 	rest.DBTestSuite.SetupTest()
 	rest.exchangeStrategy = ""
+}
+
+func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController) {
+	svc := goa.New("Token-Service")
+	manager, err := token.NewManager(rest.Configuration)
+	require.Nil(rest.T(), err)
+
+	loginService := &DummyKeycloakOAuthService{}
+	profileService := login.NewKeycloakUserProfileClient()
+	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil)
+	loginService.Identities = rest.Application.Identities()
+	loginService.Users = rest.Application.Users()
+	loginService.TokenManager = manager
+	loginService.DB = rest.Application
+	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
+
+	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, nil, rest.Configuration)
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -80,6 +102,12 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	loginService.DB = rest.Application
 	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
 	loginService.exchangeStrategy = rest.exchangeStrategy
+
+	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity)
+	require.Nil(rest.T(), err)
+	rest.sampleAccessToken = tokenSet.AccessToken
+	rest.sampleRefreshToken = tokenSet.RefreshToken
+
 	loginService.accessToken = rest.sampleAccessToken
 	loginService.refreshToken = rest.sampleRefreshToken
 
@@ -87,6 +115,33 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 
 	linkService := &DummyLinkService{}
 	return svc, NewTokenController(svc, rest.Application, loginService, linkService, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Configuration)
+}
+
+func (rest *TestTokenREST) TestPublicKeys() {
+	svc, ctrl := rest.UnSecuredController()
+
+	rest.T().Run("file not found", func(t *testing.T) {
+		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, nil)
+		rest.checkJWK(keys)
+	})
+	rest.T().Run("file not found", func(t *testing.T) {
+		jwk := "jwk"
+		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, &jwk)
+		rest.checkJWK(keys)
+	})
+	rest.T().Run("file not found", func(t *testing.T) {
+		pem := "pem"
+		_, keys := test.KeysTokenOK(rest.T(), svc.Context, svc, ctrl, &pem)
+		rest.checkPEM(keys)
+	})
+}
+
+func (rest *TestTokenREST) checkPEM(keys *app.PublicKeys) {
+	compareWithGolden(rest.T(), filepath.Join(rest.testDir, "keys", "ok_pem.golden.json"), keys)
+}
+
+func (rest *TestTokenREST) checkJWK(keys *app.PublicKeys) {
+	compareWithGolden(rest.T(), filepath.Join(rest.testDir, "keys", "ok_jwk.golden.json"), keys)
 }
 
 func (rest *TestTokenREST) TestRefreshTokenUsingNilTokenFails() {
@@ -121,7 +176,7 @@ func (rest *TestTokenREST) TestRefreshTokenUsingCorrectRefreshTokenOK() {
 	_, authToken := test.RefreshTokenOK(t, service.Context, service, controller, payload)
 	token := authToken.Token
 	require.NotNil(rest.T(), token.TokenType)
-	require.Equal(rest.T(), "bearer", *token.TokenType)
+	require.Equal(rest.T(), "Bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
 	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
 	require.NotNil(rest.T(), token.RefreshToken)
@@ -130,6 +185,7 @@ func (rest *TestTokenREST) TestRefreshTokenUsingCorrectRefreshTokenOK() {
 	require.True(rest.T(), ok)
 	require.True(rest.T(), *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
+
 func (rest *TestTokenREST) TestLinkForNonExistentUserFails() {
 	service, controller := rest.SecuredControllerWithNonExistentIdentity()
 
@@ -234,6 +290,23 @@ func (rest *TestTokenREST) TestExchangeWithCorrectRefreshTokenOK() {
 	rest.checkExchangeWithRefreshToken(service, controller, controller.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN")
 }
 
+func (rest *TestTokenREST) TestGenerateOK() {
+	svc, ctrl := rest.UnSecuredController()
+	_, result := test.GenerateTokenOK(rest.T(), svc.Context, svc, ctrl)
+	require.Len(rest.T(), result, 1)
+	validateToken(rest.T(), result[0])
+}
+
+func validateToken(t *testing.T, token *app.AuthToken) {
+	assert.NotNil(t, token, "Token data is nil")
+	assert.NotEmpty(t, token.Token.AccessToken, "Access token is empty")
+	assert.NotEmpty(t, token.Token.RefreshToken, "Refresh token is empty")
+	assert.NotEmpty(t, token.Token.TokenType, "Token type is empty")
+	assert.NotNil(t, token.Token.ExpiresIn, "Expires-in is nil")
+	assert.NotNil(t, token.Token.RefreshExpiresIn, "Refresh-expires-in is nil")
+	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
+}
+
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
 	service, controller := rest.SecuredController()
 
@@ -256,9 +329,9 @@ func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controll
 	require.NotNil(rest.T(), token.TokenType)
 	require.Equal(rest.T(), "bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
-	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
+	assert.NoError(rest.T(), testtoken.EqualAccessTokens(context.Background(), rest.sampleAccessToken, *token.AccessToken))
 	require.NotNil(rest.T(), token.RefreshToken)
-	require.Equal(rest.T(), rest.sampleRefreshToken, *token.RefreshToken)
+	assert.NoError(rest.T(), testtoken.EqualRefreshTokens(context.Background(), rest.sampleRefreshToken, *token.RefreshToken))
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(rest.T(), err)
 	require.True(rest.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
@@ -268,7 +341,7 @@ func (rest *TestTokenREST) checkExchangeWithRefreshToken(service *goa.Service, c
 	_, token := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: rest.Configuration.GetPublicOauthClientID(), RefreshToken: &refreshToken})
 
 	require.NotNil(rest.T(), token.TokenType)
-	require.Equal(rest.T(), "bearer", *token.TokenType)
+	require.Equal(rest.T(), "Bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
 	require.Equal(rest.T(), rest.sampleAccessToken, *token.AccessToken)
 	require.NotNil(rest.T(), token.RefreshToken)
@@ -300,10 +373,10 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}
-	var thirtyDays int64
+	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		AccessToken:  s.accessToken,
 		RefreshToken: s.refreshToken,
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
@@ -311,6 +384,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	extra := make(map[string]interface{})
 	extra["expires_in"] = thirtyDays
 	extra["refresh_expires_in"] = thirtyDays
+	extra["not_before_policy"] = nbf
 	token = token.WithExtra(extra)
 	return token, nil
 }
@@ -322,7 +396,7 @@ func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, re
 
 	var thirtyDays int64
 	thirtyDays = 60 * 60 * 24 * 30
-	bearer := "bearer"
+	bearer := "Bearer"
 	token := &token.TokenSet{
 		TokenType:    &bearer,
 		AccessToken:  &s.accessToken,

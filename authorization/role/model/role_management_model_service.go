@@ -285,19 +285,19 @@ func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx co
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
 	var roleScopes []role.RoleScope
 
-	r.db = r.db.Debug()
 	db := r.db.Raw(`SELECT r.role_id,
 		r.name role_name,
 		array_to_string(array_agg(rts.NAME), ',') scopes
-		FROM   resource_type_scope rts, 
-			   role_scope rs, 
-			   resource_type rt, 
-			   role r 
-		WHERE  rs.scope_id = rts.resource_type_scope_id 
-			   AND rs.role_id = r.role_id 
-			   AND rt.resource_type_id = r.resource_type_id 
-			   AND rt.NAME = ?
-		group by r.role_id, r.name`, resourceType)
+		FROM   
+		  role r LEFT OUTER JOIN role_scope rs ON r.role_id = rs.role_id
+		  LEFT OUTER JOIN resource_type_scope rts ON rs.scope_id = rts.resource_type_scope_id,
+			resource_type rt
+		WHERE  
+			rt.resource_type_id = r.resource_type_id 
+			AND rt.NAME = ?
+		GROUP BY 
+		  r.role_id, 
+		  r.name`, resourceType)
 
 	rows, err := db.Rows()
 	if err != nil {
@@ -341,7 +341,10 @@ func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx co
 			}, "error getting rows")
 			return roleScopes, errors.NewInternalError(ctx, err)
 		}
-		scopesList := strings.Split(scopeNames, ",")
+		var scopesList []string
+		if scopeNames != "" {
+			scopesList = strings.Split(scopeNames, ",")
+		}
 		roleScope := role.RoleScope{
 			RoleName:     roleName,
 			RoleID:       roleID,

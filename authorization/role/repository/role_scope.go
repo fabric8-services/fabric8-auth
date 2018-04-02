@@ -23,13 +23,13 @@ type RoleScope struct {
 	ResourceTypeScope resourceTypeScope.ResourceTypeScope `gorm:"ForeignKey:ResourceTypeScopeID"`
 
 	// The foreign key value for ResourceTypeScopeID
-	ResourceTypeScopeID uuid.UUID `sql:"type:uuid" gorm:"column:scope_id"`
+	ResourceTypeScopeID uuid.UUID `gorm:"primary_key;column:scope_id" sql:"type:uuid"`
 
 	// The associated role
 	Role Role `gorm:"ForeignKey:RoleID"`
 
 	// The foreign key value for RoleID
-	RoleID uuid.UUID `sql:"type:uuid" gorm:"column:role_id"`
+	RoleID uuid.UUID `gorm:"primary_key;column:role_id" sql:"type:uuid"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
