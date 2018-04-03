@@ -173,18 +173,13 @@ func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSA
 
 // Not present in DB
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
-	rest.checkRetrieveExternalTokenUnauthorized("https://github.com/sbose78", "github", "unlinked")
-	rest.checkRetrieveExternalTokenUnauthorized("github", "github", "unlinked")
-	rest.checkRetrieveExternalTokenUnauthorized("https://api.starter-us-east-2.openshift.com", "openshift-v3", "unlinked")
-	rest.checkRetrieveExternalTokenUnauthorized("openshift", "openshift-v3", "unlinked")
-
-	rest.checkRetrieveExternalTokenUnauthorized("https://github.com/sbose78", "github", "internalError")
-	rest.checkRetrieveExternalTokenUnauthorized("github", "github", "internalError")
-	rest.checkRetrieveExternalTokenUnauthorized("https://api.starter-us-east-2.openshift.com", "openshift-v3", "internalError")
-	rest.checkRetrieveExternalTokenUnauthorized("openshift", "openshift-v3", "internalError")
+	rest.checkRetrieveExternalTokenUnauthorized("https://github.com/sbose78", "github")
+	rest.checkRetrieveExternalTokenUnauthorized("github", "github")
+	rest.checkRetrieveExternalTokenUnauthorized("https://api.starter-us-east-2.openshift.com", "openshift-v3")
+	rest.checkRetrieveExternalTokenUnauthorized("openshift", "openshift-v3")
 }
 
-func (rest *TestTokenStorageREST) checkRetrieveExternalTokenUnauthorized(for_ string, providerName string, kcScenario string) {
+func (rest *TestTokenStorageREST) checkRetrieveExternalTokenUnauthorized(for_ string, providerName string) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 
@@ -235,7 +230,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() 
 	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "openshift", nil)
 }
 
-// Not present in Keycloak but present in DB.
+// Present in DB.
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
 	rest.retrieveExternalGitHubTokenFromDBSuccess()
 	rest.retrieveExternalOSOTokenFromDBSuccess()
@@ -403,14 +398,8 @@ func (rest *TestTokenStorageREST) assertTokenStatus(expectedUsername, expectedUR
 	assert.Equal(rest.T(), expectedURL, actualStatus.ProviderAPIURL)
 }
 
-// Not present in Keycloak but present in DB.
+// Present in DB.
 func (rest *TestTokenStorageREST) TestStatusExternalTokenPresentInDB() {
-	rest.statusExternalGitHubTokenFromDBSuccess()
-	rest.statusExternalOSOTokenFromDBSuccess()
-}
-
-// Get token from keycloak fails for any reason but token present in DB.
-func (rest *TestTokenStorageREST) TestStatusExternalTokenFailedInKeycloak() {
 	rest.statusExternalGitHubTokenFromDBSuccess()
 	rest.statusExternalOSOTokenFromDBSuccess()
 }
@@ -441,20 +430,15 @@ func (rest *TestTokenStorageREST) statusExternalOSOTokenFromDBSuccess() account.
 	return identity
 }
 
-// Not present in DB and failed in Keycloak for any reason
+// Not present in DB
 func (rest *TestTokenStorageREST) TestStatusExternalTokenUnauthorized() {
-	rest.checkStatusExternalTokenUnauthorized("https://github.com/sbose78", "github", "unlinked")
-	rest.checkStatusExternalTokenUnauthorized("github", "github", "unlinked")
-	rest.checkStatusExternalTokenUnauthorized("https://api.starter-us-east-2.openshift.com", "openshift-v3", "unlinked")
-	rest.checkStatusExternalTokenUnauthorized("openshift", "openshift-v3", "unlinked")
-
-	rest.checkStatusExternalTokenUnauthorized("https://github.com/sbose78", "github", "internalError")
-	rest.checkStatusExternalTokenUnauthorized("github", "github", "internalError")
-	rest.checkStatusExternalTokenUnauthorized("https://api.starter-us-east-2.openshift.com", "openshift-v3", "internalError")
-	rest.checkStatusExternalTokenUnauthorized("openshift", "openshift-v3", "internalError")
+	rest.checkStatusExternalTokenUnauthorized("https://github.com/sbose78", "github")
+	rest.checkStatusExternalTokenUnauthorized("github", "github")
+	rest.checkStatusExternalTokenUnauthorized("https://api.starter-us-east-2.openshift.com", "openshift-v3")
+	rest.checkStatusExternalTokenUnauthorized("openshift", "openshift-v3")
 }
 
-func (rest *TestTokenStorageREST) checkStatusExternalTokenUnauthorized(for_ string, providerName string, kcScenario string) {
+func (rest *TestTokenStorageREST) checkStatusExternalTokenUnauthorized(for_ string, providerName string) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 
@@ -616,14 +600,4 @@ func (rest *TestTokenStorageREST) deleteExternalToken(forResource string, number
 	tokens, err = rest.Application.ExternalTokens().LoadByProviderIDAndIdentityID(service.Context, providerConfig.ID(), identity.ID)
 	require.Nil(rest.T(), err)
 	require.Empty(rest.T(), tokens)
-}
-
-type mockKeycloakExternalTokenServiceClient struct {
-	scenario string
-}
-
-func newMockKeycloakExternalTokenServiceClient() mockKeycloakExternalTokenServiceClient {
-	return mockKeycloakExternalTokenServiceClient{
-		scenario: "positive",
-	}
 }
