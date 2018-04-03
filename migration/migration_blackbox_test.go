@@ -260,65 +260,25 @@ func testMigration26(t *testing.T) {
 
 	migrateToVersion(sqlDB, migrations[:(27)], (27))
 
-	rows, err := sqlDB.Query("SELECT resource_type_id FROM resource_type where name = 'openshift.io/resource/space'")
-	if err != nil {
-		t.Fatal(err)
-	}
+	countRows(t, "SELECT count(1) FROM role where  ( name = 'contributor' or name = 'viewer' or name = 'admin' ) and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12' group by resource_type_id", 3)
+	countRows(t, "SELECT count(1) FROM resource_type_scope where ( name = 'create_workitem' or name = 'update_workitem' or name = 'view_workitem' or name = 'assign_role' ) and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12' group by resource_type_id", 4)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' )", 1)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '07da9f1a-081e-479e-b070-495b3108f027' and role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' )", 1)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '431c4790-c86f-4937-9223-ac054f6e1251' and role_id = 'f558b66f-f71c-4614-8109-c9fa8e30f559' )", 1)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '4c1c4790-c86f-4937-9223-ac054f6e1251' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
+
+}
+
+func countRows(t *testing.T, sql string, expectedCount int) {
+	var count int
+	rows, err := sqlDB.Query(sql)
 	defer rows.Close()
-
-	// Expecting only one row
-	require.True(t, rows.Next())
-	var id string
-	err = rows.Scan(&id)
-	require.Equal(t, "6422fda4-a0fa-4d3c-8b79-8061e5c05e12", id)
-	require.False(t, rows.Next())
-
-	rows, err = sqlDB.Query("SELECT role_id FROM role where name = 'collaborator' and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12'")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Expecting only one row
 	require.True(t, rows.Next())
-	var roleId string
-	err = rows.Scan(&roleId)
-	require.Equal(t, "0e05e7fb-406c-4ba4-acc6-1eb290d45d02", roleId)
-	require.False(t, rows.Next())
-
-	rows, err = sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope where name = 'createWorkItem' and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12'")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Expecting only one row
-	require.True(t, rows.Next())
-	var scopeID string
-	err = rows.Scan(&scopeID)
-	require.Equal(t, "ab95b9d7-755a-4c25-8f78-ac1d613b59c9", scopeID)
-	require.False(t, rows.Next())
-
-	rows, err = sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope where name = 'updateWorkItem' and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12'")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Expecting only one row
-	require.True(t, rows.Next())
-	err = rows.Scan(&scopeID)
-	require.Equal(t, "07da9f1a-081e-479e-b070-495b3108f027", scopeID)
-	require.False(t, rows.Next())
-
-	rows, err = sqlDB.Query("SELECT count(1) FROM role_scope where role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' group by role_id")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	require.True(t, rows.Next())
-	var countRows int
-	err = rows.Scan(&countRows)
-	require.Equal(t, 2, countRows)
-	migrateToVersion(sqlDB, migrations[:(24)], (24))
-	assert.True(t, dialect.HasIndex("resource_type", "idx_name_rt_name"))
+	err = rows.Scan(&count)
+	require.Equal(t, expectedCount, count)
 }
 
 func testMigration25ValidHits(t *testing.T) {
