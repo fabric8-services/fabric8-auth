@@ -9,7 +9,7 @@ VALUES     ('6422fda4-a0fa-4d3c-8b79-8061e5c05e12',
             Now()); 
 
 
--- create a role named 'collaborator'
+-- create a role named 'contributor'
 
 INSERT INTO role 
             (role_id, 
