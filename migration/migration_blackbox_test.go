@@ -109,6 +109,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration18", testMigration18)
 	t.Run("TestMigration21", testMigration21)
 	t.Run("TestMigration22", testMigration22)
+	t.Run("TestMigration23", testMigration23)
 	t.Run("TestMigration25ValidHits", testMigration25ValidHits)
 	t.Run("TestMigration25ValidMiss", testMigration25ValidMiss)
 	t.Run("TestMigration26", testMigration26)
@@ -254,6 +255,11 @@ func testMigration22(t *testing.T) {
 	err = rows.Scan(&id)
 	require.Equal(t, "a83a4508-3303-441e-863a-84ff9e7f745a", id)
 	require.False(t, rows.Next())
+}
+
+func testMigration23(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(24)], (24))
+	assert.True(t, dialect.HasIndex("resource_type", "idx_name_rt_name"))
 }
 
 func testMigration26(t *testing.T) {
