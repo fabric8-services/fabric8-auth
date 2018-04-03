@@ -258,7 +258,7 @@ func testMigration22(t *testing.T) {
 
 func testMigration26(t *testing.T) {
 
-	migrateToVersion(sqlDB, migrations[:(24)], (24))
+	migrateToVersion(sqlDB, migrations[:(27)], (27))
 
 	rows, err := sqlDB.Query("SELECT resource_type_id FROM resource_type where name = 'openshift.io/resource/space'")
 	if err != nil {

@@ -17,7 +17,7 @@ type resourceTypeBlackBoxTest struct {
 	repo resourcetype.ResourceTypeRepository
 }
 
-var knownResourceTypes = [4]string{
+var knownResourceTypes = [5]string{
 	"openshift.io/resource/area",
 	"openshift.io/resource/space",
 	"identity/organization",
