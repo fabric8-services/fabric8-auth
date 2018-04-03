@@ -17,6 +17,8 @@ objects:
     keycloak.secret: Cg==
     serviceaccount.privatekey: Cg==
     serviceaccount.privatekeyid: Cg==
+    useraccount.privatekey: Cg==
+    useraccount.privatekeyid: Cg==
     github.client.id: Cg==
     github.client.secret: Cg==
     sentry.dsn: c2VjcmV0

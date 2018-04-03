@@ -20,12 +20,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"regexp"
+
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"regexp"
 )
 
 // UsersController implements the users resource.
@@ -72,15 +73,15 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 	tenantSA := token.IsSpecificServiceAccount(ctx, token.Tenant)
 	isServiceAccount := tenantSA || token.IsSpecificServiceAccount(ctx, token.Notification)
 
-	return application.Transactional(c.db, func(appl application.Application) error {
+	var identity *account.Identity
+	err := application.Transactional(c.db, func(appl application.Application) error {
 		identityID, err := uuid.FromString(ctx.ID)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, errs.Wrap(errors.NewBadParameterError("identity_id", ctx.ID), err.Error()))
+			return errors.NewBadParameterError("identity_id", ctx.ID)
 		}
-		identity, err := appl.Identities().LoadWithUser(ctx.Context, identityID)
+		identity, err = appl.Identities().LoadWithUser(ctx.Context, identityID)
 		if err != nil {
-			jerrors, httpStatusCode := jsonapi.ErrorToJSONAPIErrors(ctx, err)
-			return ctx.ResponseData.Service.Send(ctx.Context, httpStatusCode, jerrors)
+			return err
 		}
 
 		if tenantSA && identity.User.Deprovisioned {
@@ -88,12 +89,16 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			// TODO we should disable notifications for such users too but if we just return 401 for notification service request we may break it
 			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
 			ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has benn deprovisioned"))
+			return errors.NewUnauthorizedError("Account has been deprovisioned")
 		}
 
-		return ctx.ConditionalRequest(identity.User, c.config.GetCacheControlUser, func() error {
-			return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, isServiceAccount))
-		})
+		return nil
+	})
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.ConditionalRequest(identity.User, c.config.GetCacheControlUser, func() error {
+		return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, isServiceAccount))
 	})
 }
 
@@ -895,19 +900,23 @@ func (c *UsersController) userExistsInDB(ctx context.Context, email string, user
 
 // List runs the list action.
 func (c *UsersController) List(ctx *app.ListUsersContext) error {
-	return application.Transactional(c.db, func(appl application.Application) error {
-		users, identities, err := filterUsers(appl, ctx)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
+	var users []account.User
+	var identities []account.Identity
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		var err error
+		users, identities, err = filterUsers(appl, ctx)
+		return err
+	})
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.ConditionalEntities(users, c.config.GetCacheControlUsers, func() error {
+		appUsers := make([]*app.UserData, len(users))
+		for i := range users {
+			appUser := ConvertToAppUser(ctx.RequestData, &users[i], &identities[i], false)
+			appUsers[i] = appUser.Data
 		}
-		return ctx.ConditionalEntities(users, c.config.GetCacheControlUsers, func() error {
-			appUsers := make([]*app.UserData, len(users))
-			for i := range users {
-				appUser := ConvertToAppUser(ctx.RequestData, &users[i], &identities[i], false)
-				appUsers[i] = appUser.Data
-			}
-			return ctx.OK(&app.UserArray{Data: appUsers})
-		})
+		return ctx.OK(&app.UserArray{Data: appUsers})
 	})
 }
 
@@ -1038,7 +1047,8 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		// cumulatively filter out those not matching the user-based filters.
 		for _, identity := range filteredIdentities {
 			// this is where you keep trying all other filters one by one for 'user' fields like email.
-			if ctx.FilterEmail == nil || identity.User.Email == *ctx.FilterEmail {
+			// If email filter is present then ignore private emails
+			if ctx.FilterEmail == nil || (identity.User.Email == *ctx.FilterEmail && !identity.User.EmailPrivate) {
 				resultUsers = append(resultUsers, identity.User)
 				resultIdentities = append(resultIdentities, identity)
 			}
@@ -1048,10 +1058,14 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		/*** Start filtering on Users table ****/
 		if ctx.FilterEmail != nil {
 			userFilters = append(userFilters, account.UserFilterByEmail(*ctx.FilterEmail))
+			userFilters = append(userFilters, account.UserFilterByEmailPrivacy(false)) // Ignore users with private emails
 		}
 		// .. Add other filters in future when needed into the userFilters slice in the above manner.
 		if len(userFilters) != 0 {
 			filteredUsers, err = appl.Users().Query(userFilters...)
+			if err != nil {
+				return nil, nil, errs.Wrap(err, "error fetching users")
+			}
 		} else {
 			// Soft-kill the API for listing all Users /api/users
 			resultUsers = []account.User{}
@@ -1061,7 +1075,7 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		if err != nil {
 			return nil, nil, errs.Wrap(err, "error fetching users")
 		}
-		resultUsers, resultIdentities, err = LoadKeyCloakIdentities(appl, filteredUsers)
+		resultUsers, resultIdentities, err = loadKeyCloakIdentities(appl, filteredUsers)
 		if err != nil {
 			return nil, nil, errs.Wrap(err, "error fetching keycloak identities")
 		}
@@ -1069,9 +1083,9 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 	return resultUsers, resultIdentities, nil
 }
 
-// LoadKeyCloakIdentities loads keycloak identities for the users and returns the valid users along with their KC identities
+// loadKeyCloakIdentities loads keycloak identities for the users and returns the valid users along with their KC identities
 // (if a user is missing his/her KC identity, he/she is filtered out of the result array)
-func LoadKeyCloakIdentities(appl application.Application, users []account.User) ([]account.User, []account.Identity, error) {
+func loadKeyCloakIdentities(appl application.Application, users []account.User) ([]account.User, []account.Identity, error) {
 	var resultUsers []account.User
 	var resultIdentities []account.Identity
 	for _, user := range users {
@@ -1205,7 +1219,7 @@ func ConvertUserSimple(request *goa.RequestData, identityID interface{}) *app.Ge
 }
 
 func createUserLinks(request *goa.RequestData, identityID interface{}) *app.GenericLinks {
-	relatedURL := rest.AbsoluteURL(request, app.UsersHref(identityID))
+	relatedURL := rest.AbsoluteURL(request, app.UsersHref(identityID), nil)
 	return &app.GenericLinks{
 		Self:    &relatedURL,
 		Related: &relatedURL,

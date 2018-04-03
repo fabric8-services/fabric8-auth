@@ -276,6 +276,21 @@ func (rest *TestResourceREST) TestUpdateResource() {
 	_, readResource = test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
 
 	require.EqualValues(rest.T(), *parentCreated.ID, *readResource.ParentResourceID)
+
+	emptyParentResourceID := ""
+
+	// Now test clearing the original resource's parent to nil
+	updatePayload = &app.UpdateResourcePayload{
+		ParentResourceID: &emptyParentResourceID,
+	}
+
+	// Update the original resource
+	_, updated = test.UpdateResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID, updatePayload)
+
+	// Read the resource again, and check the parent resource has been cleared
+	_, readResource = test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ID)
+
+	require.Nil(rest.T(), readResource.ParentResourceID)
 }
 
 func (rest *TestResourceREST) TestDeleteResource() {

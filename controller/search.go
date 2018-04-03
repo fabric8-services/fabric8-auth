@@ -1,12 +1,12 @@
 package controller
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 
@@ -35,7 +35,7 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
 	q := ctx.Q
 	if len(q) == 0 {
-		return ctx.BadRequest(goa.ErrBadRequest(fmt.Errorf("search query should be longer")))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("", "search query should be longer"))
 	}
 
 	var result []account.Identity

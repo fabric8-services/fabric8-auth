@@ -177,7 +177,16 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("022-add-deprovisioned-to-user.sql")})
 
 	// Version 23
-	m = append(m, steps{ExecuteSQLFile("023-add-space-resourcetype.sql")})
+	m = append(m, steps{ExecuteSQLFile("023-resource-type-index.sql")})
+
+	// Version 24
+	m = append(m, steps{ExecuteSQLFile("024-role-mapping-and-team-and-group-identities.sql")})
+
+	// Version 25
+	m = append(m, steps{ExecuteSQLFile("025-fix-feature-level.sql")})
+
+	// Version 26
+	m = append(m, steps{ExecuteSQLFile("026-add-space-resourcetype.sql")})
 
 	// Version N
 	//

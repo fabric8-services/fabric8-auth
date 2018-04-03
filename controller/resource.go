@@ -211,18 +211,23 @@ func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
 
 		// If a parent resource ID has been passed in, update the parent resource
 		if ctx.Payload.ParentResourceID != nil {
-			// Lookup the parent resource
-			parentResource, err := appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":                err,
-					"parent_resource_id": *ctx.Payload.ParentResourceID,
-				}, "Parent resource could not be found.")
+			if *ctx.Payload.ParentResourceID != "" {
+				// If a parent ID has been specified, lookup the parent resource
+				parentResource, err := appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"err":                err,
+						"parent_resource_id": *ctx.Payload.ParentResourceID,
+					}, "Parent resource could not be found.")
 
-				return errors.NewBadParameterError("invalid parent resource ID specified", err)
+					return errors.NewBadParameterError("invalid parent resource ID specified", err)
+				}
+
+				res.ParentResourceID = &parentResource.ResourceID
+			} else {
+				res.ParentResourceID = nil
 			}
 
-			res.ParentResourceID = &parentResource.ResourceID
 		}
 
 		return appl.ResourceRepository().Save(ctx, res)

@@ -68,7 +68,7 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req 
 }
 
 func (c *EmailVerificationClient) generateVerificationURL(ctx context.Context, req *goa.RequestData, code string) string {
-	return rest.AbsoluteURL(req, authclient.VerifyEmailUsersPath()) + "?code=" + code
+	return rest.AbsoluteURL(req, authclient.VerifyEmailUsersPath(), nil) + "?code=" + code
 }
 
 // VerifyCode validates whether the code is present in our database and returns a non-nil if yes.
