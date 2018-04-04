@@ -40,7 +40,6 @@ const (
 	varHTTPAddress                     = "http.address"
 	varMetricsHTTPAddress              = "metrics.http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
-	varTLSInsecureSkipVerify           = "tls.insecureskipverify"
 	varNotApprovedRedirect             = "notapproved.redirect"
 	varHeaderMaxLength                 = "header.maxlength"
 	varUsersListLimit                  = "users.listlimit"
@@ -111,8 +110,11 @@ const (
 	varGitHubClientSecret        = "github.client.secret"
 	varGitHubClientDefaultScopes = "github.client.defaultscopes"
 
-	// Default OSO cluster API URL
-	varOSOClientApiUrl = "oso.client.apiurl"
+	// OSO settings
+	varOSOClientApiUrl                 = "oso.client.apiurl" // Default OSO cluster API URL
+	varOSORegistrationAppURL           = "oso.regapp.serviceurl"
+	varOSORegistrationAppAdminUsername = "oso.regapp.admin.username"
+	varOSORegistrationAppAdminToken    = "oso.regapp.admin.token"
 
 	// Cache control
 	varCacheControlUsers         = "cachecontrol.users"
@@ -277,9 +279,6 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
 		c.appendDefaultConfigErrorMessage("default GitHub client secret is used")
-	}
-	if c.IsTLSInsecureSkipVerify() {
-		c.appendDefaultConfigErrorMessage("TLS verification disabled")
 	}
 	if c.GetValidRedirectURLs() == ".*" {
 		c.appendDefaultConfigErrorMessage("no restrictions for valid redirect URLs")
@@ -474,7 +473,7 @@ func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 }
 
 // GetOSOClusterByURL returns a OSO cluster configurations by matching URL
-// Regardles of trailing slashes if cluster API URL == "https://api.openshift.com"
+// Regardless of trailing slashes if cluster API URL == "https://api.openshift.com"
 // or "https://api.openshift.com/" it will match any "https://api.openshift.com*"
 // like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
 // Returns nil if no matching API URL found
@@ -562,7 +561,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org public_repo read:user")
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
-	c.v.SetDefault(varTLSInsecureSkipVerify, false) // Do not set to true in production! True can be used only for testing.
 
 	// Max number of users returned when searching users
 	c.v.SetDefault(varUsersListLimit, 50)
@@ -588,6 +586,10 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Regex to be used to check if the user with such email should be ignored during account provisioning
 	c.v.SetDefault(varIgnoreEmailInProd, ".+\\+preview.*\\@redhat\\.com")
+
+	c.v.SetDefault(varOSORegistrationAppURL, "https://manage.openshift.com")
+	c.v.SetDefault(varOSORegistrationAppAdminUsername, "") //TODO
+	c.v.SetDefault(varOSORegistrationAppAdminToken, "")    //TODO
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -777,12 +779,6 @@ func (c *ConfigurationData) GetGitHubClientDefaultScopes() string {
 // If in a staging env a new user doesn't have the cluster set then this default cluster is used
 func (c *ConfigurationData) GetOpenShiftClientApiUrl() string {
 	return c.v.GetString(varOSOClientApiUrl)
-}
-
-// IsTLSInsecureSkipVerify returns true the client should not verify the
-// server's certificate chain and host name. This mode should be used only for testing.
-func (c *ConfigurationData) IsTLSInsecureSkipVerify() bool {
-	return c.v.GetBool(varTLSInsecureSkipVerify)
 }
 
 // GetNotApprovedRedirect returns the URL to redirect to if the user is not approved
@@ -995,6 +991,21 @@ func (c *ConfigurationData) GetWITURL(req *goa.RequestData) (string, error) {
 // GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
 func (c *ConfigurationData) GetTenantServiceURL() string {
 	return c.v.GetString(varTenantServiceURL)
+}
+
+// GetOSORegistrationAppURL returns the URL for the OpenShift Online Registration App
+func (c *ConfigurationData) GetOSORegistrationAppURL() string {
+	return c.v.GetString(varOSORegistrationAppURL)
+}
+
+// GetOSORegistrationAppAdminUsername returns the admin username used to access OpenShift Online Registration App
+func (c *ConfigurationData) GetOSORegistrationAppAdminUsername() string {
+	return c.v.GetString(varOSORegistrationAppAdminUsername)
+}
+
+// GetOSORegistrationAppAdminToken returns the admin token used to access OpenShift Online Registration App
+func (c *ConfigurationData) GetOSORegistrationAppAdminToken() string {
+	return c.v.GetString(varOSORegistrationAppAdminToken)
 }
 
 func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
