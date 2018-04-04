@@ -3,13 +3,15 @@ package login
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"golang.org/x/oauth2"
 	"net/http"
 
-	"github.com/fabric8-services/fabric8-auth/errors"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 )
@@ -39,7 +41,19 @@ type Service struct {
 }
 
 func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, request goa.RequestData, config Configuration, keycloakToken oauth2.Token) (string, error) {
-	username := "loadFromToken"
+
+	// Extract username from the token
+	tokenManager, err := token.ReadManagerFromContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	tokenClaims, err := tokenManager.ParseToken(ctx, keycloakToken.AccessToken)
+	if err != nil {
+		return "", err
+	}
+	username := tokenClaims.Username
+
+	// Load status from OSO
 	regAppURL := fmt.Sprintf("%s/api/accounts/%s/subscriptions?authorization_username=%s", config.GetOSORegistrationAppURL(), username, config.GetOSORegistrationAppAdminUsername())
 
 	req, err := http.NewRequest("GET", regAppURL, nil)
@@ -48,7 +62,7 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 			"err":         err.Error(),
 			"reg_app_url": regAppURL,
 		}, "unable to create http request")
-		return "", errors.NewInternalError(ctx, err)
+		return "", autherrors.NewInternalError(ctx, err)
 	}
 	req.Header.Add("Authorization", "Bearer "+config.GetOSORegistrationAppAdminToken())
 	res, err := http.DefaultClient.Do(req)
@@ -57,10 +71,19 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 			"err":         err.Error(),
 			"reg_app_url": regAppURL,
 		}, "unable to load OSO subscription status")
-		return "", errors.NewInternalError(ctx, err)
+		return "", autherrors.NewInternalError(ctx, err)
 	}
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
+
+	if res.StatusCode != http.StatusOK {
+		log.Error(ctx, map[string]interface{}{
+			"reg_app_url":     regAppURL,
+			"response_status": res.Status,
+			"response_body":   bodyString,
+		}, "unable to load OSO subscription status")
+		return "", autherrors.NewInternalError(ctx, errors.New("unable to load OSO subscription status"))
+	}
 
 	var sbs subscriptions
 	err = json.Unmarshal([]byte(bodyString), &sbs)
@@ -70,7 +93,7 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 			"reg_app_url": regAppURL,
 			"body":        bodyString,
 		}, "unable to unmarshal json with subscription status")
-		return "", errors.NewInternalError(ctx, err)
+		return "", autherrors.NewInternalError(ctx, err)
 	}
 
 	for _, subscription := range sbs.Subscriptions {
@@ -82,5 +105,5 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 		"reg_app_url": regAppURL,
 		"body":        bodyString,
 	}, "unable to find subscription status for any known cluster")
-	return "", errors.NewInternalError(ctx, err)
+	return "", autherrors.NewInternalError(ctx, err)
 }

@@ -18,10 +18,10 @@ import (
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/token"
 	keycloaktoken "github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
 	"reflect"
@@ -920,7 +920,7 @@ func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID,
 
 // LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
 // If no token present in the context then an Unauthorized error is returned
-// If the identity represented by the token doesn't exist in the DB or not assosiated with any User then an Unauthorized error is returned
+// If the identity represented by the token doesn't exist in the DB or not associated with any User then an Unauthorized error is returned
 func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*account.Identity, error) {
 	var identity *account.Identity
 	identityID, err := ContextIdentity(ctx)
