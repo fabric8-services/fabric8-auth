@@ -30,8 +30,9 @@ type GormInvitationModelService struct {
 // NewInvitationModelService creates a new service.
 func NewInvitationModelService(db *gorm.DB, repo repository.Repositories, permissionSvc permissionModel.PermissionModelService) InvitationModelService {
 	return &GormInvitationModelService{
-		db:   db,
-		repo: repo,
+		db:           db,
+		repo:         repo,
+		permModelSvc: permissionSvc,
 	}
 }
 
@@ -40,17 +41,21 @@ func NewInvitationModelService(db *gorm.DB, repo repository.Repositories, permis
 func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID,
 	invitations []invitation.Invitation) error {
 
-	// Lookup the identity resource of the organization, team or security group that invitations will be issued for
+	// Lookup the identity of the organization, team or security group that invitations will be issued for
 	inviteToIdentity, err := s.repo.Identities().Load(ctx, inviteTo)
 
 	if err != nil {
 		return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team or security group\n", inviteTo), inviteTo.String())
 	}
 
-	res := inviteToIdentity.IdentityResource
+	// Load the resource for the identity
+	inviteToResource, err := s.repo.ResourceRepository().Load(ctx, *inviteToIdentity.IdentityResourceID)
+	if err != nil {
+		return errors.NewInternalErrorFromString(ctx, "Error loading resource for identity")
+	}
 
 	// Confirm that the issuing user has the "invite_users" scope for the organization, team or security group
-	scope, err := s.permModelSvc.HasScope(ctx, issuingUserId, res.ResourceID, authorization.InviteUserScope)
+	scope, err := s.permModelSvc.HasScope(ctx, issuingUserId, *inviteToIdentity.IdentityResourceID, authorization.InviteUserScope)
 	if err != nil {
 		return errors.NewInternalError(ctx, err)
 	}
@@ -60,7 +65,9 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 	}
 
 	// We only allow membership in some identity types - confirm that we are inviting to an organization, team or security group
-	if !inviteToIdentity.IsOrganization() && !inviteToIdentity.IsTeam() && !inviteToIdentity.IsGroup() {
+	if inviteToResource.ResourceType.Name != authorization.IdentityResourceTypeOrganization &&
+		inviteToResource.ResourceType.Name != authorization.IdentityResourceTypeTeam &&
+		inviteToResource.ResourceType.Name != authorization.IdentityResourceTypeGroup {
 		return errors.NewInternalErrorFromString(ctx, "may only invite a user to an organization, team or security group")
 	}
 
@@ -126,10 +133,10 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 
 		// Confirm that any specified roles are valid for this resource type
 		for _, roleName := range invitation.Roles {
-			_, error := s.repo.RoleRepository().Lookup(ctx, roleName, res.ResourceType.Name)
+			_, error := s.repo.RoleRepository().Lookup(ctx, roleName, inviteToResource.ResourceType.Name)
 
 			if error != nil {
-				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", res.ResourceType.Name))
+				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", inviteToResource.ResourceType.Name))
 			}
 		}
 	}
@@ -149,10 +156,10 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 
 		// For each role in the invitation, lookup the role and add it to the invitation
 		for _, roleName := range invitation.Roles {
-			role, error := s.repo.RoleRepository().Lookup(ctx, roleName, res.ResourceType.Name)
+			role, error := s.repo.RoleRepository().Lookup(ctx, roleName, inviteToResource.ResourceType.Name)
 
 			if error != nil {
-				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", res.ResourceType.Name))
+				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", inviteToResource.ResourceType.Name))
 			}
 			s.repo.InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
 		}
