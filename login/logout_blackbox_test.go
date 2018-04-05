@@ -93,6 +93,7 @@ func (s *TestLogoutSuite) checkRedirects(redirectParam string, referrerURL strin
 	validURLs := configuration.DefaultValidRedirectURLs
 
 	err = s.logoutService.Logout(logoutCtx, logoutEndpoint, validURLs)
+	require.NoError(s.T(), err)
 
 	if expectedRedirectParam == "" {
 		assert.Equal(s.T(), 400, rw.Code)

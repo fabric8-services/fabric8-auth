@@ -135,7 +135,8 @@ func testMigration01(t *testing.T) {
 	for rows.Next() {
 		var registration_completed bool
 		err = rows.Scan(&registration_completed)
-		assert.True(t, registration_completed == false)
+		require.NoError(t, err)
+		assert.False(t, registration_completed)
 	}
 }
 
@@ -228,6 +229,7 @@ func testMigration21(t *testing.T) {
 	for rows.Next() {
 		var roleName string
 		err = rows.Scan(&roleName)
+		require.NoError(t, err)
 		require.Equal(t, controller.OrganizationOwnerRole, roleName)
 	}
 }
