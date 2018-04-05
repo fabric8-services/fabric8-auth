@@ -19,7 +19,7 @@ const (
 
 var scopes = []string{"read:space", "admin:space"}
 
-// SpaceConfiguration represents space configuratoin
+// SpaceConfiguration represents space configuration
 type SpaceConfiguration interface {
 	GetKeycloakEndpointAuthzResourceset(*goa.RequestData) (string, error)
 	GetKeycloakEndpointToken(*goa.RequestData) (string, error)

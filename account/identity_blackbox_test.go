@@ -94,7 +94,7 @@ func (s *identityBlackBoxTest) TestOKToSave() {
 }
 
 func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNotExist() {
-	// Identity exists but not assosiated with any user
+	// Identity exists but not associated with any user
 	identity := createAndLoad(s)
 	_, err := s.repo.LoadWithUser(s.Ctx, identity.ID)
 	require.NotNil(s.T(), err)

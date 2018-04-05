@@ -2,14 +2,15 @@
 package test
 
 import (
+	"net/url"
+	"testing"
+
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"net/url"
-	"testing"
 )
 
-// CreateRandomValidTestName functions creates a valid lenght name
+// CreateRandomValidTestName functions creates a valid length name
 func CreateRandomValidTestName(name string) string {
 	randomName := name + uuid.NewV4().String()
 	if len(randomName) > 62 {
