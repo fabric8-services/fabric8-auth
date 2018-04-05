@@ -312,7 +312,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 			userNotApprovedRedirectURL := config.GetNotApprovedRedirect()
 			if userNotApprovedRedirectURL != "" {
-				status, err := keycloak.osoSubscriptionManager.LoadOSOSubscriptionStatus(ctx, *request, config, *keycloakToken)
+				status, err := keycloak.osoSubscriptionManager.LoadOSOSubscriptionStatus(ctx, config, *keycloakToken)
 				if err != nil {
 					// Not critical. Just log the error and proceed
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to load OSO subscription status")

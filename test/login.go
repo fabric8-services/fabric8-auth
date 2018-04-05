@@ -72,13 +72,6 @@ func service(serviceName string, key interface{}, u account.Identity, authz *tok
 	return svc
 }
 
-// ServiceAsUserWithAuthz creates a new service and fill the context with input Identity and resource authorization information
-func ServiceAsUserWithAuthz(serviceName string, key interface{}, u account.Identity, authorizationPayload token.AuthorizationPayload) *goa.Service {
-	svc := service(serviceName, key, u, &authorizationPayload)
-	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: &dummySpaceAuthzService{}})
-	return svc
-}
-
 // ServiceAsUser creates a new service and fill the context with input Identity
 func ServiceAsUser(serviceName string, u account.Identity) *goa.Service {
 	svc := service(serviceName, nil, u, nil)
@@ -128,6 +121,6 @@ type DummyOSORegistrationApp struct {
 	Err    error
 }
 
-func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, request goa.RequestData, config login.Configuration, keycloakToken oauth2.Token) (string, error) {
+func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config login.Configuration, keycloakToken oauth2.Token) (string, error) {
 	return regApp.Status, regApp.Err
 }

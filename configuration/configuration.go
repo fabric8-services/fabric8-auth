@@ -849,7 +849,7 @@ func (c *ConfigurationData) GetKeycloakTestUser2Secret() string {
 }
 
 // GetKeycloakEndpointAuth returns the keycloak auth endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -858,7 +858,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuth(req *goa.RequestData) (strin
 }
 
 // GetKeycloakEndpointToken returns the keycloak token endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -867,7 +867,7 @@ func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (stri
 }
 
 // GetKeycloakEndpointUserInfo returns the keycloak userinfo endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -882,7 +882,7 @@ func (c *ConfigurationData) GetNotificationServiceURL() string {
 
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -892,7 +892,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (stri
 
 // GetKeycloakEndpointUsers returns the <keycloak>/realms/admin/<realm>/users endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -903,7 +903,7 @@ func (c *ConfigurationData) GetKeycloakEndpointUsers(req *goa.RequestData) (stri
 
 // GetKeycloakEndpointIDP returns the <keycloak>/realms/admin/<realm>/users/USER_ID/federated-identity/rhd endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -913,7 +913,7 @@ func (c *ConfigurationData) GetKeycloakEndpointLinkIDP(req *goa.RequestData, id 
 
 // GetKeycloakEndpointAuthzResourceset returns the <keycloak>/realms/<realm>/authz/protection/resource_set endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -923,7 +923,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuthzResourceset(req *goa.Request
 
 // GetKeycloakEndpointClients returns the <keycloak>/admin/realms/<realm>/clients endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -933,7 +933,7 @@ func (c *ConfigurationData) GetKeycloakEndpointClients(req *goa.RequestData) (st
 
 // GetKeycloakEndpointEntitlement returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -943,7 +943,7 @@ func (c *ConfigurationData) GetKeycloakEndpointEntitlement(req *goa.RequestData)
 
 // GetKeycloakEndpointBroker returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -957,7 +957,7 @@ func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (st
 }
 
 // GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -1027,7 +1027,7 @@ func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, endpointVa
 		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varKeycloakURL), pathSufix)
 	} else {
 		if c.IsPostgresDeveloperModeEnabled() {
-			// Devmode is enabled. Calculate the URL endopoint using the devmode Keycloak URL
+			// Devmode is enabled. Calculate the URL endpoint using the devmode Keycloak URL
 			endpoint = fmt.Sprintf("%s/%s", devModeKeycloakURL, pathSufix)
 		} else {
 			// Calculate relative URL based on request

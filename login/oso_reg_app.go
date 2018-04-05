@@ -12,14 +12,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
-
-	"github.com/goadesign/goa"
 )
 
 const signUpNeededStatus = "singup_needed"
 
 type OSOSubscriptionManager interface {
-	LoadOSOSubscriptionStatus(ctx context.Context, request goa.RequestData, config Configuration, keycloakToken oauth2.Token) (string, error)
+	LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error)
 }
 
 type OSORegistrationApp struct {
@@ -42,7 +40,7 @@ type Service struct {
 	APIURL string `json:"api_url"`
 }
 
-func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, request goa.RequestData, config Configuration, keycloakToken oauth2.Token) (string, error) {
+func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error) {
 
 	// Extract username from the token
 	tokenManager, err := token.ReadManagerFromContext(ctx)
@@ -79,8 +77,10 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 	bodyString := rest.ReadBody(res.Body)
 
 	if res.StatusCode != http.StatusOK {
-		// TODO check if user does not exist
-		// return signUpNeededStatus, nil
+		if res.StatusCode == http.StatusNotFound {
+			// User does not exist
+			return signUpNeededStatus, nil
+		}
 
 		log.Error(ctx, map[string]interface{}{
 			"reg_app_url":     regAppURL,
