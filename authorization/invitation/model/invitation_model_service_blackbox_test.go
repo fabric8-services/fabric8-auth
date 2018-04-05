@@ -143,3 +143,74 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserName() {
 	require.Equal(s.T(), invitee.ID, invs[0].UserID)
 	require.True(s.T(), invs[0].Member)
 }
+
+func (s *invitationModelServiceBlackBoxTest) TestIssueMultipleInvitations() {
+	// Create a test user - this will be the organization owner
+	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestIssuingUser")
+	require.NoError(s.T(), err, "Could not create identity")
+
+	// Create an organization
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	require.NoError(s.T(), err, "Could not create organization")
+
+	// Create another test user - we will invite this one to join the organization
+	invitee, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestInviteeUser-"+uuid.NewV4().String())
+	require.NoError(s.T(), err, "Could not create identity")
+
+	// Create another test user - we will invite this one to join the organization
+	invitee2User := account.User{
+		ID:       uuid.NewV4(),
+		Email:    "jsmith-invitationtest@acmecorp.com",
+		FullName: "John Smith - Invitation Test",
+		Cluster:  "https://api.starter-us-east-2.openshift.com",
+	}
+
+	invitee2 := account.Identity{
+		ID:           uuid.NewV4(),
+		Username:     "TestInvitee" + uuid.NewV4().String(),
+		User:         invitee2User,
+		ProviderType: account.KeycloakIDP,
+	}
+
+	err = test.CreateTestIdentityAndUserInDB(s.DB, &invitee2)
+	require.NoError(s.T(), err, "Error creating invitee2 user")
+
+	invitations := []invitation.Invitation{
+		{
+			UserName: &invitee.Username,
+			Member:   true,
+		},
+		{
+			UserEmail: &invitee2User.Email,
+			Member:    true,
+		},
+	}
+
+	err = s.invModelService.CreateInvitations(s.Ctx, identity.ID, *orgId, invitations)
+	require.NoError(s.T(), err, "Error creating invitations")
+
+	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	require.NoError(s.T(), err, "Error listing invitations")
+
+	require.Equal(s.T(), 2, len(invs))
+
+	found := false
+
+	for _, inv := range invs {
+		if inv.UserID == invitee.ID {
+			found = true
+			require.True(s.T(), inv.Member)
+		}
+	}
+
+	require.True(s.T(), found, "First invitee not found in invitations")
+
+	found = false
+	for _, inv := range invs {
+		if inv.UserID == invitee2.ID {
+			found = true
+			require.True(s.T(), inv.Member)
+		}
+	}
+	require.True(s.T(), found, "Second invitee not found in invitations")
+}
