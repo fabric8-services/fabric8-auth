@@ -115,7 +115,7 @@ func setPagingLinks(links *app.PagingLinks, path string, resultLen, offset, limi
 }
 
 func buildAbsoluteURL(req *goa.RequestData) string {
-	return rest.AbsoluteURL(req, req.URL.Path)
+	return rest.AbsoluteURL(req, req.URL.Path, nil)
 }
 
 func parseInts(s *string) ([]int, error) {

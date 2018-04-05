@@ -22,11 +22,7 @@ var _ = a.Resource("search", func() {
 		a.Response(d.OK, func() {
 			a.Media(userList)
 		})
-
-		a.Response(d.BadRequest, func() {
-			a.Media(d.ErrorMedia)
-		})
-
-		a.Response(d.InternalServerError)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
 })

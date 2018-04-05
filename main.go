@@ -126,9 +126,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Load service accounts
-	//	application.s
-
 	// Create service
 	service := goa.New("auth")
 
@@ -201,9 +198,8 @@ func main() {
 
 	providerFactory := link.NewOauthProviderFactory(config, appDB)
 	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
-	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient(config)
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, config)
+	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, config)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "status" controller

@@ -1,0 +1,2 @@
+insert into users (id, cluster, email, email_private,feature_level) values ('a2ff2e0a-724c-4318-a8ef-38441f5205f6', 'test', 'migration-test-1025+preview@mail.com', false,'');
+insert into users (id, cluster, email, email_private,feature_level) values ('a22f2e0a-724c-4318-a8ef-38441f5205f6', 'test', 'migration-test-1027+preview@mail.com', false,'somethingelse');

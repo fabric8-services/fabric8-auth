@@ -267,7 +267,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 
 // NewOauthProvider creates a new oauth provider for the given resource URL or provider alias
 func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (ProviderConfig, error) {
-	authURL := rest.AbsoluteURL(req, "")
+	authURL := rest.AbsoluteURL(req, "", nil)
 	// Check if the forResource is actually a provider alias like "github" or "openshift"
 	if forResource == GitHubProviderAlias {
 		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil

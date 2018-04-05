@@ -10,13 +10,10 @@ objects:
       service: auth
     name: auth
   spec:
-    replicas: 4
+    replicas: ${{REPLICAS}}
     selector:
       service: auth
     strategy:
-      resources:
-        limits:
-          memory: 1.5Gi
       rollingParams:
         intervalSeconds: 1
         maxSurge: 25%
@@ -72,6 +69,16 @@ objects:
               secretKeyRef:
                 name: auth
                 key: serviceaccount.privatekeyid
+          - name: AUTH_USERACCOUNT_PRIVATEKEY
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: useraccount.privatekey
+          - name: AUTH_USERACCOUNT_PRIVATEKEYID
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: useraccount.privatekeyid
           - name: AUTH_GITHUB_CLIENT_ID
             valueFrom:
               secretKeyRef:
@@ -162,6 +169,13 @@ objects:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 0.1m
+              memory: 10Mi
+            limits:
+              cpu: 400m
+              memory: 1.5Gi
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /etc/fabric8/
@@ -206,3 +220,8 @@ objects:
 parameters:
 - name: IMAGE_TAG
   value: latest
+- description: Number of deployment replicas
+  displayName: Number of deployment replicas
+  required: true
+  name: REPLICAS
+  value: '1'

@@ -1,12 +1,12 @@
-hash: 74d2f6a6e6bdbe87a47f6400907fd3f84388576bfa6542b23eb099bce1d4d81c
-updated: 2017-11-10T05:16:41.374587519+01:00
+hash: bd41e4ed2fb02c5c4d6a0206675f09dde34cd183df33a1d6d225b07e20557e28
+updated: 2018-03-26T12:06:30.288784727+02:00
 imports:
 - name: github.com/ajg/form
   version: cc2954064ec9ea8d93917f0f87456e11d7b881ad
 - name: github.com/andygrunwald/go-jira
   version: 9d1f282f93af41553ddb53b0116a8cdb75b4837a
 - name: github.com/armon/go-metrics
-  version: 0a12dc6f6b9da6da644031a1b9b5a85478c5ee27
+  version: 9a4b6e10bed6220a1665955aa2b75afc91eb10b3
 - name: github.com/axw/gocov
   version: c77561ca0c0cb1ed5d4ce4a912a75f5532566422
   subpackages:
@@ -20,29 +20,25 @@ imports:
   subpackages:
   - spew
 - name: github.com/dgrijalva/jwt-go
-  version: dbeaa9332f19a944acb5736b4456cfcc02140e29
+  version: 06ea1031745cb8b3dab3f6a236daf2b0aa468b7e
 - name: github.com/dimfeld/httppath
   version: c8e499c3ef3c3e272ed8bdcc1ccf39f73c88debc
 - name: github.com/dimfeld/httptreemux
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
-- name: github.com/dnaeon/go-vcr
-  version: 9d71b8a6df86e00127f96bc8dabc09856ab8afdb
-  subpackages:
-  - recorder
-- name: github.com/fabric8-services/fabric8-wit
-  version: 296f01addee8a560c9bb43fb291cf93ccd35ee8e
+- name: github.com/fabric8-services/fabric8-notification
+  version: 354d927ae7651802c0bc85fd6c9adf0cac736edb
   subpackages:
   - design
 - name: github.com/fabric8-services/fabric8-tenant
   version: 7dc3e8b5b1cd36469d6081d21b5273e2106047ae
   subpackages:
   - design
-- name: github.com/fabric8-services/fabric8-notification
-  version: 354d927ae7651802c0bc85fd6c9adf0cac736edb
+- name: github.com/fabric8-services/fabric8-wit
+  version: ed49dd4d0678a97d13ba469efbd5cdea2e5dbe67
   subpackages:
   - design
 - name: github.com/fsnotify/fsnotify
-  version: 629574ca2a5df945712d3079857300b5e4da0236
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/fzipp/gocyclo
   version: 6acd4345c835499920e8426c7e4e8d7a34f1bb83
 - name: github.com/goadesign/goa
@@ -125,7 +121,7 @@ imports:
 - name: github.com/lsegal/gucumber
   version: 71608e2f6e76fd4da5b09a376aeec7a5c0b5edbc
 - name: github.com/magiconair/properties
-  version: be5ece7dd465ab0765a9682137865547526d1dfb
+  version: c3beff4c2358b44d0493c7dda585e7db7ff28ae6
 - name: github.com/manveru/faker
   version: 717f7cf83fb78669bfab612749c2e8ff63d5be11
 - name: github.com/mattn/go-colorable
@@ -175,7 +171,7 @@ imports:
 - name: github.com/russross/blackfriday
   version: 5f33e7b7878355cd2b7e6b8eefc48a5472c69f70
 - name: github.com/satori/go.uuid
-  version: b061729afc07e77a8aa4fad0a2fd840958f1942a
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/sergi/go-diff
   version: feef008d51ad2b3778f85d387ccf91735543008d
   subpackages:
@@ -203,7 +199,7 @@ imports:
 - name: github.com/spf13/viper
   version: 651d9d916abc3c3d6a91a12549495caba5edffd2
 - name: github.com/stretchr/testify
-  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  version: 12b6f73e6084dad08a7c6e575284b177ecafbc71
   subpackages:
   - assert
   - require
@@ -255,7 +251,7 @@ imports:
 - name: gopkg.in/asaskevich/govalidator.v4
   version: 7664702784775e51966f0885f5cd27435916517b
 - name: gopkg.in/square/go-jose.v2
-  version: f8f38de21b4dcd69d0413faf231983f5fd6634b1
+  version: 552e98edab5d620205ff1a8960bf52a5a10aad03
   subpackages:
   - cipher
   - json

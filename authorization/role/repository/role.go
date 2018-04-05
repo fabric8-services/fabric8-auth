@@ -30,38 +30,6 @@ type Role struct {
 	Name string
 }
 
-// The scopes associated with this role
-//Scopes []scope.ResourceTypeScope `gorm:"many2many:role_scope;AssociationForeignKey:resourceTypeScopeID;ForeignKey:roleID"`
-
-// TableName overrides the table name settings in Gorm to force a specific table name
-// in the database.
-func (m Role) TableName() string {
-	return "role"
-}
-
-// GetLastModified returns the last modification time
-func (m Role) GetLastModified() time.Time {
-	return m.UpdatedAt
-}
-
-type RoleScope struct {
-	gormsupport.Lifecycle
-
-	RoleID uuid.UUID `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
-
-	Scope   scope.ResourceTypeScope `gorm:"ForeignKey:ScopeID;AssociationForeignKey:ResourceTypeScopeID"`
-	ScopeID uuid.UUID               `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_ID"`
-}
-
-func (m RoleScope) TableName() string {
-	return "role_scope"
-}
-
-// GetLastModified returns the last modification time
-func (m RoleScope) GetLastModified() time.Time {
-	return m.UpdatedAt
-}
-
 // GormRoleRepository is the implementation of the storage interface for Role.
 type GormRoleRepository struct {
 	db *gorm.DB
@@ -89,6 +57,12 @@ type RoleRepository interface {
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
 func (m *GormRoleRepository) TableName() string {
+	return "role"
+}
+
+// TableName overrides the table name settings in Gorm to force a specific table name
+// in the database.
+func (m Role) TableName() string {
 	return "role"
 }
 
@@ -248,7 +222,7 @@ func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.R
 
 	results := make([]scope.ResourceTypeScope, len(scopes))
 	for index := 0; index < len(scopes); index++ {
-		results[index] = scopes[index].Scope
+		results[index] = scopes[index].ResourceTypeScope
 	}
 
 	return results, nil
@@ -258,9 +232,9 @@ func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *scope.Res
 	defer goa.MeasureSince([]string{"goa", "db", "role", "addscope"}, time.Now())
 
 	roleScope := &RoleScope{
-		RoleID:  u.RoleID,
-		Scope:   *s,
-		ScopeID: s.ResourceTypeScopeID,
+		RoleID:              u.RoleID,
+		ResourceTypeScope:   *s,
+		ResourceTypeScopeID: s.ResourceTypeScopeID,
 	}
 
 	err := m.db.Create(roleScope).Error

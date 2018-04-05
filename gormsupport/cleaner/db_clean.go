@@ -65,11 +65,17 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 		}
 		for i := len(entities) - 1; i >= 0; i-- {
 			entity := entities[i]
-			log.Info(nil, map[string]interface{}{
+			log.Debug(nil, map[string]interface{}{
 				"table":     entity.table,
 				"keys":      entity.keys,
 				"hook_name": hookName,
 			}, "Deleting entities from '%s' table with keys %v", entity.table, entity.keys)
+			if len(entity.keys) == 0 {
+				log.Panic(nil, map[string]interface{}{
+					"table":     entity.table,
+					"hook_name": hookName,
+				}, "no primary keys found!!!")
+			}
 			tx.Table(entity.table).Where(entity.keys).Delete("")
 		}
 

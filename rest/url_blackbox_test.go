@@ -12,6 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type dummyConfig struct {
+	devMode bool
+}
+
+func (c *dummyConfig) IsPostgresDeveloperModeEnabled() bool {
+	return c.devMode
+}
+
 func TestAbsoluteURLOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
@@ -20,7 +28,7 @@ func TestAbsoluteURLOK(t *testing.T) {
 		Request: &http.Request{Host: "api.service.domain.org"},
 	}
 	// HTTP
-	urlStr := AbsoluteURL(req, "/testpath")
+	urlStr := AbsoluteURL(req, "/testpath", nil)
 	assert.Equal(t, "http://api.service.domain.org/testpath", urlStr)
 
 	// HTTPS
@@ -29,8 +37,16 @@ func TestAbsoluteURLOK(t *testing.T) {
 	req = &goa.RequestData{
 		Request: r,
 	}
-	urlStr = AbsoluteURL(req, "/testpath2")
+	urlStr = AbsoluteURL(req, "/testpath2", nil)
 	assert.Equal(t, "https://api.service.domain.org/testpath2", urlStr)
+
+	// Prod mode
+	urlStr = AbsoluteURL(req, "/testpath2", &dummyConfig{})
+	assert.Equal(t, "https://api.service.domain.org/testpath2", urlStr)
+
+	// Dev mode
+	urlStr = AbsoluteURL(req, "/testpath2", &dummyConfig{true})
+	assert.Equal(t, "https://auth.openshift.io/testpath2", urlStr)
 }
 
 func TestAbsoluteURLOKWithProxyForward(t *testing.T) {
@@ -48,8 +64,69 @@ func TestAbsoluteURLOKWithProxyForward(t *testing.T) {
 	req = &goa.RequestData{
 		Request: r,
 	}
-	urlStr := AbsoluteURL(req, "/testpath2")
+	urlStr := AbsoluteURL(req, "/testpath2", nil)
 	assert.Equal(t, "https://api.service.domain.org/testpath2", urlStr)
+}
+
+func TestReplaceDomainPrefixInAbsoluteURLOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	req := &goa.RequestData{
+		Request: &http.Request{Host: "api.service.domain.org"},
+	}
+	// HTTP
+	urlStr, err := ReplaceDomainPrefixInAbsoluteURL(req, "auth", "/testpath", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "http://auth.service.domain.org/testpath", urlStr)
+
+	// HTTPS
+	r, err := http.NewRequest("", "https://api.service.domain.org", nil)
+	require.Nil(t, err)
+	req = &goa.RequestData{
+		Request: r,
+	}
+	urlStr, err = ReplaceDomainPrefixInAbsoluteURL(req, "auth", "/testpath2", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "https://auth.service.domain.org/testpath2", urlStr)
+
+	urlStr, err = ReplaceDomainPrefixInAbsoluteURL(req, "", "/testpath3", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "https://service.domain.org/testpath3", urlStr)
+
+	// Prod mode
+	urlStr, err = ReplaceDomainPrefixInAbsoluteURL(req, "", "/testpath4", &dummyConfig{})
+	require.NoError(t, err)
+	assert.Equal(t, "https://service.domain.org/testpath4", urlStr)
+
+	// Dev mode
+	urlStr, err = ReplaceDomainPrefixInAbsoluteURL(req, "", "/testpath5", &dummyConfig{true})
+	require.NoError(t, err)
+	assert.Equal(t, "https://openshift.io/testpath5", urlStr)
+	urlStr, err = ReplaceDomainPrefixInAbsoluteURL(req, "core", "/testpath6", &dummyConfig{true})
+	require.NoError(t, err)
+	assert.Equal(t, "https://core.openshift.io/testpath6", urlStr)
+}
+
+func TestHostOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+
+	req := &goa.RequestData{
+		Request: &http.Request{Host: "api.service.domain.org"},
+	}
+
+	// Prod mode
+	host := Host(req, &dummyConfig{})
+	assert.Equal(t, "api.service.domain.org", host)
+
+	// Config is nil
+	host = Host(req, nil)
+	assert.Equal(t, "api.service.domain.org", host)
+
+	// Dev mode
+	host = Host(req, &dummyConfig{true})
+	assert.Equal(t, "auth.openshift.io", host)
 }
 
 func TestReplaceDomainPrefixOK(t *testing.T) {
@@ -57,8 +134,12 @@ func TestReplaceDomainPrefixOK(t *testing.T) {
 	t.Parallel()
 
 	host, err := ReplaceDomainPrefix("api.service.domain.org", "sso")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "sso.service.domain.org", host)
+
+	host, err = ReplaceDomainPrefix("api.service.domain.org", "")
+	require.NoError(t, err)
+	assert.Equal(t, "service.domain.org", host)
 }
 
 func TestReplaceDomainPrefixInTooShortHostFails(t *testing.T) {
