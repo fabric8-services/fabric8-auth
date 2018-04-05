@@ -78,7 +78,7 @@ func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController
 	loginService.DB = rest.Application
 	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
 
-	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, nil, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, rest.Configuration)
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -114,7 +114,7 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 
 	linkService := &DummyLinkService{}
-	return svc, NewTokenController(svc, rest.Application, loginService, linkService, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService, linkService, nil, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenREST) TestPublicKeys() {
