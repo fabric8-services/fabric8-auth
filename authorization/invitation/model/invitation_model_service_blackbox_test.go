@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test"
 	"testing"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -64,4 +65,48 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
+}
+
+func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserEmail() {
+	// Create a test user - this will be the organization owner
+	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestIssuingUser")
+	require.NoError(s.T(), err, "Could not create identity")
+
+	// Create an organization
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	require.NoError(s.T(), err, "Could not create organization")
+
+	// Create another test user - we will invite this one to join the organization
+	inviteeUser := account.User{
+		ID:       uuid.NewV4(),
+		Email:    "jsmith-invitationtest@acmecorp.com",
+		FullName: "John Smith - Invitation Test",
+		Cluster:  "https://api.starter-us-east-2.openshift.com",
+	}
+
+	invitee := account.Identity{
+		ID:           uuid.NewV4(),
+		Username:     "TestInvitee" + uuid.NewV4().String(),
+		User:         inviteeUser,
+		ProviderType: account.KeycloakIDP,
+	}
+
+	err = test.CreateTestIdentityAndUserInDB(s.DB, &invitee)
+	require.NoError(s.T(), err, "Error creating invitee user")
+
+	invitations := []invitation.Invitation{
+		{
+			UserEmail: &inviteeUser.Email,
+			Member:    true,
+		},
+	}
+
+	err = s.invModelService.CreateInvitations(s.Ctx, identity.ID, *orgId, invitations)
+	require.NoError(s.T(), err, "Error creating invitations")
+
+	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	require.NoError(s.T(), err, "Error listing invitations")
+
+	require.Equal(s.T(), 1, len(invs))
+	require.Equal(s.T(), invitee.ID, invs[0].UserID)
 }

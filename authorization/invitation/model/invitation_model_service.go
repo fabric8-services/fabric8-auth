@@ -75,7 +75,7 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 	// 1) a valid user has been specified via its User ID, e-mail address or username
 	// 2) any roles specified are valid roles for the organization, team or security group
 	// For each invitation, ensure that the IdentityID value can be found and set it
-	for _, invitation := range invitations {
+	for i, invitation := range invitations {
 		// If the UserID has been provided, confirm it is valid and that the identity is a user
 		if invitation.IdentityID != nil {
 			identity, err := s.repo.Identities().Load(ctx, *invitation.IdentityID)
@@ -102,7 +102,7 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 			}
 
 			// Set the IdentityID to that of the identity found
-			invitation.IdentityID = &identities[0].ID
+			invitations[i].IdentityID = &identities[0].ID
 		} else if invitation.UserEmail != nil {
 			// If the user's e-mail address has been provided, confirm the user is valid and that the identity is a user, and set the UserID
 			users, err := s.repo.Users().Query(account.UserFilterByEmail(*invitation.UserEmail))
@@ -128,7 +128,7 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 			}
 
 			// Set the IdentityID to that of the identity found
-			invitation.IdentityID = &identities[0].ID
+			invitations[i].IdentityID = &identities[0].ID
 		}
 
 		// Confirm that any specified roles are valid for this resource type
