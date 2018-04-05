@@ -16,13 +16,6 @@ import (
 
 const signUpNeededStatus = "singup_needed"
 
-type OSOSubscriptionManager interface {
-	LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error)
-}
-
-type OSORegistrationApp struct {
-}
-
 type subscriptions struct {
 	Subscriptions []Subscription `json:"subscriptions"`
 }
@@ -40,7 +33,23 @@ type Service struct {
 	APIURL string `json:"api_url"`
 }
 
-func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error) {
+type OSOSubscriptionManager interface {
+	LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error)
+}
+
+type osoRegistrationApp struct {
+	httpClient rest.HttpClient
+}
+
+func NewOSORegistrationApp() OSOSubscriptionManager {
+	return &osoRegistrationApp{httpClient: http.DefaultClient}
+}
+
+func NewOSORegistrationAppWithClient(client rest.HttpClient) OSOSubscriptionManager {
+	return &osoRegistrationApp{httpClient: client}
+}
+
+func (regApp *osoRegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error) {
 
 	// Extract username from the token
 	tokenManager, err := token.ReadManagerFromContext(ctx)
@@ -65,7 +74,7 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 		return "", autherrors.NewInternalError(ctx, err)
 	}
 	req.Header.Add("Authorization", "Bearer "+config.GetOSORegistrationAppAdminToken())
-	res, err := http.DefaultClient.Do(req)
+	res, err := regApp.httpClient.Do(req)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err.Error(),
