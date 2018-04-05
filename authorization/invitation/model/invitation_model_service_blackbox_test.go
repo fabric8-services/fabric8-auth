@@ -214,3 +214,42 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	}
 	require.True(s.T(), found, "Second invitee not found in invitations")
 }
+
+func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole() {
+	// Create a test user - this will be the organization owner
+	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestIssuingUser"+uuid.NewV4().String())
+	require.Nil(s.T(), err, "Could not create identity")
+
+	// Create an organization
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	require.Nil(s.T(), err, "Could not create organization")
+
+	// Create another test user - we will invite this one to accept the owner role for the organization
+	otherIdentity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestRoleUser")
+	require.Nil(s.T(), err, "Could not create other identity")
+
+	ownerRole := "owner"
+
+	invitations := []invitation.Invitation{
+		{
+			IdentityID: &otherIdentity.ID,
+			Roles:      []string{ownerRole},
+			Member:     false,
+		},
+	}
+
+	err = s.invModelService.CreateInvitations(s.Ctx, identity.ID, *orgId, invitations)
+	require.NoError(s.T(), err, "Error creating invitations")
+
+	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	require.NoError(s.T(), err, "Error listing invitations")
+
+	require.Equal(s.T(), 1, len(invs))
+	require.False(s.T(), invs[0].Member)
+
+	roles, err := s.invitationRepo.ListRoles(s.Ctx, invs[0].InvitationID)
+	require.NoError(s.T(), err, "could not list roles")
+
+	require.Equal(s.T(), 1, len(roles))
+	require.Equal(s.T(), "owner", roles[0].Name)
+}
