@@ -3,14 +3,13 @@ package configuration
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
-
-	"net/url"
-	"reflect"
 
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
@@ -291,6 +290,15 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	if c.GetRefreshTokenExpiresIn() < 3*60 {
 		c.appendDefaultConfigErrorMessage("too short lifespan of refresh tokens")
+	}
+	if c.GetOSORegistrationAppURL() == "" {
+		c.appendDefaultConfigErrorMessage("OSO Reg App url is empty")
+	}
+	if c.GetOSORegistrationAppAdminUsername() == "" {
+		c.appendDefaultConfigErrorMessage("OSO Reg App admin username is empty")
+	}
+	if c.GetOSORegistrationAppAdminToken() == "" {
+		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
 	}
 	c.checkClusterConfig()
 	if c.defaultConfigurationError != nil {
@@ -586,10 +594,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Regex to be used to check if the user with such email should be ignored during account provisioning
 	c.v.SetDefault(varIgnoreEmailInProd, ".+\\+preview.*\\@redhat\\.com")
-
-	c.v.SetDefault(varOSORegistrationAppURL, "https://manage.openshift.com")
-	c.v.SetDefault(varOSORegistrationAppAdminUsername, "") //TODO
-	c.v.SetDefault(varOSORegistrationAppAdminToken, "")    //TODO
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email

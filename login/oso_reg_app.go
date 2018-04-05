@@ -16,6 +16,8 @@ import (
 	"github.com/goadesign/goa"
 )
 
+const signUpNeededStatus = "singup_needed"
+
 type OSOSubscriptionManager interface {
 	LoadOSOSubscriptionStatus(ctx context.Context, request goa.RequestData, config Configuration, keycloakToken oauth2.Token) (string, error)
 }
@@ -77,6 +79,9 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 	bodyString := rest.ReadBody(res.Body)
 
 	if res.StatusCode != http.StatusOK {
+		// TODO check if user does not exist
+		// return signUpNeededStatus, nil
+
 		log.Error(ctx, map[string]interface{}{
 			"reg_app_url":     regAppURL,
 			"response_status": res.Status,
@@ -101,9 +106,6 @@ func (regApp *OSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 			return subscription.Status, nil
 		}
 	}
-	log.Error(ctx, map[string]interface{}{
-		"reg_app_url": regAppURL,
-		"body":        bodyString,
-	}, "unable to find subscription status for any known cluster")
-	return "", autherrors.NewInternalError(ctx, err)
+	// Didn't find subscription for OSIO clusters. OSIO sign up is required.
+	return signUpNeededStatus, nil
 }

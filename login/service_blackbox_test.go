@@ -105,14 +105,7 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
 	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, &dummyOSORegistrationApp{})
-}
-
-type dummyOSORegistrationApp struct {
-}
-
-func (regApp *dummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, request goa.RequestData, config Configuration, keycloakToken oauth2.Token) (string, error) {
-	return "", nil
+	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, &testsupport.DummyOSORegistrationApp{})
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
@@ -199,7 +192,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
 
 	redirect, err := s.unapprovedUserRedirected()
 	require.Nil(s.T(), err)
-	require.Equal(s.T(), "https://xyz.io", *redirect)
+	require.Equal(s.T(), "https://xyz.io?status=", *redirect)
 }
 
 func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {

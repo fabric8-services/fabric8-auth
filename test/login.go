@@ -2,19 +2,21 @@ package test
 
 import (
 	"context"
+	"golang.org/x/oauth2"
+	"net/http"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
-	"time"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
-	"net/http"
 )
 
 type dummySpaceAuthzService struct {
@@ -118,4 +120,14 @@ func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, id
 	}
 	token := tokenManager.GenerateUnsignedServiceAccountToken(r, ident.ID.String(), ident.Username)
 	return goajwt.WithJWT(ctx, token)
+}
+
+// DummyOSORegistrationApp represents a mock OSOSubscriptionManager implementation
+type DummyOSORegistrationApp struct {
+	Status string
+	Err    error
+}
+
+func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, request goa.RequestData, config login.Configuration, keycloakToken oauth2.Token) (string, error) {
+	return regApp.Status, regApp.Err
 }
