@@ -65,6 +65,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
+	require.True(s.T(), invs[0].Member)
 }
 
 func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserEmail() {
@@ -109,4 +110,36 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserEmail() {
 
 	require.Equal(s.T(), 1, len(invs))
 	require.Equal(s.T(), invitee.ID, invs[0].UserID)
+	require.True(s.T(), invs[0].Member)
+}
+
+func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserName() {
+	// Create a test user - this will be the organization owner
+	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestIssuingUser")
+	require.NoError(s.T(), err, "Could not create identity")
+
+	// Create an organization
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	require.NoError(s.T(), err, "Could not create organization")
+
+	// Create another test user - we will invite this one to join the organization
+	invitee, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestInviteeUser-"+uuid.NewV4().String())
+	require.NoError(s.T(), err, "Could not create identity")
+
+	invitations := []invitation.Invitation{
+		{
+			UserName: &invitee.Username,
+			Member:   true,
+		},
+	}
+
+	err = s.invModelService.CreateInvitations(s.Ctx, identity.ID, *orgId, invitations)
+	require.NoError(s.T(), err, "Error creating invitations")
+
+	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	require.NoError(s.T(), err, "Error listing invitations")
+
+	require.Equal(s.T(), 1, len(invs))
+	require.Equal(s.T(), invitee.ID, invs[0].UserID)
+	require.True(s.T(), invs[0].Member)
 }
