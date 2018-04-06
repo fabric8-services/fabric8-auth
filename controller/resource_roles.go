@@ -2,15 +2,22 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
+)
+
+const (
+	ROLE_ASSIGNMENT_SCOPE = "assign_role"
 )
 
 // ResourceRolesController implements the resource_roles resource.
@@ -18,14 +25,16 @@ type ResourceRolesController struct {
 	*goa.Controller
 	db                    application.DB
 	roleManagementService roleservice.RoleManagementService
+	permissionService     permissionservice.PermissionService
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService roleservice.RoleManagementService) *ResourceRolesController {
+func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService roleservice.RoleManagementService, permissionService permissionservice.PermissionService) *ResourceRolesController {
 	return &ResourceRolesController{
 		Controller: service.NewController("ResourceRolesController"),
 		db:         db,
 		roleManagementService: assignmentService,
+		permissionService:     permissionService,
 	}
 }
 
@@ -72,8 +81,46 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 
 // AssignRole assigns a specific role for a resource, to one or more identities.
 func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
+
+	currentUser, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	}
+	if currentUser == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("identity ID not found in token"))
+	}
+
+	// check if the current user token belongs to a user who has the necessary privileges
+	// for assigning roles to other users.
+	hasScope, err := c.permissionService.HasScope(ctx, *currentUser, ctx.ResourceID, ROLE_ASSIGNMENT_SCOPE)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	if !hasScope {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to assign roles"))
+	}
+
+	// In a batch assignment of roles, all users need to be a part of the resource
+	// Only then futher role assignments would be allowed.
+	for _, identity := range ctx.Payload.Data {
+		identityIDAsUUID, err := uuid.FromString(identity.ID)
+		assignedRoles, err := c.roleManagementService.ListAssignmentsByIdentityAndResource(ctx, ctx.ResourceID, identityIDAsUUID)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+		if len(assignedRoles) == 0 {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+				"identity_id": identityIDAsUUID,
+				"role":        ctx.RoleName,
+			}, "identity not part of a  resource cannot be assigned a role")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError(fmt.Sprintf("identity %s does not belong to the resource", identity.ID)))
+		}
+	}
+
+	// Now that we have confirmed that all the users were part of the resource ( ex. space )
+	// we can proceed with the assignment of roles.
 	var identityIDs []uuid.UUID
-	var err error
 	for _, identity := range ctx.Payload.Data {
 		identityIDAsUUID, err := uuid.FromString(identity.ID)
 		if err != nil {

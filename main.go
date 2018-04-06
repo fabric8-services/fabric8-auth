@@ -16,6 +16,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
+	permissionService "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -183,9 +185,13 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
+	permissionModelRef := permissionModel.NewPermissionModelService(db, appDB)
+	permissionServiceRef := permissionService.NewPermissionService(permissionModelRef, appDB)
+
 	roleManagementModelService := roleModel.NewRoleManagementModelService(db, appDB)
 	roleManagemenetService := roleService.NewRoleManagementService(roleManagementModelService, appDB)
-	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService)
+
+	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService, permissionServiceRef)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
 
 	// Mount "authorize" controller

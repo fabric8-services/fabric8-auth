@@ -14,6 +14,7 @@ import (
 
 // RoleManagementService defines the contract for managing roles assigments to a resource
 type RoleManagementService interface {
+	ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identity uuid.UUID) ([]identityrole.IdentityRole, error)
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
 	Assign(ctx context.Context, identityID []uuid.UUID, resourceID string, roleName string) error
@@ -50,6 +51,17 @@ func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resource
 		return err
 	})
 
+	return roles, err
+}
+
+// ListAssignmentsByIdentityAndResource lists all the roles that have been assigned to a specific user/identity for a specific resource
+func (r *RoleManagementServiceImpl) ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]identityrole.IdentityRole, error) {
+	var roles []identityrole.IdentityRole
+	var err error
+	err = application.Transactional(r.db, func(appl application.Application) error {
+		roles, err = r.modelService.ListAssignmentsByIdentityAndResource(ctx, resourceID, identityID)
+		return err
+	})
 	return roles, err
 }
 

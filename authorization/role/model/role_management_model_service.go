@@ -19,6 +19,7 @@ import (
 
 // RoleManagementModelService defines the service contract for managing role assignments
 type RoleManagementModelService interface {
+	ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identity uuid.UUID) ([]identityrole.IdentityRole, error)
 	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
@@ -37,6 +38,11 @@ func NewRoleManagementModelService(db *gorm.DB, repo repository.Repositories) *G
 type GormRoleManagementModelService struct {
 	db         *gorm.DB
 	repository repository.Repositories
+}
+
+// ListAssignmentsByIdentityAndResource lists all the roles that have been assigned to a specific user/identity for a specific resource
+func (r *GormRoleManagementModelService) ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]identityrole.IdentityRole, error) {
+	return r.repository.IdentityRoleRepository().ListByIdentityAndResource(ctx, resourceID, identityID)
 }
 
 // Assign assigns a user identity with a role, for a specific resource
