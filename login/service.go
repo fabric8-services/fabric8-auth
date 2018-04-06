@@ -319,7 +319,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 				}
 				userNotApprovedRedirectURL, err := rest.AddParam(userNotApprovedRedirectURL, "status", status)
 				if err != nil {
-					log.Error(ctx, map[string]interface{}{"err": err}, "failed to status param to redirect URL")
+					log.Error(ctx, map[string]interface{}{"err": err}, "failed to add a status param to the redirect URL")
 					return nil, nil, err
 				}
 				log.Debug(ctx, map[string]interface{}{
