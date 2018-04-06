@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type DummyClient struct {
+type DummyHttpClient struct {
 	Response *http.Response
 	Error    error
 }
 
-func (c *DummyClient) Do(req *http.Request) (*http.Response, error) {
+func (c *DummyHttpClient) Do(req *http.Request) (*http.Response, error) {
 	return c.Response, c.Error
 }
 

@@ -190,6 +190,10 @@ func ContextWithRequest(ctx context.Context) context.Context {
 	return goa.NewContext(goa.WithAction(ctx, "Test"), rw, req, url.Values{})
 }
 
+func ContextWithTokenManager() context.Context {
+	return tokencontext.ContextWithTokenManager(context.Background(), TokenManager)
+}
+
 func configurationData() *configuration.ConfigurationData {
 	config, err := configuration.GetConfigurationData()
 	if err != nil {

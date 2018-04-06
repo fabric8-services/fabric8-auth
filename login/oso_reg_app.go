@@ -14,7 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 )
 
-const signUpNeededStatus = "singup_needed"
+const signUpNeededStatus = "signup_needed"
 
 type subscriptions struct {
 	Subscriptions []Subscription `json:"subscriptions"`
@@ -41,6 +41,7 @@ type osoRegistrationApp struct {
 	httpClient rest.HttpClient
 }
 
+// NewOSORegistrationApp constructs a new OSOSubscriptionManager with default HTTP Client
 func NewOSORegistrationApp() OSOSubscriptionManager {
 	return &osoRegistrationApp{httpClient: http.DefaultClient}
 }
@@ -49,6 +50,7 @@ func NewOSORegistrationAppWithClient(client rest.HttpClient) OSOSubscriptionMana
 	return &osoRegistrationApp{httpClient: client}
 }
 
+// LoadOSOSubscriptionStatus loads a subscription status from OpenShift Online Registration app
 func (regApp *osoRegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error) {
 
 	// Extract username from the token
