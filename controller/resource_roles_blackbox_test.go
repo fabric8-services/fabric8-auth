@@ -6,6 +6,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	permissionmodelservice "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
+	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
@@ -32,8 +34,10 @@ func (s *TestResourceRolesRest) SetupSuite() {
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
 	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
 	roleManagementModelService := rolemodel.NewRoleManagementModelService(rest.DB, rest.Application)
+	permissionModelService := permissionmodelservice.NewPermissionModelService(rest.DB, rest.Application)
+	permissionService := permissionservice.NewPermissionService(permissionModelService, rest.Application)
 	roleAssignmentService := roleservice.NewRoleManagementService(roleManagementModelService, rest.Application)
-	return svc, NewResourceRolesController(svc, rest.Application, roleAssignmentService)
+	return svc, NewResourceRolesController(svc, rest.Application, roleAssignmentService, permissionService)
 }
 
 func TestRunResourceRolesRest(t *testing.T) {
