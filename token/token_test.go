@@ -45,7 +45,7 @@ func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
 
 	// With verified email
 	identity.User.EmailVerified = true
-	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
 	require.NoError(s.T(), err)
 	s.assertGeneratedToken(token, identity)
 }
@@ -200,7 +200,7 @@ func (s *TestTokenSuite) generateToken() (*oauth2.Token, account.Identity, conte
 		User:     user,
 		Username: uuid.NewV4().String(),
 	}
-	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
 	require.NoError(s.T(), err)
 
 	return token, identity, ctx

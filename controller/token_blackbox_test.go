@@ -19,6 +19,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"path/filepath"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -27,7 +29,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
-	"path/filepath"
 )
 
 type TestTokenREST struct {
@@ -103,7 +104,7 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
 	loginService.exchangeStrategy = rest.exchangeStrategy
 
-	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity)
+	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 	require.Nil(rest.T(), err)
 	rest.sampleAccessToken = tokenSet.AccessToken
 	rest.sampleRefreshToken = tokenSet.RefreshToken

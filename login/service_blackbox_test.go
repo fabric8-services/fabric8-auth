@@ -642,7 +642,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 
 	// Refresh tokens
 	ctx := testtoken.ContextWithRequest(nil)
-	generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
 	require.NoError(s.T(), err)
 	_, err = s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
 	require.NotNil(s.T(), err)
@@ -666,7 +666,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
 
 	// Refresh tokens
-	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
 	require.NoError(s.T(), err)
 	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
 	require.NoError(s.T(), err)
