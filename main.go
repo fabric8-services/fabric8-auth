@@ -257,7 +257,7 @@ func main() {
 	// Mount "organizations" controller
 	organizationModelService := organizationModel.NewOrganizationModelService(db, appDB)
 	organizationServiceRef := organizationService.NewOrganizationService(organizationModelService, appDB)
-	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationServiceRef)
+	organizationCtrl := controller.NewOrganizationController(service, organizationServiceRef)
 	app.MountOrganizationController(service, organizationCtrl)
 
 	// Create a "permissions" controller

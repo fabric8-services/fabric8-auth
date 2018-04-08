@@ -44,12 +44,12 @@ func TestRunOrganizationREST(t *testing.T) {
 
 func (rest *TestOrganizationREST) SecuredController(identity account.Identity) (*goa.Service, *OrganizationController) {
 	svc := testsupport.ServiceAsUser("Organization-Service", identity)
-	return svc, NewOrganizationController(svc, rest.Application, rest.orgService)
+	return svc, NewOrganizationController(svc, rest.orgService)
 }
 
 func (rest *TestOrganizationREST) UnsecuredController() (*goa.Service, *OrganizationController) {
 	svc := goa.New("Organization-Service")
-	controller := NewOrganizationController(svc, rest.Application, rest.orgService)
+	controller := NewOrganizationController(svc, rest.orgService)
 	return svc, controller
 }
 
