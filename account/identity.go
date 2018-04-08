@@ -346,13 +346,6 @@ func IdentityWithUser() func(db *gorm.DB) *gorm.DB {
 	}
 }
 
-// IdentithWithResource is a gorm filter for preloading the IdentityResource relationship
-func IdentityWithResource() func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Preload("IdentityResource")
-	}
-}
-
 // IdentityFilterByProviderType is a gorm filter by 'provider_type'
 func IdentityFilterByProviderType(providerType string) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {

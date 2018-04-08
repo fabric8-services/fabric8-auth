@@ -1,12 +1,16 @@
-create table invitation (
-  invitation_id uuid primary key DEFAULT uuid_generate_v4(),
-  invite_to uuid NOT NULL references identities (id),
-  user_id uuid NOT NULL references identities (id),
+CREATE TABLE invitation (
+  invitation_id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  invite_to uuid NULL REFERENCES identities (id),
+  resource_id varchar NULL REFERENCES resource (resource_id),
+  user_id uuid NOT NULL REFERENCES identities (id),
   member boolean NOT NULL,
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
   deleted_at timestamp with time zone
 );
+
+ALTER TABLE invitation ADD CONSTRAINT only_invite_to_or_resource_id_has_value
+  CHECK ((invite_to IS NULL) <> (resource_id IS NULL));
 
 create table invitation_role (
   invitation_id uuid NOT NULL references invitation (invitation_id),

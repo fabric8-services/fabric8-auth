@@ -24,7 +24,7 @@ func NewInvitationController(service *goa.Service, invitationService invitationS
 }
 
 // Create runs the create action.
-func (c *InvitationController) Create(ctx *app.CreateInvitationContext) error {
+func (c *InvitationController) CreateGroupInvite(ctx *app.CreateGroupInviteInvitationContext) error {
 	currentUser, err := login.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
@@ -39,9 +39,9 @@ func (c *InvitationController) Create(ctx *app.CreateInvitationContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("InviteTo", inviteTo, "Not a valid UUID"))
 	}
 
-	var invitations []invitation.Invitation
+	var invitations []invitation.GroupInvitation
 
-	for _, invitee := range ctx.Payload.Invitees {
+	for _, invitee := range ctx.Payload.Data {
 		// Validate that an identifying parameter has been set
 		if invitee.IdentityID == nil && invitee.Username == nil && invitee.UserEmail == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("user identifier", "", "no identifier provided"))
@@ -54,15 +54,17 @@ func (c *InvitationController) Create(ctx *app.CreateInvitationContext) error {
 		}
 
 		// Create the Invitation object, and append it to our list of invitations
-		invitations = append(invitations, invitation.Invitation{
-			IdentityID: &identityID,
-			UserName:   invitee.Username,
-			UserEmail:  invitee.UserEmail,
-			Member:     *invitee.Member,
-			Roles:      invitee.Roles})
+		invitations = append(invitations, invitation.GroupInvitation{
+			Invitation: invitation.Invitation{
+				IdentityID: &identityID,
+				UserName:   invitee.Username,
+				UserEmail:  invitee.UserEmail,
+				Roles:      invitee.Roles},
+			Member: *invitee.Member,
+		})
 	}
 
-	err = c.invService.CreateInvitations(ctx, *currentUser, inviteTo, invitations)
+	err = c.invService.CreateForGroup(ctx, *currentUser, inviteTo, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

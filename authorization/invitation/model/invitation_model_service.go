@@ -11,12 +11,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 type InvitationModelService interface {
-	CreateInvitations(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID, invitations []invitation.Invitation) error
-	ListInvitations(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error)
+	CreateForGroup(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID, invitations []invitation.GroupInvitation) error
+	ListForGroup(ctx context.Context, id uuid.UUID) ([]invitation.GroupInvitation, error)
 }
 
 // GormInvitationModelService is the implementation of the interface for
@@ -38,8 +38,8 @@ func NewInvitationModelService(db *gorm.DB, repo repository.Repositories, permis
 
 // Creates new invitations.  The inviteTo parameter is the unique id of the organization, team or security group for
 // which the invitations will be issued, and the invitations parameter contains the users,
-func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID,
-	invitations []invitation.Invitation) error {
+func (s *GormInvitationModelService) CreateForGroup(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID,
+	invitations []invitation.GroupInvitation) error {
 
 	// Lookup the identity of the organization, team or security group that invitations will be issued for
 	inviteToIdentity, err := s.repo.Identities().Load(ctx, inviteTo)
@@ -168,6 +168,14 @@ func (s *GormInvitationModelService) CreateInvitations(ctx context.Context, issu
 	return nil
 }
 
-func (s *GormInvitationModelService) ListInvitations(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error) {
+func (s *GormInvitationModelService) CreateForResource(ctx context.Context, issuingUserId uuid.UUID, resourceId string, invitations []invitation.Invitation) error {
+	return nil
+}
+
+func (s *GormInvitationModelService) ListForGroup(ctx context.Context, id uuid.UUID) ([]invitation.GroupInvitation, error) {
+	return nil, nil
+}
+
+func (s *GormInvitationModelService) ListForResource(ctx context.Context, resourceId string) ([]invitation.Invitation, error) {
 	return nil, nil
 }

@@ -9,10 +9,10 @@ var _ = a.Resource("invitation", func() {
 
 	a.BasePath("/invitations")
 
-	a.Action("create", func() {
+	a.Action("createGroupInvite", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.POST("/:inviteTo"),
+			a.POST("group/:inviteTo"),
 		)
 		a.Params(func() {
 			a.Param("inviteTo", d.String, "Unique identifier of the organization, team or security group")
@@ -41,11 +41,11 @@ var _ = a.Resource("invitation", func() {
 var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitation_request+json", func() {
 	a.Description("Request payload required to create new invitations")
 	a.Attributes(func() {
-		a.Attribute("invitees", a.ArrayOf(invitee), "An array of users invited to become members or to accept a role")
+		a.Attribute("data", a.ArrayOf(invitee), "An array of users invited to become members or to accept a role")
 	})
-	a.Required("invitees")
+	a.Required("data")
 	a.View("default", func() {
-		a.Attribute("invitees")
+		a.Attribute("data")
 	})
 })
 
