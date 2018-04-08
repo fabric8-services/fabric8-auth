@@ -16,7 +16,10 @@ import (
 
 type InvitationModelService interface {
 	CreateForGroup(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID, invitations []invitation.GroupInvitation) error
+	CreateForResource(ctx context.Context, issuingUserId uuid.UUID, resourceId string, invitations []invitation.Invitation) error
 	ListForGroup(ctx context.Context, id uuid.UUID) ([]invitation.GroupInvitation, error)
+	ListForResource(ctx context.Context, resourceId string) ([]invitation.Invitation, error)
+	ListForUser(ctx context.Context, id uuid.UUID) ([]invitation.InvitationDetail, error)
 }
 
 // GormInvitationModelService is the implementation of the interface for
@@ -177,5 +180,9 @@ func (s *GormInvitationModelService) ListForGroup(ctx context.Context, id uuid.U
 }
 
 func (s *GormInvitationModelService) ListForResource(ctx context.Context, resourceId string) ([]invitation.Invitation, error) {
+	return nil, nil
+}
+
+func (s *GormInvitationModelService) ListForUser(ctx context.Context, id uuid.UUID) ([]invitation.InvitationDetail, error) {
 	return nil, nil
 }

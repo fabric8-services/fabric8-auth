@@ -60,7 +60,7 @@ func (c *InvitationController) CreateGroupInvite(ctx *app.CreateGroupInviteInvit
 				UserName:   invitee.Username,
 				UserEmail:  invitee.UserEmail,
 				Roles:      invitee.Roles},
-			Member: *invitee.Member,
+			Member: invitee.Member,
 		})
 	}
 

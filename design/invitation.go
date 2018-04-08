@@ -55,4 +55,5 @@ var invitee = a.Type("Invitee", func() {
 	a.Attribute("user-email", d.String, "e-mail address of the user")
 	a.Attribute("member", d.Boolean, "if true invites the user to become a member")
 	a.Attribute("roles", a.ArrayOf(d.String), "An array of role names")
+	a.Required("member")
 })
