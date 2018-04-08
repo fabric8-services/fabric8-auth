@@ -22,10 +22,9 @@ import (
 
 type TestOrganizationREST struct {
 	gormtestsupport.DBTestSuite
-	testIdentity      account.Identity
-	service           *goa.Service
-	orgService        organizationservice.OrganizationService
-	securedController *OrganizationController
+	testIdentity account.Identity
+	service      *goa.Service
+	orgService   organizationservice.OrganizationService
 }
 
 func (s *TestOrganizationREST) SetupSuite() {

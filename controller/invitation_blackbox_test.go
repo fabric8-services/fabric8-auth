@@ -16,7 +16,6 @@ import (
 	invitationmodel "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
-	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	permissionmodel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -25,25 +24,22 @@ import (
 
 type TestInvitationREST struct {
 	gormtestsupport.DBTestSuite
-	testIdentity      account.Identity
-	service           *goa.Service
-	invService        invitationservice.InvitationService
-	orgService        organizationmodel.OrganizationModelService
-	securedController *InvitationController
-	invRepo           invitationrepo.InvitationRepository
+	testIdentity account.Identity
+	service      *goa.Service
+	invService   invitationservice.InvitationService
+	invRepo      invitationrepo.InvitationRepository
 }
 
 func (s *TestInvitationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	permService := permissionmodel.NewPermissionModelService(s.DB, s.Application)
 	s.invService = invitationmodel.NewInvitationModelService(s.DB, s.Application, permService)
-	s.orgService = organizationmodel.NewOrganizationModelService(s.DB, s.Application)
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
 		"InvitationCreatorUser-"+uuid.NewV4().String(),
-		"TestOrganization")
+		"TestInvitation")
 	require.Nil(s.T(), err)
 }
 
@@ -62,15 +58,10 @@ func TestRunInvitationREST(t *testing.T) {
 func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 	var err error
 
-	testIdentity, err := testsupport.CreateTestIdentity(s.DB,
-		"InvitationCreatorUser-"+uuid.NewV4().String(),
-		"TestInvitations")
-	require.Nil(s.T(), err)
-
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
 	require.NoError(s.T(), err, "could not create organization")
 
-	service, controller := s.SecuredController(testIdentity)
+	service, controller := s.SecuredController(s.testIdentity)
 
 	testUsername := "jsmith" + uuid.NewV4().String()
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
@@ -85,9 +76,9 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 		},
 	}
 
-	test.CreateGroupInviteInvitationCreated(s.T(), s.Ctx, service, controller, orgId.String(), payload)
+	test.CreateGroupInviteInvitationUnauthorized(s.T(), s.Ctx, service, controller, orgIdentity.ID.String(), payload)
 
-	invitations, err := s.invRepo.List(s.Ctx, *orgId)
+	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have 1 invitation

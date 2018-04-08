@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -15,7 +16,8 @@ import (
 // InvitationController implements the invitation resource.
 type InvitationController struct {
 	*goa.Controller
-	invService invitationService.InvitationService
+	TokenManager token.Manager
+	invService   invitationService.InvitationService
 }
 
 // NewInvitationController creates a invitation controller.
