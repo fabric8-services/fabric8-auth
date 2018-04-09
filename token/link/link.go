@@ -2,10 +2,8 @@ package link
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -49,7 +47,6 @@ type LinkConfig interface {
 	GetGitHubClientID() string
 	GetGitHubClientDefaultScopes() string
 	GetGitHubClientSecret() string
-	IsTLSInsecureSkipVerify() bool
 	GetOSOClusters() map[string]configuration.OSOCluster
 	GetOSOClusterByURL(url string) *configuration.OSOCluster
 }
@@ -171,21 +168,6 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, identityUUID, req, forResource)
 	if err != nil {
 		return "", err
-	}
-
-	if service.config.IsTLSInsecureSkipVerify() {
-		// For testing only.
-		log.Warn(ctx, map[string]interface{}{
-			"code":        code,
-			"state":       state,
-			"provider_id": oauthProvider.ID(),
-			"identity_id": identityID,
-		}, "TLS verification is disabled!")
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		sslcli := &http.Client{Transport: tr}
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, sslcli)
 	}
 
 	providerToken, err := oauthProvider.Exchange(ctx, code)

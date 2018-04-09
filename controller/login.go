@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"golang.org/x/oauth2"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -14,32 +15,15 @@ import (
 
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
-	"golang.org/x/oauth2"
 )
 
 type LoginConfiguration interface {
+	login.Configuration
 	GetKeycloakEndpointAuth(*goa.RequestData) (string, error)
-	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
-	GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error)
-	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
-	GetKeycloakEndpointEntitlement(*goa.RequestData) (string, error)
-	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
-	GetKeycloakClientID() string
-	GetKeycloakSecret() string
-	IsPostgresDeveloperModeEnabled() bool
-	GetOpenShiftClientApiUrl() string
-	GetKeycloakTestUserName() string
-	GetKeycloakTestUserSecret() string
-	GetKeycloakTestUser2Name() string
-	GetKeycloakTestUser2Secret() string
-	GetValidRedirectURLs() string
-	GetHeaderMaxLength() int64
-	GetNotApprovedRedirect() string
-	GetWITURL(*goa.RequestData) (string, error)
 	GetKeycloakURL() string
 	GetKeycloakRealm() string
-	GetServiceAccounts() map[string]configuration.ServiceAccount
 	GetPublicOauthClientID() string
+	GetServiceAccounts() map[string]configuration.ServiceAccount
 }
 
 // LoginController implements the login resource.

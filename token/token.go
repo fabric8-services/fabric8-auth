@@ -20,8 +20,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -894,7 +894,7 @@ func CheckClaims(claims *TokenClaims) error {
 
 // ReadManagerFromContext extracts the token manager
 func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
-	tm := logintokencontext.ReadTokenManagerFromContext(ctx)
+	tm := tokencontext.ReadTokenManagerFromContext(ctx)
 	if tm == nil {
 		log.Error(ctx, map[string]interface{}{
 			"token": tm,

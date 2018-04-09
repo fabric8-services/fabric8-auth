@@ -389,10 +389,10 @@ func CreatePermission(ctx context.Context, clientsEndpoint string, clientID stri
 	return r.ID, nil
 }
 
-// DeleteResource deletes the Keycloak resource assosiated with the space
+// DeleteResource deletes the Keycloak resource associated with the space
 func DeleteResource(ctx context.Context, kcResourceID string, authzEndpoint string, protectionAPIToken string) error {
 	if kcResourceID == "" {
-		log.Error(ctx, map[string]interface{}{}, "kc-resource-id is emtpy")
+		log.Error(ctx, map[string]interface{}{}, "kc-resource-id is empty")
 		return errors.NewBadParameterError("kcResourceID", kcResourceID)
 	}
 	log.Debug(ctx, map[string]interface{}{
@@ -436,7 +436,7 @@ func DeleteResource(ctx context.Context, kcResourceID string, authzEndpoint stri
 // DeletePolicy deletes the Keycloak policy
 func DeletePolicy(ctx context.Context, clientsEndpoint string, clientID string, policyID string, protectionAPIToken string) error {
 	if policyID == "" {
-		log.Error(ctx, map[string]interface{}{}, "policy-id is emtpy")
+		log.Error(ctx, map[string]interface{}{}, "policy-id is empty")
 		return errors.NewBadParameterError("policyID", policyID)
 	}
 	req, err := http.NewRequest("DELETE", clientsEndpoint+"/"+clientID+"/authz/resource-server/policy/"+policyID, nil)
@@ -476,7 +476,7 @@ func DeletePolicy(ctx context.Context, clientsEndpoint string, clientID string, 
 // DeletePermission deletes the Keycloak permission
 func DeletePermission(ctx context.Context, clientsEndpoint string, clientID string, permissionID string, protectionAPIToken string) error {
 	if permissionID == "" {
-		log.Error(ctx, map[string]interface{}{}, "permission-id is emtpy")
+		log.Error(ctx, map[string]interface{}{}, "permission-id is empty")
 		return errors.NewBadParameterError("permissionID", permissionID)
 	}
 	req, err := http.NewRequest("DELETE", clientsEndpoint+"/"+clientID+"/authz/resource-server/policy/"+permissionID, nil)
@@ -516,7 +516,7 @@ func DeletePermission(ctx context.Context, clientsEndpoint string, clientID stri
 // GetPolicy obtains a policy from Keycloak
 func GetPolicy(ctx context.Context, clientsEndpoint string, clientID string, policyID string, protectionAPIToken string) (*KeycloakPolicy, error) {
 	if policyID == "" {
-		log.Error(ctx, map[string]interface{}{}, "policy-id is emtpy")
+		log.Error(ctx, map[string]interface{}{}, "policy-id is empty")
 		return nil, errors.NewBadParameterError("policyID", policyID)
 	}
 	req, err := http.NewRequest("GET", clientsEndpoint+"/"+clientID+"/authz/resource-server/policy/"+policyID, nil)
@@ -621,7 +621,7 @@ func UpdatePolicy(ctx context.Context, clientsEndpoint string, clientID string, 
 
 // GetEntitlement obtains Entitlement for specific resource.
 // If entitlementResource == nil then Entitlement for all resources available to the user is returned.
-// Returns (nil, nil) if response status == Forbiden which means the user doesn't have permissions to obtain Entitlement
+// Returns (nil, nil) if response status == Forbidden which means the user doesn't have permissions to obtain Entitlement
 func GetEntitlement(ctx context.Context, entitlementEndpoint string, entitlementResource *EntitlementResource, userAccesToken string) (*string, error) {
 	var req *http.Request
 	var reqErr error

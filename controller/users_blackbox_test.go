@@ -832,7 +832,7 @@ func (s *UsersControllerTestSuite) TestDeprovisionUser() {
 	// Fails if unknown identity
 	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.NewV4().String(), updateUsersPayload)
 
-	// Fails if identity is not assosiated with any user
+	// Fails if identity is not associated with any user
 	lonelyIdentity, err := testsupport.CreateLonelyTestIdentity(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, lonelyIdentity.ID.String(), updateUsersPayload)

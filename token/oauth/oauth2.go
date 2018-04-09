@@ -29,7 +29,7 @@ type IdentityProvider interface {
 	Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error)
 }
 
-// OauthIdentityProvider is an implementaion of Identity Provider
+// OauthIdentityProvider is an implementation of Identity Provider
 type OauthIdentityProvider struct {
 	oauth2.Config
 	ProviderID uuid.UUID

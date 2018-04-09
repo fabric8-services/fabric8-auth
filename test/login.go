@@ -2,19 +2,21 @@ package test
 
 import (
 	"context"
+	"golang.org/x/oauth2"
+	"net/http"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
-
-	"time"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
-	"net/http"
 )
 
 type dummySpaceAuthzService struct {
@@ -70,13 +72,6 @@ func service(serviceName string, key interface{}, u account.Identity, authz *tok
 	return svc
 }
 
-// ServiceAsUserWithAuthz creates a new service and fill the context with input Identity and resource authorization information
-func ServiceAsUserWithAuthz(serviceName string, key interface{}, u account.Identity, authorizationPayload token.AuthorizationPayload) *goa.Service {
-	svc := service(serviceName, key, u, &authorizationPayload)
-	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: &dummySpaceAuthzService{}})
-	return svc
-}
-
 // ServiceAsUser creates a new service and fill the context with input Identity
 func ServiceAsUser(serviceName string, u account.Identity) *goa.Service {
 	svc := service(serviceName, nil, u, nil)
@@ -118,4 +113,14 @@ func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, id
 	}
 	token := tokenManager.GenerateUnsignedServiceAccountToken(r, ident.ID.String(), ident.Username)
 	return goajwt.WithJWT(ctx, token)
+}
+
+// DummyOSORegistrationApp represents a mock OSOSubscriptionManager implementation
+type DummyOSORegistrationApp struct {
+	Status string
+	Err    error
+}
+
+func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config login.Configuration, keycloakToken oauth2.Token) (string, error) {
+	return regApp.Status, regApp.Err
 }

@@ -2,6 +2,7 @@ package login_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/errors"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	. "github.com/fabric8-services/fabric8-auth/login"
@@ -36,10 +37,11 @@ import (
 
 type serviceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	loginService         KeycloakOAuthService
-	oauth                *oauth2.Config
-	dummyOauth           *dummyOauth2Config
-	keycloakTokenService *DummyTokenService
+	loginService           *KeycloakOAuthProvider
+	oauth                  *oauth2.Config
+	dummyOauth             *dummyOauth2Config
+	keycloakTokenService   *DummyTokenService
+	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
 func TestRunServiceBlackBoxTest(t *testing.T) {
@@ -104,8 +106,9 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 
 	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
 	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
+	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
 
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService)
+	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
@@ -173,11 +176,11 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 
 	_, _, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
 	require.NotNil(s.T(), err)
-	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
 	_, err = s.unapprovedUserRedirected()
 	require.NotNil(s.T(), err)
-	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
 func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
@@ -190,9 +193,17 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
 	os.Setenv("AUTH_NOTAPPROVED_REDIRECT", "https://xyz.io")
 	s.resetConfiguration()
 
+	s.osoSubscriptionManager.Status = uuid.NewV4().String()
 	redirect, err := s.unapprovedUserRedirected()
-	require.Nil(s.T(), err)
-	require.Equal(s.T(), "https://xyz.io", *redirect)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), "https://xyz.io?status="+s.osoSubscriptionManager.Status, *redirect)
+
+	// If OSO subscription status loading failed we still should redirect
+	s.osoSubscriptionManager.Status = ""
+	s.osoSubscriptionManager.Err = autherrors.NewInternalError(context.Background(), errors.New(""))
+	redirect, err = s.unapprovedUserRedirected()
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), "https://xyz.io?status=", *redirect)
 }
 
 func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
@@ -601,7 +612,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	s.keycloakTokenService.fail = false
 	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
 	require.EqualError(s.T(), err, "token contains an invalid number of segments")
-	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
 	// Fails if refresh token is expired
 	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenFailsIfInvalidToken-"+uuid.NewV4().String())
@@ -617,7 +628,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	ctx := testtoken.ContextWithRequest(nil)
 	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
 	require.EqualError(s.T(), err, "Token is expired")
-	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
 	// OK if not expired
 	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
@@ -631,7 +642,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	s.keycloakTokenService.fail = true
 	_, err = s.loginService.ExchangeRefreshToken(context.Background(), refreshToken, "", s.Configuration)
 	require.EqualError(s.T(), err, "kc refresh failed")
-	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
@@ -646,7 +657,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	require.NoError(s.T(), err)
 	_, err = s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
 	require.NotNil(s.T(), err)
-	require.IsType(s.T(), errors.NewUnauthorizedError(""), err)
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 	require.Equal(s.T(), "unauthorized access", err.Error())
 
 	// 2. OK if identity is not deprovisioned
@@ -978,7 +989,7 @@ type DummyTokenService struct {
 
 func (s *DummyTokenService) RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
 	if s.fail {
-		return nil, errors.NewUnauthorizedError("kc refresh failed")
+		return nil, autherrors.NewUnauthorizedError("kc refresh failed")
 	}
 	return &s.tokenSet, nil
 }
