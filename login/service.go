@@ -25,8 +25,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
-	"reflect"
-
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
