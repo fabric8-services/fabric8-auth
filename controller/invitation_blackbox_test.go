@@ -76,7 +76,7 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 		},
 	}
 
-	test.CreateGroupInviteInvitationCreated(s.T(), s.Ctx, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateGroupInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
 	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
 	require.NoError(s.T(), err, "could not list invitations")

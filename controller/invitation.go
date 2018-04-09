@@ -48,15 +48,15 @@ func (c *InvitationController) CreateGroupInvite(ctx *app.CreateGroupInviteInvit
 		}
 
 		// If an identity ID has been provided for the user, convert it to a UUID here
-		var identityID uuid.UUID
-		if invitee.IdentityID != nil {
-			identityID, err = uuid.FromString(*invitee.IdentityID)
+		var identityID *uuid.UUID
+		if invitee.IdentityID != nil && *invitee.IdentityID != "" {
+			*identityID, err = uuid.FromString(*invitee.IdentityID)
 		}
 
 		// Create the Invitation object, and append it to our list of invitations
 		invitations = append(invitations, invitation.GroupInvitation{
 			Invitation: invitation.Invitation{
-				IdentityID: &identityID,
+				IdentityID: identityID,
 				UserName:   invitee.Username,
 				UserEmail:  invitee.UserEmail,
 				Roles:      invitee.Roles},
