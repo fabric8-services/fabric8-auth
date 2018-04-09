@@ -48,12 +48,18 @@ func (s *TestInvitationREST) SecuredController(identity account.Identity) (*goa.
 	return svc, NewInvitationController(svc, s.invService)
 }
 
+func (rest *TestInvitationREST) UnsecuredController() (*goa.Service, *InvitationController) {
+	svc := goa.New("Invitation-Service")
+	controller := NewInvitationController(svc, rest.invService)
+	return svc, controller
+}
+
 func TestRunInvitationREST(t *testing.T) {
 	suite.Run(t, &TestInvitationREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 /*
-* This test will attempt to create a new invitation
+* This test will attempt to create a new invitation for a user to become a member of an organization
  */
 func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 	var err error
@@ -86,4 +92,147 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 
 	require.Equal(s.T(), invitee.ID, invitations[0].UserID)
 	require.True(s.T(), invitations[0].Member)
+}
+
+/*
+* This test will attempt to create a new invitation for a user to accept a role in an organization
+ */
+func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
+	var err error
+
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	require.NoError(s.T(), err, "could not create organization")
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	testUsername := "jsmith" + uuid.NewV4().String()
+	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
+	require.NoError(s.T(), err, "could not create invitee user")
+
+	payload := &app.CreateGroupInviteInvitationPayload{
+		Data: []*app.Invitee{
+			{
+				Username: &testUsername,
+				Member:   false,
+				Roles:    []string{"owner"},
+			},
+		},
+	}
+
+	test.CreateGroupInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+
+	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	require.NoError(s.T(), err, "could not list invitations")
+
+	// We should have 1 invitation
+	require.Equal(s.T(), 1, len(invitations))
+
+	require.Equal(s.T(), invitee.ID, invitations[0].UserID)
+	require.False(s.T(), invitations[0].Member)
+
+	roles, err := s.invRepo.ListRoles(s.Ctx, invitations[0].InvitationID)
+	require.NoError(s.T(), err, "could not list invitation roles")
+
+	// We should have 1 role
+	require.Equal(s.T(), 1, len(roles))
+	// And it should be the owner role
+	require.Equal(s.T(), "owner", roles[0].Name)
+}
+
+/*
+* This test will attempt to create a new invitation for a user to become a member of an organization, however perform an unauthorized request to create the invitation
+ */
+func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized() {
+	var err error
+
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	require.NoError(s.T(), err, "could not create organization")
+
+	service, controller := s.UnsecuredController()
+
+	testUsername := "jsmith" + uuid.NewV4().String()
+	_, err = testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
+	require.NoError(s.T(), err, "could not create invitee user")
+
+	payload := &app.CreateGroupInviteInvitationPayload{
+		Data: []*app.Invitee{
+			{
+				Username: &testUsername,
+				Member:   true,
+			},
+		},
+	}
+
+	test.CreateGroupInviteInvitationUnauthorized(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+
+	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	require.NoError(s.T(), err, "could not list invitations")
+
+	// We should have no invitations
+	require.Equal(s.T(), 0, len(invitations))
+}
+
+/*
+* This test will attempt to create a new invitation for a user to accept an invalid role in an organization,
+* we should get a bad request error as a result
+ */
+func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
+	var err error
+
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	require.NoError(s.T(), err, "could not create organization")
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	testUsername := "jsmith" + uuid.NewV4().String()
+	_, err = testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
+	require.NoError(s.T(), err, "could not create invitee user")
+
+	payload := &app.CreateGroupInviteInvitationPayload{
+		Data: []*app.Invitee{
+			{
+				Username: &testUsername,
+				Member:   false,
+				Roles:    []string{"foobar"},
+			},
+		},
+	}
+
+	test.CreateGroupInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+
+	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	require.NoError(s.T(), err, "could not list invitations")
+
+	// We should have no invitations
+	require.Equal(s.T(), 0, len(invitations))
+}
+
+/*
+* This test will attempt to create a new invitation however provide no identifying information for the user
+* we should get a bad request error as a result
+ */
+func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
+	var err error
+
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	require.NoError(s.T(), err, "could not create organization")
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	payload := &app.CreateGroupInviteInvitationPayload{
+		Data: []*app.Invitee{
+			{
+				Member: true,
+				Roles:  []string{"foobar"},
+			},
+		},
+	}
+
+	test.CreateGroupInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+
+	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	require.NoError(s.T(), err, "could not list invitations")
+
+	// We should have no invitations
+	require.Equal(s.T(), 0, len(invitations))
 }
