@@ -10,12 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 
 	"github.com/fabric8-services/fabric8-auth/token"
@@ -89,10 +87,6 @@ func (s *ProfileBlackBoxTest) TearDownTest() {
 }
 
 func (s *ProfileBlackBoxTest) generateAccessToken() (*string, error) {
-
-	var scopes []account.Identity
-	scopes = append(scopes, test.TestIdentity)
-	scopes = append(scopes, test.TestObserverIdentity)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	r := &goa.RequestData{

@@ -32,7 +32,7 @@ func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController
 }
 
 func newTestKeycloakOAuthProvider(db application.DB) *login.KeycloakOAuthProvider {
-	return login.NewKeycloakOAuthProvider(db.Identities(), db.Users(), testtoken.TokenManager, db, login.NewKeycloakUserProfileClient(), &keycloak.KeycloakTokenService{})
+	return login.NewKeycloakOAuthProvider(db.Identities(), db.Users(), testtoken.TokenManager, db, login.NewKeycloakUserProfileClient(), &keycloak.KeycloakTokenService{}, &testsupport.DummyOSORegistrationApp{})
 }
 
 func (rest *TestLoginREST) TestLoginOK() {

@@ -146,7 +146,7 @@ func (m *GormIdentityRepository) Load(ctx context.Context, id uuid.UUID) (*Ident
 	return &native, errs.WithStack(err)
 }
 
-// LoadWithUser loads an identity and the assosiated User
+// LoadWithUser loads an identity and the associated User
 // Returns NotFoundError if either identity or user is not found
 func (m *GormIdentityRepository) LoadWithUser(ctx context.Context, id uuid.UUID) (*Identity, error) {
 	identities, err := m.Query(IdentityFilterByID(id), IdentityWithUser())

@@ -20,7 +20,7 @@ import (
 var _ suite.SetupAllSuite = &DBTestSuite{}
 var _ suite.TearDownAllSuite = &DBTestSuite{}
 
-// NewDBTestSuite instanciate a new DBTestSuite
+// NewDBTestSuite instantiates a new DBTestSuite
 func NewDBTestSuite() DBTestSuite {
 	return DBTestSuite{}
 }

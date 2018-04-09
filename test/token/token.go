@@ -8,8 +8,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"net/http"
 	"net/http/httptest"
@@ -189,6 +189,10 @@ func ContextWithRequest(ctx context.Context) context.Context {
 		panic("invalid test " + err.Error()) // bug
 	}
 	return goa.NewContext(goa.WithAction(ctx, "Test"), rw, req, url.Values{})
+}
+
+func ContextWithTokenManager() context.Context {
+	return tokencontext.ContextWithTokenManager(context.Background(), TokenManager)
 }
 
 func configurationData() *configuration.ConfigurationData {

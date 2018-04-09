@@ -4,7 +4,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 )
 
-// NewRemoteTestSuite instanciate a new RemoteTestSuite
+// NewRemoteTestSuite instantiates a new RemoteTestSuite
 func NewRemoteTestSuite() RemoteTestSuite {
 	return RemoteTestSuite{}
 }

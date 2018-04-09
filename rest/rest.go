@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
 
-	"io/ioutil"
-	"net/http"
-	"net/url"
-
 	"github.com/goadesign/goa"
 )
+
+type HttpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
 
 type configuration interface {
 	IsPostgresDeveloperModeEnabled() bool
