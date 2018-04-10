@@ -73,18 +73,18 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 
-	payload := &app.CreateGroupInviteInvitationPayload{
+	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
 				Username: &testUsername,
-				Member:   true,
+				Member:   boolPointer(true),
 			},
 		},
 	}
 
-	test.CreateGroupInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
-	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have 1 invitation
@@ -109,19 +109,19 @@ func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 
-	payload := &app.CreateGroupInviteInvitationPayload{
+	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
 				Username: &testUsername,
-				Member:   false,
+				Member:   boolPointer(false),
 				Roles:    []string{"owner"},
 			},
 		},
 	}
 
-	test.CreateGroupInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
-	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have 1 invitation
@@ -154,18 +154,18 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized(
 	_, err = testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 
-	payload := &app.CreateGroupInviteInvitationPayload{
+	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
 				Username: &testUsername,
-				Member:   true,
+				Member:   boolPointer(true),
 			},
 		},
 	}
 
-	test.CreateGroupInviteInvitationUnauthorized(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateInviteInvitationUnauthorized(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
-	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have no invitations
@@ -188,19 +188,19 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
 	_, err = testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 
-	payload := &app.CreateGroupInviteInvitationPayload{
+	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
 				Username: &testUsername,
-				Member:   false,
+				Member:   boolPointer(false),
 				Roles:    []string{"foobar"},
 			},
 		},
 	}
 
-	test.CreateGroupInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
-	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have no invitations
@@ -219,20 +219,24 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	payload := &app.CreateGroupInviteInvitationPayload{
+	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
-				Member: true,
+				Member: boolPointer(true),
 				Roles:  []string{"foobar"},
 			},
 		},
 	}
 
-	test.CreateGroupInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
-	invitations, err := s.invRepo.List(s.Ctx, orgIdentity.ID)
+	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have no invitations
 	require.Equal(s.T(), 0, len(invitations))
+}
+
+func boolPointer(value bool) *bool {
+	return &value
 }

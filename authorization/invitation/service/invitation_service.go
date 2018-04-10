@@ -10,10 +10,8 @@ import (
 )
 
 type InvitationService interface {
-	CreateForGroup(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID, invitations []invitation.GroupInvitation) error
-	CreateForResource(ctx context.Context, issuingUserId uuid.UUID, resourceId string, invitations []invitation.Invitation) error
-	ListForGroup(ctx context.Context, id uuid.UUID) ([]invitation.GroupInvitation, error)
-	ListForResource(ctx context.Context, resourceId string) ([]invitation.Invitation, error)
+	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
+	List(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error)
 	ListForUser(ctx context.Context, id uuid.UUID) ([]invitation.InvitationDetail, error)
 }
 
@@ -28,27 +26,19 @@ func NewInvitationService(invitationModelService invitationModel.InvitationModel
 	return &InvitationServiceImpl{invModelService: invitationModelService, permModelService: permissionModelService, db: db}
 }
 
-func (s *InvitationServiceImpl) CreateForGroup(ctx context.Context, issuingUserId uuid.UUID, inviteTo uuid.UUID, invitations []invitation.GroupInvitation) error {
+func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 
 	var err error
 
 	err = application.Transactional(s.db, func(appl application.Application) error {
-		err = s.invModelService.CreateForGroup(ctx, issuingUserId, inviteTo, invitations)
+		err = s.invModelService.Issue(ctx, issuingUserId, inviteTo, invitations)
 		return err
 	})
 
 	return err
 }
 
-func (s *InvitationServiceImpl) CreateForResource(ctx context.Context, issuingUserId uuid.UUID, resourceId string, invitations []invitation.Invitation) error {
-	return nil
-}
-
-func (s *InvitationServiceImpl) ListForGroup(ctx context.Context, id uuid.UUID) ([]invitation.GroupInvitation, error) {
-	return nil, nil
-}
-
-func (s *InvitationServiceImpl) ListForResource(ctx context.Context, resourceId string) ([]invitation.Invitation, error) {
+func (s *InvitationServiceImpl) List(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error) {
 	return nil, nil
 }
 

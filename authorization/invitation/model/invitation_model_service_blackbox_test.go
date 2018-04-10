@@ -51,17 +51,17 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 	otherIdentity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestInviteeUser")
 	require.Nil(s.T(), err, "Could not create other identity")
 
-	invitations := []invitation.GroupInvitation{
+	invitations := []invitation.Invitation{
 		{
-			Invitation: invitation.Invitation{IdentityID: &otherIdentity.ID},
+			IdentityID: &otherIdentity.ID,
 			Member:     true,
 		},
 	}
 
-	err = s.invModelService.CreateForGroup(s.Ctx, identity.ID, *orgId, invitations)
+	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
@@ -80,7 +80,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserEmail() {
 	// Create another test user - we will invite this one to join the organization
 	inviteeUser := account.User{
 		ID:       uuid.NewV4(),
-		Email:    "jsmith-invitationtest@acmecorp.com",
+		Email:    "jsmith-invitationtest" + uuid.NewV4().String() + "@acmecorp.com",
 		FullName: "John Smith - Invitation Test",
 		Cluster:  "https://api.starter-us-east-2.openshift.com",
 	}
@@ -95,17 +95,17 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserEmail() {
 	err = test.CreateTestIdentityAndUserInDB(s.DB, &invitee)
 	require.NoError(s.T(), err, "Error creating invitee user")
 
-	invitations := []invitation.GroupInvitation{
+	invitations := []invitation.Invitation{
 		{
-			Invitation: invitation.Invitation{UserEmail: &inviteeUser.Email},
-			Member:     true,
+			UserEmail: &inviteeUser.Email,
+			Member:    true,
 		},
 	}
 
-	err = s.invModelService.CreateForGroup(s.Ctx, identity.ID, *orgId, invitations)
+	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
@@ -126,17 +126,17 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserName() {
 	invitee, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationModelServiceBlackBoxTest-TestInviteeUser-"+uuid.NewV4().String())
 	require.NoError(s.T(), err, "Could not create identity")
 
-	invitations := []invitation.GroupInvitation{
+	invitations := []invitation.Invitation{
 		{
-			Invitation: invitation.Invitation{UserName: &invitee.Username},
-			Member:     true,
+			UserName: &invitee.Username,
+			Member:   true,
 		},
 	}
 
-	err = s.invModelService.CreateForGroup(s.Ctx, identity.ID, *orgId, invitations)
+	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
@@ -160,7 +160,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	// Create another test user - we will invite this one to join the organization
 	invitee2User := account.User{
 		ID:       uuid.NewV4(),
-		Email:    "jsmith-invitationtest@acmecorp.com",
+		Email:    "jsmith-invitationtest" + uuid.NewV4().String() + "@acmecorp.com",
 		FullName: "John Smith - Invitation Test",
 		Cluster:  "https://api.starter-us-east-2.openshift.com",
 	}
@@ -175,21 +175,21 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	err = test.CreateTestIdentityAndUserInDB(s.DB, &invitee2)
 	require.NoError(s.T(), err, "Error creating invitee2 user")
 
-	invitations := []invitation.GroupInvitation{
+	invitations := []invitation.Invitation{
 		{
-			Invitation: invitation.Invitation{UserName: &invitee.Username},
-			Member:     true,
+			UserName: &invitee.Username,
+			Member:   true,
 		},
 		{
-			Invitation: invitation.Invitation{UserEmail: &invitee2User.Email},
-			Member:     true,
+			UserEmail: &invitee2User.Email,
+			Member:    true,
 		},
 	}
 
-	err = s.invModelService.CreateForGroup(s.Ctx, identity.ID, *orgId, invitations)
+	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 2, len(invs))
@@ -230,18 +230,18 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByIdentityIDForR
 
 	ownerRole := "owner"
 
-	invitations := []invitation.GroupInvitation{
+	invitations := []invitation.Invitation{
 		{
-			Invitation: invitation.Invitation{IdentityID: &otherIdentity.ID,
-				Roles: []string{ownerRole}},
-			Member: false,
+			IdentityID: &otherIdentity.ID,
+			Roles:      []string{ownerRole},
+			Member:     false,
 		},
 	}
 
-	err = s.invModelService.CreateForGroup(s.Ctx, identity.ID, *orgId, invitations)
+	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.List(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))

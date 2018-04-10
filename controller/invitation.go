@@ -24,7 +24,7 @@ func NewInvitationController(service *goa.Service, invitationService invitationS
 }
 
 // Create runs the create action.
-func (c *InvitationController) CreateGroupInvite(ctx *app.CreateGroupInviteInvitationContext) error {
+func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
 	currentUser, err := login.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
@@ -34,12 +34,7 @@ func (c *InvitationController) CreateGroupInvite(ctx *app.CreateGroupInviteInvit
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
 	}
 
-	inviteTo, err := uuid.FromString(ctx.InviteTo)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("InviteTo", inviteTo, "Not a valid UUID"))
-	}
-
-	var invitations []invitation.GroupInvitation
+	var invitations []invitation.Invitation
 
 	for _, invitee := range ctx.Payload.Data {
 		// Validate that an identifying parameter has been set
@@ -54,17 +49,16 @@ func (c *InvitationController) CreateGroupInvite(ctx *app.CreateGroupInviteInvit
 		}
 
 		// Create the Invitation object, and append it to our list of invitations
-		invitations = append(invitations, invitation.GroupInvitation{
-			Invitation: invitation.Invitation{
-				IdentityID: identityID,
-				UserName:   invitee.Username,
-				UserEmail:  invitee.UserEmail,
-				Roles:      invitee.Roles},
-			Member: invitee.Member,
+		invitations = append(invitations, invitation.Invitation{
+			IdentityID: identityID,
+			UserName:   invitee.Username,
+			UserEmail:  invitee.UserEmail,
+			Roles:      invitee.Roles,
+			Member:     *invitee.Member,
 		})
 	}
 
-	err = c.invService.CreateForGroup(ctx, *currentUser, inviteTo, invitations)
+	err = c.invService.Issue(ctx, *currentUser, ctx.InviteTo, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -76,7 +70,7 @@ func (c *InvitationController) CreateGroupInvite(ctx *app.CreateGroupInviteInvit
 
 	log.Debug(ctx, map[string]interface{}{
 		"issuing-user-id": *currentUser,
-		"invite-to":       inviteTo,
+		"invite-to":       ctx.InviteTo,
 	}, "invitations created")
 
 	return ctx.Created()

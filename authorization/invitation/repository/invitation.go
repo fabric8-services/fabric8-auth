@@ -22,8 +22,12 @@ type Invitation struct {
 
 	// This is the primary key value
 	InvitationID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:invitation_id"`
+
 	// The identity ID (organization, team or security group) to which the user is being invited to
-	InviteTo uuid.UUID `sql:"type:uuid" gorm:"column:invite_to"`
+	InviteTo *uuid.UUID `sql:"type:uuid" gorm:"column:invite_to"`
+
+	// or, the Resource ID to which the user is being invited to accept a role
+	ResourceID *string `sql:"type:string" gorm:"column:resource_id"`
 
 	User   account.Identity `gorm:"ForeignKey:UserID;AssociationForeignKey:ID"`
 	UserID uuid.UUID
@@ -67,7 +71,8 @@ type InvitationRepository interface {
 	Load(ctx context.Context, id uuid.UUID) (*Invitation, error)
 	Create(ctx context.Context, i *Invitation) error
 	Save(ctx context.Context, i *Invitation) error
-	List(ctx context.Context, inviteToID uuid.UUID) ([]Invitation, error)
+	ListForIdentity(ctx context.Context, inviteToID uuid.UUID) ([]Invitation, error)
+	ListForResource(ctx context.Context, resourceID string) ([]Invitation, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	ListRoles(ctx context.Context, id uuid.UUID) ([]rolerepo.Role, error)
@@ -151,11 +156,22 @@ func (m *GormInvitationRepository) Save(ctx context.Context, i *Invitation) erro
 	return nil
 }
 
-func (m *GormInvitationRepository) List(ctx context.Context, inviteToID uuid.UUID) ([]Invitation, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "invitation", "list"}, time.Now())
+func (m *GormInvitationRepository) ListForIdentity(ctx context.Context, inviteToID uuid.UUID) ([]Invitation, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "invitation", "listForGroup"}, time.Now())
 	var rows []Invitation
 
 	err := m.db.Model(&Invitation{}).Where("invite_to = ?", inviteToID).Find(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	return rows, nil
+}
+
+func (m *GormInvitationRepository) ListForResource(ctx context.Context, resourceID string) ([]Invitation, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "invitation", "listForResource"}, time.Now())
+	var rows []Invitation
+
+	err := m.db.Model(&Invitation{}).Where("resource_to = ?", resourceID).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

@@ -32,14 +32,14 @@ func (s *invitationBlackBoxTest) TestOKToDelete() {
 	invitation, err := s.CreateTestInvitation()
 	require.NoError(s.T(), err)
 
-	invitations, err := s.repo.List(s.Ctx, invitation.InviteTo)
+	invitations, err := s.repo.ListForIdentity(s.Ctx, *invitation.InviteTo)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, len(invitations))
 
 	err = s.repo.Delete(s.Ctx, invitation.InvitationID)
 	require.NoError(s.T(), err)
 
-	invitations, err = s.repo.List(s.Ctx, invitation.InviteTo)
+	invitations, err = s.repo.ListForIdentity(s.Ctx, *invitation.InviteTo)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 0, len(invitations))
 }
@@ -121,11 +121,11 @@ func (s *invitationBlackBoxTest) CreateTestInvitation() (invitationRepo.Invitati
 	}
 
 	invitation = invitationRepo.Invitation{
-		InviteTo: orgIdentity.ID,
+		InviteTo: &orgIdentity.ID,
 		UserID:   userIdentity.ID,
 		Member:   false,
 	}
 
 	err = s.repo.Create(s.Ctx, &invitation)
-	return invitation, nil
+	return invitation, err
 }
