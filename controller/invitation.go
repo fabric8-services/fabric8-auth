@@ -78,10 +78,5 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 
 // List runs the list action.
 func (c *InvitationController) List(ctx *app.ListInvitationContext) error {
-	// InvitationController_List: start_implement
-
-	// Put your logic here
-
-	// InvitationController_List: end_implement
-	return nil
+	return ctx.NotImplemented()
 }
