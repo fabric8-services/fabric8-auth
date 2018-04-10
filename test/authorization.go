@@ -15,6 +15,26 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+func CreateTestIdentityRoleForAnIdentity(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role, assignedIdentity *account.Identity) (*identityrole.IdentityRole, error) {
+
+	identityRoleRef := identityrole.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		Identity:       *assignedIdentity,
+		IdentityID:     assignedIdentity.ID,
+		Resource:       resourceRef,
+		ResourceID:     resourceRef.ResourceID,
+		Role:           roleRef,
+		RoleID:         roleRef.RoleID,
+	}
+
+	identityRolesRepository := identityrole.NewIdentityRoleRepository(db)
+	err := identityRolesRepository.Create(ctx, &identityRoleRef)
+	if err != nil {
+		return nil, err
+	}
+	return &identityRoleRef, err
+}
+
 func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role) (*identityrole.IdentityRole, error) {
 
 	assignedIdentity := &account.Identity{
@@ -143,7 +163,7 @@ func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype
 	rts := scope.ResourceTypeScope{
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceTypeID:      resourceType.ResourceTypeID,
-		Name:                uuid.NewV4().String(),
+		Name:                name,
 	}
 
 	resourceTypeScopeRepo := scope.NewResourceTypeScopeRepository(db)
