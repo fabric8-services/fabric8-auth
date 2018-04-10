@@ -86,4 +86,33 @@ Service account authentication is handled by the `Exchange` function in `/contro
 [source]
 func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
+== Permission Checks
 
+The *HasScope()* method provided by the permission service makes use of a complex SQL query in order to determine whether a user has a particular scope for a resource.  Besides checking for privileges assigned directly to the user, this query also takes into account:
+
+* that the user may inherit the scope indirectly via their memberships in an organization, team or security group
+* that the resource in question may have a parent resource (or other resource ancestry) of the same type to which the user has been granted privileges
+* that there may be a role mapping, allowing a user that has been granted privileges to a resource of a different type somewhere in the resource ancestry to gain privileges for other resource types further down the hierarchy
+
+This section will describe the various parts of the permission query, providing a useful reference in case the SQL requires future maintenance.
+
+To begin, let's examine the query at the highest level.  Essentially, it checks the `IDENTITY_ROLE` table for the existence of any records that match the criteria as described above.  It does this by setting conditions for the three columns; `identity_id`, `resource_id` and `role_id`, which can be seen as follows:
+
+image::permission_has_scope_sql_1.png[]
+
+The following sections will examine each of these sections in more detail.
+
+=== Identity criteria
+
+In section 1 of the query above, the condition limits the records returned to those with an `IDENTITY_ID` equal to the current user's, or to that of any organization, team or security group in which the current user is a member.
+
+This is achieved by 
+
+image::permission_has_scope_sql_2.png[]
+
+
+
+=== Resource criteria
+
+
+=== Role criteria

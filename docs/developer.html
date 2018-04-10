@@ -429,6 +429,13 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_development_workflow">Development workflow</a></li>
 <li><a href="#_makefile_targets">Makefile targets</a></li>
 <li><a href="#_service_accounts">Service Accounts</a></li>
+<li><a href="#_permission_checks">Permission Checks</a>
+<ul class="sectlevel2">
+<li><a href="#_identity_criteria">Identity criteria</a></li>
+<li><a href="#_resource_criteria">Resource criteria</a></li>
+<li><a href="#_role_criteria">Role criteria</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </div>
@@ -590,10 +597,64 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_permission_checks">Permission Checks</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <strong>HasScope()</strong> method provided by the permission service makes use of a complex SQL query in order to determine whether a user has a particular scope for a resource.  Besides checking for privileges assigned directly to the user, this query also takes into account:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>that the user may inherit the scope indirectly via their memberships in an organization, team or security group</p>
+</li>
+<li>
+<p>that the resource in question may have a parent resource (or other resource ancestry) of the same type to which the user has been granted privileges</p>
+</li>
+<li>
+<p>that there may be a role mapping, allowing a user that has been granted privileges to a resource of a different type somewhere in the resource ancestry to gain privileges for other resource types further down the hierarchy</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>This section will describe the various parts of the permission query, providing a useful reference in case the SQL requires future maintenance.</p>
+</div>
+<div class="paragraph">
+<p>To begin, let&#8217;s examine the query at the highest level.  Essentially, it checks the <code>IDENTITY_ROLE</code> table for the existence of any records that match the criteria as described above.  It does this by setting conditions for the three columns; <code>identity_id</code>, <code>resource_id</code> and <code>role_id</code>, which can be seen as follows:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_1.png" alt="permission has scope sql 1">
+</div>
+</div>
+<div class="paragraph">
+<p>The following sections will examine each of these sections in more detail.</p>
+</div>
+<div class="sect2">
+<h3 id="_identity_criteria">Identity criteria</h3>
+<div class="paragraph">
+<p>In section 1 of the query above, the condition limits the records returned to those with an <code>IDENTITY_ID</code> equal to the current user&#8217;s, or to that of any organization, team or security group in which the current user is a member.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_2.png" alt="permission has scope sql 2">
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_resource_criteria">Resource criteria</h3>
+
+</div>
+<div class="sect2">
+<h3 id="_role_criteria">Role criteria</h3>
+
+</div>
+</div>
+</div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-12-07 13:34:14 PST
+Last updated 2018-04-09 20:31:38 +07
 </div>
 </div>
 </body>
