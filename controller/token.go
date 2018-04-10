@@ -135,7 +135,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devIdentity = identities[0]
 	}
 
-	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity)
+	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

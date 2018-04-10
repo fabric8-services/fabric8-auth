@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -23,8 +24,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/wit"
-
-	"reflect"
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -252,7 +251,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	if err != nil {
 		if serviceConfig.IsPostgresDeveloperModeEnabled() && identity != nil && reflect.TypeOf(keycloak.keycloakTokenService) == reflect.TypeOf(&keycloaktoken.KeycloakTokenService{}) {
 			// If running in dev mode but not in a test then we ignore an error from Keycloak and just generate a refresh token
-			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity)
+			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 			if err != nil {
 				return nil, err
 			}

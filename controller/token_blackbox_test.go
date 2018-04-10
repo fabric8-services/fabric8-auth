@@ -104,7 +104,7 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
 	loginService.exchangeStrategy = rest.exchangeStrategy
 
-	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity)
+	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 	require.Nil(rest.T(), err)
 	rest.sampleAccessToken = tokenSet.AccessToken
 	rest.sampleRefreshToken = tokenSet.RefreshToken
