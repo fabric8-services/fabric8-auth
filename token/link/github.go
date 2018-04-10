@@ -63,6 +63,9 @@ func (provider *GitHubIdentityProvider) Profile(ctx context.Context, token oauth
 	}
 	var u gitHubUser
 	err = json.Unmarshal(body, &u)
+	if err != nil {
+		return nil, err
+	}
 	userProfile := &oauth.UserProfile{
 		Username: u.Login,
 	}

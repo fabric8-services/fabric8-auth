@@ -181,7 +181,7 @@ func main() {
 	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService)
+	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService, login.NewOSORegistrationApp())
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 

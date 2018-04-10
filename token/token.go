@@ -15,17 +15,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
@@ -105,7 +104,7 @@ type Manager interface {
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error)
-	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error)
+	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*oauth2.Token, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 }
@@ -525,7 +524,7 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 }
 
 // GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
-func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error) {
+func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*oauth2.Token, error) {
 	nowTime := time.Now().Unix()
 	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
 	if err != nil {
@@ -535,7 +534,7 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity)
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity, offlineToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -699,6 +698,10 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 		return nil, errors.New("missing request in context")
 	}
 
+	typ := "Refresh"
+	if kcClaims.ExpiresAt == 0 {
+		typ = "Offline"
+	}
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
 	claims["exp"] = kcClaims.ExpiresAt
@@ -706,7 +709,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 	claims["iat"] = kcClaims.IssuedAt
 	claims["iss"] = kcClaims.Issuer
 	claims["aud"] = kcClaims.Audience
-	claims["typ"] = "Refresh"
+	claims["typ"] = typ
 	claims["auth_time"] = 0
 
 	if identity != nil {
@@ -722,7 +725,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 }
 
 // GenerateUnsignedUserRefreshTokenForIdentity generates an unsigned OAuth2 user refresh token for the given identity
-func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity account.Identity) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
@@ -740,13 +743,18 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
 	iat := time.Now().Unix()
-	exp := iat + mgm.config.GetRefreshTokenExpiresIn()
+	var exp int64 // Offline tokens do not expire
+	typ := "Offline"
+	if !offlineToken {
+		exp = iat + mgm.config.GetRefreshTokenExpiresIn()
+		typ = "Refresh"
+	}
 	claims["exp"] = exp
 	claims["nbf"] = 0
 	claims["iat"] = iat
 	claims["iss"] = authOpenshiftIO
 	claims["aud"] = openshiftIO
-	claims["typ"] = "Refresh"
+	claims["typ"] = typ
 	claims["auth_time"] = 0
 	claims["sub"] = identity.ID.String()
 
@@ -894,7 +902,7 @@ func CheckClaims(claims *TokenClaims) error {
 
 // ReadManagerFromContext extracts the token manager
 func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
-	tm := logintokencontext.ReadTokenManagerFromContext(ctx)
+	tm := tokencontext.ReadTokenManagerFromContext(ctx)
 	if tm == nil {
 		log.Error(ctx, map[string]interface{}{
 			"token": tm,

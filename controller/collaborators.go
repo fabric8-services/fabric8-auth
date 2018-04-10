@@ -181,7 +181,6 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 				}, "unable to convert the identity ID to uuid v4")
 				return goa.ErrBadRequest(err.Error())
 			}
-			var identity *account.Identity
 			var ownerID uuid.UUID
 			err = application.Transactional(c.db, func(appl application.Application) error {
 				identities, err := appl.Identities().Query(account.IdentityFilterByID(identityUUID), account.IdentityWithUser())
@@ -198,7 +197,6 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 					}, "unable to find the identity")
 					return autherrors.NewNotFoundError("identity", identityID)
 				}
-				identity = &identities[0]
 				resource, err := appl.SpaceResources().LoadBySpace(ctx, &spaceID)
 				if err != nil {
 					return err
