@@ -3,6 +3,7 @@ package service_test
 import (
 	"testing"
 
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role"
@@ -11,6 +12,7 @@ import (
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -27,6 +29,10 @@ type roleManagementServiceBlackboxTest struct {
 	resourceTypeRepo      resourcetype.ResourceTypeRepository
 	roleRepo              rolerepo.RoleRepository
 	resourceTypeScope     scope.ResourceTypeScopeRepository
+	resourceRepo          resource.ResourceRepository
+	resourcetypeRepo      resourcetype.ResourceTypeRepository
+	identityRepo          account.IdentityRepository
+	identityRoleRepo      identityrole.IdentityRoleRepository
 }
 
 func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
@@ -40,8 +46,12 @@ func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)
-
+	s.identityRepo = account.NewIdentityRepository(s.DB)
+	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
+	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
+	s.resourceRepo = resource.NewResourceRepository(s.DB)
 }
+
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
@@ -427,6 +437,48 @@ func (s *roleManagementServiceBlackboxTest) TestCanListRolesWithoutScopes() {
 	require.True(s.T(), found, "could not list role")
 }
 
+func (s *roleManagementServiceBlackboxTest) TestListByResourceAndIdentity() {
+	t := s.T()
+	createdIdentityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	require.NoError(s.T(), err)
+
+	returnedRoles, err := s.roleManagementService.ListAssignmentsByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
+	require.NoError(t, err)
+	require.Len(t, returnedRoles, 1)
+	validateIdentityRole(s, *createdIdentityRole, returnedRoles[0])
+
+	createdResource, err := s.resourceRepo.Load(s.Ctx, createdIdentityRole.ResourceID)
+	//createdRole, err := s.roleRepo.Load(s.Ctx, createdIdentityRole.RoleID)
+	createdIdentity, err := s.identityRepo.Load(s.Ctx, createdIdentityRole.IdentityID)
+	createdResourceType, err := s.resourcetypeRepo.Load(s.Ctx, createdResource.ResourceTypeID)
+
+	for i := 0; i < 10; i++ {
+		newRole := rolerepo.Role{
+			ResourceType:   *createdResourceType,
+			ResourceTypeID: createdResourceType.ResourceTypeID,
+			Name:           uuid.NewV4().String(),
+			RoleID:         uuid.NewV4(),
+		}
+		err := s.roleRepo.Create(s.Ctx, &newRole)
+		require.NoError(s.T(), err)
+
+		newIdentityRole := identityrole.IdentityRole{
+			IdentityRoleID: uuid.NewV4(),
+			Role:           newRole,
+			RoleID:         newRole.RoleID,
+			//Resource:       *createdResource,
+			ResourceID: createdIdentityRole.ResourceID,
+			Identity:   *createdIdentity,
+			IdentityID: createdIdentity.ID,
+		}
+		s.identityRoleRepo.Create(s.Ctx, &newIdentityRole)
+	}
+
+	returnedRoles, err = s.roleManagementService.ListAssignmentsByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
+	require.Len(t, returnedRoles, 11)
+
+}
+
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
 	t := s.T()
 
@@ -496,4 +548,10 @@ func (s *roleManagementServiceBlackboxTest) checkScopeBelongsToResourceType(db *
 	scopesReturned, err := s.resourceTypeScope.LookupByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
 	require.NotEmpty(s.T(), scopesReturned)
 	require.NoError(s.T(), err)
+}
+
+func validateIdentityRole(s *roleManagementServiceBlackboxTest, expected identityrole.IdentityRole, actual identityrole.IdentityRole) {
+	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
+	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
+	require.Equal(s.T(), expected.RoleID, actual.RoleID)
 }

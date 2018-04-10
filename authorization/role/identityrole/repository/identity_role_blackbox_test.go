@@ -41,6 +41,7 @@ func (s *identityRoleBlackBoxTest) SetupTest() {
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = scope.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
+	s.resourceRepo = resource.NewResourceRepository(s.DB)
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToDelete() {
@@ -89,6 +90,47 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 
 }
 
+func (s *identityRoleBlackBoxTest) TestListByResourceAndIdentity() {
+	t := s.T()
+	createdIdentityRole := createAndLoadIdentityRole(s)
+
+	returnedRoles, err := s.repo.ListByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
+	require.NoError(t, err)
+	require.Len(t, returnedRoles, 1)
+	validateIdentityRole(s, *createdIdentityRole, returnedRoles[0])
+
+	createdResource, err := s.resourceRepo.Load(s.Ctx, createdIdentityRole.ResourceID)
+	//createdRole, err := s.roleRepo.Load(s.Ctx, createdIdentityRole.RoleID)
+	createdIdentity, err := s.identityRepo.Load(s.Ctx, createdIdentityRole.IdentityID)
+	createdResourceType, err := s.resourceTypeRepo.Load(s.Ctx, createdResource.ResourceTypeID)
+
+	for i := 0; i < 10; i++ {
+		newRole := role.Role{
+			ResourceType:   *createdResourceType,
+			ResourceTypeID: createdResourceType.ResourceTypeID,
+			Name:           uuid.NewV4().String(),
+			RoleID:         uuid.NewV4(),
+		}
+		err := s.roleRepo.Create(s.Ctx, &newRole)
+		require.NoError(s.T(), err)
+
+		newIdentityRole := identityrole.IdentityRole{
+			IdentityRoleID: uuid.NewV4(),
+			Role:           newRole,
+			RoleID:         newRole.RoleID,
+			//Resource:       *createdResource,
+			ResourceID: createdIdentityRole.ResourceID,
+			Identity:   *createdIdentity,
+			IdentityID: createdIdentity.ID,
+		}
+		s.repo.Create(s.Ctx, &newIdentityRole)
+	}
+
+	returnedRoles, err = s.repo.ListByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
+	require.Len(t, returnedRoles, 11)
+
+}
+
 func (s *identityRoleBlackBoxTest) TestOKToSave() {
 	//identityRole := createAndLoadIdentityRole(s)
 
@@ -105,4 +147,10 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *identityrole.Identi
 	ir, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(s.T(), err)
 	return ir
+}
+
+func validateIdentityRole(s *identityRoleBlackBoxTest, expected identityrole.IdentityRole, actual identityrole.IdentityRole) {
+	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
+	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
+	require.Equal(s.T(), expected.RoleID, actual.RoleID)
 }

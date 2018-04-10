@@ -73,7 +73,7 @@ var _ = a.Resource("resource_roles", func() {
 	a.Action("assignRole", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.POST("/:resourceID/roles/:roleName"),
+			a.PATCH("/:resourceID/roles/:roleName"),
 		)
 		a.Payload(updateUserIDList) // should refactor this variable's name in collaborators design definition too.
 		a.Description("Assigns an identity to a role, for a specific resource")

@@ -3,9 +3,12 @@ package model_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/account"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role"
+	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 
@@ -24,9 +27,12 @@ import (
 type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	repo              rolescope.RoleManagementModelService
+	identityRoleRepo  identityrole.IdentityRoleRepository
 	roleRepo          rolerepo.RoleRepository
 	resourcetypeRepo  resourcetype.ResourceTypeRepository
 	resourceTypeScope scope.ResourceTypeScopeRepository
+	identityRepo      account.IdentityRepository
+	resourceRepo      resource.ResourceRepository
 }
 
 func TestRunRoleManagementModelServiceBlackboxTest(t *testing.T) {
@@ -39,6 +45,10 @@ func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)
+	s.resourceRepo = resource.NewResourceRepository(s.DB)
+	s.identityRepo = account.NewIdentityRepository(s.DB)
+	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
+	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {
@@ -203,6 +213,48 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAn
 	require.Equal(t, 0, len(identityRoles))
 }
 
+func (s *roleManagementModelServiceBlackboxTest) TestListByResourceAndIdentity() {
+	t := s.T()
+	createdIdentityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
+	require.NoError(s.T(), err)
+
+	returnedRoles, err := s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
+	require.NoError(t, err)
+	require.Len(t, returnedRoles, 1)
+	validateIdentityRole(s, *createdIdentityRole, returnedRoles[0])
+
+	createdResource, err := s.resourceRepo.Load(s.Ctx, createdIdentityRole.ResourceID)
+	//createdRole, err := s.roleRepo.Load(s.Ctx, createdIdentityRole.RoleID)
+	createdIdentity, err := s.identityRepo.Load(s.Ctx, createdIdentityRole.IdentityID)
+	createdResourceType, err := s.resourcetypeRepo.Load(s.Ctx, createdResource.ResourceTypeID)
+
+	for i := 0; i < 10; i++ {
+		newRole := rolerepo.Role{
+			ResourceType:   *createdResourceType,
+			ResourceTypeID: createdResourceType.ResourceTypeID,
+			Name:           uuid.NewV4().String(),
+			RoleID:         uuid.NewV4(),
+		}
+		err := s.roleRepo.Create(s.Ctx, &newRole)
+		require.NoError(s.T(), err)
+
+		newIdentityRole := identityrole.IdentityRole{
+			IdentityRoleID: uuid.NewV4(),
+			Role:           newRole,
+			RoleID:         newRole.RoleID,
+			//Resource:       *createdResource,
+			ResourceID: createdIdentityRole.ResourceID,
+			Identity:   *createdIdentity,
+			IdentityID: createdIdentity.ID,
+		}
+		s.identityRoleRepo.Create(s.Ctx, &newIdentityRole)
+	}
+
+	returnedRoles, err = s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
+	require.Len(t, returnedRoles, 11)
+
+}
+
 func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
 	t := s.T()
 
@@ -229,4 +281,10 @@ func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
 	require.Equal(t, 1, len(identityRoles))
 	require.Equal(t, testR.ResourceID, identityRoles[0].ResourceID)
 	require.Equal(t, testRole.RoleID, identityRoles[0].RoleID)
+}
+
+func validateIdentityRole(s *roleManagementModelServiceBlackboxTest, expected identityrole.IdentityRole, actual identityrole.IdentityRole) {
+	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
+	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
+	require.Equal(s.T(), expected.RoleID, actual.RoleID)
 }
