@@ -17,7 +17,10 @@ import (
 )
 
 const (
-	ROLE_ASSIGNMENT_SCOPE = "assign_role"
+	// ROLE_ASSIGNMENT_SCOPE is the scope the user needs to have as part of the roles assigned to her
+	// that will enabled her to assign roles to other users.
+	ROLE_ASSIGNMENT_SCOPE = "assign_role" // The exact name will be refactored in a different PR/commit once we decide on the name of the role.
+
 )
 
 // ResourceRolesController implements the resource_roles resource.
