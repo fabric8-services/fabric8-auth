@@ -19,7 +19,7 @@ import (
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak/keys"
+	authjwt "github.com/fabric8-services/fabric8-auth/token/jwt"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
@@ -95,8 +95,8 @@ type Manager interface {
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
-	JSONWebKeys() keys.JSONKeys
-	PemKeys() keys.JSONKeys
+	JSONWebKeys() authjwt.JSONKeys
+	PemKeys() authjwt.JSONKeys
 	AuthServiceAccountToken(req *goa.RequestData) (string, error)
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
@@ -108,11 +108,11 @@ type Manager interface {
 
 type tokenManager struct {
 	publicKeysMap            map[string]*rsa.PublicKey
-	publicKeys               []*keys.PublicKey
-	serviceAccountPrivateKey *keys.PrivateKey
-	userAccountPrivateKey    *keys.PrivateKey
-	jsonWebKeys              keys.JSONKeys
-	pemKeys                  keys.JSONKeys
+	publicKeys               []*authjwt.PublicKey
+	serviceAccountPrivateKey *authjwt.PrivateKey
+	userAccountPrivateKey    *authjwt.PrivateKey
+	jsonWebKeys              authjwt.JSONKeys
+	pemKeys                  authjwt.JSONKeys
 	serviceAccountToken      string
 	serviceAccountLock       sync.RWMutex
 	config                   configuration
@@ -154,7 +154,7 @@ func NewManager(config configuration) (Manager, error) {
 			return nil, err
 		}
 		tm.publicKeysMap[kid] = rsaKey
-		tm.publicKeys = append(tm.publicKeys, &keys.PublicKey{KeyID: kid, Key: rsaKey})
+		tm.publicKeys = append(tm.publicKeys, &authjwt.PublicKey{KeyID: kid, Key: rsaKey})
 		log.Info(nil, map[string]interface{}{"kid": kid}, "dev mode public key added")
 	}
 
@@ -180,7 +180,7 @@ func NewManager(config configuration) (Manager, error) {
 // LoadPrivateKey loads a private key and a deprecated private key.
 // Extracts public keys from them and adds them to the manager
 // Returns the loaded private key.
-func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*keys.PrivateKey, error) {
+func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*authjwt.PrivateKey, error) {
 	if len(key) == 0 || kid == "" {
 		log.Error(nil, map[string]interface{}{
 			"kid":        kid,
@@ -195,10 +195,10 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 		log.Error(nil, map[string]interface{}{"err": err}, "unable to parse private key")
 		return nil, err
 	}
-	privateKey := &keys.PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
+	privateKey := &authjwt.PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
 	pk := &rsaServiceAccountKey.PublicKey
 	tm.publicKeysMap[kid] = pk
-	tm.publicKeys = append(tm.publicKeys, &keys.PublicKey{KeyID: kid, Key: pk})
+	tm.publicKeys = append(tm.publicKeys, &authjwt.PublicKey{KeyID: kid, Key: pk})
 	log.Info(nil, map[string]interface{}{"kid": kid}, "public key added")
 
 	// Extract public key from the deprecated key if any and add it to the manager
@@ -215,7 +215,7 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 		}
 		pk := &rsaServiceAccountKey.PublicKey
 		tm.publicKeysMap[deprecatedKid] = pk
-		tm.publicKeys = append(tm.publicKeys, &keys.PublicKey{KeyID: deprecatedKid, Key: pk})
+		tm.publicKeys = append(tm.publicKeys, &authjwt.PublicKey{KeyID: deprecatedKid, Key: pk})
 		log.Info(nil, map[string]interface{}{"kid": deprecatedKid}, "deprecated public key added")
 	}
 	return privateKey, nil
@@ -229,45 +229,45 @@ func toPem(key *rsa.PublicKey) (string, error) {
 	return base64.StdEncoding.EncodeToString(pubASN1), nil
 }
 
-func toJSONWebKeys(publicKeys []*keys.PublicKey) (keys.JSONKeys, error) {
+func toJSONWebKeys(publicKeys []*authjwt.PublicKey) (authjwt.JSONKeys, error) {
 	var result []interface{}
 	for _, key := range publicKeys {
 		jwk := jose.JSONWebKey{Key: key.Key, KeyID: key.KeyID, Algorithm: "RS256", Use: "sig"}
 		keyData, err := jwk.MarshalJSON()
 		if err != nil {
-			return keys.JSONKeys{}, err
+			return authjwt.JSONKeys{}, err
 		}
 		var raw interface{}
 		err = json.Unmarshal(keyData, &raw)
 		if err != nil {
-			return keys.JSONKeys{}, err
+			return authjwt.JSONKeys{}, err
 		}
 		result = append(result, raw)
 	}
-	return keys.JSONKeys{Keys: result}, nil
+	return authjwt.JSONKeys{Keys: result}, nil
 }
 
 // JSONWebKeys returns all the public keys in JSON Web Keys format
-func (mgm *tokenManager) JSONWebKeys() keys.JSONKeys {
+func (mgm *tokenManager) JSONWebKeys() authjwt.JSONKeys {
 	return mgm.jsonWebKeys
 }
 
 // PemKeys returns all the public keys in PEM-like format (PEM without header and footer)
-func (mgm *tokenManager) PemKeys() keys.JSONKeys {
+func (mgm *tokenManager) PemKeys() authjwt.JSONKeys {
 	return mgm.pemKeys
 }
 
-func toPemKeys(publicKeys []*keys.PublicKey) (keys.JSONKeys, error) {
+func toPemKeys(publicKeys []*authjwt.PublicKey) (authjwt.JSONKeys, error) {
 	var pemKeys []interface{}
 	for _, key := range publicKeys {
 		keyData, err := toPem(key.Key)
 		if err != nil {
-			return keys.JSONKeys{}, err
+			return authjwt.JSONKeys{}, err
 		}
 		rawPemKey := map[string]interface{}{"kid": key.KeyID, "key": keyData}
 		pemKeys = append(pemKeys, rawPemKey)
 	}
-	return keys.JSONKeys{Keys: pemKeys}, nil
+	return authjwt.JSONKeys{Keys: pemKeys}, nil
 }
 
 // ParseToken parses token claims

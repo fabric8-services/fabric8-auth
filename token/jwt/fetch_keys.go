@@ -1,4 +1,4 @@
-package keys
+package jwt
 
 import (
 	"crypto/rsa"
