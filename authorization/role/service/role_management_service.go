@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -13,8 +13,8 @@ import (
 
 // RoleManagementService defines the contract for managing roles assigments to a resource
 type RoleManagementService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
-	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
+	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
+	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
 }
 
@@ -30,9 +30,9 @@ func NewRoleManagementService(modelService roleModel.RoleManagementModelService,
 }
 
 // ListByResource lists assignments made for a specific resource
-func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error) {
+func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
 
-	var roles []identityrole.IdentityRole
+	var roles []rolerepo.IdentityRole
 	var err error
 	err = application.Transactional(r.db, func(appl application.Application) error {
 		err = appl.ResourceRepository().CheckExists(ctx, resourceID)
@@ -75,9 +75,9 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 }
 
 // ListByResourceAndRoleName lists assignments made for a specific resource
-func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error) {
+func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
 
-	var roles []identityrole.IdentityRole
+	var roles []rolerepo.IdentityRole
 	var err error
 	err = application.Transactional(r.db, func(appl application.Application) error {
 		err = appl.ResourceRepository().CheckExists(ctx, resourceID)

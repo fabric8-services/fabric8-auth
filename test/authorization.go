@@ -9,13 +9,12 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
 
-func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role) (*identityrole.IdentityRole, error) {
+func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role) (*role.IdentityRole, error) {
 
 	assignedIdentity := &account.Identity{
 		ID:           uuid.NewV4(),
@@ -29,7 +28,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 		return nil, err
 	}
 
-	identityRoleRef := identityrole.IdentityRole{
+	identityRoleRef := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
 		Identity:       *assignedIdentity,
 		IdentityID:     assignedIdentity.ID,
@@ -39,7 +38,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 		RoleID:         roleRef.RoleID,
 	}
 
-	identityRolesRepository := identityrole.NewIdentityRoleRepository(db)
+	identityRolesRepository := role.NewIdentityRoleRepository(db)
 	err = identityRolesRepository.Create(ctx, &identityRoleRef)
 	if err != nil {
 		return nil, err
@@ -211,7 +210,7 @@ func CreateTestRoleWithDefaultType(ctx context.Context, db *gorm.DB, name string
 	return &roleRef, err
 }
 
-func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*identityrole.IdentityRole, error) {
+func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityRole, error) {
 	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
 
