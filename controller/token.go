@@ -18,7 +18,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
-	authjwt "github.com/fabric8-services/fabric8-auth/token/jwt"
+	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -56,7 +56,7 @@ func NewTokenController(service *goa.Service, db application.DB, auth login.Keyc
 
 // Keys returns public keys which should be used to verify tokens
 func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
-	var publicKeys authjwt.JSONKeys
+	var publicKeys jwk.JSONKeys
 	if ctx.Format != nil && *ctx.Format == "pem" {
 		publicKeys = c.TokenManager.PemKeys()
 	} else {
