@@ -102,26 +102,35 @@ function run_tests_with_coverage() {
 }
 
 function tag_push() {
-  TARGET=$1
-  docker tag fabric8-auth-deploy $TARGET
-  docker push $TARGET
+  local tag
+
+  tag=$1
+  docker tag fabric8-auth-deploy $tag
+  docker push $tag
 }
 
 function deploy() {
-  # Let's deploy
-  make docker-image-deploy
-
-  TAG=$(echo $GIT_COMMIT | cut -c1-${DEVSHIFT_TAG_LEN})
+  # Login first
   REGISTRY="push.registry.devshift.net"
-
   if [ -n "${DEVSHIFT_USERNAME}" -a -n "${DEVSHIFT_PASSWORD}" ]; then
     docker login -u ${DEVSHIFT_USERNAME} -p ${DEVSHIFT_PASSWORD} ${REGISTRY}
   else
     echo "Could not login, missing credentials for the registry"
   fi
 
-  tag_push ${REGISTRY}/fabric8-services/fabric8-auth:$TAG
-  tag_push ${REGISTRY}/fabric8-services/fabric8-auth:latest
+  # Build fabric8-auth-deploy
+  make docker-image-deploy
+
+  TAG=$(echo $GIT_COMMIT | cut -c1-${DEVSHIFT_TAG_LEN})
+
+  if [ "$TARGET" = "rhel" ]; then
+    tag_push ${REGISTRY}/osio-prod/fabric8-services/fabric8-auth:$TAG
+    tag_push ${REGISTRY}/osio-prod/fabric8-services/fabric8-auth:latest
+  else
+    tag_push ${REGISTRY}/fabric8-services/fabric8-auth:$TAG
+    tag_push ${REGISTRY}/fabric8-services/fabric8-auth:latest
+  fi
+
   echo 'CICO: Image pushed, ready to update deployed app'
 }
 
