@@ -6,7 +6,6 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
@@ -83,7 +82,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
 	require.NoError(s.T(), err)
 
-	var createdIdentityRoles []identityrole.IdentityRole
+	var createdIdentityRoles []rolerepo.IdentityRole
 
 	// creating an AssignedRole for a parent resource
 	identityRoleRefUnrelated, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *parentResourceRef, *roleRef)
@@ -140,8 +139,8 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesByRoleNameOK() {
 	roleRef2, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collabx")
 	require.NoError(s.T(), err)
 
-	var createdIdentityRoles []identityrole.IdentityRole
-	var createdIdentityRoles2 []identityrole.IdentityRole
+	var createdIdentityRoles []rolerepo.IdentityRole
+	var createdIdentityRoles2 []rolerepo.IdentityRole
 
 	// role 1
 
@@ -218,7 +217,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesOfParentResource
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
 	require.NoError(s.T(), err)
 
-	var createdIdentityRoles []identityrole.IdentityRole
+	var createdIdentityRoles []rolerepo.IdentityRole
 
 	// creating an AssignedRole for a parent resource
 	identityRoleRefUnrelated, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *parentResourceRef, *roleRef)
@@ -264,7 +263,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
 	require.NoError(s.T(), err)
 
-	var createdIdentityRoles []identityrole.IdentityRole
+	var createdIdentityRoles []rolerepo.IdentityRole
 
 	// creating an AssignedRole for a different resource - not expected
 	// to show up in search results.
@@ -305,7 +304,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceNotFoun
 	require.Equal(t, 0, len(identityRoles))
 }
 
-func (s *roleManagementServiceBlackboxTest) checkExists(createdRole identityrole.IdentityRole, pool []identityrole.IdentityRole, isInherited bool) bool {
+func (s *roleManagementServiceBlackboxTest) checkExists(createdRole rolerepo.IdentityRole, pool []rolerepo.IdentityRole, isInherited bool) bool {
 	for _, retrievedRole := range pool {
 		if retrievedRole.IdentityRoleID.String() == createdRole.IdentityRoleID.String() {
 			s.compare(createdRole, retrievedRole, isInherited)
@@ -315,7 +314,7 @@ func (s *roleManagementServiceBlackboxTest) checkExists(createdRole identityrole
 	return false
 }
 
-func (s *roleManagementServiceBlackboxTest) compare(createdRole identityrole.IdentityRole, retrievedRole identityrole.IdentityRole, isInherited bool) bool {
+func (s *roleManagementServiceBlackboxTest) compare(createdRole rolerepo.IdentityRole, retrievedRole rolerepo.IdentityRole, isInherited bool) bool {
 	require.Equal(s.T(), createdRole.IdentityRoleID.String(), retrievedRole.IdentityRoleID.String())
 	require.Equal(s.T(), createdRole.IdentityID.String(), retrievedRole.Identity.ID.String())
 	require.Equal(s.T(), createdRole.Role.Name, retrievedRole.Role.Name)

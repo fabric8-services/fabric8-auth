@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -31,7 +31,7 @@ func NewResourceRolesController(service *goa.Service, db application.DB, assignm
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 
-	var roles []identityrole.IdentityRole
+	var roles []role.IdentityRole
 
 	roles, err := c.roleManagementService.ListByResource(ctx, ctx.ResourceID)
 	if err != nil {
@@ -50,7 +50,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 // ListAssignedByRoleName runs the list action.
 func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedByRoleNameResourceRolesContext) error {
 
-	var roles []identityrole.IdentityRole
+	var roles []role.IdentityRole
 
 	roles, err := c.roleManagementService.ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
 	if err != nil {
@@ -69,14 +69,14 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 	})
 }
 
-func convertIdentityRoleToAppRoles(ctx context.Context, roles []identityrole.IdentityRole) []*app.IdentityRolesData {
+func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRole) []*app.IdentityRolesData {
 	var rolesList []*app.IdentityRolesData
 	for _, r := range roles {
 		rolesList = append(rolesList, convertIdentityRoleToAppRole(ctx, r))
 	}
 	return rolesList
 }
-func convertIdentityRoleToAppRole(ctx context.Context, r identityrole.IdentityRole) *app.IdentityRolesData {
+func convertIdentityRoleToAppRole(ctx context.Context, r role.IdentityRole) *app.IdentityRolesData {
 	inherited := r.Resource.ParentResourceID != nil
 	rolesData := app.IdentityRolesData{
 		AssigneeID:   r.Identity.ID.String(),
