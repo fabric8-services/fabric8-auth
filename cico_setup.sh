@@ -20,7 +20,7 @@ function load_jenkins_vars() {
 
 function install_deps() {
   # We need to disable selinux for now, XXX
-  /usr/sbin/setenforce 0
+  /usr/sbin/setenforce 0 || :
 
   # Get all the deps in
   yum -y install \
