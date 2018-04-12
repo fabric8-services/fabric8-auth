@@ -94,6 +94,8 @@ The *HasScope()* method provided by the permission service makes use of a comple
 * that the resource in question may have a parent resource (or other resource ancestry) of the same type to which the user has been granted privileges
 * that there may be a role mapping, allowing a user that has been granted privileges to a resource of a different type somewhere in the resource ancestry to gain privileges for other resource types further down the hierarchy
 
+It accepts three parameters; the user's identity ID, the resource ID and the name of the scope.
+
 This section will describe the various parts of the permission query, providing a useful reference in case the SQL requires future maintenance.
 
 To begin, let's examine the query at the highest level.  Essentially, it checks the `IDENTITY_ROLE` table for the existence of any records that match the criteria as described above.  It does this by setting conditions for the three columns; `identity_id`, `resource_id` and `role_id`, which can be seen as follows:
@@ -106,13 +108,19 @@ The following sections will examine each of these sections in more detail.
 
 In section 1 of the query above, the condition limits the records returned to those with an `IDENTITY_ID` equal to the current user's, or to that of any organization, team or security group in which the current user is a member.
 
-This is achieved by 
+This is done by selecting a list of the corresponding `ID` values from the `identities` table, and matching the `identity_role.identity_id` value against these:
 
 image::permission_has_scope_sql_2.png[]
 
-
+1. The first condition is a direct check for the user's identity ID, to match any records for which the role has been assigned directly to the user.
+2. The second condition includes the identity ID for any organization, team or security group in which the user is either directly or indirectly a member.  This is achieved by executing a recursive subquery in the `membership` table to "walk" up the user's membership hierarchy, and extract out all of the `member_of` values.
 
 === Resource criteria
 
+The second condition of the query is used to select records for the specified resource.  Its criteria restricts records to those with either the exact same `resource_id` value as the resource parameter, or to an ancestor resource:
+
+image::permission_has_scope_sql_3.png[]
+
+The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table's `parent_resource_id` to walk up the hierarchy. The resulting list of resource IDs is used to restrict the `resource_id` column.
 
 === Role criteria

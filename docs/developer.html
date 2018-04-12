@@ -617,6 +617,9 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </div>
 <div class="paragraph">
+<p>It accepts three parameters; the user&#8217;s identity ID, the resource ID and the name of the scope.</p>
+</div>
+<div class="paragraph">
 <p>This section will describe the various parts of the permission query, providing a useful reference in case the SQL requires future maintenance.</p>
 </div>
 <div class="paragraph">
@@ -635,15 +638,38 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="paragraph">
 <p>In section 1 of the query above, the condition limits the records returned to those with an <code>IDENTITY_ID</code> equal to the current user&#8217;s, or to that of any organization, team or security group in which the current user is a member.</p>
 </div>
+<div class="paragraph">
+<p>This is done by selecting a list of the corresponding <code>ID</code> values from the <code>identities</code> table, and matching the <code>identity_role.identity_id</code> value against these:</p>
+</div>
 <div class="imageblock">
 <div class="content">
 <img src="./assets/permission_has_scope_sql_2.png" alt="permission has scope sql 2">
 </div>
 </div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>The first condition is a direct check for the user&#8217;s identity ID, to match any records for which the role has been assigned directly to the user.</p>
+</li>
+<li>
+<p>The second condition includes the identity ID for any organization, team or security group in which the user is either directly or indirectly a member.  This is achieved by executing a recursive subquery in the <code>membership</code> table to "walk" up the user&#8217;s membership hierarchy, and extract out all of the <code>member_of</code> values.</p>
+</li>
+</ol>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_resource_criteria">Resource criteria</h3>
-
+<div class="paragraph">
+<p>The second condition of the query is used to select records for the specified resource.  Its criteria restricts records to those with either the exact same <code>resource_id</code> value as the resource parameter, or to an ancestor resource:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_3.png" alt="permission has scope sql 3">
+</div>
+</div>
+<div class="paragraph">
+<p>The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table&#8217;s <code>parent_resource_id</code> to walk up the hierarchy. The resulting list of resource IDs is used to restrict the <code>resource_id</code> column.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_role_criteria">Role criteria</h3>
@@ -654,7 +680,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-04-09 20:31:38 +07
+Last updated 2018-04-10 16:25:39 +07
 </div>
 </div>
 </body>
