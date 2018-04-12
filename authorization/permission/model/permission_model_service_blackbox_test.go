@@ -5,7 +5,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	"testing"
 
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
@@ -33,7 +32,7 @@ const (
 type permissionModelServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	identityRepo            account.IdentityRepository
-	identityRoleRepo        identityrole.IdentityRoleRepository
+	identityRoleRepo        roleRepo.IdentityRoleRepository
 	resourceRepo            resource.ResourceRepository
 	resourceTypeRepo        resourcetype.ResourceTypeRepository
 	resourceTypeScopeRepo   resourcetypescope.ResourceTypeScopeRepository
@@ -54,7 +53,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
+	s.identityRoleRepo = roleRepo.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = resourcetypescope.NewResourceTypeScopeRepository(s.DB)
@@ -524,7 +523,7 @@ func (s *permissionModelServiceBlackBoxTest) createTestResource(resourceTypeName
 
 // Assigns a role to a user for a resource
 func (s *permissionModelServiceBlackBoxTest) assignRoleForResource(resource resource.Resource, identity account.Identity, role roleRepo.Role) error {
-	err := s.identityRoleRepo.Create(s.Ctx, &identityrole.IdentityRole{
+	err := s.identityRoleRepo.Create(s.Ctx, &roleRepo.IdentityRole{
 		IdentityID: identity.ID,
 		ResourceID: resource.ResourceID,
 		RoleID:     role.RoleID,

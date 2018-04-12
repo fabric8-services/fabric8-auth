@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	errs "github.com/pkg/errors"
 
 	"github.com/dgrijalva/jwt-go"

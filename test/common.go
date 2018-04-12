@@ -3,30 +3,13 @@ package test
 
 import (
 	"github.com/satori/go.uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"net/url"
-	"testing"
 )
 
-// CreateRandomValidTestName functions creates a valid lenght name
+// CreateRandomValidTestName functions creates a valid length name
 func CreateRandomValidTestName(name string) string {
 	randomName := name + uuid.NewV4().String()
 	if len(randomName) > 62 {
 		return randomName[:61]
 	}
 	return randomName
-}
-
-func EqualURLs(t *testing.T, expected string, actual string) {
-	expectedURL, err := url.Parse(expected)
-	require.Nil(t, err)
-	actualURL, err := url.Parse(actual)
-	require.Nil(t, err)
-	assert.Equal(t, expectedURL.Scheme, actualURL.Scheme)
-	assert.Equal(t, expectedURL.Host, actualURL.Host)
-	assert.Equal(t, len(expectedURL.Query()), len(actualURL.Query()))
-	for name, value := range expectedURL.Query() {
-		assert.Equal(t, value, actualURL.Query()[name])
-	}
 }

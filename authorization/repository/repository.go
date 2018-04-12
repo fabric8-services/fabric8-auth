@@ -4,7 +4,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 )
 
@@ -14,5 +13,5 @@ type Repositories interface {
 	ResourceRepository() resource.ResourceRepository
 	ResourceTypeRepository() resourcetype.ResourceTypeRepository
 	RoleRepository() role.RoleRepository
-	IdentityRoleRepository() identityrole.IdentityRoleRepository
+	IdentityRoleRepository() role.IdentityRoleRepository
 }

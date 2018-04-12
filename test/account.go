@@ -87,7 +87,7 @@ var TestTenantIdentity = account.Identity{
 	User:     TestUser,
 }
 
-// CreateLonelyTestIdentity creates an identity not assosiated with any user. For testing purpose only.
+// CreateLonelyTestIdentity creates an identity not associated with any user. For testing purpose only.
 func CreateLonelyTestIdentity(db *gorm.DB, username string) (account.Identity, error) {
 	testIdentity := account.Identity{
 		Username:     username,

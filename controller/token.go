@@ -17,8 +17,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -56,11 +56,11 @@ func NewTokenController(service *goa.Service, db application.DB, auth login.Keyc
 
 // Keys returns public keys which should be used to verify tokens
 func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
-	var publicKeys token.JsonKeys
+	var publicKeys jwk.JSONKeys
 	if ctx.Format != nil && *ctx.Format == "pem" {
 		publicKeys = c.TokenManager.PemKeys()
 	} else {
-		publicKeys = c.TokenManager.JsonWebKeys()
+		publicKeys = c.TokenManager.JSONWebKeys()
 	}
 
 	return ctx.OK(&app.PublicKeys{Keys: publicKeys.Keys})
@@ -136,7 +136,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devIdentity = identities[0]
 	}
 
-	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity)
+	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -576,10 +576,6 @@ func ObtainKeycloakUserToken(ctx context.Context, tokenEndpoint string, configur
 		}, "Postgres developer mode not enabled")
 		return nil, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled"))
 	}
-
-	var scopes []account.Identity
-	scopes = append(scopes, test.TestIdentity)
-	scopes = append(scopes, test.TestObserverIdentity)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
