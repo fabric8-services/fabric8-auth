@@ -2,9 +2,6 @@ package controller_test
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"strconv"
 	"testing"
@@ -17,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -38,8 +34,7 @@ type TestSearchUserSearch struct {
 
 func (s *TestSearchUserSearch) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.svc = goa.New("test")
-	s.controller = NewSearchController(s.svc, s.Application, s.Configuration)
+	s.svc, s.controller = s.SecuredController()
 }
 
 type userSearchTestArgs struct {
@@ -84,7 +79,7 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 	}
 
 	for _, tt := range tests {
-		_, result := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
+		_, result := test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
 		for _, userSearchTestExpect := range tt.userSearchTestExpects {
 			userSearchTestExpect(s.T(), tt, result)
 		}
@@ -92,6 +87,7 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 }
 
 func (s *TestSearchUserSearch) TestUsersSearchBadRequest() {
+
 	t := s.T()
 	tests := []struct {
 		name               string
@@ -101,7 +97,7 @@ func (s *TestSearchUserSearch) TestUsersSearchBadRequest() {
 	}
 
 	for _, tt := range tests {
-		test.UsersSearchBadRequest(t, context.Background(), s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
+		test.UsersSearchBadRequest(t, s.controller.Context, s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
 	}
 }
 
@@ -157,6 +153,7 @@ func (s *TestSearchUserSearch) createDifferentTestData() account.Identity {
 }
 
 func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
+
 	randomName := uuid.NewV4().String()
 	email := uuid.NewV4().String()
 	user := account.User{
@@ -173,18 +170,19 @@ func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 	offset := "0"
 	pageLimit := 1
 	// OK to search by username
-	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+	_, results := test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, &pageLimit, &offset, randomName)
 
 	for _, result := range results.Data {
 		require.Equal(s.T(), "", *result.Attributes.Email)
 	}
 
 	// Empty result if searching by private email
-	_, results = test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, email)
+	_, results = test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, &pageLimit, &offset, email)
 	require.Empty(s.T(), results.Data)
 }
 
 func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
+
 	randomName := uuid.NewV4().String()
 	user := account.User{
 		EmailPrivate: false,
@@ -198,7 +196,7 @@ func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 
 	offset := "0"
 	pageLimit := 1
-	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+	_, results := test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, &pageLimit, &offset, randomName)
 
 	for _, result := range results.Data {
 		require.NotEmpty(s.T(), *result.Attributes.Email)
@@ -283,19 +281,19 @@ func (s *TestSearchUserSearch) offset(n int) *string {
 	return &str
 }
 
+func (s *TestSearchUserSearch) UnSecuredController() (*goa.Service, *SearchController) {
+	svc := testsupport.UnsecuredService("Search-Service")
+	ctrl := NewSearchController(svc, s.Application, s.Configuration)
+	return svc, ctrl
+}
+
+func (s *TestSearchUserSearch) SecuredController() (*goa.Service, *SearchController) {
+	svc := testsupport.ServiceAsUser("Search-Service", testsupport.TestIdentity)
+	ctrl := NewSearchController(svc, s.Application, s.Configuration)
+	return svc, ctrl
+}
+
 func (s *TestSearchUserSearch) TestSearchUnauthorized() {
-	_, ctrl := rest.UnSecuredController()
-
-	rw := httptest.NewRecorder()
-	u := &url.URL{
-		Path: "/api/search/users?q=a",
-	}
-	req, err := http.NewRequest("GET", u.String(), nil)
-	require.Nil(s.T(), err)
-	prms := url.Values{}
-	ctx := context.Background()
-	goaCtx := goa.NewContext(goa.WithAction(ctx, "LogoutTest"), rw, req, prms)
-	searchCtx, err := app.NewUsersSearchContext(goaCtx, req, goa.New("LogoutService"))
-	searchCtrl := NewSearchController(searchCtx.Service, s.DB)
-
+	_, ctrl := s.UnSecuredController()
+	test.UsersSearchUnauthorized(s.T(), ctrl.Context, ctrl.Service, ctrl, nil, nil, "a")
 }
