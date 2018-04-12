@@ -30,13 +30,18 @@ type JSONKeys struct {
 	Keys []interface{} `json:"keys"`
 }
 
-// FetchKeys fetches public JSON WEB Keys from a remote service
-func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
+type KeyLoader struct {
+	HttpClient rest.HttpClient
+}
+
+var defaultLoader = KeyLoader{HttpClient: http.DefaultClient}
+
+func (l *KeyLoader) FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 	req, err := http.NewRequest("GET", keysEndpointURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := l.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -60,6 +65,11 @@ func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
 		"number_of_keys": len(keys),
 	}, "Public keys loaded")
 	return keys, nil
+}
+
+// FetchKeys fetches public JSON WEB Keys from a remote service
+func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
+	return defaultLoader.FetchKeys(keysEndpointURL)
 }
 
 func unmarshalKeys(jsonData []byte) ([]*PublicKey, error) {

@@ -10,11 +10,15 @@ import (
 )
 
 type DummyHttpClient struct {
-	Response *http.Response
-	Error    error
+	Response      *http.Response
+	Error         error
+	AssertRequest func(req *http.Request)
 }
 
 func (c *DummyHttpClient) Do(req *http.Request) (*http.Response, error) {
+	if c.AssertRequest != nil {
+		c.AssertRequest(req)
+	}
 	return c.Response, c.Error
 }
 
