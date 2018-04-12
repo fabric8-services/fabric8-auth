@@ -9,6 +9,7 @@ var _ = a.Resource("search", func() {
 	a.BasePath("/search")
 
 	a.Action("users", func() {
+		a.Security("jwt")
 		a.Routing(
 			a.GET("users"),
 		)
@@ -23,6 +24,7 @@ var _ = a.Resource("search", func() {
 			a.Media(userList)
 		})
 		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
 })

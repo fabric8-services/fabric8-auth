@@ -2,6 +2,9 @@ package controller_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strconv"
 	"testing"
@@ -14,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -277,4 +281,21 @@ func (s *TestSearchUserSearch) limit(n int) *int {
 func (s *TestSearchUserSearch) offset(n int) *string {
 	str := strconv.Itoa(n)
 	return &str
+}
+
+func (s *TestSearchUserSearch) TestSearchUnauthorized() {
+	_, ctrl := rest.UnSecuredController()
+
+	rw := httptest.NewRecorder()
+	u := &url.URL{
+		Path: "/api/search/users?q=a",
+	}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	require.Nil(s.T(), err)
+	prms := url.Values{}
+	ctx := context.Background()
+	goaCtx := goa.NewContext(goa.WithAction(ctx, "LogoutTest"), rw, req, prms)
+	searchCtx, err := app.NewUsersSearchContext(goaCtx, req, goa.New("LogoutService"))
+	searchCtrl := NewSearchController(searchCtx.Service, s.DB)
+
 }
