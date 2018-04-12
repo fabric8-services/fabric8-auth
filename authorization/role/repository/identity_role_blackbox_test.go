@@ -103,6 +103,21 @@ func (s *identityRoleBlackBoxTest) TestListByResourceAndIdentity() {
 	createdIdentity, err := s.identityRepo.Load(s.Ctx, createdIdentityRole.IdentityID)
 	createdResourceType, err := s.resourceTypeRepo.Load(s.Ctx, createdResource.ResourceTypeID)
 
+	// let's create as many randome identityroles
+
+	someOtherResource, err := testsupport.CreateTestResourceWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), someOtherResource)
+
+	someOtherIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), someOtherIdentity)
+
+	var createdIdentityRoles []role.IdentityRole
+
+	// insert the one previously created
+	createdIdentityRoles = append(createdIdentityRoles, *createdIdentityRole)
+
 	for i := 0; i < 10; i++ {
 		newRole := role.Role{
 			ResourceType:   *createdResourceType,
@@ -113,20 +128,46 @@ func (s *identityRoleBlackBoxTest) TestListByResourceAndIdentity() {
 		err := s.roleRepo.Create(s.Ctx, &newRole)
 		require.NoError(s.T(), err)
 
-		newIdentityRole := role.IdentityRole{
+		newIdentityRole := &role.IdentityRole{
 			IdentityRoleID: uuid.NewV4(),
 			Role:           newRole,
 			RoleID:         newRole.RoleID,
-			//Resource:       *createdResource,
-			ResourceID: createdIdentityRole.ResourceID,
-			Identity:   *createdIdentity,
-			IdentityID: createdIdentity.ID,
+			ResourceID:     createdResource.ResourceID,
+			IdentityID:     createdIdentity.ID,
 		}
-		s.repo.Create(s.Ctx, &newIdentityRole)
+
+		s.repo.Create(s.Ctx, newIdentityRole)
+		createdIdentityRoles = append(createdIdentityRoles, *newIdentityRole)
+
+		// create dirty data
+		identityRoleWithDifferentResource := role.IdentityRole{
+			IdentityRoleID: uuid.NewV4(),
+			Role:           newRole,
+			RoleID:         newRole.RoleID,
+			ResourceID:     someOtherResource.ResourceID,
+			Identity:       *createdIdentity,
+			IdentityID:     createdIdentity.ID,
+		}
+		s.repo.Create(s.Ctx, &identityRoleWithDifferentResource)
+
+		identityRoleWithDifferentIdentity := role.IdentityRole{
+			IdentityRoleID: uuid.NewV4(),
+			Role:           newRole,
+			RoleID:         newRole.RoleID,
+			ResourceID:     createdIdentityRole.ResourceID,
+			Identity:       someOtherIdentity,
+			IdentityID:     someOtherIdentity.ID,
+		}
+		s.repo.Create(s.Ctx, &identityRoleWithDifferentIdentity)
+
 	}
 
 	returnedRoles, err = s.repo.ListByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
 	require.Len(t, returnedRoles, 11)
+
+	for _, actualRole := range returnedRoles {
+		checkExists(s, createdIdentityRoles, actualRole)
+	}
 
 }
 
@@ -149,7 +190,20 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 }
 
 func validateIdentityRole(s *identityRoleBlackBoxTest, expected role.IdentityRole, actual role.IdentityRole) {
+	require.Equal(s.T(), expected.IdentityRoleID, actual.IdentityRoleID)
 	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
 	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
 	require.Equal(s.T(), expected.RoleID, actual.RoleID)
+}
+
+func checkExists(s *identityRoleBlackBoxTest, expected []role.IdentityRole, actual role.IdentityRole) {
+	found := false
+	for _, expectedRole := range expected {
+		if expectedRole.IdentityRoleID.String() == actual.IdentityRoleID.String() {
+			found = true
+			validateIdentityRole(s, expectedRole, actual)
+			break
+		}
+	}
+	require.True(s.T(), found)
 }
