@@ -197,28 +197,42 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
-	currentIdentity, err := login.ContextIdentity(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	var appResponse app.ExternalToken
-
 	if forResource == "" {
 		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
 
-	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, *currentIdentity, req, forResource)
+	var currentIdentityID uuid.UUID
+	serviceAccount := token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy)
+	if serviceAccount {
+		// Extract SA ID
+		id, err := login.ContextIdentity(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		currentIdentityID = *id
+	} else {
+		// Extract user ID
+		currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+		if err != nil {
+			return nil, nil, err
+		}
+		currentIdentityID = currentIdentity.ID
+	}
+
+	var appResponse app.ExternalToken
+
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, currentIdentityID, req, forResource)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	osConfig, ok := providerConfig.(link.OpenShiftIdentityProviderConfig)
-	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy) {
+	if ok && serviceAccount {
 		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
 		return c.retrieveClusterToken(ctx, forResource, forcePull, osConfig)
 	}
 
-	externalToken, err := c.loadToken(ctx, providerConfig, *currentIdentity)
+	externalToken, err := c.loadToken(ctx, providerConfig, currentIdentityID)
 	if err != nil {
 		return nil, nil, err
 	}

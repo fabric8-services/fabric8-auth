@@ -937,6 +937,19 @@ func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*accoun
 	return identity, err
 }
 
+// LoadContextIdentityIfNotDeprovisioned returns the same identity as LoadContextIdentityAndUser()
+// if the user is not deprovisioned. Returns an Unauthorized error if the user is deprovisioned.
+func LoadContextIdentityIfNotDeprovisioned(ctx context.Context, db application.DB) (*account.Identity, error) {
+	identity, err := LoadContextIdentityAndUser(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	if identity.User.Deprovisioned {
+		return nil, autherrors.NewUnauthorizedError("user deprovisioined")
+	}
+	return identity, err
+}
+
 // InjectTokenManager is a middleware responsible for setting up tokenManager in the context for every request.
 func InjectTokenManager(tokenManager token.Manager) goa.Middleware {
 	return func(h goa.Handler) goa.Handler {
