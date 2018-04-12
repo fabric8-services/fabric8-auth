@@ -25,6 +25,10 @@ func TestRunFetchKeysSuite(t *testing.T) {
 	suite.Run(t, &TestFetchKeysSuite{UnitTestSuite: testsuite.NewUnitTestSuite()})
 }
 
+func (s *TestFetchKeysSuite) TestDefaultFetcher() {
+	require.NotPanics(s.T(), func() { jwk.FetchKeys("") })
+}
+
 func (s *TestFetchKeysSuite) TestFetchKeys() {
 	client := &test.DummyHttpClient{AssertRequest: func(req *http.Request) {
 		assert.Equal(s.T(), "GET", req.Method)
