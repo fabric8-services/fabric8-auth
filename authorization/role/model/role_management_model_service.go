@@ -6,7 +6,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -19,11 +18,11 @@ import (
 
 // RoleManagementModelService defines the service contract for managing role assignments
 type RoleManagementModelService interface {
-	ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identity uuid.UUID) ([]identityrole.IdentityRole, error)
-	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
+	ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identity uuid.UUID) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
-	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
 	Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error
+	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
+	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 }
 
 // NewRoleManagementModelService creates a new service to manage role assignments
@@ -41,7 +40,7 @@ type GormRoleManagementModelService struct {
 }
 
 // ListAssignmentsByIdentityAndResource lists all the roles that have been assigned to a specific user/identity for a specific resource
-func (r *GormRoleManagementModelService) ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]identityrole.IdentityRole, error) {
+func (r *GormRoleManagementModelService) ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]rolerepo.IdentityRole, error) {
 	return r.repository.IdentityRoleRepository().ListByIdentityAndResource(ctx, resourceID, identityID)
 }
 
@@ -58,7 +57,7 @@ func (r *GormRoleManagementModelService) Assign(ctx context.Context, identityID 
 		return err
 	}
 
-	ir := identityrole.IdentityRole{
+	ir := rolerepo.IdentityRole{
 		ResourceID: resourceID,
 		IdentityID: identityID,
 		RoleID:     roleRef.RoleID,
@@ -67,9 +66,9 @@ func (r *GormRoleManagementModelService) Assign(ctx context.Context, identityID 
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error) {
+func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
-	var identityRoles []identityrole.IdentityRole
+	var identityRoles []rolerepo.IdentityRole
 
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
@@ -153,7 +152,7 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 			return identityRoles, errors.NewInternalError(ctx, err)
 		}
 
-		ir := identityrole.IdentityRole{
+		ir := rolerepo.IdentityRole{
 			IdentityRoleID: identityRoleIDAsUUID,
 			Identity: account.Identity{
 				ID: identityIDAsUUID,
@@ -178,9 +177,9 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 }
 
 // ListByResource lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error) {
+func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
-	var identityRoles []identityrole.IdentityRole
+	var identityRoles []rolerepo.IdentityRole
 
 	r.db = r.db.Debug()
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
@@ -264,7 +263,7 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 			return identityRoles, errors.NewInternalError(ctx, err)
 		}
 
-		ir := identityrole.IdentityRole{
+		ir := rolerepo.IdentityRole{
 			IdentityRoleID: identityRoleIDAsUUID,
 			Identity: account.Identity{
 				ID: identityIDAsUUID,

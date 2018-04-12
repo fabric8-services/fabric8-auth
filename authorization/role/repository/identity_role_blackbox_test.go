@@ -7,7 +7,6 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -21,7 +20,7 @@ import (
 
 type identityRoleBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo                  identityrole.IdentityRoleRepository
+	repo                  role.IdentityRoleRepository
 	identityRepo          account.IdentityRepository
 	resourceRepo          resource.ResourceRepository
 	resourceTypeRepo      resourcetype.ResourceTypeRepository
@@ -36,7 +35,7 @@ func TestRunIdentityRoleBlackBoxTest(t *testing.T) {
 func (s *identityRoleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
-	s.repo = identityrole.NewIdentityRoleRepository(s.DB)
+	s.repo = role.NewIdentityRoleRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = scope.NewResourceTypeScopeRepository(s.DB)
@@ -114,7 +113,7 @@ func (s *identityRoleBlackBoxTest) TestListByResourceAndIdentity() {
 		err := s.roleRepo.Create(s.Ctx, &newRole)
 		require.NoError(s.T(), err)
 
-		newIdentityRole := identityrole.IdentityRole{
+		newIdentityRole := role.IdentityRole{
 			IdentityRoleID: uuid.NewV4(),
 			Role:           newRole,
 			RoleID:         newRole.RoleID,
@@ -143,13 +142,13 @@ func (s *identityRoleBlackBoxTest) TestOKToSave() {
 	//assert.Equal(s.T(), identityRole.Name, updatedIdentityRole.Name)
 }
 
-func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *identityrole.IdentityRole {
+func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	ir, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(s.T(), err)
 	return ir
 }
 
-func validateIdentityRole(s *identityRoleBlackBoxTest, expected identityrole.IdentityRole, actual identityrole.IdentityRole) {
+func validateIdentityRole(s *identityRoleBlackBoxTest, expected role.IdentityRole, actual role.IdentityRole) {
 	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
 	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
 	require.Equal(s.T(), expected.RoleID, actual.RoleID)

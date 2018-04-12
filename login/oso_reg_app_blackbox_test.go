@@ -25,7 +25,7 @@ import (
 type TestOSORegistrationAppSuite struct {
 	testsuite.UnitTestSuite
 	osoApp      login.OSOSubscriptionManager
-	client      *dummyOSOClient
+	client      *test.DummyHttpClient
 	loginConfig login.Configuration
 }
 
@@ -35,7 +35,11 @@ func TestOSORegistrationApp(t *testing.T) {
 
 func (s *TestOSORegistrationAppSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
-	s.client = &dummyOSOClient{suite: s}
+	s.client = &test.DummyHttpClient{AssertRequest: func(req *http.Request) {
+		assert.Equal(s.T(), "GET", req.Method)
+		assert.Equal(s.T(), "https://some.osourl.io/api/accounts/test-oso-registration-app-user/subscriptions?authorization_username=test-oso-admin-user", req.URL.String())
+		assert.Equal(s.T(), "Bearer test-oso-admin-token", req.Header.Get("Authorization"))
+	}}
 	s.osoApp = login.NewOSORegistrationAppWithClient(s.client)
 	s.loginConfig = &dummyConfig{s.Config}
 }
@@ -103,18 +107,6 @@ func (s *TestOSORegistrationAppSuite) TestClientResponse() {
 	status, err = s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "some-test-status-for2", status)
-}
-
-type dummyOSOClient struct {
-	test.DummyHttpClient
-	suite *TestOSORegistrationAppSuite
-}
-
-func (c *dummyOSOClient) Do(req *http.Request) (*http.Response, error) {
-	require.Equal(c.suite.T(), "GET", req.Method)
-	require.Equal(c.suite.T(), "https://some.osourl.io/api/accounts/test-oso-registration-app-user/subscriptions?authorization_username=test-oso-admin-user", req.URL.String())
-	require.Equal(c.suite.T(), "Bearer test-oso-admin-token", req.Header.Get("Authorization"))
-	return c.Response, c.Error
 }
 
 type dummyConfig struct {

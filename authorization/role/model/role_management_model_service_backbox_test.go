@@ -8,7 +8,6 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 
@@ -27,7 +26,7 @@ import (
 type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	repo              rolescope.RoleManagementModelService
-	identityRoleRepo  identityrole.IdentityRoleRepository
+	identityRoleRepo  rolerepo.IdentityRoleRepository
 	roleRepo          rolerepo.RoleRepository
 	resourcetypeRepo  resourcetype.ResourceTypeRepository
 	resourceTypeScope scope.ResourceTypeScopeRepository
@@ -48,7 +47,7 @@ func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
-	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
+	s.identityRoleRepo = rolerepo.NewIdentityRoleRepository(s.DB)
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {
@@ -238,7 +237,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestListByResourceAndIdentity()
 		err := s.roleRepo.Create(s.Ctx, &newRole)
 		require.NoError(s.T(), err)
 
-		newIdentityRole := identityrole.IdentityRole{
+		newIdentityRole := rolerepo.IdentityRole{
 			IdentityRoleID: uuid.NewV4(),
 			Role:           newRole,
 			RoleID:         newRole.RoleID,
@@ -283,7 +282,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
 	require.Equal(t, testRole.RoleID, identityRoles[0].RoleID)
 }
 
-func validateIdentityRole(s *roleManagementModelServiceBlackboxTest, expected identityrole.IdentityRole, actual identityrole.IdentityRole) {
+func validateIdentityRole(s *roleManagementModelServiceBlackboxTest, expected rolerepo.IdentityRole, actual rolerepo.IdentityRole) {
 	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
 	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
 	require.Equal(s.T(), expected.RoleID, actual.RoleID)
