@@ -89,7 +89,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", &parentResourceRef.ResourceID)
 	require.NoError(s.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	var createdIdentityRoles []rolerepo.IdentityRole
@@ -143,7 +143,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesByRoleNameOK() {
 	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", nil)
 	require.NoError(s.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	roleRef2, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collabx")
@@ -224,7 +224,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRolesOfParentResource
 	resourceRef, err := testsupport.CreateTestResource(s.Ctx, s.DB, *areaResourceType, "AreaAuth", &parentResourceRef.ResourceID)
 	require.NoError(s.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	var createdIdentityRoles []rolerepo.IdentityRole
@@ -270,7 +270,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetMultipleIdentityRoleByResourc
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), resourceRefUnrelated)
 
-	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(s.Ctx, s.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	var createdIdentityRoles []rolerepo.IdentityRole

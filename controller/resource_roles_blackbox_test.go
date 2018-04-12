@@ -64,7 +64,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	resourceRefUnrelated, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceRUnrelated", nil)
 	require.NoError(rest.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
 	var createdIdentityRoles []role.IdentityRole
@@ -125,7 +125,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceH", &parentResourceRef.ResourceID)
 	require.NoError(rest.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
 	var createdIdentityRoles []role.IdentityRole
@@ -409,10 +409,10 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedO
 	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceH", &parentResourceRef.ResourceID)
 	require.NoError(rest.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
-	roleRefGroup2, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab-x")
+	roleRefGroup2, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
 	var createdIdentityRoles []role.IdentityRole
