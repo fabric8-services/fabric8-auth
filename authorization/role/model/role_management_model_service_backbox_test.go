@@ -319,7 +319,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
 	require.Equal(t, 1, len(identityRoles))
 	require.Equal(t, testR.ResourceID, identityRoles[0].ResourceID)
 	require.Equal(t, testRole.RoleID, identityRoles[0].RoleID)
-	//require.Equal(t, testIdentity.ID, identityRoles[0].IdentityID)
+	require.Equal(t, testIdentity.ID, identityRoles[0].IdentityID)
 }
 
 func validateIdentityRole(s *roleManagementModelServiceBlackboxTest, expected rolerepo.IdentityRole, actual rolerepo.IdentityRole) {

@@ -157,6 +157,7 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 			Identity: account.Identity{
 				ID: identityIDAsUUID,
 			},
+			IdentityID: identityIDAsUUID,
 			Resource: resource.Resource{
 				ResourceID:       resourceID,
 				ParentResourceID: parentResourceID,
