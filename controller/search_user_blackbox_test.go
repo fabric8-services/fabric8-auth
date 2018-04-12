@@ -287,13 +287,28 @@ func (s *TestSearchUserSearch) UnSecuredController() (*goa.Service, *SearchContr
 	return svc, ctrl
 }
 
+func (s *TestSearchUserSearch) UnsecuredControllerDeprovisionedUser() (*goa.Service, *SearchController) {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	svc := testsupport.ServiceAsUser("Search-Service", identity)
+	ctrl := NewSearchController(svc, s.Application, s.Configuration)
+	return svc, ctrl
+}
+
 func (s *TestSearchUserSearch) SecuredController() (*goa.Service, *SearchController) {
-	svc := testsupport.ServiceAsUser("Search-Service", testsupport.TestIdentity)
+	identity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
+	require.NoError(s.T(), err)
+	svc := testsupport.ServiceAsUser("Search-Service", identity)
 	ctrl := NewSearchController(svc, s.Application, s.Configuration)
 	return svc, ctrl
 }
 
 func (s *TestSearchUserSearch) TestSearchUnauthorized() {
 	_, ctrl := s.UnSecuredController()
+	test.UsersSearchUnauthorized(s.T(), ctrl.Context, ctrl.Service, ctrl, nil, nil, "a")
+}
+
+func (s *TestSearchUserSearch) TestSearchUnauthorizedForDeprovisionedUser() {
+	_, ctrl := s.UnsecuredControllerDeprovisionedUser()
 	test.UsersSearchUnauthorized(s.T(), ctrl.Context, ctrl.Service, ctrl, nil, nil, "a")
 }

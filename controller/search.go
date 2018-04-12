@@ -34,7 +34,7 @@ func NewSearchController(service *goa.Service, db application.DB, configuration 
 // Users runs the user search action.
 func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
-	_, err := login.ContextIdentity(ctx)
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
