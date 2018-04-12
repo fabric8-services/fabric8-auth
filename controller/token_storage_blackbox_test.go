@@ -316,6 +316,31 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (accou
 	return identity, expectedToken
 }
 
+func (rest *TestTokenStorageREST) TestRetrieveExternalTokenForDeprovisionedUserUnauthorized() {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestRetrieveExternalTokenForDeprovisionedUserUnauthorized"+uuid.NewV4().String())
+	require.Nil(rest.T(), err)
+
+	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
+
+	r := &goa.RequestData{
+		Request: &http.Request{Host: "api.example.org"},
+	}
+	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, "https://github.com/a/b")
+	require.Nil(rest.T(), err)
+
+	storedToken := provider.ExternalToken{
+		ProviderID: providerConfig.ID(),
+		Scope:      providerConfig.Scopes(),
+		IdentityID: identity.ID,
+		Token:      "1234-from-db",
+		Username:   "1234-from-dbtestuser",
+	}
+	rest.externalTokenRepository.Create(context.Background(), &storedToken)
+
+	test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+	test.StatusTokenUnauthorized(rest.T(), service.Context, service, controller, "https://github.com/a/b", nil)
+}
+
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenBadRequest() {
 	identity := testsupport.TestIdentity
 	service, controller := rest.SecuredControllerWithIdentity(identity)
