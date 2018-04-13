@@ -124,3 +124,7 @@ image::permission_has_scope_sql_3.png[]
 The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table's `parent_resource_id` to walk up the hierarchy. The resulting list of resource IDs is used to restrict the `resource_id` column.
 
 === Role criteria
+
+The third condition of the query is by far the most complex, and is used to 
+
+image::permission_has_scope_sql_4.png[]
