@@ -122,6 +122,14 @@ func (rest *TestCollaboratorsREST) UnSecuredController() (*goa.Service, *Collabo
 	return svc, NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
 }
 
+func (rest *TestCollaboratorsREST) UnSecuredControllerDeprovisionedUser() (*goa.Service, *CollaboratorsController) {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, uuid.NewV4().String())
+	require.NoError(rest.T(), err)
+
+	svc := testsupport.ServiceAsSpaceUser("Collaborators-Service", identity, &DummySpaceAuthzService{rest})
+	return svc, NewCollaboratorsController(svc, rest.Application, rest.Configuration, &DummyPolicyManager{rest: rest})
+}
+
 func (rest *TestCollaboratorsREST) TestListCollaboratorsWithRandomSpaceIDNotFound() {
 	// given
 	svc, ctrl := rest.UnSecuredController()
@@ -362,9 +370,24 @@ func (rest *TestCollaboratorsREST) TestAddCollaboratorsUnauthorizedIfNoToken() {
 	test.AddCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity2.ID.String())
 }
 
+func (rest *TestCollaboratorsREST) TestAddCollaboratorsUnauthorizedWithDeprovisionedUser() {
+	// given
+	svc, ctrl := rest.UnSecuredControllerDeprovisionedUser()
+	// when/then
+	test.AddCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity2.ID.String())
+}
+
 func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsUnauthorizedIfNoToken() {
 	// given
 	svc, ctrl := rest.UnSecuredController()
+	payload := &app.AddManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity2.ID.String(), Type: idnType}}}
+	// when/then
+	test.AddManyCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, payload)
+}
+
+func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsUnauthorizedWithDeprovisionedUser() {
+	// given
+	svc, ctrl := rest.UnSecuredControllerDeprovisionedUser()
 	payload := &app.AddManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity2.ID.String(), Type: idnType}}}
 	// when/then
 	test.AddManyCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, payload)
@@ -400,9 +423,24 @@ func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsUnauthorizedIfNoToken(
 	test.RemoveCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity2.ID.String())
 }
 
+func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsUnauthorizedDeprovisionedUser() {
+	// given
+	svc, ctrl := rest.UnSecuredControllerDeprovisionedUser()
+	// when/then
+	test.RemoveCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity2.ID.String())
+}
+
 func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsUnauthorizedIfNoToken() {
 	// given
 	svc, ctrl := rest.UnSecuredController()
+	payload := &app.RemoveManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity2.ID.String(), Type: idnType}}}
+	// when/then
+	test.RemoveManyCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, payload)
+}
+
+func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsUnauthorizedDeprovisionedUser() {
+	// given
+	svc, ctrl := rest.UnSecuredControllerDeprovisionedUser()
 	payload := &app.RemoveManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity2.ID.String(), Type: idnType}}}
 	// when/then
 	test.RemoveManyCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, rest.spaceID, payload)
