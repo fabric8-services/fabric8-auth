@@ -60,7 +60,7 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		searchLimit = c.configuration.GetMaxUsersListLimit() - offset
 	}
 
-	if r.MatchString(q) && len(q) > 0 { // 2 or more characters
+	if r.MatchString(q) && len(q) > 1 { // 2 or more characters
 		err = application.Transactional(c.db, func(appl application.Application) error {
 			result, count, err = appl.Identities().Search(ctx, q, offset, searchLimit)
 			return err
