@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
 
 	"github.com/goadesign/goa"
 )
@@ -33,6 +34,11 @@ func NewSearchController(service *goa.Service, db application.DB, configuration 
 // Users runs the user search action.
 func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	}
+
 	q := ctx.Q
 	if len(q) == 0 {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("", "search query should be longer"))
@@ -40,7 +46,6 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
 	var result []account.Identity
 	var count int
-	var err error
 
 	exceeded := false
 	offset, limit := computePagingLimits(ctx.PageOffset, ctx.PageLimit)
@@ -55,7 +60,7 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		searchLimit = c.configuration.GetMaxUsersListLimit() - offset
 	}
 
-	if r.MatchString(q) {
+	if r.MatchString(q) && len(q) > 1 { // 2 or more characters
 		err = application.Transactional(c.db, func(appl application.Application) error {
 			result, count, err = appl.Identities().Search(ctx, q, offset, searchLimit)
 			return err
@@ -88,7 +93,6 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		}
 
 		users = append(users, &app.UserData{
-			// FIXME : should be "users" in the long term
 			Type: "identities",
 			ID:   &id,
 			Attributes: &app.UserDataAttributes{
