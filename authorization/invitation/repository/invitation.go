@@ -29,8 +29,8 @@ type Invitation struct {
 	// or, the Resource ID to which the user is being invited to accept a role
 	ResourceID *string `sql:"type:string" gorm:"column:resource_id"`
 
-	User   account.Identity `gorm:"ForeignKey:UserID;AssociationForeignKey:ID"`
-	UserID uuid.UUID
+	Identity   account.Identity `gorm:"ForeignKey:IdentityID;AssociationForeignKey:ID"`
+	IdentityID uuid.UUID
 
 	Member bool
 }

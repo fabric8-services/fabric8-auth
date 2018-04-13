@@ -2,7 +2,7 @@ CREATE TABLE invitation (
   invitation_id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   invite_to uuid NULL REFERENCES identities (id),
   resource_id varchar NULL REFERENCES resource (resource_id),
-  user_id uuid NOT NULL REFERENCES identities (id),
+  identity_id uuid NOT NULL REFERENCES identities (id),
   member boolean NOT NULL,
   created_at timestamp with time zone,
   updated_at timestamp with time zone,
