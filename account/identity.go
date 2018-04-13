@@ -365,7 +365,7 @@ func (m *GormIdentityRepository) IsValid(ctx context.Context, id uuid.UUID) bool
 // Search searches for Identities where FullName like %q% or users.email like %q% (but ignores private emails)
 // or users.username like %q%
 func (m *GormIdentityRepository) Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error) {
-	paramVal := strings.ToLower(q)
+	paramVal := strings.ToLower(q) + "%"
 	db := m.db
 
 	queryStr := `SELECT count(*) OVER () as cnt2, identity_id, username, users.* FROM (SELECT 
@@ -376,8 +376,9 @@ FROM
   identities, users
 WHERE 
   identities.user_id = users.id 
-  AND identities.username LIKE '%` + paramVal + `%'
+  AND identities.username LIKE ?
   AND users.deprovisioned IS false
+  AND users.deleted_at IS null
 UNION SELECT
   identities.id AS identity_id,
   identities.username,
@@ -387,10 +388,10 @@ FROM
 WHERE  
   identities.user_id = users.id 
   AND users.deprovisioned IS false 
-  AND (LOWER(users.full_name) LIKE '%` + paramVal + `%'
-  OR (LOWER(users.email) LIKE '%` + paramVal + `%' AND users.email_private is false))) users LIMIT ` + strconv.Itoa(limit)
+  AND (LOWER(users.full_name) LIKE ?
+  OR (LOWER(users.email) LIKE ? AND users.email_private is false))) users LIMIT ?`
 
-	rows, err := db.Raw(queryStr).Rows()
+	rows, err := db.Raw(queryStr, paramVal, paramVal, paramVal, strconv.Itoa(limit)).Rows()
 
 	if err != nil {
 		return nil, 0, err

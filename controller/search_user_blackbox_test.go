@@ -58,15 +58,18 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 	defer s.cleanTestData(idents)
 
 	tests := []okScenarioUserSearchTest{
+		{"With sanitized params", userSearchTestArgs{s.offset(0), s.limit(10), "x_test'"}, userSearchTestExpects{s.totalCount(0)}},
 		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "."}, userSearchTestExpects{s.totalCount(0)}},
 		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), ".@"}, userSearchTestExpects{s.totalCount(0)}},
-		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "a@"}, userSearchTestExpects{s.totalCountAtLeast(1)}},
-		{"With lowercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_ab"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
-		{"With uppercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
+		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "a@"}, userSearchTestExpects{s.totalCountAtLeast(0)}},
+		{"Too short", userSearchTestArgs{s.offset(0), s.limit(10), "x"}, userSearchTestExpects{s.totalCountAtLeast(0)}},
+		{"Two characters are OK", userSearchTestArgs{s.offset(0), s.limit(10), "x_"}, userSearchTestExpects{s.totalCountAtLeast(0)}},
+		{"With lowercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_ab"}, userSearchTestExpects{s.totalCountAtLeast(2)}},
+		{"With uppercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(2)}},
 		{"With uppercase email query", userSearchTestArgs{s.offset(0), s.limit(10), "EMAIL_X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(1)}},
 		{"With lowercase email query", userSearchTestArgs{s.offset(0), s.limit(10), "email_x_test_ab"}, userSearchTestExpects{s.totalCountAtLeast(1)}},
-		{"With username query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_c"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
-		{"with special chars", userSearchTestArgs{s.offset(0), s.limit(10), "&:\n!#%?*"}, userSearchTestExpects{s.totalCount(0)}},
+		{"With username query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_c"}, userSearchTestExpects{s.totalCountAtLeast(2)}},
+		{"with special chars", userSearchTestArgs{s.offset(0), s.limit(10), "a'\"&:\n!#%?*"}, userSearchTestExpects{s.totalCount(0)}},
 		{"with multi page", userSearchTestArgs{s.offset(0), s.limit(10), "TEST"}, userSearchTestExpects{s.hasLinks("Next")}},
 		{"with last page", userSearchTestArgs{s.offset(len(idents) - 1), s.limit(10), "TEST"}, userSearchTestExpects{s.hasNoLinks("Next"), s.hasLinks("Prev")}},
 		{"with different values", userSearchTestArgs{s.offset(0), s.limit(10), "TEST"}, userSearchTestExpects{s.differentValues(s.createDifferentTestData())}},
