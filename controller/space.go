@@ -46,7 +46,7 @@ func NewSpaceController(service *goa.Service, db application.DB, config SpaceCon
 func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 	currentUserRef, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	currentUser := &currentUserRef.ID
@@ -91,7 +91,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 	currentUserRef, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	currentUser := &currentUserRef.ID
 
