@@ -37,6 +37,9 @@ func (rest *TestSpaceREST) SetupTest() {
 }
 
 func (rest *TestSpaceREST) SecuredController(identity account.Identity) (*goa.Service, *SpaceController) {
+	identity, err := testsupport.CreateTestIdentityAndUser(rest.DB, uuid.NewV4().String(), "KC")
+	require.NoError(rest.T(), err)
+
 	svc := testsupport.ServiceAsUser("Space-Service", identity)
 	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
 		ResourceID:   &rest.resourceID,
@@ -54,9 +57,28 @@ func (rest *TestSpaceREST) UnSecuredController() (*goa.Service, *SpaceController
 	})
 }
 
+func (rest *TestSpaceREST) UnSecuredControllerWithDeprovisionedIdentity() (*goa.Service, *SpaceController) {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, uuid.NewV4().String())
+	require.NoError(rest.T(), err)
+
+	svc := testsupport.ServiceAsUser("Space-Service", identity)
+	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
+		ResourceID:   &rest.resourceID,
+		PermissionID: &rest.permissionID,
+		PolicyID:     &rest.policyID,
+	})
+}
+
 func (rest *TestSpaceREST) TestFailCreateSpaceUnauthorized() {
 	// given
 	svc, ctrl := rest.UnSecuredController()
+	// when/then
+	test.CreateSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
+}
+
+func (rest *TestSpaceREST) TestCreateSpaceUnauthorizedDeprovisionedUser() {
+	// given
+	svc, ctrl := rest.UnSecuredControllerWithDeprovisionedIdentity()
 	// when/then
 	test.CreateSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }
@@ -76,6 +98,13 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 func (rest *TestSpaceREST) TestFailDeleteSpaceUnauthorized() {
 	// given
 	svc, ctrl := rest.UnSecuredController()
+	// when/then
+	test.DeleteSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
+}
+
+func (rest *TestSpaceREST) TestDeleteSpaceUnauthorizedDeprovisionedUser() {
+	// given
+	svc, ctrl := rest.UnSecuredControllerWithDeprovisionedIdentity()
 	// when/then
 	test.DeleteSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }
