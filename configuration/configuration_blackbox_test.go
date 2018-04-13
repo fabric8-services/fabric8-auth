@@ -515,11 +515,6 @@ func checkExpiresIn(t *testing.T, envVarName, expectedErrorMessage string) {
 	assert.NotContains(t, config.DefaultConfigurationError().Error(), expectedErrorMessage)
 }
 
-func TestIsTLSInsecureSkipVerifySetToFalse(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	require.False(t, config.IsTLSInsecureSkipVerify())
-}
-
 func generateEnvKey(yamlKey string) string {
 	return "AUTH_" + strings.ToUpper(strings.Replace(yamlKey, ".", "_", -1))
 }

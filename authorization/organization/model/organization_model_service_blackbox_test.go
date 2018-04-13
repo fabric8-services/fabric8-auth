@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/organization"
 	organizationModelService "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
@@ -20,7 +20,7 @@ import (
 type organizationModelServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	identityRepo     account.IdentityRepository
-	identityRoleRepo identityrole.IdentityRoleRepository
+	identityRoleRepo role.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
 	orgModelService  organizationModelService.OrganizationModelService
 }
@@ -32,7 +32,7 @@ func TestRunOrganizationModelServiceBlackBoxTest(t *testing.T) {
 func (s *organizationModelServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
+	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 
 	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB, s.Application)

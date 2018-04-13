@@ -24,6 +24,9 @@ objects:
     sentry.dsn: c2VjcmV0
     oso.client.apiurl: aHR0cHM6Ly9hcGkuY29uc29sZS5zdGFydGVyLXVzLWVhc3QtMi5vcGVuc2hpZnQuY29t
     tenantsvc.url: aHR0cDovL2Y4dGVuYW50Ojgw
+    oso.regapp.admin.username: Cg==
+    oso.regapp.admin.token: Cg==
+    oso.regapp.url: Cg==
 - apiVersion: v1
   kind: Secret
   metadata:

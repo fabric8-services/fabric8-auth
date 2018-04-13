@@ -6,7 +6,6 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
@@ -23,7 +22,7 @@ type Application interface {
 	ResourceRepository() resource.ResourceRepository
 	ResourceTypeRepository() resourcetype.ResourceTypeRepository
 	ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository
-	IdentityRoleRepository() identityrole.IdentityRoleRepository
+	IdentityRoleRepository() role.IdentityRoleRepository
 	RoleRepository() role.RoleRepository
 }
 

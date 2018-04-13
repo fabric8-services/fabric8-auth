@@ -15,17 +15,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	logintokencontext "github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/token/jwk"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
@@ -54,10 +54,6 @@ type configuration interface {
 	IsPostgresDeveloperModeEnabled() bool
 	GetAccessTokenExpiresIn() int64
 	GetRefreshTokenExpiresIn() int64
-}
-
-type JsonKeys struct {
-	Keys []interface{} `json:"keys"`
 }
 
 // TokenClaims represents access token claims
@@ -99,35 +95,24 @@ type Manager interface {
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
-	JsonWebKeys() JsonKeys
-	PemKeys() JsonKeys
+	JSONWebKeys() jwk.JSONKeys
+	PemKeys() jwk.JSONKeys
 	AuthServiceAccountToken(req *goa.RequestData) (string, error)
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error)
-	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error)
+	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*oauth2.Token, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 }
 
-// PrivateKey represents an RSA private key with a Key ID
-type PrivateKey struct {
-	KeyID string
-	Key   *rsa.PrivateKey
-}
-
-type PublicKey struct {
-	KeyID string
-	Key   *rsa.PublicKey
-}
-
 type tokenManager struct {
 	publicKeysMap            map[string]*rsa.PublicKey
-	publicKeys               []*PublicKey
-	serviceAccountPrivateKey *PrivateKey
-	userAccountPrivateKey    *PrivateKey
-	jsonWebKeys              JsonKeys
-	pemKeys                  JsonKeys
+	publicKeys               []*jwk.PublicKey
+	serviceAccountPrivateKey *jwk.PrivateKey
+	userAccountPrivateKey    *jwk.PrivateKey
+	jsonWebKeys              jwk.JSONKeys
+	pemKeys                  jwk.JSONKeys
 	serviceAccountToken      string
 	serviceAccountLock       sync.RWMutex
 	config                   configuration
@@ -169,20 +154,20 @@ func NewManager(config configuration) (Manager, error) {
 			return nil, err
 		}
 		tm.publicKeysMap[kid] = rsaKey
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: rsaKey})
+		tm.publicKeys = append(tm.publicKeys, &jwk.PublicKey{KeyID: kid, Key: rsaKey})
 		log.Info(nil, map[string]interface{}{"kid": kid}, "dev mode public key added")
 	}
 
 	// Convert public keys to JWK format
-	jsonKeys, err := toJsonWebKeys(tm.publicKeys)
+	jsonWebKeys, err := toJSONWebKeys(tm.publicKeys)
 	if err != nil {
 		log.Error(nil, map[string]interface{}{"err": err}, "unable to convert public keys to JSON Web Keys")
 		return nil, errors.New("unable to convert public keys to JSON Web Keys")
 	}
-	tm.jsonWebKeys = jsonKeys
+	tm.jsonWebKeys = jsonWebKeys
 
 	// Convert public keys to PEM format
-	jsonKeys, err = toPemKeys(tm.publicKeys)
+	jsonKeys, err := toPemKeys(tm.publicKeys)
 	if err != nil {
 		log.Error(nil, map[string]interface{}{"err": err}, "unable to convert public keys to PEM Keys")
 		return nil, errors.New("unable to convert public keys to PEM Keys")
@@ -195,7 +180,7 @@ func NewManager(config configuration) (Manager, error) {
 // LoadPrivateKey loads a private key and a deprecated private key.
 // Extracts public keys from them and adds them to the manager
 // Returns the loaded private key.
-func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*PrivateKey, error) {
+func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*jwk.PrivateKey, error) {
 	if len(key) == 0 || kid == "" {
 		log.Error(nil, map[string]interface{}{
 			"kid":        kid,
@@ -210,10 +195,10 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 		log.Error(nil, map[string]interface{}{"err": err}, "unable to parse private key")
 		return nil, err
 	}
-	privateKey := &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
+	privateKey := &jwk.PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
 	pk := &rsaServiceAccountKey.PublicKey
 	tm.publicKeysMap[kid] = pk
-	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
+	tm.publicKeys = append(tm.publicKeys, &jwk.PublicKey{KeyID: kid, Key: pk})
 	log.Info(nil, map[string]interface{}{"kid": kid}, "public key added")
 
 	// Extract public key from the deprecated key if any and add it to the manager
@@ -230,77 +215,10 @@ func LoadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []by
 		}
 		pk := &rsaServiceAccountKey.PublicKey
 		tm.publicKeysMap[deprecatedKid] = pk
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: deprecatedKid, Key: pk})
+		tm.publicKeys = append(tm.publicKeys, &jwk.PublicKey{KeyID: deprecatedKid, Key: pk})
 		log.Info(nil, map[string]interface{}{"kid": deprecatedKid}, "deprecated public key added")
 	}
 	return privateKey, nil
-}
-
-// FetchKeys fetches public JSON WEB Keys from a remote service
-func FetchKeys(keysEndpointURL string) ([]*PublicKey, error) {
-	req, err := http.NewRequest("GET", keysEndpointURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer rest.CloseResponse(res)
-	bodyString := rest.ReadBody(res.Body)
-	if res.StatusCode != http.StatusOK {
-		log.Error(nil, map[string]interface{}{
-			"response_status": res.Status,
-			"response_body":   bodyString,
-			"url":             keysEndpointURL,
-		}, "unable to obtain public keys from remote service")
-		return nil, errors.Errorf("unable to obtain public keys from remote service")
-	}
-	keys, err := unmarshalKeys([]byte(bodyString))
-	if err != nil {
-		return nil, err
-	}
-
-	log.Info(nil, map[string]interface{}{
-		"url":            keysEndpointURL,
-		"number_of_keys": len(keys),
-	}, "Public keys loaded")
-	return keys, nil
-}
-
-func unmarshalKeys(jsonData []byte) ([]*PublicKey, error) {
-	var keys []*PublicKey
-	var raw JsonKeys
-	err := json.Unmarshal(jsonData, &raw)
-	if err != nil {
-		return nil, err
-	}
-	for _, key := range raw.Keys {
-		jsonKeyData, err := json.Marshal(key)
-		if err != nil {
-			return nil, err
-		}
-		publicKey, err := unmarshalKey(jsonKeyData)
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, publicKey)
-	}
-	return keys, nil
-}
-
-func unmarshalKey(jsonData []byte) (*PublicKey, error) {
-	var key *jose.JSONWebKey
-	key = &jose.JSONWebKey{}
-	err := key.UnmarshalJSON(jsonData)
-	if err != nil {
-		return nil, err
-	}
-	rsaKey, ok := key.Key.(*rsa.PublicKey)
-	if !ok {
-		return nil, errors.New("Key is not an *rsa.PublicKey")
-	}
-	return &PublicKey{key.KeyID, rsaKey}, nil
 }
 
 func toPem(key *rsa.PublicKey) (string, error) {
@@ -311,45 +229,45 @@ func toPem(key *rsa.PublicKey) (string, error) {
 	return base64.StdEncoding.EncodeToString(pubASN1), nil
 }
 
-func toJsonWebKeys(publicKeys []*PublicKey) (JsonKeys, error) {
-	var keys []interface{}
+func toJSONWebKeys(publicKeys []*jwk.PublicKey) (jwk.JSONKeys, error) {
+	var result []interface{}
 	for _, key := range publicKeys {
-		jwk := jose.JSONWebKey{Key: key.Key, KeyID: key.KeyID, Algorithm: "RS256", Use: "sig"}
-		keyData, err := jwk.MarshalJSON()
+		jwkey := jose.JSONWebKey{Key: key.Key, KeyID: key.KeyID, Algorithm: "RS256", Use: "sig"}
+		keyData, err := jwkey.MarshalJSON()
 		if err != nil {
-			return JsonKeys{}, err
+			return jwk.JSONKeys{}, err
 		}
 		var raw interface{}
 		err = json.Unmarshal(keyData, &raw)
 		if err != nil {
-			return JsonKeys{}, err
+			return jwk.JSONKeys{}, err
 		}
-		keys = append(keys, raw)
+		result = append(result, raw)
 	}
-	return JsonKeys{Keys: keys}, nil
+	return jwk.JSONKeys{Keys: result}, nil
 }
 
-// JsonWebKeys returns all the public keys in JSON Web Keys format
-func (mgm *tokenManager) JsonWebKeys() JsonKeys {
+// JSONWebKeys returns all the public keys in JSON Web Keys format
+func (mgm *tokenManager) JSONWebKeys() jwk.JSONKeys {
 	return mgm.jsonWebKeys
 }
 
 // PemKeys returns all the public keys in PEM-like format (PEM without header and footer)
-func (mgm *tokenManager) PemKeys() JsonKeys {
+func (mgm *tokenManager) PemKeys() jwk.JSONKeys {
 	return mgm.pemKeys
 }
 
-func toPemKeys(publicKeys []*PublicKey) (JsonKeys, error) {
+func toPemKeys(publicKeys []*jwk.PublicKey) (jwk.JSONKeys, error) {
 	var pemKeys []interface{}
 	for _, key := range publicKeys {
 		keyData, err := toPem(key.Key)
 		if err != nil {
-			return JsonKeys{}, err
+			return jwk.JSONKeys{}, err
 		}
 		rawPemKey := map[string]interface{}{"kid": key.KeyID, "key": keyData}
 		pemKeys = append(pemKeys, rawPemKey)
 	}
-	return JsonKeys{Keys: pemKeys}, nil
+	return jwk.JSONKeys{Keys: pemKeys}, nil
 }
 
 // ParseToken parses token claims
@@ -525,7 +443,7 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 }
 
 // GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
-func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error) {
+func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*oauth2.Token, error) {
 	nowTime := time.Now().Unix()
 	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
 	if err != nil {
@@ -535,7 +453,7 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity)
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity, offlineToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -699,6 +617,10 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 		return nil, errors.New("missing request in context")
 	}
 
+	typ := "Refresh"
+	if kcClaims.ExpiresAt == 0 {
+		typ = "Offline"
+	}
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
 	claims["exp"] = kcClaims.ExpiresAt
@@ -706,7 +628,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 	claims["iat"] = kcClaims.IssuedAt
 	claims["iss"] = kcClaims.Issuer
 	claims["aud"] = kcClaims.Audience
-	claims["typ"] = "Refresh"
+	claims["typ"] = typ
 	claims["auth_time"] = 0
 
 	if identity != nil {
@@ -722,7 +644,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 }
 
 // GenerateUnsignedUserRefreshTokenForIdentity generates an unsigned OAuth2 user refresh token for the given identity
-func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity account.Identity) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
@@ -740,13 +662,18 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
 	iat := time.Now().Unix()
-	exp := iat + mgm.config.GetRefreshTokenExpiresIn()
+	var exp int64 // Offline tokens do not expire
+	typ := "Offline"
+	if !offlineToken {
+		exp = iat + mgm.config.GetRefreshTokenExpiresIn()
+		typ = "Refresh"
+	}
 	claims["exp"] = exp
 	claims["nbf"] = 0
 	claims["iat"] = iat
 	claims["iss"] = authOpenshiftIO
 	claims["aud"] = openshiftIO
-	claims["typ"] = "Refresh"
+	claims["typ"] = typ
 	claims["auth_time"] = 0
 	claims["sub"] = identity.ID.String()
 
@@ -894,7 +821,7 @@ func CheckClaims(claims *TokenClaims) error {
 
 // ReadManagerFromContext extracts the token manager
 func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
-	tm := logintokencontext.ReadTokenManagerFromContext(ctx)
+	tm := tokencontext.ReadTokenManagerFromContext(ctx)
 	if tm == nil {
 		log.Error(ctx, map[string]interface{}{
 			"token": tm,

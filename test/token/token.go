@@ -8,8 +8,12 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
+
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -17,9 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 )
 
 var config = configurationData()
@@ -128,7 +129,7 @@ func GenerateRefreshTokenWithClaims(claims map[string]interface{}) (string, erro
 	return GenerateTokenWithClaims(claims)
 }
 
-func GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity) (*oauth2.Token, error) {
+func GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*oauth2.Token, error) {
 	rw := httptest.NewRecorder()
 	u := &url.URL{Host: "auth.openshift.io"}
 	req, err := http.NewRequest("GET", u.String(), nil)
@@ -136,7 +137,7 @@ func GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity
 		return nil, err
 	}
 	goaCtx := goa.NewContext(ctx, rw, req, url.Values{})
-	return TokenManager.GenerateUserTokenForIdentity(goaCtx, identity)
+	return TokenManager.GenerateUserTokenForIdentity(goaCtx, identity, offlineToken)
 }
 
 // UpdateToken generates a new token based on the existing one with additional claims
@@ -188,6 +189,10 @@ func ContextWithRequest(ctx context.Context) context.Context {
 		panic("invalid test " + err.Error()) // bug
 	}
 	return goa.NewContext(goa.WithAction(ctx, "Test"), rw, req, url.Values{})
+}
+
+func ContextWithTokenManager() context.Context {
+	return tokencontext.ContextWithTokenManager(context.Background(), TokenManager)
 }
 
 func configurationData() *configuration.ConfigurationData {
