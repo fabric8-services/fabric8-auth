@@ -3,7 +3,6 @@ package controller_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -36,7 +35,7 @@ func (rest *TestSpaceREST) SetupTest() {
 	rest.policyID = uuid.NewV4().String()
 }
 
-func (rest *TestSpaceREST) SecuredController(identity account.Identity) (*goa.Service, *SpaceController) {
+func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController) {
 	identity, err := testsupport.CreateTestIdentityAndUser(rest.DB, uuid.NewV4().String(), "KC")
 	require.NoError(rest.T(), err)
 
@@ -85,7 +84,7 @@ func (rest *TestSpaceREST) TestCreateSpaceUnauthorizedDeprovisionedUser() {
 
 func (rest *TestSpaceREST) TestCreateSpaceOK() {
 	// given
-	svc, ctrl := rest.SecuredController(testsupport.TestIdentity)
+	svc, ctrl := rest.SecuredController()
 	// when
 	_, created := test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 	// then
@@ -111,7 +110,7 @@ func (rest *TestSpaceREST) TestDeleteSpaceUnauthorizedDeprovisionedUser() {
 
 func (rest *TestSpaceREST) TestDeleteSpaceOK() {
 	// given
-	svc, ctrl := rest.SecuredController(testsupport.TestIdentity)
+	svc, ctrl := rest.SecuredController()
 	id := uuid.NewV4()
 	// when
 	test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
@@ -121,8 +120,8 @@ func (rest *TestSpaceREST) TestDeleteSpaceOK() {
 
 func (rest *TestSpaceREST) TestDeleteSpaceIfUserIsNotSpaceOwnerForbidden() {
 	// given
-	svcOwner, ctrlOwner := rest.SecuredController(testsupport.TestIdentity)
-	svcNotOwner, ctrlNotOwner := rest.SecuredController(testsupport.TestIdentity2)
+	svcOwner, ctrlOwner := rest.SecuredController()
+	svcNotOwner, ctrlNotOwner := rest.SecuredController()
 	id := uuid.NewV4()
 	// when
 	test.CreateSpaceOK(rest.T(), svcOwner.Context, svcOwner, ctrlOwner, id)

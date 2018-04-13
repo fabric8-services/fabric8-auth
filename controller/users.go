@@ -480,8 +480,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	id := &loggedInIdentity.ID
-
 	keycloakUserProfile := &login.KeycloakUserProfile{}
 	keycloakUserProfile.Attributes = &login.KeycloakUserProfileAttributes{}
 
@@ -495,9 +493,9 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	var user *account.User
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
-		identity, err = appl.Identities().Load(ctx, *id)
+		identity, err = appl.Identities().Load(ctx, loggedInIdentity.ID)
 		if err != nil {
-			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", *id))
+			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", loggedInIdentity.ID))
 		}
 
 		if identity.UserID.Valid {
@@ -539,7 +537,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 				return errs.Wrap(errors.NewBadParameterError("username", "required"), fmt.Sprintf("invalid value assigned to username for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if identity.RegistrationCompleted {
-				return errors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id))
+				return errors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", loggedInIdentity.ID))
 			}
 			isUnique, err := isUsernameUnique(ctx, appl, *updatedUserName, *identity)
 			if err != nil {
@@ -659,7 +657,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"identity_id": id.String(),
+			"identity_id": loggedInIdentity.ID.String(),
 			"err":         err,
 		}, "failed to update user/identity")
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -669,7 +667,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *identity)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
-				"identity_id": id.String(),
+				"identity_id": loggedInIdentity.ID.String(),
 				"err":         err,
 				"username":    identity.Username,
 				"email":       user.Email,
