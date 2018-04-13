@@ -60,7 +60,7 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		searchLimit = c.configuration.GetMaxUsersListLimit() - offset
 	}
 
-	if r.MatchString(q) {
+	if r.MatchString(q) && len(q) > 0 { // 2 or more characters
 		err = application.Transactional(c.db, func(appl application.Application) error {
 			result, count, err = appl.Identities().Search(ctx, q, offset, searchLimit)
 			return err
@@ -93,7 +93,6 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		}
 
 		users = append(users, &app.UserData{
-			// FIXME : should be "users" in the long term
 			Type: "identities",
 			ID:   &id,
 			Attributes: &app.UserDataAttributes{
