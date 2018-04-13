@@ -109,7 +109,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserEmail() {
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
-	require.Equal(s.T(), invitee.ID, invs[0].UserID)
+	require.Equal(s.T(), invitee.ID, invs[0].IdentityID)
 	require.True(s.T(), invs[0].Member)
 }
 
@@ -140,7 +140,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserName() {
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
-	require.Equal(s.T(), invitee.ID, invs[0].UserID)
+	require.Equal(s.T(), invitee.ID, invs[0].IdentityID)
 	require.True(s.T(), invs[0].Member)
 }
 
@@ -197,7 +197,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	found := false
 
 	for _, inv := range invs {
-		if inv.UserID == invitee.ID {
+		if inv.IdentityID == invitee.ID {
 			found = true
 			require.True(s.T(), inv.Member)
 		}
@@ -207,7 +207,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueMultipleInvitations() {
 
 	found = false
 	for _, inv := range invs {
-		if inv.UserID == invitee2.ID {
+		if inv.IdentityID == invitee2.ID {
 			found = true
 			require.True(s.T(), inv.Member)
 		}

@@ -113,7 +113,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration23", testMigration23)
 	t.Run("TestMigration25ValidHits", testMigration25ValidHits)
 	t.Run("TestMigration25ValidMiss", testMigration25ValidMiss)
-	t.Run("TestMigration26", testMigration26)
+	t.Run("TestMigration27", testMigration27)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -301,8 +301,8 @@ func testMigration25ValidMiss(t *testing.T) {
 
 }
 
-func testMigration26(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(27)], (27))
+func testMigration27(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(28)], (28))
 
 	// Confirm that the invite_user scope was added
 	rows, err := sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope rts, resource_type rt WHERE rts.resource_type_id = rt.resource_type_id AND rt.name = 'identity/organization' AND rts.name = 'invite_user'")
@@ -332,19 +332,19 @@ func testMigration26(t *testing.T) {
 	require.Nil(t, runSQLscript(sqlDB, "026-insert-test-invitation-data.sql"))
 
 	// Confirm that we can create an invitation for an organization
-	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, invite_to, user_id, member) VALUES (uuid_generate_v4(), 'c62d77b2-194c-47d0-8bbf-b1308576876d', 'd9161547-5263-4c83-a729-e39ff088978e', true)")
+	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, invite_to, identity_id, member) VALUES (uuid_generate_v4(), 'c62d77b2-194c-47d0-8bbf-b1308576876d', 'd9161547-5263-4c83-a729-e39ff088978e', true)")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Confirm that we can create an invitation for a resource
-	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, resource_id, user_id, member) VALUES (uuid_generate_v4(), 'c6a2ee2e-7ec6-4c04-ae7e-5ff8c36b28b9', 'd9161547-5263-4c83-a729-e39ff088978e', false)")
+	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, resource_id, identity_id, member) VALUES (uuid_generate_v4(), 'c6a2ee2e-7ec6-4c04-ae7e-5ff8c36b28b9', 'd9161547-5263-4c83-a729-e39ff088978e', false)")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Confirm that we get a check constraint violation if we try to provide both invite_to and resource_id values
-	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, invite_to, resource_id, user_id, member) VALUES (uuid_generate_v4(), 'c62d77b2-194c-47d0-8bbf-b1308576876d', 'c6a2ee2e-7ec6-4c04-ae7e-5ff8c36b28b9', 'd9161547-5263-4c83-a729-e39ff088978e', false)")
+	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, invite_to, resource_id, identity_id, member) VALUES (uuid_generate_v4(), 'c62d77b2-194c-47d0-8bbf-b1308576876d', 'c6a2ee2e-7ec6-4c04-ae7e-5ff8c36b28b9', 'd9161547-5263-4c83-a729-e39ff088978e', false)")
 	require.NotNil(t, err)
 
 	// Cleanup the test data

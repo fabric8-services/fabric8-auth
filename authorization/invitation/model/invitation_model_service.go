@@ -176,7 +176,7 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 	// Create the invitation records
 	for _, invitation := range invitations {
 		inv := new(invRepo.Invitation)
-		inv.UserID = *invitation.IdentityID
+		inv.IdentityID = *invitation.IdentityID
 
 		if inviteToIdentity != nil {
 			inv.InviteTo = &inviteToIdentity.ID

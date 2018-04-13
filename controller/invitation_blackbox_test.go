@@ -90,7 +90,7 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 	// We should have 1 invitation
 	require.Equal(s.T(), 1, len(invitations))
 
-	require.Equal(s.T(), invitee.ID, invitations[0].UserID)
+	require.Equal(s.T(), invitee.ID, invitations[0].IdentityID)
 	require.True(s.T(), invitations[0].Member)
 }
 
@@ -127,7 +127,7 @@ func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 	// We should have 1 invitation
 	require.Equal(s.T(), 1, len(invitations))
 
-	require.Equal(s.T(), invitee.ID, invitations[0].UserID)
+	require.Equal(s.T(), invitee.ID, invitations[0].IdentityID)
 	require.False(s.T(), invitations[0].Member)
 
 	roles, err := s.invRepo.ListRoles(s.Ctx, invitations[0].InvitationID)

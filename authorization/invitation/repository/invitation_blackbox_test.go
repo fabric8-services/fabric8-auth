@@ -121,9 +121,9 @@ func (s *invitationBlackBoxTest) CreateTestInvitation() (invitationRepo.Invitati
 	}
 
 	invitation = invitationRepo.Invitation{
-		InviteTo: &orgIdentity.ID,
-		UserID:   userIdentity.ID,
-		Member:   false,
+		InviteTo:   &orgIdentity.ID,
+		IdentityID: userIdentity.ID,
+		Member:     false,
 	}
 
 	err = s.repo.Create(s.Ctx, &invitation)
