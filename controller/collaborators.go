@@ -11,6 +11,7 @@ import (
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 
@@ -114,8 +115,13 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 
 // Add user's identity to the list of space collaborators.
 func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	identityIDs := []*app.UpdateUserID{{ID: ctx.IdentityID}}
-	err := c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, identityIDs, c.policyManager.AddUserToPolicy)
+	err = c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, identityIDs, c.policyManager.AddUserToPolicy)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -124,6 +130,11 @@ func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 
 // AddMany adds user's identities to the list of space collaborators.
 func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) error {
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	if ctx.Payload != nil && ctx.Payload.Data != nil {
 		err := c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, ctx.Payload.Data, c.policyManager.AddUserToPolicy)
 		if err != nil {
@@ -135,8 +146,13 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 
 // Remove user from the list of space collaborators.
 func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) error {
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	identityIDs := []*app.UpdateUserID{{ID: ctx.IdentityID}}
-	err := c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, identityIDs, c.policyManager.RemoveUserFromPolicy)
+	err = c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, identityIDs, c.policyManager.RemoveUserFromPolicy)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -145,8 +161,13 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 
 // RemoveMany removes users from the list of space collaborators.
 func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsContext) error {
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	if ctx.Payload != nil && ctx.Payload.Data != nil {
-		err := c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, ctx.Payload.Data, c.policyManager.RemoveUserFromPolicy)
+		err = c.updatePolicy(ctx, ctx.RequestData, ctx.SpaceID, ctx.Payload.Data, c.policyManager.RemoveUserFromPolicy)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
@@ -181,7 +202,6 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 				}, "unable to convert the identity ID to uuid v4")
 				return goa.ErrBadRequest(err.Error())
 			}
-			var identity *account.Identity
 			var ownerID uuid.UUID
 			err = application.Transactional(c.db, func(appl application.Application) error {
 				identities, err := appl.Identities().Query(account.IdentityFilterByID(identityUUID), account.IdentityWithUser())
@@ -198,7 +218,6 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 					}, "unable to find the identity")
 					return autherrors.NewNotFoundError("identity", identityID)
 				}
-				identity = &identities[0]
 				resource, err := appl.SpaceResources().LoadBySpace(ctx, &spaceID)
 				if err != nil {
 					return err

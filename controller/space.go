@@ -19,7 +19,7 @@ const (
 
 var scopes = []string{"read:space", "admin:space"}
 
-// SpaceConfiguration represents space configuratoin
+// SpaceConfiguration represents space configuration
 type SpaceConfiguration interface {
 	GetKeycloakEndpointAuthzResourceset(*goa.RequestData) (string, error)
 	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
@@ -44,10 +44,12 @@ func NewSpaceController(service *goa.Service, db application.DB, config SpaceCon
 
 // Create runs the create action.
 func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentUserRef, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
 	}
+
+	currentUser := &currentUserRef.ID
 
 	// Create keycloak resource for this space
 	resource, err := c.resourceManager.CreateResource(ctx, ctx.RequestData, ctx.SpaceID.String(), spaceResourceType, nil, &scopes, currentUser.String())
@@ -87,10 +89,12 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 
 // Delete runs the delete action.
 func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentUserRef, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
 	}
+	currentUser := &currentUserRef.ID
+
 	var resourceID string
 	var permissionID string
 	var policyID string

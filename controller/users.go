@@ -475,10 +475,12 @@ func (c *UsersController) getKeycloakProfileInformation(ctx context.Context, tok
 // Update updates the authorized user based on the provided Token
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
-	id, err := login.ContextIdentity(ctx)
+	loggedInIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	id := &loggedInIdentity.ID
 
 	keycloakUserProfile := &login.KeycloakUserProfile{}
 	keycloakUserProfile.Attributes = &login.KeycloakUserProfileAttributes{}
