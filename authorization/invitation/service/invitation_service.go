@@ -11,8 +11,6 @@ import (
 
 type InvitationService interface {
 	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
-	List(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error)
-	ListForUser(ctx context.Context, id uuid.UUID) ([]invitation.InvitationDetail, error)
 }
 
 type InvitationServiceImpl struct {
@@ -35,13 +33,7 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		return err
 	})
 
+	// TODO send e-mails to invited users with links to accept the invitations
+
 	return err
-}
-
-func (s *InvitationServiceImpl) List(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error) {
-	return nil, nil
-}
-
-func (s *InvitationServiceImpl) ListForUser(ctx context.Context, id uuid.UUID) ([]invitation.InvitationDetail, error) {
-	return nil, nil
 }

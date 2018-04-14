@@ -21,7 +21,7 @@ type Invitation struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	InvitationID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:invitation_id"`
+	InvitationID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:invitation_id"`
 
 	// The identity ID (organization, team or security group) to which the user is being invited to
 	InviteTo *uuid.UUID `sql:"type:uuid" gorm:"column:invite_to"`
@@ -45,10 +45,10 @@ func (m Invitation) GetLastModified() time.Time {
 }
 
 type InvitationRole struct {
-	InvitationID uuid.UUID `sql:"type:uuid" gorm:"primary_key" gorm:"column:invitation_id"`
+	InvitationID uuid.UUID `sql:"type:uuid" gorm:"primary_key;column:invitation_id"`
 
 	Role   rolerepo.Role `gorm:"ForeignKey:RoleID;AssociationForeignKey:RoleID"`
-	RoleID uuid.UUID     `sql:"type:uuid" gorm:"primary_key" gorm:"column:role_id"`
+	RoleID uuid.UUID     `sql:"type:uuid" gorm:"primary_key;column:role_id"`
 }
 
 func (ir InvitationRole) TableName() string {

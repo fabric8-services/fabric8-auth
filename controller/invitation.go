@@ -25,13 +25,9 @@ func NewInvitationController(service *goa.Service, invitationService invitationS
 
 // Create runs the create action.
 func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentIdentity, err := login.ContextIdentityAndUserIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
-	}
-
-	if currentUser == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
 	}
 
 	var invitations []invitation.Invitation
@@ -58,7 +54,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		})
 	}
 
-	err = c.invService.Issue(ctx, *currentUser, ctx.InviteTo, invitations)
+	err = c.invService.Issue(ctx, *currentIdentity, ctx.InviteTo, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -69,7 +65,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"issuing-user-id": *currentUser,
+		"issuing-user-id": *currentIdentity,
 		"invite-to":       ctx.InviteTo,
 	}, "invitations created")
 

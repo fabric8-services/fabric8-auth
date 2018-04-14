@@ -17,8 +17,6 @@ import (
 
 type InvitationModelService interface {
 	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
-	List(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error)
-	ListForUser(ctx context.Context, id uuid.UUID) ([]invitation.InvitationDetail, error)
 }
 
 // GormInvitationModelService is the implementation of the interface for
@@ -38,8 +36,10 @@ func NewInvitationModelService(db *gorm.DB, repo repository.Repositories, permis
 	}
 }
 
-// Creates new invitations.  The inviteTo parameter is the unique id of the organization, team or security group for
-// which the invitations will be issued, and the invitations parameter contains the users,
+// Issue creates new invitations.  The inviteTo parameter is the unique id of the organization, team, security group or resource for
+// which the invitations will be issued, and the invitations parameter contains the users and state for each individual user invitation.
+// This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
+// as part of a user's invitation are created in the INVITATION_ROLE table.
 func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string,
 	invitations []invitation.Invitation) error {
 
@@ -49,15 +49,24 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 
 	// First try to convert inviteTo to a uuid
 	inviteToUUID, err := uuid.FromString(inviteTo)
-	if err == nil {
+	// If we get an error here, the value is definitely not for an Identity so we'll treat it as a resource ID
+	if err != nil {
+		// Try to lookup a resource with the same ID value
+		inviteToResource, err = s.repo.ResourceRepository().Load(ctx, inviteTo)
+		if err != nil {
+			return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team, security group or resource", inviteTo), inviteTo)
+		}
+	}
 
-		// Lookup the identity of the organization, team or security group that invitations will be issued for
+	// If we didn't successfully find a valid resource already, it means the inviteTo is a UUID
+	if inviteToResource == nil {
+		// Attempt to lookup the identity of the organization, team or security group that invitations will be issued for
 		inviteToIdentity, err = s.repo.Identities().Load(ctx, inviteToUUID)
 		if err != nil {
 			// That didn't work, try to lookup a resource with the same ID value
 			inviteToResource, err = s.repo.ResourceRepository().Load(ctx, inviteTo)
 			if err != nil {
-				return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team, security group or resource\n", inviteTo), inviteTo)
+				return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team, security group or resource", inviteTo), inviteTo)
 			}
 		}
 	}
@@ -66,34 +75,32 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 		// Load the resource for the identity
 		identityResource, err = s.repo.ResourceRepository().Load(ctx, *inviteToIdentity.IdentityResourceID)
 		if err != nil {
-			return errors.NewInternalErrorFromString(ctx, "Error loading resource for identity")
+			return errors.NewInternalErrorFromString(ctx, "error loading resource for identity")
 		}
 
-		// Confirm that the issuing user has the "invite_users" scope for the organization, team or security group
-		scope, err := s.permModelSvc.HasScope(ctx, issuingUserId, *inviteToIdentity.IdentityResourceID, authorization.InviteUserScope)
+		// Confirm that the issuing user has the necessary scope to manage members for the organization, team or security group
+		scope, err := s.permModelSvc.HasScope(ctx, issuingUserId, *inviteToIdentity.IdentityResourceID, authorization.ManageMembersScope)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
 
 		if !scope {
-			return errors.NewForbiddenError(fmt.Sprintf("user requires %s scope to invite other users\n", authorization.InviteUserScope))
+			return errors.NewForbiddenError(fmt.Sprintf("user requires %s scope to invite other users", authorization.ManageMembersScope))
 		}
 
 		// We only allow membership in some identity types - confirm that we are inviting to an organization, team or security group
-		if identityResource.ResourceType.Name != authorization.IdentityResourceTypeOrganization &&
-			identityResource.ResourceType.Name != authorization.IdentityResourceTypeTeam &&
-			identityResource.ResourceType.Name != authorization.IdentityResourceTypeGroup {
+		if !authorization.CanHaveMembers(identityResource.ResourceType.Name) {
 			return errors.NewInternalErrorFromString(ctx, "may only invite a user to an organization, team or security group")
 		}
 	} else if inviteToResource != nil {
-		// Confirm that the issuing user has the "invite_users" scope for the resource
-		scope, err := s.permModelSvc.HasScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.InviteUserScope)
+		// Confirm that the issuing user has the manage members scope for the resource
+		scope, err := s.permModelSvc.HasScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.ManageMembersScope)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
 
 		if !scope {
-			return errors.NewForbiddenError(fmt.Sprintf("user requires %s scope to invite other users\n", authorization.InviteUserScope))
+			return errors.NewForbiddenError(fmt.Sprintf("user requires %s scope to invite other users", authorization.ManageMembersScope))
 		}
 	}
 
@@ -106,7 +113,7 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 		if invitation.IdentityID != nil {
 			identity, err := s.repo.Identities().Load(ctx, *invitation.IdentityID)
 			if err != nil {
-				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("invalid identity ID specified: %s\n", invitation.IdentityID))
+				return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("invalid identity ID specified: %s", invitation.IdentityID))
 			}
 
 			if !identity.IsUser() {
@@ -122,9 +129,6 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 			if len(identities) == 0 {
 				// If no users are found, return an error
 				return errors.NewBadParameterErrorFromString("Username", invitation.UserName, "username not found")
-			} else if len(identities) > 1 {
-				// If more than one user is found, return an error
-				return errors.NewBadParameterErrorFromString("Username", invitation.UserName, "more than one user with same username found")
 			}
 
 			// Set the IdentityID to that of the identity found
@@ -155,21 +159,6 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 
 			// Set the IdentityID to that of the identity found
 			invitations[i].IdentityID = &identities[0].ID
-		}
-
-		// Confirm that any specified roles are valid for this resource type
-		for _, roleName := range invitation.Roles {
-			var resourceTypeName string
-			if inviteToIdentity != nil {
-				resourceTypeName = identityResource.ResourceType.Name
-			} else if inviteToResource != nil {
-				resourceTypeName = inviteToResource.ResourceType.Name
-			}
-
-			_, err = s.repo.RoleRepository().Lookup(ctx, roleName, resourceTypeName)
-			if err != nil {
-				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", resourceTypeName))
-			}
 		}
 	}
 
@@ -210,12 +199,4 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 	}
 
 	return nil
-}
-
-func (s *GormInvitationModelService) List(ctx context.Context, id uuid.UUID) ([]invitation.Invitation, error) {
-	return nil, nil
-}
-
-func (s *GormInvitationModelService) ListForUser(ctx context.Context, id uuid.UUID) ([]invitation.InvitationDetail, error) {
-	return nil, nil
 }

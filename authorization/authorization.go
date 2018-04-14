@@ -16,6 +16,12 @@ const (
 	// OwnerRole is the constant used to denote the name of the organization, team or security group owner role
 	OwnerRole = "owner"
 
-	// InviteUserScope is the scope required for users wishing to invite other users to an organization, team or security group
-	InviteUserScope = "invite_user"
+	// ManageMembersScope is the scope required for users wishing to invite/remove other users to an organization, team or security group
+	ManageMembersScope = "manage_members"
 )
+
+func CanHaveMembers(resourceTypeName string) bool {
+	return resourceTypeName == IdentityResourceTypeOrganization ||
+		resourceTypeName == IdentityResourceTypeTeam ||
+		resourceTypeName != IdentityResourceTypeGroup
+}
