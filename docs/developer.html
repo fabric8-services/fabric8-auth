@@ -651,16 +651,33 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li>
 <p>The first condition is a direct check for the user&#8217;s identity ID, to match any records for which the role has been assigned directly to the user.</p>
 </li>
+</ol>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_identity_role_identity.png" alt="permission has scope identity role identity">
+</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic" start="2">
 <li>
-<p>The second condition includes the identity ID for any organization, team or security group in which the user is either directly or indirectly a member.  This is achieved by executing a recursive subquery in the <code>membership</code> table to "walk" up the user&#8217;s membership hierarchy, and extract out all of the <code>member_of</code> values.</p>
+<p>The second condition includes the identity ID for any organization, team or security group in which the user is either directly or indirectly a member.  This is achieved by executing a recursive subquery in the <code>membership</code> table to "walk" up the user&#8217;s membership hierarchy, and extract out all of the <code>member_of</code> values.  This allows for a permission check in which the user may inherit privileges for the specified resource indirectly via their memberships.</p>
 </li>
 </ol>
+</div>
+<div class="paragraph">
+<p>For example, the privileges for a user which is a member of a team, which belongs to an organization could be represented like this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_identity_role_memberships.png" alt="permission has scope identity role memberships">
+</div>
 </div>
 </div>
 <div class="sect2">
 <h3 id="_resource_criteria">Resource criteria</h3>
 <div class="paragraph">
-<p>The second condition of the query is used to select records for the specified resource.  Its criteria restricts records to those with either the exact same <code>resource_id</code> value as the resource parameter, or to an ancestor resource:</p>
+<p>The second condition of the query is used to select records for the specified resource.  Its criteria restricts records to those with either the exact same <code>resource_id</code> value as the resource parameter, or to an ancestor resource (since resources inherit privileges from their parent):</p>
 </div>
 <div class="imageblock">
 <div class="content">
@@ -668,17 +685,39 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="paragraph">
-<p>The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table&#8217;s <code>parent_resource_id</code> to walk up the hierarchy. The resulting list of resource IDs is used to restrict the <code>resource_id</code> column.</p>
+<p>The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table&#8217;s <code>parent_resource_id</code> column to <em>walk</em> up the hierarchy. The resulting list of resource IDs is used to restrict the <code>resource_id</code> column.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_identity_role_resource.png" alt="permission has scope identity role resource">
+</div>
 </div>
 </div>
 <div class="sect2">
 <h3 id="_role_criteria">Role criteria</h3>
 <div class="paragraph">
-<p>The third condition of the query is by far the most complex, and is used to</p>
+<p>The third condition of the query is by far the most complex, and is used to construct the set of valid roles matching the specified <code>scope</code> parameter.  This condition has been broken down into smaller sections which are described in more detail below.</p>
 </div>
 <div class="imageblock">
 <div class="content">
 <img src="./assets/permission_has_scope_sql_4.png" alt="permission has scope sql 4">
+</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>The first criteria selects roles that have the same resource type as the resource parameter, and the same scope as the scope parameter.  It takes care of roles assigned (directly or indirectly) to the user that have the specified <code>SCOPE</code> value, that have been directly assigned for the resource specified by the <code>RESOURCE_ID</code> parameter.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_1.png" alt="permission has scope sql role 1">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_1_resource_scope.png" alt="permission has scope sql role 1 resource scope">
 </div>
 </div>
 </div>
@@ -687,7 +726,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-04-12 21:51:03 +07
+Last updated 2018-04-14 08:57:30 +07
 </div>
 </div>
 </body>

@@ -112,19 +112,35 @@ This is done by selecting a list of the corresponding `ID` values from the `iden
 
 image::permission_has_scope_sql_2.png[]
 
-1. The first condition is a direct check for the user's identity ID, to match any records for which the role has been assigned directly to the user.
-2. The second condition includes the identity ID for any organization, team or security group in which the user is either directly or indirectly a member.  This is achieved by executing a recursive subquery in the `membership` table to "walk" up the user's membership hierarchy, and extract out all of the `member_of` values.
+. The first condition is a direct check for the user's identity ID, to match any records for which the role has been assigned directly to the user.
+
+image::permission_has_scope_identity_role_identity.png[]
+
+[start=2]
+. The second condition includes the identity ID for any organization, team or security group in which the user is either directly or indirectly a member.  This is achieved by executing a recursive subquery in the `membership` table to "walk" up the user's membership hierarchy, and extract out all of the `member_of` values.  This allows for a permission check in which the user may inherit privileges for the specified resource indirectly via their memberships.
+
+For example, the privileges for a user which is a member of a team, which belongs to an organization could be represented like this:
+
+image::permission_has_scope_identity_role_memberships.png[]
 
 === Resource criteria
 
-The second condition of the query is used to select records for the specified resource.  Its criteria restricts records to those with either the exact same `resource_id` value as the resource parameter, or to an ancestor resource:
+The second condition of the query is used to select records for the specified resource.  Its criteria restricts records to those with either the exact same `resource_id` value as the resource parameter, or to an ancestor resource (since resources inherit privileges from their parent):
 
 image::permission_has_scope_sql_3.png[]
 
-The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table's `parent_resource_id` to walk up the hierarchy. The resulting list of resource IDs is used to restrict the `resource_id` column.
+The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table's `parent_resource_id` column to _walk_ up the hierarchy. The resulting list of resource IDs is used to restrict the `resource_id` column.
+
+image::permission_has_scope_identity_role_resource.png[]
 
 === Role criteria
 
-The third condition of the query is by far the most complex, and is used to 
+The third condition of the query is by far the most complex, and is used to construct the set of valid roles matching the specified `scope` parameter.  This condition has been broken down into smaller sections which are described in more detail below.
 
 image::permission_has_scope_sql_4.png[]
+
+. The first criteria selects roles that have the same resource type as the resource parameter, and the same scope as the scope parameter.  It matches on roles assigned both directly to the user, or indirectly via the user's memberships, that have the specified `SCOPE` value, that have been directly assigned for the resource specified by the `RESOURCE_ID` parameter.
+
+image::permission_has_scope_sql_role_1.png[]
+
+image::permission_has_scope_sql_role_1_resource_scope.png[]
