@@ -33,7 +33,9 @@ type TestInvitationREST struct {
 func (s *TestInvitationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	permService := permissionmodel.NewPermissionModelService(s.DB, s.Application)
-	s.invService = invitationmodel.NewInvitationModelService(s.DB, s.Application, permService)
+
+	invModelService := invitationmodel.NewInvitationModelService(s.DB, s.Application, permService)
+	s.invService = invitationservice.NewInvitationService(invModelService, permService, s.Application)
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
 
 	var err error
