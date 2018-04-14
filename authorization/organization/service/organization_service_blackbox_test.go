@@ -5,15 +5,13 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	"github.com/satori/go.uuid"
-
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -24,7 +22,7 @@ type organizationServiceBlackBoxTest struct {
 	identityRepo     account.IdentityRepository
 	identityRoleRepo role.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
-	orgService       organizationService.OrganizationService
+	orgService       organizationservice.OrganizationService
 }
 
 func TestRunOrganizationServiceBlackBoxTest(t *testing.T) {
@@ -36,7 +34,8 @@ func (s *organizationServiceBlackBoxTest) SetupTest() {
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
-	s.orgService = organizationModel.NewOrganizationModelService(s.DB, s.Application)
+	modelService := organizationmodel.NewOrganizationModelService(s.DB)
+	s.orgService = organizationservice.NewOrganizationService(modelService, s.Application)
 }
 
 func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {

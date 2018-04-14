@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
@@ -48,7 +49,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 
 func CreateTestOrganization(ctx context.Context, db *gorm.DB, appDB application.DB, creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
 
-	orgModelService := organizationModel.NewOrganizationModelService(db, appDB)
+	orgModelService := organizationModel.NewOrganizationModelService(db)
 	orgService := organizationService.NewOrganizationService(orgModelService, appDB)
 
 	var organization *account.Identity

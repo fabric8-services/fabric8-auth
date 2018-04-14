@@ -18,38 +18,34 @@ import (
 )
 
 type OrganizationModelService interface {
-	CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error)
-	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]organization.IdentityOrganization, error)
+	CreateOrganization(ctx context.Context, repo repository.Repositories, identityID uuid.UUID, organizationName string) (*uuid.UUID, error)
+	ListOrganizations(ctx context.Context, repo repository.Repositories, identityID uuid.UUID) ([]organization.IdentityOrganization, error)
 }
 
 // GormOrganizationModelService is the implementation of the interface for
 // OrganizationService. IMPORTANT NOTE: Transaction control is not provided by this service
 type GormOrganizationModelService struct {
-	db   *gorm.DB
-	repo repository.Repositories
+	db *gorm.DB
 }
 
 // NewOrganizationModelService creates a new service.
-func NewOrganizationModelService(db *gorm.DB, repo repository.Repositories) OrganizationModelService {
-	return &GormOrganizationModelService{
-		db:   db,
-		repo: repo,
-	}
+func NewOrganizationModelService(db *gorm.DB) OrganizationModelService {
+	return &GormOrganizationModelService{db: db}
 }
 
 // Creates a new organization.  The specified identityID is the user creating the organization, while the name parameter
 // specifies the organization name.  The organization's identity ID is returned.
-func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error) {
+func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, repo repository.Repositories, identityID uuid.UUID, organizationName string) (*uuid.UUID, error) {
 	var organizationId uuid.UUID
 
 	// Lookup the identity for the current user
-	userIdentity, err := s.repo.Identities().Load(ctx, identityID)
+	userIdentity, err := repo.Identities().Load(ctx, identityID)
 	if err != nil {
 		return nil, errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", identityID))
 	}
 
 	// Lookup the organization resource type
-	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeOrganization)
+	resourceType, err := repo.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeOrganization)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +57,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 		ResourceTypeID: resourceType.ResourceTypeID,
 	}
 
-	err = s.repo.ResourceRepository().Create(ctx, res)
+	err = repo.ResourceRepository().Create(ctx, res)
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}
@@ -71,7 +67,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 		IdentityResourceID: &res.ResourceID,
 	}
 
-	err = s.repo.Identities().Create(ctx, orgIdentity)
+	err = repo.Identities().Create(ctx, orgIdentity)
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}
@@ -79,7 +75,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 	organizationId = orgIdentity.ID
 
 	// Lookup the identity/organization owner role
-	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
+	ownerRole, err := repo.RoleRepository().Lookup(ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
 
 	if err != nil {
 		return nil, errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
@@ -92,7 +88,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 		RoleID:     ownerRole.RoleID,
 	}
 
-	err = s.repo.IdentityRoleRepository().Create(ctx, identityRole)
+	err = repo.IdentityRoleRepository().Create(ctx, identityRole)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +101,7 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 }
 
 // Returns an array of all organizations in which the specified user is a member or is assigned a role
-func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]organization.IdentityOrganization, error) {
+func (s *GormOrganizationModelService) ListOrganizations(ctx context.Context, repo repository.Repositories, identityID uuid.UUID) ([]organization.IdentityOrganization, error) {
 
 	db := s.db.Model(&account.Identity{})
 

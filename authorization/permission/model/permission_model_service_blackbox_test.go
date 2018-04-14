@@ -1,11 +1,12 @@
 package model_test
 
 import (
+	"testing"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
-	"testing"
 
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -59,7 +60,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.resourceTypeScopeRepo = resourcetypescope.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = roleRepo.NewRoleRepository(s.DB)
 	s.roleMappingRepo = roleRepo.NewRoleMappingRepository(s.DB)
-	s.orgModelService = organizationModel.NewOrganizationModelService(s.DB, s.Application)
+	s.orgModelService = organizationModel.NewOrganizationModelService(s.DB)
 	s.permissionService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
 
 	// Create a test "area" resource type

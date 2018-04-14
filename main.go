@@ -257,7 +257,7 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationModelService := organizationModel.NewOrganizationModelService(db, appDB)
+	organizationModelService := organizationModel.NewOrganizationModelService(db)
 	organizationServiceRef := organizationService.NewOrganizationService(organizationModelService, appDB)
 	organizationCtrl := controller.NewOrganizationController(service, organizationServiceRef)
 	app.MountOrganizationController(service, organizationCtrl)
