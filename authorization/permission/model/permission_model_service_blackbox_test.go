@@ -61,7 +61,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.roleRepo = roleRepo.NewRoleRepository(s.DB)
 	s.roleMappingRepo = roleRepo.NewRoleMappingRepository(s.DB)
 	s.orgModelService = organizationModel.NewOrganizationModelService(s.DB)
-	s.permissionService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
+	s.permissionService = permissionModelService.NewPermissionModelService(s.DB)
 
 	// Create a test "area" resource type
 	role := s.setupResourceType(testResourceTypeArea, testAreaScopeName, "test-permission-area-role")

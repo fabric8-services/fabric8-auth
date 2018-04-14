@@ -33,7 +33,7 @@ func TestRunInvitationModelServiceBlackBoxTest(t *testing.T) {
 func (s *invitationModelServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.invitationRepo = invitationRepo.NewInvitationRepository(s.DB)
-	s.permModelService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
+	s.permModelService = permissionModelService.NewPermissionModelService(s.DB)
 	s.invModelService = invitationModelService.NewInvitationModelService(s.permModelService)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB)

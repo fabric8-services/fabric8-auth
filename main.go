@@ -14,7 +14,6 @@ import (
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
-	permissionService "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -263,12 +262,11 @@ func main() {
 	app.MountOrganizationController(service, organizationCtrl)
 
 	// Create a "permissions" controller
-	permissionModelService := permissionModel.NewPermissionModelService(db, appDB)
-	permissionServiceRef := permissionService.NewPermissionService(permissionModelService, appDB)
+	permissionModelService := permissionModel.NewPermissionModelService(db)
 
 	// Mount "invitations" controller
 	invitationModelService := invitationModel.NewInvitationModelService(permissionModelService)
-	invitationServiceRef := invitationService.NewInvitationService(invitationModelService, permissionServiceRef, appDB)
+	invitationServiceRef := invitationService.NewInvitationService(invitationModelService, appDB)
 	invitationCtrl := controller.NewInvitationController(service, appDB, invitationServiceRef)
 	app.MountInvitationController(service, invitationCtrl)
 

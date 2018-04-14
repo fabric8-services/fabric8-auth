@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	uuid "github.com/satori/go.uuid"
 )
 
 type PermissionService interface {
-	HasScope(ctx context.Context, userID uuid.UUID, resourceID string, scope string) (bool, error)
+	UserHasScope(ctx context.Context, userID uuid.UUID, resourceID string, scope string) (bool, error)
 }
 
 type PermissionServiceImpl struct {
@@ -21,7 +22,7 @@ func NewPermissionService(modelService permissionModel.PermissionModelService, d
 }
 
 // This method returns true if the specified user has a particular scope for the specified resource
-func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
+func (s *PermissionServiceImpl) UserHasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
 	result := false
 	err := application.Transactional(s.db, func(appl application.Application) error {
 		hasScope, err := s.modelService.HasScope(ctx, identityID, resourceID, scopeName)

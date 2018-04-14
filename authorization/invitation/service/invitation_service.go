@@ -6,7 +6,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationModel "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
-	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	"github.com/satori/go.uuid"
 )
 
@@ -15,14 +14,12 @@ type InvitationService interface {
 }
 
 type InvitationServiceImpl struct {
-	invModelService  invitationModel.InvitationModelService
-	permModelService permissionModel.PermissionModelService
-	db               application.DB
+	invModelService invitationModel.InvitationModelService
+	db              application.DB
 }
 
-func NewInvitationService(invitationModelService invitationModel.InvitationModelService,
-	permissionModelService permissionModel.PermissionModelService, db application.DB) InvitationService {
-	return &InvitationServiceImpl{invModelService: invitationModelService, permModelService: permissionModelService, db: db}
+func NewInvitationService(invitationModelService invitationModel.InvitationModelService, db application.DB) InvitationService {
+	return &InvitationServiceImpl{invModelService: invitationModelService, db: db}
 }
 
 func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {

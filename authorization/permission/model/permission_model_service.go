@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
@@ -15,15 +14,13 @@ type PermissionModelService interface {
 // GormPermissionModelService is the implementation of the interface for
 // PermissionService. IMPORTANT NOTE: Transaction control is not provided by this service
 type GormPermissionModelService struct {
-	db   *gorm.DB
-	repo repository.Repositories
+	db *gorm.DB
 }
 
 // NewPermissionModelService creates a new service.
-func NewPermissionModelService(db *gorm.DB, repo repository.Repositories) PermissionModelService {
+func NewPermissionModelService(db *gorm.DB) PermissionModelService {
 	return &GormPermissionModelService{
-		db:   db,
-		repo: repo,
+		db: db,
 	}
 }
 
