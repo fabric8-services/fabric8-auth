@@ -1,6 +1,8 @@
 package model_test
 
 import (
+	"testing"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationModelService "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
@@ -9,7 +11,6 @@ import (
 	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
-	"testing"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -33,7 +34,7 @@ func (s *invitationModelServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.invitationRepo = invitationRepo.NewInvitationRepository(s.DB)
 	s.permModelService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
-	s.invModelService = invitationModelService.NewInvitationModelService(s.DB, s.Application, s.permModelService)
+	s.invModelService = invitationModelService.NewInvitationModelService(s.permModelService)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB, s.Application)
 }
@@ -58,7 +59,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 		},
 	}
 
-	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.invModelService.Issue(s.Ctx, s.Application, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
@@ -102,7 +103,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserEmail() {
 		},
 	}
 
-	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.invModelService.Issue(s.Ctx, s.Application, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
@@ -133,7 +134,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByUserName() {
 		},
 	}
 
-	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.invModelService.Issue(s.Ctx, s.Application, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
@@ -186,7 +187,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueMultipleInvitations() {
 		},
 	}
 
-	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.invModelService.Issue(s.Ctx, s.Application, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
@@ -238,7 +239,7 @@ func (s *invitationModelServiceBlackBoxTest) TestIssueInvitationByIdentityIDForR
 		},
 	}
 
-	err = s.invModelService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.invModelService.Issue(s.Ctx, s.Application, identity.ID, orgId.String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)

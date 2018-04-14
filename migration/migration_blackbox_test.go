@@ -304,8 +304,8 @@ func testMigration25ValidMiss(t *testing.T) {
 func testMigration27(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(28)], (28))
 
-	// Confirm that the invite_user scope was added
-	rows, err := sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope rts, resource_type rt WHERE rts.resource_type_id = rt.resource_type_id AND rt.name = 'identity/organization' AND rts.name = 'invite_user'")
+	// Confirm that the manage_members scope was added
+	rows, err := sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope rts, resource_type rt WHERE rts.resource_type_id = rt.resource_type_id AND rt.name = 'identity/organization' AND rts.name = 'manage_members'")
 	if err != nil {
 		t.Fatal(err)
 	}

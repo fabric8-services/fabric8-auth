@@ -30,7 +30,7 @@ var _ = a.Resource("invitation", func() {
 		a.Routing(
 			a.GET(""),
 		)
-		a.Description("Lists invitations for an organization, team or group that the user has the invite_user scope for, or lists invitations for the current user")
+		a.Description("Lists invitations for an organization, team or group that the user has the manage_members scope for, or lists invitations for the current user")
 		a.Response(d.NotImplemented)
 		//a.Response(d.Unauthorized, JSONAPIErrors)
 		//a.Response(d.OK, invitationArray)

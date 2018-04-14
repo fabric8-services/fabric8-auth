@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/account/userinfo"
@@ -31,6 +32,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
+	"net/http"
+	"os"
+	"os/user"
+	"runtime"
+	"time"
+
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -38,11 +45,6 @@ import (
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	"github.com/prometheus/client_golang/prometheus"
-	"net/http"
-	"os"
-	"os/user"
-	"runtime"
-	"time"
 )
 
 func main() {
@@ -265,7 +267,7 @@ func main() {
 	permissionServiceRef := permissionService.NewPermissionService(permissionModelService, appDB)
 
 	// Mount "invitations" controller
-	invitationModelService := invitationModel.NewInvitationModelService(db, appDB, permissionModelService)
+	invitationModelService := invitationModel.NewInvitationModelService(permissionModelService)
 	invitationServiceRef := invitationService.NewInvitationService(invitationModelService, permissionServiceRef, appDB)
 	invitationCtrl := controller.NewInvitationController(service, appDB, invitationServiceRef)
 	app.MountInvitationController(service, invitationCtrl)
