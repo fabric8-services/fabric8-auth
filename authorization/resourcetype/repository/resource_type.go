@@ -2,13 +2,14 @@ package repository
 
 import (
 	"context"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
-	"time"
 
 	errs "github.com/pkg/errors"
 )
@@ -16,7 +17,7 @@ import (
 type ResourceType struct {
 	gormsupport.Lifecycle
 
-	ResourceTypeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:resource_type_id"`
+	ResourceTypeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:resource_type_id"`
 	// The resource type name
 	Name string
 }
