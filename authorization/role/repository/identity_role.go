@@ -23,7 +23,7 @@ type IdentityRole struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	IdentityRoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:identity_role_id"`
+	IdentityRoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:identity_role_id"`
 	// The identity to which the role is assigned
 	IdentityID uuid.UUID
 	Identity   account.Identity

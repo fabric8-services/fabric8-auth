@@ -14,6 +14,7 @@ import (
 	"github.com/satori/go.uuid"
 
 	"fmt"
+
 	errs "github.com/pkg/errors"
 )
 
@@ -21,7 +22,7 @@ type ResourceTypeScope struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	ResourceTypeScopeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:resource_type_scope_id"`
+	ResourceTypeScopeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:resource_type_scope_id"`
 	// The resource type that this scope belongs to
 	ResourceType resourcetype.ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
 	// The foreign key value for ResourceType
