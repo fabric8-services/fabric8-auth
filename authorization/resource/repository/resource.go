@@ -10,6 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/goadesign/goa"
@@ -21,7 +22,7 @@ type Resource struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	ResourceID string `sql:"type:string" gorm:"primary_key" gorm:"column:resource_id"`
+	ResourceID string `sql:"type:string" gorm:"primary_key;column:resource_id"`
 	// The parent resource ID
 	ParentResourceID *string
 	// The resource type
