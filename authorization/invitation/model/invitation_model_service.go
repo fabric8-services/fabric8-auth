@@ -194,7 +194,10 @@ func (s *GormInvitationModelService) Issue(ctx context.Context, issuingUserId uu
 				return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", resourceTypeName))
 			}
 
-			s.repo.InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
+			error = s.repo.InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
+			if error != nil {
+				return errors.NewInternalError(ctx, error)
+			}
 		}
 	}
 
