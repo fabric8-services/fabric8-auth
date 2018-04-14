@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationService "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -15,17 +16,18 @@ import (
 // InvitationController implements the invitation resource.
 type InvitationController struct {
 	*goa.Controller
+	db         application.DB
 	invService invitationService.InvitationService
 }
 
 // NewInvitationController creates a invitation controller.
-func NewInvitationController(service *goa.Service, invitationService invitationService.InvitationService) *InvitationController {
-	return &InvitationController{Controller: service.NewController("InvitationController"), invService: invitationService}
+func NewInvitationController(service *goa.Service, db application.DB, invitationService invitationService.InvitationService) *InvitationController {
+	return &InvitationController{Controller: service.NewController("InvitationController"), db: db, invService: invitationService}
 }
 
 // Create runs the create action.
 func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
-	currentIdentity, err := login.ContextIdentityAndUserIfNotDeprovisioned(ctx)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
@@ -54,7 +56,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		})
 	}
 
-	err = c.invService.Issue(ctx, *currentIdentity, ctx.InviteTo, invitations)
+	err = c.invService.Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

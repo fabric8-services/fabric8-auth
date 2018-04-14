@@ -267,7 +267,7 @@ func main() {
 	// Mount "invitations" controller
 	invitationModelService := invitationModel.NewInvitationModelService(db, appDB, permissionModelService)
 	invitationServiceRef := invitationService.NewInvitationService(invitationModelService, permissionServiceRef, appDB)
-	invitationCtrl := controller.NewInvitationController(service, invitationServiceRef)
+	invitationCtrl := controller.NewInvitationController(service, appDB, invitationServiceRef)
 	app.MountInvitationController(service, invitationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
