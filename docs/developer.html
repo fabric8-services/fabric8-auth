@@ -706,7 +706,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="olist arabic">
 <ol class="arabic">
 <li>
-<p>The first criteria selects roles that have the same resource type as the resource parameter, and the same scope as the scope parameter.  It takes care of roles assigned (directly or indirectly) to the user that have the specified <code>SCOPE</code> value, that have been directly assigned for the resource specified by the <code>RESOURCE_ID</code> parameter.</p>
+<p>The first criteria selects roles that have the same resource type as the resource parameter, and the same scope as the scope parameter.  It matches on roles assigned both directly to the user, or indirectly via the user&#8217;s memberships, that have the specified <code>SCOPE</code> value, that have been directly assigned for the resource specified by the <code>RESOURCE_ID</code> parameter.</p>
 </li>
 </ol>
 </div>
@@ -720,13 +720,58 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <img src="./assets/permission_has_scope_sql_role_1_resource_scope.png" alt="permission has scope sql role 1 resource scope">
 </div>
 </div>
+<div class="olist arabic">
+<ol class="arabic" start="2">
+<li>
+<p>The second criteria is quite simple; the <code>CROSS JOIN LATERAL</code> clause takes the results from the <code>from_role_id</code> and <code>to_role_id</code> columns returned by the recursive inner query (see next section), and combines them into a single column called <code>role_id</code>.  The <code>DISTINCT</code> keyword is then used to remove duplicates from this list. This list of <code>role_id</code> values is then used as an <code>IN</code> condition for the <code>IDENTITY_ROLE.ROLE_ID</code> column.</p>
+</li>
+</ol>
+</div>
+<div class="olist arabic">
+<ol class="arabic" start="3">
+<li>
+<p>The next part of the query gets a little more tricky.  This complex recursive query does quite a few things - let&#8217;s start with the first section:</p>
+</li>
+</ol>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_part1.png" alt="permission has scope sql role 3 part1">
+</div>
+</div>
+<div class="paragraph">
+<p>This section returns the base set of results upon which the recursion will occur in the second section.  It searches for role mappings that a) apply to the resource specified by the <code>RESOURCE_ID</code> parameter; and b) map to a role that has the specified <code>SCOPE</code> parameter.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_role_mapping_scope.png" alt="permission has scope sql role 3 role mapping scope">
+</div>
+</div>
+<div class="paragraph">
+<p>Why does the query need this?  Well, if the user has been granted a <em>different</em> role for a resource higher up the resource hierarchy, but that role has been mapped via a role mapping to another role that has the scope that we&#8217;re interested in for the specified resource, we first need to build a list of role mappings that actually map to any roles that grant this privilege.  This is what this first section of the recursive query does.</p>
+</div>
+<div class="paragraph">
+<p>Since we are actually interested in all role mappings for the resource&#8217;s ancestor hierarchy, we need to query the resource&#8217;s hierarchy here also - this is what</p>
+</div>
+<div class="olist arabic">
+<ol class="arabic" start="4">
+<li>
+<p>This section of the query produces a list of all the resource ID values in the <code>RESOURCE_ID</code> parameter&#8217;s parent hierarchy, exactly the same way as described above in the Resource Criteria section.  It is used as a subquery for the first part of the hierarchical role mapping query, described in the previous section.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_part4.png" alt="permission has scope sql role 3 part4">
+</div>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-04-14 08:57:30 +07
+Last updated 2018-04-14 21:11:01 +07
 </div>
 </div>
 </body>

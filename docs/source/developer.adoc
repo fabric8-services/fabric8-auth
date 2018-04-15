@@ -144,3 +144,27 @@ image::permission_has_scope_sql_4.png[]
 image::permission_has_scope_sql_role_1.png[]
 
 image::permission_has_scope_sql_role_1_resource_scope.png[]
+
+[start=2]
+. The second criteria is quite simple; the `CROSS JOIN LATERAL` clause takes the results from the `from_role_id` and `to_role_id` columns returned by the recursive inner query (see next section), and combines them into a single column called `role_id`.  The `DISTINCT` keyword is then used to remove duplicates from this list. This list of `role_id` values is then used as an `IN` condition for the `IDENTITY_ROLE.ROLE_ID` column.
+
+[start=3]
+. The next part of the query gets a little more tricky.  This complex recursive query does quite a few things - let's start with the first section:
+
+image::permission_has_scope_sql_role_3_part1.png[]
+
+This section returns the base set of results upon which the recursion will occur in the second section.  It searches for role mappings that a) apply to the resource specified by the `RESOURCE_ID` parameter; and b) map to a role that has the specified `SCOPE` parameter.
+
+image::permission_has_scope_sql_role_3_role_mapping_scope.png[]
+
+Why does the query need this?  Well, if the user has been granted a _different_ role for a resource higher up the resource hierarchy, but that role has been mapped via a role mapping to another role that has the scope that we're interested in for the specified resource, we first need to build a list of role mappings that actually map to any roles that grant this privilege.  This is what this first section of the recursive query does. 
+
+Since we are actually interested in all role mappings for the resource's ancestor hierarchy, we need to query the resource's hierarchy here also - this is covered in the next section.
+
+To illustrate more clearly how this section works, we will look at an example.
+
+
+[start=4]
+. This section of the query produces a list of all the resource ID values in the `RESOURCE_ID` parameter's parent hierarchy, exactly the same way as described above in the Resource Criteria section.  It is used as a subquery for the first part of the hierarchical role mapping query described in the previous section.
+
+image::permission_has_scope_sql_role_3_part4.png[]
