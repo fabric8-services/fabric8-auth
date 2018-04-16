@@ -11,6 +11,7 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 	"github.com/jinzhu/gorm"
@@ -106,6 +107,11 @@ func (g *GormBase) ResourceTypeScopeRepository() scope.ResourceTypeScopeReposito
 func (g *GormBase) RoleRepository() role.RoleRepository {
 	return role.NewRoleRepository(g.db)
 }
+
+func (g *GormBase) RoleManagementService() roleservice.RoleManagementService {
+	return roleservice.NewRoleManagementService(g, g.db)
+}
+
 func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return role.NewIdentityRoleRepository(g.db)
 }
