@@ -9,11 +9,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	invitationModel "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
-	invitationService "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
-	permissionModel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -261,13 +258,8 @@ func main() {
 	organizationCtrl := controller.NewOrganizationController(service, organizationServiceRef)
 	app.MountOrganizationController(service, organizationCtrl)
 
-	// Create a "permissions" controller
-	permissionModelService := permissionModel.NewPermissionModelService(db)
-
 	// Mount "invitations" controller
-	invitationModelService := invitationModel.NewInvitationModelService(permissionModelService)
-	invitationServiceRef := invitationService.NewInvitationService(invitationModelService, appDB)
-	invitationCtrl := controller.NewInvitationController(service, appDB, invitationServiceRef)
+	invitationCtrl := controller.NewInvitationController(service, appDB)
 	app.MountInvitationController(service, invitationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

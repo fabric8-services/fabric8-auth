@@ -24,19 +24,6 @@ var _ = a.Resource("invitation", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
-
-	a.Action("list", func() {
-		a.Security("jwt")
-		a.Routing(
-			a.GET(""),
-		)
-		a.Description("Lists invitations for an organization, team or group that the user has the manage_members scope for, or lists invitations for the current user")
-		a.Response(d.NotImplemented)
-		//a.Response(d.Unauthorized, JSONAPIErrors)
-		//a.Response(d.OK, invitationArray)
-		//a.Response(d.InternalServerError, JSONAPIErrors)
-		//a.Response(d.BadRequest, JSONAPIErrors)
-	})
 })
 
 var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitation_request+json", func() {
@@ -52,8 +39,6 @@ var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitatio
 
 var invitee = a.Type("Invitee", func() {
 	a.Attribute("identity-id", d.String, "unique id for the user identity")
-	a.Attribute("username", d.String, "username of the user")
-	a.Attribute("user-email", d.String, "e-mail address of the user")
 	a.Attribute("member", d.Boolean, "if true invites the user to become a member")
 	a.Attribute("roles", a.ArrayOf(d.String), "An array of role names")
 })

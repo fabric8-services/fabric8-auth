@@ -13,10 +13,8 @@ import (
 
 	"github.com/goadesign/goa"
 
-	invitationmodel "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
-	permissionmodel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -32,10 +30,7 @@ type TestInvitationREST struct {
 
 func (s *TestInvitationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	permService := permissionmodel.NewPermissionModelService(s.DB)
-
-	invModelService := invitationmodel.NewInvitationModelService(permService)
-	s.invService = invitationservice.NewInvitationService(invModelService, s.Application)
+	s.invService = invitationservice.NewInvitationService(s.Application)
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
 
 	var err error
@@ -47,12 +42,12 @@ func (s *TestInvitationREST) SetupSuite() {
 
 func (s *TestInvitationREST) SecuredController(identity account.Identity) (*goa.Service, *InvitationController) {
 	svc := testsupport.ServiceAsUser("Invitation-Service", identity)
-	return svc, NewInvitationController(svc, s.Application, s.invService)
+	return svc, NewInvitationController(svc, s.Application)
 }
 
 func (s *TestInvitationREST) UnsecuredController() (*goa.Service, *InvitationController) {
 	svc := goa.New("Invitation-Service")
-	controller := NewInvitationController(svc, s.Application, s.invService)
+	controller := NewInvitationController(svc, s.Application)
 	return svc, controller
 }
 
@@ -74,12 +69,13 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 	testUsername := "jsmith" + uuid.NewV4().String()
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
+	inviteeID := invitee.ID.String()
 
 	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
-				Username: &testUsername,
-				Member:   boolPointer(true),
+				IdentityID: &inviteeID,
+				Member:     boolPointer(true),
 			},
 		},
 	}
@@ -110,13 +106,14 @@ func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 	testUsername := "jsmith" + uuid.NewV4().String()
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
+	inviteeID := invitee.ID.String()
 
 	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
-				Username: &testUsername,
-				Member:   boolPointer(false),
-				Roles:    []string{"owner"},
+				IdentityID: &inviteeID,
+				Member:     boolPointer(false),
+				Roles:      []string{"owner"},
 			},
 		},
 	}
@@ -153,14 +150,16 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized(
 	service, controller := s.UnsecuredController()
 
 	testUsername := "jsmith" + uuid.NewV4().String()
-	_, err = testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
+	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
+
+	inviteeID := invitee.ID.String()
 
 	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
-				Username: &testUsername,
-				Member:   boolPointer(true),
+				IdentityID: &inviteeID,
+				Member:     boolPointer(true),
 			},
 		},
 	}
@@ -187,15 +186,17 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
 	service, controller := s.SecuredController(s.testIdentity)
 
 	testUsername := "jsmith" + uuid.NewV4().String()
-	_, err = testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
+	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
+
+	inviteeID := invitee.ID.String()
 
 	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
-				Username: &testUsername,
-				Member:   boolPointer(false),
-				Roles:    []string{"foobar"},
+				IdentityID: &inviteeID,
+				Member:     boolPointer(false),
+				Roles:      []string{"foobar"},
 			},
 		},
 	}

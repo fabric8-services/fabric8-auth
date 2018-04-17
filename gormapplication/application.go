@@ -8,6 +8,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
+	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
@@ -95,6 +97,14 @@ func (g *GormBase) VerificationCodes() account.VerificationCodeRepository {
 
 func (g *GormBase) InvitationRepository() invitation.InvitationRepository {
 	return invitation.NewInvitationRepository(g.db)
+}
+
+func (g *GormBase) InvitationService() invitationservice.InvitationService {
+	return invitationservice.NewInvitationService(g)
+}
+
+func (g *GormBase) PermissionService() permissionservice.PermissionService {
+	return permissionservice.NewPermissionService(g.db)
 }
 
 func (g *GormBase) ResourceRepository() resource.ResourceRepository {

@@ -120,7 +120,7 @@ func (m *GormInvitationRepository) Create(ctx context.Context, i *Invitation) er
 	if i.InvitationID == uuid.Nil {
 		i.InvitationID = uuid.NewV4()
 	}
-	err := m.db.Debug().Create(i).Error
+	err := m.db.Create(i).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"invitation_id": i.InvitationID,
@@ -171,7 +171,7 @@ func (m *GormInvitationRepository) ListForResource(ctx context.Context, resource
 	defer goa.MeasureSince([]string{"goa", "db", "invitation", "listForResource"}, time.Now())
 	var rows []Invitation
 
-	err := m.db.Model(&Invitation{}).Where("resource_to = ?", resourceID).Find(&rows).Error
+	err := m.db.Model(&Invitation{}).Where("resource_id = ?", resourceID).Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

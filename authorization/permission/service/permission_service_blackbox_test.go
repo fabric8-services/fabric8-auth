@@ -1,4 +1,4 @@
-package model_test
+package service_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
+	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -40,7 +40,7 @@ type permissionModelServiceBlackBoxTest struct {
 	roleRepo                roleRepo.RoleRepository
 	roleMappingRepo         roleRepo.RoleMappingRepository
 	orgModelService         organizationModel.OrganizationModelService
-	permissionService       permissionModelService.PermissionModelService
+	permissionService       permissionModelService.PermissionService
 	testAreaRole            roleRepo.Role
 	testWorkItemRole        roleRepo.Role
 	testWorkItemCommentRole roleRepo.Role
@@ -61,7 +61,7 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.roleRepo = roleRepo.NewRoleRepository(s.DB)
 	s.roleMappingRepo = roleRepo.NewRoleMappingRepository(s.DB)
 	s.orgModelService = organizationModel.NewOrganizationModelService(s.DB)
-	s.permissionService = permissionModelService.NewPermissionModelService(s.DB)
+	s.permissionService = permissionModelService.NewPermissionService(s.DB)
 
 	// Create a test "area" resource type
 	role := s.setupResourceType(testResourceTypeArea, testAreaScopeName, "test-permission-area-role")

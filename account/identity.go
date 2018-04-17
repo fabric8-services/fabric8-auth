@@ -12,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -100,18 +99,6 @@ func (m Identity) GetLastModified() time.Time {
 
 func (m Identity) IsUser() bool {
 	return m.UserID.Valid
-}
-
-func (m Identity) IsOrganization() bool {
-	return m.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeOrganization
-}
-
-func (m Identity) IsTeam() bool {
-	return m.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam
-}
-
-func (m Identity) IsGroup() bool {
-	return m.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeGroup
 }
 
 // GormIdentityRepository is the implementation of the storage interface for
@@ -274,7 +261,7 @@ func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
-// Query expose an open ended Query model
+// Query expose an open ended Query service
 func (m *GormIdentityRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "query"}, time.Now())
 	var identities []Identity
