@@ -808,6 +808,94 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <img src="./assets/permission_has_scope_sql_role_example_7.png" alt="permission has scope sql role example 7">
 </div>
 </div>
+<div class="paragraph">
+<p>Let&#8217;s now look at the second part of our recursive query (ignoring section 4 and 5 for now as they are described below):</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_role_mapping_hierarchy.png" alt="permission has scope sql role 3 role mapping hierarchy">
+</div>
+</div>
+<div class="paragraph">
+<p>The overall goal of the recursive query is to locate role mappings that map to roles that grant the specified <code>SCOPE</code> parameter value, and to then use that list of role mappings as criteria for the permission query.  There are two possibilities here:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the user (or any organization, team or group in which they are a member) has been directly granted a role that maps to <em>another</em> role that has the desired scope, <em>or</em></p>
+</li>
+<li>
+<p>the user (or their organization, etc) has been granted a role that maps to a role further down the resource hierarchy, and <em>that</em> role is further mapped down the hierarchy to the role that we&#8217;re interested in.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The first possibility is already addressed by the first part of the hierarchical query.  This leaves the second scenario, a multiple level role mapping hierarchy, which is dealt with by the second part of the recursive query.  Let&#8217;s start by visualizing a special example of this, in which we assign each resource and role a unique identifier:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_8.png" alt="permission has scope sql role example 8">
+</div>
+</div>
+<div class="paragraph">
+<p>We can see that our user <code>jane_smith</code> has been granted the employee role, and that there is a role mapping that maps the employee role to the contributor role, and another role mapping that maps the contributor role to the developer role.  Since the first part of the recursive query has already identified the role mapping we are interested in (in this case, the one that maps role B to role C), we simply need to walk up the role mapping hierarchy.  In section 5, a list of resource IDs for the role mapping is generated in a recursive subquery.  That just leaves one task for the second part of the recursive query, select a list of the role mappings that themselves chain together within the resource&#8217;s ancestor hierarchy.</p>
+</div>
+<div class="paragraph">
+<p>Since we have two role mappings here, we can represent their data as such:</p>
+</div>
+<table class="tableblock frame-all grid-all" style="width: 50%;">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RESOURCE_ID</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FROM_ROLE_ID</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">TO_ROLE_ID</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">R1</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">R2</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">C</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Since we are joining by <code>FROM_ROLE_ID = TO_ROLE_ID</code>, and starting from the bottom up, we get a match in that the R2 role mapping&#8217;s <code>FROM_ROLE_ID</code> equals R1 role mapping&#8217;s <code>TO_ROLE_ID</code>, so the R1 role mapping gets selected.</p>
+</div>
+<div class="paragraph">
+<p>What we end up with when both the first and second parts of the recursive query get UNIONed together, is a list containing the <code>FROM_ROLE_ID</code> and <code>TO_ROLE_ID</code> values from both role mappings:</p>
+</div>
+<table class="tableblock frame-all grid-all" style="width: 50%;">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FROM_ROLE_ID</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">TO_ROLE_ID</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">C</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>As was previously explained in Section 2, these results are then combined into a single column of unique values which are then used as a condition for the <code>IDENTITY_ROLE.ROLE_ID</code> criteria.</p>
+</div>
 </div>
 <div class="sect3">
 <h4 id="_section_4">Section 4</h4>
@@ -820,13 +908,24 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 </div>
+<div class="sect3">
+<h4 id="_section_5">Section 5</h4>
+<div class="paragraph">
+<p>This recursive subquery produces a list of all the resource ID values for the selected role mapping&#8217;s resource hierarchy.  It is used as a condition to restrict the search for role mappings within the same resource hierarchy, as explained above in Section 3.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_part5.png" alt="permission has scope sql role 3 part5">
+</div>
+</div>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-04-16 21:13:16 +07
+Last updated 2018-04-17 19:48:08 +07
 </div>
 </div>
 </body>

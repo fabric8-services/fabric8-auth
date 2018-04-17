@@ -195,9 +195,51 @@ It is our query's task to locate the role mappings that grant a user the specifi
 
 image::permission_has_scope_sql_role_example_7.png[]
 
+Let's now look at the second part of our recursive query (ignoring section 4 and 5 for now as they are described below):
+
+image::permission_has_scope_sql_role_3_role_mapping_hierarchy.png[]
+
+The overall goal of the recursive query is to locate role mappings that map to roles that grant the specified `SCOPE` parameter value, and to then use that list of role mappings as criteria for the permission query.  There are two possibilities here:
+
+* the user (or any organization, team or group in which they are a member) has been directly granted a role that maps to _another_ role that has the desired scope, _or_
+* the user (or their organization, etc) has been granted a role that maps to a role further down the resource hierarchy, and _that_ role is further mapped down the hierarchy to the role that we're interested in.
+
+The first possibility is already addressed by the first part of the hierarchical query.  This leaves the second scenario, a multiple level role mapping hierarchy, which is dealt with by the second part of the recursive query.  Let's start by visualizing a special example of this, in which we assign each resource and role a unique identifier:
+
+image::permission_has_scope_sql_role_example_8.png[]
+
+We can see that our user `jane_smith` has been granted the employee role, and that there is a role mapping that maps the employee role to the contributor role, and another role mapping that maps the contributor role to the developer role.  Since the first part of the recursive query has already identified the role mapping we are interested in (in this case, the one that maps role B to role C), we simply need to walk up the role mapping hierarchy.  In section 5, a list of resource IDs for the role mapping is generated in a recursive subquery.  That just leaves one task for the second part of the recursive query, select a list of the role mappings that themselves chain together within the resource's ancestor hierarchy.
+
+Since we have two role mappings here, we can represent their data as such:
+
+[width="50%"]
+|=======
+|RESOURCE_ID|FROM_ROLE_ID|TO_ROLE_ID
+|R1|A|B
+|R2|B|C
+|=======
+
+Since we are joining by `FROM_ROLE_ID = TO_ROLE_ID`, and starting from the bottom up, we get a match in that the R2 role mapping's `FROM_ROLE_ID` equals R1 role mapping's `TO_ROLE_ID`, so the R1 role mapping gets selected.  
+
+What we end up with when both the first and second parts of the recursive query get UNIONed together, is a list containing the `FROM_ROLE_ID` and `TO_ROLE_ID` values from both role mappings:
+
+[width="50%"]
+|=======
+|FROM_ROLE_ID|TO_ROLE_ID
+|A|B
+|B|C
+|=======
+
+As was previously explained in Section 2, these results are then combined into a single column of unique values which are then used as a condition for the `IDENTITY_ROLE.ROLE_ID` criteria.
 
 ==== Section 4
 
-This section of the query produces a list of all the resource ID values in the `RESOURCE_ID` parameter's parent hierarchy, exactly the same way as described above in the Resource Criteria section.  It is used as a subquery for the first part of the hierarchical role mapping query described in the previous section.
+This section of the query produces a list of all the resource ID values in the `RESOURCE_ID` parameter's parent hierarchy, exactly the same way as described above in the Resource Criteria section.  It is used as a subquery for the first part of the hierarchical role mapping query described in Section 3.
 
 image::permission_has_scope_sql_role_3_part4.png[]
+
+==== Section 5
+
+This recursive subquery produces a list of all the resource ID values for the selected role mapping's resource hierarchy.  It is used as a condition to restrict the search for role mappings within the same resource hierarchy, as explained above in Section 3.
+
+image::permission_has_scope_sql_role_3_part5.png[]
