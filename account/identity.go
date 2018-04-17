@@ -261,7 +261,7 @@ func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
-// Query expose an open ended Query service
+// Query expose an open ended Query model
 func (m *GormIdentityRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "query"}, time.Now())
 	var identities []Identity
