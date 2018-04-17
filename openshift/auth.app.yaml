@@ -27,7 +27,7 @@ objects:
           service: auth
       spec:
         containers:
-        - image: registry.devshift.net/fabric8-services/fabric8-auth:${IMAGE_TAG}
+        - image: registry.devshift.net/osio-prod/fabric8-services/fabric8-auth:${IMAGE_TAG}
           env:
           - name: AUTH_POSTGRES_HOST
             valueFrom:
