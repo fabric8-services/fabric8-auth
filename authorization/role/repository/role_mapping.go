@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"fmt"
+
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -20,7 +21,7 @@ type RoleMapping struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	RoleMappingID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:role_mapping_id"`
+	RoleMappingID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:role_mapping_id"`
 	// The resource that this role mapping applies to
 	Resource resource.Resource `gorm:"ForeignKey:ResourceID;AssociationForeignKey:ResourceID"`
 	// The foreign key value for Resource
