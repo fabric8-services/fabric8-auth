@@ -429,6 +429,13 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_development_workflow">Development workflow</a></li>
 <li><a href="#_makefile_targets">Makefile targets</a></li>
 <li><a href="#_service_accounts">Service Accounts</a></li>
+<li><a href="#_permission_checks">Permission Checks</a>
+<ul class="sectlevel2">
+<li><a href="#_identity_criteria">Identity criteria</a></li>
+<li><a href="#_resource_criteria">Resource criteria</a></li>
+<li><a href="#_role_criteria">Role criteria</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </div>
@@ -590,10 +597,335 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_permission_checks">Permission Checks</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The <strong>HasScope()</strong> method provided by the permission service makes use of a complex SQL query in order to determine whether a user has a particular scope for a resource.  Besides checking for privileges assigned directly to the user, this query also takes into account:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>that the user may inherit the scope indirectly via their memberships in an organization, team or security group</p>
+</li>
+<li>
+<p>that the resource in question may have a parent resource (or other resource ancestry) of the same type to which the user has been granted privileges</p>
+</li>
+<li>
+<p>that there may be a role mapping, allowing a user that has been granted privileges to a resource of a different type somewhere in the resource ancestry to gain privileges for other resource types further down the hierarchy</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>It accepts three parameters; the user&#8217;s identity ID, the resource ID and the name of the scope.</p>
+</div>
+<div class="paragraph">
+<p>This section will describe the various parts of the permission query, providing a useful reference in case the SQL requires future maintenance.</p>
+</div>
+<div class="paragraph">
+<p>To begin, let&#8217;s examine the query at the highest level.  Essentially, it checks the <code>IDENTITY_ROLE</code> table for the existence of any records that match the criteria as described above.  It does this by setting conditions for the three columns; <code>identity_id</code>, <code>resource_id</code> and <code>role_id</code>, which can be seen as follows:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_1.png" alt="permission has scope sql 1">
+</div>
+</div>
+<div class="paragraph">
+<p>The following sections will examine each of these sections in more detail.</p>
+</div>
+<div class="sect2">
+<h3 id="_identity_criteria">Identity criteria</h3>
+<div class="paragraph">
+<p>In section 1 of the query above, the condition limits the records returned to those with an <code>IDENTITY_ID</code> equal to the current user&#8217;s, or to that of any organization, team or security group in which the current user is a member.</p>
+</div>
+<div class="paragraph">
+<p>This is done by selecting a list of the corresponding <code>ID</code> values from the <code>identities</code> table, and matching the <code>identity_role.identity_id</code> value against these:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_2.png" alt="permission has scope sql 2">
+</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>The first condition is a direct check for the user&#8217;s identity ID, to match any records for which the role has been assigned directly to the user.</p>
+</li>
+</ol>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_identity_role_identity.png" alt="permission has scope identity role identity">
+</div>
+</div>
+<div class="olist arabic">
+<ol class="arabic" start="2">
+<li>
+<p>The second condition includes the identity ID for any organization, team or security group in which the user is either directly or indirectly a member.  This is achieved by executing a recursive subquery in the <code>membership</code> table to "walk" up the user&#8217;s membership hierarchy, and extract out all of the <code>member_of</code> values.  This allows for a permission check in which the user may inherit privileges for the specified resource indirectly via their memberships.</p>
+</li>
+</ol>
+</div>
+<div class="paragraph">
+<p>For example, the privileges for a user which is a member of a team, which belongs to an organization could be represented like this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_identity_role_memberships.png" alt="permission has scope identity role memberships">
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_resource_criteria">Resource criteria</h3>
+<div class="paragraph">
+<p>The second condition of the query is used to select records for the specified resource.  Its criteria restricts records to those with either the exact same <code>resource_id</code> value as the resource parameter, or to an ancestor resource (since resources inherit privileges from their parent):</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_3.png" alt="permission has scope sql 3">
+</div>
+</div>
+<div class="paragraph">
+<p>The criteria does this by executing a recursive subquery on the resource hierarchy, using the resource table&#8217;s <code>parent_resource_id</code> column to <em>walk</em> up the hierarchy. The resulting list of resource IDs is used to restrict the <code>resource_id</code> column.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_identity_role_resource.png" alt="permission has scope identity role resource">
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_role_criteria">Role criteria</h3>
+<div class="paragraph">
+<p>The third condition of the query is by far the most complex, and is used to construct the set of valid roles matching the specified <code>scope</code> parameter.  This condition has been broken down into smaller sections which are described in more detail below.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_4.png" alt="permission has scope sql 4">
+</div>
+</div>
+<div class="sect3">
+<h4 id="_section_1">Section 1</h4>
+<div class="paragraph">
+<p>The first criteria selects roles that have the same resource type as the resource parameter, and the same scope as the scope parameter.  It matches on roles assigned both directly to the user, or indirectly via the user&#8217;s memberships, that have the specified <code>SCOPE</code> value, that have been directly assigned for the resource specified by the <code>RESOURCE_ID</code> parameter.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_1.png" alt="permission has scope sql role 1">
+</div>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_1_resource_scope.png" alt="permission has scope sql role 1 resource scope">
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_section_2">Section 2</h4>
+<div class="paragraph">
+<p>The second criteria is quite simple; the <code>CROSS JOIN LATERAL</code> clause takes the results from the <code>from_role_id</code> and <code>to_role_id</code> columns returned by the recursive inner query (see next section), and combines them into a single column called <code>role_id</code>.  The <code>DISTINCT</code> keyword is then used to remove duplicates from this list. This list of <code>role_id</code> values is then used as an <code>IN</code> condition for the <code>IDENTITY_ROLE.ROLE_ID</code> column.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_section_3">Section 3</h4>
+<div class="paragraph">
+<p>The next part of the query gets a little more tricky.  This complex recursive query does quite a few things - let&#8217;s start with the first subquery:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_part1.png" alt="permission has scope sql role 3 part1">
+</div>
+</div>
+<div class="paragraph">
+<p>This subquery returns the base set of results upon which the recursion will occur in the second section.  It searches for role mappings that a) apply to the resource specified by the <code>RESOURCE_ID</code> parameter; and b) map to a role that has the specified <code>SCOPE</code> parameter.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_role_mapping_scope.png" alt="permission has scope sql role 3 role mapping scope">
+</div>
+</div>
+<div class="paragraph">
+<p>Why does the query need this?  Well, if the user has been granted a <em>different</em> role for a resource higher up the resource hierarchy, but that role has been mapped via a role mapping to another role that has the scope that we&#8217;re interested in for the specified resource, we first need to build a list of role mappings that actually map to any roles that grant this privilege.  This is what this first section of the recursive query does.</p>
+</div>
+<div class="paragraph">
+<p>Since we are actually interested in all role mappings for the resource&#8217;s ancestor hierarchy, we need to query the resource&#8217;s hierarchy here also - this is covered in the next section.</p>
+</div>
+<div class="paragraph">
+<p>To illustrate more clearly how role mappings are queried, we will look at an example.</p>
+</div>
+<div class="paragraph">
+<p>Let us imagine that we have a resource type called <em>codebase</em>, and that we have a single <em>codebase</em> resource.  The <em>codebase</em> resource type also has one scope, <em>commit</em>, which has been assigned to the <em>developer</em> role:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_1.png" alt="permission has scope sql role example 1">
+</div>
+</div>
+<div class="paragraph">
+<p>Now let us imagine that we have another resource type called <em>space</em>, and that we also have a single <em>space</em> resource, and that the <em>space</em> resource type also has a role called <em>contributor</em>:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_2.png" alt="permission has scope sql role example 2">
+</div>
+</div>
+<div class="paragraph">
+<p>So far so good.  Now let&#8217;s also say that a <em>codebase</em> resource always has a <em>space</em> resource as its parent.  We can represent it like this:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_3.png" alt="permission has scope sql role example 3">
+</div>
+</div>
+<div class="paragraph">
+<p>Next, let&#8217;s add a user and grant them the <em>contributor</em> role for the <em>space</em> resource.  This is done by creating an <code>identity_role</code> entry that links the user, resource and role:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_4.png" alt="permission has scope sql role example 4">
+</div>
+</div>
+<div class="paragraph">
+<p>Now we come to role mappings - let&#8217;s say that for any user that has the <em>contributor</em> role for our <em>space</em> resource, we wish to automatically grant them the <em>developer</em> role for any child <em>codebase</em> resources.  In fact, the <em>codebase</em> resource doesn&#8217;t need to be a child, it can be a grandchild or great grandchild, i.e. it simply needs to exist as a descendent somewhere in the resource hierarchy.  To achieve this, we create a role mapping for our resource, that maps the <em>contributor</em> role to the <em>developer</em> role:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_5.png" alt="permission has scope sql role example 5">
+</div>
+</div>
+<div class="paragraph">
+<p>Let&#8217;s put it all together.  Since our user has been granted the <em>contributor</em> role for the <em>space</em> resource, and since there is a role mapping for our resource that maps the <em>contributor</em> role to the <em>developer</em> role, our user automatically gains the <em>developer</em> role for any descendent <em>codebase</em> resources:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_6.png" alt="permission has scope sql role example 6">
+</div>
+</div>
+<div class="paragraph">
+<p>It is our query&#8217;s task to locate the role mappings that grant a user the specified <code>SCOPE</code> parameter for the specified resource. With this in mind, our first subquery in this section of the query identifies any role mappings that directly map to any of the roles that grant the specified <code>SCOPE</code>:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_7.png" alt="permission has scope sql role example 7">
+</div>
+</div>
+<div class="paragraph">
+<p>Let&#8217;s now look at the second part of our recursive query (ignoring section 4 and 5 for now as they are described below):</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_role_mapping_hierarchy.png" alt="permission has scope sql role 3 role mapping hierarchy">
+</div>
+</div>
+<div class="paragraph">
+<p>The overall goal of the recursive query is to locate role mappings that map to roles that grant the specified <code>SCOPE</code> parameter value, and to then use that list of role mappings as criteria for the permission query.  There are two possibilities here:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the user (or any organization, team or group in which they are a member) has been directly granted a role that maps to <em>another</em> role that has the desired scope, <em>or</em></p>
+</li>
+<li>
+<p>the user (or their organization, etc) has been granted a role that maps to a role further down the resource hierarchy, and <em>that</em> role is further mapped down the hierarchy to the role that we&#8217;re interested in.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The first possibility is already addressed by the first part of the hierarchical query.  This leaves the second scenario, a multiple level role mapping hierarchy, which is dealt with by the second part of the recursive query.  Let&#8217;s start by visualizing a special example of this, in which we assign each resource and role a unique identifier:</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_example_8.png" alt="permission has scope sql role example 8">
+</div>
+</div>
+<div class="paragraph">
+<p>We can see that our user <code>jane_smith</code> has been granted the employee role, and that there is a role mapping that maps the employee role to the contributor role, and another role mapping that maps the contributor role to the developer role.  Since the first part of the recursive query has already identified the role mapping we are interested in (in this case, the one that maps role B to role C), we simply need to walk up the role mapping hierarchy.  In section 5, a list of resource IDs for the role mapping is generated in a recursive subquery.  That just leaves one task for the second part of the recursive query, select a list of the role mappings that themselves chain together within the resource&#8217;s ancestor hierarchy.</p>
+</div>
+<div class="paragraph">
+<p>Since we have two role mappings here, we can represent their data as such:</p>
+</div>
+<table class="tableblock frame-all grid-all" style="width: 50%;">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 33.3333%;">
+<col style="width: 33.3334%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RESOURCE_ID</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FROM_ROLE_ID</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">TO_ROLE_ID</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">R1</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">R2</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">C</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>Since we are joining by <code>FROM_ROLE_ID = TO_ROLE_ID</code>, and starting from the bottom up, we get a match in that the R2 role mapping&#8217;s <code>FROM_ROLE_ID</code> equals R1 role mapping&#8217;s <code>TO_ROLE_ID</code>, so the R1 role mapping gets selected.</p>
+</div>
+<div class="paragraph">
+<p>What we end up with when both the first and second parts of the recursive query get UNIONed together, is a list containing the <code>FROM_ROLE_ID</code> and <code>TO_ROLE_ID</code> values from both role mappings:</p>
+</div>
+<table class="tableblock frame-all grid-all" style="width: 50%;">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">FROM_ROLE_ID</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">TO_ROLE_ID</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">B</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">C</p></td>
+</tr>
+</tbody>
+</table>
+<div class="paragraph">
+<p>As was previously explained in Section 2, these results are then combined into a single column of unique values which are then used as a condition for the <code>IDENTITY_ROLE.ROLE_ID</code> criteria.</p>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_section_4">Section 4</h4>
+<div class="paragraph">
+<p>This section of the query produces a list of all the resource ID values in the <code>RESOURCE_ID</code> parameter&#8217;s parent hierarchy, exactly the same way as described above in the Resource Criteria section.  It is used as a subquery for the first part of the hierarchical role mapping query described in the previous section.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_part4.png" alt="permission has scope sql role 3 part4">
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_section_5">Section 5</h4>
+<div class="paragraph">
+<p>This recursive subquery produces a list of all the resource ID values for the selected role mapping&#8217;s resource hierarchy.  It is used as a condition to restrict the search for role mappings within the same resource hierarchy, as explained above in Section 3.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="./assets/permission_has_scope_sql_role_3_part5.png" alt="permission has scope sql role 3 part5">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2017-12-07 13:34:14 PST
+Last updated 2018-04-17 19:48:08 +07
 </div>
 </div>
 </body>
