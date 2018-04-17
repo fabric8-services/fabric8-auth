@@ -138,6 +138,30 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 	assert.Equal(s.T(), testIdentity, identity)
 }
 
+func (s *identityBlackBoxTest) TestUserIdentityIsUser() {
+	// Create test user & identity
+	testUser := &account.User{
+		ID:       uuid.NewV4(),
+		Email:    uuid.NewV4().String(),
+		FullName: "TestUserIdentityIsUser Developer",
+		Cluster:  "https://api.starter-us-east-2a.openshift.com",
+	}
+	testIdentity := &account.Identity{
+		Username:     "TestUserIdentityIsUser" + uuid.NewV4().String(),
+		ProviderType: account.KeycloakIDP,
+		User:         *testUser,
+	}
+	userRepository := account.NewUserRepository(s.DB)
+	userRepository.Create(s.Ctx, testUser)
+	s.repo.Create(s.Ctx, testIdentity)
+
+	// Load the identity
+	identity, err := s.repo.LoadWithUser(s.Ctx, testIdentity.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), identity)
+	require.True(s.T(), identity.IsUser())
+}
+
 func createAndLoad(s *identityBlackBoxTest) *account.Identity {
 	identity := &account.Identity{
 		ID:           uuid.NewV4(),

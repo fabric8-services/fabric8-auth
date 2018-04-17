@@ -23,5 +23,5 @@ const (
 func CanHaveMembers(resourceTypeName string) bool {
 	return resourceTypeName == IdentityResourceTypeOrganization ||
 		resourceTypeName == IdentityResourceTypeTeam ||
-		resourceTypeName != IdentityResourceTypeGroup
+		resourceTypeName == IdentityResourceTypeGroup
 }

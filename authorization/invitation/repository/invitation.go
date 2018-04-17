@@ -44,6 +44,7 @@ func (m Invitation) GetLastModified() time.Time {
 	return m.UpdatedAt
 }
 
+// InvitationRole represents the storage interface for storing an invitation's roles
 type InvitationRole struct {
 	InvitationID uuid.UUID `sql:"type:uuid" gorm:"primary_key;column:invitation_id"`
 
