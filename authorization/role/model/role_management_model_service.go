@@ -70,6 +70,15 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []rolerepo.IdentityRole
 
+	err := r.repository.ResourceRepository().CheckExists(ctx, resourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": resourceID,
+			"err":         err,
+		}, "does not exist")
+		return identityRoles, errors.NewNotFoundError("resource_id", resourceID)
+	}
+
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
 		  resource_id, parent_resource_id 
@@ -182,6 +191,15 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []rolerepo.IdentityRole
 
+	err := r.repository.ResourceRepository().CheckExists(ctx, resourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": resourceID,
+			"err":         err,
+		}, "does not exist")
+		return identityRoles, errors.NewNotFoundError("resource_id", resourceID)
+	}
+
 	r.db = r.db.Debug()
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
@@ -290,6 +308,15 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
 	var roleScopes []role.RoleScope
+
+	_, err := r.repository.ResourceTypeRepository().Lookup(ctx, resourceType)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_type": resourceType,
+			"err":           err,
+		}, "does not exist")
+		return roleScopes, errors.NewNotFoundError("resource_type", resourceType)
+	}
 
 	db := r.db.Raw(`SELECT r.role_id,
 		r.name role_name,

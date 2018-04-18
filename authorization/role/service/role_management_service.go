@@ -38,15 +38,6 @@ func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resource
 	var roles []rolerepo.IdentityRole
 	var err error
 	err = application.Transactional(r.db, func(appl application.Application) error {
-		err = appl.ResourceRepository().CheckExists(ctx, resourceID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": resourceID,
-				"err":         err,
-			}, "does not exist")
-			return errors.NewNotFoundError("resource_id", resourceID)
-		}
-
 		roles, err = r.modelService.ListByResource(ctx, resourceID)
 		return err
 	})
