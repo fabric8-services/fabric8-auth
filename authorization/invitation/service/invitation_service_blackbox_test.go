@@ -280,6 +280,27 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForUnknownUser()
 	require.Error(s.T(), err)
 }
 
+func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonUser() {
+	// Create a test user - this will be the organization owner
+	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser")
+	require.Nil(s.T(), err, "Could not create identity")
+
+	// Create an organization, we're going to do something crazy and invite the organization to join itself
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZZZZZZ")
+	require.Nil(s.T(), err, "Could not create organization")
+
+	invitations := []invitation.Invitation{
+		{
+			IdentityID: orgId,
+			Member:     true,
+		},
+	}
+
+	// This should fail because we specified a non-user identity in the invitation
+	err = s.invService.Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	require.Error(s.T(), err)
+}
+
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonMembershipIdentity() {
 	// Create a test user - this will be the inviter, and the identity to which the other identity will be invited
 	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser")

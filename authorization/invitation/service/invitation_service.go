@@ -100,7 +100,7 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	}
 
 	// Iterate through all of the invitations and confirm that for each one:
-	// 1) a valid user has been specified via its User ID, e-mail address or username
+	// 1) a valid user has been specified via its User ID
 	// 2) any roles specified are valid roles for the organization, team or security group
 	// For each invitation, ensure that the IdentityID value can be found and set it
 	for _, invitation := range invitations {
