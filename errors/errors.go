@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	stBadParameterErrorMsg         = "Bad value for parameter '%s': '%v'"
-	stBadParameterErrorExpectedMsg = "Bad value for parameter '%s': '%v' (expected: '%v')"
+	stBadParameterErrorMsg         = "Bad value for parameter '%s': '%v' - %s"
+	stBadParameterErrorExpectedMsg = "Bad value for parameter '%s': '%v' (expected: '%v') - %s"
 	stNotFoundErrorMsg             = "%s with id '%s' not found"
 )
 
@@ -142,15 +142,15 @@ type BadParameterError struct {
 	value            interface{}
 	expectedValue    interface{}
 	hasExpectedValue bool
+	errorMessage     string
 }
 
 // Error implements the error interface
 func (err BadParameterError) Error() string {
 	if err.hasExpectedValue {
-		return fmt.Sprintf(stBadParameterErrorExpectedMsg, err.parameter, err.value, err.expectedValue)
+		return fmt.Sprintf(stBadParameterErrorExpectedMsg, err.parameter, err.value, err.expectedValue, err.errorMessage)
 	}
-	return fmt.Sprintf(stBadParameterErrorMsg, err.parameter, err.value)
-
+	return fmt.Sprintf(stBadParameterErrorMsg, err.parameter, err.value, err.errorMessage)
 }
 
 // Expected sets the optional expectedValue parameter on the BadParameterError
@@ -160,9 +160,14 @@ func (err BadParameterError) Expected(expexcted interface{}) BadParameterError {
 	return err
 }
 
-// NewBadParameterError returns the custom defined error of type NewBadParameterError.
+// NewBadParameterError returns the custom defined error of type BadParameterError.
 func NewBadParameterError(param string, actual interface{}) BadParameterError {
 	return BadParameterError{parameter: param, value: actual}
+}
+
+// NewBadParameterErrorFromString returns the custom defined error of type BadParameterError.
+func NewBadParameterErrorFromString(param string, actual interface{}, errorMessage string) BadParameterError {
+	return BadParameterError{parameter: param, value: actual, errorMessage: errorMessage}
 }
 
 // IsBadParameterError returns true if the cause of the given error can be

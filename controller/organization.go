@@ -4,14 +4,12 @@ import (
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/application"
 	organizationtype "github.com/fabric8-services/fabric8-auth/authorization/organization"
 	organization "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 )
@@ -21,14 +19,12 @@ const OrganizationOwnerRole = "owner"
 // OrganizationController implements the organization resource.
 type OrganizationController struct {
 	*goa.Controller
-	db           application.DB
-	TokenManager token.Manager
-	orgService   organization.OrganizationService
+	orgService organization.OrganizationService
 }
 
 // NewOrganizationController creates an organization controller.
-func NewOrganizationController(service *goa.Service, db application.DB, orgService organization.OrganizationService) *OrganizationController {
-	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db, orgService: orgService}
+func NewOrganizationController(service *goa.Service, orgService organization.OrganizationService) *OrganizationController {
+	return &OrganizationController{Controller: service.NewController("OrganizationController"), orgService: orgService}
 }
 
 // Create runs the create action.

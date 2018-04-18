@@ -5,16 +5,13 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/organization"
-	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	"github.com/satori/go.uuid"
-
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -25,7 +22,7 @@ type organizationServiceBlackBoxTest struct {
 	identityRepo     account.IdentityRepository
 	identityRoleRepo role.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
-	orgService       organizationService.OrganizationService
+	orgService       organizationservice.OrganizationService
 }
 
 func TestRunOrganizationServiceBlackBoxTest(t *testing.T) {
@@ -37,7 +34,8 @@ func (s *organizationServiceBlackBoxTest) SetupTest() {
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
-	s.orgService = organizationModel.NewOrganizationModelService(s.DB, s.Application)
+	modelService := organizationmodel.NewOrganizationModelService(s.DB)
+	s.orgService = organizationservice.NewOrganizationService(modelService, s.Application)
 }
 
 func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {
@@ -91,5 +89,5 @@ func (s *organizationServiceBlackBoxTest) TestListOrganization() {
 	require.Equal(s.T(), false, org.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), "Test Organization MMMYYY", org.Name, "Organization name is different")
 	require.Equal(s.T(), 1, len(org.Roles), "New organization should have assigned exactly 1 role")
-	require.Equal(s.T(), organization.OrganizationOwnerRole, org.Roles[0], "New organization should have assigned owner role")
+	require.Equal(s.T(), authorization.OwnerRole, org.Roles[0], "New organization should have assigned owner role")
 }

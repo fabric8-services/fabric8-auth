@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	organization "github.com/fabric8-services/fabric8-auth/authorization/organization"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
@@ -28,7 +29,7 @@ func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identi
 	var err error
 
 	err = application.Transactional(s.db, func(appl application.Application) error {
-		organizationId, err = s.modelService.CreateOrganization(ctx, identityID, organizationName)
+		organizationId, err = s.modelService.CreateOrganization(ctx, appl, identityID, organizationName)
 		return err
 	})
 
@@ -39,7 +40,7 @@ func (s *OrganizationServiceImpl) ListOrganizations(ctx context.Context, identit
 	var orgs []organization.IdentityOrganization
 	var err error
 	err = application.Transactional(s.db, func(appl application.Application) error {
-		orgs, err = s.modelService.ListOrganizations(ctx, identityID)
+		orgs, err = s.modelService.ListOrganizations(ctx, appl, identityID)
 		return err
 	})
 

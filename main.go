@@ -2,11 +2,6 @@ package main
 
 import (
 	"flag"
-	"net/http"
-	"os"
-	"os/user"
-	"runtime"
-	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
@@ -32,6 +27,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
+
+	"net/http"
+	"os"
+	"os/user"
+	"runtime"
+	"time"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -252,10 +253,14 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationModelService := organizationModel.NewOrganizationModelService(db, appDB)
+	organizationModelService := organizationModel.NewOrganizationModelService(db)
 	organizationServiceRef := organizationService.NewOrganizationService(organizationModelService, appDB)
-	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationServiceRef)
+	organizationCtrl := controller.NewOrganizationController(service, organizationServiceRef)
 	app.MountOrganizationController(service, organizationCtrl)
+
+	// Mount "invitations" controller
+	invitationCtrl := controller.NewInvitationController(service, appDB)
+	app.MountInvitationController(service, invitationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)

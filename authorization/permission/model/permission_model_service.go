@@ -3,27 +3,25 @@ package model
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
 
-type PermissionModelService interface {
+type PermissionService interface {
 	HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error)
 }
 
 // GormPermissionModelService is the implementation of the interface for
-// PermissionService. IMPORTANT NOTE: Transaction control is not provided by this service
-type GormPermissionModelService struct {
-	db   *gorm.DB
-	repo repository.Repositories
+// PermissionModelService. IMPORTANT NOTE: Transaction control is not provided by this service
+type PermissionServiceImpl struct {
+	PermissionService
+	db *gorm.DB
 }
 
 // NewPermissionModelService creates a new service.
-func NewPermissionModelService(db *gorm.DB, repo repository.Repositories) PermissionModelService {
-	return &GormPermissionModelService{
-		db:   db,
-		repo: repo,
+func NewPermissionService(db *gorm.DB) PermissionService {
+	return &PermissionServiceImpl{
+		db: db,
 	}
 }
 
@@ -34,7 +32,7 @@ func NewPermissionModelService(db *gorm.DB, repo repository.Repositories) Permis
 // parent and other ancestor resources, and also takes into account role mappings, which allow roles assigned for a
 // certain type of resource in the resource ancestry to map to a role for a different resource type lower in the
 // resource hierarchy.
-func (s *GormPermissionModelService) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
+func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
 
 	rows, err := s.db.Unscoped().Raw(`SELECT
   count(1) roles
