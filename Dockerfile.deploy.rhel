@@ -1,4 +1,4 @@
-FROM registry.devshift.net/osio-prod/base/golang:latest
+FROM prod.registry.devshift.net/osio-prod/base/golang:latest
 
 LABEL maintainer "Devtools <devtools@redhat.com>"
 LABEL author "Devtools <devtools@redhat.com>"
