@@ -35,14 +35,14 @@ func (s *organizationModelServiceBlackBoxTest) SetupTest() {
 	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 
-	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB, s.Application)
+	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB)
 }
 
 func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationModelServiceBlackBoxTest-TestCreateOrganization")
 	require.Nil(s.T(), err, "Could not create identity")
 
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZXYAAA")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZXYAAA")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load the organization's identity
@@ -68,7 +68,7 @@ func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 		var roleName string
 		rows.Scan(&roleName)
 
-		require.Equal(s.T(), organization.OrganizationOwnerRole, roleName, "Only 'owner' role should be assigned during organization creation")
+		require.Equal(s.T(), authorization.OwnerRole, roleName, "Only 'owner' role should be assigned during organization creation")
 		roleCount++
 	}
 
@@ -83,17 +83,17 @@ func (s *organizationModelServiceBlackBoxTest) TestListOrganization() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Orgs created by the first user
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identityOwner.ID, "Test Organization MMMYYY")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identityOwner.ID, "Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
-	orgId2, err := s.orgModelService.CreateOrganization(s.Ctx, identityOwner.ID, "One More Test Organization MMMYYY")
+	orgId2, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identityOwner.ID, "One More Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Org created by the second user
-	_, err = s.orgModelService.CreateOrganization(s.Ctx, identityAnother.ID, "One More Test Organization MMMYYY")
+	_, err = s.orgModelService.CreateOrganization(s.Ctx, s.Application, identityAnother.ID, "One More Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load orgs where the first user is a member
-	orgs, err := s.orgModelService.ListOrganizations(s.Ctx, identityOwner.ID)
+	orgs, err := s.orgModelService.ListOrganizations(s.Ctx, s.Application, identityOwner.ID)
 	require.Nil(s.T(), err, "Could not list organizations")
 
 	// Check we get two organizations back
@@ -118,5 +118,5 @@ func (s *organizationModelServiceBlackBoxTest) equalOrganization(expectedOrgID u
 	require.Equal(s.T(), false, actualOrg.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), expectedOrgName, actualOrg.Name, "Organization name is different")
 	require.Equal(s.T(), 1, len(actualOrg.Roles), "New organization should have assigned exactly 1 role")
-	require.Equal(s.T(), organization.OrganizationOwnerRole, actualOrg.Roles[0], "New organization should have assigned owner role")
+	require.Equal(s.T(), authorization.OwnerRole, actualOrg.Roles[0], "New organization should have assigned owner role")
 }

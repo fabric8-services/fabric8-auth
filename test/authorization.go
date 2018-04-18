@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
@@ -46,9 +47,28 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 	return &identityRoleRef, err
 }
 
+func CreateTestIdentityRoleForIdentity(ctx context.Context, db *gorm.DB, identity account.Identity, resourceRef resource.Resource, roleRef role.Role) (*role.IdentityRole, error) {
+	identityRoleRef := role.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		Identity:       identity,
+		IdentityID:     identity.ID,
+		Resource:       resourceRef,
+		ResourceID:     resourceRef.ResourceID,
+		Role:           roleRef,
+		RoleID:         roleRef.RoleID,
+	}
+
+	identityRoleRepository := role.NewIdentityRoleRepository(db)
+	err := identityRoleRepository.Create(ctx, &identityRoleRef)
+	if err != nil {
+		return nil, err
+	}
+	return &identityRoleRef, err
+}
+
 func CreateTestOrganization(ctx context.Context, db *gorm.DB, appDB application.DB, creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
 
-	orgModelService := organizationModel.NewOrganizationModelService(db, appDB)
+	orgModelService := organizationModel.NewOrganizationModelService(db)
 	orgService := organizationService.NewOrganizationService(orgModelService, appDB)
 
 	var organization *account.Identity
@@ -142,7 +162,7 @@ func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype
 	rts := scope.ResourceTypeScope{
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceTypeID:      resourceType.ResourceTypeID,
-		Name:                uuid.NewV4().String(),
+		Name:                name,
 	}
 
 	resourceTypeScopeRepo := scope.NewResourceTypeScopeRepository(db)
