@@ -64,9 +64,13 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 	if inviteToIdentity != nil {
 		// Load the resource for the identity
+		if inviteToIdentity.IdentityResourceID == nil {
+			return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "specified identity has no resource")
+		}
+
 		identityResource, err = s.repo.ResourceRepository().Load(ctx, *inviteToIdentity.IdentityResourceID)
 		if err != nil {
-			return errors.NewInternalErrorFromString(ctx, "error loading resource for identity")
+			return errors.NewInternalError(ctx, err)
 		}
 
 		// Confirm that the issuing user has the necessary scope to manage members for the organization, team or security group
@@ -81,7 +85,7 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 		// We only allow membership in some identity types - confirm that we are inviting to an organization, team or security group
 		if !authorization.CanHaveMembers(identityResource.ResourceType.Name) {
-			return errors.NewInternalErrorFromString(ctx, "may only invite a user to an organization, team or security group")
+			return errors.NewInternalErrorFromString(ctx, "may only invite a user as a member to an organization, team or security group")
 		}
 	} else if inviteToResource != nil {
 		// Confirm that the issuing user has the manage members scope for the resource
@@ -108,6 +112,11 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 		if !identity.IsUser() {
 			return errors.NewBadParameterErrorFromString("Identity ID", invitation.IdentityID, "identity is not a user")
+		}
+
+		if invitation.Member && inviteToResource != nil {
+			// We cannot invite members to a resource, only certain identity types
+			return errors.NewBadParameterErrorFromString("Member", invitation.IdentityID, "can not invite members to a resource")
 		}
 	}
 

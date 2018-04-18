@@ -62,6 +62,12 @@ func (s *invitationBlackBoxTest) TestExistsInvitation() {
 	require.True(s.T(), exists)
 }
 
+func (s *invitationBlackBoxTest) TestNotExistsInvitationFails() {
+	exists, err := s.repo.CheckExists(s.Ctx, uuid.NewV4())
+	require.Error(s.T(), err)
+	require.False(s.T(), exists)
+}
+
 func (s *invitationBlackBoxTest) TestOKToSave() {
 	invitation, err := s.CreateTestInvitation()
 	require.NoError(s.T(), err)
