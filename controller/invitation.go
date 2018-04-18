@@ -53,7 +53,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 	}
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
-		error := appl.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
+		error := appl.InvitationModelService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
 		return error
 	})
 

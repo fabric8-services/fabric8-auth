@@ -1,4 +1,4 @@
-package service
+package model
 
 import (
 	"context"
@@ -12,7 +12,7 @@ type PermissionService interface {
 }
 
 // GormPermissionModelService is the implementation of the interface for
-// PermissionService. IMPORTANT NOTE: Transaction control is not provided by this service
+// PermissionModelService. IMPORTANT NOTE: Transaction control is not provided by this service
 type PermissionServiceImpl struct {
 	PermissionService
 	db *gorm.DB

@@ -1,4 +1,4 @@
-package service_test
+package model_test
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
+	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"

@@ -1,12 +1,12 @@
-package service_test
+package model_test
 
 import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
+	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
 	invitationRepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationModelService "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
@@ -21,7 +21,7 @@ type invitationServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	invitationRepo  invitationRepo.InvitationRepository
 	identityRepo    account.IdentityRepository
-	invService      invitationservice.InvitationService
+	invService      invitationservice.InvitationModelService
 	orgModelService organizationModelService.OrganizationModelService
 }
 

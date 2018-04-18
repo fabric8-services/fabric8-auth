@@ -3,9 +3,9 @@ package application
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
-	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
+	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
@@ -23,8 +23,8 @@ type Application interface {
 	ExternalTokens() provider.ExternalTokenRepository
 	VerificationCodes() account.VerificationCodeRepository
 	InvitationRepository() invitation.InvitationRepository
-	InvitationService() invitationservice.InvitationService
-	PermissionService() permissionservice.PermissionService
+	InvitationModelService() invitationservice.InvitationModelService
+	PermissionModelService() permissionservice.PermissionService
 	ResourceRepository() resource.ResourceRepository
 	ResourceTypeRepository() resourcetype.ResourceTypeRepository
 	ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository

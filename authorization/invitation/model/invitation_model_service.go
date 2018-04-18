@@ -1,4 +1,4 @@
-package service
+package model
 
 import (
 	"context"
@@ -8,32 +8,32 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invRepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	permissionService "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
+	permissionService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	resourceRepo "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
 )
 
-type InvitationService interface {
+type InvitationModelService interface {
 	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
 }
 
-type InvitationServiceImpl struct {
-	InvitationService
+type InvitationModelServiceImpl struct {
+	InvitationModelService
 	repo    repository.Repositories
 	permSvc permissionService.PermissionService
 }
 
-func NewInvitationService(repositories repository.Repositories) InvitationService {
-	return &InvitationServiceImpl{repo: repositories, permSvc: repositories.PermissionService()}
+func NewInvitationService(repositories repository.Repositories) InvitationModelService {
+	return &InvitationModelServiceImpl{repo: repositories, permSvc: repositories.PermissionModelService()}
 }
 
 // Issue creates new invitations.  The inviteTo parameter is the unique id of the organization, team, security group or resource for
 // which the invitations will be issued, and the invitations parameter contains the users and state for each individual user invitation.
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
-func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
+func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 	var inviteToIdentity *account.Identity
 	var identityResource *resourceRepo.Resource
 	var inviteToResource *resourceRepo.Resource
