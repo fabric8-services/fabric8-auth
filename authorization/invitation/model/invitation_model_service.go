@@ -8,9 +8,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	permissionsrv "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	resourcerepo "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 
@@ -21,7 +20,7 @@ import (
 type repositories interface {
 	Identities() account.IdentityRepository
 	ResourceRepository() resource.ResourceRepository
-	PermissionModelService() permissionsrv.PermissionService
+	PermissionModelService() permission.PermissionService
 	InvitationRepository() invitationrepo.InvitationRepository
 	RoleRepository() role.RoleRepository
 }
@@ -31,12 +30,11 @@ type InvitationModelService interface {
 }
 
 type InvitationModelServiceImpl struct {
-	repo    repositories
-	permSvc permissionsrv.PermissionService
+	repo repositories
 }
 
 func NewInvitationService(repositories repositories) InvitationModelService {
-	return &InvitationModelServiceImpl{repo: repositories, permSvc: repositories.PermissionModelService()}
+	return &InvitationModelServiceImpl{repo: repositories}
 }
 
 // Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group or resource for
@@ -45,8 +43,8 @@ func NewInvitationService(repositories repositories) InvitationModelService {
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 	var inviteToIdentity *account.Identity
-	var identityResource *resourcerepo.Resource
-	var inviteToResource *resourcerepo.Resource
+	var identityResource *resource.Resource
+	var inviteToResource *resource.Resource
 
 	// First try to convert inviteTo to a uuid
 	inviteToUUID, err := uuid.FromString(inviteTo)
@@ -84,7 +82,7 @@ func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uu
 		}
 
 		// Confirm that the issuing user has the necessary scope to manage members for the organization, team or security group
-		scope, err := s.permSvc.HasScope(ctx, issuingUserId, *inviteToIdentity.IdentityResourceID, authorization.ManageMembersScope)
+		scope, err := s.repo.PermissionModelService().HasScope(ctx, issuingUserId, *inviteToIdentity.IdentityResourceID, authorization.ManageMembersScope)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -99,7 +97,7 @@ func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uu
 		}
 	} else if inviteToResource != nil {
 		// Confirm that the issuing user has the manage members scope for the resource
-		scope, err := s.permSvc.HasScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.ManageMembersScope)
+		scope, err := s.repo.PermissionModelService().HasScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.ManageMembersScope)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
