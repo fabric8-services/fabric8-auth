@@ -5,12 +5,12 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
-	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
@@ -68,12 +68,11 @@ func CreateTestIdentityRoleForIdentity(ctx context.Context, db *gorm.DB, identit
 
 func CreateTestOrganization(ctx context.Context, db *gorm.DB, appDB application.DB, creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
 
-	orgModelService := organizationModel.NewOrganizationModelService(db)
-	orgService := organizationService.NewOrganizationService(orgModelService, appDB)
+	orgModelService := organizationmodel.NewOrganizationModelService(db, appDB)
 
 	var organization *account.Identity
 
-	orgID, err := orgService.CreateOrganization(ctx, creatorIdentityID, name)
+	orgID, err := orgModelService.CreateOrganization(ctx, creatorIdentityID, name)
 	if err != nil {
 		return *organization, err
 	}

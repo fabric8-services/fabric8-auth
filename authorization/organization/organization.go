@@ -1,7 +1,7 @@
 package organization
 
 import (
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // IdentityOrganization is used to return the Organizations for which an Identity is associated

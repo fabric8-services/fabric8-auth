@@ -2,19 +2,19 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-
-	"fmt"
-	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 type Invitation struct {

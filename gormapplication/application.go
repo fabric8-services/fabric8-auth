@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -16,6 +17,7 @@ import (
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
+
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -118,11 +120,17 @@ func (g *GormBase) ResourceTypeRepository() resourcetype.ResourceTypeRepository 
 func (g *GormBase) ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository {
 	return scope.NewResourceTypeScopeRepository(g.db)
 }
+
 func (g *GormBase) RoleRepository() role.RoleRepository {
 	return role.NewRoleRepository(g.db)
 }
+
 func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return role.NewIdentityRoleRepository(g.db)
+}
+
+func (g *GormBase) OrganizationModelService() organizationservice.OrganizationModelService {
+	return organizationservice.NewOrganizationModelService(g.db, g)
 }
 
 func (g *GormBase) DB() *gorm.DB {

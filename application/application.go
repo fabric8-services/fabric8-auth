@@ -5,6 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -30,6 +31,7 @@ type Application interface {
 	ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository
 	IdentityRoleRepository() role.IdentityRoleRepository
 	RoleRepository() role.RoleRepository
+	OrganizationModelService() organizationservice.OrganizationModelService
 }
 
 // A Transaction abstracts a database transaction. The repositories created for the transaction object make changes inside the the transaction

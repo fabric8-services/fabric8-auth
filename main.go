@@ -2,6 +2,11 @@ package main
 
 import (
 	"flag"
+	"net/http"
+	"os"
+	"os/user"
+	"runtime"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/email"
@@ -9,10 +14,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
-	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
+	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
+	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -20,19 +24,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	keycloakLinkAPI "github.com/fabric8-services/fabric8-auth/login/link"
+	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
-
-	"net/http"
-	"os"
-	"os/user"
-	"runtime"
-	"time"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -184,8 +182,8 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
-	roleManagementModelService := roleModel.NewRoleManagementModelService(db, appDB)
-	roleManagemenetService := roleService.NewRoleManagementService(roleManagementModelService, appDB)
+	roleManagementModelService := rolemodel.NewRoleManagementModelService(db, appDB)
+	roleManagemenetService := roleservice.NewRoleManagementService(roleManagementModelService, appDB)
 	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
 
@@ -229,7 +227,7 @@ func main() {
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
-	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
+	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
 
 	emailVerificationService := email.NewEmailVerificationClient(appDB, notificationChannel)
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
@@ -253,9 +251,8 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationModelService := organizationModel.NewOrganizationModelService(db)
-	organizationServiceRef := organizationService.NewOrganizationService(organizationModelService, appDB)
-	organizationCtrl := controller.NewOrganizationController(service, organizationServiceRef)
+	organizationModelService := organizationmodel.NewOrganizationModelService(db, appDB)
+	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationModelService)
 	app.MountOrganizationController(service, organizationCtrl)
 
 	// Mount "invitations" controller

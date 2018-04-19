@@ -6,8 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organization "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	organization "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -20,15 +19,14 @@ import (
 
 type TestOrganizationREST struct {
 	gormtestsupport.DBTestSuite
-	testIdentity account.Identity
-	service      *goa.Service
-	orgService   organization.OrganizationService
+	testIdentity    account.Identity
+	service         *goa.Service
+	orgModelService organization.OrganizationModelService
 }
 
 func (s *TestOrganizationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	modelService := organizationmodel.NewOrganizationModelService(s.DB)
-	s.orgService = organization.NewOrganizationService(modelService, s.Application)
+	s.orgModelService = organization.NewOrganizationModelService(s.DB, s.Application)
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
@@ -43,12 +41,12 @@ func TestRunOrganizationREST(t *testing.T) {
 
 func (rest *TestOrganizationREST) SecuredController(identity account.Identity) (*goa.Service, *OrganizationController) {
 	svc := testsupport.ServiceAsUser("Organization-Service", identity)
-	return svc, NewOrganizationController(svc, rest.orgService)
+	return svc, NewOrganizationController(svc, rest.Application, rest.orgModelService)
 }
 
 func (rest *TestOrganizationREST) UnsecuredController() (*goa.Service, *OrganizationController) {
 	svc := goa.New("Organization-Service")
-	controller := NewOrganizationController(svc, rest.orgService)
+	controller := NewOrganizationController(svc, rest.Application, rest.orgModelService)
 	return svc, controller
 }
 

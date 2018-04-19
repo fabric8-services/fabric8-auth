@@ -6,7 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/organization"
-	organizationModelService "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -22,7 +22,7 @@ type organizationModelServiceBlackBoxTest struct {
 	identityRepo     account.IdentityRepository
 	identityRoleRepo role.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
-	orgModelService  organizationModelService.OrganizationModelService
+	orgModelService  organizationmodel.OrganizationModelService
 }
 
 func TestRunOrganizationModelServiceBlackBoxTest(t *testing.T) {
@@ -35,14 +35,14 @@ func (s *organizationModelServiceBlackBoxTest) SetupTest() {
 	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 
-	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB)
+	s.orgModelService = organizationmodel.NewOrganizationModelService(s.DB, s.Application)
 }
 
 func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationModelServiceBlackBoxTest-TestCreateOrganization")
 	require.Nil(s.T(), err, "Could not create identity")
 
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZXYAAA")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZXYAAA")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load the organization's identity
@@ -83,17 +83,17 @@ func (s *organizationModelServiceBlackBoxTest) TestListOrganization() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Orgs created by the first user
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identityOwner.ID, "Test Organization MMMYYY")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identityOwner.ID, "Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
-	orgId2, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identityOwner.ID, "One More Test Organization MMMYYY")
+	orgId2, err := s.orgModelService.CreateOrganization(s.Ctx, identityOwner.ID, "One More Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Org created by the second user
-	_, err = s.orgModelService.CreateOrganization(s.Ctx, s.Application, identityAnother.ID, "One More Test Organization MMMYYY")
+	_, err = s.orgModelService.CreateOrganization(s.Ctx, identityAnother.ID, "One More Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load orgs where the first user is a member
-	orgs, err := s.orgModelService.ListOrganizations(s.Ctx, s.Application, identityOwner.ID)
+	orgs, err := s.orgModelService.ListOrganizations(s.Ctx, identityOwner.ID)
 	require.Nil(s.T(), err, "Could not list organizations")
 
 	// Check we get two organizations back
