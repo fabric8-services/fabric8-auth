@@ -1,11 +1,13 @@
 package authorization_test
 
 import (
+	"testing"
+
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type invitationBlackBoxTest struct {

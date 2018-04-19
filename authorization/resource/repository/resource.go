@@ -2,18 +2,17 @@ package repository
 
 import (
 	"context"
-	"time"
-
-	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormsupport"
-	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/jinzhu/gorm"
-
 	"fmt"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormsupport"
+	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/goadesign/goa"
+	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 )
