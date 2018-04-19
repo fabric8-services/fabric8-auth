@@ -5,7 +5,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -15,16 +14,14 @@ import (
 // ResourceRolesController implements the resource_roles resource.
 type ResourceRolesController struct {
 	*goa.Controller
-	db                    application.DB
-	roleManagementService roleservice.RoleManagementService
+	db application.DB
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService roleservice.RoleManagementService) *ResourceRolesController {
+func NewResourceRolesController(service *goa.Service, db application.DB) *ResourceRolesController {
 	return &ResourceRolesController{
 		Controller: service.NewController("ResourceRolesController"),
 		db:         db,
-		roleManagementService: assignmentService,
 	}
 }
 
@@ -33,14 +30,22 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 
 	var roles []role.IdentityRole
 
-	roles, err := c.roleManagementService.ListByResource(ctx, ctx.ResourceID)
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		var error error
+		roles, error = appl.RoleManagementService().ListByResource(ctx, ctx.ResourceID)
+		if error != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+				"err":         error,
+			}, "error retrieving list of roles for a specific resource")
+		}
+		return error
+	})
+
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"err":         err,
-		}, "error retrieving list of roles for a specific resource")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
 	roleList := convertIdentityRoleToAppRoles(ctx, roles)
 	return ctx.OK(&app.Identityroles{
 		Data: roleList,
@@ -52,14 +57,22 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 
 	var roles []role.IdentityRole
 
-	roles, err := c.roleManagementService.ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
+	err := application.Transactional(c.db, func(appl application.Application) error {
+		var error error
+		roles, error = appl.RoleManagementService().ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
+		if error != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+				"err":         error,
+			}, "error retrieving list of roles for a specific resource and a specific role")
+		}
+		return error
+	})
+
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"err":         err,
-		}, "error retrieving list of roles for a specific resource and a specific role")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
 	rolesList := convertIdentityRoleToAppRoles(ctx, roles)
 	if len(rolesList) == 0 {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("role", ctx.RoleName))

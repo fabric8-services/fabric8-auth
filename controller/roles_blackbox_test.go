@@ -8,7 +8,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	scoperepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 
@@ -29,8 +28,7 @@ type TestRolesRest struct {
 
 func (rest *TestRolesRest) SecuredRolesControllerWithIdentity(identity account.Identity) (*goa.Service, *RolesController) {
 	svc := testsupport.ServiceAsUser("Roles-Service", testsupport.TestIdentity)
-	roleManagementModelService := rolemodel.NewRoleManagementModelService(rest.DB, rest.Application)
-	roleAssignmentService := roleservice.NewRoleManagementService(roleManagementModelService, rest.Application)
+	roleAssignmentService := roleservice.NewRoleManagementService(rest.Application, rest.DB)
 	return svc, NewRolesController(svc, rest.Application, roleAssignmentService)
 }
 
