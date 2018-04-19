@@ -14,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -251,8 +250,7 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationModelService := organizationmodel.NewOrganizationModelService(db, appDB)
-	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationModelService)
+	organizationCtrl := controller.NewOrganizationController(service, appDB)
 	app.MountOrganizationController(service, organizationCtrl)
 
 	// Mount "invitations" controller

@@ -6,7 +6,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/organization"
-	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -21,13 +20,12 @@ const OrganizationOwnerRole = "owner"
 // OrganizationController implements the organization resource.
 type OrganizationController struct {
 	*goa.Controller
-	orgModelService organizationmodel.OrganizationModelService
-	db              application.DB
+	db application.DB
 }
 
 // NewOrganizationController creates an organization controller.
-func NewOrganizationController(service *goa.Service, db application.DB, orgModelService organizationmodel.OrganizationModelService) *OrganizationController {
-	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db, orgModelService: orgModelService}
+func NewOrganizationController(service *goa.Service, db application.DB) *OrganizationController {
+	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db}
 }
 
 // Create runs the create action.
@@ -48,7 +46,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 	var organizationId *uuid.UUID
 	err = application.Transactional(c.db, func(appl application.Application) error {
-		organizationId, err = c.orgModelService.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
+		organizationId, err = appl.OrganizationModelService().CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
 		return err
 	})
 
@@ -83,7 +81,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 
 	var orgs []organization.IdentityOrganization
 	err = application.Transactional(c.db, func(appl application.Application) error {
-		orgs, err = c.orgModelService.ListOrganizations(ctx, *currentUser)
+		orgs, err = appl.OrganizationModelService().ListOrganizations(ctx, *currentUser)
 		return err
 	})
 
