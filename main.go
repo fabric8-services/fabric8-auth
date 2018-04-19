@@ -14,8 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -181,10 +179,13 @@ func main() {
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
-	roleManagementModelService := rolemodel.NewRoleManagementModelService(db, appDB)
-	roleManagemenetService := roleservice.NewRoleManagementService(roleManagementModelService, appDB)
-	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService)
+	// Mount "resource-roles" controller
+	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
+
+	// Mount "roles" controller
+	rolesCtrl := controller.NewRolesController(service, appDB)
+	app.MountRolesController(service, rolesCtrl)
 
 	// Mount "authorize" controller
 	authorizeCtrl := controller.NewAuthorizeController(service, loginService, tokenManager, config)

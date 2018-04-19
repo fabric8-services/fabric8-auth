@@ -1,24 +1,19 @@
 package controller_test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/app"
 	"testing"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	scoperepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
-
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	"github.com/goadesign/goa"
-	"github.com/satori/go.uuid"
 
+	"github.com/goadesign/goa"
+	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,9 +24,7 @@ type TestRolesRest struct {
 
 func (rest *TestRolesRest) SecuredRolesControllerWithIdentity(identity account.Identity) (*goa.Service, *RolesController) {
 	svc := testsupport.ServiceAsUser("Roles-Service", testsupport.TestIdentity)
-	roleManagementModelService := rolemodel.NewRoleManagementModelService(rest.DB, rest.Application)
-	roleAssignmentService := roleservice.NewRoleManagementService(roleManagementModelService, rest.Application)
-	return svc, NewRolesController(svc, rest.Application, roleAssignmentService)
+	return svc, NewRolesController(svc, rest.Application)
 }
 
 func TestRunRolesRest(t *testing.T) {
@@ -40,7 +33,7 @@ func TestRunRolesRest(t *testing.T) {
 
 func (s *TestRolesRest) TestListRolesByResourceTypeOK() {
 
-	var createdRoleScopes []scoperepo.RoleScope
+	var createdRoleScopes []role.RoleScope
 
 	newResourceTypeName := uuid.NewV4().String()
 	testResourceTypeRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
@@ -49,7 +42,6 @@ func (s *TestRolesRest) TestListRolesByResourceTypeOK() {
 	// create 10 roles for the above resource type
 	for i := 0; i < 10; i++ {
 		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testResourceTypeRef, uuid.NewV4().String())
-
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), role)
 
@@ -109,7 +101,7 @@ func (s *TestRolesRest) TestListRolesByResourceTypeNotFound() {
 	test.ListRolesNotFound(s.T(), s.Ctx, svc, ctrl, &unknownResourceType)
 }
 
-func (s *TestRolesRest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, roleScopesRetrieved app.Roles, createdRoleScopes []scoperepo.RoleScope) {
+func (s *TestRolesRest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, roleScopesRetrieved app.Roles, createdRoleScopes []role.RoleScope) {
 	foundCreatedRoleScope := false
 	for _, rsDB := range createdRoleScopes {
 		foundCreatedRoleScope = false

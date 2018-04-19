@@ -13,14 +13,13 @@ type PermissionService interface {
 
 // GormPermissionModelService is the implementation of the interface for
 // PermissionModelService. IMPORTANT NOTE: Transaction control is not provided by this service
-type PermissionServiceImpl struct {
-	PermissionService
+type GormPermissionModelService struct {
 	db *gorm.DB
 }
 
 // NewPermissionModelService creates a new service.
 func NewPermissionService(db *gorm.DB) PermissionService {
-	return &PermissionServiceImpl{
+	return &GormPermissionModelService{
 		db: db,
 	}
 }
@@ -32,7 +31,7 @@ func NewPermissionService(db *gorm.DB) PermissionService {
 // parent and other ancestor resources, and also takes into account role mappings, which allow roles assigned for a
 // certain type of resource in the resource ancestry to map to a role for a different resource type lower in the
 // resource hierarchy.
-func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
+func (s *GormPermissionModelService) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
 
 	rows, err := s.db.Unscoped().Raw(`SELECT
   count(1) roles

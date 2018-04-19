@@ -14,6 +14,7 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
@@ -127,6 +128,10 @@ func (g *GormBase) RoleRepository() role.RoleRepository {
 
 func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return role.NewIdentityRoleRepository(g.db)
+}
+
+func (g *GormBase) RoleManagementModelService() rolemodel.RoleManagementModelService {
+	return rolemodel.NewRoleManagementModelService(g.db)
 }
 
 func (g *GormBase) OrganizationModelService() organizationservice.OrganizationModelService {
