@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	applicationRepository "github.com/fabric8-services/fabric8-auth/application/repository"
+	applicationrepo "github.com/fabric8-services/fabric8-auth/application/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -14,9 +14,8 @@ import (
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
-
 	errs "github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 )
 
 type IdentityRole struct {
@@ -58,7 +57,7 @@ func NewIdentityRoleRepository(db *gorm.DB) IdentityRoleRepository {
 
 // IdentityRoleRepository represents the storage interface.
 type IdentityRoleRepository interface {
-	applicationRepository.Exister
+	applicationrepo.Exister
 	Load(ctx context.Context, ID uuid.UUID) (*IdentityRole, error)
 	Create(ctx context.Context, u *IdentityRole) error
 	Save(ctx context.Context, u *IdentityRole) error

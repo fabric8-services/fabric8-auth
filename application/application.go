@@ -10,12 +10,13 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 )
 
-//An Application stands for a particular implementation of the business logic of our application
+//Application stands for a particular implementation of the business logic of our application
 type Application interface {
 	Identities() account.IdentityRepository
 	SpaceResources() space.ResourceRepository
@@ -31,6 +32,7 @@ type Application interface {
 	ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository
 	IdentityRoleRepository() role.IdentityRoleRepository
 	RoleRepository() role.RoleRepository
+	RoleManagementModelService() rolemodel.RoleManagementModelService
 	OrganizationModelService() organizationservice.OrganizationModelService
 }
 
