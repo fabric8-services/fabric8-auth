@@ -2,41 +2,49 @@ package model
 
 import (
 	"context"
-
 	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
-	invRepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	permissionService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
-	"github.com/fabric8-services/fabric8-auth/authorization/repository"
-	resourceRepo "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
+
 	"github.com/satori/go.uuid"
 )
+
+// repositories interface lets us avoid an import cycle
+type repositories interface {
+	Identities() account.IdentityRepository
+	ResourceRepository() resource.ResourceRepository
+	PermissionModelService() permission.PermissionService
+	InvitationRepository() invitationrepo.InvitationRepository
+	RoleRepository() role.RoleRepository
+}
 
 type InvitationModelService interface {
 	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
 }
 
 type InvitationModelServiceImpl struct {
-	InvitationModelService
-	repo    repository.Repositories
-	permSvc permissionService.PermissionService
+	repo repositories
 }
 
-func NewInvitationService(repositories repository.Repositories) InvitationModelService {
-	return &InvitationModelServiceImpl{repo: repositories, permSvc: repositories.PermissionModelService()}
+func NewInvitationService(repositories repositories) InvitationModelService {
+	return &InvitationModelServiceImpl{repo: repositories}
 }
 
-// Issue creates new invitations.  The inviteTo parameter is the unique id of the organization, team, security group or resource for
+// Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group or resource for
 // which the invitations will be issued, and the invitations parameter contains the users and state for each individual user invitation.
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 	var inviteToIdentity *account.Identity
-	var identityResource *resourceRepo.Resource
-	var inviteToResource *resourceRepo.Resource
+	var identityResource *resource.Resource
+	var inviteToResource *resource.Resource
 
 	// First try to convert inviteTo to a uuid
 	inviteToUUID, err := uuid.FromString(inviteTo)
@@ -74,7 +82,7 @@ func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uu
 		}
 
 		// Confirm that the issuing user has the necessary scope to manage members for the organization, team or security group
-		scope, err := s.permSvc.HasScope(ctx, issuingUserId, *inviteToIdentity.IdentityResourceID, authorization.ManageMembersScope)
+		scope, err := s.repo.PermissionModelService().HasScope(ctx, issuingUserId, *inviteToIdentity.IdentityResourceID, authorization.ManageMembersScope)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -89,7 +97,7 @@ func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uu
 		}
 	} else if inviteToResource != nil {
 		// Confirm that the issuing user has the manage members scope for the resource
-		scope, err := s.permSvc.HasScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.ManageMembersScope)
+		scope, err := s.repo.PermissionModelService().HasScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.ManageMembersScope)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -122,7 +130,7 @@ func (s *InvitationModelServiceImpl) Issue(ctx context.Context, issuingUserId uu
 
 	// Create the invitation records
 	for _, invitation := range invitations {
-		inv := new(invRepo.Invitation)
+		inv := new(invitationrepo.Invitation)
 		inv.IdentityID = *invitation.IdentityID
 
 		if inviteToIdentity != nil {
