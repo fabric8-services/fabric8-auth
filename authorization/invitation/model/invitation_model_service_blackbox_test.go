@@ -4,14 +4,14 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/model"
-	invitationRepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	organizationModelService "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,7 +19,7 @@ import (
 
 type invitationServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	invitationRepo  invitationRepo.InvitationRepository
+	invitationRepo  invitationrepo.InvitationRepository
 	identityRepo    account.IdentityRepository
 	invService      invitationservice.InvitationModelService
 	orgModelService organizationModelService.OrganizationModelService
@@ -31,10 +31,10 @@ func TestRunInvitationModelServiceBlackBoxTest(t *testing.T) {
 
 func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.invitationRepo = invitationRepo.NewInvitationRepository(s.DB)
+	s.invitationRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.invService = invitationservice.NewInvitationService(s.Application)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB)
+	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB, s.Application)
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
@@ -43,7 +43,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will invite this one to join the organization
@@ -239,7 +239,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonOwner() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will attempt to have this user invite themselves to the organization
@@ -263,7 +263,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForUnknownUser()
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	invalidIdentityID := uuid.NewV4()
@@ -286,7 +286,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonUser() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization, we're going to do something crazy and invite the organization to join itself
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	invitations := []invitation.Invitation{
@@ -328,7 +328,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	require.NoError(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
 	require.NoError(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will invite this one to join the organization
@@ -401,7 +401,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, s.Application, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will invite this one to accept the owner role for the organization
