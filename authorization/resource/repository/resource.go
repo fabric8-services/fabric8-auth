@@ -2,17 +2,17 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/application/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/jinzhu/gorm"
 
-	"fmt"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
-	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/goadesign/goa"
+	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 )
@@ -21,7 +21,7 @@ type Resource struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	ResourceID string `sql:"type:string" gorm:"primary_key" gorm:"column:resource_id"`
+	ResourceID string `sql:"type:string" gorm:"primary_key;column:resource_id"`
 	// The parent resource ID
 	ParentResourceID *string
 	// The resource type

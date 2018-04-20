@@ -188,6 +188,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 26
 	m = append(m, steps{ExecuteSQLFile("026-identities-users-indexes.sql")})
 
+	// Version 27
+	m = append(m, steps{ExecuteSQLFile("027-invitations.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

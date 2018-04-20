@@ -97,6 +97,10 @@ func (m Identity) GetLastModified() time.Time {
 	return m.UpdatedAt
 }
 
+func (m Identity) IsUser() bool {
+	return m.UserID.Valid
+}
+
 // GormIdentityRepository is the implementation of the storage interface for
 // Identity.
 type GormIdentityRepository struct {

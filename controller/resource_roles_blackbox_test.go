@@ -1,20 +1,14 @@
 package controller_test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/app"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	permissionmodelservice "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
-	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
-	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
-
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -32,12 +26,8 @@ func (s *TestResourceRolesRest) SetupSuite() {
 }
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
-	svc := testsupport.ServiceAsUser("Resource-roles-Service", identity)
-	roleManagementModelService := rolemodel.NewRoleManagementModelService(rest.DB, rest.Application)
-	permissionModelService := permissionmodelservice.NewPermissionModelService(rest.DB, rest.Application)
-	permissionService := permissionservice.NewPermissionService(permissionModelService, rest.Application)
-	roleAssignmentService := roleservice.NewRoleManagementService(roleManagementModelService, rest.Application)
-	return svc, NewResourceRolesController(svc, rest.Application, roleAssignmentService, permissionService)
+	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
+	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
 func TestRunResourceRolesRest(t *testing.T) {
