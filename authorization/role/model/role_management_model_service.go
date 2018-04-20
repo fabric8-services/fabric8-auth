@@ -38,20 +38,35 @@ type GormRoleManagementModelService struct {
 	db *gorm.DB
 }
 
-// ListAssignmentsByIdentityAndResource lists all the roles that have been assigned to a specific user/identity for a specific resource
+// ListAssignmentsByIdentityAndResource lists all the roles that have been assigned to a specific identity ( users or organizations or teams or groups ) for a specific resource
 func (r *GormRoleManagementModelService) ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]rolerepo.IdentityRole, error) {
-	return r.repository.IdentityRoleRepository().ListByIdentityAndResource(ctx, resourceID, identityID)
+	repo := rolerepo.NewIdentityRoleRepository(r.db)
+	return repo.ListByIdentityAndResource(ctx, resourceID, identityID)
 }
 
-// Assign assigns a user identity with a role, for a specific resource
+// AssignMultiple assigns a user identity with a role, for a specific resource
+func (r *GormRoleManagementModelService) AssignMultiple(ctx context.Context, identityIDs []uuid.UUID, resourceID string, roleName string) error {
+	for _, identityID := range identityIDs {
+		err := r.Assign(ctx, identityID, resourceID, roleName)
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+// Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
 func (r *GormRoleManagementModelService) Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error {
 
-	rt, err := r.repository.ResourceRepository().Load(ctx, resourceID)
+	resourceRepository := resource.NewResourceRepository(r.db)
+	rt, err := resourceRepository.Load(ctx, resourceID)
 	if err != nil {
 		return err
 	}
 
-	roleRef, err := r.repository.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
+	roleRepository := rolerepo.NewRoleRepository(r.db)
+	roleRef, err := roleRepository.Lookup(ctx, roleName, rt.ResourceType.Name)
 	if err != nil {
 		return err
 	}
@@ -61,22 +76,15 @@ func (r *GormRoleManagementModelService) Assign(ctx context.Context, identityID 
 		IdentityID: identityID,
 		RoleID:     roleRef.RoleID,
 	}
-	return r.repository.IdentityRoleRepository().Create(ctx, &ir)
+
+	identityRepository := rolerepo.NewIdentityRoleRepository(r.db)
+	return identityRepository.Create(ctx, &ir)
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
 func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []rolerepo.IdentityRole
-
-	err := r.repository.ResourceRepository().CheckExists(ctx, resourceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": resourceID,
-			"err":         err,
-		}, "does not exist")
-		return identityRoles, errors.NewNotFoundError("resource_id", resourceID)
-	}
 
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
@@ -190,16 +198,6 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []rolerepo.IdentityRole
 
-	err := r.repository.ResourceRepository().CheckExists(ctx, resourceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": resourceID,
-			"err":         err,
-		}, "does not exist")
-		return identityRoles, errors.NewNotFoundError("resource_id", resourceID)
-	}
-
-	r.db = r.db.Debug()
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
 		  resource_id, parent_resource_id 
@@ -307,15 +305,6 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
 	var roleScopes []role.RoleScope
-
-	_, err := r.repository.ResourceTypeRepository().Lookup(ctx, resourceType)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_type": resourceType,
-			"err":           err,
-		}, "does not exist")
-		return roleScopes, errors.NewNotFoundError("resource_type", resourceType)
-	}
 
 	db := r.db.Raw(`SELECT r.role_id,
 		r.name role_name,

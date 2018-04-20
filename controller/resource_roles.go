@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
 )
@@ -100,7 +102,6 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 	})
 }
 
-<<<<<<< HEAD
 // AssignRole assigns a specific role for a resource, to one or more identities.
 func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
 
@@ -114,7 +115,8 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for assigning roles to other users.
-	hasScope, err := c.permissionService.HasScope(ctx, *currentUser, ctx.ResourceID, ROLE_ASSIGNMENT_SCOPE)
+
+	hasScope, err := c.db.PermissionModelService().HasScope(ctx, *currentUser, ctx.ResourceID, ROLE_ASSIGNMENT_SCOPE)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -126,7 +128,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 	// Only then futher role assignments would be allowed.
 	for _, identity := range ctx.Payload.Data {
 		identityIDAsUUID, err := uuid.FromString(identity.ID)
-		assignedRoles, err := c.roleManagementService.ListAssignmentsByIdentityAndResource(ctx, ctx.ResourceID, identityIDAsUUID)
+		assignedRoles, err := c.db.RoleManagementModelService().ListAssignmentsByIdentityAndResource(ctx, ctx.ResourceID, identityIDAsUUID)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
@@ -149,18 +151,17 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identityID", identity.ID).Expected("uuid"))
 		}
 		identityIDs = append(identityIDs, identityIDAsUUID)
+		identityAsUUID, err := uuid.FromString(identity.ID)
+		err = c.db.RoleManagementModelService().Assign(ctx, identityAsUUID, ctx.ResourceID, ctx.RoleName)
 	}
-	err = c.roleManagementService.Assign(ctx, identityIDs, ctx.ResourceID, ctx.RoleName)
+
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return ctx.NoContent()
 }
 
-func convertIdentityRoleToAppRoles(ctx context.Context, roles []role.IdentityRole) []*app.IdentityRolesData {
-=======
 func convertIdentityRoleToAppRoles(roles []role.IdentityRole) []*app.IdentityRolesData {
->>>>>>> upstream/master
 	var rolesList []*app.IdentityRolesData
 	for _, r := range roles {
 		rolesList = append(rolesList, convertIdentityRoleToAppRole(r))
