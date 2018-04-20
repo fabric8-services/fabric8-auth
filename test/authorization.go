@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
@@ -10,6 +9,8 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/stretchr/testify/require"
+	"testing"
 
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -273,4 +274,11 @@ func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityR
 	}
 
 	return testIdentityRole, nil
+}
+
+func ValidateIdentityRole(t *testing.T, expected role.IdentityRole, actual role.IdentityRole) {
+	require.Equal(t, expected.IdentityRoleID, actual.IdentityRoleID)
+	require.Equal(t, expected.IdentityID, actual.IdentityID)
+	require.Equal(t, expected.ResourceID, actual.ResourceID)
+	require.Equal(t, expected.RoleID, actual.RoleID)
 }

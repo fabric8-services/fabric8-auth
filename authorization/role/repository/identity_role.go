@@ -209,7 +209,7 @@ func identityRoleFilterByResource(resourceID string) func(db *gorm.DB) *gorm.DB 
 	}
 }
 
-// IdentityRoleFilterByIdentityID is a gorm filter for Identity Role ID.
+// IdentityRoleFilterByIdentityID is a gorm filter for Identity ID.
 func identityRoleFilterByIdentityID(identityID uuid.UUID) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("identity_id = ?", identityID)

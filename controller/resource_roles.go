@@ -142,7 +142,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 		}
 	}
 
-	// Now that we have confirmed that all the users were part of the resource ( ex. space )
+	// Now that we have confirmed that all users have pre-existing role assignments
 	// we can proceed with the assignment of roles.
 	var identityIDs []uuid.UUID
 	for _, identity := range ctx.Payload.Data {

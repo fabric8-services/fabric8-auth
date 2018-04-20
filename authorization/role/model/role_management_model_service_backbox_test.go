@@ -232,7 +232,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestListByResourceAndIdentity()
 	returnedRoles, err := s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
 	require.NoError(t, err)
 	require.Len(t, returnedRoles, 1)
-	validateIdentityRole(s, *createdIdentityRole, returnedRoles[0])
+	testsupport.ValidateIdentityRole(s.T(), *createdIdentityRole, returnedRoles[0])
 
 	createdResource, err := s.resourceRepo.Load(s.Ctx, createdIdentityRole.ResourceID)
 	//createdRole, err := s.roleRepo.Load(s.Ctx, createdIdentityRole.RoleID)
@@ -316,11 +316,4 @@ func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
 	require.Equal(t, testR.ResourceID, identityRoles[0].ResourceID)
 	require.Equal(t, testRole.RoleID, identityRoles[0].RoleID)
 	require.Equal(t, testIdentity.ID, identityRoles[0].IdentityID)
-}
-
-func validateIdentityRole(s *roleManagementModelServiceBlackboxTest, expected rolerepo.IdentityRole, actual rolerepo.IdentityRole) {
-	require.Equal(s.T(), expected.IdentityRoleID, actual.IdentityRoleID)
-	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
-	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
-	require.Equal(s.T(), expected.RoleID, actual.RoleID)
 }
