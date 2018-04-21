@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/application/repository"
+	repository "github.com/fabric8-services/fabric8-auth/application/repository/base"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"

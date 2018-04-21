@@ -14,14 +14,14 @@ import (
 // RolesController implements the roles resource.
 type RolesController struct {
 	*goa.Controller
-	db application.DB
+	app application.Application
 }
 
 // NewRolesController creates a roles controller.
-func NewRolesController(service *goa.Service, db application.DB) *RolesController {
+func NewRolesController(service *goa.Service, app application.Application) *RolesController {
 	return &RolesController{
 		Controller: service.NewController("RolesController"),
-		db:         db,
+		app:        app,
 	}
 }
 
@@ -32,21 +32,19 @@ func (c *RolesController) List(ctx *app.ListRolesContext) error {
 	}
 
 	var roleScopes []role.RoleScope
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		_, err := appl.ResourceTypeRepository().Lookup(ctx, *ctx.ResourceType)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_type": *ctx.ResourceType,
-				"err":           err,
-			}, "error getting roles for the resource type")
-			// if not found, then NotFoundError would be returned,
-			// hence returning the error as is.
-			return err
-		}
 
-		roleScopes, err = appl.RoleManagementModelService().ListAvailableRolesByResourceType(ctx, *ctx.ResourceType)
+	_, err := c.app.ResourceTypeRepository().Lookup(ctx, *ctx.ResourceType)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_type": *ctx.ResourceType,
+			"err":           err,
+		}, "error getting roles for the resource type")
+		// if not found, then NotFoundError would be returned,
+		// hence returning the error as is.
 		return err
-	})
+	}
+
+	roleScopes, err = c.app.RoleManagementService().ListAvailableRolesByResourceType(ctx, *ctx.ResourceType)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

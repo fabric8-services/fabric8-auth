@@ -25,6 +25,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
@@ -52,12 +53,12 @@ type Configuration interface {
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
 		Identities:             identities,
 		Users:                  users,
 		TokenManager:           tokenManager,
-		DB:                     db,
+		App:                    app,
 		RemoteWITService:       &wit.RemoteWITServiceCaller{},
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
@@ -70,7 +71,7 @@ type KeycloakOAuthProvider struct {
 	Identities             account.IdentityRepository
 	Users                  account.UserRepository
 	TokenManager           token.Manager
-	DB                     application.DB
+	App                    application.Application
 	RemoteWITService       wit.RemoteWITService
 	keycloakProfileService UserProfileService
 	keycloakTokenService   keycloaktoken.TokenService
@@ -227,8 +228,8 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	if err != nil {
 		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
-	err = application.Transactional(keycloak.DB, func(appl application.Application) error {
-		identity, err = appl.Identities().LoadWithUser(ctx, identityID)
+	err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
+		identity, err = tr.Identities().LoadWithUser(ctx, identityID)
 		return err
 	})
 	if err != nil {
@@ -622,7 +623,7 @@ func (keycloak *KeycloakOAuthProvider) saveParams(ctx context.Context, redirect 
 }
 
 func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state string, referrer string, responseMode *string, validReferrerURL string) error {
-	err := oauth.SaveReferrer(ctx, keycloak.DB, state, referrer, responseMode, validReferrerURL)
+	err := oauth.SaveReferrer(ctx, keycloak.App, state, referrer, responseMode, validReferrerURL)
 	if err != nil {
 		return err
 	}
@@ -630,7 +631,7 @@ func (keycloak *KeycloakOAuthProvider) saveReferrer(ctx context.Context, state s
 }
 
 func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error) {
-	return oauth.LoadReferrerAndResponseMode(ctx, keycloak.DB, state)
+	return oauth.LoadReferrerAndResponseMode(ctx, keycloak.App, state)
 }
 
 // CreateOrUpdateIdentityInDB creates a user and a keycloak identity. If the user and identity already exist then update them.
@@ -703,9 +704,9 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
 		}
 
-		err = application.Transactional(keycloak.DB, func(appl application.Application) error {
+		err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
 			user := &identity.User
-			err := appl.Users().Create(ctx, user)
+			err := tr.Users().Create(ctx, user)
 			if err != nil {
 				return err
 			}
@@ -714,7 +715,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			identity.ProviderType = account.KeycloakIDP
 			identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
 			identity.User = *user
-			err = appl.Identities().Create(ctx, identity)
+			err = tr.Identities().Create(ctx, identity)
 			return err
 		})
 		if err != nil {
@@ -898,14 +899,14 @@ func ContextIdentity(ctx context.Context) (*uuid.UUID, error) {
 
 // ContextIdentityIfExists returns the identity's ID found in given context if the identity exists in the Auth DB
 // If it doesn't exist then an Unauthorized error is returned
-func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID, error) {
+func ContextIdentityIfExists(ctx context.Context, app application.Application) (uuid.UUID, error) {
 	identity, err := ContextIdentity(ctx)
 	if err != nil {
 		return uuid.Nil, err
 	}
 	// Check if the identity exists
-	err = application.Transactional(db, func(appl application.Application) error {
-		err := appl.Identities().CheckExists(ctx, identity.String())
+	err = transaction.Transactional(app, func(tr transaction.TransactionalResources) error {
+		err := tr.Identities().CheckExists(ctx, identity.String())
 		if err != nil {
 			return autherrors.NewUnauthorizedError(err.Error())
 		}
@@ -920,15 +921,15 @@ func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID,
 // LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
 // If no token present in the context then an Unauthorized error is returned
 // If the identity represented by the token doesn't exist in the DB or not associated with any User then an Unauthorized error is returned
-func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*account.Identity, error) {
+func LoadContextIdentityAndUser(ctx context.Context, app application.Application) (*account.Identity, error) {
 	var identity *account.Identity
 	identityID, err := ContextIdentity(ctx)
 	if err != nil {
 		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
 	// Check if the identity exists
-	err = application.Transactional(db, func(appl application.Application) error {
-		identity, err = appl.Identities().LoadWithUser(ctx, *identityID)
+	err = transaction.Transactional(app, func(tr transaction.TransactionalResources) error {
+		identity, err = tr.Identities().LoadWithUser(ctx, *identityID)
 		if err != nil {
 			return autherrors.NewUnauthorizedError(err.Error())
 		}
@@ -939,8 +940,8 @@ func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*accoun
 
 // LoadContextIdentityIfNotDeprovisioned returns the same identity as LoadContextIdentityAndUser()
 // if the user is not deprovisioned. Returns an Unauthorized error if the user is deprovisioned.
-func LoadContextIdentityIfNotDeprovisioned(ctx context.Context, db application.DB) (*account.Identity, error) {
-	identity, err := LoadContextIdentityAndUser(ctx, db)
+func LoadContextIdentityIfNotDeprovisioned(ctx context.Context, app application.Application) (*account.Identity, error) {
+	identity, err := LoadContextIdentityAndUser(ctx, app)
 	if err != nil {
 		return nil, err
 	}

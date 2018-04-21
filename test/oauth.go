@@ -19,11 +19,11 @@ type DummyProviderFactory struct {
 	Token           string
 	Config          *configuration.ConfigurationData
 	LoadProfileFail bool
-	DB              application.DB
+	App             application.Application
 }
 
 func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (link.ProviderConfig, error) {
-	providerFactory := link.NewOauthProviderFactory(factory.Config, factory.DB)
+	providerFactory := link.NewOauthProviderFactory(factory.Config, factory.App)
 	provider, err := providerFactory.NewOauthProvider(ctx, identityID, req, forResource)
 	if err != nil {
 		return nil, err

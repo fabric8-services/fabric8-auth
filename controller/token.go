@@ -22,6 +22,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -32,7 +33,7 @@ import (
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
-	db            application.DB
+	app           application.Application
 	Auth          login.KeycloakOAuthService
 	LinkService   link.LinkOAuthService
 	TokenManager  token.Manager
@@ -42,7 +43,7 @@ type TokenController struct {
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, db application.DB, auth login.KeycloakOAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
+func NewTokenController(service *goa.Service, app application.Application, auth login.KeycloakOAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
 	return &TokenController{
 		Controller:            service.NewController("token"),
 		Auth:                  auth,
@@ -50,7 +51,7 @@ func NewTokenController(service *goa.Service, db application.DB, auth login.Keyc
 		TokenManager:          tokenManager,
 		Configuration:         configuration,
 		providerConfigFactory: providerConfigFactory,
-		db: db,
+		app: app,
 	}
 }
 
@@ -109,9 +110,9 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 
 	devUsername := "developer"
 	var identities []account.Identity
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		identities, err = appl.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
 		return err
 	})
 	if err != nil {
@@ -212,7 +213,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 		currentIdentityID = *id
 	} else {
 		// Extract user ID
-		currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+		currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -301,18 +302,18 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	}
 
 	// Delete from local DB
-	err = application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
+	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		err := tr.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
 			return errors.NewUnauthorizedError(err.Error())
 		}
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
+		tokens, err := tr.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
 		if err != nil {
 			return err
 		}
 		if len(tokens) > 0 {
 			for _, token := range tokens {
-				err = appl.ExternalTokens().Delete(ctx, token.ID)
+				err = tr.ExternalTokens().Delete(ctx, token.ID)
 				if err != nil {
 					return err
 				}
@@ -545,8 +546,8 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource 
 			return externalToken, &errorResponse, errors.NewUnauthorizedError(err.Error())
 		}
 		externalToken.Username = userProfile.Username
-		err = application.Transactional(c.db, func(appl application.Application) error {
-			return appl.ExternalTokens().Save(ctx, &externalToken)
+		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			return tr.ExternalTokens().Save(ctx, &externalToken)
 		})
 		return externalToken, nil, err
 	}
@@ -555,12 +556,12 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource 
 
 func (c *TokenController) loadToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
 	var externalToken *provider.ExternalToken
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		err := tr.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
 			return errors.NewUnauthorizedError(err.Error())
 		}
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
+		tokens, err := tr.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
 		if err != nil {
 			return err
 		}
@@ -629,7 +630,7 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
-	currentIdentity, err := login.ContextIdentityIfExists(ctx, c.db)
+	currentIdentity, err := login.ContextIdentityIfExists(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
@@ -29,6 +28,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -107,7 +107,7 @@ func main() {
 	}
 
 	// Set the database transaction timeout
-	application.SetDatabaseTransactionTimeout(config.GetPostgresTransactionTimeout())
+	transaction.SetDatabaseTransactionTimeout(config.GetPostgresTransactionTimeout())
 
 	// Migrate the schema
 	err = migration.Migrate(db.DB(), config.GetPostgresDatabase(), config)

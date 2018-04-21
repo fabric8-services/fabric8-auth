@@ -5,7 +5,8 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	applicationrepo "github.com/fabric8-services/fabric8-auth/application/repository"
+	applicationrepo "github.com/fabric8-services/fabric8-auth/application/repository/base"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -63,6 +64,8 @@ type IdentityRoleRepository interface {
 	Save(ctx context.Context, u *IdentityRole) error
 	List(ctx context.Context) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
+	FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error)
+	FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -174,9 +177,182 @@ func (m *GormIdentityRoleRepository) List(ctx context.Context) ([]IdentityRole, 
 	return rows, nil
 }
 
+func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error) {
+	var results []IdentityRole
+	err := m.db.Table(m.TableName()).Where(`identity_id in (
+  SELECT
+    id
+  FROM
+    identities i
+  WHERE
+    id = ? /* IDENTITY_ID */
+    OR id in (
+    WITH RECURSIVE m AS (
+      SELECT 
+        member_of 
+      FROM 
+        membership 
+      WHERE 
+        member_id = ? /* IDENTITY_ID */
+      UNION SELECT 
+        p.member_of 
+      FROM 
+        membership p INNER JOIN m ON m.member_of = p.member_id
+    ) 
+    SELECT member_of FROM m
+    )
+  )
+  AND resource_id IN (
+  WITH RECURSIVE m AS (
+  SELECT
+    resource_id, parent_resource_id
+  FROM
+    resource
+  WHERE
+    resource_id = ? /* RESOURCE_ID */
+  UNION SELECT
+    p.resource_id, p.parent_resource_id
+  FROM
+    resource p INNER JOIN m ON m.parent_resource_id = p.resource_id
+  )
+  SELECT
+    m.resource_id
+  FROM
+    m
+  )
+  AND (role_id IN (
+    SELECT
+      r.role_id
+    FROM
+      resource res,
+      role r,
+      role_scope rs,
+      resource_type_scope rts
+    WHERE
+      res.resource_id = ? /* RESOURCE_ID */
+      AND res.resource_type_id = r.resource_type_id
+      AND r.role_id = rs.role_id
+      AND rs.scope_id = rts.resource_type_scope_id
+      AND rts.name = ? /* SCOPE */
+  ) OR role_id IN (
+    SELECT DISTINCT
+      rl.role_id
+    FROM
+      (
+    WITH RECURSIVE prm AS (
+    SELECT
+      rm.from_role_id,
+      rm.to_role_id
+    FROM
+      role_mapping rm,
+      role r,
+      role_scope rs,
+      resource_type_scope rts
+    WHERE
+      rm.to_role_id = r.role_id
+      AND r.role_id = rs.role_id
+      AND rs.scope_id = rts.resource_type_scope_id
+      AND rts.name = ? /* SCOPE */
+      AND rm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in the ancestor hierarchy */
+      SELECT
+        resource_id, parent_resource_id
+      FROM
+        resource
+      WHERE
+        resource_id = ? /* RESOURCE_ID */
+      UNION SELECT
+        p.resource_id, p.parent_resource_id
+      FROM
+        resource p INNER JOIN m ON m.parent_resource_id = p.resource_id
+      )
+      SELECT
+        m.resource_id
+      FROM
+        m)
+    UNION SELECT
+     trm.from_role_id,
+     trm.to_role_id
+    FROM
+      role_mapping trm INNER JOIN prm ON prm.from_role_id = trm.to_role_id
+    WHERE
+      trm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in this role mapping's ancestor hierarchy */
+      SELECT
+        resource_id, parent_resource_id
+      FROM
+        resource
+      WHERE 
+        resource_id = trm.resource_id
+      UNION SELECT
+        p.resource_id, p.parent_resource_id
+      FROM
+        resource p INNER JOIN m ON m.parent_resource_id = p.resource_id
+      )
+      SELECT 
+        m.resource_id
+      FROM
+        m)
+      )
+    SELECT 
+      prm.from_role_id,
+      prm.to_role_id
+    FROM
+      prm) AS mappings
+    CROSS JOIN LATERAL (
+      VALUES (from_role_id), (to_role_id)
+      ) AS rl (role_id))
+  )`, identityID, identityID, resourceID, resourceID, scopeName, scopeName, resourceID).Scan(&results).Error
+
+	if err != nil {
+		return nil, errs.WithStack(err)
+	}
+
+	return results, nil
+}
+
 // IdentityRoleFilterByID is a gorm filter for Identity Role ID.
 func IdentityRoleFilterByID(identityRoleID uuid.UUID) func(db *gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("identity_role_id = ?", identityRoleID)
 	}
+}
+
+// FindIdentityRolesForIdentity returns an IdentityAssociations describing the roles which the specified Identity has, optionally for a specified resource type
+func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error) {
+
+	associations := []authorization.IdentityAssociation{}
+
+	// query for identities in which the user is a member
+	q := m.db.Table(m.TableName()).
+		Select("identity_role.resource_id AS ResourceID, r.name AS ResourceName, i.id AS IdentityID, role.name AS RoleName").
+		Joins("JOIN resource r ON r.resource_id = identity_role.resource_id").
+		Joins("JOIN identities i ON r.resource_id = i.identity_resource_id")
+
+	// with the specified resourceType
+	if resourceType != nil {
+		q = q.Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id AND rt.name = ?", resourceType)
+	} else {
+		q = q.Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id")
+	}
+
+	q = q.Joins("JOIN role ON role.role_id = identity_role.role_id")
+
+	rows, err := q.Where(`(identity_role.identity_id = ? OR identity_role.identity_id IN (WITH RECURSIVE m AS (
+			SELECT member_of FROM	membership WHERE member_id = ? 
+      UNION SELECT p.member_of	FROM membership p INNER JOIN m ON m.member_of = p.member_id)
+		  SELECT member_of FROM m))`, identityID, identityID).Rows()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var resourceid string
+		var resourcename string
+		var identityid *uuid.UUID
+		var rolename string
+		rows.Scan(&resourceid, &resourcename, &identityid, &rolename)
+		associations = authorization.AppendAssociation(associations, resourceid, &resourcename, identityid, false, &rolename)
+	}
+
+	return associations, nil
 }

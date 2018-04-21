@@ -36,7 +36,7 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 		TokenManager: testtoken.TokenManager,
 		Identities:   account.NewIdentityRepository(s.DB),
 		Users:        account.NewUserRepository(s.DB),
-		DB:           s.Application,
+		App:          s.Application,
 	}
 }
 

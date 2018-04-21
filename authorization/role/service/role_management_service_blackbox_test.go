@@ -1,4 +1,4 @@
-package model_test
+package service_test
 
 import (
 	"testing"
@@ -6,8 +6,8 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
-	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -19,7 +19,7 @@ import (
 
 type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo              rolescope.RoleManagementModelService
+	repo              rolescope.RoleManagementService
 	roleRepo          rolerepo.RoleRepository
 	resourcetypeRepo  resourcetype.ResourceTypeRepository
 	resourceTypeScope scope.ResourceTypeScopeRepository
@@ -31,7 +31,7 @@ func TestRunRoleManagementModelServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = rolescope.NewRoleManagementModelService(s.DB)
+	s.repo = rolescope.NewRoleManagementService(s.DB)
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)

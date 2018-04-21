@@ -30,7 +30,7 @@ type DBTestSuite struct {
 	suite.Suite
 	Configuration *config.ConfigurationData
 	DB            *gorm.DB
-	Application   application.DB
+	Application   application.Application
 	cleanTest     func()
 	cleanSuite    func()
 	Ctx           context.Context

@@ -1,4 +1,4 @@
-package model
+package service
 
 import (
 	"context"
@@ -17,27 +17,27 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-// RoleManagementModelService defines the service contract for managing role assignments
-type RoleManagementModelService interface {
+// RoleManagementService defines the service contract for managing role assignments
+type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 }
 
-// NewRoleManagementModelService creates a new service to manage role assignments
-func NewRoleManagementModelService(db *gorm.DB) *GormRoleManagementModelService {
-	return &GormRoleManagementModelService{
+// NewRoleManagementService creates a new service to manage role assignments
+func NewRoleManagementService(db *gorm.DB) *RoleManagementServiceImpl {
+	return &RoleManagementServiceImpl{
 		db: db,
 	}
 }
 
-// GormRoleManagementModelService implements the RoleManagementModelService to manage role assignments
-type GormRoleManagementModelService struct {
+// RoleManagementServiceImpl implements the RoleManagementService to manage role assignments
+type RoleManagementServiceImpl struct {
 	db *gorm.DB
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
+func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []rolerepo.IdentityRole
 
@@ -146,7 +146,7 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 }
 
 // ListByResource lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
+func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []rolerepo.IdentityRole
 
@@ -255,7 +255,7 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 }
 
 // ListAvailableRolesByResourceType lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error) {
+func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
 	var roleScopes []role.RoleScope
 

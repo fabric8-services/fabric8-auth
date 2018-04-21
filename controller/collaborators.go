@@ -15,6 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -22,7 +23,7 @@ import (
 // CollaboratorsController implements the collaborators resource.
 type CollaboratorsController struct {
 	*goa.Controller
-	db            application.DB
+	app           application.Application
 	config        collaboratorsConfiguration
 	policyManager auth.AuthzPolicyManager
 }
@@ -33,8 +34,8 @@ type collaboratorsConfiguration interface {
 }
 
 // NewCollaboratorsController creates a collaborators controller.
-func NewCollaboratorsController(service *goa.Service, db application.DB, config collaboratorsConfiguration, policyManager auth.AuthzPolicyManager) *CollaboratorsController {
-	return &CollaboratorsController{Controller: service.NewController("CollaboratorsController"), db: db, config: config, policyManager: policyManager}
+func NewCollaboratorsController(service *goa.Service, app application.Application, config collaboratorsConfiguration, policyManager auth.AuthzPolicyManager) *CollaboratorsController {
+	return &CollaboratorsController{Controller: service.NewController("CollaboratorsController"), app: app, config: config, policyManager: policyManager}
 }
 
 // List collaborators for the given space ID.
@@ -73,8 +74,8 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 			}, "unable to convert the identity ID to uuid v4")
 			return jsonapi.JSONErrorResponse(ctx, goa.ErrInternal(err.Error()))
 		}
-		err = application.Transactional(c.db, func(appl application.Application) error {
-			identities, err := appl.Identities().Query(account.IdentityFilterByID(uID), account.IdentityWithUser())
+		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			identities, err := tr.Identities().Query(account.IdentityFilterByID(uID), account.IdentityWithUser())
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"identity_id": id,
@@ -115,7 +116,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 
 // Add user's identity to the list of space collaborators.
 func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -130,7 +131,7 @@ func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 
 // AddMany adds user's identities to the list of space collaborators.
 func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -146,7 +147,7 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 
 // Remove user from the list of space collaborators.
 func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -161,7 +162,7 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 
 // RemoveMany removes users from the list of space collaborators.
 func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -203,8 +204,8 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 				return goa.ErrBadRequest(err.Error())
 			}
 			var ownerID uuid.UUID
-			err = application.Transactional(c.db, func(appl application.Application) error {
-				identities, err := appl.Identities().Query(account.IdentityFilterByID(identityUUID), account.IdentityWithUser())
+			err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+				identities, err := tr.Identities().Query(account.IdentityFilterByID(identityUUID), account.IdentityWithUser())
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{
 						"identity_id": identityID,
@@ -218,7 +219,7 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 					}, "unable to find the identity")
 					return autherrors.NewNotFoundError("identity", identityID)
 				}
-				resource, err := appl.SpaceResources().LoadBySpace(ctx, &spaceID)
+				resource, err := tr.SpaceResources().LoadBySpace(ctx, &spaceID)
 				if err != nil {
 					return err
 				}
@@ -246,9 +247,9 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 	}
 
 	// We need to update the resource to triger RPT token refreshing when users try to access this space
-	err = application.Transactional(c.db, func(appl application.Application) error {
-		resource, err := appl.SpaceResources().LoadBySpace(ctx, &spaceID)
-		_, err = appl.SpaceResources().Save(ctx, resource)
+	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		resource, err := tr.SpaceResources().LoadBySpace(ctx, &spaceID)
+		_, err = tr.SpaceResources().Save(ctx, resource)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"resource":   resource,
@@ -268,9 +269,9 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 
 func (c *CollaboratorsController) getPolicy(ctx jsonapi.InternalServerError, req *goa.RequestData, spaceID uuid.UUID) (*auth.KeycloakPolicy, *string, error) {
 	var policyID string
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		// Load associated space resource
-		resource, err := appl.SpaceResources().LoadBySpace(ctx, &spaceID)
+		resource, err := tr.SpaceResources().LoadBySpace(ctx, &spaceID)
 		if err != nil {
 			return err
 		}
