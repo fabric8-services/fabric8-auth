@@ -26,29 +26,71 @@ func (s *authorizationBlackBoxTest) TestCanHaveMembers() {
 	require.True(s.T(), authorization.CanHaveMembers(authorization.IdentityResourceTypeGroup))
 }
 
-func (s *authorizationBlackBoxTest) TestMergeIdentityAssociations() {
+func (s *authorizationBlackBoxTest) TestIdentityAssociations() {
 	aID := uuid.NewV4()
 	bID := uuid.NewV4()
 	cID := uuid.NewV4()
 	dID := uuid.NewV4()
 
-	a := authorization.IdentityAssociation{
-		IdentityID:   &aID,
-		ResourceName: "resource_foo",
-		ResourceID:   "foo",
-		Member:       false,
-		Roles:        []string{},
+	associations := []authorization.IdentityAssociation{}
+
+	resourceNameFoo := "resource_foo"
+	associations = authorization.AppendAssociation(associations, "foo", &resourceNameFoo, &aID, true, nil)
+
+	require.Equal(s.T(), 1, len(associations))
+	require.Equal(s.T(), "foo", associations[0].ResourceID)
+	require.Equal(s.T(), resourceNameFoo, associations[0].ResourceName)
+	require.Equal(s.T(), aID, *associations[0].IdentityID)
+	require.True(s.T(), associations[0].Member)
+	require.Equal(s.T(), 0, len(associations[0].Roles))
+
+	resourceNameBar := "resource_bar"
+	roleName := "admin"
+	associations = authorization.AppendAssociation(associations, "bar", &resourceNameBar, &bID, false, &roleName)
+
+	require.Equal(s.T(), 2, len(associations))
+
+	found := false
+	for _, assoc := range associations {
+		if assoc.ResourceID == "bar" {
+			found = true
+			require.Equal(s.T(), resourceNameBar, assoc.ResourceName)
+			require.Equal(s.T(), bID, *assoc.IdentityID)
+			require.False(s.T(), assoc.Member)
+			require.Equal(s.T(), 1, len(assoc.Roles))
+			require.Equal(s.T(), roleName, assoc.Roles[0])
+			break
+		}
 	}
 
-	b := authorization.IdentityAssociation{
-		IdentityID:   &bID,
-		ResourceName: "resource_bar",
-		ResourceID:   "bar",
-		Member:       false,
-		Roles:        []string{"admin"},
-	}
+	require.True(s.T(), found)
 
-	associations := []authorization.IdentityAssociation{a, b}
+	roleName = "user"
+	associations = authorization.AppendAssociation(associations, "bar", nil, nil, true, &roleName)
+	require.Equal(s.T(), 2, len(associations))
+
+	found = false
+	for _, assoc := range associations {
+		if assoc.ResourceID == "bar" {
+			found = true
+			require.Equal(s.T(), resourceNameBar, assoc.ResourceName)
+			require.Equal(s.T(), bID, *assoc.IdentityID)
+			require.True(s.T(), assoc.Member)
+			require.Equal(s.T(), 2, len(assoc.Roles))
+			adminRoleFound := false
+			userRoleFound := false
+			for _, role := range assoc.Roles {
+				if role == "admin" {
+					adminRoleFound = true
+				} else if role == "user" {
+					userRoleFound = true
+				}
+			}
+			require.True(s.T(), adminRoleFound)
+			require.True(s.T(), userRoleFound)
+			break
+		}
+	}
 
 	c := authorization.IdentityAssociation{
 		IdentityID:   &cID,
@@ -79,19 +121,23 @@ func (s *authorizationBlackBoxTest) TestMergeIdentityAssociations() {
 	require.Equal(s.T(), 4, len(associations))
 	for _, assoc := range associations {
 		if assoc.ResourceID == "bar" {
-			require.Equal(s.T(), 2, len(assoc.Roles))
+			require.Equal(s.T(), 3, len(assoc.Roles))
 			adminFound := false
+			userFound := false
 			ownerFound := false
 			for _, role := range assoc.Roles {
 				if role == "admin" {
 					adminFound = true
 				} else if role == "owner" {
 					ownerFound = true
+				} else if role == "user" {
+					userFound = true
 				}
 			}
 
 			assert.True(s.T(), adminFound, "admin role not found")
 			assert.True(s.T(), ownerFound, "owner role not found")
+			assert.True(s.T(), userFound, "user role not found")
 		}
 	}
 }

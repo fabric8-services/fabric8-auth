@@ -45,7 +45,7 @@ type IdentityAssociation struct {
 // AppendAssociation appends the association state specified by the parameter values to an existing IdentityAssociation array
 func AppendAssociation(associations []IdentityAssociation, resourceID string, resourceName *string, identityID *uuid.UUID, member bool, role *string) []IdentityAssociation {
 	found := false
-	for _, assoc := range associations {
+	for i, assoc := range associations {
 		if assoc.ResourceID == resourceID {
 			found = true
 
@@ -70,6 +70,9 @@ func AppendAssociation(associations []IdentityAssociation, resourceID string, re
 					assoc.Roles = append(assoc.Roles, *role)
 				}
 			}
+
+			associations[i] = assoc
+			break
 		}
 	}
 
