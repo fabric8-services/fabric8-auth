@@ -258,7 +258,7 @@ func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *scope.Res
 }
 
 func (m *GormRoleRepository) FindRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "role", "listAvailableRoles"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "role", "FindRolesByResourceType"}, time.Now())
 	var roles []role.RoleDescriptor
 
 	db := m.db.Raw(`SELECT r.role_id,
