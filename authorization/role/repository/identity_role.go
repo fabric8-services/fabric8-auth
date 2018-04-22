@@ -312,30 +312,23 @@ func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identi
 	return results, nil
 }
 
-// IdentityRoleFilterByID is a gorm filter for Identity Role ID.
-func IdentityRoleFilterByID(identityRoleID uuid.UUID) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.Where("identity_role_id = ?", identityRoleID)
-	}
-}
-
 // FindIdentityRolesForIdentity returns an IdentityAssociations describing the roles which the specified Identity has, optionally for a specified resource type
 func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesForIdentity"}, time.Now())
 	associations := []authorization.IdentityAssociation{}
 
 	// query for identities in which the user is a member
-	q := m.db.Table(m.TableName()).
+	q := m.db.Debug().Table(m.TableName()).
 		Select("identity_role.resource_id AS ResourceID, r.name AS ResourceName, i.id AS IdentityID, role.name AS RoleName").
 		Joins("JOIN resource r ON r.resource_id = identity_role.resource_id").
-		Joins("JOIN identities i ON r.resource_id = i.identity_resource_id")
+		Joins("LEFT JOIN identities i ON r.resource_id = i.identity_resource_id")
 
 	// with the specified resourceType
 	if resourceType != nil {
 		q = q.Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id AND rt.name = ?", resourceType)
-	} else {
-		q = q.Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id")
-	}
+	} //else {
+	//q = q.Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id")
+	//}
 
 	q = q.Joins("JOIN role ON role.role_id = identity_role.role_id")
 

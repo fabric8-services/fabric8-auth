@@ -88,16 +88,18 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 
 }
 
-func (s *identityRoleBlackBoxTest) TestOKToSave() {
-	//identityRole := createAndLoadIdentityRole(s)
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesForIdentity() {
+	identityRole1 := createAndLoadIdentityRole(s)
+	createAndLoadIdentityRole(s)
 
-	//identityRole.Name = "newRoleNameTestType"
-	//err := s.repo.Save(s.ctx, identityRole)
-	//require.Nil(s.T(), err, "Could not update identity role")
+	associations, err := s.repo.FindIdentityRolesForIdentity(s.Ctx, identityRole1.IdentityID, nil)
+	require.NoError(s.T(), err)
 
-	//updatedIdentityRole, err := s.repo.Load(s.ctx, identityRole.IdentityRoleID)
-	//require.Nil(s.T(), err, "Could not load identity role")
-	//assert.Equal(s.T(), identityRole.Name, updatedIdentityRole.Name)
+	require.Equal(s.T(), 1, len(associations))
+	require.Equal(s.T(), identityRole1.ResourceID, associations[0].ResourceID)
+	require.Equal(s.T(), 1, len(associations[0].Roles))
+	require.Equal(s.T(), identityRole1.Role.Name, associations[0].Roles[0])
+
 }
 
 func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
