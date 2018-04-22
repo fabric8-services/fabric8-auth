@@ -47,7 +47,7 @@ func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identi
 		}
 
 		// Lookup the organization resource type
-		resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeOrganization)
+		resourceType, err := tr.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeOrganization)
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identi
 			ResourceTypeID: resourceType.ResourceTypeID,
 		}
 
-		err = s.repo.ResourceRepository().Create(ctx, res)
+		err = tr.ResourceRepository().Create(ctx, res)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -69,7 +69,7 @@ func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identi
 			IdentityResourceID: sql.NullString{res.ResourceID, true},
 		}
 
-		err = s.repo.Identities().Create(ctx, orgIdentity)
+		err = tr.Identities().Create(ctx, orgIdentity)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -77,7 +77,7 @@ func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identi
 		organizationId = orgIdentity.ID
 
 		// Lookup the identity/organization owner role
-		ownerRole, err := s.repo.RoleRepository().Lookup(ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
+		ownerRole, err := tr.RoleRepository().Lookup(ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
 
 		if err != nil {
 			return errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
@@ -90,7 +90,7 @@ func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identi
 			RoleID:     ownerRole.RoleID,
 		}
 
-		err = s.repo.IdentityRoleRepository().Create(ctx, identityRole)
+		err = tr.IdentityRoleRepository().Create(ctx, identityRole)
 		if err != nil {
 			return err
 		}
