@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roletestsupport "github.com/fabric8-services/fabric8-auth/authorization/role/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -138,105 +139,35 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleOK() {
-	// create a resource type
-	rt, err := testsupport.CreateTestResourceType(rest.Ctx, rest.DB, uuid.NewV4().String())
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), rt)
-
 	// create a resource
-	r, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *rt, uuid.NewV4().String(), nil)
+	r, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
 	require.NoError(rest.T(), err)
 	require.NotNil(rest.T(), r)
 
-	// create a role 'special_admin'
-	adminRole, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *rt, uuid.NewV4().String())
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), adminRole)
+	identitiesToBeAssigned, _ := roletestsupport.CreateRandomResourceMembers(rest.T(), rest.DB, *r, nil)
 
-	// create a scope 'assign_role'
-	adminScope, err := testsupport.CreateTestScope(rest.Ctx, rest.DB, *rt, "assign_role")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), adminScope)
+	// Create a user who has the privileges to assign roles
 
-	// associate role and scope
-	adminRoleScope, err := testsupport.CreateTestRoleScope(rest.Ctx, rest.DB, *adminScope, *adminRole)
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), adminRoleScope)
+	ir := roletestsupport.CreateAdministratorAssignment(rest.T(), rest.DB, *r)
 
-	ir, err := testsupport.CreateTestIdentityRole(rest.Ctx, rest.DB, *r, *adminRole)
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), ir)
-
-	// add her to the space
-	// create a role 'my_random_role'
-	randomRole, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *rt, "my_random_role")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), randomRole)
-
-	// create a scope 'my_random_scope'
-	randomScope, err := testsupport.CreateTestScope(rest.Ctx, rest.DB, *rt, "my_randome_scope")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), randomScope)
-
-	// associate role and scope
-	randomRoleScope, err := testsupport.CreateTestRoleScope(rest.Ctx, rest.DB, *randomScope, *randomRole)
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), randomRoleScope)
-
-	// create a role 'contributor'
-	contributorRole, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *rt, "contributor")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), contributorRole)
-
-	// create a scope 'edit_workitem'
-	contributorScope, err := testsupport.CreateTestScope(rest.Ctx, rest.DB, *rt, "edit_workitem")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), contributorScope)
-
-	// associate role and scope
-	contributorRoleScope, err := testsupport.CreateTestRoleScope(rest.Ctx, rest.DB, *contributorScope, *contributorRole)
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), contributorRoleScope)
-
-	var identitiesToBeAssigned []*app.UpdateUserID
-
-	for i := 0; i < 10; i++ {
-
-		// create an identity
-		identityToBeAssigned, err := testsupport.CreateTestIdentityAndUser(rest.DB, uuid.NewV4().String(), "KC")
-		require.NoError(rest.T(), err)
-		require.NotNil(rest.T(), identityToBeAssigned)
-
-		randomRoleAssignment, err := testsupport.CreateTestIdentityRoleForAnIdentity(rest.Ctx, rest.DB, *r, *randomRole, &identityToBeAssigned)
-		require.NoError(rest.T(), err)
-		require.NotNil(rest.T(), randomRoleAssignment)
-
-		identityPayload := app.UpdateUserID{
-			ID:   identityToBeAssigned.ID.String(),
-			Type: "identities",
-		}
-		identitiesToBeAssigned = append(identitiesToBeAssigned, &identityPayload)
-
-	}
-
-	// try to assign that identity with the role
 	svc, ctrl := rest.SecuredControllerWithIdentity(ir.Identity)
 	payload := app.AssignRoleResourceRolesPayload{
 		Data: identitiesToBeAssigned,
 	}
 
 	// before
-	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, contributorRole.Name)
+	newRoleScope := roletestsupport.SetupNewRole(rest.T(), rest.DB, *r, uuid.NewV4().String(), uuid.NewV4().String())
+	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, newRoleScope.Role.Name)
 
 	// lets assign 10 people now
-	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, r.ResourceID, contributorRole.Name, &payload)
+	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, r.ResourceID, newRoleScope.Role.Name, &payload)
 
 	// after
-	//_, roleListResp := test.ListAssignedByRoleNameResourceRolesOK(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, contributorRole.Name)
-	//require.Len(rest.T(), roleListResp.Data, 10)
-	//for _, createdIdentity := range identitiesToBeAssigned {
-	//	require.True(rest.T(), rest.checkIdentityExistsInAssignmentList(createdIdentity.ID, roleListResp))
-	//}
+	_, roleListResp := test.ListAssignedByRoleNameResourceRolesOK(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, newRoleScope.Role.Name)
+	require.Len(rest.T(), roleListResp.Data, 10)
+	for _, createdIdentity := range identitiesToBeAssigned {
+		require.True(rest.T(), rest.checkIdentityExistsInAssignmentList(createdIdentity.ID, roleListResp))
+	}
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleForbiddenUserNotInSpace() {

@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roletestsupport "github.com/fabric8-services/fabric8-auth/authorization/role/test"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -272,48 +273,40 @@ func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
 	testIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
 	require.NoError(t, err)
 
-	testRT, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
-	require.NoError(t, err)
-	require.NotNil(t, testRT)
-
-	testRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testRT, uuid.NewV4().String())
-	require.NoError(t, err)
-	require.NotNil(t, testRole)
-
-	testR, err := testsupport.CreateTestResource(s.Ctx, s.DB, *testRT, uuid.NewV4().String(), nil)
+	testR, err := testsupport.CreateTestResourceWithRandomResourceType(s.Ctx, s.DB, uuid.NewV4().String(), nil)
 	require.NoError(t, err)
 	require.NotNil(t, testR)
 
+	testRoleScope := roletestsupport.SetupNewRole(s.T(), s.DB, *testR, uuid.NewV4().String(), uuid.NewV4().String())
+	testRole := testRoleScope.Role
+
+	ramdomRoleScope := roletestsupport.SetupNewRole(s.T(), s.DB, *testR, uuid.NewV4().String(), uuid.NewV4().String())
+	randomRole := ramdomRoleScope.Role
+
+	// noisy data - multiple roles with multiple random users.
+	roletestsupport.CreateRandomResourceMembers(t, s.DB, *testR, nil)
+
+	// noisy data - specific role with multiple random users.
+	roletestsupport.CreateRandomResourceMembers(t, s.DB, *testR, &randomRole)
+
+	// make a real assignment
 	err = s.repo.Assign(s.Ctx, testIdentity.ID, testR.ResourceID, testRole.Name)
 	require.NoError(t, err)
-
-	// noisy data
-
-	for i := 0; i < 10; i++ {
-
-		randomRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testRT, uuid.NewV4().String())
-		require.NoError(t, err)
-		require.NotNil(t, randomRole)
-
-		randomResource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *testRT, uuid.NewV4().String(), nil)
-		require.NoError(t, err)
-		require.NotNil(t, randomResource)
-
-		randomIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
-		require.NoError(t, err)
-		require.NotNil(t, randomIdentity)
-
-		err = s.repo.Assign(s.Ctx, testIdentity.ID, testR.ResourceID, randomRole.Name)
-		require.NoError(t, err)
-
-		err = s.repo.Assign(s.Ctx, testIdentity.ID, randomResource.ResourceID, testRole.Name)
-		require.NoError(t, err)
-	}
 
 	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, testR.ResourceID, testRole.Name)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(identityRoles))
-	require.Equal(t, testR.ResourceID, identityRoles[0].ResourceID)
-	require.Equal(t, testRole.RoleID, identityRoles[0].RoleID)
-	require.Equal(t, testIdentity.ID, identityRoles[0].IdentityID)
+	validateAssignmentWithRole(s.T(), *testR, testRole, testIdentity, identityRoles[0])
+
+	identityRoles, err = s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, testR.ResourceID, testIdentity.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(identityRoles))
+	validateAssignmentWithRole(s.T(), *testR, testRole, testIdentity, identityRoles[0])
+
+}
+
+func validateAssignmentWithRole(t *testing.T, r resource.Resource, ro rolerepo.Role, identity account.Identity, identityRole rolerepo.IdentityRole) {
+	require.Equal(t, r.ResourceID, identityRole.ResourceID)
+	require.Equal(t, ro.RoleID, identityRole.RoleID)
+	require.Equal(t, identity.ID, identityRole.IdentityID)
 }
