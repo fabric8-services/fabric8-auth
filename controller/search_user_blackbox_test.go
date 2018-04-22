@@ -208,7 +208,7 @@ func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 
 func (s *TestSearchUserSearch) cleanTestData(idents []account.Identity) {
 	err := transaction.Transactional(s.Application, func(tr transaction.TransactionalResources) error {
-		db := tr.(*gormapplication.GormDB).DB()
+		db := tr.(*gormapplication.GormTransaction).DB()
 		db = db.Unscoped()
 		for _, ident := range idents {
 			db.Delete(ident)

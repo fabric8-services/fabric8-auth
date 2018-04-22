@@ -130,7 +130,7 @@ func (g *GormDB) InvitationService() invitationservice.InvitationService {
 }
 
 func (g *GormDB) RoleManagementService() roleservice.RoleManagementService {
-	return roleservice.NewRoleManagementService(g.db)
+	return roleservice.NewRoleManagementService(g)
 }
 
 func (g *GormBase) DB() *gorm.DB {

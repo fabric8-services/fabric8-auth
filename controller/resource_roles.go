@@ -36,7 +36,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 			"resource_id": ctx.ResourceID,
 			"err":         err,
 		}, "does not exist")
-		return errors.NewNotFoundError("resource_id", ctx.ResourceID)
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
 	}
 
 	roles, err = c.app.RoleManagementService().ListByResource(ctx, ctx.ResourceID)
@@ -65,7 +65,7 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 			"resource_id": ctx.ResourceID,
 			"err":         err,
 		}, "does not exist")
-		return errors.NewNotFoundError("resource_id", ctx.ResourceID)
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
 	}
 
 	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)

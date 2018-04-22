@@ -94,7 +94,7 @@ func AppendAssociation(associations []IdentityAssociation, resourceID string, re
 func MergeAssociations(associations []IdentityAssociation, merge []IdentityAssociation) []IdentityAssociation {
 	for _, merging := range merge {
 		found := false
-		for _, assoc := range associations {
+		for i, assoc := range associations {
 			// there is a match if the record to be merged has the same ResourceID (there must always be a resource)
 			if assoc.ResourceID == merging.ResourceID {
 				found = true
@@ -119,6 +119,8 @@ func MergeAssociations(associations []IdentityAssociation, merge []IdentityAssoc
 						assoc.Roles = append(assoc.Roles, roleToMerge)
 					}
 				}
+
+				associations[i] = assoc
 			}
 		}
 

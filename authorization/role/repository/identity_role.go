@@ -25,14 +25,14 @@ type IdentityRole struct {
 	// This is the primary key value
 	IdentityRoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:identity_role_id"`
 	// The identity to which the role is assigned
-	IdentityID uuid.UUID
-	Identity   account.Identity
+	IdentityID uuid.UUID        `gorm:"type:uuid"`
+	Identity   account.Identity `gorm:"foreignkey:IdentityID;association_foreignkey:ID"`
 	// The resource to which the role is applied
 	ResourceID string
-	Resource   resource.Resource
+	Resource   resource.Resource `gorm:"foreignkey:ResourceID;association_foreignkey:ResourceID"`
 	// The role that is assigned
-	RoleID uuid.UUID
-	Role   Role
+	RoleID uuid.UUID `gorm:"type:uuid"`
+	Role   Role      `gorm:"foreignkey:RoleID;association_foreignkey:RoleID"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -66,6 +66,8 @@ type IdentityRoleRepository interface {
 	Delete(ctx context.Context, ID uuid.UUID) error
 	FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error)
 	FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
+	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error)
+	FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -318,7 +320,7 @@ func IdentityRoleFilterByID(identityRoleID uuid.UUID) func(db *gorm.DB) *gorm.DB
 
 // FindIdentityRolesForIdentity returns an IdentityAssociations describing the roles which the specified Identity has, optionally for a specified resource type
 func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error) {
-
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesForIdentity"}, time.Now())
 	associations := []authorization.IdentityAssociation{}
 
 	// query for identities in which the user is a member
@@ -341,6 +343,8 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
       UNION SELECT p.member_of	FROM membership p INNER JOIN m ON m.member_of = p.member_id)
 		  SELECT member_of FROM m))`, identityID, identityID).Rows()
 
+	defer rows.Close()
+
 	if err != nil {
 		return nil, err
 	}
@@ -355,4 +359,42 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 	}
 
 	return associations, nil
+}
+
+func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResourceAndRoleName"}, time.Now())
+
+	var identityRoles []IdentityRole
+
+	err := m.db.Debug().Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+		Where(`resource_id in (WITH RECURSIVE r AS (
+      SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ?
+      UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
+	    SELECT r.resource_id FROM r)`, resourceID).
+		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Find(&identityRoles).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return identityRoles, nil
+}
+
+func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResource"}, time.Now())
+
+	var identityRoles []IdentityRole
+
+	err := m.db.Debug().Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+		Where(`resource_id in (WITH RECURSIVE r AS (
+      SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ?
+      UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
+	    SELECT r.resource_id FROM r)`, resourceID).
+		Find(&identityRoles).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return identityRoles, nil
 }

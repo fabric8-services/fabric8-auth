@@ -150,7 +150,7 @@
 [[projects]]
   name = "github.com/jinzhu/gorm"
   packages = ["."]
-  revision = "c1b9cf186e4bcd8e5d566ef43f2ae2dfe22dc34e"
+  revision = "6ed508ec6a4ecb3531899a69cbc746ccf65a4166"
 
 [[projects]]
   name = "github.com/jinzhu/inflection"

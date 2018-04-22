@@ -1,6 +1,6 @@
 package role
 
-type RoleScope struct {
+type RoleDescriptor struct {
 	RoleID       string
 	RoleName     string
 	Scopes       []string

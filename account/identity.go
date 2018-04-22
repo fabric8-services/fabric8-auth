@@ -450,6 +450,7 @@ WHERE
 
 // FindIdentityMemberships returns an array of Identity objects with the (optionally) specified resource type in which the specified Identity is a member
 func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "FindIdentityMemberships"}, time.Now())
 	associations := []authorization.IdentityAssociation{}
 
 	var identities []Identity
