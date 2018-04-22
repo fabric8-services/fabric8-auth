@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type roleManagementModelServiceBlackboxTest struct {
+type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	repo              rolescope.RoleManagementService
 	roleRepo          rolerepo.RoleRepository
@@ -25,11 +25,11 @@ type roleManagementModelServiceBlackboxTest struct {
 	resourceTypeScope scope.ResourceTypeScopeRepository
 }
 
-func TestRunRoleManagementModelServiceBlackboxTest(t *testing.T) {
-	suite.Run(t, &roleManagementModelServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
+	suite.Run(t, &roleManagementServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
+func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = rolescope.NewRoleManagementService(s.Application)
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
@@ -37,7 +37,7 @@ func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)
 }
 
-func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)
@@ -56,7 +56,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource()
 	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
 }
 
-func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleName() {
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleName() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAn
 	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
 }
 
-func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceNo
 	require.Equal(t, 0, len(identityRoles))
 }
 
-func (s *roleManagementModelServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
+func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
 
 	var createdRoleScopes []rolerepo.RoleScope
 
@@ -122,7 +122,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetRolesByResourceTypeOK() 
 	s.checkIfCreatedRoleScopesAreReturned(s.DB, roleScopesRetrieved, createdRoleScopes)
 }
 
-func (s *roleManagementModelServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() {
+func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() {
 
 	// create entities in the existing resource type
 	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
@@ -147,7 +147,7 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetRolesByResourceTypeOKEmp
 	require.Len(s.T(), roleScopesRetrieved, 0)
 }
 
-func (s *roleManagementModelServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, roleScopesRetrieved []role.RoleDescriptor, createdRoleScopes []rolerepo.RoleScope) {
+func (s *roleManagementServiceBlackboxTest) checkIfCreatedRoleScopesAreReturned(db *gorm.DB, roleScopesRetrieved []role.RoleDescriptor, createdRoleScopes []rolerepo.RoleScope) {
 	foundCreatedRoleScope := false
 	for _, rsDB := range createdRoleScopes {
 		foundCreatedRoleScope = false
@@ -164,7 +164,7 @@ func (s *roleManagementModelServiceBlackboxTest) checkIfCreatedRoleScopesAreRetu
 	}
 }
 
-func (s *roleManagementModelServiceBlackboxTest) checkRoleBelongsToResourceType(db *gorm.DB, roleScopesRetrieved []role.RoleDescriptor, rt resourcetype.ResourceType) {
+func (s *roleManagementServiceBlackboxTest) checkRoleBelongsToResourceType(db *gorm.DB, roleScopesRetrieved []role.RoleDescriptor, rt resourcetype.ResourceType) {
 	require.True(s.T(), len(roleScopesRetrieved) >= 1)
 	for _, r := range roleScopesRetrieved {
 		roleID, err := uuid.FromString(r.RoleID)
@@ -182,13 +182,13 @@ func (s *roleManagementModelServiceBlackboxTest) checkRoleBelongsToResourceType(
 	}
 }
 
-func (s *roleManagementModelServiceBlackboxTest) checkScopeBelongsToResourceType(db *gorm.DB, scopeName string, rt resourcetype.ResourceType) {
+func (s *roleManagementServiceBlackboxTest) checkScopeBelongsToResourceType(db *gorm.DB, scopeName string, rt resourcetype.ResourceType) {
 	scopesReturned, err := s.resourceTypeScope.LookupByResourceTypeAndScope(s.Ctx, rt.ResourceTypeID, scopeName)
 	require.NotNil(s.T(), scopesReturned)
 	require.NoError(s.T(), err)
 }
 
-func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleNameNotFound() {
+func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleNameNotFound() {
 	t := s.T()
 	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(t, err)
