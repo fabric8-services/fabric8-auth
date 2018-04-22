@@ -366,7 +366,7 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx 
 
 	var identityRoles []IdentityRole
 
-	err := m.db.Debug().Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
 		Where(`resource_id in (WITH RECURSIVE r AS (
       SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ?
       UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
@@ -385,7 +385,7 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Con
 
 	var identityRoles []IdentityRole
 
-	err := m.db.Debug().Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
 		Where(`resource_id in (WITH RECURSIVE r AS (
       SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ?
       UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
