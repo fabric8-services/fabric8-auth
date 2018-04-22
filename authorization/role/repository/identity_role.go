@@ -179,6 +179,7 @@ func (m *GormIdentityRoleRepository) List(ctx context.Context) ([]IdentityRole, 
 	return rows, nil
 }
 
+// FindPermissions returns an IdentityRole array containing entries that match the specified identity, resource and scope
 func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error) {
 	var results []IdentityRole
 	err := m.db.Table(m.TableName()).Where(`identity_id in (
@@ -361,6 +362,7 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 	return associations, nil
 }
 
+// FindIdentityRolesByResourceAndRoleName returns an array of IdentityRole objects that match the specified resource and role name
 func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResourceAndRoleName"}, time.Now())
 
@@ -380,6 +382,7 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx 
 	return identityRoles, nil
 }
 
+// FindIdentityRolesByResource returns an array of IdentityRole for the specified resource
 func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResource"}, time.Now())
 
