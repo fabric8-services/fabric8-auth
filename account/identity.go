@@ -79,7 +79,7 @@ type Identity struct {
 	User   User
 	// Link to Resource
 	IdentityResourceID sql.NullString
-	IdentityResource   resource.Resource
+	IdentityResource   resource.Resource `gorm:"foreignkey:IdentityResourceID;association_foreignkey:ResourceID"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -456,7 +456,7 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	var identities []Identity
 
 	// query for identities in which the user is a member
-	q := m.db.Table(m.TableName())
+	q := m.db.Table(m.TableName()).Preload("IdentityResource")
 
 	// with the specified resourceType
 	if resourceType != nil {
@@ -472,21 +472,6 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 
 	if err != nil {
 		return nil, err
-	}
-
-	// For each identity found, load its resource if it has one
-	for _, identity := range identities {
-		if identity.IdentityResourceID.Valid {
-			err = m.db.Table("resource").Where("resource_id = ?", identity.IdentityResourceID).Find(&identity.IdentityResource).Error
-
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, errors.NewInternalErrorFromString(ctx, "identity with memberships must have associated resource")
-		}
-
-		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, &identity.ID, true, nil)
 	}
 
 	return associations, nil
