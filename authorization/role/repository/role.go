@@ -219,7 +219,7 @@ func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.R
 
 	var scopes []RoleScope
 
-	err := m.db.Where("role_id = ?", u.RoleID.String()).Preload("Scope").Find(&scopes).Error
+	err := m.db.Table("role_scope").Where("role_id = ?", u.RoleID.String()).Preload("ResourceTypeScope").Find(&scopes).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

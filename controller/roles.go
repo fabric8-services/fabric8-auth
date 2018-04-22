@@ -50,7 +50,7 @@ func (c *RolesController) List(ctx *app.ListRolesContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type": *ctx.ResourceType,
 			"err":           err,
-		}, "error getting avaiable roles for the resource")
+		}, "error getting available roles for the resource")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	respRoles := convertRoleScopeToAppRoles(roleScopes)
