@@ -226,45 +226,20 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAn
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestListByResourceAndIdentity() {
-	t := s.T()
-	createdIdentityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
-	require.NoError(s.T(), err)
 
-	returnedRoles, err := s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
-	require.NoError(t, err)
-	require.Len(t, returnedRoles, 1)
-	testsupport.ValidateIdentityRole(s.T(), *createdIdentityRole, returnedRoles[0])
+	res, err := testsupport.CreateTestResourceWithRandomResourceType(s.Ctx, s.DB, uuid.NewV4().String(), nil)
+	require.Nil(s.T(), err)
 
-	createdResource, err := s.resourceRepo.Load(s.Ctx, createdIdentityRole.ResourceID)
-	//createdRole, err := s.roleRepo.Load(s.Ctx, createdIdentityRole.RoleID)
-	createdIdentity, err := s.identityRepo.Load(s.Ctx, createdIdentityRole.IdentityID)
-	createdResourceType, err := s.resourcetypeRepo.Load(s.Ctx, createdResource.ResourceTypeID)
+	_, identitesCreated := roletestsupport.CreateRandomResourceMembers(s.T(), s.DB, *res, nil)
 
-	for i := 0; i < 10; i++ {
-		newRole := rolerepo.Role{
-			ResourceType:   *createdResourceType,
-			ResourceTypeID: createdResourceType.ResourceTypeID,
-			Name:           uuid.NewV4().String(),
-			RoleID:         uuid.NewV4(),
+	for _, i := range identitesCreated {
+		returnedRoles, err := s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, res.ResourceID, i.ID)
+		require.Nil(s.T(), err)
+		for _, ir := range returnedRoles {
+			require.Equal(s.T(), i.ID, ir.IdentityID)
+			require.Equal(s.T(), res.ResourceID, ir.ResourceID)
 		}
-		err := s.roleRepo.Create(s.Ctx, &newRole)
-		require.NoError(s.T(), err)
-
-		newIdentityRole := rolerepo.IdentityRole{
-			IdentityRoleID: uuid.NewV4(),
-			Role:           newRole,
-			RoleID:         newRole.RoleID,
-			Resource:       *createdResource,
-			ResourceID:     createdIdentityRole.ResourceID,
-			Identity:       *createdIdentity,
-			IdentityID:     createdIdentity.ID,
-		}
-		s.identityRoleRepo.Create(s.Ctx, &newIdentityRole)
 	}
-
-	returnedRoles, err = s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
-	require.Len(t, returnedRoles, 11)
-
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {

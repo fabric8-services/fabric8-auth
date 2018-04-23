@@ -8,6 +8,7 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roletestsupport "github.com/fabric8-services/fabric8-auth/authorization/role/test"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -90,85 +91,19 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 }
 
 func (s *identityRoleBlackBoxTest) TestListByResourceAndIdentity() {
-	t := s.T()
-	createdIdentityRole := createAndLoadIdentityRole(s)
+	res, err := testsupport.CreateTestResourceWithRandomResourceType(s.Ctx, s.DB, uuid.NewV4().String(), nil)
+	require.Nil(s.T(), err)
 
-	returnedRoles, err := s.repo.ListByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
-	require.NoError(t, err)
-	require.Len(t, returnedRoles, 1)
-	validateIdentityRole(s, *createdIdentityRole, returnedRoles[0])
+	_, identitesCreated := roletestsupport.CreateRandomResourceMembers(s.T(), s.DB, *res, nil)
 
-	createdResource, err := s.resourceRepo.Load(s.Ctx, createdIdentityRole.ResourceID)
-	//createdRole, err := s.roleRepo.Load(s.Ctx, createdIdentityRole.RoleID)
-	createdIdentity, err := s.identityRepo.Load(s.Ctx, createdIdentityRole.IdentityID)
-	createdResourceType, err := s.resourceTypeRepo.Load(s.Ctx, createdResource.ResourceTypeID)
-
-	// let's create as many randome identityroles
-
-	someOtherResource, err := testsupport.CreateTestResourceWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), someOtherResource)
-
-	someOtherIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), someOtherIdentity)
-
-	var createdIdentityRoles []role.IdentityRole
-
-	// insert the one previously created
-	createdIdentityRoles = append(createdIdentityRoles, *createdIdentityRole)
-
-	for i := 0; i < 10; i++ {
-		newRole := role.Role{
-			ResourceType:   *createdResourceType,
-			ResourceTypeID: createdResourceType.ResourceTypeID,
-			Name:           uuid.NewV4().String(),
-			RoleID:         uuid.NewV4(),
+	for _, i := range identitesCreated {
+		returnedRoles, err := s.repo.ListByIdentityAndResource(s.Ctx, res.ResourceID, i.ID)
+		require.Nil(s.T(), err)
+		for _, ir := range returnedRoles {
+			require.Equal(s.T(), i.ID, ir.IdentityID)
+			require.Equal(s.T(), res.ResourceID, ir.ResourceID)
 		}
-		err := s.roleRepo.Create(s.Ctx, &newRole)
-		require.NoError(s.T(), err)
-
-		newIdentityRole := &role.IdentityRole{
-			IdentityRoleID: uuid.NewV4(),
-			Role:           newRole,
-			RoleID:         newRole.RoleID,
-			ResourceID:     createdResource.ResourceID,
-			IdentityID:     createdIdentity.ID,
-		}
-
-		s.repo.Create(s.Ctx, newIdentityRole)
-		createdIdentityRoles = append(createdIdentityRoles, *newIdentityRole)
-
-		// create dirty data
-		identityRoleWithDifferentResource := role.IdentityRole{
-			IdentityRoleID: uuid.NewV4(),
-			Role:           newRole,
-			RoleID:         newRole.RoleID,
-			ResourceID:     someOtherResource.ResourceID,
-			Identity:       *createdIdentity,
-			IdentityID:     createdIdentity.ID,
-		}
-		s.repo.Create(s.Ctx, &identityRoleWithDifferentResource)
-
-		identityRoleWithDifferentIdentity := role.IdentityRole{
-			IdentityRoleID: uuid.NewV4(),
-			Role:           newRole,
-			RoleID:         newRole.RoleID,
-			ResourceID:     createdIdentityRole.ResourceID,
-			Identity:       someOtherIdentity,
-			IdentityID:     someOtherIdentity.ID,
-		}
-		s.repo.Create(s.Ctx, &identityRoleWithDifferentIdentity)
-
 	}
-
-	returnedRoles, err = s.repo.ListByIdentityAndResource(s.Ctx, createdIdentityRole.ResourceID, createdIdentityRole.IdentityID)
-	require.Len(t, returnedRoles, 11)
-
-	for _, actualRole := range returnedRoles {
-		checkExists(s, createdIdentityRoles, actualRole)
-	}
-
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToSave() {
