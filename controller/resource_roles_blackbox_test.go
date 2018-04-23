@@ -31,6 +31,11 @@ func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity accoun
 	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
+func (rest *TestResourceRolesRest) UnSecuredController() (*goa.Service, *ResourceRolesController) {
+	svc := testsupport.UnsecuredService("Resource-roles-Service")
+	return svc, NewResourceRolesController(svc, rest.Application)
+}
+
 func TestRunResourceRolesRest(t *testing.T) {
 	suite.Run(t, &TestResourceRolesRest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
@@ -168,6 +173,14 @@ func (rest *TestResourceRolesRest) TestAssignRoleOK() {
 	for _, createdIdentity := range identitiesToBeAssigned {
 		require.True(rest.T(), rest.checkIdentityExistsInAssignmentList(createdIdentity.ID, roleListResp))
 	}
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleUnauthorized() {
+	svc, ctrl := rest.UnSecuredController()
+	payload := app.AssignRoleResourceRolesPayload{
+		Data: []*app.UpdateUserID{},
+	}
+	test.AssignRoleResourceRolesUnauthorized(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String(), uuid.NewV4().String(), &payload)
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleForbiddenUserNotInSpace() {
