@@ -70,7 +70,6 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 	t := s.T()
 
 	t.Run("identity role exists", func(t *testing.T) {
-		//t.Parallel()
 		identityRole := createAndLoadIdentityRole(s)
 		// when
 		err := s.repo.CheckExists(s.Ctx, identityRole.IdentityRoleID.String())
@@ -79,27 +78,105 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 	})
 
 	t.Run("identity role doesn't exist", func(t *testing.T) {
-		//t.Parallel()
 		// Check not existing
 		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
 		// then
 		require.IsType(t, errors.NotFoundError{}, err)
 	})
+}
 
+func (s *identityRoleBlackBoxTest) TestFindPermissions() {
+	// Create a new resource type
+	resourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, "identity_role_test/test_resource_type")
+	require.NoError(s.T(), err)
+
+	// Create two scopes for the new resource type
+	resourceTypeScopeFoo, err := testsupport.CreateTestScope(s.Ctx, s.DB, *resourceType, "test_scope_foo")
+	require.NoError(s.T(), err)
+
+	resourceTypeScopeBar, err := testsupport.CreateTestScope(s.Ctx, s.DB, *resourceType, "test_scope_bar")
+	require.NoError(s.T(), err)
+
+	// Create a new role
+	role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *resourceType, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	// Assign the two scopes to the role
+	_, err = testsupport.CreateTestRoleScope(s.Ctx, s.DB, *resourceTypeScopeFoo, *role)
+	require.NoError(s.T(), err)
+
+	_, err = testsupport.CreateTestRoleScope(s.Ctx, s.DB, *resourceTypeScopeBar, *role)
+	require.NoError(s.T(), err)
+
+	// Create a test resource
+	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *resourceType, uuid.NewV4().String(), nil)
+	require.NoError(s.T(), err)
+
+	// Assign the new role for our new resource to a user
+	identityRole, err := testsupport.CreateTestIdentityRole(s.Ctx, s.DB, *resource, *role)
+	require.NoError(s.T(), err)
+
+	// Search for permissions for the identity, resource and scope name
+	identityRoles, err := s.repo.FindPermissions(s.Ctx, identityRole.IdentityID, identityRole.ResourceID, resourceTypeScopeFoo.Name)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), identityRoles, 1)
+	require.Equal(s.T(), identityRole.IdentityRoleID, identityRoles[0].IdentityRoleID)
+
+	// Search for permissions for the identity, resource and second scope name
+	identityRoles, err = s.repo.FindPermissions(s.Ctx, identityRole.IdentityID, identityRole.ResourceID, resourceTypeScopeBar.Name)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 1)
+
+	// Search for permissions for the identity, resource and invalid scope name
+	identityRoles, err = s.repo.FindPermissions(s.Ctx, identityRole.IdentityID, identityRole.ResourceID, "unknown")
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 0)
 }
 
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesForIdentity() {
-	identityRole1 := createAndLoadIdentityRole(s)
+	identityRole := createAndLoadIdentityRole(s)
 	createAndLoadIdentityRole(s)
 
-	associations, err := s.repo.FindIdentityRolesForIdentity(s.Ctx, identityRole1.IdentityID, nil)
+	associations, err := s.repo.FindIdentityRolesForIdentity(s.Ctx, identityRole.IdentityID, nil)
 	require.NoError(s.T(), err)
 
-	require.Equal(s.T(), 1, len(associations))
-	require.Equal(s.T(), identityRole1.ResourceID, associations[0].ResourceID)
-	require.Equal(s.T(), 1, len(associations[0].Roles))
-	require.Equal(s.T(), identityRole1.Role.Name, associations[0].Roles[0])
+	require.Len(s.T(), associations, 1)
+	require.Equal(s.T(), identityRole.ResourceID, associations[0].ResourceID)
+	require.Len(s.T(), associations[0].Roles, 1)
+	require.Equal(s.T(), identityRole.Role.Name, associations[0].Roles[0])
+}
 
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleName() {
+	identityRole := createAndLoadIdentityRole(s)
+
+	// Create one random identity role
+	createAndLoadIdentityRole(s)
+
+	// Create another identity role with the same resource as the first one, but a different role
+	roleName := uuid.NewV4().String()
+	otherRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, identityRole.Resource.ResourceType, roleName)
+	require.NoError(s.T(), err)
+
+	_, err = testsupport.CreateTestIdentityRole(s.Ctx, s.DB, identityRole.Resource, *otherRole)
+	require.NoError(s.T(), err)
+
+	identityRoles, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, identityRole.ResourceID, identityRole.Role.Name)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), identityRoles, 1)
+	require.Equal(s.T(), identityRole.IdentityRoleID, identityRoles[0].IdentityRoleID)
+}
+
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
+	identityRole := createAndLoadIdentityRole(s)
+	createAndLoadIdentityRole(s)
+
+	identityRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, identityRole.ResourceID)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), identityRoles, 1)
+	require.Equal(s.T(), identityRole.IdentityRoleID, identityRoles[0].IdentityRoleID)
 }
 
 func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {

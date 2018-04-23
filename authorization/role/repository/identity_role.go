@@ -318,7 +318,7 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 	associations := []authorization.IdentityAssociation{}
 
 	// query for identities in which the user is a member
-	q := m.db.Debug().Table(m.TableName()).
+	q := m.db.Table(m.TableName()).
 		Select("identity_role.resource_id AS ResourceID, r.name AS ResourceName, i.id AS IdentityID, role.name AS RoleName").
 		Joins("JOIN resource r ON r.resource_id = identity_role.resource_id").
 		Joins("LEFT JOIN identities i ON r.resource_id = i.identity_resource_id")
@@ -326,10 +326,7 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 	// with the specified resourceType
 	if resourceType != nil {
 		q = q.Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id AND rt.name = ?", resourceType)
-	} //else {
-	//q = q.Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id")
-	//}
-
+	}
 	q = q.Joins("JOIN role ON role.role_id = identity_role.role_id")
 
 	rows, err := q.Where(`(identity_role.identity_id = ? OR identity_role.identity_id IN (WITH RECURSIVE m AS (
