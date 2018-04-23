@@ -114,6 +114,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration25ValidHits", testMigration25ValidHits)
 	t.Run("TestMigration25ValidMiss", testMigration25ValidMiss)
 	t.Run("TestMigration27", testMigration27)
+	t.Run("TestMigration28", testMigration28)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -349,6 +350,40 @@ func testMigration27(t *testing.T) {
 
 	// Cleanup the test data
 	require.Nil(t, runSQLscript(sqlDB, "026-cleanup-test-invitation-data.sql"))
+}
+
+func testMigration28(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(28)], (28))
+
+	resourceID := uuid.NewV4()
+	// Let's create two organization resources with the same name
+	_, err := sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES (?, '66659ea9-aa0a-4737-96e2-e96e615dc280', 'Acme Corporation', now())", resourceID)
+	require.NoError(t, err)
+
+	otherResourceID := uuid.NewV4()
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES (?, '66659ea9-aa0a-4737-96e2-e96e615dc280', 'Acme Corporation', now())", otherResourceID)
+	require.NoError(t, err)
+
+	migrateToVersion(sqlDB, migrations[:(29)], (29))
+
+	// Let's check the name of our first resource, it should be the same
+	result, err := sqlDB.Exec("SELECT name FROM resource WHERE resource_id = ?", resourceID)
+	require.NoError(t, err)
+	require.Equal(t, "Acme Corporation", result)
+
+	// Our other resource should have been renamed though
+	result, err = sqlDB.Exec("SELECT name FROM resource WHERE resource_id = ?", otherResourceID)
+	require.NoError(t, err)
+	require.Equal(t, "Acme Corporation (1)", result)
+
+	// After update 28 it should be impossible to create organizations with duplicate names
+	orgName := "Acme" + uuid.NewV4().String()
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', ?)", orgName)
+	require.NoError(t, err)
+
+	// This one should fail
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', ?)", orgName)
+	require.Error(t, err)
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

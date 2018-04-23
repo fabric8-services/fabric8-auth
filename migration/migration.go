@@ -191,6 +191,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 27
 	m = append(m, steps{ExecuteSQLFile("027-invitations.sql")})
 
+	// Version 28
+	m = append(m, steps{ExecuteSQLFile("028-make-organization-names-unique.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
