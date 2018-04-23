@@ -44,18 +44,6 @@ func (r *GormRoleManagementModelService) ListAssignmentsByIdentityAndResource(ct
 	return repo.ListByIdentityAndResource(ctx, resourceID, identityID)
 }
 
-// AssignMultiple assigns a user identity with a role, for a specific resource
-func (r *GormRoleManagementModelService) AssignMultiple(ctx context.Context, identityIDs []uuid.UUID, resourceID string, roleName string) error {
-	for _, identityID := range identityIDs {
-		err := r.Assign(ctx, identityID, resourceID, roleName)
-		if err != nil {
-			return err
-		}
-
-	}
-	return nil
-}
-
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
 func (r *GormRoleManagementModelService) Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error {
 
