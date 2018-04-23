@@ -474,5 +474,9 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 		return nil, err
 	}
 
+	for _, identity := range identities {
+		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, &identity.ID, true, nil)
+	}
+
 	return associations, nil
 }

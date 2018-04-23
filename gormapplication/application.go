@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -59,10 +60,12 @@ type GormBase struct {
 	db *gorm.DB
 }
 
+// GormTransaction implements the Transaction interface methods for committing or rolling back a transaction
 type GormTransaction struct {
 	GormBase
 }
 
+// GormDB implements the TransactionManager interface methods for initiating a new transaction
 type GormDB struct {
 	GormBase
 	txIsoLevel string
@@ -121,12 +124,16 @@ func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return role.NewIdentityRoleRepository(g.db)
 }
 
-func (g *GormDB) PermissionService() permissionservice.PermissionService {
-	return permissionservice.NewPermissionService(g)
-}
-
 func (g *GormDB) InvitationService() invitationservice.InvitationService {
 	return invitationservice.NewInvitationService(g)
+}
+
+func (g *GormDB) OrganizationService() organizationservice.OrganizationService {
+	return organizationservice.NewOrganizationService(g, g)
+}
+
+func (g *GormDB) PermissionService() permissionservice.PermissionService {
+	return permissionservice.NewPermissionService(g)
 }
 
 func (g *GormDB) RoleManagementService() roleservice.RoleManagementService {
