@@ -254,10 +254,10 @@ func (s *roleManagementModelServiceBlackboxTest) TestListByResourceAndIdentity()
 			IdentityRoleID: uuid.NewV4(),
 			Role:           newRole,
 			RoleID:         newRole.RoleID,
-			//Resource:       *createdResource,
-			ResourceID: createdIdentityRole.ResourceID,
-			Identity:   *createdIdentity,
-			IdentityID: createdIdentity.ID,
+			Resource:       *createdResource,
+			ResourceID:     createdIdentityRole.ResourceID,
+			Identity:       *createdIdentity,
+			IdentityID:     createdIdentity.ID,
 		}
 		s.identityRoleRepo.Create(s.Ctx, &newIdentityRole)
 	}
