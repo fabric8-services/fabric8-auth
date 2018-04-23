@@ -183,74 +183,33 @@ func (rest *TestResourceRolesRest) TestAssignRoleUnauthorized() {
 	test.AssignRoleResourceRolesUnauthorized(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String(), uuid.NewV4().String(), &payload)
 }
 
-func (rest *TestResourceRolesRest) TestAssignRoleForbiddenUserNotInSpace() {
-	// create a resource type
-	rt, err := testsupport.CreateTestResourceType(rest.Ctx, rest.DB, uuid.NewV4().String())
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), rt)
+func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
 
 	// create a resource
-	r, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *rt, uuid.NewV4().String(), nil)
+	r, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
 	require.NoError(rest.T(), err)
 	require.NotNil(rest.T(), r)
 
-	// create a role 'special_admin'
-	adminRole, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *rt, uuid.NewV4().String())
+	differentResource, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
 	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), adminRole)
+	require.NotNil(rest.T(), differentResource)
 
-	// create a scope 'assign_role'
-	adminScope, err := testsupport.CreateTestScope(rest.Ctx, rest.DB, *rt, "assign_role")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), adminScope)
+	identitiesToBeAssigned, _ := roletestsupport.CreateRandomResourceMembers(rest.T(), rest.DB, *differentResource, nil)
 
-	// associate role and scope
-	adminRoleScope, err := testsupport.CreateTestRoleScope(rest.Ctx, rest.DB, *adminScope, *adminRole)
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), adminRoleScope)
+	// Create a user who has the privileges to assign roles
 
-	ir, err := testsupport.CreateTestIdentityRole(rest.Ctx, rest.DB, *r, *adminRole)
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), ir)
+	ir := roletestsupport.CreateAdministratorAssignment(rest.T(), rest.DB, *r)
 
-	// create a role 'contributor'
-	contributorRole, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *rt, "contributor")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), contributorRole)
-
-	// create a scope 'edit_workitem'
-	contributorScope, err := testsupport.CreateTestScope(rest.Ctx, rest.DB, *rt, "edit_workitem")
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), contributorScope)
-
-	// associate role and scope
-	contributorRoleScope, err := testsupport.CreateTestRoleScope(rest.Ctx, rest.DB, *contributorScope, *contributorRole)
-	require.NoError(rest.T(), err)
-	require.NotNil(rest.T(), contributorRoleScope)
-
-	var identitiesToBeAssigned []*app.UpdateUserID
-
-	for i := 0; i < 10; i++ {
-
-		// create an identity
-		identityToBeAssigned, err := testsupport.CreateTestIdentityAndUser(rest.DB, uuid.NewV4().String(), "KC")
-		require.NoError(rest.T(), err)
-		require.NotNil(rest.T(), identityToBeAssigned)
-
-		identityPayload := app.UpdateUserID{
-			ID:   identityToBeAssigned.ID.String(),
-			Type: "identities",
-		}
-		identitiesToBeAssigned = append(identitiesToBeAssigned, &identityPayload)
-
-	}
-
-	// try to assign that identity with the role
 	svc, ctrl := rest.SecuredControllerWithIdentity(ir.Identity)
 	payload := app.AssignRoleResourceRolesPayload{
 		Data: identitiesToBeAssigned,
 	}
-	test.AssignRoleResourceRolesForbidden(rest.T(), svc.Context, svc, ctrl, r.ResourceID, contributorRole.Name, &payload)
+
+	// before
+	newRoleScope := roletestsupport.SetupNewRole(rest.T(), rest.DB, *r, uuid.NewV4().String(), uuid.NewV4().String())
+	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, newRoleScope.Role.Name)
+
+	test.AssignRoleResourceRolesBadRequest(rest.T(), svc.Context, svc, ctrl, r.ResourceID, newRoleScope.Role.Name, &payload)
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRoles() {

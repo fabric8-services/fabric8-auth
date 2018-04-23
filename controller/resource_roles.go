@@ -124,8 +124,8 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to assign roles"))
 	}
 
-	// In a batch assignment of roles, all users need to be a part of the resource
-	// Only then futher role assignments would be allowed.
+	// In batch assignment of roles all selected users must have previously been assigned
+	// privileges for the resource, otherwise the invitation workflow should be used instead
 	for _, identity := range ctx.Payload.Data {
 		identityIDAsUUID, err := uuid.FromString(identity.ID)
 		assignedRoles, err := c.db.RoleManagementModelService().ListAssignmentsByIdentityAndResource(ctx, ctx.ResourceID, identityIDAsUUID)
@@ -138,7 +138,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 				"identity_id": identityIDAsUUID,
 				"role":        ctx.RoleName,
 			}, "identity not part of a  resource cannot be assigned a role")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError(fmt.Sprintf("identity %s does not belong to the resource", identity.ID)))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identityID", identity.ID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identity.ID)))
 		}
 	}
 

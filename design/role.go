@@ -79,6 +79,7 @@ var _ = a.Resource("resource_roles", func() {
 		a.Description("Assigns an identity to a role, for a specific resource")
 		a.Response(d.NoContent)
 		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.Forbidden, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
