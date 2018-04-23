@@ -65,13 +65,10 @@ func CreateRandomResourceMember(t *testing.T, db *gorm.DB, res resource.Resource
 
 	rt := res.ResourceType
 
-	// add her to the space
-	// create a role 'my_random_role'
 	randomRole, err := testsupport.CreateTestRole(context.Background(), db, rt, uuid.NewV4().String())
 	require.NoError(t, err)
 	require.NotNil(t, randomRole)
 
-	// create a scope 'my_random_scope'
 	randomScope, err := testsupport.CreateTestScope(context.Background(), db, rt, uuid.NewV4().String())
 	require.NoError(t, err)
 	require.NotNil(t, randomScope)
