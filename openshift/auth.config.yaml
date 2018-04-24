@@ -27,6 +27,7 @@ objects:
     oso.regapp.admin.username: Cg==
     oso.regapp.admin.token: Cg==
     oso.regapp.url: Cg==
+    environment: prod-preview
 - apiVersion: v1
   kind: Secret
   metadata:

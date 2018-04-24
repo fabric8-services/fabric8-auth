@@ -5,23 +5,19 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/getsentry/raven-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
 func failOnNoToken(t *testing.T) context.Context {
-	// this is just normal context object authh no, token
-	// so this should fail saying no token available
-	m := testtoken.NewManager()
-	return tokencontext.ContextWithTokenManager(context.Background(), m)
+	return tokencontext.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
 }
 
 func failOnParsingToken(t *testing.T) context.Context {
@@ -32,21 +28,17 @@ func failOnParsingToken(t *testing.T) context.Context {
 	return ctx
 }
 
-func validToken(t *testing.T, identityID string, identityUsername string) context.Context {
-	ctx := failOnNoToken(t)
-	// Here we add a token that is perfectly valid
-	token, err := testtoken.GenerateTokenObject(identityID, identityUsername, testtoken.PrivateKey())
-	require.Nilf(t, err, "could not generate token: %v", errors.WithStack(err))
-
-	ctx = goajwt.WithJWT(ctx, token)
+func validToken(t *testing.T, identity account.Identity) context.Context {
+	ctx, err := testtoken.EmbedIdentityInContext(identity)
+	require.Nil(t, err)
 	return ctx
 }
-func Test_extractUserInfo(t *testing.T) {
+func TestExtractUserInfo(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
 	identity := account.Identity{
 		ID:       uuid.NewV4(),
-		Username: "testuser",
+		Username: uuid.NewV4().String(),
 	}
 
 	tests := []struct {
@@ -72,12 +64,12 @@ func Test_extractUserInfo(t *testing.T) {
 		},
 		{
 			name:    "pass on parsing token",
-			ctx:     validToken(t, identity.ID.String(), identity.Username),
+			ctx:     validToken(t, identity),
 			wantErr: false,
 			want: &raven.User{
 				Username: identity.Username,
 				ID:       identity.ID.String(),
-				Email:    identity.Username + "@email.com",
+				Email:    identity.Username,
 			},
 		},
 	}

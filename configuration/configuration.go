@@ -44,7 +44,7 @@ const (
 	varUsersListLimit                  = "users.listlimit"
 	defaultConfigFile                  = "config.yaml"
 	varValidRedirectURLs               = "redirect.valid"
-	varLogLevel                        = "log.level"
+	varLogLevel                        = "logenvironment.level"
 	varLogJSON                         = "log.json"
 	varEmailVerifiedRedirectURL        = "email.verify.url"
 	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
@@ -125,6 +125,9 @@ const (
 	varTenantServiceURL       = "tenant.serviceurl"
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
+
+	// sentry
+	varEnvironment = "environment"
 )
 
 type serviceAccountConfig struct {
@@ -1122,6 +1125,16 @@ func (c *ConfigurationData) GetInternalUsersEmailAddressSuffix() string {
 // GetIgnoreEmailInProd returns regex for checking if the user with such email should be ignored during account provisioning
 func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 	return c.v.GetString(varIgnoreEmailInProd)
+}
+
+// GetEnvironment returns the current environment application is deployed in
+// like 'prod', 'preview', 'local', etc as the value of environment variable
+// `AUTH_ENVIRONMENT` is set.
+func (c *ConfigurationData) GetEnvironment() string {
+	if c.v.IsSet(varEnvironment) {
+		return c.v.GetString(varEnvironment)
+	}
+	return "local"
 }
 
 const (

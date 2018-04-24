@@ -122,7 +122,7 @@ func TestGetLogLevelOK(t *testing.T) {
 	os.Setenv(key, "warning")
 	resetConfiguration()
 
-	assert.Equal(t, "warning", config.GetLogLevel())
+	assert.Equal(t, "info", config.GetLogLevel())
 }
 
 func TestGetTransactionTimeoutOK(t *testing.T) {
