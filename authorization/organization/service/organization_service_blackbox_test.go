@@ -88,7 +88,7 @@ func (s *organizationServiceBlackBoxTest) TestListOrganization() {
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Org created by the second user
-	_, err = s.orgService.CreateOrganization(s.Ctx, identityAnother.ID, "One More Test Organization MMMYYY")
+	_, err = s.orgService.CreateOrganization(s.Ctx, identityAnother.ID, "Yet One More Test Organization")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load orgs where the first user is a member

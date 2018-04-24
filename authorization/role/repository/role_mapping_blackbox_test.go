@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -81,7 +82,7 @@ func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName str
 		return rm, err
 	}
 
-	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *fromResourceType, "Test-Role-Mapped-Resource", nil)
+	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *fromResourceType, "Test-Role-Mapped-Resource"+uuid.NewV4().String(), nil)
 	if err != nil {
 		return rm, err
 	}

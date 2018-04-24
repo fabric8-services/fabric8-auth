@@ -355,34 +355,37 @@ func testMigration27(t *testing.T) {
 func testMigration28(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(28)], (28))
 
-	resourceID := uuid.NewV4()
-	// Let's create two organization resources with the same name
-	_, err := sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES (?, '66659ea9-aa0a-4737-96e2-e96e615dc280', 'Acme Corporation', now())", resourceID)
+	var orgResourceTypeID string
+	err := sqlDB.QueryRow("SELECT resource_type_id FROM resource_type WHERE name = 'identity/organization'").Scan(&orgResourceTypeID)
 	require.NoError(t, err)
 
-	otherResourceID := uuid.NewV4()
-	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES (?, '66659ea9-aa0a-4737-96e2-e96e615dc280', 'Acme Corporation', now())", otherResourceID)
+	// Let's create two organization resources with the same name
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES ('ca9dfe76-d5f2-4f0c-b887-ad722e745cd5', $1, 'Acme Corporation', now())", orgResourceTypeID)
+	require.NoError(t, err)
+
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES ('3ac75b8a-e794-403b-bf1b-e0516af99a93', $1, 'Acme Corporation', now())", orgResourceTypeID)
 	require.NoError(t, err)
 
 	migrateToVersion(sqlDB, migrations[:(29)], (29))
 
 	// Let's check the name of our first resource, it should be the same
-	result, err := sqlDB.Exec("SELECT name FROM resource WHERE resource_id = ?", resourceID)
+	var resourceName string
+	err = sqlDB.QueryRow("SELECT name FROM resource WHERE resource_id = 'ca9dfe76-d5f2-4f0c-b887-ad722e745cd5'").Scan(&resourceName)
 	require.NoError(t, err)
-	require.Equal(t, "Acme Corporation", result)
+	require.Equal(t, "Acme Corporation", resourceName)
 
 	// Our other resource should have been renamed though
-	result, err = sqlDB.Exec("SELECT name FROM resource WHERE resource_id = ?", otherResourceID)
+	err = sqlDB.QueryRow("SELECT name FROM resource WHERE resource_id = '3ac75b8a-e794-403b-bf1b-e0516af99a93'").Scan(&resourceName)
 	require.NoError(t, err)
-	require.Equal(t, "Acme Corporation (1)", result)
+	require.Equal(t, "Acme Corporation (1)", resourceName)
 
 	// After update 28 it should be impossible to create organizations with duplicate names
 	orgName := "Acme" + uuid.NewV4().String()
-	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', ?)", orgName)
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', $1)", orgName)
 	require.NoError(t, err)
 
 	// This one should fail
-	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', ?)", orgName)
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', $1)", orgName)
 	require.Error(t, err)
 }
 
