@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -19,6 +18,7 @@ import (
 	. "github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -149,7 +149,7 @@ func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: uuid.NewV4().String(), Config: s.Configuration, DB: s.Application})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: uuid.NewV4().String(), Config: s.Configuration, App: s.Application})
 
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -162,7 +162,7 @@ func (s *LinkTestSuite) TestProviderSavesTokenOK() {
 	state := s.stateParam(location)
 
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, DB: s.Application})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, App: s.Application})
 
 	code := uuid.NewV4().String()
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -178,7 +178,7 @@ func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
 	state := s.stateParam(location)
 
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, LoadProfileFail: true, DB: s.Application})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, LoadProfileFail: true, App: s.Application})
 
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
@@ -222,7 +222,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
 
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {
 	token := uuid.NewV4().String()
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, DB: s.Application})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, App: s.Application})
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, uuid.NewV4().String())
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(callbackLocation)
@@ -239,8 +239,8 @@ func (s *LinkTestSuite) checkToken(providerID string, expectedToken string) {
 	id, err := uuid.FromString(providerID)
 	require.Nil(s.T(), err)
 	var tokens []provider.ExternalToken
-	err = application.Transactional(s.Application, func(appl application.Application) error {
-		tokens, err = appl.ExternalTokens().LoadByProviderIDAndIdentityID(context.Background(), id, s.testIdentity.ID)
+	err = transaction.Transactional(s.Application, func(tr transaction.TransactionalResources) error {
+		tokens, err = tr.ExternalTokens().LoadByProviderIDAndIdentityID(context.Background(), id, s.testIdentity.ID)
 		return err
 	})
 	require.Nil(s.T(), err)

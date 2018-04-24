@@ -108,6 +108,39 @@ func (s *roleBlackBoxTest) TestOKToSave() {
 	assert.Equal(s.T(), role.Name, updatedRole.Name)
 }
 
+func (s *roleBlackBoxTest) TestOKToAddScopes() {
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role)
+
+	scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, role.ResourceType, "create")
+	require.NoError(s.T(), err)
+
+	err = s.repo.AddScope(s.Ctx, role, scope)
+	require.NoError(s.T(), err)
+
+	scopes, err := s.repo.ListScopes(s.Ctx, role)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), 1, len(scopes))
+	require.Equal(s.T(), scope.ResourceTypeScopeID, scopes[0].ResourceTypeScopeID)
+	require.Equal(s.T(), scope.ResourceTypeID, scopes[0].ResourceTypeID)
+	require.Equal(s.T(), scope.Name, scopes[0].Name)
+}
+
+func (s *roleBlackBoxTest) TestSaveFailsForDeletedRole() {
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), role)
+
+	err = s.repo.Delete(s.Ctx, role.RoleID)
+	require.NoError(s.T(), err)
+
+	role.Name = "newRoleNameTestType"
+	err = s.repo.Save(s.Ctx, role)
+	require.Error(s.T(), err, "should not be able to save deleted role")
+}
+
 func (s *roleBlackBoxTest) TestSaveConflictError() {
 	role1, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
 	require.NoError(s.T(), err)

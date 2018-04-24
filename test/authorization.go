@@ -5,7 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
-	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
@@ -66,13 +66,13 @@ func CreateTestIdentityRoleForIdentity(ctx context.Context, db *gorm.DB, identit
 	return &identityRoleRef, err
 }
 
-func CreateTestOrganization(ctx context.Context, db *gorm.DB, appDB application.DB, creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
+func CreateTestOrganization(ctx context.Context, db *gorm.DB, app application.Application, creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
 
-	orgModelService := organizationmodel.NewOrganizationModelService(db, appDB)
+	orgService := organizationservice.NewOrganizationService(app, app)
 
 	var organization *account.Identity
 
-	orgID, err := orgModelService.CreateOrganization(ctx, creatorIdentityID, name)
+	orgID, err := orgService.CreateOrganization(ctx, creatorIdentityID, name)
 	if err != nil {
 		return *organization, err
 	}
@@ -123,7 +123,7 @@ func CreateTestResourceType(ctx context.Context, db *gorm.DB, name string) (*res
 	return &resourceTypeRef, err
 }
 
-func CreateTestRoleMapping(ctx context.Context, db *gorm.DB, appDB application.DB, resourceID string, fromRoleID uuid.UUID, toRoleID uuid.UUID) error {
+func CreateTestRoleMapping(ctx context.Context, db *gorm.DB, app application.Application, resourceID string, fromRoleID uuid.UUID, toRoleID uuid.UUID) error {
 	roleMappingRepoRef := role.NewRoleMappingRepository(db)
 
 	err := roleMappingRepoRef.Create(ctx, &role.RoleMapping{

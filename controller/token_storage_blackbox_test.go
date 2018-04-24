@@ -45,7 +45,7 @@ func (rest *TestTokenStorageREST) SetupTest() {
 	rest.externalTokenRepository = provider.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
 	rest.providerConfigFactory = link.NewOauthProviderFactory(rest.Configuration, rest.Application)
-	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.NewV4().String(), Config: rest.Configuration, DB: rest.Application}
+	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.NewV4().String(), Config: rest.Configuration, App: rest.Application}
 }
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {

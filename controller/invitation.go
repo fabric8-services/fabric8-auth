@@ -15,17 +15,17 @@ import (
 // InvitationController implements the invitation resource.
 type InvitationController struct {
 	*goa.Controller
-	db application.DB
+	app application.Application
 }
 
 // NewInvitationController creates a invitation controller.
-func NewInvitationController(service *goa.Service, db application.DB) *InvitationController {
-	return &InvitationController{Controller: service.NewController("InvitationController"), db: db}
+func NewInvitationController(service *goa.Service, app application.Application) *InvitationController {
+	return &InvitationController{Controller: service.NewController("InvitationController"), app: app}
 }
 
 // Create runs the create action.
 func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -52,10 +52,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		})
 	}
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
-		error := appl.InvitationModelService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
-		return error
-	})
+	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

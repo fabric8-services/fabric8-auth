@@ -100,10 +100,13 @@
   version = "v1.3.0"
 
 [[projects]]
-  branch = "master"
+  branch = "travis-1.9"
   name = "github.com/golang/lint"
-  packages = ["golint"]
-  revision = "85993ffd0a6cd043291f3f63d45d656d97b165bd"
+  packages = [
+    ".",
+    "golint"
+  ]
+  revision = "883fe33ffc4344bad1ecd881f61afd5ec5d80e0a"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -150,7 +153,8 @@
 [[projects]]
   name = "github.com/jinzhu/gorm"
   packages = ["."]
-  revision = "c1b9cf186e4bcd8e5d566ef43f2ae2dfe22dc34e"
+  revision = "6ed508ec6a4ecb3531899a69cbc746ccf65a4166"
+  version = "v1.9.1"
 
 [[projects]]
   name = "github.com/jinzhu/inflection"
@@ -437,6 +441,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c05a4fd59c174f1d4b48c3b91fcee10a0f6814bc2b7e6d4a2c6b3a1185e49beb"
+  inputs-digest = "28aa1747477ec43b5f38eda408aa36d9d20942dc6c9dec53255e925354ac6d77"
   solver-name = "gps-cdcl"
   solver-version = 1

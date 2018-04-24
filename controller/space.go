@@ -3,6 +3,7 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -10,7 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/goadesign/goa"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 const (
@@ -32,19 +33,19 @@ type SpaceConfiguration interface {
 // SpaceController implements the space resource.
 type SpaceController struct {
 	*goa.Controller
-	db              application.DB
+	app             application.Application
 	config          SpaceConfiguration
 	resourceManager auth.AuthzResourceManager
 }
 
 // NewSpaceController creates a space controller.
-func NewSpaceController(service *goa.Service, db application.DB, config SpaceConfiguration, resourceManager auth.AuthzResourceManager) *SpaceController {
-	return &SpaceController{Controller: service.NewController("SpaceController"), db: db, config: config, resourceManager: resourceManager}
+func NewSpaceController(service *goa.Service, app application.Application, config SpaceConfiguration, resourceManager auth.AuthzResourceManager) *SpaceController {
+	return &SpaceController{Controller: service.NewController("SpaceController"), app: app, config: config, resourceManager: resourceManager}
 }
 
 // Create runs the create action.
 func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -62,9 +63,9 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		OwnerID:      currentIdentity.ID,
 	}
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
+	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		// Create space resource which will represent the keyclok resource associated with this space
-		_, err = appl.SpaceResources().Create(ctx, spaceResource)
+		_, err = tr.SpaceResources().Create(ctx, spaceResource)
 		return err
 	})
 	if err != nil {
@@ -87,7 +88,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 
 // Delete runs the delete action.
 func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -95,9 +96,9 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 	var resourceID string
 	var permissionID string
 	var policyID string
-	err = application.Transactional(c.db, func(appl application.Application) error {
+	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		// Delete associated space resource
-		resource, err := appl.SpaceResources().LoadBySpace(ctx, &ctx.SpaceID)
+		resource, err := tr.SpaceResources().LoadBySpace(ctx, &ctx.SpaceID)
 		if err != nil {
 			return err
 		}
@@ -113,7 +114,7 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 		permissionID = resource.PermissionID
 		policyID = resource.PolicyID
 
-		return appl.SpaceResources().Delete(ctx, resource.ID)
+		return tr.SpaceResources().Delete(ctx, resource.ID)
 	})
 
 	if err != nil {

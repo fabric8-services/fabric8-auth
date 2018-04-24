@@ -14,14 +14,14 @@ import (
 // ResourceRolesController implements the resource_roles resource.
 type ResourceRolesController struct {
 	*goa.Controller
-	db application.DB
+	app application.Application
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, db application.DB) *ResourceRolesController {
+func NewResourceRolesController(service *goa.Service, app application.Application) *ResourceRolesController {
 	return &ResourceRolesController{
 		Controller: service.NewController("ResourceRolesController"),
-		db:         db,
+		app:        app,
 	}
 }
 
@@ -30,19 +30,16 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 
 	var roles []role.IdentityRole
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": ctx.ResourceID,
-				"err":         err,
-			}, "does not exist")
-			return errors.NewNotFoundError("resource_id", ctx.ResourceID)
-		}
+	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"err":         err,
+		}, "does not exist")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
+	}
 
-		roles, err = appl.RoleManagementModelService().ListByResource(ctx, ctx.ResourceID)
-		return err
-	})
+	roles, err = c.app.RoleManagementService().ListByResource(ctx, ctx.ResourceID)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -62,19 +59,16 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 
 	var roles []role.IdentityRole
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": ctx.ResourceID,
-				"err":         err,
-			}, "does not exist")
-			return errors.NewNotFoundError("resource_id", ctx.ResourceID)
-		}
+	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"err":         err,
+		}, "does not exist")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
+	}
 
-		roles, err = appl.RoleManagementModelService().ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
-		return err
-	})
+	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
