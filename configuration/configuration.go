@@ -44,7 +44,7 @@ const (
 	varUsersListLimit                  = "users.listlimit"
 	defaultConfigFile                  = "config.yaml"
 	varValidRedirectURLs               = "redirect.valid"
-	varLogLevel                        = "logenvironment.level"
+	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 	varEmailVerifiedRedirectURL        = "email.verify.url"
 	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
