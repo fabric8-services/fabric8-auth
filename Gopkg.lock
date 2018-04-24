@@ -363,12 +363,6 @@
   revision = "81e90905daefcd6fd217b62423c0908922eadb30"
 
 [[projects]]
-  branch = "master"
-  name = "golang.org/x/lint"
-  packages = ["."]
-  revision = "85993ffd0a6cd043291f3f63d45d656d97b165bd"
-
-[[projects]]
   name = "golang.org/x/net"
   packages = [
     "context",
