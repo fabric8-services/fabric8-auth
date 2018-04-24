@@ -1,14 +1,13 @@
-package application_test
+package transaction_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -16,7 +15,7 @@ import (
 
 type TestTransaction struct {
 	gormtestsupport.DBTestSuite
-	db *gormapplication.GormDB
+	app *gormapplication.GormDB
 }
 
 func TestRunTransaction(t *testing.T) {
@@ -26,14 +25,14 @@ func TestRunTransaction(t *testing.T) {
 
 func (test *TestTransaction) SetupTest() {
 	test.DBTestSuite.SetupTest()
-	test.db = gormapplication.NewGormDB(test.DB)
+	test.app = gormapplication.NewGormDB(test.DB)
 }
 
 func (test *TestTransaction) TestTransactionInTime() {
 	// given
 	computeTime := 10 * time.Second
 	// then
-	err := application.Transactional(test.db, func(appl application.Application) error {
+	err := transaction.Transactional(test.app.TransactionManager(), func(tr transaction.TransactionalResources) error {
 		time.Sleep(computeTime)
 		return nil
 	})
@@ -44,9 +43,9 @@ func (test *TestTransaction) TestTransactionInTime() {
 func (test *TestTransaction) TestTransactionOut() {
 	// given
 	computeTime := 6 * time.Minute
-	application.SetDatabaseTransactionTimeout(5 * time.Second)
+	transaction.SetDatabaseTransactionTimeout(5 * time.Second)
 	// then
-	err := application.Transactional(test.db, func(appl application.Application) error {
+	err := transaction.Transactional(test.app.TransactionManager(), func(tr transaction.TransactionalResources) error {
 		time.Sleep(computeTime)
 		return nil
 	})

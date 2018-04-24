@@ -164,7 +164,8 @@
 [[projects]]
   name = "github.com/jinzhu/gorm"
   packages = ["."]
-  revision = "c1b9cf186e4bcd8e5d566ef43f2ae2dfe22dc34e"
+  revision = "6ed508ec6a4ecb3531899a69cbc746ccf65a4166"
+  version = "v1.9.1"
 
 [[projects]]
   name = "github.com/jinzhu/inflection"
@@ -451,6 +452,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5af9511cd7452365f6838a6d47eef8c8080d668ba87571d0cf028f387f1f7797"
+  inputs-digest = "2d5bd2443a42aa55c850d378da2a279900169c0e3fd3f9da28b2b3fb388cfb7b"
   solver-name = "gps-cdcl"
   solver-version = 1

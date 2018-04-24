@@ -1,4 +1,4 @@
-package application_test
+package transaction_test
 
 import (
 	"database/sql"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
@@ -22,7 +24,7 @@ type BenchTransactional struct {
 	clean    func()
 	repo     account.IdentityRepository
 	ctx      context.Context
-	appDB    application.DB
+	app      application.Application
 	dbPq     *sql.DB
 	identity *account.Identity
 }
@@ -42,7 +44,7 @@ func (s *BenchTransactional) SetupSuite() {
 func (s *BenchTransactional) SetupBenchmark() {
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 	s.repo = account.NewIdentityRepository(s.DB)
-	s.appDB = gormapplication.NewGormDB(s.DB)
+	s.app = gormapplication.NewGormDB(s.DB)
 
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),
@@ -60,7 +62,7 @@ func (s *BenchTransactional) TearDownBenchmark() {
 }
 
 func (s *BenchTransactional) transactionLoadSpace() {
-	err := application.Transactional(s.appDB, func(appl application.Application) error {
+	err := transaction.Transactional(s.app.TransactionManager(), func(repos repository.Repositories) error {
 		_, err := s.repo.Load(s.ctx, s.identity.ID)
 		return err
 	})

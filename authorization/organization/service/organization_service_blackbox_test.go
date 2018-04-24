@@ -1,12 +1,11 @@
-package model_test
+package service_test
 
 import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/authorization/organization"
-	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -17,32 +16,32 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type organizationModelServiceBlackBoxTest struct {
+type organizationServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	identityRepo     account.IdentityRepository
 	identityRoleRepo role.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
-	orgModelService  organizationmodel.OrganizationModelService
+	orgService       organizationservice.OrganizationService
 }
 
-func TestRunOrganizationModelServiceBlackBoxTest(t *testing.T) {
-	suite.Run(t, &organizationModelServiceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+func TestRunOrganizationServiceBlackBoxTest(t *testing.T) {
+	suite.Run(t, &organizationServiceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *organizationModelServiceBlackBoxTest) SetupTest() {
+func (s *organizationServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 
-	s.orgModelService = organizationmodel.NewOrganizationModelService(s.DB, s.Application)
+	s.orgService = organizationservice.NewOrganizationService(s.Application, s.Application)
 }
 
-func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
-	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationModelServiceBlackBoxTest-TestCreateOrganization")
+func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {
+	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationServiceBlackBoxTest-TestCreateOrganization")
 	require.Nil(s.T(), err, "Could not create identity")
 
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZXYAAA")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZXYAAA")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load the organization's identity
@@ -50,11 +49,11 @@ func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 	require.Nil(s.T(), err, "Could not load organization's identity")
 
 	// Assert that the identity resource ID is set
-	require.NotNil(s.T(), orgIdentity.IdentityResourceID, "Organization identity's resource id is nil")
-	require.NotEmpty(s.T(), orgIdentity.IdentityResourceID, "Organization identity's resource id is not set")
+	require.True(s.T(), orgIdentity.IdentityResourceID.Valid, "Organization identity's resource id is nil")
+	require.NotEmpty(s.T(), orgIdentity.IdentityResourceID.String, "Organization identity's resource id is not set")
 
 	// Load the organization's resource
-	orgResource, err := s.resourceRepo.Load(s.Ctx, *orgIdentity.IdentityResourceID)
+	orgResource, err := s.resourceRepo.Load(s.Ctx, orgIdentity.IdentityResourceID.String)
 	require.Nil(s.T(), err, "Could not load the organization's resource")
 
 	require.Equal(s.T(), authorization.IdentityResourceTypeOrganization, orgResource.ResourceType.Name, "Organization resource type is invalid")
@@ -75,25 +74,25 @@ func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 	require.Equal(s.T(), 1, roleCount, "Found more than 1 role")
 }
 
-func (s *organizationModelServiceBlackBoxTest) TestListOrganization() {
-	identityOwner, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationModelServiceBlackBoxTest-TestListOrganization")
+func (s *organizationServiceBlackBoxTest) TestListOrganization() {
+	identityOwner, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationServiceBlackBoxTest-TestListOrganization")
 	require.Nil(s.T(), err, "Could not create identity")
 
-	identityAnother, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationModelServiceBlackBoxTest-TestListOrganization2")
+	identityAnother, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "organizationServiceBlackBoxTest-TestListOrganization2")
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Orgs created by the first user
-	orgId, err := s.orgModelService.CreateOrganization(s.Ctx, identityOwner.ID, "Test Organization MMMYYY")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identityOwner.ID, "Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
-	orgId2, err := s.orgModelService.CreateOrganization(s.Ctx, identityOwner.ID, "One More Test Organization MMMYYY")
+	orgId2, err := s.orgService.CreateOrganization(s.Ctx, identityOwner.ID, "One More Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Org created by the second user
-	_, err = s.orgModelService.CreateOrganization(s.Ctx, identityAnother.ID, "One More Test Organization MMMYYY")
+	_, err = s.orgService.CreateOrganization(s.Ctx, identityAnother.ID, "One More Test Organization MMMYYY")
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load orgs where the first user is a member
-	orgs, err := s.orgModelService.ListOrganizations(s.Ctx, identityOwner.ID)
+	orgs, err := s.orgService.ListOrganizations(s.Ctx, identityOwner.ID)
 	require.Nil(s.T(), err, "Could not list organizations")
 
 	// Check we get two organizations back
@@ -103,20 +102,20 @@ func (s *organizationModelServiceBlackBoxTest) TestListOrganization() {
 	s.equalOrganization(*orgId2, "One More Test Organization MMMYYY", s.findOrganizationWithID(*orgId2, orgs))
 }
 
-func (s *organizationModelServiceBlackBoxTest) findOrganizationWithID(orgId uuid.UUID, orgs []organization.IdentityOrganization) *organization.IdentityOrganization {
+func (s *organizationServiceBlackBoxTest) findOrganizationWithID(orgId uuid.UUID, orgs []authorization.IdentityAssociation) *authorization.IdentityAssociation {
 	for _, org := range orgs {
-		if org.OrganizationID == orgId {
+		if *org.IdentityID == orgId {
 			return &org
 		}
 	}
 	return nil
 }
 
-func (s *organizationModelServiceBlackBoxTest) equalOrganization(expectedOrgID uuid.UUID, expectedOrgName string, actualOrg *organization.IdentityOrganization) {
+func (s *organizationServiceBlackBoxTest) equalOrganization(expectedOrgID uuid.UUID, expectedOrgName string, actualOrg *authorization.IdentityAssociation) {
 	require.NotNil(s.T(), actualOrg, "Organization is nil")
-	require.Equal(s.T(), expectedOrgID, actualOrg.OrganizationID, "Organization ID is different")
+	require.Equal(s.T(), expectedOrgID, *actualOrg.IdentityID, "Organization ID is different")
 	require.Equal(s.T(), false, actualOrg.Member, "User should not be a member of newly created organization")
-	require.Equal(s.T(), expectedOrgName, actualOrg.Name, "Organization name is different")
+	require.Equal(s.T(), expectedOrgName, actualOrg.ResourceName, "Organization name is different")
 	require.Equal(s.T(), 1, len(actualOrg.Roles), "New organization should have assigned exactly 1 role")
 	require.Equal(s.T(), authorization.OwnerRole, actualOrg.Roles[0], "New organization should have assigned owner role")
 }

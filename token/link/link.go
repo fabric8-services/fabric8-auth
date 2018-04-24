@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -57,31 +58,31 @@ type OauthProviderFactory interface {
 }
 
 // NewOauthProviderFactory returns the default Oauth provider factory.
-func NewOauthProviderFactory(config LinkConfig, db application.DB) *OauthProviderFactoryService {
+func NewOauthProviderFactory(config LinkConfig, app application.Application) *OauthProviderFactoryService {
 	service := &OauthProviderFactoryService{
 		config: config,
-		db:     db,
+		app:    app,
 	}
 	return service
 }
 
 type OauthProviderFactoryService struct {
 	config LinkConfig
-	db     application.DB
+	app    application.Application
 }
 
 // LinkService represents service for linking accounts
 type LinkService struct {
 	config          LinkConfig
-	db              application.DB
+	app             application.Application
 	providerFactory OauthProviderFactory
 }
 
 // NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
-func NewLinkServiceWithFactory(config LinkConfig, db application.DB, factory OauthProviderFactory) LinkOAuthService {
+func NewLinkServiceWithFactory(config LinkConfig, app application.Application, factory OauthProviderFactory) LinkOAuthService {
 	service := &LinkService{
 		config: config,
-		db:     db,
+		app:    app,
 	}
 	service.providerFactory = factory
 	return service
@@ -121,7 +122,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 		return "", err
 	}
 	state := uuid.NewV4().String()
-	err = oauth.SaveReferrer(ctx, service.db, state, redirectURL, nil, service.config.GetValidRedirectURLs())
+	err = oauth.SaveReferrer(ctx, service.app, state, redirectURL, nil, service.config.GetValidRedirectURLs())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url": redirectURL,
@@ -137,7 +138,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 // Callback returns a redirect URL after callback from an external oauth2 resource provider such as GitHub during user's account linking
 func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error) {
 	// validate known state
-	knownReferrer, _, err := oauth.LoadReferrerAndResponseMode(ctx, service.db, state)
+	knownReferrer, _, err := oauth.LoadReferrerAndResponseMode(ctx, service.app, state)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state": state,
@@ -192,8 +193,8 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 	if err != nil {
 		return "", err
 	}
-	err = application.Transactional(service.db, func(appl application.Application) error {
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, oauthProvider.ID(), identityUUID)
+	err = transaction.Transactional(service.app, func(tr transaction.TransactionalResources) error {
+		tokens, err := tr.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, oauthProvider.ID(), identityUUID)
 		if err != nil {
 			return err
 		}
@@ -202,7 +203,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			externalToken := tokens[0]
 			externalToken.Token = providerToken.AccessToken
 			externalToken.Username = userProfile.Username
-			err = appl.ExternalTokens().Save(ctx, &externalToken)
+			err = tr.ExternalTokens().Save(ctx, &externalToken)
 			if err == nil {
 				log.Info(ctx, map[string]interface{}{
 					"provider_id":       oauthProvider.ID(),
@@ -219,7 +220,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			ProviderID: oauthProvider.ID(),
 			Username:   userProfile.Username,
 		}
-		err = appl.ExternalTokens().Create(ctx, &externalToken)
+		err = tr.ExternalTokens().Create(ctx, &externalToken)
 		if err == nil {
 			log.Info(ctx, map[string]interface{}{
 				"provider_id":       oauthProvider.ID(),
@@ -257,8 +258,8 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 	if forResource == OpenShiftProviderAlias {
 		// Look up the user's OpenShift cluster
 		var clusterURL string
-		err := application.Transactional(service.db, func(appl application.Application) error {
-			identities, err := appl.Identities().Query(account.IdentityFilterByID(identityID), account.IdentityWithUser())
+		err := transaction.Transactional(service.app, func(tr transaction.TransactionalResources) error {
+			identities, err := tr.Identities().Query(account.IdentityFilterByID(identityID), account.IdentityWithUser())
 			if err != nil {
 				return err
 			}

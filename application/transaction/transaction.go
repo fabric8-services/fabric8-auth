@@ -1,4 +1,4 @@
-package application
+package transaction
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/pkg/errors"
 )
 
@@ -15,11 +16,29 @@ func SetDatabaseTransactionTimeout(t time.Duration) {
 	databaseTransactionTimeout = t
 }
 
+// TransactionalResources provides a reference to transactional resources available during a transaction
+type TransactionalResources interface {
+	repository.Repositories
+}
+
+// Transaction represents an existing transaction.  It provides access to transactional resources, plus methods to commit or roll back the transaction
+type Transaction interface {
+	TransactionalResources
+	Commit() error
+	Rollback() error
+}
+
+// TransactionManager manages the lifecycle of a database transaction. The transactional resources (such as repositories)
+// created for the transaction object make changes inside the transaction
+type TransactionManager interface {
+	BeginTransaction() (Transaction, error)
+}
+
 // Transactional executes the given function in a transaction. If todo returns an error, the transaction is rolled back
-func Transactional(db DB, todo func(f Application) error) error {
+func Transactional(tm TransactionManager, todo func(f TransactionalResources) error) error {
 	var tx Transaction
 	var err error
-	if tx, err = db.BeginTransaction(); err != nil {
+	if tx, err = tm.BeginTransaction(); err != nil {
 		log.Error(nil, map[string]interface{}{
 			"err": err,
 		}, "database BeginTransaction failed!")
@@ -31,7 +50,7 @@ func Transactional(db DB, todo func(f Application) error) error {
 		errorChan := make(chan error, 1)
 		txTimeout := time.After(databaseTransactionTimeout)
 
-		go func(tx Transaction) {
+		go func(f TransactionalResources) {
 			defer func() {
 				if err := recover(); err != nil {
 					errorChan <- errors.New(fmt.Sprintf("Unknown error: %v", err))

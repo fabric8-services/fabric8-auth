@@ -15,17 +15,17 @@ import (
 // UserinfoController implements the userinfo resource.
 type UserinfoController struct {
 	*goa.Controller
-	db              application.DB
+	app             application.Application
 	tokenManager    token.Manager
 	userInfoService userinfo.UserInfoService
 }
 
 // NewUserinfoController creates a userinfo controller.
-func NewUserinfoController(service *goa.Service, userInfoService userinfo.UserInfoService, db application.DB, tokenManager token.Manager) *UserinfoController {
+func NewUserinfoController(service *goa.Service, userInfoService userinfo.UserInfoService, app application.Application, tokenManager token.Manager) *UserinfoController {
 	return &UserinfoController{
 		Controller:      service.NewController("UserinfoController"),
 		userInfoService: userInfoService,
-		db:              db,
+		app:             app,
 		tokenManager:    tokenManager,
 	}
 }

@@ -14,14 +14,14 @@ import (
 // RolesController implements the roles resource.
 type RolesController struct {
 	*goa.Controller
-	db application.DB
+	app application.Application
 }
 
 // NewRolesController creates a roles controller.
-func NewRolesController(service *goa.Service, db application.DB) *RolesController {
+func NewRolesController(service *goa.Service, app application.Application) *RolesController {
 	return &RolesController{
 		Controller: service.NewController("RolesController"),
-		db:         db,
+		app:        app,
 	}
 }
 
@@ -31,28 +31,26 @@ func (c *RolesController) List(ctx *app.ListRolesContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("resource_type", "nil"))
 	}
 
-	var roleScopes []role.RoleScope
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		_, err := appl.ResourceTypeRepository().Lookup(ctx, *ctx.ResourceType)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_type": *ctx.ResourceType,
-				"err":           err,
-			}, "error getting roles for the resource type")
-			// if not found, then NotFoundError would be returned,
-			// hence returning the error as is.
-			return err
-		}
+	var roleScopes []role.RoleDescriptor
 
-		roleScopes, err = appl.RoleManagementModelService().ListAvailableRolesByResourceType(ctx, *ctx.ResourceType)
-		return err
-	})
+	_, err := c.app.ResourceTypeRepository().Lookup(ctx, *ctx.ResourceType)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_type": *ctx.ResourceType,
+			"err":           err,
+		}, "error getting roles for the resource type")
+		// if not found, then NotFoundError would be returned,
+		// hence returning the error as is.
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	roleScopes, err = c.app.RoleManagementService().ListAvailableRolesByResourceType(ctx, *ctx.ResourceType)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type": *ctx.ResourceType,
 			"err":           err,
-		}, "error getting avaiable roles for the resource")
+		}, "error getting available roles for the resource")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	respRoles := convertRoleScopeToAppRoles(roleScopes)
@@ -62,7 +60,7 @@ func (c *RolesController) List(ctx *app.ListRolesContext) error {
 	return ctx.OK(res)
 }
 
-func convertRoleScopeToAppRoles(roles []role.RoleScope) []*app.RolesData {
+func convertRoleScopeToAppRoles(roles []role.RoleDescriptor) []*app.RolesData {
 	var rolesList []*app.RolesData
 	for _, r := range roles {
 		rolesList = append(rolesList, convertRoleScopeToAppRole(r))
@@ -70,7 +68,7 @@ func convertRoleScopeToAppRoles(roles []role.RoleScope) []*app.RolesData {
 	return rolesList
 }
 
-func convertRoleScopeToAppRole(r role.RoleScope) *app.RolesData {
+func convertRoleScopeToAppRole(r role.RoleDescriptor) *app.RolesData {
 	return &app.RolesData{
 		RoleName:     r.RoleName,
 		ResourceType: r.ResourceType,

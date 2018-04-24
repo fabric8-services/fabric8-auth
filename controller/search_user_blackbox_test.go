@@ -9,7 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -116,7 +116,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 
 	idents := []account.Identity{}
 
-	err := application.Transactional(s.Application, func(app application.Application) error {
+	err := transaction.Transactional(s.Application, func(tr transaction.TransactionalResources) error {
 		for i, name := range names {
 
 			user := account.User{
@@ -125,7 +125,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 				Email:    emails[i],
 				Cluster:  "default Cluster",
 			}
-			err := app.Users().Create(context.Background(), &user)
+			err := tr.Users().Create(context.Background(), &user)
 			require.Nil(s.T(), err)
 
 			ident := account.Identity{
@@ -133,7 +133,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 				Username:     usernames[i] + uuid.NewV4().String(),
 				ProviderType: "kc",
 			}
-			err = app.Identities().Create(context.Background(), &ident)
+			err = tr.Identities().Create(context.Background(), &ident)
 			require.Nil(s.T(), err)
 
 			idents = append(idents, ident)
@@ -207,8 +207,8 @@ func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 }
 
 func (s *TestSearchUserSearch) cleanTestData(idents []account.Identity) {
-	err := application.Transactional(s.Application, func(app application.Application) error {
-		db := app.(*gormapplication.GormTransaction).DB()
+	err := transaction.Transactional(s.Application, func(tr transaction.TransactionalResources) error {
+		db := tr.(*gormapplication.GormTransaction).DB()
 		db = db.Unscoped()
 		for _, ident := range idents {
 			db.Delete(ident)

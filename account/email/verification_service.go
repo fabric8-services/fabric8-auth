@@ -12,6 +12,7 @@ import (
 	"github.com/satori/go.uuid"
 
 	"context"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 )
 
 type EmailVerificationService interface {
@@ -20,18 +21,18 @@ type EmailVerificationService interface {
 }
 
 type EmailVerificationClient struct {
-	db           application.DB
+	app          application.Application
 	notification notification.Channel
 }
 
 // NewEmailVerificationClient creates a new client for managing email verification.
-func NewEmailVerificationClient(db application.DB, notificationChannel notification.Channel) *EmailVerificationClient {
+func NewEmailVerificationClient(app application.Application, notificationChannel notification.Channel) *EmailVerificationClient {
 	n := notificationChannel
 	if n == nil {
 		n = &notification.DevNullChannel{}
 	}
 	return &EmailVerificationClient{
-		db:           db,
+		app:          app,
 		notification: n,
 	}
 }
@@ -49,8 +50,8 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req 
 		"email": identity.User.Email,
 	}, "verification code to be sent")
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.VerificationCodes().Create(ctx, &newVerificationCode)
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		err := tr.VerificationCodes().Create(ctx, &newVerificationCode)
 		return err
 	})
 	if err != nil {
@@ -80,9 +81,9 @@ func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (
 		"code": code,
 	}, "verification code to be validated")
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 
-		verificationCodeList, err := appl.VerificationCodes().LoadByCode(ctx, code)
+		verificationCodeList, err := tr.VerificationCodes().LoadByCode(ctx, code)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
@@ -97,12 +98,12 @@ func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (
 
 		user := verificationCode.User
 		user.EmailVerified = true
-		err = appl.Users().Save(ctx, &user)
+		err = tr.Users().Save(ctx, &user)
 		if err != nil {
 			return err
 		}
 
-		err = appl.VerificationCodes().Delete(ctx, verificationCode.ID)
+		err = tr.VerificationCodes().Delete(ctx, verificationCode.ID)
 		return err
 
 	})

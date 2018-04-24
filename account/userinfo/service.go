@@ -6,17 +6,18 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
 )
 
-func NewUserInfoProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB) *UserInfoProvider {
+func NewUserInfoProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application) *UserInfoProvider {
 	return &UserInfoProvider{
 		Identities:   identities,
 		Users:        users,
 		TokenManager: tokenManager,
-		DB:           db,
+		App:          app,
 	}
 }
 
@@ -24,7 +25,7 @@ type UserInfoProvider struct {
 	Identities      account.IdentityRepository
 	Users           account.UserRepository
 	TokenManager    token.Manager
-	DB              application.DB
+	App             application.Application
 	UserInfoService UserInfoService
 }
 
@@ -44,9 +45,9 @@ func (userInfoProvider *UserInfoProvider) UserInfo(ctx context.Context) (*accoun
 	}
 	var user *account.User
 	var identity *account.Identity
-	err = application.Transactional(userInfoProvider.DB, func(appl application.Application) error {
+	err = transaction.Transactional(userInfoProvider.App, func(tr transaction.TransactionalResources) error {
 
-		identity, err = appl.Identities().Load(ctx, id)
+		identity, err = tr.Identities().Load(ctx, id)
 		if err != nil || identity == nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": id,
@@ -57,7 +58,7 @@ func (userInfoProvider *UserInfoProvider) UserInfo(ctx context.Context) (*accoun
 
 		userID := identity.UserID
 		if userID.Valid {
-			user, err = appl.Users().Load(ctx, userID.UUID)
+			user, err = tr.Users().Load(ctx, userID.UUID)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"user_id": userID,
