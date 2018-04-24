@@ -163,7 +163,7 @@ func (s *identityBlackBoxTest) TestFindIdentityMemberships() {
 	// Create an identity
 	identity := createAndLoad(s)
 
-	orgName := "Acme Corporation - identityBlackBoxTest"
+	orgName := "Acme Corporation - identityBlackBoxTest.TestFindIdentityMemberships"
 	// Create an organization
 	orgID, err := s.Application.OrganizationService().CreateOrganization(s.Ctx, identity.ID, orgName)
 	require.NoError(s.T(), err)
