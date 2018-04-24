@@ -18,6 +18,12 @@
   revision = "3ac7bf7a47d159a033b107610db8a1b6575507a4"
 
 [[projects]]
+  name = "github.com/certifi/gocertifi"
+  packages = ["."]
+  revision = "deb3ae2ef2610fde3330947281941c562861188b"
+  version = "2018.01.18"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -68,6 +74,11 @@
   revision = "6acd4345c835499920e8426c7e4e8d7a34f1bb83"
 
 [[projects]]
+  name = "github.com/getsentry/raven-go"
+  packages = ["."]
+  revision = "563b81fc02b75d664e54da31f787c2cc2186780b"
+
+[[projects]]
   name = "github.com/goadesign/goa"
   packages = [
     ".",
@@ -100,10 +111,13 @@
   version = "v1.3.0"
 
 [[projects]]
-  branch = "master"
+  branch = "travis-1.9"
   name = "github.com/golang/lint"
-  packages = ["golint"]
-  revision = "85993ffd0a6cd043291f3f63d45d656d97b165bd"
+  packages = [
+    ".",
+    "golint"
+  ]
+  revision = "883fe33ffc4344bad1ecd881f61afd5ec5d80e0a"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -437,6 +451,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c05a4fd59c174f1d4b48c3b91fcee10a0f6814bc2b7e6d4a2c6b3a1185e49beb"
+  inputs-digest = "5af9511cd7452365f6838a6d47eef8c8080d668ba87571d0cf028f387f1f7797"
   solver-name = "gps-cdcl"
   solver-version = 1

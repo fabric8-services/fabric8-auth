@@ -79,7 +79,7 @@ func Error(ctx context.Context, fields map[string]interface{}, format string, ar
 		}
 
 		if ctx != nil {
-			entry = entry.WithField("req_id", extractRequestID(ctx))
+			entry = entry.WithField("req_id", ExtractRequestID(ctx))
 			identityID, err := extractIdentityID(ctx)
 			if err == nil {
 				entry = entry.WithField("identity_id", identityID)
@@ -148,7 +148,7 @@ func Warn(ctx context.Context, fields map[string]interface{}, format string, arg
 		}
 
 		if ctx != nil {
-			entry = entry.WithField("req_id", extractRequestID(ctx))
+			entry = entry.WithField("req_id", ExtractRequestID(ctx))
 			identityID, err := extractIdentityID(ctx)
 			if err == nil { // Otherwise we don't use the identityID
 				entry = entry.WithField("identity_id", identityID)
@@ -177,7 +177,7 @@ func Info(ctx context.Context, fields map[string]interface{}, format string, arg
 		}
 
 		if ctx != nil {
-			entry = entry.WithField("req_id", extractRequestID(ctx))
+			entry = entry.WithField("req_id", ExtractRequestID(ctx))
 			identityID, err := extractIdentityID(ctx)
 			if err == nil { // Otherwise we don't use the identityID
 				entry = entry.WithField("identity_id", identityID)
@@ -202,7 +202,7 @@ func Panic(ctx context.Context, fields map[string]interface{}, format string, ar
 		entry := log.WithField("pid", os.Getpid())
 
 		if ctx != nil {
-			entry = entry.WithField("req_id", extractRequestID(ctx))
+			entry = entry.WithField("req_id", ExtractRequestID(ctx))
 			identityID, err := extractIdentityID(ctx)
 			if err == nil { // Otherwise we don't use the identityID
 				entry = entry.WithField("identity_id", identityID)
@@ -231,7 +231,7 @@ func Debug(ctx context.Context, fields map[string]interface{}, format string, ar
 		}
 
 		if ctx != nil {
-			entry = entry.WithField("req_id", extractRequestID(ctx))
+			entry = entry.WithField("req_id", ExtractRequestID(ctx))
 			identityID, err := extractIdentityID(ctx)
 			if err == nil {
 				entry = entry.WithField("identity_id", identityID)

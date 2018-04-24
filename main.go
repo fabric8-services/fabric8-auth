@@ -24,6 +24,7 @@ import (
 	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
@@ -92,6 +93,18 @@ func main() {
 			break
 		}
 	}
+
+	// Initialize sentry client
+	haltSentry, err := sentry.InitializeSentryClient(
+		sentry.WithRelease(controller.Commit),
+		sentry.WithEnvironment(config.GetEnvironment()),
+	)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the sentry client")
+	}
+	defer haltSentry()
 
 	if config.IsPostgresDeveloperModeEnabled() && log.IsDebug() {
 		db = db.Debug()
