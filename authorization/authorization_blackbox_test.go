@@ -26,11 +26,9 @@ func (s *authorizationBlackBoxTest) TestCanHaveMembers() {
 	require.True(s.T(), authorization.CanHaveMembers(authorization.IdentityResourceTypeGroup))
 }
 
-func (s *authorizationBlackBoxTest) TestIdentityAssociations() {
+func (s *authorizationBlackBoxTest) TestAppendAssociation() {
 	aID := uuid.NewV4()
 	bID := uuid.NewV4()
-	cID := uuid.NewV4()
-	dID := uuid.NewV4()
 
 	associations := []authorization.IdentityAssociation{}
 
@@ -91,13 +89,18 @@ func (s *authorizationBlackBoxTest) TestIdentityAssociations() {
 			break
 		}
 	}
+}
+
+func (s *authorizationBlackBoxTest) TestMergeAssociations() {
+	cID := uuid.NewV4()
+	dID := uuid.NewV4()
 
 	c := authorization.IdentityAssociation{
 		IdentityID:   &cID,
 		ResourceName: "resource_alpha",
 		ResourceID:   "alpha",
 		Member:       false,
-		Roles:        []string{},
+		Roles:        []string{"user"},
 	}
 
 	d := authorization.IdentityAssociation{
@@ -109,33 +112,31 @@ func (s *authorizationBlackBoxTest) TestIdentityAssociations() {
 	}
 
 	e := authorization.IdentityAssociation{
-		ResourceID: "bar",
+		ResourceID: "alpha",
 		Member:     true,
 		Roles:      []string{"owner"},
 	}
 
-	merge := []authorization.IdentityAssociation{c, d, e}
+	associations := []authorization.IdentityAssociation{c}
+
+	merge := []authorization.IdentityAssociation{d, e}
 
 	associations = authorization.MergeAssociations(associations, merge)
 
-	require.Equal(s.T(), 4, len(associations))
+	require.Len(s.T(), associations, 2)
 	for _, assoc := range associations {
-		if assoc.ResourceID == "bar" {
-			require.Equal(s.T(), 3, len(assoc.Roles))
-			adminFound := false
+		if assoc.ResourceID == "alpha" {
+			require.Len(s.T(), assoc.Roles, 2)
 			userFound := false
 			ownerFound := false
 			for _, role := range assoc.Roles {
-				if role == "admin" {
-					adminFound = true
-				} else if role == "owner" {
+				if role == "owner" {
 					ownerFound = true
 				} else if role == "user" {
 					userFound = true
 				}
 			}
 
-			assert.True(s.T(), adminFound, "admin role not found")
 			assert.True(s.T(), ownerFound, "owner role not found")
 			assert.True(s.T(), userFound, "user role not found")
 		}
