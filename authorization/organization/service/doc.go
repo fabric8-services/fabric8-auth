@@ -1,2 +1,2 @@
-// Package model provides the code which encapsulates complex database interactions for managing organizations
+// Package service provides the code which encapsulates business logic for managing organizations
 package service

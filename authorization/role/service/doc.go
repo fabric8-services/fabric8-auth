@@ -1,2 +1,2 @@
-// Package model provides the code which encapsulates complex database interactions for managing role assignments
+// Package service provides the code which encapsulates business logic for managing role assignments
 package service
