@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/repository"
@@ -17,6 +16,7 @@ import (
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"strings"
 )
 
 const (
@@ -97,6 +97,10 @@ func (m Identity) GetLastModified() time.Time {
 	return m.UpdatedAt
 }
 
+func (m Identity) IsUser() bool {
+	return m.UserID.Valid
+}
+
 // GormIdentityRepository is the implementation of the storage interface for
 // Identity.
 type GormIdentityRepository struct {
@@ -146,7 +150,7 @@ func (m *GormIdentityRepository) Load(ctx context.Context, id uuid.UUID) (*Ident
 	return &native, errs.WithStack(err)
 }
 
-// LoadWithUser loads an identity and the assosiated User
+// LoadWithUser loads an identity and the associated User
 // Returns NotFoundError if either identity or user is not found
 func (m *GormIdentityRepository) LoadWithUser(ctx context.Context, id uuid.UUID) (*Identity, error) {
 	identities, err := m.Query(IdentityFilterByID(id), IdentityWithUser())
@@ -365,20 +369,34 @@ func (m *GormIdentityRepository) IsValid(ctx context.Context, id uuid.UUID) bool
 // Search searches for Identities where FullName like %q% or users.email like %q% (but ignores private emails)
 // or users.username like %q%
 func (m *GormIdentityRepository) Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error) {
+	paramVal := strings.ToLower(q) + "%"
+	db := m.db
 
-	db := m.db.Model(&Identity{})
-	db = db.Offset(start)
-	db = db.Limit(limit)
-	// FIXME : returning the identities.id just for the sake of consistency with the other User APIs.
-	db = db.Select("count(*) over () as cnt2 ,identities.id as identity_id,identities.username,users.*")
-	db = db.Joins("LEFT JOIN users ON identities.user_id = users.id")
-	db = db.Where("LOWER(users.full_name) like ?", "%"+strings.ToLower(q)+"%")
-	db = db.Or("LOWER(users.email) like ? and users.email_private is false", "%"+strings.ToLower(q)+"%")
-	db = db.Or("identities.username like ?", "%"+strings.ToLower(q)+"%")
-	db = db.Group("identities.id,identities.username,users.id")
-	//db = db.Preload("user")
+	queryStr := `SELECT count(*) OVER () as cnt2, identity_id, username, users.* FROM (SELECT 
+  identities.id AS identity_id,
+  identities.username,  
+  users.*
+FROM 
+  identities, users
+WHERE 
+  identities.user_id = users.id 
+  AND identities.username LIKE ?
+  AND users.deprovisioned IS false
+  AND users.deleted_at IS null
+UNION SELECT
+  identities.id AS identity_id,
+  identities.username,
+  users.*
+FROM
+  identities, users
+WHERE  
+  identities.user_id = users.id 
+  AND users.deprovisioned IS false 
+  AND (LOWER(users.full_name) LIKE ?
+  OR (LOWER(users.email) LIKE ? AND users.email_private is false))) users LIMIT ?`
 
-	rows, err := db.Rows()
+	rows, err := db.Raw(queryStr, paramVal, paramVal, paramVal, strconv.Itoa(limit)).Rows()
+
 	if err != nil {
 		return nil, 0, err
 	}

@@ -2,46 +2,44 @@ package model
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/authorization/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	role "github.com/fabric8-services/fabric8-auth/authorization/role"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
-	"strings"
-	"time"
+	"github.com/satori/go.uuid"
 )
 
 // RoleManagementModelService defines the service contract for managing role assignments
 type RoleManagementModelService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
+	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
-	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
+	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 }
 
 // NewRoleManagementModelService creates a new service to manage role assignments
-func NewRoleManagementModelService(db *gorm.DB, repo repository.Repositories) *GormRoleManagementModelService {
+func NewRoleManagementModelService(db *gorm.DB) *GormRoleManagementModelService {
 	return &GormRoleManagementModelService{
-		db:         db,
-		repository: repo,
+		db: db,
 	}
 }
 
 // GormRoleManagementModelService implements the RoleManagementModelService to manage role assignments
 type GormRoleManagementModelService struct {
-	db         *gorm.DB
-	repository repository.Repositories
+	db *gorm.DB
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error) {
+func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
-	var identityRoles []identityrole.IdentityRole
+	var identityRoles []rolerepo.IdentityRole
 
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
@@ -125,7 +123,7 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 			return identityRoles, errors.NewInternalError(ctx, err)
 		}
 
-		ir := identityrole.IdentityRole{
+		ir := rolerepo.IdentityRole{
 			IdentityRoleID: identityRoleIDAsUUID,
 			Identity: account.Identity{
 				ID: identityIDAsUUID,
@@ -148,9 +146,9 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 }
 
 // ListByResource lists role assignments of a specific resource.
-func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error) {
+func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
-	var identityRoles []identityrole.IdentityRole
+	var identityRoles []rolerepo.IdentityRole
 
 	r.db = r.db.Debug()
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
@@ -234,7 +232,7 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 			return identityRoles, errors.NewInternalError(ctx, err)
 		}
 
-		ir := identityrole.IdentityRole{
+		ir := rolerepo.IdentityRole{
 			IdentityRoleID: identityRoleIDAsUUID,
 			Identity: account.Identity{
 				ID: identityIDAsUUID,

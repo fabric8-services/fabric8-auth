@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"fmt"
+
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -21,7 +22,7 @@ import (
 // Hence. keeping the map as a string->interface and not string->string.
 // At the moment, FieldDefinitions could be an overkill, so keeping it out.
 
-// User describes a User account. A few identities can be assosiated with one user account
+// User describes a User account. A few identities can be associated with one user account
 type User struct {
 	gormsupport.Lifecycle
 	ID            uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"` // This is the ID PK field

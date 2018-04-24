@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -18,20 +19,21 @@ import (
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/token"
 	keycloaktoken "github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"reflect"
 )
 
-type LoginServiceConfiguration interface {
+type Configuration interface {
 	GetKeycloakEndpointBroker(*goa.RequestData) (string, error)
 	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
 	GetKeycloakClientID() string
@@ -43,10 +45,14 @@ type LoginServiceConfiguration interface {
 	GetOpenShiftClientApiUrl() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
 	IsPostgresDeveloperModeEnabled() bool
+	GetOSORegistrationAppURL() string
+	GetOSORegistrationAppAdminUsername() string
+	GetOSORegistrationAppAdminToken() string
+	GetOSOClusterByURL(url string) *configuration.OSOCluster
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, db application.DB, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
 		Identities:             identities,
 		Users:                  users,
@@ -55,6 +61,7 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		RemoteWITService:       &wit.RemoteWITServiceCaller{},
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
+		osoSubscriptionManager: osoSubscriptionManager,
 	}
 }
 
@@ -67,17 +74,18 @@ type KeycloakOAuthProvider struct {
 	RemoteWITService       wit.RemoteWITService
 	keycloakProfileService UserProfileService
 	keycloakTokenService   keycloaktoken.TokenService
+	osoSubscriptionManager OSOSubscriptionManager
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error
-	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error)
+	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig Configuration) error
+	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig Configuration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig LoginServiceConfiguration) (*token.TokenSet, error)
+	ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
-	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error)
-	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig LoginServiceConfiguration) (*string, *oauth2.Token, error)
+	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration Configuration) (*account.Identity, bool, error)
+	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig Configuration) (*string, *oauth2.Token, error)
 }
 
 const (
@@ -87,7 +95,7 @@ const (
 )
 
 // Login performs authentication
-func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) error {
+func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig Configuration) error {
 
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
@@ -142,7 +150,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 }
 
 // AuthCodeURL is used in authorize action of /api/authorize to get authorization_code
-func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig LoginServiceConfiguration) (*string, error) {
+func (keycloak *KeycloakOAuthProvider) AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig Configuration) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := serviceConfig.GetValidRedirectURLs()
 
@@ -203,7 +211,7 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 }
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
-func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig LoginServiceConfiguration) (*token.TokenSet, error) {
+func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error) {
 
 	// Load identity for the refresh token
 	var identity *account.Identity
@@ -243,7 +251,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	if err != nil {
 		if serviceConfig.IsPostgresDeveloperModeEnabled() && identity != nil && reflect.TypeOf(keycloak.keycloakTokenService) == reflect.TypeOf(&keycloaktoken.KeycloakTokenService{}) {
 			// If running in dev mode but not in a test then we ignore an error from Keycloak and just generate a refresh token
-			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity)
+			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 			if err != nil {
 				return nil, err
 			}
@@ -264,7 +272,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config LoginServiceConfiguration) (*string, *oauth2.Token, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config Configuration) (*string, *oauth2.Token, error) {
 
 	witURL, err := config.GetWITURL(request)
 	if err != nil {
@@ -303,6 +311,16 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 			userNotApprovedRedirectURL := config.GetNotApprovedRedirect()
 			if userNotApprovedRedirectURL != "" {
+				status, err := keycloak.osoSubscriptionManager.LoadOSOSubscriptionStatus(ctx, config, *keycloakToken)
+				if err != nil {
+					// Not critical. Just log the error and proceed
+					log.Error(ctx, map[string]interface{}{"err": err}, "failed to load OSO subscription status")
+				}
+				userNotApprovedRedirectURL, err := rest.AddParam(userNotApprovedRedirectURL, "status", status)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{"err": err}, "failed to add a status param to the redirect URL")
+					return nil, nil, err
+				}
 				log.Debug(ctx, map[string]interface{}{
 					"user_not_approved_redirect_url": userNotApprovedRedirectURL,
 				}, "user not approved; redirecting to registration app")
@@ -386,7 +404,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	return &redirectTo, userToken, nil
 }
 
-func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeytcloakUserRequest, config LoginServiceConfiguration, identity *account.Identity) error {
+func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeytcloakUserRequest, config Configuration, identity *account.Identity) error {
 	tokenEndpoint, err := config.GetKeycloakEndpointToken(request)
 	if err != nil {
 		return autherrors.NewInternalError(ctx, err)
@@ -425,7 +443,7 @@ func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context,
 	return autherrors.NewInternalErrorFromString(ctx, "couldn't update profile because PAT wasn't generated")
 }
 
-func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Context, request *goa.RequestData, keycloakToken *oauth2.Token, config LoginServiceConfiguration, identity *account.Identity) (*oauth2.Token, error) {
+func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Context, request *goa.RequestData, keycloakToken *oauth2.Token, config Configuration, identity *account.Identity) (*oauth2.Token, error) {
 	// Sync from auth db to keycloak.
 
 	accountAPIEndpoint, err := config.GetKeycloakAccountEndpoint(request)
@@ -617,7 +635,7 @@ func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Co
 
 // CreateOrUpdateIdentityInDB creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration LoginServiceConfiguration) (*account.Identity, bool, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration Configuration) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
@@ -901,7 +919,7 @@ func ContextIdentityIfExists(ctx context.Context, db application.DB) (uuid.UUID,
 
 // LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
 // If no token present in the context then an Unauthorized error is returned
-// If the identity represented by the token doesn't exist in the DB or not assosiated with any User then an Unauthorized error is returned
+// If the identity represented by the token doesn't exist in the DB or not associated with any User then an Unauthorized error is returned
 func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*account.Identity, error) {
 	var identity *account.Identity
 	identityID, err := ContextIdentity(ctx)
@@ -916,6 +934,19 @@ func LoadContextIdentityAndUser(ctx context.Context, db application.DB) (*accoun
 		}
 		return nil
 	})
+	return identity, err
+}
+
+// LoadContextIdentityIfNotDeprovisioned returns the same identity as LoadContextIdentityAndUser()
+// if the user is not deprovisioned. Returns an Unauthorized error if the user is deprovisioned.
+func LoadContextIdentityIfNotDeprovisioned(ctx context.Context, db application.DB) (*account.Identity, error) {
+	identity, err := LoadContextIdentityAndUser(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	if identity.User.Deprovisioned {
+		return nil, autherrors.NewUnauthorizedError("user deprovisioined")
+	}
 	return identity, err
 }
 

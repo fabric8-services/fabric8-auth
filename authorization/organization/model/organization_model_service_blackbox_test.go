@@ -6,9 +6,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/organization"
-	organizationModelService "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
+	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
@@ -20,9 +20,9 @@ import (
 type organizationModelServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	identityRepo     account.IdentityRepository
-	identityRoleRepo identityrole.IdentityRoleRepository
+	identityRoleRepo role.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
-	orgModelService  organizationModelService.OrganizationModelService
+	orgModelService  organizationmodel.OrganizationModelService
 }
 
 func TestRunOrganizationModelServiceBlackBoxTest(t *testing.T) {
@@ -32,10 +32,10 @@ func TestRunOrganizationModelServiceBlackBoxTest(t *testing.T) {
 func (s *organizationModelServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
+	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 
-	s.orgModelService = organizationModelService.NewOrganizationModelService(s.DB, s.Application)
+	s.orgModelService = organizationmodel.NewOrganizationModelService(s.DB, s.Application)
 }
 
 func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
@@ -68,7 +68,7 @@ func (s *organizationModelServiceBlackBoxTest) TestCreateOrganization() {
 		var roleName string
 		rows.Scan(&roleName)
 
-		require.Equal(s.T(), organization.OrganizationOwnerRole, roleName, "Only 'owner' role should be assigned during organization creation")
+		require.Equal(s.T(), authorization.OwnerRole, roleName, "Only 'owner' role should be assigned during organization creation")
 		roleCount++
 	}
 
@@ -118,5 +118,5 @@ func (s *organizationModelServiceBlackBoxTest) equalOrganization(expectedOrgID u
 	require.Equal(s.T(), false, actualOrg.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), expectedOrgName, actualOrg.Name, "Organization name is different")
 	require.Equal(s.T(), 1, len(actualOrg.Roles), "New organization should have assigned exactly 1 role")
-	require.Equal(s.T(), organization.OrganizationOwnerRole, actualOrg.Roles[0], "New organization should have assigned owner role")
+	require.Equal(s.T(), authorization.OwnerRole, actualOrg.Roles[0], "New organization should have assigned owner role")
 }

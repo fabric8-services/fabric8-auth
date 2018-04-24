@@ -19,7 +19,7 @@ const (
 
 var scopes = []string{"read:space", "admin:space"}
 
-// SpaceConfiguration represents space configuratoin
+// SpaceConfiguration represents space configuration
 type SpaceConfiguration interface {
 	GetKeycloakEndpointAuthzResourceset(*goa.RequestData) (string, error)
 	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
@@ -44,13 +44,13 @@ func NewSpaceController(service *goa.Service, db application.DB, config SpaceCon
 
 // Create runs the create action.
 func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// Create keycloak resource for this space
-	resource, err := c.resourceManager.CreateResource(ctx, ctx.RequestData, ctx.SpaceID.String(), spaceResourceType, nil, &scopes, currentUser.String())
+	resource, err := c.resourceManager.CreateResource(ctx, ctx.RequestData, ctx.SpaceID.String(), spaceResourceType, nil, &scopes, currentIdentity.ID.String())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -59,7 +59,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		PolicyID:     resource.PolicyID,
 		PermissionID: resource.PermissionID,
 		SpaceID:      ctx.SpaceID,
-		OwnerID:      *currentUser,
+		OwnerID:      currentIdentity.ID,
 	}
 
 	err = application.Transactional(c.db, func(appl application.Application) error {
@@ -78,7 +78,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		"policy_id":     resource.PolicyID,
 	}, "space resource created")
 
-	return ctx.OK(&app.SpaceResource{&app.SpaceResourceData{
+	return ctx.OK(&app.SpaceResource{Data: &app.SpaceResourceData{
 		ResourceID:   resource.ResourceID,
 		PermissionID: resource.PermissionID,
 		PolicyID:     resource.PolicyID,
@@ -87,10 +87,11 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 
 // Delete runs the delete action.
 func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, goa.ErrUnauthorized(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
 	var resourceID string
 	var permissionID string
 	var policyID string
@@ -100,11 +101,11 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 		if err != nil {
 			return err
 		}
-		if !uuid.Equal(*currentUser, resource.OwnerID) {
+		if !uuid.Equal(currentIdentity.ID, resource.OwnerID) {
 			log.Warn(ctx, map[string]interface{}{
-				"space_id":     ctx.SpaceID,
-				"space_owner":  resource.OwnerID,
-				"current_user": *currentUser,
+				"space_id":            ctx.SpaceID,
+				"space_owner":         resource.OwnerID,
+				"current_identity_id": currentIdentity.ID,
 			}, "user is not the space owner")
 			return errors.NewForbiddenError("user is not the space owner")
 		}
@@ -118,8 +119,8 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 	if err != nil {
 		if notFound, _ := errors.IsNotFoundError(err); notFound {
 			log.Warn(ctx, map[string]interface{}{
-				"space_id":     ctx.SpaceID,
-				"current_user": *currentUser,
+				"space_id":            ctx.SpaceID,
+				"current_identity_id": currentIdentity.ID,
 			}, "Space is not found. May happen if it's an old space. Ignore until WIT and Auth resource space DB is in sync")
 			return ctx.OK([]byte{})
 		}

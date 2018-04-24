@@ -94,7 +94,7 @@ func (s *identityBlackBoxTest) TestOKToSave() {
 }
 
 func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNotExist() {
-	// Identity exists but not assosiated with any user
+	// Identity exists but not associated with any user
 	identity := createAndLoad(s)
 	_, err := s.repo.LoadWithUser(s.Ctx, identity.ID)
 	require.NotNil(s.T(), err)
@@ -136,6 +136,30 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 	testIdentity.User.CreatedAt = identity.User.CreatedAt
 	testIdentity.User.Lifecycle = identity.User.Lifecycle
 	assert.Equal(s.T(), testIdentity, identity)
+}
+
+func (s *identityBlackBoxTest) TestUserIdentityIsUser() {
+	// Create test user & identity
+	testUser := &account.User{
+		ID:       uuid.NewV4(),
+		Email:    uuid.NewV4().String(),
+		FullName: "TestUserIdentityIsUser Developer",
+		Cluster:  "https://api.starter-us-east-2a.openshift.com",
+	}
+	testIdentity := &account.Identity{
+		Username:     "TestUserIdentityIsUser" + uuid.NewV4().String(),
+		ProviderType: account.KeycloakIDP,
+		User:         *testUser,
+	}
+	userRepository := account.NewUserRepository(s.DB)
+	userRepository.Create(s.Ctx, testUser)
+	s.repo.Create(s.Ctx, testIdentity)
+
+	// Load the identity
+	identity, err := s.repo.LoadWithUser(s.Ctx, testIdentity.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), identity)
+	require.True(s.T(), identity.IsUser())
 }
 
 func createAndLoad(s *identityBlackBoxTest) *account.Identity {

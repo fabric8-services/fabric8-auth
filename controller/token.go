@@ -17,8 +17,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -56,11 +56,11 @@ func NewTokenController(service *goa.Service, db application.DB, auth login.Keyc
 
 // Keys returns public keys which should be used to verify tokens
 func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
-	var publicKeys token.JsonKeys
+	var publicKeys jwk.JSONKeys
 	if ctx.Format != nil && *ctx.Format == "pem" {
 		publicKeys = c.TokenManager.PemKeys()
 	} else {
-		publicKeys = c.TokenManager.JsonWebKeys()
+		publicKeys = c.TokenManager.JSONWebKeys()
 	}
 
 	return ctx.OK(&app.PublicKeys{Keys: publicKeys.Keys})
@@ -136,7 +136,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devIdentity = identities[0]
 	}
 
-	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity)
+	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -197,28 +197,42 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
-	currentIdentity, err := login.ContextIdentity(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	var appResponse app.ExternalToken
-
 	if forResource == "" {
 		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
 
-	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, *currentIdentity, req, forResource)
+	var currentIdentityID uuid.UUID
+	serviceAccount := token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy)
+	if serviceAccount {
+		// Extract SA ID
+		id, err := login.ContextIdentity(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		currentIdentityID = *id
+	} else {
+		// Extract user ID
+		currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.db)
+		if err != nil {
+			return nil, nil, err
+		}
+		currentIdentityID = currentIdentity.ID
+	}
+
+	var appResponse app.ExternalToken
+
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, currentIdentityID, req, forResource)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	osConfig, ok := providerConfig.(link.OpenShiftIdentityProviderConfig)
-	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy) {
+	if ok && serviceAccount {
 		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
 		return c.retrieveClusterToken(ctx, forResource, forcePull, osConfig)
 	}
 
-	externalToken, err := c.loadToken(ctx, providerConfig, *currentIdentity)
+	externalToken, err := c.loadToken(ctx, providerConfig, currentIdentityID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -576,10 +590,6 @@ func ObtainKeycloakUserToken(ctx context.Context, tokenEndpoint string, configur
 		}, "Postgres developer mode not enabled")
 		return nil, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled"))
 	}
-
-	var scopes []account.Identity
-	scopes = append(scopes, test.TestIdentity)
-	scopes = append(scopes, test.TestObserverIdentity)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 

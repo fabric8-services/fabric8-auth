@@ -65,6 +65,17 @@ func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersCo
 	return svc, controller
 }
 
+func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.Service, *UsersController) {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+	require.Nil(s.T(), err)
+
+	svc := testsupport.ServiceAsUser("Users-Service", identity)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.RemoteWITService = &dummyRemoteWITService{}
+	return svc, controller
+}
+
 func (s *UsersControllerTestSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
@@ -123,10 +134,16 @@ func (s *UsersControllerTestSuite) updateDeprovisionedAttribute(deprovisioned bo
 			Type:       "identities",
 		},
 	}
-	s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
 	// Try to deprovision
-	test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
-	s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+	if deprovisioned {
+		// in this case, the existing state is that the user is not deprovisioned.
+		test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
+		s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+	} else {
+		// in this case, the existing state is that the user is deprovisioned.
+		test.UpdateUsersUnauthorized(s.T(), secureController.Context, secureService, secureController, updateUsersPayload)
+		s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+	}
 }
 
 func (s *UsersControllerTestSuite) TestUpdateUser() {
@@ -800,6 +817,32 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		// when/then
 		test.UpdateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, updateUsersPayload)
 	})
+
+	s.T().Run("deprovisioned user cannot update user", func(t *testing.T) {
+		// given
+		svc, ctrl := s.UnsecuredControllerDeprovisionedUser()
+		newEmail := "TestUpdateUserUnauthorized-" + uuid.NewV4().String() + "@email.com"
+		newFullName := "TestUpdateUserUnauthorized"
+		newImageURL := "http://new.image.io/imageurl"
+		newBio := "new bio"
+		newProfileURL := "http://new.profile.url/url"
+		contextInformation := map[string]interface{}{
+			"last_visited": "yesterday",
+			"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		}
+		//secureController, secureService := createSecureController(t, identity)
+		updateUsersPayload := newUpdateUsersPayload(
+			WithUpdatedEmail(newEmail),
+			WithUpdatedFullName(newFullName),
+			WithUpdatedBio(newBio),
+			WithUpdatedImageURL(newImageURL),
+			WithUpdatedURL(newProfileURL),
+			WithUpdatedContextInformation(contextInformation))
+
+		// when/then
+		test.UpdateUsersUnauthorized(s.T(), ctrl.Context, svc, ctrl, updateUsersPayload)
+	})
+
 }
 
 func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expected bool) {
@@ -832,7 +875,7 @@ func (s *UsersControllerTestSuite) TestDeprovisionUser() {
 	// Fails if unknown identity
 	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.NewV4().String(), updateUsersPayload)
 
-	// Fails if identity is not assosiated with any user
+	// Fails if identity is not associated with any user
 	lonelyIdentity, err := testsupport.CreateLonelyTestIdentity(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, lonelyIdentity.ID.String(), updateUsersPayload)

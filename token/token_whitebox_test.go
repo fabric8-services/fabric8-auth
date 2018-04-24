@@ -154,7 +154,7 @@ func (s *TestWhiteboxTokenSuite) TestPrivateKeysLoaded() {
 	}
 
 	// Check JWK and PEM formats
-	jwKeys := s.tokenManager.JsonWebKeys()
+	jwKeys := s.tokenManager.JSONWebKeys()
 	require.NotEmpty(s.T(), jwKeys.Keys)
 
 	pemKeys := s.tokenManager.PemKeys()

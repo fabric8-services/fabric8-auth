@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -11,17 +12,15 @@ import (
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
-
-	"fmt"
 	errs "github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 )
 
 type ResourceTypeScope struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	ResourceTypeScopeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:resource_type_scope_id"`
+	ResourceTypeScopeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:resource_type_scope_id"`
 	// The resource type that this scope belongs to
 	ResourceType resourcetype.ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
 	// The foreign key value for ResourceType

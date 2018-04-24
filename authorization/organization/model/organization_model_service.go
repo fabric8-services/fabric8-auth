@@ -3,19 +3,28 @@ package model
 import (
 	"context"
 	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	organization "github.com/fabric8-services/fabric8-auth/authorization/organization"
-
-	"github.com/fabric8-services/fabric8-auth/authorization/repository"
-
+	"github.com/fabric8-services/fabric8-auth/authorization/organization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
+
+// repositories interface lets us avoid an import cycle
+type repositories interface {
+	Identities() account.IdentityRepository
+	RoleRepository() role.RoleRepository
+	IdentityRoleRepository() role.IdentityRoleRepository
+	ResourceRepository() resource.ResourceRepository
+	ResourceTypeRepository() resourcetype.ResourceTypeRepository
+}
 
 type OrganizationModelService interface {
 	CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error)
@@ -26,15 +35,12 @@ type OrganizationModelService interface {
 // OrganizationService. IMPORTANT NOTE: Transaction control is not provided by this service
 type GormOrganizationModelService struct {
 	db   *gorm.DB
-	repo repository.Repositories
+	repo repositories
 }
 
 // NewOrganizationModelService creates a new service.
-func NewOrganizationModelService(db *gorm.DB, repo repository.Repositories) OrganizationModelService {
-	return &GormOrganizationModelService{
-		db:   db,
-		repo: repo,
-	}
+func NewOrganizationModelService(db *gorm.DB, repo repositories) OrganizationModelService {
+	return &GormOrganizationModelService{db: db, repo: repo}
 }
 
 // Creates a new organization.  The specified identityID is the user creating the organization, while the name parameter
@@ -79,14 +85,14 @@ func (s *GormOrganizationModelService) CreateOrganization(ctx context.Context, i
 	organizationId = orgIdentity.ID
 
 	// Lookup the identity/organization owner role
-	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, organization.OrganizationOwnerRole, authorization.IdentityResourceTypeOrganization)
+	ownerRole, err := s.repo.RoleRepository().Lookup(ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
 
 	if err != nil {
 		return nil, errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
 	}
 
 	// Assign the owner role for the new organization to the current user
-	identityRole := &identityrole.IdentityRole{
+	identityRole := &role.IdentityRole{
 		IdentityID: userIdentity.ID,
 		ResourceID: res.ResourceID,
 		RoleID:     ownerRole.RoleID,

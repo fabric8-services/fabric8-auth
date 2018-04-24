@@ -23,7 +23,7 @@ var (
 	}
 )
 
-// InitializeLogger creates a default logger with the given ouput format and log level
+// InitializeLogger creates a default logger with the given output format and log level
 func InitializeLogger(logJSON bool, lvl string) {
 	logLevel, err := log.ParseLevel(lvl)
 	if err != nil {

@@ -86,6 +86,9 @@ func (provider *OpenShiftIdentityProvider) Profile(ctx context.Context, token oa
 	}
 	var u openshiftUser
 	err = json.Unmarshal(body, &u)
+	if err != nil {
+		return nil, err
+	}
 	userProfile := &oauth.UserProfile{
 		Username: u.Metadata.Name,
 	}

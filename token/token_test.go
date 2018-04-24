@@ -40,17 +40,22 @@ func (s *TestTokenSuite) SetupSuite() {
 }
 
 func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
-	token, identity, ctx := s.generateToken()
-	s.assertGeneratedToken(token, identity)
+	s.checkGenerateUserTokenForIdentity(false)
+	s.checkGenerateUserTokenForIdentity(true) // Offline token
+}
+
+func (s *TestTokenSuite) checkGenerateUserTokenForIdentity(offlineToken bool) {
+	token, identity, ctx := s.generateToken(offlineToken)
+	s.assertGeneratedToken(token, identity, offlineToken)
 
 	// With verified email
 	identity.User.EmailVerified = true
-	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, offlineToken)
 	require.NoError(s.T(), err)
-	s.assertGeneratedToken(token, identity)
+	s.assertGeneratedToken(token, identity, offlineToken)
 }
 
-func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, identity account.Identity) {
+func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, identity account.Identity, offlineToken bool) {
 	require.NotNil(s.T(), generatedToken)
 	assert.Equal(s.T(), "bearer", generatedToken.TokenType)
 
@@ -104,11 +109,16 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	// Claims
 	s.assertJti(refreshToken)
 	s.assertIat(refreshToken)
-	s.assertExpiresIn(refreshToken["exp"])
 	s.assertIntClaim(refreshToken, "nbf", 0)
 	s.assertClaim(refreshToken, "iss", "https://auth.openshift.io")
 	s.assertClaim(refreshToken, "aud", "https://openshift.io")
-	s.assertClaim(refreshToken, "typ", "Refresh")
+	if offlineToken {
+		s.assertIntClaim(refreshToken, "exp", 0)
+		s.assertClaim(refreshToken, "typ", "Offline")
+	} else {
+		s.assertExpiresIn(refreshToken["exp"])
+		s.assertClaim(refreshToken, "typ", "Refresh")
+	}
 	s.assertIntClaim(refreshToken, "auth_time", 0)
 	s.assertClaim(refreshToken, "sub", identity.ID.String())
 }
@@ -172,8 +182,13 @@ func (s *TestTokenSuite) assertInt(expectedValue, actualValue interface{}) {
 }
 
 func (s *TestTokenSuite) TestConvertToken() {
+	s.checkConvertToken(false)
+	s.checkConvertToken(true) // Offline token
+}
+
+func (s *TestTokenSuite) checkConvertToken(offlineToken bool) {
 	// Generate an oauth token first
-	generatedToken, identity, _ := s.generateToken()
+	generatedToken, identity, _ := s.generateToken(offlineToken)
 
 	// Now convert it to a token set
 	tokenSet, err := testtoken.TokenManager.ConvertToken(*generatedToken)
@@ -184,10 +199,10 @@ func (s *TestTokenSuite) TestConvertToken() {
 	require.NoError(s.T(), err)
 
 	// Check the converted token
-	s.assertGeneratedToken(token, identity)
+	s.assertGeneratedToken(token, identity, offlineToken)
 }
 
-func (s *TestTokenSuite) generateToken() (*oauth2.Token, account.Identity, context.Context) {
+func (s *TestTokenSuite) generateToken(offlineToken bool) (*oauth2.Token, account.Identity, context.Context) {
 	ctx := testtoken.ContextWithRequest(nil)
 	user := account.User{
 		ID:       uuid.NewV4(),
@@ -200,7 +215,7 @@ func (s *TestTokenSuite) generateToken() (*oauth2.Token, account.Identity, conte
 		User:     user,
 		Username: uuid.NewV4().String(),
 	}
-	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity)
+	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, offlineToken)
 	require.NoError(s.T(), err)
 
 	return token, identity, ctx

@@ -1,13 +1,10 @@
 package model_test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/application"
-	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	permissionModelService "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/account"
+	permissionmodel "github.com/fabric8-services/fabric8-auth/authorization/permission/model"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	resourcetypescope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
@@ -16,7 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/jinzhu/gorm"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -33,14 +30,13 @@ const (
 type permissionModelServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	identityRepo            account.IdentityRepository
-	identityRoleRepo        identityrole.IdentityRoleRepository
+	identityRoleRepo        roleRepo.IdentityRoleRepository
 	resourceRepo            resource.ResourceRepository
 	resourceTypeRepo        resourcetype.ResourceTypeRepository
 	resourceTypeScopeRepo   resourcetypescope.ResourceTypeScopeRepository
 	roleRepo                roleRepo.RoleRepository
 	roleMappingRepo         roleRepo.RoleMappingRepository
-	orgModelService         organizationModel.OrganizationModelService
-	permissionService       permissionModelService.PermissionModelService
+	permissionService       permissionmodel.PermissionService
 	testAreaRole            roleRepo.Role
 	testWorkItemRole        roleRepo.Role
 	testWorkItemCommentRole roleRepo.Role
@@ -54,14 +50,13 @@ func (s *permissionModelServiceBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.identityRoleRepo = identityrole.NewIdentityRoleRepository(s.DB)
+	s.identityRoleRepo = roleRepo.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = resourcetypescope.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = roleRepo.NewRoleRepository(s.DB)
 	s.roleMappingRepo = roleRepo.NewRoleMappingRepository(s.DB)
-	s.orgModelService = organizationModel.NewOrganizationModelService(s.DB, s.Application)
-	s.permissionService = permissionModelService.NewPermissionModelService(s.DB, s.Application)
+	s.permissionService = permissionmodel.NewPermissionService(s.DB)
 
 	// Create a test "area" resource type
 	role := s.setupResourceType(testResourceTypeArea, testAreaScopeName, "test-permission-area-role")
@@ -207,11 +202,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrganizationMember
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Add the member to the organization
-	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
+	err = s.addMember(s.DB, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
 	// TODO remove this once membership repo is implemented
-	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+	defer s.removeMember(s.DB, org.ID, identity.ID)
 
 	// Create another user identity
 	otherIdentity, err := test.CreateTestIdentity(s.DB, "permission-service-test-user-albert", "")
@@ -316,11 +311,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Add the user to the organization
-	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
+	err = s.addMember(s.DB, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
 	// TODO remove this cleanup code once membership repo is implemented
-	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+	defer s.removeMember(s.DB, org.ID, identity.ID)
 
 	// They should now have the permission for the parent resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, parentResource.ResourceID, testAreaScopeName)
@@ -383,11 +378,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedM
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Add the user to the organization
-	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
+	err = s.addMember(s.DB, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
 	// TODO remove this cleanup code once membership repo is implemented
-	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+	defer s.removeMember(s.DB, org.ID, identity.ID)
 
 	// They should now have the permission for the grandparent resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, grandparentResource.ResourceID, testAreaScopeName)
@@ -456,11 +451,11 @@ func (s *permissionModelServiceBlackBoxTest) TestPermissionForOrgMemberAssignedD
 	require.False(s.T(), result, "User should not have assigned scope for child resource")
 
 	// Add the user to the organization
-	err = s.addMember(s.DB, s.Application, org.ID, identity.ID)
+	err = s.addMember(s.DB, org.ID, identity.ID)
 	require.NoError(s.T(), err, "Error adding member to organization")
 
 	// TODO remove this cleanup code once membership repo is implemented
-	defer s.removeMember(s.DB, s.Application, org.ID, identity.ID)
+	defer s.removeMember(s.DB, org.ID, identity.ID)
 
 	// They should now have the permission for the grandparent resource
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, grandparentResource.ResourceID, testAreaScopeName)
@@ -524,7 +519,7 @@ func (s *permissionModelServiceBlackBoxTest) createTestResource(resourceTypeName
 
 // Assigns a role to a user for a resource
 func (s *permissionModelServiceBlackBoxTest) assignRoleForResource(resource resource.Resource, identity account.Identity, role roleRepo.Role) error {
-	err := s.identityRoleRepo.Create(s.Ctx, &identityrole.IdentityRole{
+	err := s.identityRoleRepo.Create(s.Ctx, &roleRepo.IdentityRole{
 		IdentityID: identity.ID,
 		ResourceID: resource.ResourceID,
 		RoleID:     role.RoleID,
@@ -592,8 +587,7 @@ func (s *permissionModelServiceBlackBoxTest) createTestChildResource(parentResou
 }
 
 // Adds a member to the specified identity (i.e. organization)
-func (s *permissionModelServiceBlackBoxTest) addMember(db *gorm.DB, appDB application.DB,
-	memberOf uuid.UUID, memberId uuid.UUID) error {
+func (s *permissionModelServiceBlackBoxTest) addMember(db *gorm.DB, memberOf uuid.UUID, memberId uuid.UUID) error {
 
 	// TODO replace this with the repository method once membership repo is implemented
 	db.Unscoped().Exec("INSERT INTO membership (member_of, member_id) VALUES (?, ?)", memberOf, memberId)
@@ -603,8 +597,7 @@ func (s *permissionModelServiceBlackBoxTest) addMember(db *gorm.DB, appDB applic
 
 // Removes a member
 // TODO remove this when the membership repository is implemented
-func (s *permissionModelServiceBlackBoxTest) removeMember(db *gorm.DB, appDB application.DB,
-	memberOf uuid.UUID, memberId uuid.UUID) error {
+func (s *permissionModelServiceBlackBoxTest) removeMember(db *gorm.DB, memberOf uuid.UUID, memberId uuid.UUID) error {
 
 	db.Unscoped().Exec("DELETE FROM membership WHERE member_of = ? and member_id = ?", memberOf, memberId)
 	return nil

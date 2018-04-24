@@ -4,6 +4,9 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/authorization"
+	resourceRepo "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourceTypeRepo "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
 	"github.com/fabric8-services/fabric8-auth/test/token"
@@ -87,7 +90,7 @@ var TestTenantIdentity = account.Identity{
 	User:     TestUser,
 }
 
-// CreateLonelyTestIdentity creates an identity not assosiated with any user. For testing purpose only.
+// CreateLonelyTestIdentity creates an identity not associated with any user. For testing purpose only.
 func CreateLonelyTestIdentity(db *gorm.DB, username string) (account.Identity, error) {
 	testIdentity := account.Identity{
 		Username:     username,
@@ -95,6 +98,42 @@ func CreateLonelyTestIdentity(db *gorm.DB, username string) (account.Identity, e
 	}
 	err := CreateTestIdentityForAccountIdentity(db, &testIdentity)
 	return testIdentity, err
+}
+
+// CreateTestOrganizationIdentity creates an identity/resource pair in the database. For testing purposes only.
+func CreateTestOrganizationIdentity(db *gorm.DB) (account.Identity, error) {
+	var orgIdentity account.Identity
+
+	repo := resourceRepo.NewResourceRepository(db)
+	resourceTypeRepo := resourceTypeRepo.NewResourceTypeRepository(db)
+
+	err := models.Transactional(db, func(tx *gorm.DB) error {
+		resourceType, err := resourceTypeRepo.Lookup(context.Background(), authorization.IdentityResourceTypeOrganization)
+
+		if err != nil {
+			return err
+		}
+
+		orgResource := resourceRepo.Resource{
+			Name:           "test-organization",
+			ResourceTypeID: resourceType.ResourceTypeID,
+		}
+
+		err = repo.Create(context.Background(), &orgResource)
+
+		if err != nil {
+			return err
+		}
+
+		orgIdentity = account.Identity{
+			IdentityResourceID: &orgResource.ResourceID,
+		}
+
+		err = CreateTestIdentityForAccountIdentity(db, &orgIdentity)
+		return err
+	})
+
+	return orgIdentity, err
 }
 
 // CreateTestIdentity creates an identity with the given `username` in the database. For testing purpose only.
