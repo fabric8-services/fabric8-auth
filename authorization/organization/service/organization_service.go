@@ -35,6 +35,7 @@ func NewOrganizationService(repo repository.Repositories, tm transaction.Transac
 
 // Creates a new organization.  The specified identityID is the user creating the organization, while the name parameter
 // specifies the organization name.  The organization's identity ID is returned.
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (s *OrganizationServiceImpl) CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error) {
 	var organizationId uuid.UUID
 

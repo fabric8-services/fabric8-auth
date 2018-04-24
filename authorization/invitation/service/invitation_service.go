@@ -32,6 +32,7 @@ func NewInvitationService(tm transaction.TransactionManager) InvitationService {
 // which the invitations will be issued, and the invitations parameter contains the users and state for each individual user invitation.
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 	var inviteToIdentity *account.Identity
 	var identityResource *resource.Resource
