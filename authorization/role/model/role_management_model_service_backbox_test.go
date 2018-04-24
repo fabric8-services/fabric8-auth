@@ -3,11 +3,14 @@ package model_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/account"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/model"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roletestsupport "github.com/fabric8-services/fabric8-auth/authorization/role/test"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -20,9 +23,12 @@ import (
 type roleManagementModelServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	repo              rolescope.RoleManagementModelService
+	identityRoleRepo  rolerepo.IdentityRoleRepository
 	roleRepo          rolerepo.RoleRepository
 	resourcetypeRepo  resourcetype.ResourceTypeRepository
 	resourceTypeScope scope.ResourceTypeScopeRepository
+	identityRepo      account.IdentityRepository
+	resourceRepo      resource.ResourceRepository
 }
 
 func TestRunRoleManagementModelServiceBlackboxTest(t *testing.T) {
@@ -35,6 +41,10 @@ func (s *roleManagementModelServiceBlackboxTest) SetupTest() {
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)
+	s.resourceRepo = resource.NewResourceRepository(s.DB)
+	s.identityRepo = account.NewIdentityRepository(s.DB)
+	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
+	s.identityRoleRepo = rolerepo.NewIdentityRoleRepository(s.DB)
 }
 
 func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResource() {
@@ -92,31 +102,47 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetRolesByResourceTypeOK() 
 
 	var createdRoleScopes []rolerepo.RoleScope
 
-	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	rt, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
 	require.NoError(s.T(), err)
-	require.NotNil(s.T(), role)
+	require.NotNil(s.T(), rt)
 
-	scope, err := testsupport.CreateTestScopeWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	anotherResourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
 	require.NoError(s.T(), err)
-	require.NotNil(s.T(), scope)
+	require.NotNil(s.T(), anotherResourceType)
 
-	rs, err := testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+	for i := 0; i < 10; i++ {
+
+		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *rt, uuid.NewV4().String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), role)
+
+		scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *rt, uuid.NewV4().String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), scope)
+
+		rs, err := testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), rs)
+
+		createdRoleScopes = append(createdRoleScopes, *rs)
+
+		// create noisy data
+		role, err = testsupport.CreateTestRole(s.Ctx, s.DB, *anotherResourceType, uuid.NewV4().String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), role)
+
+		scope, err = testsupport.CreateTestScope(s.Ctx, s.DB, *anotherResourceType, uuid.NewV4().String())
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), scope)
+
+		rs, err = testsupport.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), rs)
+	}
+
+	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, rt.Name)
 	require.NoError(s.T(), err)
-	require.NotNil(s.T(), rs)
-
-	createdRoleScopes = append(createdRoleScopes, *rs)
-
-	areaResourceType, err := s.resourcetypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), areaResourceType)
-
-	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, "openshift.io/resource/area")
-	require.NoError(s.T(), err)
-
-	// there might be other 'RoleScopes' returned too.
-	// That wouldn't be considered to be a failure, rather we are gonna check whether they all
-	// belong to the same resource type.
-	s.checkRoleBelongsToResourceType(s.DB, roleScopesRetrieved, *areaResourceType)
+	require.Len(s.T(), roleScopesRetrieved, 10)
 
 	// Then let's check if the ones we created are there.
 	s.checkIfCreatedRoleScopesAreReturned(s.DB, roleScopesRetrieved, createdRoleScopes)
@@ -197,4 +223,65 @@ func (s *roleManagementModelServiceBlackboxTest) TestGetIdentityRoleByResourceAn
 	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
 	require.NoError(t, err)
 	require.Equal(t, 0, len(identityRoles))
+}
+
+func (s *roleManagementModelServiceBlackboxTest) TestListByResourceAndIdentity() {
+
+	res, err := testsupport.CreateTestResourceWithRandomResourceType(s.Ctx, s.DB, uuid.NewV4().String(), nil)
+	require.Nil(s.T(), err)
+
+	_, identitesCreated := roletestsupport.CreateRandomResourceMembers(s.T(), s.DB, *res, nil)
+
+	for _, i := range identitesCreated {
+		returnedRoles, err := s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, res.ResourceID, i.ID)
+		require.Nil(s.T(), err)
+		for _, ir := range returnedRoles {
+			require.Equal(s.T(), i.ID, ir.IdentityID)
+			require.Equal(s.T(), res.ResourceID, ir.ResourceID)
+		}
+	}
+}
+
+func (s *roleManagementModelServiceBlackboxTest) TestAssignRoleOK() {
+	t := s.T()
+
+	testIdentity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
+	require.NoError(t, err)
+
+	testR, err := testsupport.CreateTestResourceWithRandomResourceType(s.Ctx, s.DB, uuid.NewV4().String(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, testR)
+
+	testRoleScope := roletestsupport.SetupNewRole(s.T(), s.DB, *testR, uuid.NewV4().String(), uuid.NewV4().String())
+	testRole := testRoleScope.Role
+
+	ramdomRoleScope := roletestsupport.SetupNewRole(s.T(), s.DB, *testR, uuid.NewV4().String(), uuid.NewV4().String())
+	randomRole := ramdomRoleScope.Role
+
+	// noisy data - multiple roles with multiple random users.
+	roletestsupport.CreateRandomResourceMembers(t, s.DB, *testR, nil)
+
+	// noisy data - specific role with multiple random users.
+	roletestsupport.CreateRandomResourceMembers(t, s.DB, *testR, &randomRole)
+
+	// make a real assignment
+	err = s.repo.Assign(s.Ctx, testIdentity.ID, testR.ResourceID, testRole.Name)
+	require.NoError(t, err)
+
+	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, testR.ResourceID, testRole.Name)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(identityRoles))
+	validateAssignmentWithRole(s.T(), *testR, testRole, testIdentity, identityRoles[0])
+
+	identityRoles, err = s.repo.ListAssignmentsByIdentityAndResource(s.Ctx, testR.ResourceID, testIdentity.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(identityRoles))
+	validateAssignmentWithRole(s.T(), *testR, testRole, testIdentity, identityRoles[0])
+
+}
+
+func validateAssignmentWithRole(t *testing.T, r resource.Resource, ro rolerepo.Role, identity account.Identity, identityRole rolerepo.IdentityRole) {
+	require.Equal(t, r.ResourceID, identityRole.ResourceID)
+	require.Equal(t, ro.RoleID, identityRole.RoleID)
+	require.Equal(t, identity.ID, identityRole.IdentityID)
 }

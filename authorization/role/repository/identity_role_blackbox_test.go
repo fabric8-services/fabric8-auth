@@ -8,6 +8,7 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roletestsupport "github.com/fabric8-services/fabric8-auth/authorization/role/test"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -40,6 +41,7 @@ func (s *identityRoleBlackBoxTest) SetupTest() {
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScopeRepo = scope.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = role.NewRoleRepository(s.DB)
+	s.resourceRepo = resource.NewResourceRepository(s.DB)
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToDelete() {
@@ -88,6 +90,22 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 
 }
 
+func (s *identityRoleBlackBoxTest) TestListByResourceAndIdentity() {
+	res, err := testsupport.CreateTestResourceWithRandomResourceType(s.Ctx, s.DB, uuid.NewV4().String(), nil)
+	require.Nil(s.T(), err)
+
+	_, identitesCreated := roletestsupport.CreateRandomResourceMembers(s.T(), s.DB, *res, nil)
+
+	for _, i := range identitesCreated {
+		returnedRoles, err := s.repo.ListByIdentityAndResource(s.Ctx, res.ResourceID, i.ID)
+		require.Nil(s.T(), err)
+		for _, ir := range returnedRoles {
+			require.Equal(s.T(), i.ID, ir.IdentityID)
+			require.Equal(s.T(), res.ResourceID, ir.ResourceID)
+		}
+	}
+}
+
 func (s *identityRoleBlackBoxTest) TestOKToSave() {
 	//identityRole := createAndLoadIdentityRole(s)
 
@@ -104,4 +122,23 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	ir, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(s.T(), err)
 	return ir
+}
+
+func validateIdentityRole(s *identityRoleBlackBoxTest, expected role.IdentityRole, actual role.IdentityRole) {
+	require.Equal(s.T(), expected.IdentityRoleID, actual.IdentityRoleID)
+	require.Equal(s.T(), expected.IdentityID, actual.IdentityID)
+	require.Equal(s.T(), expected.ResourceID, actual.ResourceID)
+	require.Equal(s.T(), expected.RoleID, actual.RoleID)
+}
+
+func checkExists(s *identityRoleBlackBoxTest, expected []role.IdentityRole, actual role.IdentityRole) {
+	found := false
+	for _, expectedRole := range expected {
+		if expectedRole.IdentityRoleID.String() == actual.IdentityRoleID.String() {
+			found = true
+			validateIdentityRole(s, expectedRole, actual)
+			break
+		}
+	}
+	require.True(s.T(), found)
 }

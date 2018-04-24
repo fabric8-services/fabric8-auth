@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/application"
 	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
@@ -10,28 +9,43 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/stretchr/testify/require"
+	"testing"
 
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
 
+func CreateTestIdentityRoleForAnIdentity(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role, assignedIdentity *account.Identity) (*role.IdentityRole, error) {
+
+	identityRoleRef := role.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		Identity:       *assignedIdentity,
+		IdentityID:     assignedIdentity.ID,
+		Resource:       resourceRef,
+		ResourceID:     resourceRef.ResourceID,
+		Role:           roleRef,
+		RoleID:         roleRef.RoleID,
+	}
+
+	identityRolesRepository := role.NewIdentityRoleRepository(db)
+	err := identityRolesRepository.Create(ctx, &identityRoleRef)
+	if err != nil {
+		return nil, err
+	}
+	return &identityRoleRef, err
+}
+
 func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role) (*role.IdentityRole, error) {
 
-	assignedIdentity := &account.Identity{
-		ID:           uuid.NewV4(),
-		Username:     uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
-	}
-	identityRepository := account.NewIdentityRepository(db)
-
-	err := identityRepository.Create(ctx, assignedIdentity)
+	assignedIdentity, err := CreateTestIdentityAndUser(db, uuid.NewV4().String(), "KC")
 	if err != nil {
 		return nil, err
 	}
 
 	identityRoleRef := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
-		Identity:       *assignedIdentity,
+		Identity:       assignedIdentity,
 		IdentityID:     assignedIdentity.ID,
 		Resource:       resourceRef,
 		ResourceID:     resourceRef.ResourceID,
@@ -111,6 +125,18 @@ func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resourcet
 	return &resourceRef, err
 }
 
+func CreateTestResourceWithRandomResourceType(ctx context.Context, db *gorm.DB, name string, parentResourceID *string) (*resource.Resource, error) {
+	rt, err := CreateTestResourceType(ctx, db, uuid.NewV4().String())
+	if err != nil {
+		return nil, err
+	}
+	r, err := CreateTestResource(ctx, db, *rt, name, nil)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
 func CreateTestResourceType(ctx context.Context, db *gorm.DB, name string) (*resourcetype.ResourceType, error) {
 	resourcetypeRepoRef := resourcetype.NewResourceTypeRepository(db)
 	resourceTypeRef := resourcetype.ResourceType{
@@ -161,6 +187,7 @@ func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype
 	rts := scope.ResourceTypeScope{
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceTypeID:      resourceType.ResourceTypeID,
+		ResourceType:        resourceType,
 		Name:                name,
 	}
 
@@ -176,10 +203,8 @@ func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s scope.ResourceTypeS
 	roleScopeRepo := role.NewRoleScopeRepository(db)
 
 	rs := role.RoleScope{
-		//ResourceTypeScope:   s,
 		ResourceTypeScopeID: s.ResourceTypeScopeID,
-		//Role:                r,
-		RoleID: r.RoleID,
+		RoleID:              r.RoleID,
 	}
 
 	err := roleScopeRepo.Create(ctx, &rs)
@@ -253,4 +278,11 @@ func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityR
 	}
 
 	return testIdentityRole, nil
+}
+
+func ValidateIdentityRole(t *testing.T, expected role.IdentityRole, actual role.IdentityRole) {
+	require.Equal(t, expected.IdentityRoleID, actual.IdentityRoleID)
+	require.Equal(t, expected.IdentityID, actual.IdentityID)
+	require.Equal(t, expected.ResourceID, actual.ResourceID)
+	require.Equal(t, expected.RoleID, actual.RoleID)
 }

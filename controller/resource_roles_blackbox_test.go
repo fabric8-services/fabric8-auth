@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roletestsupport "github.com/fabric8-services/fabric8-auth/authorization/role/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -26,7 +27,12 @@ func (s *TestResourceRolesRest) SetupSuite() {
 }
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
-	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Resource-roles-Service", identity)
+	return svc, NewResourceRolesController(svc, rest.Application)
+}
+
+func (rest *TestResourceRolesRest) UnSecuredController() (*goa.Service, *ResourceRolesController) {
+	svc := testsupport.UnsecuredService("Resource-roles-Service")
 	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
@@ -54,7 +60,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	resourceRefUnrelated, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceRUnrelated", nil)
 	require.NoError(rest.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
 	var createdIdentityRoles []role.IdentityRole
@@ -115,7 +121,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceH", &parentResourceRef.ResourceID)
 	require.NoError(rest.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
 	var createdIdentityRoles []role.IdentityRole
@@ -135,6 +141,100 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 	require.Len(rest.T(), returnedIdentityRoles.Data, 2)
 	require.True(rest.T(), rest.checkExists(*identityRoleRef, returnedIdentityRoles, true))
 	require.True(rest.T(), rest.checkExists(*identityRoleRef2, returnedIdentityRoles, true))
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleOK() {
+	// create a resource
+	r, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
+	require.NoError(rest.T(), err)
+	require.NotNil(rest.T(), r)
+
+	identitiesToBeAssigned, _ := roletestsupport.CreateRandomResourceMembers(rest.T(), rest.DB, *r, nil)
+
+	// Create a user who has the privileges to assign roles
+
+	ir := roletestsupport.CreateAdministratorAssignment(rest.T(), rest.DB, *r)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(ir.Identity)
+	payload := app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	// before
+	newRoleScope := roletestsupport.SetupNewRole(rest.T(), rest.DB, *r, uuid.NewV4().String(), uuid.NewV4().String())
+	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, newRoleScope.Role.Name)
+
+	// lets assign 10 people now
+	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, r.ResourceID, newRoleScope.Role.Name, &payload)
+
+	// after
+	_, roleListResp := test.ListAssignedByRoleNameResourceRolesOK(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, newRoleScope.Role.Name)
+	require.Len(rest.T(), roleListResp.Data, 10)
+	for _, createdIdentity := range identitiesToBeAssigned {
+		require.True(rest.T(), rest.checkIdentityExistsInAssignmentList(createdIdentity.ID, roleListResp))
+	}
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleUnauthorized() {
+	svc, ctrl := rest.UnSecuredController()
+	payload := app.AssignRoleResourceRolesPayload{
+		Data: []*app.UpdateUserID{},
+	}
+	test.AssignRoleResourceRolesUnauthorized(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String(), uuid.NewV4().String(), &payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
+
+	// create a resource
+	r, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
+	require.NoError(rest.T(), err)
+	require.NotNil(rest.T(), r)
+
+	differentResource, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
+	require.NoError(rest.T(), err)
+	require.NotNil(rest.T(), differentResource)
+
+	identitiesToBeAssigned, _ := roletestsupport.CreateRandomResourceMembers(rest.T(), rest.DB, *differentResource, nil)
+
+	// Create a user who has the privileges to assign roles
+
+	ir := roletestsupport.CreateAdministratorAssignment(rest.T(), rest.DB, *r)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(ir.Identity)
+	payload := app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	// before
+	newRoleScope := roletestsupport.SetupNewRole(rest.T(), rest.DB, *r, uuid.NewV4().String(), uuid.NewV4().String())
+	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, newRoleScope.Role.Name)
+
+	test.AssignRoleResourceRolesBadRequest(rest.T(), svc.Context, svc, ctrl, r.ResourceID, newRoleScope.Role.Name, &payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRoles() {
+
+	// create a resource
+	r, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
+	require.NoError(rest.T(), err)
+	require.NotNil(rest.T(), r)
+
+	differentResource, err := testsupport.CreateTestResourceWithRandomResourceType(rest.Ctx, rest.DB, uuid.NewV4().String(), nil)
+	require.NoError(rest.T(), err)
+	require.NotNil(rest.T(), differentResource)
+
+	identitiesToBeAssigned, _ := roletestsupport.CreateRandomResourceMembers(rest.T(), rest.DB, *differentResource, nil)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(testsupport.TestIdentity)
+	payload := app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	// before
+	newRoleScope := roletestsupport.SetupNewRole(rest.T(), rest.DB, *r, uuid.NewV4().String(), uuid.NewV4().String())
+	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, r.ResourceID, newRoleScope.Role.Name)
+
+	test.AssignRoleResourceRolesForbidden(rest.T(), svc.Context, svc, ctrl, r.ResourceID, newRoleScope.Role.Name, &payload)
 }
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedOK() {
@@ -159,10 +259,10 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedO
 	resourceRef, err := testsupport.CreateTestResource(rest.Ctx, rest.DB, *areaResourceType, "SpaceH", &parentResourceRef.ResourceID)
 	require.NoError(rest.T(), err)
 
-	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
+	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
-	roleRefGroup2, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab-x")
+	roleRefGroup2, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
 	var createdIdentityRoles []role.IdentityRole
@@ -227,4 +327,13 @@ func (rest *TestResourceRolesRest) compare(createdRole role.IdentityRole, retrie
 		require.False(rest.T(), retrievedRole.Inherited)
 	}
 	return true
+}
+
+func (rest *TestResourceRolesRest) checkIdentityExistsInAssignmentList(createdIdentity string, pool *app.Identityroles) bool {
+	for _, retrievedRole := range pool.Data {
+		if retrievedRole.AssigneeID == createdIdentity {
+			return true
+		}
+	}
+	return false
 }

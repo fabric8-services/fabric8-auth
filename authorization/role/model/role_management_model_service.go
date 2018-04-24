@@ -19,8 +19,10 @@ import (
 
 // RoleManagementModelService defines the service contract for managing role assignments
 type RoleManagementModelService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
+	ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identity uuid.UUID) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
+	Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error
+	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 }
 
@@ -34,6 +36,37 @@ func NewRoleManagementModelService(db *gorm.DB) *GormRoleManagementModelService 
 // GormRoleManagementModelService implements the RoleManagementModelService to manage role assignments
 type GormRoleManagementModelService struct {
 	db *gorm.DB
+}
+
+// ListAssignmentsByIdentityAndResource lists all the roles that have been assigned to a specific identity ( users or organizations or teams or groups ) for a specific resource
+func (r *GormRoleManagementModelService) ListAssignmentsByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]rolerepo.IdentityRole, error) {
+	repo := rolerepo.NewIdentityRoleRepository(r.db)
+	return repo.ListByIdentityAndResource(ctx, resourceID, identityID)
+}
+
+// Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
+func (r *GormRoleManagementModelService) Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error {
+
+	resourceRepository := resource.NewResourceRepository(r.db)
+	rt, err := resourceRepository.Load(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	roleRepository := rolerepo.NewRoleRepository(r.db)
+	roleRef, err := roleRepository.Lookup(ctx, roleName, rt.ResourceType.Name)
+	if err != nil {
+		return err
+	}
+
+	ir := rolerepo.IdentityRole{
+		ResourceID: resourceID,
+		IdentityID: identityID,
+		RoleID:     roleRef.RoleID,
+	}
+
+	identityRepository := rolerepo.NewIdentityRoleRepository(r.db)
+	return identityRepository.Create(ctx, &ir)
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
@@ -128,14 +161,17 @@ func (r *GormRoleManagementModelService) ListByResourceAndRoleName(ctx context.C
 			Identity: account.Identity{
 				ID: identityIDAsUUID,
 			},
+			IdentityID: identityIDAsUUID,
 			Resource: resource.Resource{
 				ResourceID:       resourceID,
 				ParentResourceID: parentResourceID,
 			},
+			ResourceID: resourceID,
 			Role: rolerepo.Role{
 				RoleID: roleIDAsUUID,
 				Name:   roleName,
 			},
+			RoleID: roleIDAsUUID,
 		}
 		if parentResourceID != nil {
 			ir.Resource.ParentResourceID = parentResourceID
@@ -150,7 +186,6 @@ func (r *GormRoleManagementModelService) ListByResource(ctx context.Context, res
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
 	var identityRoles []rolerepo.IdentityRole
 
-	r.db = r.db.Debug()
 	db := r.db.Raw(`WITH RECURSIVE q AS ( 
 		SELECT 
 		  resource_id, parent_resource_id 

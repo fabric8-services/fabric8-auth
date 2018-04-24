@@ -101,6 +101,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 
 	createdResource, err := s.repo.Load(s.Ctx, resource.ResourceID)
 	require.Nil(s.T(), err, "Could not load resource")
+	assert.Equal(s.T(), "openshift.io/resource/area", createdResource.ResourceType.Name)
 
 	return createdResource
 }

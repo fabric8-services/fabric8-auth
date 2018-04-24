@@ -70,6 +70,20 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+	a.Action("assignRole", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PATCH("/:resourceID/roles/:roleName"),
+		)
+		a.Payload(updateUserIDList) // should refactor this variable's name in collaborators design definition too.
+		a.Description("Assigns an identity to a role, for a specific resource")
+		a.Response(d.NoContent)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 })
 
 // ResourceMedia represents a protected resource
