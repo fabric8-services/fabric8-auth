@@ -6,7 +6,6 @@ import (
 	"time"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -52,8 +51,8 @@ type RoleRepository interface {
 	Delete(ctx context.Context, ID uuid.UUID) error
 
 	Lookup(ctx context.Context, name string, resourceType string) (*Role, error)
-	ListScopes(ctx context.Context, u *Role) ([]scope.ResourceTypeScope, error)
-	AddScope(ctx context.Context, u *Role, s *scope.ResourceTypeScope) error
+	ListScopes(ctx context.Context, u *Role) ([]resourcetype.ResourceTypeScope, error)
+	AddScope(ctx context.Context, u *Role, s *resourcetype.ResourceTypeScope) error
 
 	FindRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
 }
@@ -214,7 +213,7 @@ func (m *GormRoleRepository) Lookup(ctx context.Context, name string, resourceTy
 	return &native, errs.WithStack(err)
 }
 
-func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.ResourceTypeScope, error) {
+func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resourcetype.ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listscopes"}, time.Now())
 
 	var scopes []RoleScope
@@ -224,7 +223,7 @@ func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.R
 		return nil, errs.WithStack(err)
 	}
 
-	results := make([]scope.ResourceTypeScope, len(scopes))
+	results := make([]resourcetype.ResourceTypeScope, len(scopes))
 	for index := 0; index < len(scopes); index++ {
 		results[index] = scopes[index].ResourceTypeScope
 	}
@@ -232,7 +231,7 @@ func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.R
 	return results, nil
 }
 
-func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *scope.ResourceTypeScope) error {
+func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *resourcetype.ResourceTypeScope) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "addscope"}, time.Now())
 
 	roleScope := &RoleScope{

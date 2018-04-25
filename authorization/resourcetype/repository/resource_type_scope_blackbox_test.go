@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -15,7 +14,7 @@ import (
 
 type resourceTypeScopeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo             scope.ResourceTypeScopeRepository
+	repo             resourcetype.ResourceTypeScopeRepository
 	resourceTypeRepo resourcetype.ResourceTypeRepository
 }
 
@@ -26,7 +25,7 @@ func TestRunResourceTypeScopeBlackBoxTest(t *testing.T) {
 func (s *resourceTypeScopeBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
-	s.repo = scope.NewResourceTypeScopeRepository(s.DB)
+	s.repo = resourcetype.NewResourceTypeScopeRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 }
 

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/service"
@@ -22,7 +21,7 @@ type roleManagementServiceBlackboxTest struct {
 	repo              rolescope.RoleManagementService
 	roleRepo          rolerepo.RoleRepository
 	resourcetypeRepo  resourcetype.ResourceTypeRepository
-	resourceTypeScope scope.ResourceTypeScopeRepository
+	resourceTypeScope resourcetype.ResourceTypeScopeRepository
 }
 
 func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
@@ -34,7 +33,7 @@ func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.repo = rolescope.NewRoleManagementService(s.Application)
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
-	s.resourceTypeScope = scope.NewResourceTypeScopeRepository(s.DB)
+	s.resourceTypeScope = resourcetype.NewResourceTypeScopeRepository(s.DB)
 }
 
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {

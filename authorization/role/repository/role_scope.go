@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
