@@ -307,6 +307,9 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetEnvironment() == "local" || c.GetEnvironment() == "" {
 		c.appendDefaultConfigErrorMessage("Environment is empty or set to local")
 	}
+	if c.GetSentryDSN() == "" {
+		c.appendDefaultConfigErrorMessage("Sentry DSN is empty")
+	}
 	c.checkClusterConfig()
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
