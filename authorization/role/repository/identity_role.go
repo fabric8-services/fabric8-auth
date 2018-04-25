@@ -182,14 +182,14 @@ func (m *GormIdentityRoleRepository) List(ctx context.Context) ([]IdentityRole, 
 // FindPermissions returns an IdentityRole array containing entries that match the specified identity, resource and scope
 func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error) {
 	var results []IdentityRole
-	err := m.db.Table(m.TableName()).Where(`identity_id in (
+	err := m.db.Table(m.TableName()).Where(`deleted_at IS NULL AND identity_id IN (
   SELECT
     id
   FROM
     identities i
   WHERE
     id = ? /* IDENTITY_ID */
-    OR id in (
+    OR id IN (
     WITH RECURSIVE m AS (
       SELECT 
         member_of 
@@ -212,7 +212,8 @@ func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identi
   FROM
     resource
   WHERE
-    resource_id = ? /* RESOURCE_ID */
+    deleted_at IS NULL
+    AND resource_id = ? /* RESOURCE_ID */
   UNION SELECT
     p.resource_id, p.parent_resource_id
   FROM
@@ -233,10 +234,14 @@ func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identi
       resource_type_scope rts
     WHERE
       res.resource_id = ? /* RESOURCE_ID */
+      AND res.deleted_at IS NULL
       AND res.resource_type_id = r.resource_type_id
+      AND r.deleted_at IS NULL
       AND r.role_id = rs.role_id
       AND rs.scope_id = rts.resource_type_scope_id
+      AND rs.deleted_at IS NULL
       AND rts.name = ? /* SCOPE */
+      AND rts.deleted_at IS NULL
   ) OR role_id IN (
     SELECT DISTINCT
       rl.role_id
@@ -252,9 +257,13 @@ func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identi
       role_scope rs,
       resource_type_scope rts
     WHERE
-      rm.to_role_id = r.role_id
+      rm.deleted_at IS NULL
+      AND rm.to_role_id = r.role_id
+      AND r.deleted_at IS NULL
       AND r.role_id = rs.role_id
+      AND rs.deleted_at IS NULL
       AND rs.scope_id = rts.resource_type_scope_id
+      AND rts.deleted_at IS NULL
       AND rts.name = ? /* SCOPE */
       AND rm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in the ancestor hierarchy */
       SELECT
@@ -263,6 +272,7 @@ func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identi
         resource
       WHERE
         resource_id = ? /* RESOURCE_ID */
+        AND deleted_at IS NULL
       UNION SELECT
         p.resource_id, p.parent_resource_id
       FROM
@@ -278,13 +288,15 @@ func (m *GormIdentityRoleRepository) FindPermissions(ctx context.Context, identi
     FROM
       role_mapping trm INNER JOIN prm ON prm.from_role_id = trm.to_role_id
     WHERE
-      trm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in this role mapping's ancestor hierarchy */
+      trm.deleted_at IS NULL
+      AND trm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in this role mapping's ancestor hierarchy */
       SELECT
         resource_id, parent_resource_id
       FROM
         resource
       WHERE 
         resource_id = trm.resource_id
+        AND deleted_at IS NULL
       UNION SELECT
         p.resource_id, p.parent_resource_id
       FROM
