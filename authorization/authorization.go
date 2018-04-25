@@ -22,6 +22,9 @@ const (
 
 	// ManageMembersScope is the scope required for users wishing to invite/remove other users to an organization, team or security group
 	ManageMembersScope = "manage_members"
+
+	// ManageTeamsScope is the scope required for users wishing to manage teams for a space
+	ManageTeamsInSpaceScope = "manage"
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities
