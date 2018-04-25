@@ -59,7 +59,7 @@ var _ = a.Resource("token", func() {
 			a.Param("force_pull", d.Boolean, "Pull the user's details for the specific connected account, example, the user's updated github username would be fetched from github. If this is not set or false, then the user profile will be pulled only if the stored user's details did not have the username")
 			a.Required("for")
 		})
-		a.Description("Get the external token for resources belonging to external providers like Github and OpenShift")
+		a.Description("Get the external token for resources belonging to external providers like Github and OpenShift. If the token is missing or not valid then 401 Unauthorized status with 'WWW-Authenticate: LINK url=<url>, description=<error_description>' header will be returned. For example: 'WWW-Authenticate: LINK url=https://auth.openshift.io/api/token/link?for=https://github.com, description=\"GitHub token is missing. Link GitHub account\"'")
 		a.Response(d.OK, externalToken)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
