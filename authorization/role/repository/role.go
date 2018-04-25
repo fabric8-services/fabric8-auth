@@ -270,7 +270,9 @@ func (m *GormRoleRepository) FindRolesByResourceType(ctx context.Context, resour
 			resource_type rt
 		WHERE  
 			rt.resource_type_id = r.resource_type_id 
+      AND r.deleted_at IS NULL
 			AND rt.NAME = ?
+      AND rt.deleted_at IS NULL
 		GROUP BY 
 		  r.role_id, 
 		  r.name`, resourceType)
