@@ -68,4 +68,20 @@ var _ = a.Resource("space", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.Forbidden, JSONAPIErrors)
 	})
+
+	a.Action("listTeams", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/:spaceID/teams"),
+		)
+		a.Description("Lists teams for the specified space")
+		a.Params(func() {
+			a.Param("spaceID", d.String, "ID of the space")
+		})
+		a.Response(d.OK)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 })
