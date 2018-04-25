@@ -111,6 +111,11 @@ required = [
   name = "github.com/pilu/fresh"
   revision = "9c0092493eff2825c3abf64e087b3383dec939c3"
 
+[[constraint]]
+  name = "github.com/getsentry/raven-go"
+  revision = "563b81fc02b75d664e54da31f787c2cc2186780b"
+
+
 [prune]
   go-tests = true
   unused-packages = true
