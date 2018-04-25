@@ -17,6 +17,12 @@ const (
 	// IdentityResourceTypeUser defines the string constant to be used for denoting a user managed by the authorization framework
 	IdentityResourceTypeUser = "identity/user"
 
+	// ResourceTypeSpace defines the string constant for the space resource type
+	ResourceTypeSpace = "openshift.io/resource/space"
+
+	// AdminRole is the constant used to denote the name of a resource's administrator role
+	AdminRole = "admin"
+
 	// OwnerRole is the constant used to denote the name of the organization, team or security group owner role
 	OwnerRole = "owner"
 
