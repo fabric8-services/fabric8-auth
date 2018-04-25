@@ -17,7 +17,7 @@ var _ = a.Resource("team", func() {
 		a.Description("Create a new team")
 		a.Payload(CreateTeamRequestMedia)
 		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.Created, CreateOrganizationResponseMedia)
+		a.Response(d.Created, CreateTeamResponseMedia)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
@@ -29,7 +29,7 @@ var _ = a.Resource("team", func() {
 		)
 		a.Description("Lists teams that the user has access to")
 		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.OK, organizationArray)
+		a.Response(d.OK, identityTeamArray)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
@@ -57,12 +57,12 @@ var CreateTeamResponseMedia = a.MediaType("application/vnd.create_team_response+
 	})
 })
 
-var teamArray = a.MediaType("application/vnd.team-array+json", func() {
+var identityTeamArray = a.MediaType("application/vnd.identity-team-array+json", func() {
 	a.UseTrait("jsonapi-media-type")
-	a.TypeName("TeamArray")
-	a.Description("Team Array")
+	a.TypeName("IdentityTeamArray")
+	a.Description("Identity Team Array")
 	a.Attributes(func() {
-		a.Attribute("data", a.ArrayOf(teamData))
+		a.Attribute("data", a.ArrayOf(identityTeamData))
 		a.Required("data")
 
 	})
@@ -72,12 +72,12 @@ var teamArray = a.MediaType("application/vnd.team-array+json", func() {
 	})
 })
 
-var teamData = a.Type("TeamData", func() {
+var identityTeamData = a.Type("IdentityTeamData", func() {
 	a.Attribute("id", d.String, "unique id for the team")
 	a.Attribute("name", d.String, "name of the team")
 	a.Attribute("space_id", d.String, "unique id of the space the team belongs to")
-	a.Attribute("space", d.String, "name of the space the team belongs to")
+	a.Attribute("space_name", d.String, "name of the space the team belongs to")
 	a.Attribute("member", d.Boolean, "flag indicating whether the user is a member of the team")
 	a.Attribute("roles", a.ArrayOf(d.String), "roles assigned to the user for the team")
-	a.Required("id", "space", "name", "member", "roles")
+	a.Required("id", "name", "space_id", "space_name", "member", "roles")
 })

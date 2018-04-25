@@ -78,10 +78,31 @@ var _ = a.Resource("space", func() {
 		a.Params(func() {
 			a.Param("spaceID", d.String, "ID of the space")
 		})
-		a.Response(d.OK)
+		a.Response(d.OK, teamArray)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+})
+
+var teamArray = a.MediaType("application/vnd.team-array+json", func() {
+	a.UseTrait("jsonapi-media-type")
+	a.TypeName("TeamArray")
+	a.Description("Team Array")
+	a.Attributes(func() {
+		a.Attribute("data", a.ArrayOf(teamData))
+		a.Required("data")
+
+	})
+	a.View("default", func() {
+		a.Attribute("data")
+		a.Required("data")
+	})
+})
+
+var teamData = a.Type("TeamData", func() {
+	a.Attribute("id", d.String, "unique id for the team")
+	a.Attribute("name", d.String, "name of the team")
+	a.Required("id", "name")
 })
