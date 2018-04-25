@@ -78,8 +78,6 @@ func TestExtractUserInfo(t *testing.T) {
 			got, err := extractUserInfo(tt.ctx)
 			if tt.wantErr {
 				require.Error(t, err)
-				// if above assertion passes we don't need to continue
-				// to check if objects match
 				return
 			}
 			require.NoError(t, err)
