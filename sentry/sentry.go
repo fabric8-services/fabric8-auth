@@ -3,7 +3,6 @@ package sentry
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
@@ -30,8 +29,8 @@ func Sentry() *client {
 
 // InitializeSentryClient initializes sentry client. This function returns
 // function that can be used to close the sentry client and error.
-func InitializeSentryClient(options ...func(*client)) (func(), error) {
-	c, err := raven.New(os.Getenv("SENTRY_DSN"))
+func InitializeSentryClient(sentryDSN string, options ...func(*client)) (func(), error) {
+	c, err := raven.New(sentryDSN)
 	if err != nil {
 		return nil, err
 	}

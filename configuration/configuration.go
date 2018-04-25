@@ -128,6 +128,7 @@ const (
 
 	// sentry
 	varEnvironment = "environment"
+	varSentryDSN   = "sentry.dsn"
 )
 
 type serviceAccountConfig struct {
@@ -302,6 +303,9 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	if c.GetOSORegistrationAppAdminToken() == "" {
 		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
+	}
+	if c.GetEnvironment() == "local" || c.GetEnvironment() == "" {
+		c.appendDefaultConfigErrorMessage("Environment is empty or set to local")
 	}
 	c.checkClusterConfig()
 	if c.defaultConfigurationError != nil {
@@ -597,6 +601,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Regex to be used to check if the user with such email should be ignored during account provisioning
 	c.v.SetDefault(varIgnoreEmailInProd, ".+\\+preview.*\\@redhat\\.com")
+
+	// prod-preview or prod
+	c.v.SetDefault(varEnvironment, "local")
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -883,6 +890,11 @@ func (c *ConfigurationData) GetNotificationServiceURL() string {
 	return c.v.GetString(varNotificationServiceURL)
 }
 
+// GetSentryDSN returns the secret needed to securely communicate with https://errortracking.prod-preview.openshift.io/openshift_io/fabric8-auth/
+func (c *ConfigurationData) GetSentryDSN() string {
+	return c.v.GetString(varSentryDSN)
+}
+
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
@@ -1131,7 +1143,9 @@ func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 // like 'prod', 'preview', 'local', etc as the value of environment variable
 // `AUTH_ENVIRONMENT` is set.
 func (c *ConfigurationData) GetEnvironment() string {
-	if c.v.IsSet(varEnvironment) {
+
+	// override the environment to local if developer mode enabled is set
+	if c.v.IsSet(varEnvironment) && c.GetSentryDSN() != "" && !c.IsPostgresDeveloperModeEnabled() {
 		return c.v.GetString(varEnvironment)
 	}
 	return "local"

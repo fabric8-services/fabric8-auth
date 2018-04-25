@@ -96,6 +96,7 @@ func main() {
 
 	// Initialize sentry client
 	haltSentry, err := sentry.InitializeSentryClient(
+		config.GetSentryDSN(),
 		sentry.WithRelease(controller.Commit),
 		sentry.WithEnvironment(config.GetEnvironment()),
 	)
