@@ -135,6 +135,15 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 
 	err := m.db.Create(resource).Error
 	if err != nil {
+		// Organization names must be unique
+		if gormsupport.IsUniqueViolation(err, "unique_organization_names") {
+			log.Error(ctx, map[string]interface{}{
+				"err":  err,
+				"name": resource.Name,
+			}, "unable to create organization resource as an organization with the same name already exists")
+			return errors.NewDataConflictError(fmt.Sprintf("organization with same name already exists, '%s'", resource.Name))
+		}
+
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resource.ResourceID,
 			"err":         err,
