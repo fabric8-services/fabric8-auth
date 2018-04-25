@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -17,7 +16,7 @@ import (
 type roleScopeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	repo                  rolescope.RoleScopeRepository
-	resourceTypeScopeRepo scope.ResourceTypeScopeRepository
+	resourceTypeScopeRepo resourcetype.ResourceTypeScopeRepository
 	resourceTypeRepo      resourcetype.ResourceTypeRepository
 }
 
@@ -29,7 +28,7 @@ func (s *roleScopeBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
 	s.repo = rolescope.NewRoleScopeRepository(s.DB)
-	s.resourceTypeScopeRepo = scope.NewResourceTypeScopeRepository(s.DB)
+	s.resourceTypeScopeRepo = resourcetype.NewResourceTypeScopeRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 }
 
@@ -88,7 +87,7 @@ func (s *roleScopeBlackBoxTest) TestListRoleScopeByScopeOK() {
 	require.NotNil(s.T(), rt)
 
 	// TODO: move to test/authorization.go
-	rts := scope.ResourceTypeScope{
+	rts := resourcetype.ResourceTypeScope{
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceTypeID:      rt.ResourceTypeID,
 		Name:                uuid.NewV4().String(),

@@ -7,7 +7,6 @@ import (
 	permissionmodel "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	resourcetypescope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	roleRepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
@@ -33,7 +32,7 @@ type permissionServiceBlackBoxTest struct {
 	identityRoleRepo        roleRepo.IdentityRoleRepository
 	resourceRepo            resource.ResourceRepository
 	resourceTypeRepo        resourcetype.ResourceTypeRepository
-	resourceTypeScopeRepo   resourcetypescope.ResourceTypeScopeRepository
+	resourceTypeScopeRepo   resourcetype.ResourceTypeScopeRepository
 	roleRepo                roleRepo.RoleRepository
 	roleMappingRepo         roleRepo.RoleMappingRepository
 	permissionService       permissionmodel.PermissionService
@@ -53,7 +52,7 @@ func (s *permissionServiceBlackBoxTest) SetupSuite() {
 	s.identityRoleRepo = roleRepo.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
-	s.resourceTypeScopeRepo = resourcetypescope.NewResourceTypeScopeRepository(s.DB)
+	s.resourceTypeScopeRepo = resourcetype.NewResourceTypeScopeRepository(s.DB)
 	s.roleRepo = roleRepo.NewRoleRepository(s.DB)
 	s.roleMappingRepo = roleRepo.NewRoleMappingRepository(s.DB)
 	s.permissionService = permissionmodel.NewPermissionService(s.Application)
@@ -84,7 +83,7 @@ func (s *permissionServiceBlackBoxTest) setupResourceType(resourceTypeName strin
 	require.NoError(s.T(), err, "Could not lookup resource type")
 
 	// Create a test scope
-	err = s.resourceTypeScopeRepo.Create(s.Ctx, &resourcetypescope.ResourceTypeScope{
+	err = s.resourceTypeScopeRepo.Create(s.Ctx, &resourcetype.ResourceTypeScope{
 		Name:           scopeName,
 		ResourceTypeID: resourceType.ResourceTypeID,
 	})

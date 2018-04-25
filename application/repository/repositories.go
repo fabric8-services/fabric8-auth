@@ -6,7 +6,6 @@ import (
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
@@ -23,7 +22,7 @@ type Repositories interface {
 	InvitationRepository() invitation.InvitationRepository
 	ResourceRepository() resource.ResourceRepository
 	ResourceTypeRepository() resourcetype.ResourceTypeRepository
-	ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository
+	ResourceTypeScopeRepository() resourcetype.ResourceTypeScopeRepository
 	IdentityRoleRepository() role.IdentityRoleRepository
 	RoleRepository() role.RoleRepository
 }

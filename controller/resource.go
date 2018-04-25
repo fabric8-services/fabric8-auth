@@ -4,7 +4,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	resourceType "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -62,7 +62,7 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 	}
 
 	var res *resource.Resource
-	var scopes []scope.ResourceTypeScope
+	var scopes []resourceType.ResourceTypeScope
 
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 
