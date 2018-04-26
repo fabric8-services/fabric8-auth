@@ -228,6 +228,23 @@ func CreateTestRoleWithDefaultType(ctx context.Context, db *gorm.DB, name string
 	return &roleRef, err
 }
 
+func CreateTestRoleWithSpecifiedType(ctx context.Context, db *gorm.DB, name string, resourceTypeName string) (*role.Role, error) {
+	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
+	resourceType, err := resourceTypeRepo.Lookup(ctx, resourceTypeName)
+
+	if err != nil {
+		return nil, err
+	}
+	roleRef := role.Role{
+		ResourceType:   *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
+		Name:           name,
+	}
+	roleRepository := role.NewRoleRepository(db)
+	err = roleRepository.Create(ctx, &roleRef)
+	return &roleRef, err
+}
+
 func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityRole, error) {
 	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
