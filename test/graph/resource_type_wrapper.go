@@ -16,7 +16,7 @@ func newResourceTypeWrapper(g *TestGraph, params ...interface{}) resourceTypeWra
 	w := resourceTypeWrapper{baseWrapper: baseWrapper{g}}
 
 	var resourceTypeName *string
-	for i, _ := range params {
+	for i := range params {
 		switch t := params[i].(type) {
 		case string:
 			resourceTypeName = &t

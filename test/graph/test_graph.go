@@ -50,7 +50,7 @@ func (g *TestGraph) register(id string, wrapper interface{}) {
 }
 
 func (g *TestGraph) generateIdentifier(params []interface{}) string {
-	for i, _ := range params {
+	for i := range params {
 		switch t := params[i].(type) {
 		case Identifier:
 			return t.value
@@ -117,7 +117,7 @@ func (g *TestGraph) TeamByID(id string) *teamWrapper {
 
 func (g *TestGraph) LoadTeam(params ...interface{}) *teamWrapper {
 	var teamID *uuid.UUID
-	for i, _ := range params {
+	for i := range params {
 		switch t := params[i].(type) {
 		case *uuid.UUID:
 			teamID = t
@@ -141,7 +141,7 @@ func (g *TestGraph) IdentityByID(id string) *identityWrapper {
 
 func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
 	var identityID *uuid.UUID
-	for i, _ := range params {
+	for i := range params {
 		switch t := params[i].(type) {
 		case *uuid.UUID:
 			identityID = t

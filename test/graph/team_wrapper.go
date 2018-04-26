@@ -34,7 +34,7 @@ func newTeamWrapper(g *TestGraph, params ...interface{}) teamWrapper {
 	var teamName *string
 	var space *resource.Resource
 
-	for i, _ := range params {
+	for i := range params {
 		switch t := params[i].(type) {
 		case string:
 			teamName = &t

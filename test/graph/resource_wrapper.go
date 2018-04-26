@@ -19,7 +19,7 @@ func newResourceWrapper(g *TestGraph, params ...interface{}) resourceWrapper {
 	var resourceName *string
 	var resourceType *resourcetype.ResourceType
 
-	for i, _ := range params {
+	for i := range params {
 		switch t := params[i].(type) {
 		case string:
 			resourceName = &t
