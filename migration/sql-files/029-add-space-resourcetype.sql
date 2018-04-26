@@ -53,8 +53,8 @@ VALUES     ('2d993cbd-83f5-4e8c-858f-ca11bcf718b0',
             Now(), 
             Now()); 
 
+-- create a scope named view
 
--- create a scope that allows creation of workitems.
 
 INSERT INTO resource_type_scope 
             (resource_type_scope_id, 
@@ -62,11 +62,9 @@ INSERT INTO resource_type_scope
              NAME) 
 VALUES     ('ab95b9d7-755a-4c25-8f78-ac1d613b59c9', 
             '6422fda4-a0fa-4d3c-8b79-8061e5c05e12', 
-            'create_workitem');
+            'view');
 
-
--- create a scope that allows updation of workitems.
-
+-- create a scope named 'contribute'
 
 INSERT INTO resource_type_scope 
             (resource_type_scope_id, 
@@ -74,10 +72,8 @@ INSERT INTO resource_type_scope
              NAME) 
 VALUES     ('07da9f1a-081e-479e-b070-495b3108f027', 
             '6422fda4-a0fa-4d3c-8b79-8061e5c05e12', 
-            'update_workitem');
+            'contribute');
 
-
--- create a scope that allows viewing of workitems.
 
 
 INSERT INTO resource_type_scope 
@@ -86,51 +82,51 @@ INSERT INTO resource_type_scope
              NAME) 
 VALUES     ('431c4790-c86f-4937-9223-ac054f6e1251', 
             '6422fda4-a0fa-4d3c-8b79-8061e5c05e12', 
-            'view_workitem');
-
-
--- create a scope that allows inviting a user to join a space with a specific role.
-
-INSERT INTO resource_type_scope 
-            (resource_type_scope_id, 
-             resource_type_id, 
-             NAME) 
-VALUES     ('4c1c4790-c86f-4937-9223-ac054f6e1251', 
-            '6422fda4-a0fa-4d3c-8b79-8061e5c05e12', 
-            'assign_role');
+            'manage');
 
 
 
---- contributor gets create_workitem scope
+-- add view to viewer
 
 INSERT INTO role_scope 
             (scope_id, 
              role_id) 
 VALUES     ('ab95b9d7-755a-4c25-8f78-ac1d613b59c9', 
-            '0e05e7fb-406c-4ba4-acc6-1eb290d45d02'); 
-
-
---- contributor gets update_workitem scope
-
-INSERT INTO role_scope 
-            (scope_id, 
-             role_id) 
-VALUES     ('07da9f1a-081e-479e-b070-495b3108f027', 
-            '0e05e7fb-406c-4ba4-acc6-1eb290d45d02'); 
-
-
---- viewer gets view_workitem scope
-
-INSERT INTO role_scope 
-            (scope_id, 
-             role_id) 
-VALUES     ('431c4790-c86f-4937-9223-ac054f6e1251', 
             'f558b66f-f71c-4614-8109-c9fa8e30f559'); 
 
---- admin gets assign_role scope
+
+
+-- add view,contribute 
 
 INSERT INTO role_scope 
             (scope_id, 
              role_id) 
-VALUES     ('4c1c4790-c86f-4937-9223-ac054f6e1251', 
+VALUES     ('ab95b9d7-755a-4c25-8f78-ac1d613b59c9', 
+            '0e05e7fb-406c-4ba4-acc6-1eb290d45d02'); 
+
+
+INSERT INTO role_scope 
+            (scope_id, 
+             role_id) 
+VALUES     ('07da9f1a-081e-479e-b070-495b3108f027', 
+            '0e05e7fb-406c-4ba4-acc6-1eb290d45d02'); 
+
+-- add view, contribute, manage
+
+INSERT INTO role_scope 
+            (scope_id, 
+             role_id) 
+VALUES     ('ab95b9d7-755a-4c25-8f78-ac1d613b59c9', 
+            '2d993cbd-83f5-4e8c-858f-ca11bcf718b0'); 
+
+INSERT INTO role_scope 
+            (scope_id, 
+             role_id) 
+VALUES     ('07da9f1a-081e-479e-b070-495b3108f027', 
+            '2d993cbd-83f5-4e8c-858f-ca11bcf718b0'); 
+
+INSERT INTO role_scope 
+            (scope_id, 
+             role_id) 
+VALUES     ('431c4790-c86f-4937-9223-ac054f6e1251', 
             '2d993cbd-83f5-4e8c-858f-ca11bcf718b0'); 
