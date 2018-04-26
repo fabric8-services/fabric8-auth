@@ -2,6 +2,7 @@ package sentry
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -12,9 +13,23 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/getsentry/raven-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
+
+func TestSentry(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	suite.Run(t, &TestWhiteboxSentry{})
+}
+
+type TestWhiteboxSentry struct {
+	suite.Suite
+}
+
+func (s *TestWhiteboxSentry) TearDownSuite() {
+	sentryClient = nil
+}
 
 func failOnNoToken(t *testing.T) context.Context {
 	return tokencontext.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
@@ -33,9 +48,8 @@ func validToken(t *testing.T, identity account.Identity) context.Context {
 	require.Nil(t, err)
 	return ctx
 }
-func TestExtractUserInfo(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
 
+func (s *TestWhiteboxSentry) TestExtractUserInfo() {
 	identity := account.Identity{
 		ID:       uuid.NewV4(),
 		Username: uuid.NewV4().String(),
@@ -54,17 +68,17 @@ func TestExtractUserInfo(t *testing.T) {
 		},
 		{
 			name:    "fail on no token",
-			ctx:     failOnNoToken(t),
+			ctx:     failOnNoToken(s.T()),
 			wantErr: true,
 		},
 		{
 			name:    "fail on parsing token",
-			ctx:     failOnParsingToken(t),
+			ctx:     failOnParsingToken(s.T()),
 			wantErr: true,
 		},
 		{
 			name:    "pass on parsing token",
-			ctx:     validToken(t, identity),
+			ctx:     validToken(s.T(), identity),
 			wantErr: false,
 			want: &raven.User{
 				Username: identity.Username,
@@ -74,7 +88,7 @@ func TestExtractUserInfo(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		s.T().Run(tt.name, func(t *testing.T) {
 			got, err := extractUserInfo(tt.ctx)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -84,4 +98,30 @@ func TestExtractUserInfo(t *testing.T) {
 			require.Equalf(t, tt.want, got, "extractUserInfo() = %v, want %v", got, tt.want)
 		})
 	}
+}
+
+func (s *TestWhiteboxSentry) TestInitialize() {
+	resource.Require(s.T(), resource.UnitTest)
+	_, err := InitializeSentryClient(
+		"someIncorrectDSN",
+		WithRelease("someRelease"),
+		WithEnvironment("someEnv"),
+	)
+	require.Error(s.T(), err)
+
+	haltSentry, err := InitializeSentryClient(
+		"https://something:something@domain.com/abc",
+		WithRelease("someRelease"),
+		WithEnvironment("someEnv"),
+	)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), haltSentry)
+
+	c := Sentry()
+	require.NotNil(s.T(), c)
+	require.Equal(s.T(), sentryClient, c)
+
+	require.NotPanics(s.T(), func() {
+		c.CaptureError(context.Background(), errors.New("some error"))
+	})
 }
