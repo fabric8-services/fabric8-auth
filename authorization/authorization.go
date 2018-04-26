@@ -23,6 +23,12 @@ const (
 	// AdminRole is the constant used to denote the name of a resource's administrator role
 	AdminRole = "admin"
 
+	// SpaceContributorRole is the constant used to denote the name of the space's contributor role
+	SpaceContributorRole = "contributor"
+
+	// SpaceViewerRole is the constant used to denote the name of the space's viewer role
+	SpaceViewerRole = "viewer"
+
 	// OwnerRole is the constant used to denote the name of the organization, team or security group owner role
 	OwnerRole = "owner"
 

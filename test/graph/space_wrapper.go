@@ -32,20 +32,34 @@ func newSpaceWrapper(g *TestGraph, params ...interface{}) spaceWrapper {
 	return w
 }
 
-// AddAdmin assigns the admin role to a user for the space
-func (w *spaceWrapper) AddAdmin(user *userWrapper) {
-
-	adminRole, err := w.graph.app.RoleRepository().Lookup(w.graph.ctx, authorization.AdminRole, authorization.ResourceTypeSpace)
+func (w *spaceWrapper) addUserRole(user *userWrapper, roleName string) *spaceWrapper {
+	r, err := w.graph.app.RoleRepository().Lookup(w.graph.ctx, roleName, authorization.ResourceTypeSpace)
 	require.NoError(w.graph.t, err)
 
 	identityRole := &role.IdentityRole{
 		ResourceID: w.resource.ResourceID,
 		IdentityID: user.Identity().ID,
-		RoleID:     adminRole.RoleID,
+		RoleID:     r.RoleID,
 	}
 
 	err = w.graph.app.IdentityRoleRepository().Create(w.graph.ctx, identityRole)
 	require.NoError(w.graph.t, err)
+	return w
+}
+
+// AddAdmin assigns the admin role to a user for the space
+func (w *spaceWrapper) AddAdmin(user *userWrapper) *spaceWrapper {
+	return w.addUserRole(user, authorization.AdminRole)
+}
+
+// AddContributor assigns the admin role to a user for the space
+func (w *spaceWrapper) AddContributor(user *userWrapper) *spaceWrapper {
+	return w.addUserRole(user, authorization.SpaceContributorRole)
+}
+
+// AddViewer assigns the admin role to a user for the space
+func (w *spaceWrapper) AddViewer(user *userWrapper) *spaceWrapper {
+	return w.addUserRole(user, authorization.SpaceViewerRole)
 }
 
 func (w *spaceWrapper) Resource() *resource.Resource {

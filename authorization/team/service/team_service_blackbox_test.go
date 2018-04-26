@@ -39,10 +39,62 @@ func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {
 	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
 }
 
-func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonAdmin() {
+func (s *teamServiceBlackBoxTest) TestListTeamsInSpaceForDifferentRoles() {
+	g := s.DBTestSuite.NewTestGraph()
+	g.CreateSpace(g.ID("spc")).
+		AddAdmin(g.CreateUser(g.ID("admin"))).
+		AddContributor(g.CreateUser(g.ID("contributor"))).
+		AddViewer(g.CreateUser(g.ID("viewer")))
+
+	randomUser := g.CreateUser()
+
+	teamName := "TestTeam" + uuid.NewV4().String()
+	teamID, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("admin").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName)
+	require.NoError(s.T(), err)
+
+	// First list the spaces as the contributor user, this should work
+	teams, err := s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("contributor").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), teams, 1)
+	require.Equal(s.T(), teamID, teams[0].ID)
+	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
+
+	// Then list the spaces as the viewer user, this should also work
+	teams, err = s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("viewer").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), teams, 1)
+	require.Equal(s.T(), teamID, teams[0].ID)
+	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
+
+	// Then list the spaces as the unknown user, this should fail
+	teams, err = s.teamService.ListTeamsInSpace(s.Ctx, randomUser.Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
+	require.Error(s.T(), err)
+}
+
+func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceUser() {
 	g := s.DBTestSuite.NewTestGraph()
 	space := g.CreateSpace()
 	user := g.CreateUser()
+
+	teamName := "TestTeam" + uuid.NewV4().String()
+	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, space.Resource().ResourceID, teamName)
+	require.Error(s.T(), err)
+}
+
+func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForContributor() {
+	g := s.DBTestSuite.NewTestGraph()
+	user := g.CreateUser()
+	space := g.CreateSpace().AddContributor(user)
+
+	teamName := "TestTeam" + uuid.NewV4().String()
+	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, space.Resource().ResourceID, teamName)
+	require.Error(s.T(), err)
+}
+
+func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForViewer() {
+	g := s.DBTestSuite.NewTestGraph()
+	user := g.CreateUser()
+	space := g.CreateSpace().AddViewer(user)
 
 	teamName := "TestTeam" + uuid.NewV4().String()
 	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, space.Resource().ResourceID, teamName)
