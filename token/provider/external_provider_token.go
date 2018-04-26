@@ -167,7 +167,8 @@ func (m *GormExternalTokenRepository) Delete(ctx context.Context, id uuid.UUID) 
 func (m *GormExternalTokenRepository) Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ExternalToken, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "ExternalToken", "query"}, time.Now())
 	var externalProviderTokens []ExternalToken
-	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&externalProviderTokens).Error
+	// if a query is returning multiple tokens, always return the latest token first
+	err := m.db.Scopes(funcs...).Table(m.TableName()).Order("created_at desc").Find(&externalProviderTokens).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
