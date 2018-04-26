@@ -44,15 +44,18 @@ func CanHaveMembers(resourceTypeName string) bool {
 // membership or by having been granted a role.  It contains metadata about the Identity's relationship with the other
 // entity, including its membership state, and any roles it may have been assigned.
 type IdentityAssociation struct {
-	ResourceID   string
-	ResourceName string
-	IdentityID   *uuid.UUID
-	Member       bool
-	Roles        []string
+	ResourceID         string
+	ResourceName       string
+	ParentResourceID   string
+	ParentResourceName string
+	IdentityID         *uuid.UUID
+	Member             bool
+	Roles              []string
 }
 
 // AppendAssociation appends the association state specified by the parameter values to an existing IdentityAssociation array
-func AppendAssociation(associations []IdentityAssociation, resourceID string, resourceName *string, identityID *uuid.UUID, member bool, role *string) []IdentityAssociation {
+func AppendAssociation(associations []IdentityAssociation, resourceID string, resourceName *string, parentResourceID *string,
+	parentResourceName *string, identityID *uuid.UUID, member bool, role *string) []IdentityAssociation {
 	found := false
 	for i, assoc := range associations {
 		if assoc.ResourceID == resourceID {
@@ -91,11 +94,13 @@ func AppendAssociation(associations []IdentityAssociation, resourceID string, re
 			roles = append(roles, *role)
 		}
 		associations = append(associations, IdentityAssociation{
-			ResourceID:   resourceID,
-			ResourceName: *resourceName,
-			IdentityID:   identityID,
-			Member:       member,
-			Roles:        roles,
+			ResourceID:         resourceID,
+			ResourceName:       *resourceName,
+			ParentResourceID:   *parentResourceID,
+			ParentResourceName: *parentResourceName,
+			IdentityID:         identityID,
+			Member:             member,
+			Roles:              roles,
 		})
 	}
 
@@ -111,7 +116,9 @@ func MergeAssociations(associations []IdentityAssociation, merge []IdentityAssoc
 			if assoc.ResourceID == merging.ResourceID {
 				found = true
 
-				assoc.Member = merging.Member
+				if !assoc.Member {
+					assoc.Member = merging.Member
+				}
 
 				if assoc.IdentityID == nil && merging.IdentityID != nil {
 					assoc.IdentityID = merging.IdentityID

@@ -460,7 +460,7 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	var identities []Identity
 
 	// query for identities in which the user is a member
-	q := m.db.Table(m.TableName()).Preload("IdentityResource")
+	q := m.db.Table(m.TableName()).Preload("IdentityResource.ParentResource")
 
 	// with the specified resourceType
 	if resourceType != nil {
@@ -479,7 +479,7 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	}
 
 	for _, identity := range identities {
-		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, &identity.ID, true, nil)
+		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, identity.IdentityResource.ParentResourceID, nil, &identity.ID, true, nil)
 	}
 
 	return associations, nil

@@ -24,6 +24,8 @@ type Resource struct {
 	ResourceID string `sql:"type:string" gorm:"primary_key;column:resource_id"`
 	// The parent resource ID
 	ParentResourceID *string
+	// The parent resource
+	ParentResource *Resource `gorm:"foreignkey:ParentResourceID;association_foreignkey:ResourceID"`
 	// The resource type
 	ResourceType resourcetype.ResourceType
 	// The identifier for the resource type

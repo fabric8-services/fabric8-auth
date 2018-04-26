@@ -33,7 +33,7 @@ func (s *authorizationBlackBoxTest) TestAppendAssociation() {
 	associations := []authorization.IdentityAssociation{}
 
 	resourceNameFoo := "resource_foo"
-	associations = authorization.AppendAssociation(associations, "foo", &resourceNameFoo, &aID, true, nil)
+	associations = authorization.AppendAssociation(associations, "foo", &resourceNameFoo, nil, nil, &aID, true, nil)
 
 	require.Equal(s.T(), 1, len(associations))
 	require.Equal(s.T(), "foo", associations[0].ResourceID)
@@ -44,7 +44,7 @@ func (s *authorizationBlackBoxTest) TestAppendAssociation() {
 
 	resourceNameBar := "resource_bar"
 	roleName := "admin"
-	associations = authorization.AppendAssociation(associations, "bar", &resourceNameBar, &bID, false, &roleName)
+	associations = authorization.AppendAssociation(associations, "bar", &resourceNameBar, nil, nil, &bID, false, &roleName)
 
 	require.Equal(s.T(), 2, len(associations))
 
@@ -64,7 +64,7 @@ func (s *authorizationBlackBoxTest) TestAppendAssociation() {
 	require.True(s.T(), found)
 
 	roleName = "user"
-	associations = authorization.AppendAssociation(associations, "bar", nil, nil, true, &roleName)
+	associations = authorization.AppendAssociation(associations, "bar", nil, nil, nil, nil, true, &roleName)
 	require.Equal(s.T(), 2, len(associations))
 
 	found = false

@@ -331,9 +331,10 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 
 	// query for identities in which the user is a member
 	q := m.db.Table(m.TableName()).
-		Select("identity_role.resource_id AS ResourceID, r.name AS ResourceName, i.id AS IdentityID, role.name AS RoleName").
+		Select("identity_role.resource_id AS ResourceID, r.name AS ResourceName, i.id AS IdentityID, role.name AS RoleName, r.parent_resource_id AS ParentResourceID, pr.name AS ParentResourceName").
 		Joins("JOIN resource r ON r.resource_id = identity_role.resource_id").
-		Joins("LEFT JOIN identities i ON r.resource_id = i.identity_resource_id")
+		Joins("LEFT JOIN identities i ON r.resource_id = i.identity_resource_id").
+		Joins("LEFT JOIN resource pr ON r.parent_resource_id = pr.resource_id")
 
 	// with the specified resourceType
 	if resourceType != nil {
@@ -353,12 +354,14 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 	}
 
 	for rows.Next() {
-		var resourceid string
-		var resourcename string
+		var resourceID string
+		var resourceName string
+		var parentResourceID string
+		var parentResourceName string
 		var identityid *uuid.UUID
 		var rolename string
-		rows.Scan(&resourceid, &resourcename, &identityid, &rolename)
-		associations = authorization.AppendAssociation(associations, resourceid, &resourcename, identityid, false, &rolename)
+		rows.Scan(&resourceID, &resourceName, &identityid, &rolename, &parentResourceID, &parentResourceName)
+		associations = authorization.AppendAssociation(associations, resourceID, &resourceName, &parentResourceID, &parentResourceName, identityid, false, &rolename)
 	}
 
 	return associations, nil
