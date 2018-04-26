@@ -115,6 +115,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration25ValidMiss", testMigration25ValidMiss)
 	t.Run("TestMigration27", testMigration27)
 	t.Run("TestMigration28", testMigration28)
+	t.Run("TestMigration29", testMigration29)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -264,6 +265,39 @@ func testMigration22(t *testing.T) {
 func testMigration23(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(24)], (24))
 	assert.True(t, dialect.HasIndex("resource_type", "idx_name_rt_name"))
+}
+
+func testMigration29(t *testing.T) {
+
+	migrateToVersion(sqlDB, migrations[:(30)], (30))
+
+	countRows(t, "SELECT count(1) FROM role where  ( name = 'contributor' or name = 'viewer' or name = 'admin' ) and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12' group by resource_type_id", 3)
+	countRows(t, "SELECT count(1) FROM resource_type_scope where ( name = 'view' or name = 'contribute' or name = 'manage' ) and resource_type_id = '6422fda4-a0fa-4d3c-8b79-8061e5c05e12' group by resource_type_id", 3)
+
+	// for viewer
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = 'f558b66f-f71c-4614-8109-c9fa8e30f559' )", 1)
+
+	// for contributor
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' )", 1)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '07da9f1a-081e-479e-b070-495b3108f027' and role_id = '0e05e7fb-406c-4ba4-acc6-1eb290d45d02' )", 1)
+
+	// for admin
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '07da9f1a-081e-479e-b070-495b3108f027' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '431c4790-c86f-4937-9223-ac054f6e1251' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
+
+}
+
+func countRows(t *testing.T, sql string, expectedCount int) {
+	var count int
+	rows, err := sqlDB.Query(sql)
+	defer rows.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	require.True(t, rows.Next())
+	err = rows.Scan(&count)
+	require.Equal(t, expectedCount, count)
 }
 
 func testMigration25ValidHits(t *testing.T) {
