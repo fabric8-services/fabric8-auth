@@ -46,8 +46,8 @@ func CanHaveMembers(resourceTypeName string) bool {
 type IdentityAssociation struct {
 	ResourceID         string
 	ResourceName       string
-	ParentResourceID   string
-	ParentResourceName string
+	ParentResourceID   *string
+	ParentResourceName *string
 	IdentityID         *uuid.UUID
 	Member             bool
 	Roles              []string
@@ -96,8 +96,8 @@ func AppendAssociation(associations []IdentityAssociation, resourceID string, re
 		associations = append(associations, IdentityAssociation{
 			ResourceID:         resourceID,
 			ResourceName:       *resourceName,
-			ParentResourceID:   *parentResourceID,
-			ParentResourceName: *parentResourceName,
+			ParentResourceID:   parentResourceID,
+			ParentResourceName: parentResourceName,
 			IdentityID:         identityID,
 			Member:             member,
 			Roles:              roles,

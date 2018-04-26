@@ -92,8 +92,8 @@ func convertToIdentityTeamData(teams []authorization.IdentityAssociation) []*app
 			Name:      team.ResourceName,
 			Member:    team.Member,
 			Roles:     team.Roles,
-			SpaceID:   team.ParentResourceID,
-			SpaceName: team.ParentResourceName,
+			SpaceID:   *team.ParentResourceID,
+			SpaceName: *team.ParentResourceName,
 		}
 
 		results = append(results, teamData)

@@ -47,9 +47,14 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 		}
 
 		// Validate the space resource
-		_, err = tr.ResourceRepository().Load(ctx, spaceID)
+		space, err := tr.ResourceRepository().Load(ctx, spaceID)
 		if err != nil {
 			return errors.NewBadParameterErrorFromString("spaceID", spaceID, "invalid space ID specified")
+		}
+
+		// Confirm that the resource is a space
+		if space.ResourceType.Name != authorization.ResourceTypeSpace {
+			return errors.NewBadParameterErrorFromString("spaceID", spaceID, "space ID specified is not a space resource")
 		}
 
 		// Create the permission service

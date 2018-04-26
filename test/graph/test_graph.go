@@ -56,7 +56,7 @@ func (g *TestGraph) CreateUser(params ...interface{}) *userWrapper {
 	return &obj
 }
 
-func (g *TestGraph) GetUser(id string) *userWrapper {
+func (g *TestGraph) UserByID(id string) *userWrapper {
 	return g.graphObjects[id].(*userWrapper)
 }
 
@@ -67,6 +67,26 @@ func (g *TestGraph) CreateSpace(params ...interface{}) *spaceWrapper {
 	return &obj
 }
 
-func (g *TestGraph) GetSpace(id string) *spaceWrapper {
+func (g *TestGraph) SpaceByID(id string) *spaceWrapper {
 	return g.graphObjects[id].(*spaceWrapper)
+}
+
+func (g *TestGraph) CreateResourceType(params ...interface{}) *resourceTypeWrapper {
+	obj := newResourceTypeWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) ResourceTypeByID(id string) *resourceTypeWrapper {
+	return g.graphObjects[id].(*resourceTypeWrapper)
+}
+
+func (g *TestGraph) CreateResource(params ...interface{}) *resourceWrapper {
+	obj := newResourceWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) ResourceByID(id string) *resourceWrapper {
+	return g.graphObjects[id].(*resourceWrapper)
 }

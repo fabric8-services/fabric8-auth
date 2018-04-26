@@ -27,7 +27,7 @@ type Resource struct {
 	// The parent resource
 	ParentResource *Resource `gorm:"foreignkey:ParentResourceID;association_foreignkey:ResourceID"`
 	// The resource type
-	ResourceType resourcetype.ResourceType
+	ResourceType resourcetype.ResourceType `gorm:"foreignkey:ResourceTypeID;association_foreignkey:ResourceTypeID"`
 	// The identifier for the resource type
 	ResourceTypeID uuid.UUID
 	// Resource name
@@ -78,14 +78,9 @@ func (m *GormResourceRepository) Load(ctx context.Context, id string) (*Resource
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "load"}, time.Now())
 
 	var native Resource
-	err := m.db.Table(m.TableName()).Where("resource_id = ?", id).Find(&native).Error
+	err := m.db.Table(m.TableName()).Preload("ResourceType").Where("resource_id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(errors.NewNotFoundError("resource", id))
-	}
-
-	err = m.db.Table(resourcetype.ResourceType{}.TableName()).Where("resource_type_id = ?", native.ResourceTypeID).Find(&native.ResourceType).Error
-	if err == gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(errors.NewNotFoundError("resource_type", id))
 	}
 
 	return &native, errs.WithStack(err)
