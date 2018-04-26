@@ -17,7 +17,7 @@ import (
 type UserController struct {
 	*goa.Controller
 	userInfoService userinfo.UserInfoService
-	db              application.DB
+	app             application.Application
 	tokenManager    token.Manager
 	config          UserControllerConfiguration
 	InitTenant      func(ctx context.Context) error
@@ -29,11 +29,11 @@ type UserControllerConfiguration interface {
 }
 
 // NewUserController creates a user controller.
-func NewUserController(service *goa.Service, userInfoService userinfo.UserInfoService, db application.DB, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
+func NewUserController(service *goa.Service, userInfoService userinfo.UserInfoService, app application.Application, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
 	return &UserController{
 		Controller:      service.NewController("UserController"),
 		userInfoService: userInfoService,
-		db:              db,
+		app:             app,
 		tokenManager:    tokenManager,
 		config:          config,
 	}

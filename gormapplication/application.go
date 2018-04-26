@@ -5,15 +5,19 @@ import (
 	"strconv"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
+
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -42,12 +46,12 @@ const (
 	TXIsoLevelSerializable
 )
 
-var x application.Application = &GormDB{}
+//var x application.Application = &GormDB{}
 
-var y application.Application = &GormTransaction{}
+//var y application.Application = &GormTransaction{}
 
 func NewGormDB(db *gorm.DB) *GormDB {
-	return &GormDB{GormBase{db}, ""}
+	return &GormDB{GormBase{db: db}, ""}
 }
 
 // GormBase is a base struct for gorm implementations of db & transaction
@@ -55,10 +59,12 @@ type GormBase struct {
 	db *gorm.DB
 }
 
+// GormTransaction implements the Transaction interface methods for committing or rolling back a transaction
 type GormTransaction struct {
 	GormBase
 }
 
+// GormDB implements the TransactionManager interface methods for initiating a new transaction
 type GormDB struct {
 	GormBase
 	txIsoLevel string
@@ -93,6 +99,10 @@ func (g *GormBase) VerificationCodes() account.VerificationCodeRepository {
 	return account.NewVerificationCodeRepository(g.db)
 }
 
+func (g *GormBase) InvitationRepository() invitation.InvitationRepository {
+	return invitation.NewInvitationRepository(g.db)
+}
+
 func (g *GormBase) ResourceRepository() resource.ResourceRepository {
 	return resource.NewResourceRepository(g.db)
 }
@@ -101,18 +111,40 @@ func (g *GormBase) ResourceTypeRepository() resourcetype.ResourceTypeRepository 
 	return resourcetype.NewResourceTypeRepository(g.db)
 }
 
-func (g *GormBase) ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository {
-	return scope.NewResourceTypeScopeRepository(g.db)
+func (g *GormBase) ResourceTypeScopeRepository() resourcetype.ResourceTypeScopeRepository {
+	return resourcetype.NewResourceTypeScopeRepository(g.db)
 }
+
 func (g *GormBase) RoleRepository() role.RoleRepository {
 	return role.NewRoleRepository(g.db)
 }
-func (g *GormBase) IdentityRoleRepository() identityrole.IdentityRoleRepository {
-	return identityrole.NewIdentityRoleRepository(g.db)
+
+func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
+	return role.NewIdentityRoleRepository(g.db)
+}
+
+func (g *GormDB) InvitationService() invitationservice.InvitationService {
+	return invitationservice.NewInvitationService(g)
+}
+
+func (g *GormDB) OrganizationService() organizationservice.OrganizationService {
+	return organizationservice.NewOrganizationService(g, g)
+}
+
+func (g *GormDB) PermissionService() permissionservice.PermissionService {
+	return permissionservice.NewPermissionService(g)
+}
+
+func (g *GormDB) RoleManagementService() roleservice.RoleManagementService {
+	return roleservice.NewRoleManagementService(g)
 }
 
 func (g *GormBase) DB() *gorm.DB {
 	return g.db
+}
+
+func (g *GormDB) setTransactionIsolationLevel(level string) {
+	g.txIsoLevel = level
 }
 
 // SetTransactionIsolationLevel sets the isolation level for
@@ -133,8 +165,8 @@ func (g *GormDB) SetTransactionIsolationLevel(level TXIsoLevel) error {
 	return nil
 }
 
-// Begin implements TransactionSupport
-func (g *GormDB) BeginTransaction() (application.Transaction, error) {
+// BeginTransaction initiates a new transaction
+func (g *GormDB) BeginTransaction() (transaction.Transaction, error) {
 	tx := g.db.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -149,14 +181,14 @@ func (g *GormDB) BeginTransaction() (application.Transaction, error) {
 	return &GormTransaction{GormBase{tx}}, nil
 }
 
-// Commit implements TransactionSupport
+// Commit commits the current transaction
 func (g *GormTransaction) Commit() error {
 	err := g.db.Commit().Error
 	g.db = nil
 	return errors.WithStack(err)
 }
 
-// Rollback implements TransactionSupport
+// Rollback rolls back current transaction
 func (g *GormTransaction) Rollback() error {
 	err := g.db.Rollback().Error
 	g.db = nil

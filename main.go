@@ -12,12 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account/email"
 	"github.com/fabric8-services/fabric8-auth/account/userinfo"
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	organizationModel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationService "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
-	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	roleService "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -25,7 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	keycloakLinkAPI "github.com/fabric8-services/fabric8-auth/login/link"
+	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
@@ -33,6 +28,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -111,7 +107,7 @@ func main() {
 	}
 
 	// Set the database transaction timeout
-	application.SetDatabaseTransactionTimeout(config.GetPostgresTransactionTimeout())
+	transaction.SetDatabaseTransactionTimeout(config.GetPostgresTransactionTimeout())
 
 	// Migrate the schema
 	err = migration.Migrate(db.DB(), config.GetPostgresDatabase(), config)
@@ -179,14 +175,17 @@ func main() {
 	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService)
+	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService, login.NewOSORegistrationApp())
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
-	roleManagementModelService := roleModel.NewRoleManagementModelService(db, appDB)
-	roleManagemenetService := roleService.NewRoleManagementService(roleManagementModelService, appDB)
-	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB, roleManagemenetService)
+	// Mount "resource-roles" controller
+	resourceRoleCtrl := controller.NewResourceRolesController(service, appDB)
 	app.MountResourceRolesController(service, resourceRoleCtrl)
+
+	// Mount "roles" controller
+	rolesCtrl := controller.NewRolesController(service, appDB)
+	app.MountRolesController(service, rolesCtrl)
 
 	// Mount "authorize" controller
 	authorizeCtrl := controller.NewAuthorizeController(service, loginService, tokenManager, config)
@@ -198,9 +197,8 @@ func main() {
 
 	providerFactory := link.NewOauthProviderFactory(config, appDB)
 	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
-	keycloakExternalTokenService := keycloak.NewKeycloakTokenServiceClient(config)
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, &keycloakExternalTokenService, config)
+	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, config)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "status" controller
@@ -229,7 +227,7 @@ func main() {
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
-	keycloakLinkAPIService := keycloakLinkAPI.NewKeycloakIDPServiceClient()
+	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
 
 	emailVerificationService := email.NewEmailVerificationClient(appDB, notificationChannel)
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
@@ -253,10 +251,12 @@ func main() {
 	app.MountResourceController(service, resourcesCtrl)
 
 	// Mount "organizations" controller
-	organizationModelService := organizationModel.NewOrganizationModelService(db, appDB)
-	organizationServiceRef := organizationService.NewOrganizationService(organizationModelService, appDB)
-	organizationCtrl := controller.NewOrganizationController(service, appDB, organizationServiceRef)
+	organizationCtrl := controller.NewOrganizationController(service, appDB)
 	app.MountOrganizationController(service, organizationCtrl)
+
+	// Mount "invitations" controller
+	invitationCtrl := controller.NewInvitationController(service, appDB)
+	app.MountInvitationController(service, invitationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)
 	log.Logger().Infoln("UTC Build Time: ", controller.BuildTime)

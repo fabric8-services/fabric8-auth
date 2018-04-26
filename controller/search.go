@@ -9,7 +9,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 )
 
@@ -21,17 +23,22 @@ type searchConfiguration interface {
 // SearchController implements the search resource.
 type SearchController struct {
 	*goa.Controller
-	db            application.DB
+	app           application.Application
 	configuration searchConfiguration
 }
 
 // NewSearchController creates a search controller.
-func NewSearchController(service *goa.Service, db application.DB, configuration searchConfiguration) *SearchController {
-	return &SearchController{Controller: service.NewController("SearchController"), db: db, configuration: configuration}
+func NewSearchController(service *goa.Service, app application.Application, configuration searchConfiguration) *SearchController {
+	return &SearchController{Controller: service.NewController("SearchController"), app: app, configuration: configuration}
 }
 
 // Users runs the user search action.
 func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
+
+	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	}
 
 	q := ctx.Q
 	if len(q) == 0 {
@@ -40,7 +47,6 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
 	var result []account.Identity
 	var count int
-	var err error
 
 	exceeded := false
 	offset, limit := computePagingLimits(ctx.PageOffset, ctx.PageLimit)
@@ -55,9 +61,9 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		searchLimit = c.configuration.GetMaxUsersListLimit() - offset
 	}
 
-	if r.MatchString(q) {
-		err = application.Transactional(c.db, func(appl application.Application) error {
-			result, count, err = appl.Identities().Search(ctx, q, offset, searchLimit)
+	if r.MatchString(q) && len(q) > 1 { // 2 or more characters
+		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			result, count, err = tr.Identities().Search(ctx, q, offset, searchLimit)
 			return err
 		})
 		if err != nil {
@@ -88,7 +94,6 @@ func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 		}
 
 		users = append(users, &app.UserData{
-			// FIXME : should be "users" in the long term
 			Type: "identities",
 			ID:   &id,
 			Attributes: &app.UserDataAttributes{

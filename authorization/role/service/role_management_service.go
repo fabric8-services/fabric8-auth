@@ -2,96 +2,39 @@ package service
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/application"
-	role "github.com/fabric8-services/fabric8-auth/authorization/role"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
-	roleModel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	"github.com/fabric8-services/fabric8-auth/errors"
-
-	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 )
 
-// RoleManagementService defines the contract for managing roles assigments to a resource
+// RoleManagementService defines the service contract for managing role assignments
 type RoleManagementService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error)
-	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error)
-	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error)
+	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
+	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
+	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 }
 
-// RoleManagementServiceImpl implements the RoleManagementService for managing role assignments.
+// NewRoleManagementService creates a new service to manage role assignments
+func NewRoleManagementService(repo repository.Repositories) *RoleManagementServiceImpl {
+	return &RoleManagementServiceImpl{repo: repo}
+}
+
+// RoleManagementServiceImpl implements the RoleManagementService to manage role assignments
 type RoleManagementServiceImpl struct {
-	modelService roleModel.RoleManagementModelService
-	db           application.DB
+	repo repository.Repositories
 }
 
-// NewRoleManagementService creates a reference to new RoleManagementService implementation
-func NewRoleManagementService(modelService roleModel.RoleManagementModelService, db application.DB) *RoleManagementServiceImpl {
-	return &RoleManagementServiceImpl{modelService: modelService, db: db}
+// ListByResourceAndRoleName lists role assignments of a specific resource.
+func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
+	return r.repo.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
 }
 
-// ListByResource lists assignments made for a specific resource
-func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]identityrole.IdentityRole, error) {
-
-	var roles []identityrole.IdentityRole
-	var err error
-	err = application.Transactional(r.db, func(appl application.Application) error {
-		err = appl.ResourceRepository().CheckExists(ctx, resourceID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": resourceID,
-				"err":         err,
-			}, "does not exist")
-			return errors.NewNotFoundError("resource_id", resourceID)
-		}
-
-		roles, err = r.modelService.ListByResource(ctx, resourceID)
-		return err
-	})
-
-	return roles, err
+// ListByResource lists role assignments of a specific resource.
+func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
+	return r.repo.IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
 }
 
-// ListAvailableRolesByResourceType lists assignments made for a specific resource type
-func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleScope, error) {
-
-	var roleScopes []role.RoleScope
-	var err error
-	err = application.Transactional(r.db, func(appl application.Application) error {
-		_, err = appl.ResourceTypeRepository().Lookup(ctx, resourceType)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_type": resourceType,
-				"err":           err,
-			}, "error getting toles for the resource type")
-			// if not found, then NotFoundError would be returned,
-			// hence returning the error as is.
-			return err
-		}
-
-		roleScopes, err = r.modelService.ListAvailableRolesByResourceType(ctx, resourceType)
-		return err
-	})
-	return roleScopes, err
-}
-
-// ListByResourceAndRoleName lists assignments made for a specific resource
-func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]identityrole.IdentityRole, error) {
-
-	var roles []identityrole.IdentityRole
-	var err error
-	err = application.Transactional(r.db, func(appl application.Application) error {
-		err = appl.ResourceRepository().CheckExists(ctx, resourceID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": resourceID,
-				"err":         err,
-			}, "does not exist")
-			return errors.NewNotFoundError("resource_id", resourceID)
-		}
-
-		roles, err = r.modelService.ListByResourceAndRoleName(ctx, resourceID, roleName)
-		return err
-	})
-
-	return roles, err
+// ListAvailableRolesByResourceType lists role assignments of a specific resource.
+func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error) {
+	return r.repo.RoleRepository().FindRolesByResourceType(ctx, resourceType)
 }

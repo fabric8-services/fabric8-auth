@@ -5,14 +5,13 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	organizationtype "github.com/fabric8-services/fabric8-auth/authorization/organization"
-	organization "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 )
 
@@ -21,14 +20,12 @@ const OrganizationOwnerRole = "owner"
 // OrganizationController implements the organization resource.
 type OrganizationController struct {
 	*goa.Controller
-	db           application.DB
-	TokenManager token.Manager
-	orgService   organization.OrganizationService
+	app application.Application
 }
 
 // NewOrganizationController creates an organization controller.
-func NewOrganizationController(service *goa.Service, db application.DB, orgService organization.OrganizationService) *OrganizationController {
-	return &OrganizationController{Controller: service.NewController("OrganizationController"), db: db, orgService: orgService}
+func NewOrganizationController(service *goa.Service, app application.Application) *OrganizationController {
+	return &OrganizationController{Controller: service.NewController("OrganizationController"), app: app}
 }
 
 // Create runs the create action.
@@ -47,7 +44,8 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("organization name cannot be empty"))
 	}
 
-	organizationId, err := c.orgService.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
+	svc := organizationservice.NewOrganizationService(c.app, c.app)
+	organizationId, err := svc.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -78,7 +76,8 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
 	}
 
-	orgs, err := c.orgService.ListOrganizations(ctx, *currentUser)
+	svc := organizationservice.NewOrganizationService(c.app, c.app)
+	orgs, err := svc.ListOrganizations(ctx, *currentUser)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -90,13 +89,13 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 	return ctx.OK(&app.OrganizationArray{convertToAppOrganization(orgs)})
 }
 
-func convertToAppOrganization(orgs []organizationtype.IdentityOrganization) []*app.OrganizationData {
+func convertToAppOrganization(orgs []authorization.IdentityAssociation) []*app.OrganizationData {
 	results := []*app.OrganizationData{}
 
 	for _, org := range orgs {
 		orgData := &app.OrganizationData{
-			ID:     org.OrganizationID.String(),
-			Name:   org.Name,
+			ID:     org.IdentityID.String(),
+			Name:   org.ResourceName,
 			Member: org.Member,
 			Roles:  org.Roles,
 		}

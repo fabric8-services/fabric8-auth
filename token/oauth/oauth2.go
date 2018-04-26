@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/satori/go.uuid"
 	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -29,7 +30,7 @@ type IdentityProvider interface {
 	Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error)
 }
 
-// OauthIdentityProvider is an implementaion of Identity Provider
+// OauthIdentityProvider is an implementation of Identity Provider
 type OauthIdentityProvider struct {
 	oauth2.Config
 	ProviderID uuid.UUID
@@ -82,7 +83,7 @@ func (provider *OauthIdentityProvider) UserProfilePayload(ctx context.Context, t
 }
 
 // SaveReferrer validates referrer and saves it in DB
-func SaveReferrer(ctx context.Context, db application.DB, state string, referrer string, responseMode *string, validReferrerURL string) error {
+func SaveReferrer(ctx context.Context, app application.Application, state string, referrer string, responseMode *string, validReferrerURL string) error {
 	matched, err := regexp.MatchString(validReferrerURL, referrer)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -107,8 +108,8 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 		ResponseMode: responseMode,
 	}
 
-	err = application.Transactional(db, func(appl application.Application) error {
-		_, err := appl.OauthStates().Create(ctx, &ref)
+	err = transaction.Transactional(app, func(tr transaction.TransactionalResources) error {
+		_, err := tr.OauthStates().Create(ctx, &ref)
 		return err
 	})
 	if err != nil {
@@ -124,12 +125,12 @@ func SaveReferrer(ctx context.Context, db application.DB, state string, referrer
 }
 
 // LoadReferrerAndResponseMode loads referrer and responseMode from DB
-func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state string) (string, *string, error) {
+func LoadReferrerAndResponseMode(ctx context.Context, app application.Application, state string) (string, *string, error) {
 	var referrer string
 	var responseMode *string
 
-	err := application.Transactional(db, func(appl application.Application) error {
-		ref, err := appl.OauthStates().Load(ctx, state)
+	err := transaction.Transactional(app, func(tr transaction.TransactionalResources) error {
+		ref, err := tr.OauthStates().Load(ctx, state)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"state": state,
@@ -139,7 +140,7 @@ func LoadReferrerAndResponseMode(ctx context.Context, db application.DB, state s
 		}
 		referrer = ref.Referrer
 		responseMode = ref.ResponseMode
-		err = appl.OauthStates().Delete(ctx, ref.ID)
+		err = tr.OauthStates().Delete(ctx, ref.ID)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"state": state,

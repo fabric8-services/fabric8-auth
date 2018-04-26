@@ -1,39 +1,46 @@
 package controller
 
 import (
-	"context"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
-	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/goadesign/goa"
 )
 
 // ResourceRolesController implements the resource_roles resource.
 type ResourceRolesController struct {
 	*goa.Controller
-	db                    application.DB
-	roleManagementService roleservice.RoleManagementService
+	app application.Application
 }
 
 // NewResourceRolesController creates a resource_roles controller.
-func NewResourceRolesController(service *goa.Service, db application.DB, assignmentService roleservice.RoleManagementService) *ResourceRolesController {
+func NewResourceRolesController(service *goa.Service, app application.Application) *ResourceRolesController {
 	return &ResourceRolesController{
 		Controller: service.NewController("ResourceRolesController"),
-		db:         db,
-		roleManagementService: assignmentService,
+		app:        app,
 	}
 }
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 
-	var roles []identityrole.IdentityRole
+	var roles []role.IdentityRole
 
-	roles, err := c.roleManagementService.ListByResource(ctx, ctx.ResourceID)
+	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"err":         err,
+		}, "does not exist")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
+	}
+
+	roles, err = c.app.RoleManagementService().ListByResource(ctx, ctx.ResourceID)
+
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
@@ -41,7 +48,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 		}, "error retrieving list of roles for a specific resource")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	roleList := convertIdentityRoleToAppRoles(ctx, roles)
+	roleList := convertIdentityRoleToAppRoles(roles)
 	return ctx.OK(&app.Identityroles{
 		Data: roleList,
 	})
@@ -50,17 +57,28 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 // ListAssignedByRoleName runs the list action.
 func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedByRoleNameResourceRolesContext) error {
 
-	var roles []identityrole.IdentityRole
+	var roles []role.IdentityRole
 
-	roles, err := c.roleManagementService.ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
+	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
 			"err":         err,
+		}, "does not exist")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
+	}
+
+	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"role_name":   ctx.RoleName,
+			"err":         err,
 		}, "error retrieving list of roles for a specific resource and a specific role")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	rolesList := convertIdentityRoleToAppRoles(ctx, roles)
+	rolesList := convertIdentityRoleToAppRoles(roles)
 	if len(rolesList) == 0 {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("role", ctx.RoleName))
 	}
@@ -69,14 +87,15 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 	})
 }
 
-func convertIdentityRoleToAppRoles(ctx context.Context, roles []identityrole.IdentityRole) []*app.IdentityRolesData {
+func convertIdentityRoleToAppRoles(roles []role.IdentityRole) []*app.IdentityRolesData {
 	var rolesList []*app.IdentityRolesData
 	for _, r := range roles {
-		rolesList = append(rolesList, convertIdentityRoleToAppRole(ctx, r))
+		rolesList = append(rolesList, convertIdentityRoleToAppRole(r))
 	}
 	return rolesList
 }
-func convertIdentityRoleToAppRole(ctx context.Context, r identityrole.IdentityRole) *app.IdentityRolesData {
+
+func convertIdentityRoleToAppRole(r role.IdentityRole) *app.IdentityRolesData {
 	inherited := r.Resource.ParentResourceID != nil
 	rolesData := app.IdentityRolesData{
 		AssigneeID:   r.Identity.ID.String(),

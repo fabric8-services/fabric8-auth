@@ -2,26 +2,27 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
+
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-
-	"fmt"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
+	"strings"
 )
 
 type Role struct {
 	gormsupport.Lifecycle
 
 	// This is the primary key value
-	RoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key" gorm:"column:role_id"`
+	RoleID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:role_id"`
 	// The resource type that this role applies to
 	ResourceType resourcetype.ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
 	// The foreign key value for ResourceType
@@ -50,8 +51,10 @@ type RoleRepository interface {
 	Delete(ctx context.Context, ID uuid.UUID) error
 
 	Lookup(ctx context.Context, name string, resourceType string) (*Role, error)
-	ListScopes(ctx context.Context, u *Role) ([]scope.ResourceTypeScope, error)
-	AddScope(ctx context.Context, u *Role, s *scope.ResourceTypeScope) error
+	ListScopes(ctx context.Context, u *Role) ([]resourcetype.ResourceTypeScope, error)
+	AddScope(ctx context.Context, u *Role, s *resourcetype.ResourceTypeScope) error
+
+	FindRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -210,17 +213,17 @@ func (m *GormRoleRepository) Lookup(ctx context.Context, name string, resourceTy
 	return &native, errs.WithStack(err)
 }
 
-func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.ResourceTypeScope, error) {
+func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]resourcetype.ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "listscopes"}, time.Now())
 
 	var scopes []RoleScope
 
-	err := m.db.Where("role_id = ?", u.RoleID.String()).Preload("Scope").Find(&scopes).Error
+	err := m.db.Table("role_scope").Where("role_id = ?", u.RoleID.String()).Preload("ResourceTypeScope").Find(&scopes).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
 
-	results := make([]scope.ResourceTypeScope, len(scopes))
+	results := make([]resourcetype.ResourceTypeScope, len(scopes))
 	for index := 0; index < len(scopes); index++ {
 		results[index] = scopes[index].ResourceTypeScope
 	}
@@ -228,7 +231,7 @@ func (m *GormRoleRepository) ListScopes(ctx context.Context, u *Role) ([]scope.R
 	return results, nil
 }
 
-func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *scope.ResourceTypeScope) error {
+func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *resourcetype.ResourceTypeScope) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "addscope"}, time.Now())
 
 	roleScope := &RoleScope{
@@ -251,4 +254,81 @@ func (m *GormRoleRepository) AddScope(ctx context.Context, u *Role, s *scope.Res
 		"scope_id": s.ResourceTypeScopeID,
 	}, "Role scope created!")
 	return nil
+}
+
+func (m *GormRoleRepository) FindRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "role", "FindRolesByResourceType"}, time.Now())
+	var roles []role.RoleDescriptor
+
+	db := m.db.Raw(`SELECT r.role_id,
+		r.name role_name,
+		array_to_string(array_agg(rts.NAME), ',') scopes
+		FROM   
+		  role r LEFT OUTER JOIN role_scope rs ON r.role_id = rs.role_id
+		  LEFT OUTER JOIN resource_type_scope rts ON rs.scope_id = rts.resource_type_scope_id,
+			resource_type rt
+		WHERE  
+			rt.resource_type_id = r.resource_type_id 
+      AND r.deleted_at IS NULL
+			AND rt.NAME = ?
+      AND rt.deleted_at IS NULL
+		GROUP BY 
+		  r.role_id, 
+		  r.name`, resourceType)
+
+	rows, err := db.Rows()
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resourceType": resourceType,
+			"err":          err,
+		}, "error running custom sql to get available roles")
+		return roles, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	columnValues := make([]interface{}, len(columns))
+
+	var ignore interface{}
+	for index := range columnValues {
+		columnValues[index] = &ignore
+	}
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_type": resourceType,
+			"err":           err,
+		}, "error getting columns")
+		return roles, errors.NewInternalError(ctx, err)
+	}
+
+	for rows.Next() {
+		var roleName string
+		var scopeNames string
+		var roleID string
+
+		columnValues[0] = &roleID
+		columnValues[1] = &roleName
+		columnValues[2] = &scopeNames
+
+		if err = rows.Scan(columnValues...); err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_type": resourceType,
+				"err":           err,
+			}, "error getting rows")
+			return roles, errors.NewInternalError(ctx, err)
+		}
+		var scopesList []string
+		if scopeNames != "" {
+			scopesList = strings.Split(scopeNames, ",")
+		}
+		roleScope := role.RoleDescriptor{
+			RoleName:     roleName,
+			RoleID:       roleID,
+			Scopes:       scopesList,
+			ResourceType: resourceType,
+		}
+		roles = append(roles, roleScope)
+	}
+	return roles, err
 }

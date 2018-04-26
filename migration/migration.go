@@ -186,7 +186,16 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("025-fix-feature-level.sql")})
 
 	// Version 26
-	m = append(m, steps{ExecuteSQLFile("026-add-space-resourcetype.sql")})
+	m = append(m, steps{ExecuteSQLFile("026-identities-users-indexes.sql")})
+
+	// Version 27
+	m = append(m, steps{ExecuteSQLFile("027-invitations.sql")})
+
+	// Version 28
+	m = append(m, steps{ExecuteSQLFile("028-make-organization-names-unique.sql")})
+
+	// Version 29
+	m = append(m, steps{ExecuteSQLFile("029-add-space-resourcetype.sql")})
 
 	// Version N
 	//

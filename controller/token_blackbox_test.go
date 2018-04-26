@@ -19,6 +19,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
+	"path/filepath"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -27,7 +29,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
-	"path/filepath"
 )
 
 type TestTokenREST struct {
@@ -71,14 +72,14 @@ func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController
 
 	loginService := &DummyKeycloakOAuthService{}
 	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil)
+	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
 	loginService.Identities = rest.Application.Identities()
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = manager
-	loginService.DB = rest.Application
+	loginService.App = rest.Application
 	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
 
-	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, nil, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, rest.Configuration)
 }
 
 func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
@@ -95,15 +96,15 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	newTestKeycloakOAuthProvider(rest.Application)
 	loginService := &DummyKeycloakOAuthService{}
 	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil)
+	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
 	loginService.Identities = rest.Application.Identities()
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = testtoken.TokenManager
-	loginService.DB = rest.Application
+	loginService.App = rest.Application
 	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
 	loginService.exchangeStrategy = rest.exchangeStrategy
 
-	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity)
+	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 	require.Nil(rest.T(), err)
 	rest.sampleAccessToken = tokenSet.AccessToken
 	rest.sampleRefreshToken = tokenSet.RefreshToken
@@ -114,7 +115,7 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 
 	linkService := &DummyLinkService{}
-	return svc, NewTokenController(svc, rest.Application, loginService, linkService, nil, loginService.TokenManager, newMockKeycloakExternalTokenServiceClient(), rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService, linkService, nil, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenREST) TestPublicKeys() {
@@ -389,7 +390,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	return token, nil
 }
 
-func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig login.LoginServiceConfiguration) (*token.TokenSet, error) {
+func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}

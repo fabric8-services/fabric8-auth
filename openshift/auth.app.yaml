@@ -27,7 +27,7 @@ objects:
           service: auth
       spec:
         containers:
-        - image: registry.devshift.net/fabric8-services/fabric8-auth:${IMAGE_TAG}
+        - image: prod.registry.devshift.net/osio-prod/fabric8-services/fabric8-auth:${IMAGE_TAG}
           env:
           - name: AUTH_POSTGRES_HOST
             valueFrom:
@@ -104,6 +104,21 @@ objects:
               secretKeyRef:
                 name: auth
                 key: tenantsvc.url
+          - name: AUTH_OSO_REGAPP_SERVICEURL
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: oso.regapp.url
+          - name: AUTH_OSO_REGAPP_ADMIN_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: oso.regapp.admin.username
+          - name: AUTH_OSO_REGAPP_ADMIN_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: oso.regapp.admin.token
           - name: AUTH_POSTGRES_SSLMODE
             valueFrom:
               configMapKeyRef:
@@ -217,15 +232,6 @@ objects:
       service: auth
     type: ClusterIP
     sessionAffinity: null
-- kind: Route
-  apiVersion: v1
-  metadata:
-    name: auth
-  spec:
-    host: ''
-    to:
-      kind: Service
-      name: auth
 parameters:
 - name: IMAGE_TAG
   value: latest

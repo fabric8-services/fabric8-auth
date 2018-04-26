@@ -4,12 +4,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	resourceType "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -17,13 +18,13 @@ import (
 // ResourceController implements the resource resource.
 type ResourceController struct {
 	*goa.Controller
-	db           application.DB
+	app          application.Application
 	TokenManager token.Manager
 }
 
 // NewResourceController creates a resource controller.
-func NewResourceController(service *goa.Service, db application.DB) *ResourceController {
-	return &ResourceController{Controller: service.NewController("ResourceController"), db: db}
+func NewResourceController(service *goa.Service, app application.Application) *ResourceController {
+	return &ResourceController{Controller: service.NewController("ResourceController"), app: app}
 }
 
 // Delete runs the delete action.
@@ -33,10 +34,10 @@ func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
 	}
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 
 		// Delete the resource
-		error := appl.ResourceRepository().Delete(ctx, ctx.ResourceID)
+		error := tr.ResourceRepository().Delete(ctx, ctx.ResourceID)
 
 		log.Debug(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
@@ -61,20 +62,20 @@ func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
 	}
 
 	var res *resource.Resource
-	var scopes []scope.ResourceTypeScope
+	var scopes []resourceType.ResourceTypeScope
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 
 		var error error
 		// Load the resource
-		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
+		res, error = tr.ResourceRepository().Load(ctx, ctx.ResourceID)
 
 		if error != nil {
 			return error
 		}
 
 		// Load the resource type scopes
-		scopes, error = appl.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
+		scopes, error = tr.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
 
 		return error
 	})
@@ -108,10 +109,10 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 	var res *resource.Resource
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 
 		// Lookup the resource type
-		resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, ctx.Payload.Type)
+		resourceType, err := tr.ResourceTypeRepository().Lookup(ctx, ctx.Payload.Type)
 		if err != nil {
 			return errors.NewBadParameterError("type", ctx.Payload.Type)
 		}
@@ -121,7 +122,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 		if ctx.Payload.ParentResourceID != nil {
 
-			parentResource, err = appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
+			parentResource, err = tr.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err":                err,
@@ -155,7 +156,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		}
 
 		// Persist the resource
-		return appl.ResourceRepository().Create(ctx, res)
+		return tr.ResourceRepository().Create(ctx, res)
 	})
 
 	if err != nil {
@@ -188,9 +189,9 @@ func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
 
 	var res *resource.Resource
 
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var error error
-		res, error = appl.ResourceRepository().Load(ctx, ctx.ResourceID)
+		res, error = tr.ResourceRepository().Load(ctx, ctx.ResourceID)
 		if error != nil {
 			return error
 		}
@@ -202,7 +203,7 @@ func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
 
 		// If a type attribute has been passed in, update the resource type
 		if ctx.Payload.Type != nil {
-			resourceType, err := appl.ResourceTypeRepository().Lookup(ctx, *ctx.Payload.Type)
+			resourceType, err := tr.ResourceTypeRepository().Lookup(ctx, *ctx.Payload.Type)
 			if err != nil {
 				return errors.NewBadParameterError("type", ctx.Payload.Type)
 			}
@@ -213,7 +214,7 @@ func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
 		if ctx.Payload.ParentResourceID != nil {
 			if *ctx.Payload.ParentResourceID != "" {
 				// If a parent ID has been specified, lookup the parent resource
-				parentResource, err := appl.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
+				parentResource, err := tr.ResourceRepository().Load(ctx, *ctx.Payload.ParentResourceID)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{
 						"err":                err,
@@ -230,7 +231,7 @@ func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
 
 		}
 
-		return appl.ResourceRepository().Save(ctx, res)
+		return tr.ResourceRepository().Save(ctx, res)
 	})
 
 	if err != nil {

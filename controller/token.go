@@ -17,14 +17,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
+	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
-	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -34,36 +33,35 @@ import (
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
-	db                           application.DB
-	Auth                         login.KeycloakOAuthService
-	LinkService                  link.LinkOAuthService
-	TokenManager                 token.Manager
-	Configuration                LoginConfiguration
-	keycloakExternalTokenService keycloak.KeycloakExternalTokenService
-	providerConfigFactory        link.OauthProviderFactory
+	app           application.Application
+	Auth          login.KeycloakOAuthService
+	LinkService   link.LinkOAuthService
+	TokenManager  token.Manager
+	Configuration LoginConfiguration
+
+	providerConfigFactory link.OauthProviderFactory
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, db application.DB, auth login.KeycloakOAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, kclient keycloak.KeycloakExternalTokenService, configuration LoginConfiguration) *TokenController {
+func NewTokenController(service *goa.Service, app application.Application, auth login.KeycloakOAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
 	return &TokenController{
-		Controller:                   service.NewController("token"),
-		Auth:                         auth,
-		LinkService:                  linkService,
-		TokenManager:                 tokenManager,
-		Configuration:                configuration,
-		keycloakExternalTokenService: kclient,
-		providerConfigFactory:        providerConfigFactory,
-		db: db,
+		Controller:            service.NewController("token"),
+		Auth:                  auth,
+		LinkService:           linkService,
+		TokenManager:          tokenManager,
+		Configuration:         configuration,
+		providerConfigFactory: providerConfigFactory,
+		app: app,
 	}
 }
 
 // Keys returns public keys which should be used to verify tokens
 func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
-	var publicKeys token.JsonKeys
+	var publicKeys jwk.JSONKeys
 	if ctx.Format != nil && *ctx.Format == "pem" {
 		publicKeys = c.TokenManager.PemKeys()
 	} else {
-		publicKeys = c.TokenManager.JsonWebKeys()
+		publicKeys = c.TokenManager.JSONWebKeys()
 	}
 
 	return ctx.OK(&app.PublicKeys{Keys: publicKeys.Keys})
@@ -112,9 +110,9 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 
 	devUsername := "developer"
 	var identities []account.Identity
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		identities, err = appl.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
 		return err
 	})
 	if err != nil {
@@ -139,7 +137,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devIdentity = identities[0]
 	}
 
-	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity)
+	generatedToken, err := c.TokenManager.GenerateUserTokenForIdentity(ctx, devIdentity, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -200,30 +198,42 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 }
 
 func (c *TokenController) retrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
-	currentIdentity, err := login.ContextIdentity(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	var appResponse app.ExternalToken
-
-	tokenString := goajwt.ContextJWT(ctx).Raw
-
 	if forResource == "" {
 		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
 
-	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, *currentIdentity, req, forResource)
+	var currentIdentityID uuid.UUID
+	serviceAccount := token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy)
+	if serviceAccount {
+		// Extract SA ID
+		id, err := login.ContextIdentity(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		currentIdentityID = *id
+	} else {
+		// Extract user ID
+		currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+		if err != nil {
+			return nil, nil, err
+		}
+		currentIdentityID = currentIdentity.ID
+	}
+
+	var appResponse app.ExternalToken
+
+	providerConfig, err := c.providerConfigFactory.NewOauthProvider(ctx, currentIdentityID, req, forResource)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	osConfig, ok := providerConfig.(link.OpenShiftIdentityProviderConfig)
-	if ok && token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy) {
+	if ok && serviceAccount {
 		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
 		return c.retrieveClusterToken(ctx, forResource, forcePull, osConfig)
 	}
 
-	externalToken, err := c.loadToken(ctx, providerConfig, *currentIdentity)
+	externalToken, err := c.loadToken(ctx, providerConfig, currentIdentityID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -235,36 +245,11 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 		appResponse = modelToAppExternalToken(updatedToken, providerConfig.URL())
 		return &appResponse, nil, nil
 	}
-
 	providerName := providerConfig.TypeName()
-	log.Info(ctx, map[string]interface{}{
-		"provider_name": providerName,
-		"identity_id":   currentIdentity,
-	}, "External token not found. Will try to load from Keycloak.")
-	keycloakTokenResponse, err := c.keycloakExternalTokenService.Get(ctx, tokenString, c.getKeycloakExternalTokenURL(providerName))
-	if err != nil {
-		log.Warn(ctx, map[string]interface{}{
-			"err":           err,
-			"for":           forResource,
-			"provider_name": providerName,
-		}, "Unable to obtain external token from Keycloak. Account linking may be required.")
+	linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
+	errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
+	return nil, &errorResponse, errors.NewUnauthorizedError("token is missing")
 
-		linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
-		errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
-		return nil, &errorResponse, errors.NewUnauthorizedError("token is missing")
-	}
-
-	externalToken, err = c.saveKeycloakToken(ctx, *keycloakTokenResponse, providerConfig, *currentIdentity)
-	if err != nil {
-		return nil, nil, err
-	}
-	updatedToken, errorResponse, err := c.updateProfileIfEmpty(ctx, forResource, req, providerConfig, externalToken, forcePull)
-	if err != nil {
-		return nil, errorResponse, err
-	}
-	appResponse = modelToAppExternalToken(updatedToken, providerConfig.URL())
-
-	return &appResponse, nil, nil
 }
 
 func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, osConfig link.OpenShiftIdentityProviderConfig) (*app.ExternalToken, *string, error) {
@@ -316,30 +301,19 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	// Delete from Keycloak
-	err = c.keycloakExternalTokenService.Delete(ctx, c.getKeycloakIdentityProviderURL(currentIdentity.String(), providerConfig.TypeName()))
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"error":         err,
-			"provider_name": providerConfig.TypeName(),
-			"identity_id":   currentIdentity,
-		}, "Unable to remove Identity Provider link from Keycloak.")
-		// Not critical. Log the error and proceed.
-	}
-
 	// Delete from local DB
-	err = application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
+	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		err := tr.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
 			return errors.NewUnauthorizedError(err.Error())
 		}
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
+		tokens, err := tr.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
 		if err != nil {
 			return err
 		}
 		if len(tokens) > 0 {
 			for _, token := range tokens {
-				err = appl.ExternalTokens().Delete(ctx, token.ID)
+				err = tr.ExternalTokens().Delete(ctx, token.ID)
 				if err != nil {
 					return err
 				}
@@ -555,28 +529,6 @@ func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.Exchan
 	return nil, errors.NewUnauthorizedError("invalid Service Account ID or secret")
 }
 
-func (c *TokenController) saveKeycloakToken(ctx context.Context, keycloakTokenResponse keycloak.KeycloakExternalTokenResponse, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
-	var externalToken provider.ExternalToken
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		externalToken = provider.ExternalToken{
-			Token:      keycloakTokenResponse.AccessToken,
-			IdentityID: currentIdentity,
-			Scope:      providerConfig.Scopes(),
-			ProviderID: providerConfig.ID(),
-		}
-		err := appl.ExternalTokens().Create(ctx, &externalToken)
-		if err == nil {
-			log.Info(ctx, map[string]interface{}{
-				"provider_name":     providerConfig.TypeName(),
-				"identity_id":       currentIdentity,
-				"external_token_id": externalToken.ID,
-			}, "no old token found. account linked & new token saved.")
-		}
-		return err
-	})
-	return &externalToken, err
-}
-
 // updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
 // loads the user profile from the identity provider and saves the username in the external token
 func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource string, req *goa.RequestData, providerConfig link.ProviderConfig, token *provider.ExternalToken, forcePull *bool) (provider.ExternalToken, *string, error) {
@@ -594,8 +546,8 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource 
 			return externalToken, &errorResponse, errors.NewUnauthorizedError(err.Error())
 		}
 		externalToken.Username = userProfile.Username
-		err = application.Transactional(c.db, func(appl application.Application) error {
-			return appl.ExternalTokens().Save(ctx, &externalToken)
+		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			return tr.ExternalTokens().Save(ctx, &externalToken)
 		})
 		return externalToken, nil, err
 	}
@@ -604,12 +556,12 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource 
 
 func (c *TokenController) loadToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
 	var externalToken *provider.ExternalToken
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		err := appl.Identities().CheckExists(ctx, currentIdentity.String())
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		err := tr.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
 			return errors.NewUnauthorizedError(err.Error())
 		}
-		tokens, err := appl.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
+		tokens, err := tr.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
 		if err != nil {
 			return err
 		}
@@ -639,10 +591,6 @@ func ObtainKeycloakUserToken(ctx context.Context, tokenEndpoint string, configur
 		}, "Postgres developer mode not enabled")
 		return nil, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled"))
 	}
-
-	var scopes []account.Identity
-	scopes = append(scopes, test.TestIdentity)
-	scopes = append(scopes, test.TestObserverIdentity)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
@@ -682,7 +630,7 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
-	currentIdentity, err := login.ContextIdentityIfExists(ctx, c.db)
+	currentIdentity, err := login.ContextIdentityIfExists(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

@@ -1,18 +1,14 @@
 package controller_test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/app"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	identityrole "github.com/fabric8-services/fabric8-auth/authorization/role/identityrole/repository"
-	rolemodel "github.com/fabric8-services/fabric8-auth/authorization/role/model"
-	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
-
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -31,9 +27,7 @@ func (s *TestResourceRolesRest) SetupSuite() {
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
 	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
-	roleManagementModelService := rolemodel.NewRoleManagementModelService(rest.DB, rest.Application)
-	roleAssignmentService := roleservice.NewRoleManagementService(roleManagementModelService, rest.Application)
-	return svc, NewResourceRolesController(svc, rest.Application, roleAssignmentService)
+	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
 func TestRunResourceRolesRest(t *testing.T) {
@@ -63,7 +57,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
 	require.NoError(rest.T(), err)
 
-	var createdIdentityRoles []identityrole.IdentityRole
+	var createdIdentityRoles []role.IdentityRole
 
 	identityRoleRef, err := testsupport.CreateTestIdentityRole(rest.Ctx, rest.DB, *resourceRef, *roleRef)
 	require.NoError(rest.T(), err)
@@ -124,7 +118,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
 	roleRef, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab")
 	require.NoError(rest.T(), err)
 
-	var createdIdentityRoles []identityrole.IdentityRole
+	var createdIdentityRoles []role.IdentityRole
 
 	identityRoleRef, err := testsupport.CreateTestIdentityRole(rest.Ctx, rest.DB, *resourceRef, *roleRef)
 	require.NoError(rest.T(), err)
@@ -171,8 +165,8 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedO
 	roleRefGroup2, err := testsupport.CreateTestRole(rest.Ctx, rest.DB, *areaResourceType, "collab-x")
 	require.NoError(rest.T(), err)
 
-	var createdIdentityRoles []identityrole.IdentityRole
-	var createdIdentityRolesGroup2 []identityrole.IdentityRole
+	var createdIdentityRoles []role.IdentityRole
+	var createdIdentityRolesGroup2 []role.IdentityRole
 
 	identityRoleRef, err := testsupport.CreateTestIdentityRole(rest.Ctx, rest.DB, *resourceRef, *roleRef)
 	require.NoError(rest.T(), err)
@@ -211,7 +205,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedO
 	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, resourceRef.ResourceID, uuid.NewV4().String())
 }
 
-func (rest *TestResourceRolesRest) checkExists(createdRole identityrole.IdentityRole, pool *app.Identityroles, isInherited bool) bool {
+func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, pool *app.Identityroles, isInherited bool) bool {
 	for _, retrievedRole := range pool.Data {
 		if retrievedRole.AssigneeID == createdRole.IdentityID.String() {
 			rest.compare(createdRole, *retrievedRole, isInherited)
@@ -221,7 +215,7 @@ func (rest *TestResourceRolesRest) checkExists(createdRole identityrole.Identity
 	return false
 }
 
-func (rest *TestResourceRolesRest) compare(createdRole identityrole.IdentityRole, retrievedRole app.IdentityRolesData, isInherited bool) bool {
+func (rest *TestResourceRolesRest) compare(createdRole role.IdentityRole, retrievedRole app.IdentityRolesData, isInherited bool) bool {
 	require.Equal(rest.T(), createdRole.IdentityID.String(), retrievedRole.AssigneeID)
 	require.Equal(rest.T(), createdRole.Role.Name, retrievedRole.RoleName)
 	require.Equal(rest.T(), "user", retrievedRole.AssigneeType)

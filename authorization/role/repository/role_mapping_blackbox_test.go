@@ -3,12 +3,13 @@ package repository_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resourcetyperepo "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -25,7 +26,6 @@ func TestRunRoleMappingBlackBoxTest(t *testing.T) {
 
 func (s *roleMappingBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = rolerepo.NewRoleMappingRepository(s.DB)
 }
 
@@ -82,7 +82,7 @@ func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName str
 		return rm, err
 	}
 
-	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *fromResourceType, "Test-Role-Mapped-Resource", nil)
+	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *fromResourceType, "Test-Role-Mapped-Resource"+uuid.NewV4().String(), nil)
 	if err != nil {
 		return rm, err
 	}

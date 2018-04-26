@@ -20,7 +20,7 @@ import (
 var _ suite.SetupAllSuite = &DBTestSuite{}
 var _ suite.TearDownAllSuite = &DBTestSuite{}
 
-// NewDBTestSuite instanciate a new DBTestSuite
+// NewDBTestSuite instantiates a new DBTestSuite
 func NewDBTestSuite() DBTestSuite {
 	return DBTestSuite{}
 }
@@ -30,7 +30,7 @@ type DBTestSuite struct {
 	suite.Suite
 	Configuration *config.ConfigurationData
 	DB            *gorm.DB
-	Application   application.DB
+	Application   application.Application
 	cleanTest     func()
 	cleanSuite    func()
 	Ctx           context.Context

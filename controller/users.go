@@ -22,6 +22,8 @@ import (
 
 	"regexp"
 
+	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
@@ -32,7 +34,7 @@ import (
 // UsersController implements the users resource.
 type UsersController struct {
 	*goa.Controller
-	db                       application.DB
+	app                      application.Application
 	config                   UsersControllerConfiguration
 	userProfileService       login.UserProfileService
 	RemoteWITService         wit.RemoteWITService
@@ -57,10 +59,10 @@ type UsersControllerConfiguration interface {
 }
 
 // NewUsersController creates a users controller.
-func NewUsersController(service *goa.Service, db application.DB, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService) *UsersController {
+func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService) *UsersController {
 	return &UsersController{
 		Controller:          service.NewController("UsersController"),
-		db:                  db,
+		app:                 app,
 		config:              config,
 		userProfileService:  userProfileService,
 		RemoteWITService:    &wit.RemoteWITServiceCaller{},
@@ -74,12 +76,12 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 	isServiceAccount := tenantSA || token.IsSpecificServiceAccount(ctx, token.Notification)
 
 	var identity *account.Identity
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		identityID, err := uuid.FromString(ctx.ID)
 		if err != nil {
 			return errors.NewBadParameterError("identity_id", ctx.ID)
 		}
-		identity, err = appl.Identities().LoadWithUser(ctx.Context, identityID)
+		identity, err = tr.Identities().LoadWithUser(ctx.Context, identityID)
 		if err != nil {
 			return err
 		}
@@ -373,12 +375,12 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 		}
 	}
 
-	returnErrorResponse := application.Transactional(c.db, func(appl application.Application) error {
-		err = appl.Users().Create(ctx, user)
+	returnErrorResponse := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		err = tr.Users().Create(ctx, user)
 		if err != nil {
 			return err
 		}
-		err = appl.Identities().Create(ctx, identity)
+		err = tr.Identities().Create(ctx, identity)
 		if err != nil {
 			return err
 		}
@@ -475,9 +477,9 @@ func (c *UsersController) getKeycloakProfileInformation(ctx context.Context, tok
 // Update updates the authorized user based on the provided Token
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
-	id, err := login.ContextIdentity(ctx)
+	loggedInIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	keycloakUserProfile := &login.KeycloakUserProfile{}
@@ -492,14 +494,14 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	var identity *account.Identity
 	var user *account.User
 
-	err = application.Transactional(c.db, func(appl application.Application) error {
-		identity, err = appl.Identities().Load(ctx, *id)
+	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		identity, err = tr.Identities().Load(ctx, loggedInIdentity.ID)
 		if err != nil {
-			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", *id))
+			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", loggedInIdentity.ID))
 		}
 
 		if identity.UserID.Valid {
-			user, err = appl.Users().Load(ctx.Context, identity.UserID.UUID)
+			user, err = tr.Users().Load(ctx.Context, identity.UserID.UUID)
 			if err != nil {
 				return errs.Wrap(err, fmt.Sprintf("Can't load user with id %s", identity.UserID.UUID))
 			}
@@ -511,7 +513,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			if !isValid {
 				return errors.NewBadParameterError("email", *updatedEmail).Expected("valid email")
 			}
-			isUnique, err := isEmailUnique(ctx, appl, *updatedEmail, *user)
+			isUnique, err := isEmailUnique(ctx, tr, *updatedEmail, *user)
 			if err != nil {
 				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
@@ -537,9 +539,9 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 				return errs.Wrap(errors.NewBadParameterError("username", "required"), fmt.Sprintf("invalid value assigned to username for identity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
 			if identity.RegistrationCompleted {
-				return errors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", *id))
+				return errors.NewForbiddenError(fmt.Sprintf("username cannot be updated more than once for identity id %s ", loggedInIdentity.ID))
 			}
-			isUnique, err := isUsernameUnique(ctx, appl, *updatedUserName, *identity)
+			isUnique, err := isUsernameUnique(ctx, tr, *updatedUserName, *identity)
 			if err != nil {
 				return errs.Wrap(err, fmt.Sprintf("error updating identitity with id %s and user with id %s", identity.ID, identity.UserID.UUID))
 			}
@@ -640,12 +642,12 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			return err
 		}
 
-		err = appl.Users().Save(ctx, user)
+		err = tr.Users().Save(ctx, user)
 		if err != nil {
 			return err
 		}
 
-		err = appl.Identities().Save(ctx, identity)
+		err = tr.Identities().Save(ctx, identity)
 		if err != nil {
 			return err
 		}
@@ -657,7 +659,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"identity_id": id.String(),
+			"identity_id": loggedInIdentity.ID.String(),
 			"err":         err,
 		}, "failed to update user/identity")
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -667,7 +669,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		_, err = c.EmailVerificationService.SendVerificationCode(ctx, ctx.RequestData, *identity)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
-				"identity_id": id.String(),
+				"identity_id": loggedInIdentity.ID.String(),
 				"err":         err,
 				"username":    identity.Username,
 				"email":       user.Email,
@@ -728,12 +730,12 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 	}
 
 	var identity *account.Identity
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		id, err := uuid.FromString(ctx.ID)
 		if err != nil {
 			return err
 		}
-		identity, err = appl.Identities().LoadWithUser(ctx, id)
+		identity, err = tr.Identities().LoadWithUser(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -750,8 +752,8 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 	if ctx.Payload != nil && ctx.Payload.Data != nil && ctx.Payload.Data.Attributes != nil && ctx.Payload.Data.Attributes.Deprovisioned != nil {
 		user := &identity.User
 		user.Deprovisioned = *ctx.Payload.Data.Attributes.Deprovisioned
-		err := application.Transactional(c.db, func(appl application.Application) error {
-			return appl.Users().Save(ctx, user)
+		err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			return tr.Users().Save(ctx, user)
 		})
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, err.Error()))
@@ -827,8 +829,8 @@ func isUsernameValid(username string) bool {
 	return false
 }
 
-func isUsernameUnique(ctx context.Context, appl application.Application, username string, identity account.Identity) (bool, error) {
-	usersWithSameUserName, err := appl.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
+func isUsernameUnique(ctx context.Context, repos repository.Repositories, username string, identity account.Identity) (bool, error) {
+	usersWithSameUserName, err := repos.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"user_name": username,
@@ -844,8 +846,8 @@ func isUsernameUnique(ctx context.Context, appl application.Application, usernam
 	return true, nil
 }
 
-func isEmailUnique(ctx context.Context, appl application.Application, email string, user account.User) (bool, error) {
-	usersWithSameEmail, err := appl.Users().Query(account.UserFilterByEmail(email))
+func isEmailUnique(ctx context.Context, repos repository.Repositories, email string, user account.User) (bool, error) {
+	usersWithSameEmail, err := repos.Users().Query(account.UserFilterByEmail(email))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"email": email,
@@ -863,8 +865,8 @@ func isEmailUnique(ctx context.Context, appl application.Application, email stri
 
 func (c *UsersController) userExistsInDB(ctx context.Context, email string, username string) (bool, error) {
 	var exists bool
-	err := application.Transactional(c.db, func(appl application.Application) error {
-		users, err := appl.Users().Query(account.UserFilterByEmail(email))
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		users, err := tr.Users().Query(account.UserFilterByEmail(email))
 		if err != nil {
 			return err
 		}
@@ -873,7 +875,7 @@ func (c *UsersController) userExistsInDB(ctx context.Context, email string, user
 			exists = true
 			return nil
 		}
-		identities, err := appl.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err := tr.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
 		if err != nil {
 			return err
 		}
@@ -902,9 +904,9 @@ func (c *UsersController) userExistsInDB(ctx context.Context, email string, user
 func (c *UsersController) List(ctx *app.ListUsersContext) error {
 	var users []account.User
 	var identities []account.Identity
-	err := application.Transactional(c.db, func(appl application.Application) error {
+	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		users, identities, err = filterUsers(appl, ctx)
+		users, identities, err = filterUsers(tr, ctx)
 		return err
 	})
 	if err != nil {
@@ -922,7 +924,7 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 
 // SendEmailVerificationCode sends out a verification code to the user's email address
 func (c *UsersController) SendEmailVerificationCode(ctx *app.SendEmailVerificationCodeUsersContext) error {
-	identity, err := login.LoadContextIdentityAndUser(ctx, c.db)
+	identity, err := login.LoadContextIdentityAndUser(ctx, c.app)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err}, "unable to load identity or user")
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -986,7 +988,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 
 			usersEndpoint, err := c.config.GetKeycloakEndpointUsers(ctx.RequestData)
 
-			identity, err := loadKeyCloakIdentity(c.db, verfiedUser)
+			identity, err := loadKeyCloakIdentity(c.app, verfiedUser)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err":     err,
@@ -1020,7 +1022,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 	return ctx.TemporaryRedirect()
 }
 
-func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]account.User, []account.Identity, error) {
+func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]account.User, []account.Identity, error) {
 	var err error
 	var resultUsers []account.User
 	var resultIdentities []account.Identity
@@ -1040,7 +1042,7 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		identityFilters = append(identityFilters, account.IdentityFilterByProviderType(account.KeycloakIDP))
 		identityFilters = append(identityFilters, account.IdentityWithUser())
 		// From a data model perspective, we are querying by identity ( and not user )
-		filteredIdentities, err := appl.Identities().Query(identityFilters...)
+		filteredIdentities, err := repos.Identities().Query(identityFilters...)
 		if err != nil {
 			return nil, nil, errs.Wrap(err, "error fetching identities with filter(s)")
 		}
@@ -1062,7 +1064,7 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		}
 		// .. Add other filters in future when needed into the userFilters slice in the above manner.
 		if len(userFilters) != 0 {
-			filteredUsers, err = appl.Users().Query(userFilters...)
+			filteredUsers, err = repos.Users().Query(userFilters...)
 			if err != nil {
 				return nil, nil, errs.Wrap(err, "error fetching users")
 			}
@@ -1075,7 +1077,7 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 		if err != nil {
 			return nil, nil, errs.Wrap(err, "error fetching users")
 		}
-		resultUsers, resultIdentities, err = loadKeyCloakIdentities(appl, filteredUsers)
+		resultUsers, resultIdentities, err = loadKeyCloakIdentities(repos, filteredUsers)
 		if err != nil {
 			return nil, nil, errs.Wrap(err, "error fetching keycloak identities")
 		}
@@ -1085,11 +1087,11 @@ func filterUsers(appl application.Application, ctx *app.ListUsersContext) ([]acc
 
 // loadKeyCloakIdentities loads keycloak identities for the users and returns the valid users along with their KC identities
 // (if a user is missing his/her KC identity, he/she is filtered out of the result array)
-func loadKeyCloakIdentities(appl application.Application, users []account.User) ([]account.User, []account.Identity, error) {
+func loadKeyCloakIdentities(repos repository.Repositories, users []account.User) ([]account.User, []account.Identity, error) {
 	var resultUsers []account.User
 	var resultIdentities []account.Identity
 	for _, user := range users {
-		identity, err := loadKeyCloakIdentity(appl, user)
+		identity, err := loadKeyCloakIdentity(repos, user)
 		// if we can't find the Keycloak identity
 		if err != nil {
 			log.Error(nil, map[string]interface{}{"user": user, "err": err}, "unable to load user keycloak identity")
@@ -1101,8 +1103,8 @@ func loadKeyCloakIdentities(appl application.Application, users []account.User) 
 	return resultUsers, resultIdentities, nil
 }
 
-func loadKeyCloakIdentity(appl application.Application, user account.User) (*account.Identity, error) {
-	identities, err := appl.Identities().Query(account.IdentityFilterByUserID(user.ID))
+func loadKeyCloakIdentity(repos repository.Repositories, user account.User) (*account.Identity, error) {
+	identities, err := repos.Identities().Query(account.IdentityFilterByUserID(user.ID))
 	if err != nil {
 		return nil, err
 	}

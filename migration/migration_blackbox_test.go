@@ -20,6 +20,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 	errs "github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -112,7 +113,9 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration23", testMigration23)
 	t.Run("TestMigration25ValidHits", testMigration25ValidHits)
 	t.Run("TestMigration25ValidMiss", testMigration25ValidMiss)
-	t.Run("TestMigration26", testMigration26)
+	t.Run("TestMigration27", testMigration27)
+	t.Run("TestMigration28", testMigration28)
+	t.Run("TestMigration29", testMigration29)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -136,7 +139,8 @@ func testMigration01(t *testing.T) {
 	for rows.Next() {
 		var registration_completed bool
 		err = rows.Scan(&registration_completed)
-		assert.True(t, registration_completed == false)
+		require.NoError(t, err)
+		assert.False(t, registration_completed)
 	}
 }
 
@@ -229,6 +233,7 @@ func testMigration21(t *testing.T) {
 	for rows.Next() {
 		var roleName string
 		err = rows.Scan(&roleName)
+		require.NoError(t, err)
 		require.Equal(t, controller.OrganizationOwnerRole, roleName)
 	}
 }
@@ -249,7 +254,7 @@ func testMigration22(t *testing.T) {
 	}
 	defer rows.Close()
 
-	// Expecting only one deprovisioined user
+	// Expecting only one deprovisioned user
 	require.True(t, rows.Next())
 	var id string
 	err = rows.Scan(&id)
@@ -262,7 +267,7 @@ func testMigration23(t *testing.T) {
 	assert.True(t, dialect.HasIndex("resource_type", "idx_name_rt_name"))
 }
 
-func testMigration26(t *testing.T) {
+func testMigration29(t *testing.T) {
 
 	migrateToVersion(sqlDB, migrations[:(27)], (27))
 
@@ -321,6 +326,93 @@ func testMigration25ValidMiss(t *testing.T) {
 	// doesn't change.
 	require.Equal(t, "somethingelse", featureLevel)
 
+}
+
+func testMigration27(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(28)], (28))
+
+	// Confirm that the manage_members scope was added
+	rows, err := sqlDB.Query("SELECT resource_type_scope_id FROM resource_type_scope rts, resource_type rt WHERE rts.resource_type_id = rt.resource_type_id AND rt.name = 'identity/organization' AND rts.name = 'manage_members'")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	require.True(t, rows.Next())
+	var resourceTypeScopeID uuid.UUID
+	err = rows.Scan(&resourceTypeScopeID)
+
+	// Now confirm that the scope has been assigned to the organization 'owner' role
+	rows, err = sqlDB.Query("SELECT r.name FROM role r, role_scope rs WHERE r.role_id = rs.role_id AND rs.scope_id = $1", resourceTypeScopeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	require.True(t, rows.Next())
+	var roleName string
+	err = rows.Scan(&roleName)
+
+	require.Equal(t, "owner", roleName)
+
+	// Create some test data
+	require.Nil(t, runSQLscript(sqlDB, "026-insert-test-invitation-data.sql"))
+
+	// Confirm that we can create an invitation for an organization
+	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, invite_to, identity_id, member) VALUES (uuid_generate_v4(), 'c62d77b2-194c-47d0-8bbf-b1308576876d', 'd9161547-5263-4c83-a729-e39ff088978e', true)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Confirm that we can create an invitation for a resource
+	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, resource_id, identity_id, member) VALUES (uuid_generate_v4(), 'c6a2ee2e-7ec6-4c04-ae7e-5ff8c36b28b9', 'd9161547-5263-4c83-a729-e39ff088978e', false)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Confirm that we get a check constraint violation if we try to provide both invite_to and resource_id values
+	_, err = sqlDB.Exec("INSERT INTO invitation (invitation_id, invite_to, resource_id, identity_id, member) VALUES (uuid_generate_v4(), 'c62d77b2-194c-47d0-8bbf-b1308576876d', 'c6a2ee2e-7ec6-4c04-ae7e-5ff8c36b28b9', 'd9161547-5263-4c83-a729-e39ff088978e', false)")
+	require.NotNil(t, err)
+
+	// Cleanup the test data
+	require.Nil(t, runSQLscript(sqlDB, "026-cleanup-test-invitation-data.sql"))
+}
+
+func testMigration28(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(28)], (28))
+
+	var orgResourceTypeID string
+	err := sqlDB.QueryRow("SELECT resource_type_id FROM resource_type WHERE name = 'identity/organization'").Scan(&orgResourceTypeID)
+	require.NoError(t, err)
+
+	// Let's create two organization resources with the same name
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES ('ca9dfe76-d5f2-4f0c-b887-ad722e745cd5', $1, 'Acme Corporation', now())", orgResourceTypeID)
+	require.NoError(t, err)
+
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name, created_at) VALUES ('3ac75b8a-e794-403b-bf1b-e0516af99a93', $1, 'Acme Corporation', now())", orgResourceTypeID)
+	require.NoError(t, err)
+
+	migrateToVersion(sqlDB, migrations[:(29)], (29))
+
+	// Let's check the name of our first resource, it should be the same
+	var resourceName string
+	err = sqlDB.QueryRow("SELECT name FROM resource WHERE resource_id = 'ca9dfe76-d5f2-4f0c-b887-ad722e745cd5'").Scan(&resourceName)
+	require.NoError(t, err)
+	require.Equal(t, "Acme Corporation", resourceName)
+
+	// Our other resource should have been renamed though
+	err = sqlDB.QueryRow("SELECT name FROM resource WHERE resource_id = '3ac75b8a-e794-403b-bf1b-e0516af99a93'").Scan(&resourceName)
+	require.NoError(t, err)
+	require.Equal(t, "Acme Corporation (1)", resourceName)
+
+	// After update 28 it should be impossible to create organizations with duplicate names
+	orgName := "Acme" + uuid.NewV4().String()
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', $1)", orgName)
+	require.NoError(t, err)
+
+	// This one should fail
+	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', $1)", orgName)
+	require.Error(t, err)
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

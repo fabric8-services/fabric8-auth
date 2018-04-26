@@ -31,8 +31,8 @@ func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController
 	return svc, &LoginController{Controller: svc.NewController("login"), Auth: loginService, Configuration: rest.Configuration}
 }
 
-func newTestKeycloakOAuthProvider(db application.DB) *login.KeycloakOAuthProvider {
-	return login.NewKeycloakOAuthProvider(db.Identities(), db.Users(), testtoken.TokenManager, db, login.NewKeycloakUserProfileClient(), &keycloak.KeycloakTokenService{})
+func newTestKeycloakOAuthProvider(app application.Application) *login.KeycloakOAuthProvider {
+	return login.NewKeycloakOAuthProvider(app.Identities(), app.Users(), testtoken.TokenManager, app, login.NewKeycloakUserProfileClient(), &keycloak.KeycloakTokenService{}, &testsupport.DummyOSORegistrationApp{})
 }
 
 func (rest *TestLoginREST) TestLoginOK() {

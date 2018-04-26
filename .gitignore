@@ -81,6 +81,3 @@ migration/sqlbindata_test.go
 configuration/confbindata.go
 wit/witservice
 account/tenant
-
-# Ignore artifacts directory
-bin/

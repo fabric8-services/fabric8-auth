@@ -1,0 +1,7 @@
+skip_validation_for:
+  - 'Makefile'
+  - '.make/*'
+  - 'regex{{Gopkg.*}}'
+  - '.dockerignore'
+  - 'Dockerfile.*'
+  - 'docker-compose.*'

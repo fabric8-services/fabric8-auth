@@ -9,7 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -34,8 +34,7 @@ type TestSearchUserSearch struct {
 
 func (s *TestSearchUserSearch) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.svc = goa.New("test")
-	s.controller = NewSearchController(s.svc, s.Application, s.Configuration)
+	s.svc, s.controller = s.SecuredController()
 }
 
 type userSearchTestArgs struct {
@@ -59,15 +58,18 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 	defer s.cleanTestData(idents)
 
 	tests := []okScenarioUserSearchTest{
+		{"With sanitized params", userSearchTestArgs{s.offset(0), s.limit(10), "x_test'"}, userSearchTestExpects{s.totalCount(0)}},
 		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "."}, userSearchTestExpects{s.totalCount(0)}},
 		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), ".@"}, userSearchTestExpects{s.totalCount(0)}},
-		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "a@"}, userSearchTestExpects{s.totalCountAtLeast(1)}},
-		{"With lowercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_ab"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
-		{"With uppercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
+		{"Without A-Z ,a-z or 0-9", userSearchTestArgs{s.offset(0), s.limit(10), "a@"}, userSearchTestExpects{s.totalCountAtLeast(0)}},
+		{"Too short", userSearchTestArgs{s.offset(0), s.limit(10), "x"}, userSearchTestExpects{s.totalCountAtLeast(0)}},
+		{"Two characters are OK", userSearchTestArgs{s.offset(0), s.limit(10), "x_"}, userSearchTestExpects{s.totalCountAtLeast(0)}},
+		{"With lowercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_ab"}, userSearchTestExpects{s.totalCountAtLeast(2)}},
+		{"With uppercase fullname query", userSearchTestArgs{s.offset(0), s.limit(10), "X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(2)}},
 		{"With uppercase email query", userSearchTestArgs{s.offset(0), s.limit(10), "EMAIL_X_TEST_AB"}, userSearchTestExpects{s.totalCountAtLeast(1)}},
 		{"With lowercase email query", userSearchTestArgs{s.offset(0), s.limit(10), "email_x_test_ab"}, userSearchTestExpects{s.totalCountAtLeast(1)}},
-		{"With username query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_c"}, userSearchTestExpects{s.totalCountAtLeast(3)}},
-		{"with special chars", userSearchTestArgs{s.offset(0), s.limit(10), "&:\n!#%?*"}, userSearchTestExpects{s.totalCount(0)}},
+		{"With username query", userSearchTestArgs{s.offset(0), s.limit(10), "x_test_c"}, userSearchTestExpects{s.totalCountAtLeast(2)}},
+		{"with special chars", userSearchTestArgs{s.offset(0), s.limit(10), "a'\"&:\n!#%?*"}, userSearchTestExpects{s.totalCount(0)}},
 		{"with multi page", userSearchTestArgs{s.offset(0), s.limit(10), "TEST"}, userSearchTestExpects{s.hasLinks("Next")}},
 		{"with last page", userSearchTestArgs{s.offset(len(idents) - 1), s.limit(10), "TEST"}, userSearchTestExpects{s.hasNoLinks("Next"), s.hasLinks("Prev")}},
 		{"with different values", userSearchTestArgs{s.offset(0), s.limit(10), "TEST"}, userSearchTestExpects{s.differentValues(s.createDifferentTestData())}},
@@ -80,7 +82,7 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 	}
 
 	for _, tt := range tests {
-		_, result := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
+		_, result := test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
 		for _, userSearchTestExpect := range tt.userSearchTestExpects {
 			userSearchTestExpect(s.T(), tt, result)
 		}
@@ -88,6 +90,7 @@ func (s *TestSearchUserSearch) TestUsersSearchOK() {
 }
 
 func (s *TestSearchUserSearch) TestUsersSearchBadRequest() {
+
 	t := s.T()
 	tests := []struct {
 		name               string
@@ -97,7 +100,7 @@ func (s *TestSearchUserSearch) TestUsersSearchBadRequest() {
 	}
 
 	for _, tt := range tests {
-		test.UsersSearchBadRequest(t, context.Background(), s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
+		test.UsersSearchBadRequest(t, s.controller.Context, s.svc, s.controller, tt.userSearchTestArgs.pageLimit, tt.userSearchTestArgs.pageOffset, tt.userSearchTestArgs.q)
 	}
 }
 
@@ -113,7 +116,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 
 	idents := []account.Identity{}
 
-	err := application.Transactional(s.Application, func(app application.Application) error {
+	err := transaction.Transactional(s.Application, func(tr transaction.TransactionalResources) error {
 		for i, name := range names {
 
 			user := account.User{
@@ -122,7 +125,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 				Email:    emails[i],
 				Cluster:  "default Cluster",
 			}
-			err := app.Users().Create(context.Background(), &user)
+			err := tr.Users().Create(context.Background(), &user)
 			require.Nil(s.T(), err)
 
 			ident := account.Identity{
@@ -130,7 +133,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 				Username:     usernames[i] + uuid.NewV4().String(),
 				ProviderType: "kc",
 			}
-			err = app.Identities().Create(context.Background(), &ident)
+			err = tr.Identities().Create(context.Background(), &ident)
 			require.Nil(s.T(), err)
 
 			idents = append(idents, ident)
@@ -153,6 +156,7 @@ func (s *TestSearchUserSearch) createDifferentTestData() account.Identity {
 }
 
 func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
+
 	randomName := uuid.NewV4().String()
 	email := uuid.NewV4().String()
 	user := account.User{
@@ -169,18 +173,19 @@ func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 	offset := "0"
 	pageLimit := 1
 	// OK to search by username
-	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+	_, results := test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, &pageLimit, &offset, randomName)
 
 	for _, result := range results.Data {
 		require.Equal(s.T(), "", *result.Attributes.Email)
 	}
 
 	// Empty result if searching by private email
-	_, results = test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, email)
+	_, results = test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, &pageLimit, &offset, email)
 	require.Empty(s.T(), results.Data)
 }
 
 func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
+
 	randomName := uuid.NewV4().String()
 	user := account.User{
 		EmailPrivate: false,
@@ -194,7 +199,7 @@ func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 
 	offset := "0"
 	pageLimit := 1
-	_, results := test.UsersSearchOK(s.T(), context.Background(), s.svc, s.controller, &pageLimit, &offset, randomName)
+	_, results := test.UsersSearchOK(s.T(), s.controller.Context, s.svc, s.controller, &pageLimit, &offset, randomName)
 
 	for _, result := range results.Data {
 		require.NotEmpty(s.T(), *result.Attributes.Email)
@@ -202,8 +207,8 @@ func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 }
 
 func (s *TestSearchUserSearch) cleanTestData(idents []account.Identity) {
-	err := application.Transactional(s.Application, func(app application.Application) error {
-		db := app.(*gormapplication.GormTransaction).DB()
+	err := transaction.Transactional(s.Application, func(tr transaction.TransactionalResources) error {
+		db := tr.(*gormapplication.GormTransaction).DB()
 		db = db.Unscoped()
 		for _, ident := range idents {
 			db.Delete(ident)
@@ -277,4 +282,36 @@ func (s *TestSearchUserSearch) limit(n int) *int {
 func (s *TestSearchUserSearch) offset(n int) *string {
 	str := strconv.Itoa(n)
 	return &str
+}
+
+func (s *TestSearchUserSearch) UnSecuredController() (*goa.Service, *SearchController) {
+	svc := testsupport.UnsecuredService("Search-Service")
+	ctrl := NewSearchController(svc, s.Application, s.Configuration)
+	return svc, ctrl
+}
+
+func (s *TestSearchUserSearch) UnsecuredControllerDeprovisionedUser() (*goa.Service, *SearchController) {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	svc := testsupport.ServiceAsUser("Search-Service", identity)
+	ctrl := NewSearchController(svc, s.Application, s.Configuration)
+	return svc, ctrl
+}
+
+func (s *TestSearchUserSearch) SecuredController() (*goa.Service, *SearchController) {
+	identity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
+	require.NoError(s.T(), err)
+	svc := testsupport.ServiceAsUser("Search-Service", identity)
+	ctrl := NewSearchController(svc, s.Application, s.Configuration)
+	return svc, ctrl
+}
+
+func (s *TestSearchUserSearch) TestSearchUnauthorized() {
+	_, ctrl := s.UnSecuredController()
+	test.UsersSearchUnauthorized(s.T(), ctrl.Context, ctrl.Service, ctrl, nil, nil, "a")
+}
+
+func (s *TestSearchUserSearch) TestSearchUnauthorizedForDeprovisionedUser() {
+	_, ctrl := s.UnsecuredControllerDeprovisionedUser()
+	test.UsersSearchUnauthorized(s.T(), ctrl.Context, ctrl.Service, ctrl, nil, nil, "a")
 }

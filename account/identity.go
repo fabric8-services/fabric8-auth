@@ -4,19 +4,21 @@ import (
 	"context"
 	"database/sql/driver"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/application/repository"
+	repository "github.com/fabric8-services/fabric8-auth/application/repository/base"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"database/sql"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"strings"
 )
 
 const (
@@ -76,8 +78,8 @@ type Identity struct {
 	UserID NullUUID `sql:"type:uuid"`
 	User   User
 	// Link to Resource
-	IdentityResourceID *string
-	IdentityResource   resource.Resource
+	IdentityResourceID sql.NullString
+	IdentityResource   resource.Resource `gorm:"foreignkey:IdentityResourceID;association_foreignkey:ResourceID"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -95,6 +97,10 @@ func (m Identity) GetETagData() []interface{} {
 // GetLastModified returns the last modification time
 func (m Identity) GetLastModified() time.Time {
 	return m.UpdatedAt
+}
+
+func (m Identity) IsUser() bool {
+	return m.UserID.Valid
 }
 
 // GormIdentityRepository is the implementation of the storage interface for
@@ -121,6 +127,7 @@ type IdentityRepository interface {
 	List(ctx context.Context) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
+	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -146,7 +153,7 @@ func (m *GormIdentityRepository) Load(ctx context.Context, id uuid.UUID) (*Ident
 	return &native, errs.WithStack(err)
 }
 
-// LoadWithUser loads an identity and the assosiated User
+// LoadWithUser loads an identity and the associated User
 // Returns NotFoundError if either identity or user is not found
 func (m *GormIdentityRepository) LoadWithUser(ctx context.Context, id uuid.UUID) (*Identity, error) {
 	identities, err := m.Query(IdentityFilterByID(id), IdentityWithUser())
@@ -365,20 +372,37 @@ func (m *GormIdentityRepository) IsValid(ctx context.Context, id uuid.UUID) bool
 // Search searches for Identities where FullName like %q% or users.email like %q% (but ignores private emails)
 // or users.username like %q%
 func (m *GormIdentityRepository) Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error) {
+	paramVal := strings.ToLower(q) + "%"
+	db := m.db
 
-	db := m.db.Model(&Identity{})
-	db = db.Offset(start)
-	db = db.Limit(limit)
-	// FIXME : returning the identities.id just for the sake of consistency with the other User APIs.
-	db = db.Select("count(*) over () as cnt2 ,identities.id as identity_id,identities.username,users.*")
-	db = db.Joins("LEFT JOIN users ON identities.user_id = users.id")
-	db = db.Where("LOWER(users.full_name) like ?", "%"+strings.ToLower(q)+"%")
-	db = db.Or("LOWER(users.email) like ? and users.email_private is false", "%"+strings.ToLower(q)+"%")
-	db = db.Or("identities.username like ?", "%"+strings.ToLower(q)+"%")
-	db = db.Group("identities.id,identities.username,users.id")
-	//db = db.Preload("user")
+	queryStr := `SELECT count(*) OVER () as cnt2, identity_id, username, users.* FROM (SELECT 
+  identities.id AS identity_id,
+  identities.username,  
+  users.*
+FROM 
+  identities, users
+WHERE 
+  identities.user_id = users.id 
+  AND identities.username LIKE ?
+  AND identities.deleted_at IS NULL
+  AND users.deprovisioned IS false
+  AND users.deleted_at IS NULL
+UNION SELECT
+  identities.id AS identity_id,
+  identities.username,
+  users.*
+FROM
+  identities, users
+WHERE  
+  identities.user_id = users.id 
+  AND identities.deleted_at IS NULL
+  AND users.deleted_at IS NULL
+  AND users.deprovisioned IS false 
+  AND (LOWER(users.full_name) LIKE ?
+  OR (LOWER(users.email) LIKE ? AND users.email_private is false))) users LIMIT ?`
 
-	rows, err := db.Rows()
+	rows, err := db.Raw(queryStr, paramVal, paramVal, paramVal, strconv.Itoa(limit)).Rows()
+
 	if err != nil {
 		return nil, 0, err
 	}
@@ -425,4 +449,37 @@ func (m *GormIdentityRepository) Search(ctx context.Context, q string, start int
 	}
 
 	return result, count, nil
+}
+
+// FindIdentityMemberships returns an array of Identity objects with the (optionally) specified resource type in which the specified Identity is a member
+func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "FindIdentityMemberships"}, time.Now())
+	associations := []authorization.IdentityAssociation{}
+
+	var identities []Identity
+
+	// query for identities in which the user is a member
+	q := m.db.Table(m.TableName()).Preload("IdentityResource")
+
+	// with the specified resourceType
+	if resourceType != nil {
+		q = q.Joins("JOIN resource r ON r.resource_id = identities.identity_resource_id").
+			Joins("JOIN resource_type rt ON r.resource_type_id = rt.resource_type_id AND rt.name = ?", resourceType)
+	}
+
+	err := q.Where(`identities.id IN (WITH RECURSIVE m AS (
+			SELECT member_of FROM	membership WHERE member_id = ? 
+      UNION SELECT p.member_of	FROM membership p INNER JOIN m ON m.member_of = p.member_id)
+		  SELECT member_of FROM m)`, identityID).
+		Find(&identities).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, identity := range identities {
+		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, &identity.ID, true, nil)
+	}
+
+	return associations, nil
 }

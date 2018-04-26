@@ -4,15 +4,14 @@ import (
 	"context"
 	"time"
 
-	resourceTypeScope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
-
 	errs "github.com/pkg/errors"
+	"github.com/satori/go.uuid"
 )
 
 // RoleScope defines the association between a resource type's scope(s) and a resource type's role.
@@ -20,7 +19,7 @@ type RoleScope struct {
 	gormsupport.Lifecycle
 
 	// The associated scope
-	ResourceTypeScope resourceTypeScope.ResourceTypeScope `gorm:"ForeignKey:ResourceTypeScopeID"`
+	ResourceTypeScope resourcetype.ResourceTypeScope `gorm:"ForeignKey:ResourceTypeScopeID"`
 
 	// The foreign key value for ResourceTypeScopeID
 	ResourceTypeScopeID uuid.UUID `gorm:"primary_key;column:scope_id" sql:"type:uuid"`

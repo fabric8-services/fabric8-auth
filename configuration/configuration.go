@@ -3,14 +3,13 @@ package configuration
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
-
-	"net/url"
-	"reflect"
 
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
@@ -40,7 +39,6 @@ const (
 	varHTTPAddress                     = "http.address"
 	varMetricsHTTPAddress              = "metrics.http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
-	varTLSInsecureSkipVerify           = "tls.insecureskipverify"
 	varNotApprovedRedirect             = "notapproved.redirect"
 	varHeaderMaxLength                 = "header.maxlength"
 	varUsersListLimit                  = "users.listlimit"
@@ -111,8 +109,11 @@ const (
 	varGitHubClientSecret        = "github.client.secret"
 	varGitHubClientDefaultScopes = "github.client.defaultscopes"
 
-	// Default OSO cluster API URL
-	varOSOClientApiUrl = "oso.client.apiurl"
+	// OSO settings
+	varOSOClientApiUrl                 = "oso.client.apiurl" // Default OSO cluster API URL
+	varOSORegistrationAppURL           = "oso.regapp.serviceurl"
+	varOSORegistrationAppAdminUsername = "oso.regapp.admin.username"
+	varOSORegistrationAppAdminToken    = "oso.regapp.admin.token"
 
 	// Cache control
 	varCacheControlUsers         = "cachecontrol.users"
@@ -278,9 +279,6 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
 		c.appendDefaultConfigErrorMessage("default GitHub client secret is used")
 	}
-	if c.IsTLSInsecureSkipVerify() {
-		c.appendDefaultConfigErrorMessage("TLS verification disabled")
-	}
 	if c.GetValidRedirectURLs() == ".*" {
 		c.appendDefaultConfigErrorMessage("no restrictions for valid redirect URLs")
 	}
@@ -292,6 +290,15 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	if c.GetRefreshTokenExpiresIn() < 3*60 {
 		c.appendDefaultConfigErrorMessage("too short lifespan of refresh tokens")
+	}
+	if c.GetOSORegistrationAppURL() == "" {
+		c.appendDefaultConfigErrorMessage("OSO Reg App url is empty")
+	}
+	if c.GetOSORegistrationAppAdminUsername() == "" {
+		c.appendDefaultConfigErrorMessage("OSO Reg App admin username is empty")
+	}
+	if c.GetOSORegistrationAppAdminToken() == "" {
+		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
 	}
 	c.checkClusterConfig()
 	if c.defaultConfigurationError != nil {
@@ -474,7 +481,7 @@ func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 }
 
 // GetOSOClusterByURL returns a OSO cluster configurations by matching URL
-// Regardles of trailing slashes if cluster API URL == "https://api.openshift.com"
+// Regardless of trailing slashes if cluster API URL == "https://api.openshift.com"
 // or "https://api.openshift.com/" it will match any "https://api.openshift.com*"
 // like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
 // Returns nil if no matching API URL found
@@ -562,7 +569,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org public_repo read:user")
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
-	c.v.SetDefault(varTLSInsecureSkipVerify, false) // Do not set to true in production! True can be used only for testing.
 
 	// Max number of users returned when searching users
 	c.v.SetDefault(varUsersListLimit, 50)
@@ -779,12 +785,6 @@ func (c *ConfigurationData) GetOpenShiftClientApiUrl() string {
 	return c.v.GetString(varOSOClientApiUrl)
 }
 
-// IsTLSInsecureSkipVerify returns true the client should not verify the
-// server's certificate chain and host name. This mode should be used only for testing.
-func (c *ConfigurationData) IsTLSInsecureSkipVerify() bool {
-	return c.v.GetBool(varTLSInsecureSkipVerify)
-}
-
 // GetNotApprovedRedirect returns the URL to redirect to if the user is not approved
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
 func (c *ConfigurationData) GetNotApprovedRedirect() string {
@@ -849,7 +849,7 @@ func (c *ConfigurationData) GetKeycloakTestUser2Secret() string {
 }
 
 // GetKeycloakEndpointAuth returns the keycloak auth endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -858,7 +858,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuth(req *goa.RequestData) (strin
 }
 
 // GetKeycloakEndpointToken returns the keycloak token endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -867,7 +867,7 @@ func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (stri
 }
 
 // GetKeycloakEndpointUserInfo returns the keycloak userinfo endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -882,7 +882,7 @@ func (c *ConfigurationData) GetNotificationServiceURL() string {
 
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -892,7 +892,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (stri
 
 // GetKeycloakEndpointUsers returns the <keycloak>/realms/admin/<realm>/users endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -903,7 +903,7 @@ func (c *ConfigurationData) GetKeycloakEndpointUsers(req *goa.RequestData) (stri
 
 // GetKeycloakEndpointIDP returns the <keycloak>/realms/admin/<realm>/users/USER_ID/federated-identity/rhd endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -913,7 +913,7 @@ func (c *ConfigurationData) GetKeycloakEndpointLinkIDP(req *goa.RequestData, id 
 
 // GetKeycloakEndpointAuthzResourceset returns the <keycloak>/realms/<realm>/authz/protection/resource_set endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -923,7 +923,7 @@ func (c *ConfigurationData) GetKeycloakEndpointAuthzResourceset(req *goa.Request
 
 // GetKeycloakEndpointClients returns the <keycloak>/admin/realms/<realm>/clients endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -933,7 +933,7 @@ func (c *ConfigurationData) GetKeycloakEndpointClients(req *goa.RequestData) (st
 
 // GetKeycloakEndpointEntitlement returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -943,7 +943,7 @@ func (c *ConfigurationData) GetKeycloakEndpointEntitlement(req *goa.RequestData)
 
 // GetKeycloakEndpointBroker returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
 // set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -957,7 +957,7 @@ func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (st
 }
 
 // GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.
-// If nothing set then in Dev environment the default endopoint will be returned.
+// If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
@@ -997,6 +997,21 @@ func (c *ConfigurationData) GetTenantServiceURL() string {
 	return c.v.GetString(varTenantServiceURL)
 }
 
+// GetOSORegistrationAppURL returns the URL for the OpenShift Online Registration App
+func (c *ConfigurationData) GetOSORegistrationAppURL() string {
+	return c.v.GetString(varOSORegistrationAppURL)
+}
+
+// GetOSORegistrationAppAdminUsername returns the admin username used to access OpenShift Online Registration App
+func (c *ConfigurationData) GetOSORegistrationAppAdminUsername() string {
+	return c.v.GetString(varOSORegistrationAppAdminUsername)
+}
+
+// GetOSORegistrationAppAdminToken returns the admin token used to access OpenShift Online Registration App
+func (c *ConfigurationData) GetOSORegistrationAppAdminToken() string {
+	return c.v.GetString(varOSORegistrationAppAdminToken)
+}
+
 func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
 	return c.getKeycloakEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
 }
@@ -1012,7 +1027,7 @@ func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, endpointVa
 		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varKeycloakURL), pathSufix)
 	} else {
 		if c.IsPostgresDeveloperModeEnabled() {
-			// Devmode is enabled. Calculate the URL endopoint using the devmode Keycloak URL
+			// Devmode is enabled. Calculate the URL endpoint using the devmode Keycloak URL
 			endpoint = fmt.Sprintf("%s/%s", devModeKeycloakURL, pathSufix)
 		} else {
 			// Calculate relative URL based on request

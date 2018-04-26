@@ -37,9 +37,11 @@ func TestNewBadParameterError(t *testing.T) {
 	value := 10
 	expectedValue := 11
 	err := errors.NewBadParameterError(param, value)
-	assert.Equal(t, fmt.Sprintf("Bad value for parameter '%s': '%v'", param, value), err.Error())
+	assert.Equal(t, fmt.Sprintf("Bad value for parameter '%s': '%v' - ", param, value), err.Error())
 	err = errors.NewBadParameterError(param, value).Expected(expectedValue)
-	assert.Equal(t, fmt.Sprintf("Bad value for parameter '%s': '%v' (expected: '%v')", param, value, expectedValue), err.Error())
+	assert.Equal(t, fmt.Sprintf("Bad value for parameter '%s': '%v' (expected: '%v') - ", param, value, expectedValue), err.Error())
+	err = errors.NewBadParameterErrorFromString(param, value, "Something went wrong")
+	assert.Equal(t, fmt.Sprintf("Bad value for parameter '%s': '%v' - Something went wrong", param, value), err.Error())
 }
 
 func TestNewNotFoundError(t *testing.T) {

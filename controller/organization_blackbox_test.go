@@ -8,13 +8,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/goadesign/goa"
-
-	organizationmodel "github.com/fabric8-services/fabric8-auth/authorization/organization/model"
-	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -22,16 +18,12 @@ import (
 
 type TestOrganizationREST struct {
 	gormtestsupport.DBTestSuite
-	testIdentity      account.Identity
-	service           *goa.Service
-	orgService        organizationservice.OrganizationService
-	securedController *OrganizationController
+	testIdentity account.Identity
+	service      *goa.Service
 }
 
 func (s *TestOrganizationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.orgService = organizationmodel.NewOrganizationModelService(s.DB, s.Application)
-
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
 		"OrganizationCreatorUser-"+uuid.NewV4().String(),
@@ -45,12 +37,12 @@ func TestRunOrganizationREST(t *testing.T) {
 
 func (rest *TestOrganizationREST) SecuredController(identity account.Identity) (*goa.Service, *OrganizationController) {
 	svc := testsupport.ServiceAsUser("Organization-Service", identity)
-	return svc, NewOrganizationController(svc, rest.Application, rest.orgService)
+	return svc, NewOrganizationController(svc, rest.Application)
 }
 
 func (rest *TestOrganizationREST) UnsecuredController() (*goa.Service, *OrganizationController) {
 	svc := goa.New("Organization-Service")
-	controller := NewOrganizationController(svc, rest.Application, rest.orgService)
+	controller := NewOrganizationController(svc, rest.Application)
 	return svc, controller
 }
 
