@@ -128,6 +128,7 @@ type IdentityRepository interface {
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
+	FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -482,4 +483,21 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	}
 
 	return associations, nil
+}
+
+// FindIdentitiesWithParentResource returns an array of Identity objects for which their corresponding resource is a child of the specified parent resource
+func (m *GormIdentityRepository) FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "FindIdentitiesWithParentResource"}, time.Now())
+
+	var identities []Identity
+
+	err := m.db.Table(m.TableName()).Preload("IdentityResource").
+		Joins("JOIN resource r ON r.resource_id = identities.identity_resource_id AND r.resource_type_id = ? AND r.parent_resource_id = ?", resourceTypeID, parentResourceID).
+		Find(&identities).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return identities, nil
 }

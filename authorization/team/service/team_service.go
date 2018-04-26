@@ -112,7 +112,30 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 
 // Returns an array of all team identities within a space
 func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.UUID, spaceID string) ([]account.Identity, error) {
-	return nil, nil
+	// Confirm that the specified spaceID is valid
+	space, err := s.repo.ResourceRepository().Load(ctx, spaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Confirm that the resource is actually a space
+	if space.ResourceType.Name != authorization.ResourceTypeSpace {
+		return nil, errors.NewBadParameterErrorFromString("spaceID", spaceID, "invalid space ID specified - resource is not a space")
+	}
+
+	// Lookup the team resource type
+	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeTeam)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find team identities that have the space as their parent
+	identities, err := s.repo.Identities().FindIdentitiesByResourceTypeWithParentResource(ctx, resourceType.ResourceTypeID, spaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return identities, nil
 }
 
 // Returns an array of all teams in which the specified identity is a member or is assigned a role
