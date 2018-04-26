@@ -38,9 +38,13 @@ func newTeamWrapper(g *TestGraph, params ...interface{}) teamWrapper {
 		switch t := params[i].(type) {
 		case string:
 			teamName = &t
-		case spaceWrapper:
+		case *spaceWrapper:
 			space = t.Resource()
 		}
+	}
+
+	if space == nil {
+		space = w.graph.CreateSpace().Resource()
 	}
 
 	resourceType, err := g.app.ResourceTypeRepository().Lookup(g.ctx, authorization.IdentityResourceTypeTeam)
@@ -67,22 +71,39 @@ func newTeamWrapper(g *TestGraph, params ...interface{}) teamWrapper {
 		IdentityResource:   *res,
 	}
 
+	err = g.app.Identities().Create(g.ctx, w.identity)
+	require.NoError(g.t, err)
+
 	return w
 }
 
-func (w *teamWrapper) AddMember(user *userWrapper) *teamWrapper {
-	err := w.graph.db.Exec("INSERT INTO membership (member_id, member_of) VALUES (?, ?)", user.Identity().ID, w.identity.ID).Error
+func (w *teamWrapper) TeamID() uuid.UUID {
+	return w.identity.ID
+}
+
+func (w *teamWrapper) TeamName() string {
+	return w.identity.IdentityResource.Name
+}
+
+func (w *teamWrapper) Identity() *account.Identity {
+	return w.identity
+}
+
+func (w *teamWrapper) AddMember(wrapper interface{}) *teamWrapper {
+	identityID := w.identityIDFromWrapper(wrapper)
+
+	err := w.graph.db.Exec("INSERT INTO membership (member_id, member_of) VALUES (?, ?)", identityID, w.identity.ID).Error
 	require.NoError(w.graph.t, err)
 	return w
 }
 
-func (w *teamWrapper) addUserRole(user *userWrapper, roleName string) *teamWrapper {
+func (w *teamWrapper) addUserRole(identityID uuid.UUID, roleName string) *teamWrapper {
 	r, err := w.graph.app.RoleRepository().Lookup(w.graph.ctx, roleName, authorization.IdentityResourceTypeTeam)
 	require.NoError(w.graph.t, err)
 
 	identityRole := &role.IdentityRole{
 		ResourceID: w.identity.IdentityResourceID.String,
-		IdentityID: user.Identity().ID,
+		IdentityID: identityID,
 		RoleID:     r.RoleID,
 	}
 
@@ -92,6 +113,6 @@ func (w *teamWrapper) addUserRole(user *userWrapper, roleName string) *teamWrapp
 }
 
 // AddAdmin assigns the admin role to a user for the team
-func (w *teamWrapper) AddAdmin(user *userWrapper) *teamWrapper {
-	return w.addUserRole(user, authorization.AdminRole)
+func (w *teamWrapper) AddAdmin(wrapper interface{}) *teamWrapper {
+	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.AdminRole)
 }

@@ -23,6 +23,17 @@ type baseWrapper struct {
 	graph *TestGraph
 }
 
+func (w *baseWrapper) identityIDFromWrapper(wrapper interface{}) uuid.UUID {
+	switch t := wrapper.(type) {
+	case *userWrapper:
+		return t.identity.ID
+	case *identityWrapper:
+		return t.identity.ID
+	}
+	require.True(w.graph.t, false, "wrapper must be either user wrapper or identity wrapper")
+	return uuid.UUID{}
+}
+
 // Identifier is used to explicitly set the unique identifier for a graph object
 type Identifier struct {
 	value string
@@ -114,6 +125,32 @@ func (g *TestGraph) LoadTeam(params ...interface{}) *teamWrapper {
 	}
 	require.NotNil(g.t, teamID, "Must specified a uuid parameter for the team ID")
 	w := loadTeamWrapper(g, *teamID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
+func (g *TestGraph) CreateIdentity(params ...interface{}) *identityWrapper {
+	obj := newIdentityWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) IdentityByID(id string) *identityWrapper {
+	return g.graphObjects[id].(*identityWrapper)
+}
+
+func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
+	var identityID *uuid.UUID
+	for i, _ := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			identityID = t
+		case uuid.UUID:
+			identityID = &t
+		}
+	}
+	require.NotNil(g.t, identityID, "Must specified a uuid parameter for the identity ID")
+	w := loadIdentityWrapper(g, *identityID)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
 }

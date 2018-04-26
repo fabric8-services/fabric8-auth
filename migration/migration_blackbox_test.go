@@ -116,6 +116,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration27", testMigration27)
 	t.Run("TestMigration28", testMigration28)
 	t.Run("TestMigration29", testMigration29)
+	t.Run("TestMigration30", testMigration30)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -285,7 +286,6 @@ func testMigration29(t *testing.T) {
 	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
 	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '07da9f1a-081e-479e-b070-495b3108f027' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
 	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '431c4790-c86f-4937-9223-ac054f6e1251' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
-
 }
 
 func countRows(t *testing.T, sql string, expectedCount int) {
@@ -421,6 +421,26 @@ func testMigration28(t *testing.T) {
 	// This one should fail
 	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', $1)", orgName)
 	require.Error(t, err)
+}
+
+func testMigration30(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(31)], (31))
+
+	var teamResourceTypeID string
+	err := sqlDB.QueryRow("SELECT resource_type_id FROM resource_type WHERE name = 'identity/team'").Scan(&teamResourceTypeID)
+	require.NoError(t, err)
+
+	var roleName string
+	err = sqlDB.QueryRow("SELECT name FROM role WHERE role_id = $1 AND resource_type_id = $2", "4e03c5df-d3f6-4665-9ffa-4bef05355744", teamResourceTypeID).Scan(&roleName)
+	require.NoError(t, err)
+	require.Equal(t, authorization.AdminRole, roleName)
+
+	var scopeName string
+	err = sqlDB.QueryRow("SELECT name FROM resource_type_scope WHERE resource_type_scope_id = $1 AND resource_type_id = $2", "45cc3446-6afe-4758-82bb-41141e1783ce", teamResourceTypeID).Scan(&scopeName)
+	require.NoError(t, err)
+	require.Equal(t, authorization.ManageTeamsInSpaceScope, scopeName)
+
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '45cc3446-6afe-4758-82bb-41141e1783ce' and role_id = '4e03c5df-d3f6-4665-9ffa-4bef05355744' )", 1)
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
