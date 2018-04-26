@@ -37,6 +37,9 @@ const (
 
 	// ManageTeamsScope is the scope required for users wishing to manage teams for a space
 	ManageTeamsInSpaceScope = "manage"
+
+	// ViewTeamsInSpaceScope is the scope required for users wishing to view the teams in a space
+	ViewTeamsInSpaceScope = "view"
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities

@@ -38,8 +38,8 @@ func newResourceWrapper(g *TestGraph, params ...interface{}) resourceWrapper {
 	}
 
 	w.resource = &resource.Resource{
-		Name:         *resourceName,
-		ResourceType: *resourceType,
+		Name:           *resourceName,
+		ResourceTypeID: resourceType.ResourceTypeID,
 	}
 
 	err := g.app.ResourceRepository().Create(g.ctx, w.resource)

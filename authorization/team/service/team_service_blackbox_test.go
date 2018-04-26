@@ -35,7 +35,7 @@ func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {
 	teams, err := s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
-	require.Equal(s.T(), teamID, teams[0].ID)
+	require.Equal(s.T(), *teamID, teams[0].ID)
 	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
 }
 
@@ -56,14 +56,14 @@ func (s *teamServiceBlackBoxTest) TestListTeamsInSpaceForDifferentRoles() {
 	teams, err := s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("contributor").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
-	require.Equal(s.T(), teamID, teams[0].ID)
+	require.Equal(s.T(), *teamID, teams[0].ID)
 	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
 
 	// Then list the spaces as the viewer user, this should also work
 	teams, err = s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("viewer").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
-	require.Equal(s.T(), teamID, teams[0].ID)
+	require.Equal(s.T(), *teamID, teams[0].ID)
 	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
 
 	// Then list the spaces as the unknown user, this should fail
@@ -83,21 +83,19 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceUser() {
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForContributor() {
 	g := s.DBTestSuite.NewTestGraph()
-	user := g.CreateUser()
-	space := g.CreateSpace().AddContributor(user)
+	space := g.CreateSpace().AddContributor(g.CreateUser(g.ID("user")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, space.Resource().ResourceID, teamName)
+	_, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("user").Identity().ID, space.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForViewer() {
 	g := s.DBTestSuite.NewTestGraph()
-	user := g.CreateUser()
-	space := g.CreateSpace().AddViewer(user)
+	space := g.CreateSpace().AddViewer(g.CreateUser(g.ID("user")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, space.Resource().ResourceID, teamName)
+	_, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("user").Identity().ID, space.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
 }
 

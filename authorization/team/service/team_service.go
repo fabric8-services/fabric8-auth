@@ -128,6 +128,19 @@ func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.
 		return nil, errors.NewBadParameterErrorFromString("spaceID", spaceID, "invalid space ID specified - resource is not a space")
 	}
 
+	// Create the permission service
+	permService := permissionservice.NewPermissionService(s.repo)
+
+	// Confirm the user has the necessary privileges to list the teams in this space
+	scope, err := permService.HasScope(ctx, identityID, spaceID, authorization.ViewTeamsInSpaceScope)
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
+	}
+
+	if !scope {
+		return nil, errors.NewForbiddenError(fmt.Sprintf("user requires %s scope for the space to be able to view teams", authorization.ViewTeamsInSpaceScope))
+	}
+
 	// Lookup the team resource type
 	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeTeam)
 	if err != nil {
