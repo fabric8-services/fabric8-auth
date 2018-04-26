@@ -3,6 +3,7 @@ package service_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/satori/go.uuid"
@@ -127,4 +128,41 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceResource() {
 	teamName := "TestTeam" + uuid.NewV4().String()
 	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, resource.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
+}
+
+func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
+	g := s.DBTestSuite.NewTestGraph()
+	g.CreateSpace(g.ID("spc")).AddAdmin(g.CreateUser(g.ID("admin")))
+
+	randomUser := g.CreateUser()
+
+	teamName := "TestTeam" + uuid.NewV4().String()
+	teamID, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("admin").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName)
+	require.NoError(s.T(), err)
+
+	// Create a wrapper for the team we just created, then use it to add a member and an admin
+	g.LoadTeam(teamID).
+		AddMember(g.CreateUser(g.ID("team_member"))).
+		AddAdmin(g.CreateUser(g.ID("team_admin")))
+
+	teams, err := s.teamService.ListTeamsForIdentity(s.Ctx, g.UserByID("team_member").Identity().ID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), teams, 1)
+	require.Equal(s.T(), *teamID, *teams[0].IdentityID)
+	require.Equal(s.T(), g.SpaceByID("spc").Resource().ResourceID, *teams[0].ParentResourceID)
+	require.Equal(s.T(), g.SpaceByID("spc").Resource().Name, *teams[0].ParentResourceName)
+	require.True(s.T(), teams[0].Member)
+	require.Len(s.T(), teams[0].Roles, 0)
+
+	teams, err = s.teamService.ListTeamsForIdentity(s.Ctx, g.UserByID("team_admin").Identity().ID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), teams, 1)
+	require.Equal(s.T(), *teamID, *teams[0].IdentityID)
+	require.False(s.T(), teams[0].Member)
+	require.Len(s.T(), teams[0].Roles, 1)
+	require.Equal(s.T(), authorization.AdminRole, teams[0].Roles[0])
+
+	teams, err = s.teamService.ListTeamsForIdentity(s.Ctx, randomUser.Identity().ID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), teams, 0)
 }

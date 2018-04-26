@@ -105,5 +105,5 @@ func (s *DBTestSuite) DisableGormCallbacks() func() {
 }
 
 func (s *DBTestSuite) NewTestGraph() graph.TestGraph {
-	return graph.NewTestGraph(s.T(), s.Application, s.Ctx)
+	return graph.NewTestGraph(s.T(), s.Application, s.Ctx, s.DB)
 }

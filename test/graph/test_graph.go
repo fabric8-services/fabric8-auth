@@ -3,7 +3,9 @@ package graph
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -13,6 +15,7 @@ type TestGraph struct {
 	app          application.Application
 	ctx          context.Context
 	graphObjects map[string]interface{}
+	db           *gorm.DB
 }
 
 // baseWrapper is the base struct for other Wrapper structs
@@ -26,8 +29,8 @@ type Identifier struct {
 }
 
 // NewTestGraph creates a new test graph
-func NewTestGraph(t *testing.T, app application.Application, ctx context.Context) TestGraph {
-	return TestGraph{t: t, app: app, ctx: ctx, graphObjects: make(map[string]interface{})}
+func NewTestGraph(t *testing.T, app application.Application, ctx context.Context, db *gorm.DB) TestGraph {
+	return TestGraph{t: t, app: app, ctx: ctx, graphObjects: make(map[string]interface{}), db: db}
 }
 
 // register registers a new wrapper object with the test graph's internal list of objects
@@ -89,4 +92,28 @@ func (g *TestGraph) CreateResource(params ...interface{}) *resourceWrapper {
 
 func (g *TestGraph) ResourceByID(id string) *resourceWrapper {
 	return g.graphObjects[id].(*resourceWrapper)
+}
+
+func (g *TestGraph) CreateTeam(params ...interface{}) *teamWrapper {
+	obj := newTeamWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) TeamByID(id string) *teamWrapper {
+	return g.graphObjects[id].(*teamWrapper)
+}
+
+func (g *TestGraph) LoadTeam(params ...interface{}) *teamWrapper {
+	var teamID *uuid.UUID
+	for i, _ := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			teamID = t
+		}
+	}
+	require.NotNil(g.t, teamID, "Must specified a uuid parameter for the team ID")
+	w := loadTeamWrapper(g, *teamID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
 }

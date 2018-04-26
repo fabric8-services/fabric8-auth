@@ -460,7 +460,7 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	var identities []Identity
 
 	// query for identities in which the user is a member
-	q := m.db.Table(m.TableName()).Preload("IdentityResource.ParentResource")
+	q := m.db.Table(m.TableName()).Preload("IdentityResource").Preload("IdentityResource.ParentResource")
 
 	// with the specified resourceType
 	if resourceType != nil {
@@ -479,7 +479,23 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	}
 
 	for _, identity := range identities {
-		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, identity.IdentityResource.ParentResourceID, nil, &identity.ID, true, nil)
+		// TODO for some reason gorm's nested preloads aren't working here, some time should be spent in the gorm source code to find out why,
+		// after which we should be able to remove this code
+		if identity.IdentityResource.ParentResourceID != nil && identity.IdentityResource.ParentResource == nil {
+
+			var native resource.Resource
+			err = m.db.Table("resource").Where("resource_id = ?", identity.IdentityResource.ParentResourceID).Find(&native).Error
+			if err != nil {
+				return nil, err
+			}
+			identity.IdentityResource.ParentResource = &native
+		}
+
+		parentResourceName := ""
+		if identity.IdentityResource.ParentResource != nil {
+			parentResourceName = identity.IdentityResource.ParentResource.Name
+		}
+		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, identity.IdentityResource.ParentResourceID, &parentResourceName, &identity.ID, true, nil)
 	}
 
 	return associations, nil

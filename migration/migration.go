@@ -197,6 +197,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 29
 	m = append(m, steps{ExecuteSQLFile("029-add-space-resourcetype.sql")})
 
+	// Version 30
+	m = append(m, steps{ExecuteSQLFile("030-add-team-admin-role.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

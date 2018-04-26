@@ -1,0 +1,3 @@
+INSERT INTO role (role_id, resource_type_id, name, created_at) SELECT '4e03c5df-d3f6-4665-9ffa-4bef05355744', rt.resource_type_id, 'admin', now() FROM resource_type rt WHERE rt.name = 'identity/team';
+INSERT INTO resource_type_scope (resource_type_scope_id, resource_type_id, name, created_at) SELECT '45cc3446-6afe-4758-82bb-41141e1783ce', rt.resource_type_id, 'manage', now() FROM resource_type rt WHERE rt.name = 'identity/team';
+INSERT INTO role_scope (scope_id, role_id, created_at) VALUES ('45cc3446-6afe-4758-82bb-41141e1783ce', '4e03c5df-d3f6-4665-9ffa-4bef05355744', now());
