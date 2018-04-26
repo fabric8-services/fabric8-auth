@@ -1143,15 +1143,10 @@ func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 }
 
 // GetEnvironment returns the current environment application is deployed in
-// like 'prod', 'preview', 'local', etc as the value of environment variable
+// like 'production', 'prod-preview', 'local', etc as the value of environment variable
 // `AUTH_ENVIRONMENT` is set.
 func (c *ConfigurationData) GetEnvironment() string {
-
-	// override the environment to local if developer mode enabled is set
-	if c.v.IsSet(varEnvironment) && c.GetSentryDSN() != "" && !c.IsPostgresDeveloperModeEnabled() {
-		return c.v.GetString(varEnvironment)
-	}
-	return "local"
+	return c.v.GetString(varEnvironment)
 }
 
 const (

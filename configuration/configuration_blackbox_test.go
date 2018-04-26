@@ -245,36 +245,25 @@ func TestGetWITURLNotDevModeOK(t *testing.T) {
 }
 
 func TestGetEnvironmentOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
 	constAuthEnvironment := "AUTH_ENVIRONMENT"
 	constAuthSentryDSN := "AUTH_SENTRY_DSN"
 	constLocalEnv := "local"
-	constDevMode := "AUTH_DEVELOPER_MODE_ENABLED"
-	resource.Require(t, resource.UnitTest)
 
 	existingEnvironmentName := os.Getenv(constAuthEnvironment)
 	existingSentryDSN := os.Getenv(constAuthSentryDSN)
 	defer func() {
 		os.Setenv(constAuthEnvironment, existingEnvironmentName)
 		os.Setenv(constAuthSentryDSN, existingSentryDSN)
-		os.Setenv(constDevMode, "1")
 		resetConfiguration()
 	}()
 
-	os.Setenv(constDevMode, "0") // set explicitly before testing
-	os.Setenv(constAuthEnvironment, "prod-preview")
-	os.Setenv(constAuthSentryDSN, "something")
-	assert.Equal(t, "prod-preview", config.GetEnvironment())
-
-	os.Setenv(constDevMode, "1") // set explicitly before testing
-	assert.Equal(t, "local", config.GetEnvironment())
-
-	os.Unsetenv(constAuthSentryDSN)
-	assert.Equal(t, constLocalEnv, config.GetEnvironment())
-
-	os.Setenv(constAuthSentryDSN, "something")
 	os.Unsetenv(constAuthEnvironment)
-
 	assert.Equal(t, constLocalEnv, config.GetEnvironment())
+
+	os.Setenv(constAuthEnvironment, "prod-preview")
+	assert.Equal(t, "prod-preview", config.GetEnvironment())
 }
 
 func TestGetSentryDSNOK(t *testing.T) {
