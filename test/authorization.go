@@ -8,7 +8,6 @@ import (
 	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 
 	"github.com/jinzhu/gorm"
@@ -134,7 +133,7 @@ func CreateTestRoleMapping(ctx context.Context, db *gorm.DB, app application.App
 	return err
 }
 
-func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*scope.ResourceTypeScope, error) {
+func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*resourcetype.ResourceTypeScope, error) {
 	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
 
@@ -142,13 +141,13 @@ func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name strin
 		return nil, err
 	}
 
-	rts := scope.ResourceTypeScope{
+	rts := resourcetype.ResourceTypeScope{
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceTypeID:      resourceType.ResourceTypeID,
 		Name:                uuid.NewV4().String(),
 	}
 
-	resourceTypeScopeRepo := scope.NewResourceTypeScopeRepository(db)
+	resourceTypeScopeRepo := resourcetype.NewResourceTypeScopeRepository(db)
 	err = resourceTypeScopeRepo.Create(ctx, &rts)
 	if err != nil {
 		return nil, err
@@ -156,15 +155,15 @@ func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name strin
 	return &rts, nil
 }
 
-func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype.ResourceType, name string) (*scope.ResourceTypeScope, error) {
+func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype.ResourceType, name string) (*resourcetype.ResourceTypeScope, error) {
 
-	rts := scope.ResourceTypeScope{
+	rts := resourcetype.ResourceTypeScope{
 		ResourceTypeScopeID: uuid.NewV4(),
 		ResourceTypeID:      resourceType.ResourceTypeID,
 		Name:                name,
 	}
 
-	resourceTypeScopeRepo := scope.NewResourceTypeScopeRepository(db)
+	resourceTypeScopeRepo := resourcetype.NewResourceTypeScopeRepository(db)
 	err := resourceTypeScopeRepo.Create(ctx, &rts)
 	if err != nil {
 		return nil, err
@@ -172,7 +171,7 @@ func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype
 	return &rts, nil
 }
 
-func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s scope.ResourceTypeScope, r role.Role) (*role.RoleScope, error) {
+func CreateTestRoleScope(ctx context.Context, db *gorm.DB, s resourcetype.ResourceTypeScope, r role.Role) (*role.RoleScope, error) {
 	roleScopeRepo := role.NewRoleScopeRepository(db)
 
 	rs := role.RoleScope{
@@ -215,6 +214,23 @@ func CreateTestResourceWithDefaultType(ctx context.Context, db *gorm.DB, name st
 func CreateTestRoleWithDefaultType(ctx context.Context, db *gorm.DB, name string) (*role.Role, error) {
 	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
 	resourceType, err := resourceTypeRepo.Lookup(ctx, "openshift.io/resource/area")
+
+	if err != nil {
+		return nil, err
+	}
+	roleRef := role.Role{
+		ResourceType:   *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
+		Name:           name,
+	}
+	roleRepository := role.NewRoleRepository(db)
+	err = roleRepository.Create(ctx, &roleRef)
+	return &roleRef, err
+}
+
+func CreateTestRoleWithSpecifiedType(ctx context.Context, db *gorm.DB, name string, resourceTypeName string) (*role.Role, error) {
+	resourceTypeRepo := resourcetype.NewResourceTypeRepository(db)
+	resourceType, err := resourceTypeRepo.Lookup(ctx, resourceTypeName)
 
 	if err != nil {
 		return nil, err

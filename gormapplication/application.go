@@ -12,7 +12,6 @@ import (
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
-	scope "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/scope/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/space"
@@ -112,8 +111,8 @@ func (g *GormBase) ResourceTypeRepository() resourcetype.ResourceTypeRepository 
 	return resourcetype.NewResourceTypeRepository(g.db)
 }
 
-func (g *GormBase) ResourceTypeScopeRepository() scope.ResourceTypeScopeRepository {
-	return scope.NewResourceTypeScopeRepository(g.db)
+func (g *GormBase) ResourceTypeScopeRepository() resourcetype.ResourceTypeScopeRepository {
+	return resourcetype.NewResourceTypeScopeRepository(g.db)
 }
 
 func (g *GormBase) RoleRepository() role.RoleRepository {

@@ -194,6 +194,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 28
 	m = append(m, steps{ExecuteSQLFile("028-make-organization-names-unique.sql")})
 
+	// Version 29
+	m = append(m, steps{ExecuteSQLFile("029-add-space-resourcetype.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

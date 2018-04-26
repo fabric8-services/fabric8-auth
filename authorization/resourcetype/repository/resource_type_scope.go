@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -22,7 +21,7 @@ type ResourceTypeScope struct {
 	// This is the primary key value
 	ResourceTypeScopeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:resource_type_scope_id"`
 	// The resource type that this scope belongs to
-	ResourceType resourcetype.ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
+	ResourceType ResourceType `gorm:"ForeignKey:ResourceTypeID;AssociationForeignKey:ResourceTypeID"`
 	// The foreign key value for ResourceType
 	ResourceTypeID uuid.UUID
 	// The name of this scope
@@ -58,7 +57,7 @@ type ResourceTypeScopeRepository interface {
 	Delete(ctx context.Context, ID uuid.UUID) error
 	Load(ctx context.Context, ID uuid.UUID) (*ResourceTypeScope, error)
 	LookupForType(ctx context.Context, resourceTypeID uuid.UUID) ([]ResourceTypeScope, error)
-	List(ctx context.Context, resourceType *resourcetype.ResourceType) ([]ResourceTypeScope, error)
+	List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error)
 	LookupByResourceTypeAndScope(ctx context.Context, resourceTypeID uuid.UUID, scopeName string) (*ResourceTypeScope, error)
 }
 
@@ -184,7 +183,7 @@ func (m *GormResourceTypeScopeRepository) Delete(ctx context.Context, id uuid.UU
 }
 
 // List return all resource type scopes
-func (m *GormResourceTypeScopeRepository) List(ctx context.Context, resourceType *resourcetype.ResourceType) ([]ResourceTypeScope, error) {
+func (m *GormResourceTypeScopeRepository) List(ctx context.Context, resourceType *ResourceType) ([]ResourceTypeScope, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "list"}, time.Now())
 	var rows []ResourceTypeScope
 
