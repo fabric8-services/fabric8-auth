@@ -91,11 +91,14 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
 
 	var createdRoleScopes []rolerepo.RoleScope
 
-	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	resourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	role, err := testsupport.CreateTestRoleWithSpecifiedType(s.Ctx, s.DB, uuid.NewV4().String(), resourceType.Name)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role)
 
-	scope, err := testsupport.CreateTestScopeWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *resourceType, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), scope)
 
@@ -105,17 +108,13 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
 
 	createdRoleScopes = append(createdRoleScopes, *rs)
 
-	areaResourceType, err := s.resourcetypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), areaResourceType)
-
-	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, "openshift.io/resource/area")
+	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, resourceType.Name)
 	require.NoError(s.T(), err)
 
 	// there might be other 'RoleScopes' returned too.
 	// That wouldn't be considered to be a failure, rather we are gonna check whether they all
 	// belong to the same resource type.
-	s.checkRoleBelongsToResourceType(s.DB, roleScopesRetrieved, *areaResourceType)
+	s.checkRoleBelongsToResourceType(s.DB, roleScopesRetrieved, *resourceType)
 
 	// Then let's check if the ones we created are there.
 	s.checkIfCreatedRoleScopesAreReturned(s.DB, roleScopesRetrieved, createdRoleScopes)
