@@ -13,7 +13,7 @@ type userWrapper struct {
 	identity *account.Identity
 }
 
-func newUserWrapper(g *TestGraph, params ...interface{}) userWrapper {
+func newUserWrapper(g *TestGraph, params []interface{}) userWrapper {
 	w := userWrapper{baseWrapper: baseWrapper{g}}
 
 	w.user = &account.User{

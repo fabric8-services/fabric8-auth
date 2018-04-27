@@ -138,7 +138,7 @@ func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.
 	}
 
 	if !scope {
-		return nil, errors.NewForbiddenError(fmt.Sprintf("user requires %s scope for the space to be able to view teams", authorization.ViewTeamsInSpaceScope))
+		return nil, errors.NewUnauthorizedError(fmt.Sprintf("user requires %s scope for the space to be able to view teams", authorization.ViewTeamsInSpaceScope))
 	}
 
 	// Lookup the team resource type

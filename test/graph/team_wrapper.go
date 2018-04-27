@@ -28,7 +28,7 @@ func loadTeamWrapper(g *TestGraph, teamID uuid.UUID) teamWrapper {
 	return w
 }
 
-func newTeamWrapper(g *TestGraph, params ...interface{}) teamWrapper {
+func newTeamWrapper(g *TestGraph, params []interface{}) teamWrapper {
 	w := teamWrapper{baseWrapper: baseWrapper{g}}
 
 	var teamName *string
@@ -39,6 +39,8 @@ func newTeamWrapper(g *TestGraph, params ...interface{}) teamWrapper {
 		case string:
 			teamName = &t
 		case *spaceWrapper:
+			space = t.Resource()
+		case spaceWrapper:
 			space = t.Resource()
 		}
 	}

@@ -13,7 +13,7 @@ type resourceWrapper struct {
 	resource *resource.Resource
 }
 
-func newResourceWrapper(g *TestGraph, params ...interface{}) resourceWrapper {
+func newResourceWrapper(g *TestGraph, params []interface{}) resourceWrapper {
 	w := resourceWrapper{baseWrapper: baseWrapper{g}}
 
 	var resourceName *string

@@ -14,7 +14,7 @@ type spaceWrapper struct {
 	resource *resource.Resource
 }
 
-func newSpaceWrapper(g *TestGraph, params ...interface{}) spaceWrapper {
+func newSpaceWrapper(g *TestGraph, params []interface{}) spaceWrapper {
 	w := spaceWrapper{baseWrapper: baseWrapper{g}}
 
 	resourceType, err := g.app.ResourceTypeRepository().Lookup(g.ctx, authorization.ResourceTypeSpace)
@@ -64,4 +64,8 @@ func (w *spaceWrapper) AddViewer(wrapper interface{}) *spaceWrapper {
 
 func (w *spaceWrapper) Resource() *resource.Resource {
 	return w.resource
+}
+
+func (w *spaceWrapper) SpaceID() string {
+	return w.resource.ResourceID
 }

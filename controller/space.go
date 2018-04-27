@@ -152,7 +152,7 @@ func (c *SpaceController) ListTeams(ctx *app.ListTeamsSpaceContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "failed to list teams")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	return ctx.OK(&app.TeamArray{convertToTeamData(teams)})

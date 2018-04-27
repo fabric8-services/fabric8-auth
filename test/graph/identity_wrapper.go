@@ -24,7 +24,7 @@ func loadIdentityWrapper(g *TestGraph, identityID uuid.UUID) identityWrapper {
 	return w
 }
 
-func newIdentityWrapper(g *TestGraph, params ...interface{}) identityWrapper {
+func newIdentityWrapper(g *TestGraph, params []interface{}) identityWrapper {
 	w := identityWrapper{baseWrapper: baseWrapper{g}}
 
 	w.identity = &account.Identity{
