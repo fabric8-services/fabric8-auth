@@ -89,7 +89,7 @@ objects:
               secretKeyRef:
                 name: auth
                 key: github.client.secret
-          - name: SENTRY_DSN
+          - name: AUTH_SENTRY_DSN
             valueFrom:
               secretKeyRef:
                 name: auth
@@ -159,6 +159,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: email.verify.url
+          - name: AUTH_ENVIRONMENT
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: environment
           imagePullPolicy: Always
           name: auth
           ports:

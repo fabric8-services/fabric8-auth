@@ -244,6 +244,44 @@ func TestGetWITURLNotDevModeOK(t *testing.T) {
 	assert.Equal(t, "http://myauthsubdomain.service.domain.org", computedWITURL)
 }
 
+func TestGetEnvironmentOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	constAuthEnvironment := "AUTH_ENVIRONMENT"
+	constAuthSentryDSN := "AUTH_SENTRY_DSN"
+	constLocalEnv := "local"
+
+	existingEnvironmentName := os.Getenv(constAuthEnvironment)
+	existingSentryDSN := os.Getenv(constAuthSentryDSN)
+	defer func() {
+		os.Setenv(constAuthEnvironment, existingEnvironmentName)
+		os.Setenv(constAuthSentryDSN, existingSentryDSN)
+		resetConfiguration()
+	}()
+
+	os.Unsetenv(constAuthEnvironment)
+	assert.Equal(t, constLocalEnv, config.GetEnvironment())
+
+	os.Setenv(constAuthEnvironment, "prod-preview")
+	assert.Equal(t, "prod-preview", config.GetEnvironment())
+}
+
+func TestGetSentryDSNOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	constSentryDSN := "AUTH_SENTRY_DSN"
+	existingDSN := os.Getenv(constSentryDSN)
+	defer func() {
+		os.Setenv(constSentryDSN, existingDSN)
+		resetConfiguration()
+	}()
+
+	os.Unsetenv(constSentryDSN)
+	assert.Equal(t, "", config.GetSentryDSN())
+
+	os.Setenv(constSentryDSN, "something")
+	assert.Equal(t, "something", config.GetSentryDSN())
+}
+
 func TestGetWITURLDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")

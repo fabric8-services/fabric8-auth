@@ -125,6 +125,10 @@ const (
 	varTenantServiceURL       = "tenant.serviceurl"
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
+
+	// sentry
+	varEnvironment = "environment"
+	varSentryDSN   = "sentry.dsn"
 )
 
 type serviceAccountConfig struct {
@@ -299,6 +303,12 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	if c.GetOSORegistrationAppAdminToken() == "" {
 		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
+	}
+	if c.GetEnvironment() == "local" || c.GetEnvironment() == "" {
+		c.appendDefaultConfigErrorMessage("Environment is empty or set to local")
+	}
+	if c.GetSentryDSN() == "" {
+		c.appendDefaultConfigErrorMessage("Sentry DSN is empty")
 	}
 	c.checkClusterConfig()
 	if c.defaultConfigurationError != nil {
@@ -594,6 +604,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Regex to be used to check if the user with such email should be ignored during account provisioning
 	c.v.SetDefault(varIgnoreEmailInProd, ".+\\+preview.*\\@redhat\\.com")
+
+	// prod-preview or prod
+	c.v.SetDefault(varEnvironment, "local")
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -880,6 +893,11 @@ func (c *ConfigurationData) GetNotificationServiceURL() string {
 	return c.v.GetString(varNotificationServiceURL)
 }
 
+// GetSentryDSN returns the secret needed to securely communicate with https://errortracking.prod-preview.openshift.io/openshift_io/fabric8-auth/
+func (c *ConfigurationData) GetSentryDSN() string {
+	return c.v.GetString(varSentryDSN)
+}
+
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
@@ -1122,6 +1140,13 @@ func (c *ConfigurationData) GetInternalUsersEmailAddressSuffix() string {
 // GetIgnoreEmailInProd returns regex for checking if the user with such email should be ignored during account provisioning
 func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 	return c.v.GetString(varIgnoreEmailInProd)
+}
+
+// GetEnvironment returns the current environment application is deployed in
+// like 'production', 'prod-preview', 'local', etc as the value of environment variable
+// `AUTH_ENVIRONMENT` is set.
+func (c *ConfigurationData) GetEnvironment() string {
+	return c.v.GetString(varEnvironment)
 }
 
 const (

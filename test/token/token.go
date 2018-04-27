@@ -60,6 +60,7 @@ func GenerateToken(identityID string, identityUsername string) (string, error) {
 	token.Claims.(jwt.MapClaims)["uuid"] = identityID
 	token.Claims.(jwt.MapClaims)["preferred_username"] = identityUsername
 	token.Claims.(jwt.MapClaims)["sub"] = identityID
+	token.Claims.(jwt.MapClaims)["email"] = identityUsername
 
 	key, kid, err := privateKey()
 	if err != nil {
