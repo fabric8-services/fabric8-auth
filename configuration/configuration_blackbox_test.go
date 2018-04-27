@@ -282,6 +282,22 @@ func TestGetSentryDSNOK(t *testing.T) {
 	assert.Equal(t, "something", config.GetSentryDSN())
 }
 
+func TestGetMaxUsernameLengthOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	constEnvName := "AUTH_MAX_USERNAME_LENGTH"
+	existingValue := os.Getenv(constEnvName)
+	defer func() {
+		os.Setenv(constEnvName, existingValue)
+		resetConfiguration()
+	}()
+
+	os.Unsetenv(constEnvName)
+	assert.Equal(t, 45, config.GetMaxUsernameLength())
+
+	os.Setenv(constEnvName, "7")
+	assert.Equal(t, 7, config.GetMaxUsernameLength())
+}
+
 func TestGetWITURLDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
