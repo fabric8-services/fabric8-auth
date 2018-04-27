@@ -159,7 +159,7 @@ func (rest *TestSpaceREST) TestListTeamOK() {
 	t1Found := false
 	t2Found := false
 
-	for i, _ := range teams.Data {
+	for i := range teams.Data {
 		if teams.Data[i].ID == g.TeamByID("t1").TeamID().String() {
 			t1Found = true
 			require.Equal(rest.T(), g.TeamByID("t1").TeamName(), teams.Data[i].Name)
