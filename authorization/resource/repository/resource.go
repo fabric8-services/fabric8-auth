@@ -118,7 +118,7 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 
 	// If no identifier has been specified for the new resource, then generate one
 	if resource.ResourceID == "" {
-		resource.ResourceID = uuid.NewV4().String()
+		resource.ResourceID = uuid.Must(uuid.NewV4()).String()
 	}
 
 	if resource.ResourceTypeID.String() == "" {

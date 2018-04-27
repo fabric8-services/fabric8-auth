@@ -87,7 +87,7 @@ func (rest *TestTokenREST) SecuredControllerWithNonExistentIdentity() (*goa.Serv
 }
 
 func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) {
-	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.Nil(rest.T(), err)
 	return rest.SecuredControllerWithIdentity(identity)
 }

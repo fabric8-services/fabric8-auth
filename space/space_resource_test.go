@@ -17,12 +17,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-var testResourceID string = uuid.NewV4().String()
-var testPolicyID string = uuid.NewV4().String()
-var testPermissionID string = uuid.NewV4().String()
-var testResource2ID string = uuid.NewV4().String()
-var testPolicyID2 string = uuid.NewV4().String()
-var testPermissionID2 string = uuid.NewV4().String()
+var testResourceID string = uuid.Must(uuid.NewV4()).String()
+var testPolicyID string = uuid.Must(uuid.NewV4()).String()
+var testPermissionID string = uuid.Must(uuid.NewV4()).String()
+var testResource2ID string = uuid.Must(uuid.NewV4()).String()
+var testPolicyID2 string = uuid.Must(uuid.NewV4()).String()
+var testPermissionID2 string = uuid.Must(uuid.NewV4()).String()
 
 func TestRunResourceRepoBBTest(t *testing.T) {
 	suite.Run(t, &resourceRepoBBTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
@@ -47,7 +47,7 @@ func (test *resourceRepoBBTest) TestCreate() {
 }
 
 func (test *resourceRepoBBTest) TestLoad() {
-	expectResource(test.load(uuid.NewV4()), test.assertNotFound())
+	expectResource(test.load(uuid.Must(uuid.NewV4())), test.assertNotFound())
 	res, _ := expectResource(test.create(testResourceID, testPolicyID, testPermissionID), test.requireOk)
 
 	res2, _ := expectResource(test.load(res.ID), test.requireOk)
@@ -60,7 +60,7 @@ func (test *resourceRepoBBTest) TestExistsSpaceResource() {
 
 	t.Run("space resource exists", func(t *testing.T) {
 		// given
-		expectResource(test.load(uuid.NewV4()), test.assertNotFound())
+		expectResource(test.load(uuid.Must(uuid.NewV4())), test.assertNotFound())
 		res, _ := expectResource(test.create(testResourceID, testPolicyID, testPermissionID), test.requireOk)
 
 		err := test.repo.CheckExists(context.Background(), res.ID.String())
@@ -68,7 +68,7 @@ func (test *resourceRepoBBTest) TestExistsSpaceResource() {
 	})
 
 	t.Run("space resource doesn't exist", func(t *testing.T) {
-		err := test.repo.CheckExists(context.Background(), uuid.NewV4().String())
+		err := test.repo.CheckExists(context.Background(), uuid.Must(uuid.NewV4()).String())
 
 		require.IsType(t, errors.NotFoundError{}, err)
 	})
@@ -77,9 +77,9 @@ func (test *resourceRepoBBTest) TestExistsSpaceResource() {
 func (test *resourceRepoBBTest) TestSaveOk() {
 	res, _ := expectResource(test.create(testResourceID, testPolicyID, testPermissionID), test.requireOk)
 
-	newResourceID := uuid.NewV4().String()
-	newPermissionID := uuid.NewV4().String()
-	newPolicyID := uuid.NewV4().String()
+	newResourceID := uuid.Must(uuid.NewV4()).String()
+	newPermissionID := uuid.Must(uuid.NewV4()).String()
+	newPolicyID := uuid.Must(uuid.NewV4()).String()
 	res.PermissionID = newPermissionID
 	res.PolicyID = newPolicyID
 	res.ResourceID = newResourceID
@@ -91,7 +91,7 @@ func (test *resourceRepoBBTest) TestSaveOk() {
 
 func (test *resourceRepoBBTest) TestSaveNew() {
 	p := space.Resource{
-		ID:           uuid.NewV4(),
+		ID:           uuid.Must(uuid.NewV4()),
 		ResourceID:   testResourceID,
 		PolicyID:     testPolicyID,
 		PermissionID: testPermissionID,
@@ -105,12 +105,12 @@ func (test *resourceRepoBBTest) TestDelete() {
 	expectResource(test.load(res.ID), test.requireOk)
 	expectResource(test.delete(res.ID), func(p *space.Resource, err error) { require.Nil(test.T(), err) })
 	expectResource(test.load(res.ID), test.assertNotFound())
-	expectResource(test.delete(uuid.NewV4()), test.assertNotFound())
+	expectResource(test.delete(uuid.Must(uuid.NewV4())), test.assertNotFound())
 	expectResource(test.delete(uuid.Nil), test.assertNotFound())
 }
 
 func (test *resourceRepoBBTest) TestLoadBySpace() {
-	expectResource(test.load(uuid.NewV4()), test.assertNotFound())
+	expectResource(test.load(uuid.Must(uuid.NewV4())), test.assertNotFound())
 	res, _ := expectResource(test.create(testResourceID, testPolicyID, testPermissionID), test.requireOk)
 
 	res2, _ := expectResource(test.loadBySpace(res.SpaceID), test.requireOk)
@@ -120,7 +120,7 @@ func (test *resourceRepoBBTest) TestLoadBySpace() {
 func (test *resourceRepoBBTest) TestLoadByDifferentSpaceFails() {
 	test.create(testResourceID, testPolicyID, testPermissionID)
 
-	_, err := expectResource(test.loadBySpace(uuid.NewV4()), test.requireErrorType(errors.NotFoundError{}))
+	_, err := expectResource(test.loadBySpace(uuid.Must(uuid.NewV4())), test.requireErrorType(errors.NotFoundError{}))
 	assert.NotNil(test.T(), err)
 }
 
@@ -160,7 +160,7 @@ func (test *resourceRepoBBTest) create(resourceID string, policyID string, permi
 		ResourceID:   resourceID,
 		PolicyID:     policyID,
 		PermissionID: permissionID,
-		SpaceID:      uuid.NewV4(),
+		SpaceID:      uuid.Must(uuid.NewV4()),
 	}
 	return func() (*space.Resource, error) {
 		r, err := test.repo.Create(context.Background(), &newResource)

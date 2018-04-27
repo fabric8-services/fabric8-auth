@@ -63,7 +63,7 @@ func (s *BenchDbOperations) SetupBenchmark() {
 	s.appDB = gormapplication.NewGormDB(s.DB)
 
 	s.identity = &account.Identity{
-		ID:           uuid.NewV4(),
+		ID:           uuid.Must(uuid.NewV4()),
 		Username:     "BenchmarkTestIdentity",
 		ProviderType: account.KeycloakIDP}
 

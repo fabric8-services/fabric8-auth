@@ -26,7 +26,7 @@ func (s *TestOrganizationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
-		"OrganizationCreatorUser-"+uuid.NewV4().String(),
+		"OrganizationCreatorUser-"+uuid.Must(uuid.NewV4()).String(),
 		"TestOrganization")
 	require.Nil(s.T(), err)
 }

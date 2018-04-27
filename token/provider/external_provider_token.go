@@ -100,7 +100,7 @@ func (m *GormExternalTokenRepository) CheckExists(ctx context.Context, id string
 func (m *GormExternalTokenRepository) Create(ctx context.Context, model *ExternalToken) error {
 	defer goa.MeasureSince([]string{"goa", "db", "ExternalToken", "create"}, time.Now())
 	if model.ID == uuid.Nil {
-		model.ID = uuid.NewV4()
+		model.ID = uuid.Must(uuid.NewV4())
 	}
 	err := m.db.Create(model).Error
 	if err != nil {

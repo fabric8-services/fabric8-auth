@@ -121,7 +121,7 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	if err != nil {
 		return "", err
 	}
-	state := uuid.NewV4().String()
+	state := uuid.Must(uuid.NewV4()).String()
 	err = oauth.SaveReferrer(ctx, service.app, state, redirectURL, nil, service.config.GetValidRedirectURLs())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

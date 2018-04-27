@@ -35,20 +35,20 @@ func (s *TestRolesRest) TestListRolesByResourceTypeOK() {
 
 	var createdRoleScopes []role.RoleScope
 
-	newResourceTypeName := uuid.NewV4().String()
+	newResourceTypeName := uuid.Must(uuid.NewV4()).String()
 	testResourceTypeRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
 	require.NoError(s.T(), err)
 
 	// create 10 roles for the above resource type
 	for i := 0; i < 10; i++ {
-		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testResourceTypeRef, uuid.NewV4().String())
+		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *testResourceTypeRef, uuid.Must(uuid.NewV4()).String())
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), role)
 
 		// associate 10 different scopes for each role.
 		for j := 0; j < 10; j++ {
 
-			scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *testResourceTypeRef, uuid.NewV4().String())
+			scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *testResourceTypeRef, uuid.Must(uuid.NewV4()).String())
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), scope)
 
@@ -60,17 +60,17 @@ func (s *TestRolesRest) TestListRolesByResourceTypeOK() {
 		}
 	}
 
-	someOtherResourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	someOtherResourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 
 	// Add some noise to the data, and ensure non of these are returned.
 	for i := 0; i < 3; i++ {
-		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *someOtherResourceType, uuid.NewV4().String())
+		role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *someOtherResourceType, uuid.Must(uuid.NewV4()).String())
 
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), role)
 
-		scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *someOtherResourceType, uuid.NewV4().String())
+		scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *someOtherResourceType, uuid.Must(uuid.NewV4()).String())
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), scope)
 
@@ -97,7 +97,7 @@ func (s *TestRolesRest) TestListRolesByResourceTypeBadRequest() {
 
 func (s *TestRolesRest) TestListRolesByResourceTypeNotFound() {
 	svc, ctrl := s.SecuredRolesControllerWithIdentity(testsupport.TestIdentity)
-	unknownResourceType := uuid.NewV4().String()
+	unknownResourceType := uuid.Must(uuid.NewV4()).String()
 	test.ListRolesNotFound(s.T(), s.Ctx, svc, ctrl, &unknownResourceType)
 }
 

@@ -70,7 +70,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 	t.Run("resource doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		// Check not existing
-		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.Ctx, uuid.Must(uuid.NewV4()).String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
 	})
@@ -91,11 +91,11 @@ func (s *resourceBlackBoxTest) TestCannotCreateDuplicateOrganizationNames() {
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, authorization.IdentityResourceTypeOrganization)
 	require.NoError(s.T(), err, "Could not find organization resource type")
 
-	orgName := "Acme Corporation" + uuid.NewV4().String()
+	orgName := "Acme Corporation" + uuid.Must(uuid.NewV4()).String()
 
 	// Create a new organization resource
 	res := &resource.Resource{
-		ResourceID:       uuid.NewV4().String(),
+		ResourceID:       uuid.Must(uuid.NewV4()).String(),
 		ParentResourceID: nil,
 		Name:             orgName,
 		ResourceType:     *resourceType,
@@ -107,7 +107,7 @@ func (s *resourceBlackBoxTest) TestCannotCreateDuplicateOrganizationNames() {
 
 	// Now try to create another organization resource with the same name
 	res = &resource.Resource{
-		ResourceID:       uuid.NewV4().String(),
+		ResourceID:       uuid.Must(uuid.NewV4()).String(),
 		ParentResourceID: nil,
 		Name:             orgName,
 		ResourceType:     *resourceType,
@@ -124,7 +124,7 @@ func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
 	require.Nil(s.T(), err, "Could not find resource type")
 
 	resource := &resource.Resource{
-		ResourceID:       uuid.NewV4().String(),
+		ResourceID:       uuid.Must(uuid.NewV4()).String(),
 		ParentResourceID: nil,
 		ResourceType:     *resourceType,
 		ResourceTypeID:   resourceType.ResourceTypeID,

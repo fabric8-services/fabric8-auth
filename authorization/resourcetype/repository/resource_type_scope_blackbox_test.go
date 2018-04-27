@@ -30,11 +30,11 @@ func (s *resourceTypeScopeBlackBoxTest) SetupTest() {
 }
 
 func (s *resourceTypeScopeBlackBoxTest) TestLookupByResourceTypeAndScope() {
-	rtRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	rtRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rtRef)
 
-	rts, err := testsupport.CreateTestScope(s.Ctx, s.DB, *rtRef, uuid.NewV4().String())
+	rts, err := testsupport.CreateTestScope(s.Ctx, s.DB, *rtRef, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rts)
 

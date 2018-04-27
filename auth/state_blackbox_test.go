@@ -30,13 +30,13 @@ func (s *stateBlackBoxTest) SetupTest() {
 func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	// given
 	state := &auth.OauthStateReference{
-		State:    uuid.NewV4().String(),
+		State:    uuid.Must(uuid.NewV4()).String(),
 		Referrer: "domain.org",
 	}
 
 	responseMode := "fragment"
 	state2 := &auth.OauthStateReference{
-		State:        uuid.NewV4().String(),
+		State:        uuid.Must(uuid.NewV4()).String(),
 		Referrer:     "anotherdomain.com",
 		ResponseMode: &responseMode,
 	}

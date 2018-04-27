@@ -389,7 +389,7 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestDat
 	claims := token.Claims.(jwt.MapClaims)
 	claims["service_accountname"] = saName
 	claims["sub"] = saID
-	claims["jti"] = uuid.NewV4().String()
+	claims["jti"] = uuid.Must(uuid.NewV4()).String()
 	claims["iat"] = time.Now().Unix()
 	claims["iss"] = rest.AbsoluteURL(req, "", nil)
 	claims["scopes"] = []string{"uma_protection"}
@@ -504,7 +504,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	claims["jti"] = uuid.NewV4().String()
+	claims["jti"] = uuid.Must(uuid.NewV4()).String()
 	claims["exp"] = kcClaims.ExpiresAt
 	claims["nbf"] = kcClaims.NotBefore
 	claims["iat"] = kcClaims.IssuedAt
@@ -576,7 +576,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	claims["jti"] = uuid.NewV4().String()
+	claims["jti"] = uuid.Must(uuid.NewV4()).String()
 	iat := time.Now().Unix()
 	claims["exp"] = iat + mgm.config.GetAccessTokenExpiresIn()
 	claims["nbf"] = 0
@@ -622,7 +622,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 		typ = "Offline"
 	}
 	claims := token.Claims.(jwt.MapClaims)
-	claims["jti"] = uuid.NewV4().String()
+	claims["jti"] = uuid.Must(uuid.NewV4()).String()
 	claims["exp"] = kcClaims.ExpiresAt
 	claims["nbf"] = kcClaims.NotBefore
 	claims["iat"] = kcClaims.IssuedAt
@@ -660,7 +660,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-	claims["jti"] = uuid.NewV4().String()
+	claims["jti"] = uuid.Must(uuid.NewV4()).String()
 	iat := time.Now().Unix()
 	var exp int64 // Offline tokens do not expire
 	typ := "Offline"

@@ -80,13 +80,13 @@ func (s *ProfileUserBlackBoxTest) TestPATGenerated() {
 func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 	// UPDATE the user profile
 
-	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
-	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
-	testEmail := "updatedEmail" + uuid.NewV4().String() + "@email.com"
-	testBio := "updatedBioNew" + uuid.NewV4().String()
-	testURL := "updatedURLNew" + uuid.NewV4().String()
-	testImageURL := "updatedBio" + uuid.NewV4().String()
-	testUserName := "sbosetestusercreate" + uuid.NewV4().String()
+	testFirstName := "updatedFirstNameAgainNew" + uuid.Must(uuid.NewV4()).String()
+	testLastName := "updatedLastNameNew" + uuid.Must(uuid.NewV4()).String()
+	testEmail := "updatedEmail" + uuid.Must(uuid.NewV4()).String() + "@email.com"
+	testBio := "updatedBioNew" + uuid.Must(uuid.NewV4()).String()
+	testURL := "updatedURLNew" + uuid.Must(uuid.NewV4()).String()
+	testImageURL := "updatedBio" + uuid.Must(uuid.NewV4()).String()
+	testUserName := "sbosetestusercreate" + uuid.Must(uuid.NewV4()).String()
 	testEnabled := true
 	testEmailVerified := true
 
@@ -135,13 +135,13 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
 	// UPDATE the user profile
 
-	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
-	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
-	testEmail := "updatedEmail" + uuid.NewV4().String() + "@email.com"
-	testBio := "updatedBioNew" + uuid.NewV4().String()
-	testURL := "updatedURLNew" + uuid.NewV4().String()
-	testImageURL := "updatedBio" + uuid.NewV4().String()
-	testUserName := "sbosetestusercreate" + uuid.NewV4().String()
+	testFirstName := "updatedFirstNameAgainNew" + uuid.Must(uuid.NewV4()).String()
+	testLastName := "updatedLastNameNew" + uuid.Must(uuid.NewV4()).String()
+	testEmail := "updatedEmail" + uuid.Must(uuid.NewV4()).String() + "@email.com"
+	testBio := "updatedBioNew" + uuid.Must(uuid.NewV4()).String()
+	testURL := "updatedURLNew" + uuid.Must(uuid.NewV4()).String()
+	testImageURL := "updatedBio" + uuid.Must(uuid.NewV4()).String()
+	testUserName := "sbosetestusercreate" + uuid.Must(uuid.NewV4()).String()
 	testEnabled := true
 	testEmailVerified := true
 
@@ -168,13 +168,13 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
 
 func (s *ProfileUserBlackBoxTest) TestCreateKeycloakUserWithDefaults() {
 
-	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
-	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
-	testEmail := "updatedEmail" + uuid.NewV4().String() + "@email.com"
-	testBio := "updatedBioNew" + uuid.NewV4().String()
-	testURL := "updatedURLNew" + uuid.NewV4().String()
-	testImageURL := "updatedBio" + uuid.NewV4().String()
-	testUserName := "sev1testsbosetestusercreate" + uuid.NewV4().String()
+	testFirstName := "updatedFirstNameAgainNew" + uuid.Must(uuid.NewV4()).String()
+	testLastName := "updatedLastNameNew" + uuid.Must(uuid.NewV4()).String()
+	testEmail := "updatedEmail" + uuid.Must(uuid.NewV4()).String() + "@email.com"
+	testBio := "updatedBioNew" + uuid.Must(uuid.NewV4()).String()
+	testURL := "updatedURLNew" + uuid.Must(uuid.NewV4()).String()
+	testImageURL := "updatedBio" + uuid.Must(uuid.NewV4()).String()
+	testUserName := "sev1testsbosetestusercreate" + uuid.Must(uuid.NewV4()).String()
 
 	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
 		login.ImageURLAttributeName: []string{testImageURL},
@@ -197,14 +197,14 @@ func (s *ProfileUserBlackBoxTest) TestCreateKeycloakUserWithDefaults() {
 func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
 	// UPDATE the user profile
 
-	emailToBeUpdatedFor409 := "unitestupdatedmail" + uuid.NewV4().String() + "@email.com"
-	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
-	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
+	emailToBeUpdatedFor409 := "unitestupdatedmail" + uuid.Must(uuid.NewV4()).String() + "@email.com"
+	testFirstName := "updatedFirstNameAgainNew" + uuid.Must(uuid.NewV4()).String()
+	testLastName := "updatedLastNameNew" + uuid.Must(uuid.NewV4()).String()
 	testEmail := emailToBeUpdatedFor409
-	testBio := "updatedBioNew" + uuid.NewV4().String()
-	testURL := "updatedURLNew" + uuid.NewV4().String()
-	testImageURL := "updatedBio" + uuid.NewV4().String()
-	testUserName := "unittestsbosetestusercreate" + uuid.NewV4().String()
+	testBio := "updatedBioNew" + uuid.Must(uuid.NewV4()).String()
+	testURL := "updatedURLNew" + uuid.Must(uuid.NewV4()).String()
+	testImageURL := "updatedBio" + uuid.Must(uuid.NewV4()).String()
+	testUserName := "unittestsbosetestusercreate" + uuid.Must(uuid.NewV4()).String()
 	testEnabled := true
 	testEmailVerified := true
 
@@ -228,8 +228,8 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
 
 	// Create second user
 
-	*(testKeycloakUserData).Email = "unittestupdatedemail" + uuid.NewV4().String() + "@email.com"
-	*(testKeycloakUserData).Username = "unitestupdatedusername" + uuid.NewV4().String() + "@email.com"
+	*(testKeycloakUserData).Email = "unittestupdatedemail" + uuid.Must(uuid.NewV4()).String() + "@email.com"
+	*(testKeycloakUserData).Username = "unitestupdatedusername" + uuid.Must(uuid.NewV4()).String() + "@email.com"
 
 	s.createUser(&testKeycloakUserData)
 

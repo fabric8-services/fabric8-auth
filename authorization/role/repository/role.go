@@ -110,7 +110,7 @@ func (m *GormRoleRepository) Load(ctx context.Context, id uuid.UUID) (*Role, err
 func (m *GormRoleRepository) Create(ctx context.Context, u *Role) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "create"}, time.Now())
 	if u.RoleID == uuid.Nil {
-		u.RoleID = uuid.NewV4()
+		u.RoleID = uuid.Must(uuid.NewV4())
 	}
 	err := m.db.Create(u).Error
 	if err != nil {

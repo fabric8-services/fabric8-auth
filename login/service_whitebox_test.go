@@ -230,7 +230,7 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 }
 
 func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
-	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
+	url := "https://someurl/pathinkeycloakurl/" + uuid.Must(uuid.NewV4()).String()
 	return &url, true, nil
 }
 

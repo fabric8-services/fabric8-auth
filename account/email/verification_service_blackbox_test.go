@@ -33,7 +33,7 @@ func (s *verificationServiceBlackboxTest) SetupTest() {
 }
 
 func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {
-	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
+	identity, err := test.CreateTestIdentity(s.DB, uuid.Must(uuid.NewV4()).String(), "kc")
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
@@ -52,11 +52,11 @@ func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {
 }
 
 func (s *verificationServiceBlackboxTest) TestVerifyCodeOK() {
-	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
+	identity, err := test.CreateTestIdentity(s.DB, uuid.Must(uuid.NewV4()).String(), "kc")
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
-	generatedCode := uuid.NewV4().String()
+	generatedCode := uuid.Must(uuid.NewV4()).String()
 	newVerificationCode := account.VerificationCode{
 		User: identity.User,
 		Code: generatedCode,
@@ -74,11 +74,11 @@ func (s *verificationServiceBlackboxTest) TestVerifyCodeOK() {
 }
 
 func (s *verificationServiceBlackboxTest) TestVerifyCodeFails() {
-	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
+	identity, err := test.CreateTestIdentity(s.DB, uuid.Must(uuid.NewV4()).String(), "kc")
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
-	generatedCode := uuid.NewV4().String()
+	generatedCode := uuid.Must(uuid.NewV4()).String()
 	newVerificationCode := account.VerificationCode{
 		User: identity.User,
 		Code: generatedCode,

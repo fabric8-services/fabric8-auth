@@ -80,7 +80,7 @@ func (s *TestAuthSuite) TestDeleteNonexistingResourceFails() {
 	authzEndpoint, err := configuration.GetKeycloakEndpointAuthzResourceset(r)
 	require.Nil(s.T(), err)
 	pat := getProtectedAPITokenOK(s.T())
-	err = auth.DeleteResource(ctx, uuid.NewV4().String(), authzEndpoint, pat)
+	err = auth.DeleteResource(ctx, uuid.Must(uuid.NewV4()).String(), authzEndpoint, pat)
 	require.NotNil(s.T(), err)
 }
 
@@ -133,7 +133,7 @@ func (s *TestAuthSuite) TestCreateAndDeletePermissionOK() {
 	defer deletePolicy(s.T(), ctx, clientsEndpoint, clientId, policyID, pat)
 
 	permission := auth.KeycloakPermission{
-		Name:             "test-" + uuid.NewV4().String(),
+		Name:             "test-" + uuid.Must(uuid.NewV4()).String(),
 		Type:             auth.PermissionTypeResource,
 		Logic:            auth.PolicyLogicPossitive,
 		DecisionStrategy: auth.PolicyDecisionStrategyUnanimous,
@@ -161,10 +161,10 @@ func (s *TestAuthSuite) TestDeleteNonexistingPolicyAndPermissionFails() {
 	require.Nil(s.T(), err)
 	pat := getProtectedAPITokenOK(s.T())
 	clientId, _ := getClientIDAndEndpoint(s.T())
-	err = auth.DeletePolicy(ctx, clientsEndpoint, clientId, uuid.NewV4().String(), pat)
+	err = auth.DeletePolicy(ctx, clientsEndpoint, clientId, uuid.Must(uuid.NewV4()).String(), pat)
 	assert.NotNil(s.T(), err)
 
-	err = auth.DeletePermission(ctx, clientsEndpoint, clientId, uuid.NewV4().String(), pat)
+	err = auth.DeletePermission(ctx, clientsEndpoint, clientId, uuid.Must(uuid.NewV4()).String(), pat)
 	assert.NotNil(s.T(), err)
 }
 
@@ -185,7 +185,7 @@ func (s *TestAuthSuite) TestGetEntitlement() {
 	defer deletePolicy(s.T(), ctx, clientsEndpoint, clientId, policyID, pat)
 
 	permission := auth.KeycloakPermission{
-		Name:             "test-" + uuid.NewV4().String(),
+		Name:             "test-" + uuid.Must(uuid.NewV4()).String(),
 		Type:             auth.PermissionTypeResource,
 		Logic:            auth.PolicyLogicPossitive,
 		DecisionStrategy: auth.PolicyDecisionStrategyUnanimous,
@@ -259,14 +259,14 @@ func (s *TestAuthSuite) TestReadTokenOK() {
 
 func (s *TestAuthSuite) TestUpdateUserToPolicyOK() {
 	policy := auth.KeycloakPolicy{
-		Name:             "test-" + uuid.NewV4().String(),
+		Name:             "test-" + uuid.Must(uuid.NewV4()).String(),
 		Type:             auth.PolicyTypeUser,
 		Logic:            auth.PolicyLogicPossitive,
 		DecisionStrategy: auth.PolicyDecisionStrategyUnanimous,
 	}
-	userID1 := uuid.NewV4().String()
-	userID2 := uuid.NewV4().String()
-	userID3 := uuid.NewV4().String()
+	userID1 := uuid.Must(uuid.NewV4()).String()
+	userID2 := uuid.Must(uuid.NewV4()).String()
+	userID3 := uuid.Must(uuid.NewV4()).String()
 	assert.True(s.T(), policy.AddUserToPolicy(userID1))
 	//"users":"[\"<ID>\",\"<ID>\"]"
 	assert.Equal(s.T(), fmt.Sprintf("[\"%s\"]", userID1), policy.Config.UserIDs)
@@ -276,7 +276,7 @@ func (s *TestAuthSuite) TestUpdateUserToPolicyOK() {
 	assert.Equal(s.T(), fmt.Sprintf("[\"%s\",\"%s\"]", userID1, userID2), policy.Config.UserIDs)
 	assert.True(s.T(), policy.AddUserToPolicy(userID3))
 	assert.Equal(s.T(), fmt.Sprintf("[\"%s\",\"%s\",\"%s\"]", userID1, userID2, userID3), policy.Config.UserIDs)
-	assert.False(s.T(), policy.RemoveUserFromPolicy(uuid.NewV4().String()))
+	assert.False(s.T(), policy.RemoveUserFromPolicy(uuid.Must(uuid.NewV4()).String()))
 	assert.Equal(s.T(), fmt.Sprintf("[\"%s\",\"%s\",\"%s\"]", userID1, userID2, userID3), policy.Config.UserIDs)
 	assert.True(s.T(), policy.RemoveUserFromPolicy(userID2))
 	assert.Equal(s.T(), fmt.Sprintf("[\"%s\",\"%s\"]", userID1, userID3), policy.Config.UserIDs)
@@ -357,7 +357,7 @@ func createResource(t *testing.T, ctx context.Context, pat string) (string, stri
 	}
 	uri := "testResourceURI"
 	kcResource := auth.KeycloakResource{
-		Name:   "test-" + uuid.NewV4().String(),
+		Name:   "test-" + uuid.Must(uuid.NewV4()).String(),
 		Type:   "testResource",
 		URI:    &uri,
 		Scopes: &scopes,
@@ -375,7 +375,7 @@ func createPolicy(t *testing.T, ctx context.Context, pat string) (string, auth.K
 	firstTestUserID := getUserID(t, configuration.GetKeycloakTestUserName(), configuration.GetKeycloakTestUserSecret())
 	secondTestUserID := getUserID(t, configuration.GetKeycloakTestUser2Name(), configuration.GetKeycloakTestUser2Secret())
 	policy := auth.KeycloakPolicy{
-		Name:             "test-" + uuid.NewV4().String(),
+		Name:             "test-" + uuid.Must(uuid.NewV4()).String(),
 		Type:             auth.PolicyTypeUser,
 		Logic:            auth.PolicyLogicPossitive,
 		DecisionStrategy: auth.PolicyDecisionStrategyUnanimous,

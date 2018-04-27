@@ -39,7 +39,7 @@ func TestRunResourceREST(t *testing.T) {
 func (rest *TestResourceREST) SecuredController(identity account.Identity) (*goa.Service, *ResourceController) {
 	var err error
 	rest.testIdentity, err = testsupport.CreateTestIdentity(rest.DB,
-		"TestRegisterResourceCreated-"+uuid.NewV4().String(),
+		"TestRegisterResourceCreated-"+uuid.Must(uuid.NewV4()).String(),
 		"TestRegisterResourceCreated")
 	require.Nil(rest.T(), err)
 
@@ -85,7 +85,7 @@ func (rest *TestResourceREST) TestFailRegisterResourceInvalidParentResource() {
 	resourceScopes := []string{}
 
 	resourceOwnerID := rest.testIdentity.ID
-	parentResourceID := uuid.NewV4().String()
+	parentResourceID := uuid.Must(uuid.NewV4()).String()
 
 	payload := &app.RegisterResourcePayload{
 		Name:             "My new resource",
@@ -120,7 +120,7 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 }
 
 func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
-	resourceID := uuid.NewV4().String()
+	resourceID := uuid.Must(uuid.NewV4()).String()
 	resourceScopes := []string{}
 	resourceOwnerID := rest.testIdentity.ID
 
@@ -145,7 +145,7 @@ func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
 }
 
 func (rest *TestResourceREST) TestRegisterResourceWithInvalidResourceType() {
-	resourceID := uuid.NewV4().String()
+	resourceID := uuid.Must(uuid.NewV4()).String()
 	resourceScopes := []string{}
 	resourceOwnerID := rest.testIdentity.ID
 

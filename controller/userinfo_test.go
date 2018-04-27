@@ -47,7 +47,7 @@ func (rest *TestUserInfoREST) UnsecuredController() (*goa.Service, *UserinfoCont
 }
 
 func (rest *TestUserInfoREST) TestShowUserInfoOK() {
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestShowUserInfoOK"+uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestShowUserInfoOK"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	svc, ctrl := rest.SecuredController(identity)
@@ -81,14 +81,14 @@ func (rest *TestUserInfoREST) TestShowUserInfoFailsWithInvalidToken() {
 	require.Equal(rest.T(), err.Errors[0].Detail, fmt.Sprintf("bad token"))
 
 	// We are adding subject, but subject is not matching any of the identities that we have
-	sub := uuid.NewV4().String()
+	sub := uuid.Must(uuid.NewV4()).String()
 	jwtToken.Claims.(jwtgo.MapClaims)["sub"] = sub
 	_, err = test.ShowUserinfoUnauthorized(rest.T(), ctx, svc, ctrl)
 	require.Equal(rest.T(), err.Errors[0].Detail, fmt.Sprintf("auth token contains id %s of unknown Identity\n", sub))
 }
 
 func (rest *TestUserInfoREST) TestShowUserinfoDeprovisionedUserFails() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestShowUserinfoDeprovisionedUserFails"+uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestShowUserinfoDeprovisionedUserFails"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(rest.T(), err)
 
 	svc, userCtrl := rest.SecuredController(identity)
@@ -100,8 +100,8 @@ func (rest *TestUserInfoREST) TestShowUserinfoDeprovisionedUserFails() {
 
 func (rest *TestUserInfoREST) checkPrivateEmailVisible(emailPrivate bool) {
 	testUser := account.User{
-		ID:           uuid.NewV4(),
-		Email:        uuid.NewV4().String(),
+		ID:           uuid.Must(uuid.NewV4()),
+		Email:        uuid.Must(uuid.NewV4()).String(),
 		FullName:     "Test Developer",
 		Cluster:      "Test Cluster",
 		EmailPrivate: emailPrivate,

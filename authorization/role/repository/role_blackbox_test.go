@@ -40,11 +40,11 @@ func (s *roleBlackBoxTest) SetupTest() {
 
 func (s *roleBlackBoxTest) TestOKToDelete() {
 	// create 2 roles, where the first one would be deleted.
-	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role)
 
-	_, err = testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	_, err = testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 
 	err = s.repo.Delete(s.Ctx, role.RoleID)
@@ -63,7 +63,7 @@ func (s *roleBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *roleBlackBoxTest) TestOKToLoad() {
-	r, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	r, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), r)
 
@@ -76,7 +76,7 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 
 	t.Run("role exists", func(t *testing.T) {
 		//t.Parallel()
-		role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+		role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), role)
 		// when
@@ -88,14 +88,14 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 	t.Run("role doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		// Check not existing
-		_, err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
+		_, err := s.repo.CheckExists(s.Ctx, uuid.Must(uuid.NewV4()).String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
 	})
 }
 
 func (s *roleBlackBoxTest) TestOKToSave() {
-	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role)
 
@@ -109,7 +109,7 @@ func (s *roleBlackBoxTest) TestOKToSave() {
 }
 
 func (s *roleBlackBoxTest) TestOKToAddScopes() {
-	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role)
 
@@ -129,7 +129,7 @@ func (s *roleBlackBoxTest) TestOKToAddScopes() {
 }
 
 func (s *roleBlackBoxTest) TestSaveFailsForDeletedRole() {
-	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role)
 
@@ -142,11 +142,11 @@ func (s *roleBlackBoxTest) TestSaveFailsForDeletedRole() {
 }
 
 func (s *roleBlackBoxTest) TestSaveConflictError() {
-	role1, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role1, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role1)
 
-	role2, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role2, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role2)
 
@@ -157,7 +157,7 @@ func (s *roleBlackBoxTest) TestSaveConflictError() {
 }
 
 func (s *roleBlackBoxTest) TestCreateConflictError() {
-	role1, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role1, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role1)
 

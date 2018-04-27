@@ -45,7 +45,7 @@ func (rest *TestTokenStorageREST) SetupTest() {
 	rest.externalTokenRepository = provider.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
 	rest.providerConfigFactory = link.NewOauthProviderFactory(rest.Configuration, rest.Application)
-	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.NewV4().String(), Config: rest.Configuration, App: rest.Application}
+	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.Must(uuid.NewV4()).String(), Config: rest.Configuration, App: rest.Application}
 }
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
@@ -180,7 +180,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenUnauthorized() {
 }
 
 func (rest *TestTokenStorageREST) checkRetrieveExternalTokenUnauthorized(for_ string, providerName string) {
-	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.Nil(rest.T(), err)
 
 	service, controller := rest.SecuredControllerWithIdentity(identity)
@@ -219,7 +219,7 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenUnauthorized(for_ st
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenIdentityNotPresent() {
 	// using an Identity which does not exist in the database.
 	identity := account.Identity{
-		ID:       uuid.NewV4(),
+		ID:       uuid.Must(uuid.NewV4()),
 		Username: "TestDeveloper",
 	}
 
@@ -237,7 +237,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
 }
 
 func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess() (account.Identity, provider.ExternalToken) {
-	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.Nil(rest.T(), err)
 
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
@@ -277,7 +277,7 @@ func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess() (ac
 }
 
 func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (account.Identity, provider.ExternalToken) {
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
@@ -317,7 +317,7 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (accou
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenForDeprovisionedUserUnauthorized() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestRetrieveExternalTokenForDeprovisionedUserUnauthorized"+uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestRetrieveExternalTokenForDeprovisionedUserUnauthorized"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
@@ -374,7 +374,7 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenInvalidOnForcePullIn
 // When the ForcePull option is passed, we determine that the token is invalid.
 
 func (rest *TestTokenStorageREST) TestRetrieveExternalTokenValidOnForcePullInternalError() {
-	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.Nil(rest.T(), err)
 
 	rest.checkRetrieveExternalTokenValidOnForcePullInternalError(identity, "https://github.com/a/b")
@@ -464,7 +464,7 @@ func (rest *TestTokenStorageREST) TestStatusExternalTokenUnauthorized() {
 }
 
 func (rest *TestTokenStorageREST) checkStatusExternalTokenUnauthorized(for_ string, providerName string) {
-	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.Nil(rest.T(), err)
 
 	service, controller := rest.SecuredControllerWithIdentity(identity)
@@ -525,7 +525,7 @@ func (rest *TestTokenStorageREST) checkStatusExternalTokenInvalidOnForcePullInte
 // This test demonstrates that the token status works successfully without the ForcePull option
 // When the ForcePull option is passed, we determine that the token is valid.
 func (rest *TestTokenStorageREST) TestStatusExternalTokenValidOnForcePullInternalError() {
-	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.Nil(rest.T(), err)
 	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "https://github.com/a/b", "https://github.com")
 	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "github", "https://github.com")
@@ -595,7 +595,7 @@ func (rest *TestTokenStorageREST) deleteExternalTokenOK(forResource string) {
 }
 
 func (rest *TestTokenStorageREST) deleteExternalToken(forResource string, numberOfTokens int, scenario string) {
-	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.Nil(rest.T(), err)
 	service, controller := rest.SecuredControllerWithIdentity(identity)
 	r := &goa.RequestData{

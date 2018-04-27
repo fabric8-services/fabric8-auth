@@ -40,7 +40,7 @@ func NewEmailVerificationClient(app application.Application, notificationChannel
 // SendVerificationCode generates and sends out an email with verification code.
 func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req *goa.RequestData, identity account.Identity) (*account.VerificationCode, error) {
 
-	generatedCode := uuid.NewV4().String()
+	generatedCode := uuid.Must(uuid.NewV4()).String()
 	newVerificationCode := account.VerificationCode{
 		User: identity.User,
 		Code: generatedCode,

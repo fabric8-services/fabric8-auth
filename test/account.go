@@ -17,8 +17,8 @@ import (
 
 // TestUser only creates in memory obj for testing purposes
 var TestUser = account.User{
-	ID:       uuid.NewV4(),
-	Email:    "testdeveloper@testalm.io" + uuid.NewV4().String(),
+	ID:       uuid.Must(uuid.NewV4()),
+	Email:    "testdeveloper@testalm.io" + uuid.Must(uuid.NewV4()).String(),
 	FullName: "Test Developer",
 	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
@@ -27,24 +27,24 @@ var TestUser = account.User{
 // This TestUser2 can be used to verify that some entity created by TestUser
 // can be later updated or deleted (or not) by another user.
 var TestUser2 = account.User{
-	ID:       uuid.NewV4(),
-	Email:    "testdeveloper2@testalm.io" + uuid.NewV4().String(),
+	ID:       uuid.Must(uuid.NewV4()),
+	Email:    "testdeveloper2@testalm.io" + uuid.Must(uuid.NewV4()).String(),
 	FullName: "Test Developer 2",
 	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUser only creates in memory obj for testing purposes
 var TestUser3 = account.User{
-	ID:       uuid.NewV4(),
-	Email:    uuid.NewV4().String(),
+	ID:       uuid.Must(uuid.NewV4()),
+	Email:    uuid.Must(uuid.NewV4()).String(),
 	FullName: "Test Developer",
 	Cluster:  "https://api.starter-us-east-2.openshift.com",
 }
 
 // TestUserPrivate only creates in memory obj for testing purposes
 var TestUserPrivate = account.User{
-	ID:           uuid.NewV4(),
-	Email:        uuid.NewV4().String(),
+	ID:           uuid.Must(uuid.NewV4()),
+	Email:        uuid.Must(uuid.NewV4()).String(),
 	FullName:     "Test Developer",
 	Cluster:      "https://api.starter-us-east-2.openshift.com",
 	EmailPrivate: true,
@@ -52,41 +52,41 @@ var TestUserPrivate = account.User{
 
 // TestIdentity only creates in memory obj for testing purposes
 var TestIdentity = account.Identity{
-	ID:           uuid.NewV4(),
-	Username:     "TestDeveloper" + uuid.NewV4().String(),
+	ID:           uuid.Must(uuid.NewV4()),
+	Username:     "TestDeveloper" + uuid.Must(uuid.NewV4()).String(),
 	User:         TestUser,
 	ProviderType: account.KeycloakIDP,
 }
 
 // TestObserverIdentity only creates in memory obj for testing purposes
 var TestObserverIdentity = account.Identity{
-	ID:       uuid.NewV4(),
+	ID:       uuid.Must(uuid.NewV4()),
 	Username: "TestObserver",
 	User:     TestUser,
 }
 
 // TestIdentity2 only creates in memory obj for testing purposes
 var TestIdentity2 = account.Identity{
-	ID:           uuid.NewV4(),
-	Username:     "TestDeveloper2" + uuid.NewV4().String(),
+	ID:           uuid.Must(uuid.NewV4()),
+	Username:     "TestDeveloper2" + uuid.Must(uuid.NewV4()).String(),
 	User:         TestUser2,
 	ProviderType: account.KeycloakIDP,
 }
 
 var TestOnlineRegistrationAppIdentity = account.Identity{
-	ID:       uuid.NewV4(),
+	ID:       uuid.Must(uuid.NewV4()),
 	Username: "online-registration",
 	User:     TestUser,
 }
 
 var TestNotificationIdentity = account.Identity{
-	ID:       uuid.NewV4(),
+	ID:       uuid.Must(uuid.NewV4()),
 	Username: "fabric8-notification",
 	User:     TestUser,
 }
 
 var TestTenantIdentity = account.Identity{
-	ID:       uuid.NewV4(),
+	ID:       uuid.Must(uuid.NewV4()),
 	Username: "fabric8-tenant",
 	User:     TestUser,
 }
@@ -151,8 +151,8 @@ func CreateTestIdentity(db *gorm.DB, username, providerType string) (account.Ide
 // CreateTestIdentityAndUser creates an identity & user with the given `username` in the database. For testing purpose only.
 func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (account.Identity, error) {
 	testUser := account.User{
-		ID:       uuid.NewV4(),
-		Email:    uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Email:    uuid.Must(uuid.NewV4()).String(),
 		FullName: "Test Developer",
 		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
@@ -167,8 +167,8 @@ func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (acco
 
 func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (account.Identity, error) {
 	testUser := account.User{
-		ID:            uuid.NewV4(),
-		Email:         uuid.NewV4().String(),
+		ID:            uuid.Must(uuid.NewV4()),
+		Email:         uuid.Must(uuid.NewV4()).String(),
 		FullName:      "Test Developer " + username,
 		Cluster:       "https://api.starter-us-east-2a.openshift.com",
 		Deprovisioned: true,
@@ -207,7 +207,7 @@ func CreateTestUser(db *gorm.DB, user *account.User) (account.Identity, error) {
 	userRepository := account.NewUserRepository(db)
 	identityRepository := account.NewIdentityRepository(db)
 	identity := account.Identity{
-		Username:     uuid.NewV4().String(),
+		Username:     uuid.Must(uuid.NewV4()).String(),
 		ProviderType: account.KeycloakIDP,
 	}
 	err := models.Transactional(db, func(tx *gorm.DB) error {

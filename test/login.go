@@ -109,7 +109,7 @@ func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, id
 		Request: &http.Request{Host: "example.com"},
 	}
 	if ident.ID == uuid.Nil {
-		ident.ID = uuid.NewV4()
+		ident.ID = uuid.Must(uuid.NewV4())
 	}
 	token := tokenManager.GenerateUnsignedServiceAccountToken(r, ident.ID.String(), ident.Username)
 	return goajwt.WithJWT(ctx, token)

@@ -71,7 +71,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedNonUUID() {
 func (rest *TestUserREST) TestCurrentAuthorizedMissingIdentity() {
 	// given
 	jwtToken := token.New(token.SigningMethodRS256)
-	jwtToken.Claims.(token.MapClaims)["sub"] = uuid.NewV4().String()
+	jwtToken.Claims.(token.MapClaims)["sub"] = uuid.Must(uuid.NewV4()).String()
 	ctx := jwt.WithJWT(context.Background(), jwtToken)
 	// when
 	svc, userCtrl := rest.UnsecuredController()
@@ -81,7 +81,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedMissingIdentity() {
 
 func (rest *TestUserREST) TestCurrentAuthorizedOK() {
 	// given
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	// when
@@ -93,7 +93,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedOK() {
 }
 
 func (rest *TestUserREST) TestShowDeprovisionedUserFails() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestShowDeprovisionedUserFails"+uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestShowDeprovisionedUserFails"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(rest.T(), err)
 
 	svc, userCtrl := rest.SecuredController(identity)
@@ -105,7 +105,7 @@ func (rest *TestUserREST) TestShowDeprovisionedUserFails() {
 
 func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfModifiedSinceHeader() {
 	// given
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	// when
@@ -119,7 +119,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfModifiedSinceHead
 
 func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfNoneMatchHeader() {
 	// given
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	// when
@@ -133,7 +133,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedOKUsingExpiredIfNoneMatchHeader()
 
 func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfModifiedSinceHeader() {
 	// given
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	// when
@@ -146,7 +146,7 @@ func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfModifiedSinceHe
 
 func (rest *TestUserREST) TestCurrentAuthorizedNotModifiedUsingIfNoneMatchHeader() {
 	// given
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestCurrentAuthorizedOK"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(rest.T(), err)
 
 	// when
@@ -167,8 +167,8 @@ func (rest *TestUserREST) TestPrivateEmailVisibleIfPrivate() {
 
 func (rest *TestUserREST) checkPrivateEmailVisible(emailPrivate bool) {
 	testUser := account.User{
-		ID:           uuid.NewV4(),
-		Email:        uuid.NewV4().String(),
+		ID:           uuid.Must(uuid.NewV4()),
+		Email:        uuid.Must(uuid.NewV4()).String(),
 		FullName:     "Test Developer",
 		Cluster:      "Test Cluster",
 		EmailPrivate: emailPrivate,

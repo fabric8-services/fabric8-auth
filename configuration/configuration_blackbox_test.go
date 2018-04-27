@@ -558,7 +558,7 @@ func generateEnvKey(yamlKey string) string {
 }
 
 func checkGetKeycloakEndpointSetByEnvVariableOK(t *testing.T, envName string, getEndpoint func(req *goa.RequestData) (string, error)) {
-	envValue := uuid.NewV4().String()
+	envValue := uuid.Must(uuid.NewV4()).String()
 	env := os.Getenv(envName)
 	defer func() {
 		os.Setenv(envName, env)

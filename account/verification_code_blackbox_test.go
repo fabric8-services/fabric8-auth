@@ -56,13 +56,13 @@ func (s *verificationCodeBlackboxTest) TestVerificationCodeOKToDelete() {
 
 func createAndLoadVerificationCode(s *verificationCodeBlackboxTest) *account.VerificationCode {
 
-	identity, err := test.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "kc")
+	identity, err := test.CreateTestIdentityAndUser(s.DB, uuid.Must(uuid.NewV4()).String(), "kc")
 
 	require.NoError(s.T(), err)
 
 	verificationCode := account.VerificationCode{
-		ID:     uuid.NewV4(),
-		Code:   uuid.NewV4().String(),
+		ID:     uuid.Must(uuid.NewV4()),
+		Code:   uuid.Must(uuid.NewV4()).String(),
 		UserID: identity.User.ID,
 		User:   identity.User,
 	}

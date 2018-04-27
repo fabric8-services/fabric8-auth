@@ -67,7 +67,7 @@ func (s *userBlackBoxTest) TestExistsUser() {
 	t.Run("user doesn't exist", func(t *testing.T) {
 		//t.Parallel()
 		// Check not existing
-		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.Ctx, uuid.Must(uuid.NewV4()).String())
 		// then
 		require.IsType(s.T(), errors.NotFoundError{}, err)
 	})
@@ -77,7 +77,7 @@ func (s *userBlackBoxTest) TestOKToSave() {
 	user := createAndLoadUser(s, false)
 
 	user.FullName = "newusernameTestUser"
-	user.Cluster = "NewCluster" + uuid.NewV4().String()
+	user.Cluster = "NewCluster" + uuid.Must(uuid.NewV4()).String()
 	err := s.repo.Save(s.Ctx, user)
 	require.Nil(s.T(), err, "Could not update user")
 
@@ -94,14 +94,14 @@ func (s *userBlackBoxTest) TestOKToSave() {
 func (s *userBlackBoxTest) TestCreateUserWithoutClusterFails() {
 	t := s.T()
 	user := &account.User{
-		ID:       uuid.NewV4(),
-		Email:    "noclustersomeuser@TestUser" + uuid.NewV4().String(),
-		FullName: "someuserTestUser" + uuid.NewV4().String(),
-		ImageURL: "someImageUrl" + uuid.NewV4().String(),
-		Bio:      "somebio" + uuid.NewV4().String(),
-		URL:      "someurl" + uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Email:    "noclustersomeuser@TestUser" + uuid.Must(uuid.NewV4()).String(),
+		FullName: "someuserTestUser" + uuid.Must(uuid.NewV4()).String(),
+		ImageURL: "someImageUrl" + uuid.Must(uuid.NewV4()).String(),
+		Bio:      "somebio" + uuid.Must(uuid.NewV4()).String(),
+		URL:      "someurl" + uuid.Must(uuid.NewV4()).String(),
 		ContextInformation: account.ContextInformation{
-			"space":        uuid.NewV4(),
+			"space":        uuid.Must(uuid.NewV4()),
 			"last_visited": "http://www.google.com",
 			"myid":         "71f343e3-2bfa-4ec6-86d4-79b91476acfc",
 		},
@@ -221,16 +221,16 @@ func (s *userBlackBoxTest) checkPrivateEmailFilter(privateEmails bool, expectedE
 
 func createAndLoadUser(s *userBlackBoxTest, emailPrivate bool) *account.User {
 	user := &account.User{
-		ID:           uuid.NewV4(),
-		Email:        "someuser@TestUser" + uuid.NewV4().String(),
+		ID:           uuid.Must(uuid.NewV4()),
+		Email:        "someuser@TestUser" + uuid.Must(uuid.NewV4()).String(),
 		EmailPrivate: emailPrivate,
-		FullName:     "someuserTestUser" + uuid.NewV4().String(),
-		ImageURL:     "someImageUrl" + uuid.NewV4().String(),
-		Bio:          "somebio" + uuid.NewV4().String(),
-		URL:          "someurl" + uuid.NewV4().String(),
-		Cluster:      "somecluster" + uuid.NewV4().String(),
+		FullName:     "someuserTestUser" + uuid.Must(uuid.NewV4()).String(),
+		ImageURL:     "someImageUrl" + uuid.Must(uuid.NewV4()).String(),
+		Bio:          "somebio" + uuid.Must(uuid.NewV4()).String(),
+		URL:          "someurl" + uuid.Must(uuid.NewV4()).String(),
+		Cluster:      "somecluster" + uuid.Must(uuid.NewV4()).String(),
 		ContextInformation: account.ContextInformation{
-			"space":        uuid.NewV4(),
+			"space":        uuid.Must(uuid.NewV4()),
 			"last_visited": "http://www.google.com",
 			"myid":         "71f343e3-2bfa-4ec6-86d4-79b91476acfc",
 		},
