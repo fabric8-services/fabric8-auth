@@ -117,11 +117,21 @@ func (s *TestWhiteboxSentry) TestInitialize() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), haltSentry)
 
+	identity := account.Identity{
+		ID:       uuid.NewV4(),
+		Username: uuid.NewV4().String(),
+	}
+	ctx := validToken(s.T(), identity)
+
 	c := Sentry()
 	require.NotNil(s.T(), c)
 	require.Equal(s.T(), sentryClient, c)
 
 	require.NotPanics(s.T(), func() {
-		c.CaptureError(context.Background(), errors.New("some error"))
+		c.CaptureError(ctx, errors.New("some error"))
+	})
+
+	require.NotPanics(s.T(), func() {
+		haltSentry()
 	})
 }
