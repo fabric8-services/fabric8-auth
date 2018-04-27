@@ -82,7 +82,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceNotFoun
 	require.NoError(t, err)
 	require.NotNil(t, identityRole)
 
-	identityRoles, err := s.repo.ListByResource(s.Ctx, uuid.NewV4().String())
+	identityRoles, err := s.repo.ListByResource(s.Ctx, uuid.Must(uuid.NewV4()).String())
 	require.NoError(t, err)
 	require.Equal(t, 0, len(identityRoles))
 }
@@ -91,14 +91,14 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
 
 	var createdRoleScopes []rolerepo.RoleScope
 
-	resourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	resourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 
-	role, err := testsupport.CreateTestRoleWithSpecifiedType(s.Ctx, s.DB, uuid.NewV4().String(), resourceType.Name)
+	role, err := testsupport.CreateTestRoleWithSpecifiedType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String(), resourceType.Name)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role)
 
-	scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *resourceType, uuid.NewV4().String())
+	scope, err := testsupport.CreateTestScope(s.Ctx, s.DB, *resourceType, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), scope)
 
@@ -123,11 +123,11 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
 func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() {
 
 	// create entities in the existing resource type
-	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), role)
 
-	scope, err := testsupport.CreateTestScopeWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
+	scope, err := testsupport.CreateTestScopeWithDefaultType(s.Ctx, s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), scope)
 
@@ -136,7 +136,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() 
 	require.NotNil(s.T(), rs)
 
 	// create another resource type
-	newResourceTypeName := uuid.NewV4().String()
+	newResourceTypeName := uuid.Must(uuid.NewV4()).String()
 	_, err = testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
 	require.NoError(s.T(), err)
 
@@ -192,7 +192,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 	require.NoError(t, err)
 	require.NotNil(t, identityRole)
 
-	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
+	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.Must(uuid.NewV4()).String(), uuid.Must(uuid.NewV4()).String())
 	require.NoError(t, err)
 	require.Equal(t, 0, len(identityRoles))
 }

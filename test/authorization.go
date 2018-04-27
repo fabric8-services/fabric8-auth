@@ -17,8 +17,8 @@ import (
 func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resource.Resource, roleRef role.Role) (*role.IdentityRole, error) {
 
 	assignedIdentity := &account.Identity{
-		ID:           uuid.NewV4(),
-		Username:     uuid.NewV4().String(),
+		ID:           uuid.Must(uuid.NewV4()),
+		Username:     uuid.Must(uuid.NewV4()).String(),
 		ProviderType: account.KeycloakIDP,
 	}
 	identityRepository := account.NewIdentityRepository(db)
@@ -29,7 +29,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 	}
 
 	identityRoleRef := role.IdentityRole{
-		IdentityRoleID: uuid.NewV4(),
+		IdentityRoleID: uuid.Must(uuid.NewV4()),
 		Identity:       *assignedIdentity,
 		IdentityID:     assignedIdentity.ID,
 		Resource:       resourceRef,
@@ -48,7 +48,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 
 func CreateTestIdentityRoleForIdentity(ctx context.Context, db *gorm.DB, identity account.Identity, resourceRef resource.Resource, roleRef role.Role) (*role.IdentityRole, error) {
 	identityRoleRef := role.IdentityRole{
-		IdentityRoleID: uuid.NewV4(),
+		IdentityRoleID: uuid.Must(uuid.NewV4()),
 		Identity:       identity,
 		IdentityID:     identity.ID,
 		Resource:       resourceRef,
@@ -102,7 +102,7 @@ func CreateTestResource(ctx context.Context, db *gorm.DB, resourceType resourcet
 		ResourceType:     resourceType,
 		ResourceTypeID:   resourceType.ResourceTypeID,
 		Name:             name,
-		ResourceID:       uuid.NewV4().String(),
+		ResourceID:       uuid.Must(uuid.NewV4()).String(),
 		ParentResourceID: parentResourceID,
 	}
 	resourceRepository := resource.NewResourceRepository(db)
@@ -142,9 +142,9 @@ func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name strin
 	}
 
 	rts := resourcetype.ResourceTypeScope{
-		ResourceTypeScopeID: uuid.NewV4(),
+		ResourceTypeScopeID: uuid.Must(uuid.NewV4()),
 		ResourceTypeID:      resourceType.ResourceTypeID,
-		Name:                uuid.NewV4().String(),
+		Name:                uuid.Must(uuid.NewV4()).String(),
 	}
 
 	resourceTypeScopeRepo := resourcetype.NewResourceTypeScopeRepository(db)
@@ -158,7 +158,7 @@ func CreateTestScopeWithDefaultType(ctx context.Context, db *gorm.DB, name strin
 func CreateTestScope(ctx context.Context, db *gorm.DB, resourceType resourcetype.ResourceType, name string) (*resourcetype.ResourceTypeScope, error) {
 
 	rts := resourcetype.ResourceTypeScope{
-		ResourceTypeScopeID: uuid.NewV4(),
+		ResourceTypeScopeID: uuid.Must(uuid.NewV4()),
 		ResourceTypeID:      resourceType.ResourceTypeID,
 		Name:                name,
 	}
@@ -204,7 +204,7 @@ func CreateTestResourceWithDefaultType(ctx context.Context, db *gorm.DB, name st
 		ResourceType:   *resourceType,
 		ResourceTypeID: resourceType.ResourceTypeID,
 		Name:           name,
-		ResourceID:     uuid.NewV4().String(),
+		ResourceID:     uuid.Must(uuid.NewV4()).String(),
 	}
 	roleRepository := resource.NewResourceRepository(db)
 	err = roleRepository.Create(ctx, &resourceRef)
@@ -253,12 +253,12 @@ func CreateRandomIdentityRole(ctx context.Context, db *gorm.DB) (*role.IdentityR
 		return nil, err
 	}
 
-	testResource, err := CreateTestResource(ctx, db, *resourceType, uuid.NewV4().String(), nil)
+	testResource, err := CreateTestResource(ctx, db, *resourceType, uuid.Must(uuid.NewV4()).String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	testRole, err := CreateTestRole(ctx, db, *resourceType, uuid.NewV4().String())
+	testRole, err := CreateTestRole(ctx, db, *resourceType, uuid.Must(uuid.NewV4()).String())
 	if err != nil {
 		return nil, err
 	}

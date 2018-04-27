@@ -205,15 +205,15 @@ func (s *TestTokenSuite) checkConvertToken(offlineToken bool) {
 func (s *TestTokenSuite) generateToken(offlineToken bool) (*oauth2.Token, account.Identity, context.Context) {
 	ctx := testtoken.ContextWithRequest(nil)
 	user := account.User{
-		ID:       uuid.NewV4(),
-		Email:    uuid.NewV4().String(),
-		FullName: uuid.NewV4().String(),
-		Cluster:  uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Email:    uuid.Must(uuid.NewV4()).String(),
+		FullName: uuid.Must(uuid.NewV4()).String(),
+		Cluster:  uuid.Must(uuid.NewV4()).String(),
 	}
 	identity := account.Identity{
-		ID:       uuid.NewV4(),
+		ID:       uuid.Must(uuid.NewV4()),
 		User:     user,
-		Username: uuid.NewV4().String(),
+		Username: uuid.Must(uuid.NewV4()).String(),
 	}
 	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, offlineToken)
 	require.NoError(s.T(), err)
@@ -223,7 +223,7 @@ func (s *TestTokenSuite) generateToken(offlineToken bool) (*oauth2.Token, accoun
 
 func (s *TestTokenSuite) TestValidOAuthAccessToken() {
 	identity := account.Identity{
-		ID:       uuid.NewV4(),
+		ID:       uuid.Must(uuid.NewV4()),
 		Username: "testuser",
 	}
 	generatedToken, err := testtoken.GenerateToken(identity.ID.String(), identity.Username)
@@ -284,7 +284,7 @@ func (s *TestTokenSuite) TestCheckClaimsOK() {
 		Email:    "somemail@domain.com",
 		Username: "testuser",
 	}
-	claims.Subject = uuid.NewV4().String()
+	claims.Subject = uuid.Must(uuid.NewV4()).String()
 
 	assert.Nil(s.T(), token.CheckClaims(claims))
 }
@@ -293,13 +293,13 @@ func (s *TestTokenSuite) TestCheckClaimsFails() {
 	claimsNoEmail := &token.TokenClaims{
 		Username: "testuser",
 	}
-	claimsNoEmail.Subject = uuid.NewV4().String()
+	claimsNoEmail.Subject = uuid.Must(uuid.NewV4()).String()
 	assert.NotNil(s.T(), token.CheckClaims(claimsNoEmail))
 
 	claimsNoUsername := &token.TokenClaims{
 		Email: "somemail@domain.com",
 	}
-	claimsNoUsername.Subject = uuid.NewV4().String()
+	claimsNoUsername.Subject = uuid.Must(uuid.NewV4()).String()
 	assert.NotNil(s.T(), token.CheckClaims(claimsNoUsername))
 
 	claimsNoSubject := &token.TokenClaims{
@@ -310,7 +310,7 @@ func (s *TestTokenSuite) TestCheckClaimsFails() {
 }
 
 func (s *TestTokenSuite) TestLocateTokenInContex() {
-	id := uuid.NewV4()
+	id := uuid.Must(uuid.NewV4())
 
 	tk := jwt.New(jwt.SigningMethodRS256)
 	tk.Claims.(jwt.MapClaims)["sub"] = id.String()

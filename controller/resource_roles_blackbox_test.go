@@ -85,12 +85,12 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesNotFound() {
 	svc, ctrl := rest.SecuredControllerWithIdentity(testsupport.TestIdentity)
-	test.ListAssignedResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String())
+	test.ListAssignedResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, uuid.Must(uuid.NewV4()).String())
 }
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameNotFound() {
 	svc, ctrl := rest.SecuredControllerWithIdentity(testsupport.TestIdentity)
-	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String(), uuid.NewV4().String())
+	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, uuid.Must(uuid.NewV4()).String(), uuid.Must(uuid.NewV4()).String())
 }
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesFromInheritedOK() {
@@ -202,7 +202,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedO
 	require.True(rest.T(), rest.checkExists(*identityRoleRef2InGroup2, returnedIdentityRoles, true))
 
 	// include these as a side-test
-	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, resourceRef.ResourceID, uuid.NewV4().String())
+	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, resourceRef.ResourceID, uuid.Must(uuid.NewV4()).String())
 }
 
 func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, pool *app.Identityroles, isInherited bool) bool {

@@ -303,7 +303,7 @@ func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersConte
 
 func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID uuid.UUID) (*account.Identity, *account.User, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identityID, "user attributes": ctx.Payload.Data.Attributes}, "creating a new user in DB...")
-	userID := uuid.NewV4()
+	userID := uuid.Must(uuid.NewV4())
 	var err error
 
 	var user *account.User

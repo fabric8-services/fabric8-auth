@@ -78,7 +78,7 @@ func (m *GormResourceTypeRepository) Lookup(ctx context.Context, name string) (*
 func (m *GormResourceTypeRepository) Create(ctx context.Context, u *ResourceType) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type", "create"}, time.Now())
 	if u.ResourceTypeID == uuid.Nil {
-		u.ResourceTypeID = uuid.NewV4()
+		u.ResourceTypeID = uuid.Must(uuid.NewV4())
 	}
 	err := m.db.Create(u).Error
 	if err != nil {

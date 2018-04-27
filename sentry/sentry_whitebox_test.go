@@ -51,8 +51,8 @@ func validToken(t *testing.T, identity account.Identity) context.Context {
 
 func (s *TestWhiteboxSentry) TestExtractUserInfo() {
 	identity := account.Identity{
-		ID:       uuid.NewV4(),
-		Username: uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Username: uuid.Must(uuid.NewV4()).String(),
 	}
 
 	tests := []struct {
@@ -118,8 +118,8 @@ func (s *TestWhiteboxSentry) TestInitialize() {
 	require.NotNil(s.T(), haltSentry)
 
 	identity := account.Identity{
-		ID:       uuid.NewV4(),
-		Username: uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Username: uuid.Must(uuid.NewV4()).String(),
 	}
 	ctx := validToken(s.T(), identity)
 

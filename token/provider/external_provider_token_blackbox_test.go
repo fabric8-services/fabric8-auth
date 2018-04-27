@@ -82,7 +82,7 @@ func (s *externalTokenBlackboxTest) TestExistsExternalProvider() {
 
 	t.Run("externalToken doesn't exist", func(t *testing.T) {
 		//t.Parallel()
-		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.Ctx, uuid.Must(uuid.NewV4()).String())
 		// then
 		require.IsType(t, errors.NotFoundError{}, err)
 	})
@@ -93,7 +93,7 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToSave() {
 	// given
 	externalToken := createAndLoadExternalToken(s)
 	// when
-	externalToken.Token = uuid.NewV4().String()
+	externalToken.Token = uuid.Must(uuid.NewV4()).String()
 	err := s.repo.Save(s.Ctx, externalToken)
 	// then
 	require.Nil(s.T(), err, "Could not update externalToken")
@@ -162,9 +162,9 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAn
 	lastTokenID := externalToken.ID // initialize
 	for i := 0; i < 10; i++ {
 		anotherExternalToken := provider.ExternalToken{
-			ID:         uuid.NewV4(),
+			ID:         uuid.Must(uuid.NewV4()),
 			ProviderID: externalToken.ProviderID,
-			Token:      uuid.NewV4().String(),
+			Token:      uuid.Must(uuid.NewV4()).String(),
 			Scope:      "user:full",
 			IdentityID: externalToken.IdentityID,
 			Username:   externalToken.Username,
@@ -193,16 +193,16 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAn
 
 func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.ExternalToken {
 
-	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
+	identity, err := test.CreateTestIdentity(s.DB, uuid.Must(uuid.NewV4()).String(), "kc")
 	require.Nil(s.T(), err)
 
 	externalToken := provider.ExternalToken{
-		ID:         uuid.NewV4(),
-		ProviderID: uuid.NewV4(),
-		Token:      uuid.NewV4().String(),
+		ID:         uuid.Must(uuid.NewV4()),
+		ProviderID: uuid.Must(uuid.NewV4()),
+		Token:      uuid.Must(uuid.NewV4()).String(),
 		Scope:      "user:full",
 		IdentityID: identity.ID,
-		Username:   uuid.NewV4().String(),
+		Username:   uuid.Must(uuid.NewV4()).String(),
 	}
 	fmt.Println(externalToken)
 

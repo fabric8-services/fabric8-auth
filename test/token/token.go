@@ -79,12 +79,12 @@ func GenerateToken(identityID string, identityUsername string) (string, error) {
 func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 
-	token.Claims.(jwt.MapClaims)["uuid"] = uuid.NewV4().String()
-	token.Claims.(jwt.MapClaims)["preferred_username"] = fmt.Sprintf("testUser-%s", uuid.NewV4().String())
-	token.Claims.(jwt.MapClaims)["sub"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["uuid"] = uuid.Must(uuid.NewV4()).String()
+	token.Claims.(jwt.MapClaims)["preferred_username"] = fmt.Sprintf("testUser-%s", uuid.Must(uuid.NewV4()).String())
+	token.Claims.(jwt.MapClaims)["sub"] = uuid.Must(uuid.NewV4()).String()
 
-	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
-	token.Claims.(jwt.MapClaims)["session_state"] = uuid.NewV4().String()
+	token.Claims.(jwt.MapClaims)["jti"] = uuid.Must(uuid.NewV4()).String()
+	token.Claims.(jwt.MapClaims)["session_state"] = uuid.Must(uuid.NewV4()).String()
 	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
 	token.Claims.(jwt.MapClaims)["exp"] = time.Now().Unix() + 60*60*24*30
 
@@ -97,7 +97,7 @@ func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
 	token.Claims.(jwt.MapClaims)["company"] = "Company Inc."
 	token.Claims.(jwt.MapClaims)["given_name"] = "Test"
 	token.Claims.(jwt.MapClaims)["family_name"] = "User"
-	token.Claims.(jwt.MapClaims)["email"] = fmt.Sprintf("testuser+%s@email.com", uuid.NewV4().String())
+	token.Claims.(jwt.MapClaims)["email"] = fmt.Sprintf("testuser+%s@email.com", uuid.Must(uuid.NewV4()).String())
 	token.Claims.(jwt.MapClaims)["email_verified"] = true
 
 	for key, value := range claims {

@@ -179,7 +179,7 @@ func (m *GormIdentityRepository) CheckExists(ctx context.Context, id string) err
 func (m *GormIdentityRepository) Create(ctx context.Context, model *Identity) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "create"}, time.Now())
 	if model.ID == uuid.Nil {
-		model.ID = uuid.NewV4()
+		model.ID = uuid.Must(uuid.NewV4())
 	}
 	err := m.db.Create(model).Error
 	if err != nil {

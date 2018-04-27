@@ -109,7 +109,7 @@ func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, ID uuid.
 // returns InternalError
 func (r *GormOauthStateReferenceRepository) Create(ctx context.Context, reference *OauthStateReference) (*OauthStateReference, error) {
 	if reference.ID == uuid.Nil {
-		reference.ID = uuid.NewV4()
+		reference.ID = uuid.Must(uuid.NewV4())
 	}
 
 	tx := r.db.Create(reference)

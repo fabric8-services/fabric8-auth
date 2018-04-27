@@ -88,7 +88,7 @@ func createPermissionWithPolicy(s *TestPolicySuite) (*auth.KeycloakPolicy, strin
 	require.NotNil(s.T(), policy)
 
 	permission := auth.KeycloakPermission{
-		Name:             "test-" + uuid.NewV4().String(),
+		Name:             "test-" + uuid.Must(uuid.NewV4()).String(),
 		Type:             auth.PermissionTypeResource,
 		Logic:            auth.PolicyLogicPossitive,
 		DecisionStrategy: auth.PolicyDecisionStrategyUnanimous,

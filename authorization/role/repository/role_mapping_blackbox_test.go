@@ -82,7 +82,7 @@ func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName str
 		return rm, err
 	}
 
-	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *fromResourceType, "Test-Role-Mapped-Resource"+uuid.NewV4().String(), nil)
+	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *fromResourceType, "Test-Role-Mapped-Resource"+uuid.Must(uuid.NewV4()).String(), nil)
 	if err != nil {
 		return rm, err
 	}

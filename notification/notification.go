@@ -39,7 +39,7 @@ func (m Message) String() string {
 // that would be sent out.
 func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
 	return Message{
-		MessageID:   uuid.NewV4(),
+		MessageID:   uuid.Must(uuid.NewV4()),
 		MessageType: "user.email.update",
 		TargetID:    userID,
 		UserID:      &userID, // in future if service accounts are allowed to update, this will be handy.

@@ -414,7 +414,7 @@ func testMigration28(t *testing.T) {
 	require.Equal(t, "Acme Corporation (1)", resourceName)
 
 	// After update 28 it should be impossible to create organizations with duplicate names
-	orgName := "Acme" + uuid.NewV4().String()
+	orgName := "Acme" + uuid.Must(uuid.NewV4()).String()
 	_, err = sqlDB.Exec("INSERT INTO resource (resource_id, resource_type_id, name) VALUES (uuid_generate_v4(), '66659ea9-aa0a-4737-96e2-e96e615dc280', $1)", orgName)
 	require.NoError(t, err)
 

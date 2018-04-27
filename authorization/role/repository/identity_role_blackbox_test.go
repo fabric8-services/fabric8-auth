@@ -78,7 +78,7 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 
 	t.Run("identity role doesn't exist", func(t *testing.T) {
 		// Check not existing
-		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
+		err := s.repo.CheckExists(s.Ctx, uuid.Must(uuid.NewV4()).String())
 		// then
 		require.IsType(t, errors.NotFoundError{}, err)
 	})
@@ -97,7 +97,7 @@ func (s *identityRoleBlackBoxTest) TestFindPermissions() {
 	require.NoError(s.T(), err)
 
 	// Create a new role
-	role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *resourceType, uuid.NewV4().String())
+	role, err := testsupport.CreateTestRole(s.Ctx, s.DB, *resourceType, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 
 	// Assign the two scopes to the role
@@ -108,7 +108,7 @@ func (s *identityRoleBlackBoxTest) TestFindPermissions() {
 	require.NoError(s.T(), err)
 
 	// Create a test resource
-	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *resourceType, uuid.NewV4().String(), nil)
+	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *resourceType, uuid.Must(uuid.NewV4()).String(), nil)
 	require.NoError(s.T(), err)
 
 	// Assign the new role for our new resource to a user
@@ -153,7 +153,7 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleName() 
 	createAndLoadIdentityRole(s)
 
 	// Create another identity role with the same resource as the first one, but a different role
-	roleName := uuid.NewV4().String()
+	roleName := uuid.Must(uuid.NewV4()).String()
 	otherRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, identityRole.Resource.ResourceType, roleName)
 	require.NoError(s.T(), err)
 

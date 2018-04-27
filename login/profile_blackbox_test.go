@@ -114,12 +114,12 @@ func (s *ProfileBlackBoxTest) TestKeycloakUserProfileUpdate() {
 
 	// UPDATE the user profile
 
-	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
-	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
-	testEmail := "updatedEmail" + uuid.NewV4().String() + "@email.com"
-	testBio := "updatedBioNew" + uuid.NewV4().String()
-	testURL := "updatedURLNew" + uuid.NewV4().String()
-	testImageURL := "updatedBio" + uuid.NewV4().String()
+	testFirstName := "updatedFirstNameAgainNew" + uuid.Must(uuid.NewV4()).String()
+	testLastName := "updatedLastNameNew" + uuid.Must(uuid.NewV4()).String()
+	testEmail := "updatedEmail" + uuid.Must(uuid.NewV4()).String() + "@email.com"
+	testBio := "updatedBioNew" + uuid.Must(uuid.NewV4()).String()
+	testURL := "updatedURLNew" + uuid.Must(uuid.NewV4()).String()
+	testImageURL := "updatedBio" + uuid.Must(uuid.NewV4()).String()
 	testUserName := "testuserupdated"
 
 	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{

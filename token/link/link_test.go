@@ -145,13 +145,13 @@ func (s *LinkTestSuite) stateParam(location string) string {
 }
 
 func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, uuid.NewV4().String(), "https://github.com/org/repo", "https://openshift.io/home")
+	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, uuid.Must(uuid.NewV4()).String(), "https://github.com/org/repo", "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: uuid.NewV4().String(), Config: s.Configuration, App: s.Application})
+	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: uuid.Must(uuid.NewV4()).String(), Config: s.Configuration, App: s.Application})
 
-	code := uuid.NewV4().String()
+	code := uuid.Must(uuid.NewV4()).String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
 	require.NotNil(s.T(), err)
 }
@@ -161,10 +161,10 @@ func (s *LinkTestSuite) TestProviderSavesTokenOK() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	token := uuid.NewV4().String()
+	token := uuid.Must(uuid.NewV4()).String()
 	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, App: s.Application})
 
-	code := uuid.NewV4().String()
+	code := uuid.Must(uuid.NewV4()).String()
 	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), callbackLocation, "https://openshift.io/home")
@@ -177,10 +177,10 @@ func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
-	token := uuid.NewV4().String()
+	token := uuid.Must(uuid.NewV4()).String()
 	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, LoadProfileFail: true, App: s.Application})
 
-	code := uuid.NewV4().String()
+	code := uuid.Must(uuid.NewV4()).String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
 	require.NotNil(s.T(), err)
 	require.Contains(s.T(), err.Error(), "unable to load profile")
@@ -221,9 +221,9 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
 }
 
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {
-	token := uuid.NewV4().String()
+	token := uuid.Must(uuid.NewV4()).String()
 	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, gormapplication.NewGormDB(s.DB), &test.DummyProviderFactory{Token: token, Config: s.Configuration, App: s.Application})
-	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, uuid.NewV4().String())
+	callbackLocation, err := linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, uuid.Must(uuid.NewV4()).String())
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(callbackLocation)
 	require.Nil(s.T(), err)

@@ -105,7 +105,7 @@ func (m *GormIdentityRoleRepository) CheckExists(ctx context.Context, id string)
 func (m *GormIdentityRoleRepository) Create(ctx context.Context, u *IdentityRole) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "create"}, time.Now())
 	if u.IdentityRoleID == uuid.Nil {
-		u.IdentityRoleID = uuid.NewV4()
+		u.IdentityRoleID = uuid.Must(uuid.NewV4())
 	}
 	err := m.db.Create(u).Error
 	if err != nil {

@@ -165,7 +165,7 @@ func (r *GormResourceRepository) Save(ctx context.Context, p *Resource) (*Resour
 func (r *GormResourceRepository) Create(ctx context.Context, resource *Resource) (*Resource, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "spaceresource", "create"}, time.Now())
 	if resource.ID == uuid.Nil {
-		resource.ID = uuid.NewV4()
+		resource.ID = uuid.Must(uuid.NewV4())
 	}
 
 	tx := r.db.Create(resource)

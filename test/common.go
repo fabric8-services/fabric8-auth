@@ -7,7 +7,7 @@ import (
 
 // CreateRandomValidTestName functions creates a valid length name
 func CreateRandomValidTestName(name string) string {
-	randomName := name + uuid.NewV4().String()
+	randomName := name + uuid.Must(uuid.NewV4()).String()
 	if len(randomName) > 62 {
 		return randomName[:61]
 	}

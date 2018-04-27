@@ -46,7 +46,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	redirect := "https://openshift.io"
 	clientID := rest.Configuration.GetPublicOauthClientID()
 	responseType := "code"
-	state := uuid.NewV4().String()
+	state := uuid.Must(uuid.NewV4()).String()
 	responseMode := "query"
 
 	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
@@ -54,11 +54,11 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	state = "not-uuid"
 	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
 
-	state = uuid.NewV4().String()
+	state = uuid.Must(uuid.NewV4()).String()
 	responseMode = "fragment"
 	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, &responseMode, responseType, nil, state)
 
-	state = uuid.NewV4().String()
+	state = uuid.Must(uuid.NewV4()).String()
 	test.AuthorizeAuthorizeTemporaryRedirect(t, svc.Context, svc, ctrl, nil, clientID, redirect, nil, responseType, nil, state)
 }
 
@@ -73,7 +73,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", "https://openshift.io/somepath")
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
-	prms.Add("state", uuid.NewV4().String())
+	prms.Add("state", uuid.Must(uuid.NewV4()).String())
 
 	rest.checkInvalidRequest("authorize", "response_type", prms, u, t)
 	rest.checkInvalidRequest("authorize", "redirect_uri", prms, u, t)
@@ -88,7 +88,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeUnauthorizedError() {
 	redirect := "https://openshift.io"
 	clientID := ""
 	responseType := "code"
-	state := uuid.NewV4().String()
+	state := uuid.Must(uuid.NewV4()).String()
 
 	test.AuthorizeAuthorizeUnauthorized(t, svc.Context, svc, ctrl, nil, clientID, redirect, nil, responseType, nil, state)
 }
@@ -117,7 +117,7 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
-	prms.Add("state", uuid.NewV4().String())
+	prms.Add("state", uuid.Must(uuid.NewV4()).String())
 	if responseMode != nil {
 		prms.Add("response_mode", *responseMode)
 	}
@@ -204,7 +204,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackBadRequest() {
 
 	prms := url.Values{}
 	prms.Add("code", "SOME_OAUTH2.0_CODE")
-	prms.Add("state", uuid.NewV4().String())
+	prms.Add("state", uuid.Must(uuid.NewV4()).String())
 
 	rest.checkInvalidRequest("authorizeCallback", "code", prms, u, t)
 	rest.checkInvalidRequest("authorizeCallback", "state", prms, u, t)
@@ -224,7 +224,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	redirectURI := "https://openshift.io/somepath"
 	prms := url.Values{}
 
-	state := uuid.NewV4().String()
+	state := uuid.Must(uuid.NewV4()).String()
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
 	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
@@ -257,7 +257,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	}
 
 	prms = url.Values{
-		"state": {uuid.NewV4().String()},
+		"state": {uuid.Must(uuid.NewV4()).String()},
 		"code":  {"SOME_OAUTH2.0_CODE"},
 	}
 

@@ -72,7 +72,7 @@ func (s *TestWhiteboxTokenSuite) TestServiceAccountGeneratedOK() {
 		Request: &http.Request{Host: "example.com"},
 	}
 
-	saID := uuid.NewV4().String()
+	saID := uuid.Must(uuid.NewV4()).String()
 	tokenString, err := s.tokenManager.GenerateServiceAccountToken(r, saID, "test-token")
 	require.Nil(s.T(), err)
 	s.checkServiceAccountToken(tokenString, saID, "test-token")

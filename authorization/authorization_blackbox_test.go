@@ -27,8 +27,8 @@ func (s *authorizationBlackBoxTest) TestCanHaveMembers() {
 }
 
 func (s *authorizationBlackBoxTest) TestAppendAssociation() {
-	aID := uuid.NewV4()
-	bID := uuid.NewV4()
+	aID := uuid.Must(uuid.NewV4())
+	bID := uuid.Must(uuid.NewV4())
 
 	associations := []authorization.IdentityAssociation{}
 
@@ -92,8 +92,8 @@ func (s *authorizationBlackBoxTest) TestAppendAssociation() {
 }
 
 func (s *authorizationBlackBoxTest) TestMergeAssociations() {
-	cID := uuid.NewV4()
-	dID := uuid.NewV4()
+	cID := uuid.Must(uuid.NewV4())
+	dID := uuid.Must(uuid.NewV4())
 
 	c := authorization.IdentityAssociation{
 		IdentityID:   &cID,

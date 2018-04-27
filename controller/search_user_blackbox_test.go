@@ -130,7 +130,7 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 
 			ident := account.Identity{
 				User:         user,
-				Username:     usernames[i] + uuid.NewV4().String(),
+				Username:     usernames[i] + uuid.Must(uuid.NewV4()).String(),
 				ProviderType: "kc",
 			}
 			err = tr.Identities().Create(context.Background(), &ident)
@@ -146,9 +146,9 @@ func (s *TestSearchUserSearch) createTestData() []account.Identity {
 
 func (s *TestSearchUserSearch) createDifferentTestData() account.Identity {
 	user := &account.User{
-		Email:   uuid.NewV4().String(),
+		Email:   uuid.Must(uuid.NewV4()).String(),
 		Cluster: "test cluster",
-		ID:      uuid.NewV4(),
+		ID:      uuid.Must(uuid.NewV4()),
 	}
 	result, err := testsupport.CreateTestUser(s.DB, user)
 	require.NoError(s.T(), err)
@@ -157,8 +157,8 @@ func (s *TestSearchUserSearch) createDifferentTestData() account.Identity {
 
 func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 
-	randomName := uuid.NewV4().String()
-	email := uuid.NewV4().String()
+	randomName := uuid.Must(uuid.NewV4()).String()
+	email := uuid.Must(uuid.NewV4()).String()
 	user := account.User{
 		EmailPrivate: true,
 		FullName:     randomName,
@@ -186,12 +186,12 @@ func (s *TestSearchUserSearch) TestEmailPrivateSearchOK() {
 
 func (s *TestSearchUserSearch) TestEmailNotPrivateSearchOK() {
 
-	randomName := uuid.NewV4().String()
+	randomName := uuid.Must(uuid.NewV4()).String()
 	user := account.User{
 		EmailPrivate: false,
 		FullName:     randomName,
 		ImageURL:     "http://example.org/" + randomName + ".png",
-		Email:        uuid.NewV4().String(),
+		Email:        uuid.Must(uuid.NewV4()).String(),
 		Cluster:      "default Cluster",
 	}
 	_, err := testsupport.CreateTestUser(s.DB, &user)
@@ -291,7 +291,7 @@ func (s *TestSearchUserSearch) UnSecuredController() (*goa.Service, *SearchContr
 }
 
 func (s *TestSearchUserSearch) UnsecuredControllerDeprovisionedUser() (*goa.Service, *SearchController) {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	svc := testsupport.ServiceAsUser("Search-Service", identity)
 	ctrl := NewSearchController(svc, s.Application, s.Configuration)
@@ -299,7 +299,7 @@ func (s *TestSearchUserSearch) UnsecuredControllerDeprovisionedUser() (*goa.Serv
 }
 
 func (s *TestSearchUserSearch) SecuredController() (*goa.Service, *SearchController) {
-	identity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "KC")
+	identity, err := testsupport.CreateTestIdentityAndUser(s.DB, uuid.Must(uuid.NewV4()).String(), "KC")
 	require.NoError(s.T(), err)
 	svc := testsupport.ServiceAsUser("Search-Service", identity)
 	ctrl := NewSearchController(svc, s.Application, s.Configuration)

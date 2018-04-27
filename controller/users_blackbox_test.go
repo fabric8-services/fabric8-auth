@@ -66,7 +66,7 @@ func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersCo
 }
 
 func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.Service, *UsersController) {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.Must(uuid.NewV4()).String())
 	require.Nil(s.T(), err)
 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
@@ -154,12 +154,12 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			// given
 			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser")
 			// when
-			newEmail := "TestUpdateUserOK-" + uuid.NewV4().String() + "@email.com"
+			newEmail := "TestUpdateUserOK-" + uuid.Must(uuid.NewV4()).String() + "@email.com"
 			newFullName := "TestUpdateUserOK"
 			newImageURL := "http://new.image.io/imageurl"
 			newBio := "new bio"
 			newProfileURL := "http://new.profile.url/url"
-			newCompany := "updateCompany " + uuid.NewV4().String()
+			newCompany := "updateCompany " + uuid.Must(uuid.NewV4()).String()
 			newFeatureLevel := "beta"
 			secureService, secureController := s.SecuredController(identity)
 			contextInformation := map[string]interface{}{
@@ -228,7 +228,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			t.Run("internal level allowed", func(t *testing.T) {
 				t.Run("allowed", func(t *testing.T) {
 					// given
-					_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(uuid.NewV4().String()+"user@redhat.com"), WithEmailAddressVerified(true))
+					_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(uuid.Must(uuid.NewV4()).String()+"user@redhat.com"), WithEmailAddressVerified(true))
 					// when
 					newFeatureLevel := "internal"
 					secureService, secureController := s.SecuredController(identity)
@@ -244,7 +244,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 				})
 				t.Run("not allowed", func(t *testing.T) {
 					// given non internal user
-					_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(uuid.NewV4().String()+"user@foo.com"), WithEmailAddressVerified(true))
+					_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(uuid.Must(uuid.NewV4()).String()+"user@foo.com"), WithEmailAddressVerified(true))
 					// when
 					newFeatureLevel := "internal"
 					secureService, secureController := s.SecuredController(identity)
@@ -362,7 +362,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			_, result := test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
 			// then
 			require.False(t, *result.Data.Attributes.RegistrationCompleted)
-			newUsername := identity.Username + uuid.NewV4().String()
+			newUsername := identity.Username + uuid.Must(uuid.NewV4()).String()
 			updateUsersPayload = newUpdateUsersPayload(
 				WithUpdatedUsername(newUsername),
 				WithRegistrationCompleted(true),
@@ -375,7 +375,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			// given
 			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser")
 			// when
-			newEmail := "updated-" + uuid.NewV4().String() + "@email.com"
+			newEmail := "updated-" + uuid.Must(uuid.NewV4()).String() + "@email.com"
 
 			// This is the special thing we are testing - everything else
 			// has been tested in other tests.
@@ -388,7 +388,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			newImageURL := "http://new.image.io/imageurl"
 			newBio := "new bio"
 			newProfileURL := "http://new.profile.url/url"
-			newCompany := "updateCompany " + uuid.NewV4().String()
+			newCompany := "updateCompany " + uuid.Must(uuid.NewV4()).String()
 
 			secureService, secureController := s.SecuredController(identity)
 
@@ -433,7 +433,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			// given
 			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser")
 			// when
-			newEmail := "TestUpdateUserUnsetVariableInContextInfo-" + uuid.NewV4().String() + "@email.com"
+			newEmail := "TestUpdateUserUnsetVariableInContextInfo-" + uuid.Must(uuid.NewV4()).String() + "@email.com"
 			newFullName := "TestUpdateUserUnsetVariableInContextInfo"
 			newImageURL := "http://new.image.io/imageurl"
 			newBio := "new bio"
@@ -499,7 +499,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			// given
 			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser")
 			// when
-			newEmail := "TestUpdateUserOKWithoutContextInfo-" + uuid.NewV4().String() + "@email.com"
+			newEmail := "TestUpdateUserOKWithoutContextInfo-" + uuid.Must(uuid.NewV4()).String() + "@email.com"
 			newFullName := "TestUpdateUserOKWithoutContextInfo"
 			newImageURL := "http://new.image.io/imageurl"
 			newBio := "new bio"
@@ -743,7 +743,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 		t.Run("username multiple times forbidden", func(t *testing.T) {
 			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser")
-			newUsername := identity.Username + uuid.NewV4().String()
+			newUsername := identity.Username + uuid.Must(uuid.NewV4()).String()
 			secureService, secureController := s.SecuredController(identity)
 			contextInformation := map[string]interface{}{
 				"last_visited": "yesterday",
@@ -765,7 +765,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			test.UpdateUsersOK(t, secureService.Context, secureService, secureController, updateUsersPayload)
 
 			// next attempt should fail.
-			newUsername = identity.Username + uuid.NewV4().String()
+			newUsername = identity.Username + uuid.Must(uuid.NewV4()).String()
 			updateUsersPayload = newUpdateUsersPayload(
 				WithUpdatedUsername(newUsername),
 				WithUpdatedContextInformation(contextInformation))
@@ -774,7 +774,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 		t.Run("internal level for non-employee", func(t *testing.T) {
 			// given
-			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(fmt.Sprintf("%s@foo.com", uuid.NewV4())), WithEmailAddressVerified(true))
+			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(fmt.Sprintf("%s@foo.com", uuid.Must(uuid.NewV4()))), WithEmailAddressVerified(true))
 			// when/then
 			newFeatureLevel := "internal"
 			secureService, secureController := s.SecuredController(identity)
@@ -784,7 +784,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 		t.Run("internal level for non-verified employee", func(t *testing.T) {
 			// given
-			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(fmt.Sprintf("%s@redhat.com", uuid.NewV4())), WithEmailAddressVerified(false))
+			_, identity := s.createRandomUserIdentity(t, "TestUpdateUser", WithEmailAddress(fmt.Sprintf("%s@redhat.com", uuid.Must(uuid.NewV4()))), WithEmailAddressVerified(false))
 			// when/then
 			newFeatureLevel := "internal"
 			secureService, secureController := s.SecuredController(identity)
@@ -796,7 +796,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 	s.T().Run("unauthorized", func(t *testing.T) {
 		// given
 		s.createRandomUserIdentity(t, "TestUpdateUser")
-		newEmail := "TestUpdateUserUnauthorized-" + uuid.NewV4().String() + "@email.com"
+		newEmail := "TestUpdateUserUnauthorized-" + uuid.Must(uuid.NewV4()).String() + "@email.com"
 		newFullName := "TestUpdateUserUnauthorized"
 		newImageURL := "http://new.image.io/imageurl"
 		newBio := "new bio"
@@ -821,7 +821,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 	s.T().Run("deprovisioned user cannot update user", func(t *testing.T) {
 		// given
 		svc, ctrl := s.UnsecuredControllerDeprovisionedUser()
-		newEmail := "TestUpdateUserUnauthorized-" + uuid.NewV4().String() + "@email.com"
+		newEmail := "TestUpdateUserUnauthorized-" + uuid.Must(uuid.NewV4()).String() + "@email.com"
 		newFullName := "TestUpdateUserUnauthorized"
 		newImageURL := "http://new.image.io/imageurl"
 		newBio := "new bio"
@@ -853,7 +853,7 @@ func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expect
 }
 
 func (s *UsersControllerTestSuite) TestDeprovisionUser() {
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionUser"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 
 	deprovisioned := true
@@ -873,10 +873,10 @@ func (s *UsersControllerTestSuite) TestDeprovisionUser() {
 	s.checkIfUserDeprovisioned(identity.ID, true)
 
 	// Fails if unknown identity
-	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.NewV4().String(), updateUsersPayload)
+	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.Must(uuid.NewV4()).String(), updateUsersPayload)
 
 	// Fails if identity is not associated with any user
-	lonelyIdentity, err := testsupport.CreateLonelyTestIdentity(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
+	lonelyIdentity, err := testsupport.CreateLonelyTestIdentity(s.DB, "TestDeprovisionUser"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, lonelyIdentity.ID.String(), updateUsersPayload)
 
@@ -940,12 +940,12 @@ func (s *UsersControllerTestSuite) TestVerifyEmail() {
 		// when
 		secureService, secureController := s.SecuredController(identity)
 		updateUsersPayload := newUpdateUsersPayload(
-			WithUpdatedEmail("TestUpdateUserOK-"+uuid.NewV4().String()+"@email.com"),
+			WithUpdatedEmail("TestUpdateUserOK-"+uuid.Must(uuid.NewV4()).String()+"@email.com"),
 			WithUpdatedFullName("TestUpdateUserOK"),
 			WithUpdatedBio("new bio"),
 			WithUpdatedImageURL("http://new.image.io/imageurl"),
 			WithUpdatedURL("http://new.profile.url/url"),
-			WithUpdatedCompany("updateCompany "+uuid.NewV4().String()),
+			WithUpdatedCompany("updateCompany "+uuid.Must(uuid.NewV4()).String()),
 			WithUpdatedContextInformation(map[string]interface{}{
 				"last_visited": "yesterday",
 				"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
@@ -990,7 +990,7 @@ func (s *UsersControllerTestSuite) TestShowUserOK() {
 }
 
 func (s *UsersControllerTestSuite) TestShowDeprovisionedUsersFails() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestShowDeprovisionedUsersFails"+uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestShowDeprovisionedUsersFails"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err)
 
 	// User returned if no token present
@@ -1056,7 +1056,7 @@ func (s *UsersControllerTestSuite) TestShowUserNotFound() {
 	// given user
 	s.createRandomUserIdentity(s.T(), "TestShowUserNotFound")
 	// when/then
-	test.ShowUsersNotFound(s.T(), nil, nil, s.controller, uuid.NewV4().String(), nil, nil)
+	test.ShowUsersNotFound(s.T(), nil, nil, s.controller, uuid.Must(uuid.NewV4()).String(), nil, nil)
 }
 
 func (s *UsersControllerTestSuite) TestShowUserBadRequest() {
@@ -1244,11 +1244,11 @@ func WithEmailAddressVerified(verified bool) CreateUserOption {
 
 func (s *UsersControllerTestSuite) createRandomUserIdentity(t *testing.T, fullname string, options ...CreateUserOption) (account.User, account.Identity) {
 	user := account.User{
-		Email:        uuid.NewV4().String() + "primaryForUpdat7e@example.com",
+		Email:        uuid.Must(uuid.NewV4()).String() + "primaryForUpdat7e@example.com",
 		FullName:     fullname,
 		ImageURL:     "someURLForUpdate",
-		ID:           uuid.NewV4(),
-		Company:      uuid.NewV4().String() + "company",
+		ID:           uuid.Must(uuid.NewV4()),
+		Company:      uuid.Must(uuid.NewV4()).String() + "company",
 		Cluster:      "https://api.openshift.com",
 		EmailPrivate: false,                       // being explicit
 		FeatureLevel: account.DefaultFeatureLevel, // being explicit
@@ -1473,7 +1473,7 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 }
 
 func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
-	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
+	url := "https://someurl/pathinkeycloakurl/" + uuid.Must(uuid.NewV4()).String()
 	return &url, true, nil
 }
 
@@ -1544,31 +1544,31 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	// Another call with the same email and username should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 
-	newEmail := uuid.NewV4().String() + user.Email
+	newEmail := uuid.Must(uuid.NewV4()).String() + user.Email
 	payloadWithSameUsername := newCreateUsersPayload(&newEmail, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 	// Another call with the same username should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameUsername)
 
-	newUsername := uuid.NewV4().String() + identity.Username
+	newUsername := uuid.Must(uuid.NewV4()).String() + identity.Username
 	payloadWithSameEmail := newCreateUsersPayload(&user.Email, nil, nil, nil, nil, nil, &newUsername, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 	// Another call with the same email should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameEmail)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithRequiredFieldsOnlyOK() {
-	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("testuser%s@email.com", uuid.NewV4().String()))
+	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("testuser%s@email.com", uuid.Must(uuid.NewV4()).String()))
 }
 
 func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email string) {
 	user := account.User{
-		ID:           uuid.NewV4(),
+		ID:           uuid.Must(uuid.NewV4()),
 		Email:        email,
 		Cluster:      "some cluster",
 		FeatureLevel: account.DefaultFeatureLevel,
 	}
 	identity := account.Identity{
-		ID:       uuid.NewV4(),
-		Username: "TestDeveloper" + uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Username: "TestDeveloper" + uuid.Must(uuid.NewV4()).String(),
 		User:     user,
 	}
 
@@ -1628,13 +1628,13 @@ func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForPreviewUserIgnored() {
 	// Ignored
-	s.checkCreateUserAsServiceAccountForPreviewUserIgnored(fmt.Sprintf("%s+preview%s@redhat.com", uuid.NewV4().String(), uuid.NewV4().String()))
+	s.checkCreateUserAsServiceAccountForPreviewUserIgnored(fmt.Sprintf("%s+preview%s@redhat.com", uuid.Must(uuid.NewV4()).String(), uuid.Must(uuid.NewV4()).String()))
 	s.checkCreateUserAsServiceAccountForPreviewUserIgnored("someuser+preview@redhat.com")
 
 	// Not ignored
-	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("%s+preview@email.com", uuid.NewV4().String()))
-	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("preview%s@redhat.com", uuid.NewV4().String()))
-	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("%s@redhat.com", uuid.NewV4().String()))
+	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("%s+preview@email.com", uuid.Must(uuid.NewV4()).String()))
+	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("preview%s@redhat.com", uuid.Must(uuid.NewV4()).String()))
+	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("%s@redhat.com", uuid.Must(uuid.NewV4()).String()))
 }
 
 func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUserIgnored(email string) {
@@ -1642,7 +1642,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUser
 
 	username := "someuser"
 	cluster := "some.cluster"
-	createUserPayload := newCreateUsersPayload(&email, nil, nil, nil, nil, nil, &username, nil, uuid.NewV4().String(), &cluster, nil, nil, nil)
+	createUserPayload := newCreateUsersPayload(&email, nil, nil, nil, nil, nil, &username, nil, uuid.Must(uuid.NewV4()).String(), &cluster, nil, nil, nil)
 
 	// With only required fields should be OK
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)

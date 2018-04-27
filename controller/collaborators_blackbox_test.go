@@ -88,7 +88,7 @@ func TestRunCollaboratorsREST(t *testing.T) {
 func (rest *TestCollaboratorsREST) SetupTest() {
 	rest.DBTestSuite.SetupTest()
 	rest.policy = &auth.KeycloakPolicy{
-		Name:             "TestCollaborators-" + uuid.NewV4().String(),
+		Name:             "TestCollaborators-" + uuid.Must(uuid.NewV4()).String(),
 		Type:             auth.PolicyTypeUser,
 		Logic:            auth.PolicyLogicPossitive,
 		DecisionStrategy: auth.PolicyDecisionStrategyUnanimous,
@@ -98,10 +98,10 @@ func (rest *TestCollaboratorsREST) SetupTest() {
 	testIdentity, err := testsupport.CreateTestUser(rest.DB, &testsupport.TestUserPrivate)
 	require.Nil(rest.T(), err)
 	rest.testIdentity1 = testIdentity
-	testIdentity, err = testsupport.CreateTestIdentity(rest.DB, "TestCollaborators-"+uuid.NewV4().String(), "TestCollaborators")
+	testIdentity, err = testsupport.CreateTestIdentity(rest.DB, "TestCollaborators-"+uuid.Must(uuid.NewV4()).String(), "TestCollaborators")
 	require.Nil(rest.T(), err)
 	rest.testIdentity2 = testIdentity
-	testIdentity, err = testsupport.CreateTestIdentity(rest.DB, "TestCollaborators-"+uuid.NewV4().String(), "TestCollaborators")
+	testIdentity, err = testsupport.CreateTestIdentity(rest.DB, "TestCollaborators-"+uuid.Must(uuid.NewV4()).String(), "TestCollaborators")
 	require.Nil(rest.T(), err)
 	rest.testIdentity3 = testIdentity
 	rest.spaceID = rest.createSpace()
@@ -123,7 +123,7 @@ func (rest *TestCollaboratorsREST) UnSecuredController() (*goa.Service, *Collabo
 }
 
 func (rest *TestCollaboratorsREST) UnSecuredControllerDeprovisionedUser() (*goa.Service, *CollaboratorsController) {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, uuid.Must(uuid.NewV4()).String())
 	require.NoError(rest.T(), err)
 
 	svc := testsupport.ServiceAsSpaceUser("Collaborators-Service", identity, &DummySpaceAuthzService{rest})
@@ -133,7 +133,7 @@ func (rest *TestCollaboratorsREST) UnSecuredControllerDeprovisionedUser() (*goa.
 func (rest *TestCollaboratorsREST) TestListCollaboratorsWithRandomSpaceIDNotFound() {
 	// given
 	svc, ctrl := rest.UnSecuredController()
-	test.ListCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4(), nil, nil, nil, nil)
+	test.ListCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.Must(uuid.NewV4()), nil, nil, nil, nil)
 }
 
 func (rest *TestCollaboratorsREST) TestListCollaboratorsOK() {
@@ -284,7 +284,7 @@ func (rest *TestCollaboratorsREST) TestAddCollaboratorsWithRandomSpaceIDNotFound
 	// given
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	svc, ctrl := rest.SecuredController()
-	test.AddCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4(), uuid.NewV4().String())
+	test.AddCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.Must(uuid.NewV4()), uuid.Must(uuid.NewV4()).String())
 }
 
 func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsWithRandomSpaceIDNotFound() {
@@ -292,7 +292,7 @@ func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsWithRandomSpaceIDNotF
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	svc, ctrl := rest.SecuredController()
 	payload := &app.AddManyCollaboratorsPayload{Data: []*app.UpdateUserID{}}
-	test.AddManyCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4(), payload)
+	test.AddManyCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.Must(uuid.NewV4()), payload)
 }
 
 func (rest *TestCollaboratorsREST) TestAddCollaboratorsWithWrongUserIDFormatReturnsBadRequest() {
@@ -494,16 +494,16 @@ func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsWithRandomSpaceIDNotFo
 	// given
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	svc, ctrl := rest.SecuredController()
-	test.RemoveCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4(), uuid.NewV4().String())
+	test.RemoveCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.Must(uuid.NewV4()), uuid.Must(uuid.NewV4()).String())
 }
 
 func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsWithRandomSpaceIDNotFound() {
 	// given
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	svc, ctrl := rest.SecuredController()
-	payload := &app.RemoveManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: uuid.NewV4().String(), Type: idnType}}}
+	payload := &app.RemoveManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: uuid.Must(uuid.NewV4()).String(), Type: idnType}}}
 
-	test.RemoveManyCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4(), payload)
+	test.RemoveManyCollaboratorsNotFound(rest.T(), svc.Context, svc, ctrl, uuid.Must(uuid.NewV4()), payload)
 }
 
 func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsWithWrongUserIDFormatReturnsBadRequest() {
@@ -601,7 +601,7 @@ func (rest *TestCollaboratorsREST) createSpace() uuid.UUID {
 	spaceCtrl := NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{})
 	require.NotNil(rest.T(), spaceCtrl)
 
-	id := uuid.NewV4()
+	id := uuid.Must(uuid.NewV4())
 	test.CreateSpaceOK(rest.T(), svc.Context, svc, spaceCtrl, id)
 	return id
 }
@@ -641,7 +641,7 @@ type DummyResourceManager struct {
 
 func (m *DummyResourceManager) CreateResource(ctx context.Context, request *goa.RequestData, name string, rType string, uri *string, scopes *[]string, userID string) (*auth.Resource, error) {
 	if m.ResourceID == nil {
-		return &auth.Resource{ResourceID: uuid.NewV4().String(), PermissionID: uuid.NewV4().String(), PolicyID: uuid.NewV4().String()}, nil
+		return &auth.Resource{ResourceID: uuid.Must(uuid.NewV4()).String(), PermissionID: uuid.Must(uuid.NewV4()).String(), PolicyID: uuid.Must(uuid.NewV4()).String()}, nil
 	}
 	return &auth.Resource{ResourceID: *m.ResourceID, PermissionID: *m.PermissionID, PolicyID: *m.PolicyID}, nil
 }

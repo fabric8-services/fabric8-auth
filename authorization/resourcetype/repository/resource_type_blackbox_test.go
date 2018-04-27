@@ -49,8 +49,8 @@ func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
 func (s *resourceTypeBlackBoxTest) TestCreateResourceType() {
 	t := s.T()
 	resourceTypeRef := resourcetype.ResourceType{
-		ResourceTypeID: uuid.NewV4(),
-		Name:           uuid.NewV4().String(),
+		ResourceTypeID: uuid.Must(uuid.NewV4()),
+		Name:           uuid.Must(uuid.NewV4()).String(),
 	}
 	err := s.repo.Create(s.Ctx, &resourceTypeRef)
 	require.NoError(t, err)
@@ -65,7 +65,7 @@ func (s *resourceTypeBlackBoxTest) TestCreateResourceType() {
 func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithoutID() {
 	t := s.T()
 	resourceTypeRef := resourcetype.ResourceType{
-		Name: uuid.NewV4().String(),
+		Name: uuid.Must(uuid.NewV4()).String(),
 	}
 	err := s.repo.Create(s.Ctx, &resourceTypeRef)
 	require.NoError(t, err)

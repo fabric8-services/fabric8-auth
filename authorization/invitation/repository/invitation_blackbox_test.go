@@ -63,7 +63,7 @@ func (s *invitationBlackBoxTest) TestExistsInvitation() {
 }
 
 func (s *invitationBlackBoxTest) TestNotExistsInvitationFails() {
-	exists, err := s.repo.CheckExists(s.Ctx, uuid.NewV4())
+	exists, err := s.repo.CheckExists(s.Ctx, uuid.Must(uuid.NewV4()))
 	require.Error(s.T(), err)
 	require.False(s.T(), exists)
 }
@@ -140,7 +140,7 @@ func (s *invitationBlackBoxTest) TestAddRoleFailsForInvalidRoleID() {
 	invitation, err := s.CreateTestInvitation()
 	require.NoError(s.T(), err)
 
-	err = s.repo.AddRole(s.Ctx, invitation.InvitationID, uuid.NewV4())
+	err = s.repo.AddRole(s.Ctx, invitation.InvitationID, uuid.Must(uuid.NewV4()))
 	require.Error(s.T(), err, "add role should return error for nonexistent role")
 
 	roles, err := s.repo.ListRoles(s.Ctx, invitation.InvitationID)

@@ -57,7 +57,7 @@ func (s *TestOSORegistrationAppSuite) TestInvalidTokeFails() {
 }
 
 func (s *TestOSORegistrationAppSuite) TestClientResponse() {
-	accessToken, err := token.GenerateToken(uuid.NewV4().String(), "test-oso-registration-app-user")
+	accessToken, err := token.GenerateToken(uuid.Must(uuid.NewV4()).String(), "test-oso-registration-app-user")
 	require.NoError(s.T(), err)
 
 	// Should return an error if the client failed

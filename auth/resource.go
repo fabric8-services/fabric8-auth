@@ -92,7 +92,7 @@ func (m *KeycloakResourceManager) CreateResource(ctx context.Context, request *g
 	// Create policy
 	userIDs := "[\"" + userID + "\"]"
 	policy := KeycloakPolicy{
-		Name:             fmt.Sprintf("%s-%s", name, uuid.NewV4().String()),
+		Name:             fmt.Sprintf("%s-%s", name, uuid.Must(uuid.NewV4()).String()),
 		Type:             PolicyTypeUser,
 		Logic:            PolicyLogicPossitive,
 		DecisionStrategy: PolicyDecisionStrategyUnanimous,
@@ -107,7 +107,7 @@ func (m *KeycloakResourceManager) CreateResource(ctx context.Context, request *g
 
 	// Create permission
 	permission := KeycloakPermission{
-		Name:             fmt.Sprintf("%s-%s", name, uuid.NewV4().String()),
+		Name:             fmt.Sprintf("%s-%s", name, uuid.Must(uuid.NewV4()).String()),
 		Type:             PermissionTypeResource,
 		Logic:            PolicyLogicPossitive,
 		DecisionStrategy: PolicyDecisionStrategyUnanimous,

@@ -120,7 +120,7 @@ func (m *GormResourceTypeScopeRepository) LookupForType(ctx context.Context, res
 func (m *GormResourceTypeScopeRepository) Create(ctx context.Context, u *ResourceTypeScope) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource_type_scope", "create"}, time.Now())
 	if u.ResourceTypeScopeID == uuid.Nil {
-		u.ResourceTypeScopeID = uuid.NewV4()
+		u.ResourceTypeScopeID = uuid.Must(uuid.NewV4())
 	}
 	err := m.db.Create(u).Error
 	if err != nil {

@@ -29,12 +29,12 @@ func (s *identityBlackBoxTest) SetupTest() {
 func (s *identityBlackBoxTest) TestOKToDelete() {
 	// given
 	identity := &account.Identity{
-		ID:           uuid.NewV4(),
+		ID:           uuid.Must(uuid.NewV4()),
 		Username:     "someuserTestIdentity",
 		ProviderType: account.KeycloakIDP}
 
 	identity2 := &account.Identity{
-		ID:           uuid.NewV4(),
+		ID:           uuid.Must(uuid.NewV4()),
 		Username:     "onemoreuserTestIdentity",
 		ProviderType: account.KeycloakIDP}
 
@@ -74,7 +74,7 @@ func (s *identityBlackBoxTest) TestExistsIdentity() {
 
 	t.Run("identity doesn't exist", func(t *testing.T) {
 		//t.Parallel()
-		err := s.Application.Identities().CheckExists(s.Ctx, uuid.NewV4().String())
+		err := s.Application.Identities().CheckExists(s.Ctx, uuid.Must(uuid.NewV4()).String())
 		// then
 		require.IsType(t, errors.NotFoundError{}, err)
 	})
@@ -99,7 +99,7 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNot
 	assert.Equal(s.T(), errors.NewNotFoundError("user for identity", identity.ID.String()).Error(), err.Error())
 
 	// Identity does not exist
-	id := uuid.NewV4()
+	id := uuid.Must(uuid.NewV4())
 	_, err = s.Application.Identities().LoadWithUser(s.Ctx, id)
 	require.NotNil(s.T(), err)
 	assert.Equal(s.T(), errors.NewNotFoundError("identity", id.String()).Error(), err.Error())
@@ -108,13 +108,13 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNot
 func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 	// Create test user & identity
 	testUser := &account.User{
-		ID:       uuid.NewV4(),
-		Email:    uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Email:    uuid.Must(uuid.NewV4()).String(),
 		FullName: "TestLoadIdentityAndUserOK Developer",
 		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
 	testIdentity := &account.Identity{
-		Username:     "TestLoadIdentityAndUserOK" + uuid.NewV4().String(),
+		Username:     "TestLoadIdentityAndUserOK" + uuid.Must(uuid.NewV4()).String(),
 		ProviderType: account.KeycloakIDP,
 		User:         *testUser,
 	}
@@ -138,13 +138,13 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 func (s *identityBlackBoxTest) TestUserIdentityIsUser() {
 	// Create test user & identity
 	testUser := &account.User{
-		ID:       uuid.NewV4(),
-		Email:    uuid.NewV4().String(),
+		ID:       uuid.Must(uuid.NewV4()),
+		Email:    uuid.Must(uuid.NewV4()).String(),
 		FullName: "TestUserIdentityIsUser Developer",
 		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
 	testIdentity := &account.Identity{
-		Username:     "TestUserIdentityIsUser" + uuid.NewV4().String(),
+		Username:     "TestUserIdentityIsUser" + uuid.Must(uuid.NewV4()).String(),
 		ProviderType: account.KeycloakIDP,
 		User:         *testUser,
 	}
@@ -163,7 +163,7 @@ func (s *identityBlackBoxTest) TestFindIdentityMemberships() {
 	// Create an identity
 	identity := createAndLoad(s)
 
-	orgName := "Acme Corporation - identityBlackBoxTest.TestFindIdentityMemberships" + uuid.NewV4().String()
+	orgName := "Acme Corporation - identityBlackBoxTest.TestFindIdentityMemberships" + uuid.Must(uuid.NewV4()).String()
 	// Create an organization
 	orgID, err := s.Application.OrganizationService().CreateOrganization(s.Ctx, identity.ID, orgName)
 	require.NoError(s.T(), err)
@@ -185,7 +185,7 @@ func (s *identityBlackBoxTest) TestFindIdentityMemberships() {
 
 func createAndLoad(s *identityBlackBoxTest) *account.Identity {
 	identity := &account.Identity{
-		ID:           uuid.NewV4(),
+		ID:           uuid.Must(uuid.NewV4()),
 		Username:     "someuserTestIdentity2",
 		ProviderType: account.KeycloakIDP}
 

@@ -83,7 +83,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForInvalidID() {
 		},
 	}
 
-	err = s.invService.Issue(s.Ctx, identity.ID, uuid.NewV4().String(), invitations)
+	err = s.invService.Issue(s.Ctx, identity.ID, uuid.Must(uuid.NewV4()).String(), invitations)
 	require.Error(s.T(), err)
 
 	err = s.invService.Issue(s.Ctx, identity.ID, "foo", invitations)
@@ -266,7 +266,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForUnknownUser()
 	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
 	require.Nil(s.T(), err, "Could not create organization")
 
-	invalidIdentityID := uuid.NewV4()
+	invalidIdentityID := uuid.Must(uuid.NewV4())
 
 	invitations := []invitation.Invitation{
 		{
@@ -332,20 +332,20 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	require.NoError(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will invite this one to join the organization
-	invitee, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestInviteeUser-"+uuid.NewV4().String())
+	invitee, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestInviteeUser-"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err, "Could not create identity")
 
 	// Create another test user - we will invite this one to join the organization
 	invitee2User := account.User{
-		ID:       uuid.NewV4(),
-		Email:    "jsmith-invitationtest" + uuid.NewV4().String() + "@acmecorp.com",
+		ID:       uuid.Must(uuid.NewV4()),
+		Email:    "jsmith-invitationtest" + uuid.Must(uuid.NewV4()).String() + "@acmecorp.com",
 		FullName: "John Smith - Invitation Test",
 		Cluster:  "https://api.starter-us-east-2.openshift.com",
 	}
 
 	invitee2 := account.Identity{
-		ID:           uuid.NewV4(),
-		Username:     "TestInvitee" + uuid.NewV4().String(),
+		ID:           uuid.Must(uuid.NewV4()),
+		Username:     "TestInvitee" + uuid.Must(uuid.NewV4()).String(),
 		User:         invitee2User,
 		ProviderType: account.KeycloakIDP,
 	}
@@ -397,7 +397,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole() {
 	// Create a test user - this will be the organization owner
-	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser"+uuid.NewV4().String())
+	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser"+uuid.Must(uuid.NewV4()).String())
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization

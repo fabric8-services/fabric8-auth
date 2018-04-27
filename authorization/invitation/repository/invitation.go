@@ -119,7 +119,7 @@ func (m *GormInvitationRepository) Load(ctx context.Context, id uuid.UUID) (*Inv
 func (m *GormInvitationRepository) Create(ctx context.Context, i *Invitation) error {
 	defer goa.MeasureSince([]string{"goa", "db", "invitation", "create"}, time.Now())
 	if i.InvitationID == uuid.Nil {
-		i.InvitationID = uuid.NewV4()
+		i.InvitationID = uuid.Must(uuid.NewV4())
 	}
 	err := m.db.Create(i).Error
 	if err != nil {

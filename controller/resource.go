@@ -137,7 +137,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		if ctx.Payload.ResourceID != nil {
 			resourceID = *ctx.Payload.ResourceID
 		} else {
-			resourceID = uuid.NewV4().String()
+			resourceID = uuid.Must(uuid.NewV4()).String()
 		}
 
 		var parentResourceID *string

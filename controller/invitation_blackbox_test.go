@@ -35,7 +35,7 @@ func (s *TestInvitationREST) SetupSuite() {
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
-		"InvitationCreatorUser-"+uuid.NewV4().String(),
+		"InvitationCreatorUser-"+uuid.Must(uuid.NewV4()).String(),
 		"TestInvitation")
 	require.Nil(s.T(), err)
 }
@@ -61,12 +61,12 @@ func TestRunInvitationREST(t *testing.T) {
 func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 	var err error
 
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err, "could not create organization")
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	testUsername := "jsmith" + uuid.NewV4().String()
+	testUsername := "jsmith" + uuid.Must(uuid.NewV4()).String()
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 	inviteeID := invitee.ID.String()
@@ -98,12 +98,12 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 	var err error
 
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err, "could not create organization")
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	testUsername := "jsmith" + uuid.NewV4().String()
+	testUsername := "jsmith" + uuid.Must(uuid.NewV4()).String()
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 	inviteeID := invitee.ID.String()
@@ -144,12 +144,12 @@ func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized() {
 	var err error
 
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err, "could not create organization")
 
 	service, controller := s.UnsecuredController()
 
-	testUsername := "jsmith" + uuid.NewV4().String()
+	testUsername := "jsmith" + uuid.Must(uuid.NewV4()).String()
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 
@@ -180,12 +180,12 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized(
 func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
 	var err error
 
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err, "could not create organization")
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	testUsername := "jsmith" + uuid.NewV4().String()
+	testUsername := "jsmith" + uuid.Must(uuid.NewV4()).String()
 	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
 	require.NoError(s.T(), err, "could not create invitee user")
 
@@ -217,7 +217,7 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
 func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 	var err error
 
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.Must(uuid.NewV4()).String())
 	require.NoError(s.T(), err, "could not create organization")
 
 	service, controller := s.SecuredController(s.testIdentity)
