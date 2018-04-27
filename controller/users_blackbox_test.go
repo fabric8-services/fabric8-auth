@@ -1493,6 +1493,62 @@ func createDummyUserProfileResponse(updatedBio, updatedImageURL, updatedURL *str
 
 }
 
+func getLongString(count int) string {
+	randomString := ""
+	for i := 0; i < count; i++ {
+		randomString += "a"
+	}
+	return randomString
+}
+
+func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountShortUsernameSuccess() {
+
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = account.KeycloakIDP
+	identity.RegistrationCompleted = true
+	identity.Username = getLongString(45)
+
+	user.FeatureLevel = account.DefaultFeatureLevel
+	rhdUserName := "somerhdusername"
+	approved := false
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+	// when
+	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &rhdUserName, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, &approved, user.ContextInformation)
+
+	// then
+	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	assertCreatedUser(s.T(), appUser.Data, user, identity)
+}
+
+func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountTooLongUsernameFails() {
+
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = account.KeycloakIDP
+	identity.RegistrationCompleted = true
+	identity.Username = getLongString(46)
+
+	user.FeatureLevel = account.DefaultFeatureLevel
+	rhdUserName := "somerhdusername"
+	approved := false
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+	// when
+	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &rhdUserName, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, &approved, user.ContextInformation)
+
+	// then
+	test.CreateUsersBadRequest(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+
+}
+
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK() {
 
 	// given
@@ -1549,7 +1605,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	// Another call with the same username should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameUsername)
 
-	newUsername := uuid.NewV4().String() + identity.Username
+	newUsername := uuid.NewV4().String()
 	payloadWithSameEmail := newCreateUsersPayload(&user.Email, nil, nil, nil, nil, nil, &newUsername, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 	// Another call with the same email should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameEmail)
@@ -1568,7 +1624,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email strin
 	}
 	identity := account.Identity{
 		ID:       uuid.NewV4(),
-		Username: "TestDeveloper" + uuid.NewV4().String(),
+		Username: "TestDev" + uuid.NewV4().String(),
 		User:     user,
 	}
 
