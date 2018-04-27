@@ -53,7 +53,7 @@ var TestUserPrivate = account.User{
 // TestIdentity only creates in memory obj for testing purposes
 var TestIdentity = account.Identity{
 	ID:           uuid.NewV4(),
-	Username:     "TestDeveloper" + uuid.NewV4().String(),
+	Username:     uuid.NewV4().String(),
 	User:         TestUser,
 	ProviderType: account.KeycloakIDP,
 }
@@ -68,7 +68,7 @@ var TestObserverIdentity = account.Identity{
 // TestIdentity2 only creates in memory obj for testing purposes
 var TestIdentity2 = account.Identity{
 	ID:           uuid.NewV4(),
-	Username:     "TestDeveloper2" + uuid.NewV4().String(),
+	Username:     uuid.NewV4().String(),
 	User:         TestUser2,
 	ProviderType: account.KeycloakIDP,
 }

@@ -56,6 +56,7 @@ type UsersControllerConfiguration interface {
 	GetEmailVerifiedRedirectURL() string
 	GetInternalUsersEmailAddressSuffix() string
 	GetIgnoreEmailInProd() string
+	GetMaxUsernameLength() int
 }
 
 // NewUsersController creates a users controller.
@@ -111,6 +112,10 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	if !isSvcAccount {
 		log.Error(ctx, nil, "The account is not an authorized service account allowed to create a new user")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))
+	}
+
+	if len(ctx.Payload.Data.Attributes.Username) > c.config.GetMaxUsernameLength() {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("username", ctx.Payload.Data.Attributes.Username).Expected("less than 46 characters"))
 	}
 
 	// ----- Ignore users created for Preview environment

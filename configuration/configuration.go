@@ -129,6 +129,8 @@ const (
 	// sentry
 	varEnvironment = "environment"
 	varSentryDSN   = "sentry.dsn"
+
+	varMaxUsernameLength = "max.username.length"
 )
 
 type serviceAccountConfig struct {
@@ -607,6 +609,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// prod-preview or prod
 	c.v.SetDefault(varEnvironment, "local")
+
+	c.v.SetDefault(varMaxUsernameLength, 45)
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -802,6 +806,11 @@ func (c *ConfigurationData) GetOpenShiftClientApiUrl() string {
 // May return empty string which means an unauthorized error should be returned instead of redirecting the user
 func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
+}
+
+// GetMaxUsernameLength returns the maximum allowed length of the username
+func (c *ConfigurationData) GetMaxUsernameLength() int {
+	return c.v.GetInt(varMaxUsernameLength)
 }
 
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
