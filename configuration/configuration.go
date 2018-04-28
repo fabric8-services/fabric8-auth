@@ -489,11 +489,22 @@ func (c *ConfigurationData) watcher(clusterConfigFile string) (func() error, err
 		for {
 			select {
 			case event := <-watcher.Events:
-				if event.Op&fsnotify.Write == fsnotify.Write {
+				if event.Op&fsnotify.Remove == fsnotify.Remove {
+					err = watcher.Add(event.Name)
+					if err != nil {
+						log.WithFields(map[string]interface{}{
+							"file": event.Name,
+						}).Errorln("cluster config was removed but unable to re-add it to watcher")
+					}
+				}
+				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Remove == fsnotify.Remove {
+					// Reload config if operation is Write or Remove.
+					// Both can be part of file update depending on environment and actual operation.
 					c.reloadConfig(clusterConfigFile)
 					log.WithFields(map[string]interface{}{
 						"file": event.Name,
-					}).Debugln("cluster config file modified and reloaded")
+						"op":   event.Op.String(),
+					}).Infoln("cluster config file modified and reloaded")
 				}
 			case err := <-watcher.Errors:
 				log.WithFields(map[string]interface{}{
@@ -506,6 +517,9 @@ func (c *ConfigurationData) watcher(clusterConfigFile string) (func() error, err
 	configFilePath, err := pathExists(clusterConfigFile)
 	if err == nil && configFilePath != "" {
 		err = watcher.Add(configFilePath)
+		log.WithFields(map[string]interface{}{
+			"file": clusterConfigFile,
+		}).Infoln("cluster config file watcher initialized")
 	} else {
 		// OK in Dev Mode
 		log.WithFields(map[string]interface{}{
@@ -516,10 +530,10 @@ func (c *ConfigurationData) watcher(clusterConfigFile string) (func() error, err
 	return watcher.Close, err
 }
 
-func (c *ConfigurationData) reloadConfig(clusterConfigFile string) {
+func (c *ConfigurationData) reloadConfig(clusterConfigFile string) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	c.initClusterConfig("", clusterConfigFile)
+	return c.initClusterConfig("", clusterConfigFile)
 }
 
 // DefaultConfigurationError returns an error if the default values is used
