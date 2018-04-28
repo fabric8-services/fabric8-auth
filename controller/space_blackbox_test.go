@@ -50,11 +50,7 @@ func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController) 
 
 func (rest *TestSpaceREST) SecuredControllerForIdentity(identity account.Identity) (*goa.Service, *SpaceController) {
 	svc := testsupport.ServiceAsUser("Space-Service", identity)
-	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
-		ResourceID:   &rest.resourceID,
-		PermissionID: &rest.permissionID,
-		PolicyID:     &rest.policyID,
-	})
+	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, nil)
 }
 
 func (rest *TestSpaceREST) UnSecuredController() (*goa.Service, *SpaceController) {
@@ -187,7 +183,7 @@ func (rest *TestSpaceREST) TestListTeamUnauthorized() {
 	g.CreateTeam(g.ID("t2"), g.SpaceByID("space"))
 
 	service, controller := rest.SecuredControllerForIdentity(*g.CreateUser().Identity())
-	test.ListTeamsSpaceUnauthorized(rest.T(), service.Context, service, controller, g.SpaceByID("space").SpaceID())
+	test.ListTeamsSpaceForbidden(rest.T(), service.Context, service, controller, g.SpaceByID("space").SpaceID())
 
 	service, controller = rest.UnSecuredController()
 	test.ListTeamsSpaceUnauthorized(rest.T(), service.Context, service, controller, g.SpaceByID("space").SpaceID())

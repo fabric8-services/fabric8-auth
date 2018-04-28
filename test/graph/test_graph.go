@@ -95,6 +95,30 @@ func (g *TestGraph) ResourceTypeByID(id string) *resourceTypeWrapper {
 	return g.graphObjects[id].(*resourceTypeWrapper)
 }
 
+func (g *TestGraph) LoadResourceType(params ...interface{}) *resourceTypeWrapper {
+	var resourceTypeID *uuid.UUID
+	var resourceTypeName *string
+	for i := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			resourceTypeID = t
+		case uuid.UUID:
+			resourceTypeID = &t
+		case string:
+			resourceTypeName = &t
+		case *string:
+			resourceTypeName = t
+
+		}
+	}
+
+	require.True(g.t, resourceTypeID != nil || resourceTypeName != nil, "must specified either rresource_type_id or name parameter for the resource type to load")
+
+	w := loadResourceTypeWrapper(g, resourceTypeID, resourceTypeName)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
 func (g *TestGraph) CreateResource(params ...interface{}) *resourceWrapper {
 	obj := newResourceWrapper(g, params)
 	g.register(g.generateIdentifier(params), &obj)

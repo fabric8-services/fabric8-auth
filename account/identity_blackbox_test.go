@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -181,6 +182,64 @@ func (s *identityBlackBoxTest) TestFindIdentityMemberships() {
 	require.Equal(s.T(), orgID, associations[0].IdentityID)
 	require.True(s.T(), associations[0].Member)
 	require.Equal(s.T(), orgName, associations[0].ResourceName)
+}
+
+func (s *identityBlackBoxTest) TestFindIdentityTeamMemberships() {
+	g := s.DBTestSuite.NewTestGraph()
+	g.CreateTeam(g.ID("tm"), g.CreateSpace(g.ID("spc"))).AddMember(g.CreateUser(g.ID("m")))
+
+	// Find the member's memberships
+	associations, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, g.UserByID("m").Identity().ID, nil)
+	require.NoError(s.T(), err)
+
+	// There should be 1 entry
+	require.Equal(s.T(), 1, len(associations))
+	require.Equal(s.T(), g.TeamByID("tm").TeamID(), *associations[0].IdentityID)
+	require.True(s.T(), associations[0].Member)
+	require.Equal(s.T(), g.TeamByID("tm").TeamName(), associations[0].ResourceName)
+	require.Equal(s.T(), g.SpaceByID("spc").SpaceID(), *associations[0].ParentResourceID)
+}
+
+// TestFindIdentitiesByResourceTypeWithParentResource creates a combination of spaces/teams and then uses the finder method to find them
+func (s *identityBlackBoxTest) TestFindIdentitiesByResourceTypeWithParentResource() {
+	g := s.DBTestSuite.NewTestGraph()
+	spc := g.CreateSpace(g.ID("spc"))
+	t1 := g.CreateTeam(g.ID("t1"), spc)
+	t2 := g.CreateTeam(g.ID("t2"), spc)
+	t3 := g.CreateTeam(g.ID("t3"), spc)
+
+	spc2 := g.CreateSpace(g.ID("spc2"))
+	g.CreateTeam(g.ID("t4"), spc2)
+	g.CreateTeam(g.ID("t5"), spc2)
+
+	rt := g.LoadResourceType(authorization.IdentityResourceTypeTeam)
+
+	identities, err := s.Application.Identities().FindIdentitiesByResourceTypeWithParentResource(s.Ctx, rt.ResourceType().ResourceTypeID, spc.SpaceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identities, 3)
+	t1Found := false
+	t2Found := false
+	t3Found := false
+	for i, _ := range identities {
+		if identities[i].ID == t1.TeamID() {
+			t1Found = true
+			require.Equal(s.T(), t1.TeamName(), identities[i].IdentityResource.Name)
+		} else if identities[i].ID == t2.TeamID() {
+			t2Found = true
+			require.Equal(s.T(), t2.TeamName(), identities[i].IdentityResource.Name)
+		} else if identities[i].ID == t3.TeamID() {
+			t3Found = true
+			require.Equal(s.T(), t3.TeamName(), identities[i].IdentityResource.Name)
+		}
+	}
+
+	require.True(s.T(), t1Found)
+	require.True(s.T(), t2Found)
+	require.True(s.T(), t3Found)
+
+	identities, err = s.Application.Identities().FindIdentitiesByResourceTypeWithParentResource(s.Ctx, rt.ResourceType().ResourceTypeID, spc2.SpaceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identities, 2)
 }
 
 func createAndLoad(s *identityBlackBoxTest) *account.Identity {

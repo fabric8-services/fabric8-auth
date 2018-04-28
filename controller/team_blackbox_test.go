@@ -46,7 +46,7 @@ func (rest *TestTeamREST) UnsecuredController() (*goa.Service, *TeamController) 
 }
 
 /*
-* This test will attempt to create a new organization
+* This test will attempt to create a new team
  */
 func (rest *TestTeamREST) TestCreateTeamSuccess() {
 	service, controller := rest.SecuredController(rest.testIdentity)

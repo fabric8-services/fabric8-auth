@@ -21,7 +21,7 @@ type TeamService interface {
 	ListTeamsForIdentity(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
 }
 
-// TeamServiceImpl is the default implementation of TeamService. It is a private struct and should only be instantiated
+// teamServiceImpl is the default implementation of TeamService. It is a private struct and should only be instantiated
 // via the NewTeamService() function.
 type teamServiceImpl struct {
 	repo repository.Repositories
@@ -33,7 +33,7 @@ func NewTeamService(repo repository.Repositories, tm transaction.TransactionMana
 	return &teamServiceImpl{repo: repo, tm: tm}
 }
 
-// Creates a new team.  The specified identityID is the user creating the team, and the spaceID is the identifier for the
+// CreateTeam Creates a new team.  The specified identityID is the user creating the team, and the spaceID is the identifier for the
 // space resource in which the team will be created.  The name parameter specifies the team name.  The team's identity ID is returned.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, spaceID string, teamName string) (*uuid.UUID, error) {
@@ -41,9 +41,13 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 
 	err := transaction.Transactional(s.tm, func(tr transaction.TransactionalResources) error {
 		// Validate the identity for the current user
-		_, err := tr.Identities().Load(ctx, identityID)
+		identity, err := tr.Identities().LoadWithUser(ctx, identityID)
 		if err != nil {
 			return errors.NewUnauthorizedError(fmt.Sprintf("unknown Identity ID %s", identityID))
+		}
+
+		if identity.User.Deprovisioned {
+			return errors.NewUnauthorizedError(fmt.Sprintf("user %s has been deprovisioned", identity.Username))
 		}
 
 		// Validate the space resource
@@ -120,7 +124,7 @@ func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.
 	// Confirm that the specified spaceID is valid
 	space, err := s.repo.ResourceRepository().Load(ctx, spaceID)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewBadParameterErrorFromString("spaceID", spaceID, "error loading space from repository")
 	}
 
 	// Confirm that the resource is actually a space
@@ -132,13 +136,9 @@ func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.
 	permService := permissionservice.NewPermissionService(s.repo)
 
 	// Confirm the user has the necessary privileges to list the teams in this space
-	scope, err := permService.HasScope(ctx, identityID, spaceID, authorization.ViewTeamsInSpaceScope)
+	err = permService.RequireScope(ctx, identityID, spaceID, authorization.ViewTeamsInSpaceScope)
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
-	}
-
-	if !scope {
-		return nil, errors.NewUnauthorizedError(fmt.Sprintf("user requires %s scope for the space to be able to view teams", authorization.ViewTeamsInSpaceScope))
+		return nil, err
 	}
 
 	// Lookup the team resource type

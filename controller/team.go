@@ -30,10 +30,6 @@ func (c *TeamController) Create(ctx *app.CreateTeamContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
-	if currentUser == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
-	}
-
 	if ctx.Payload.Name == nil || len(strings.TrimSpace(*ctx.Payload.Name)) == 0 {
 		log.Error(ctx, map[string]interface{}{}, "organization name cannot be empty")
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("organization name cannot be empty"))
@@ -88,12 +84,11 @@ func convertToIdentityTeamData(teams []authorization.IdentityAssociation) []*app
 
 	for _, team := range teams {
 		teamData := &app.IdentityTeamData{
-			ID:        team.IdentityID.String(),
-			Name:      team.ResourceName,
-			Member:    team.Member,
-			Roles:     team.Roles,
-			SpaceID:   *team.ParentResourceID,
-			SpaceName: *team.ParentResourceName,
+			ID:      team.IdentityID.String(),
+			Name:    team.ResourceName,
+			Member:  team.Member,
+			Roles:   team.Roles,
+			SpaceID: *team.ParentResourceID,
 		}
 
 		results = append(results, teamData)

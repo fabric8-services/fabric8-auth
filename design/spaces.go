@@ -83,6 +83,7 @@ var _ = a.Resource("space", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 	})
 })
 

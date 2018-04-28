@@ -12,6 +12,25 @@ type resourceTypeWrapper struct {
 	resourceType *resourcetype.ResourceType
 }
 
+func loadResourceTypeWrapper(g *TestGraph, resourceTypeID *uuid.UUID, resourceTypeName *string) resourceTypeWrapper {
+	w := resourceTypeWrapper{baseWrapper: baseWrapper{g}}
+
+	var native resourcetype.ResourceType
+	q := w.graph.db.Table("resource_type")
+	if resourceTypeID != nil {
+		q = q.Where("resource_type_id = ?", *resourceTypeID)
+	} else if resourceTypeName != nil {
+		q = q.Where("name = ?", *resourceTypeName)
+	}
+
+	err := q.Find(&native).Error
+	require.NoError(w.graph.t, err)
+
+	w.resourceType = &native
+
+	return w
+}
+
 func newResourceTypeWrapper(g *TestGraph, params []interface{}) resourceTypeWrapper {
 	w := resourceTypeWrapper{baseWrapper: baseWrapper{g}}
 

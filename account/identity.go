@@ -491,11 +491,7 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 			identity.IdentityResource.ParentResource = &native
 		}
 
-		parentResourceName := ""
-		if identity.IdentityResource.ParentResource != nil {
-			parentResourceName = identity.IdentityResource.ParentResource.Name
-		}
-		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, identity.IdentityResource.ParentResourceID, &parentResourceName, &identity.ID, true, nil)
+		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, identity.IdentityResource.ParentResourceID, &identity.ID, true, nil)
 	}
 
 	return associations, nil
@@ -503,7 +499,7 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 
 // FindIdentitiesWithParentResource returns an array of Identity objects for which their corresponding resource is a child of the specified parent resource
 func (m *GormIdentityRepository) FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity", "FindIdentitiesWithParentResource"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "FindIdentitiesByResourceTypeWithParentResource"}, time.Now())
 
 	var identities []Identity
 
