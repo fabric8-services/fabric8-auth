@@ -219,42 +219,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	c.checkServiceAccountConfig()
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
-	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
-	if err != nil {
-		return nil, err
-	}
-	if defaultConfigErrorMsg != nil {
-		c.appendDefaultConfigErrorMessage(*defaultConfigErrorMsg)
-	}
-
-	var clusterConf osoClusterConfig
-	err = clusterViper.Unmarshal(&clusterConf)
-	if err != nil {
-		return nil, err
-	}
-	c.clusters = map[string]OSOCluster{}
-	for _, cluster := range clusterConf.Clusters {
-		if cluster.ConsoleURL == "" {
-			cluster.ConsoleURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return nil, err
-			}
-		}
-		if cluster.MetricsURL == "" {
-			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
-			if err != nil {
-				return nil, err
-			}
-		}
-		if cluster.LoggingURL == "" {
-			// This is not a typo; the logging host is the same as the console host in current k8s
-			cluster.LoggingURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return nil, err
-			}
-		}
-		c.clusters[cluster.APIURL] = cluster
-	}
+	c.initClusterConfig(osoClusterConfigFile, defaultOsoClusterConfigPath)
 
 	// Check sensitive default configuration
 	if c.IsPostgresDeveloperModeEnabled() {
@@ -318,6 +283,47 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	return c, nil
+}
+
+func (c *ConfigurationData) initClusterConfig(osoClusterConfigFile, defaultClusterConfigFile string) error {
+	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultClusterConfigFile, osoClusterConfigFileName)
+	if err != nil {
+		return err
+	}
+	if defaultConfigErrorMsg != nil {
+		c.appendDefaultConfigErrorMessage(*defaultConfigErrorMsg)
+	}
+
+	var clusterConf osoClusterConfig
+	err = clusterViper.Unmarshal(&clusterConf)
+	if err != nil {
+		return err
+	}
+	c.clusters = map[string]OSOCluster{}
+	for _, cluster := range clusterConf.Clusters {
+		if cluster.ConsoleURL == "" {
+			cluster.ConsoleURL, err = convertAPIURL(cluster.APIURL, "console", "console")
+			if err != nil {
+				return err
+			}
+		}
+		if cluster.MetricsURL == "" {
+			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
+			if err != nil {
+				return err
+			}
+		}
+		if cluster.LoggingURL == "" {
+			// This is not a typo; the logging host is the same as the console host in current k8s
+			cluster.LoggingURL, err = convertAPIURL(cluster.APIURL, "console", "console")
+			if err != nil {
+				return err
+			}
+		}
+		c.clusters[cluster.APIURL] = cluster
+	}
+
+	return nil
 }
 
 func (c *ConfigurationData) checkServiceAccountConfig() {
