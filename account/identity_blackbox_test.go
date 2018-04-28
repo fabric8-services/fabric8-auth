@@ -220,7 +220,7 @@ func (s *identityBlackBoxTest) TestFindIdentitiesByResourceTypeWithParentResourc
 	t1Found := false
 	t2Found := false
 	t3Found := false
-	for i, _ := range identities {
+	for i := range identities {
 		if identities[i].ID == t1.TeamID() {
 			t1Found = true
 			require.Equal(s.T(), t1.TeamName(), identities[i].IdentityResource.Name)
