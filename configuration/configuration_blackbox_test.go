@@ -502,6 +502,7 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 		AuthClientID:           "autheast2",
 		AuthClientSecret:       "autheast2secret",
 		AuthClientDefaultScope: "user:full",
+		CapacityExhausted:      false,
 	})
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2a",
@@ -516,6 +517,22 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 		AuthClientID:           "autheast2a",
 		AuthClientSecret:       "autheast2asecret",
 		AuthClientDefaultScope: "user:full",
+		CapacityExhausted:      false,
+	})
+	checkCluster(t, clusters, configuration.OSOCluster{
+		Name:                   "us-east-1a",
+		APIURL:                 "https://api.starter-us-east-1a.openshift.com",
+		ConsoleURL:             "https://console.starter-us-east-1a.openshift.com/console",
+		MetricsURL:             "https://metrics.starter-us-east-1a.openshift.com",
+		LoggingURL:             "https://console.starter-us-east-1a.openshift.com/console",
+		AppDNS:                 "b542.starter-us-east-1a.openshiftapps.com",
+		ServiceAccountToken:    "sdfjdlfjdfkjdlfjd12324434543085djdfjd084508gfdkjdofkjg43854085dlkjdlk",
+		ServiceAccountUsername: "dsaas",
+		TokenProviderID:        "886c7ea3-ef97-443d-b345-de94b94bb65d",
+		AuthClientID:           "autheast1a",
+		AuthClientSecret:       "autheast1asecret",
+		AuthClientDefaultScope: "user:full",
+		CapacityExhausted:      true,
 	})
 }
 

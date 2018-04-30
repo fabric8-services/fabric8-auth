@@ -162,6 +162,7 @@ type OSOCluster struct {
 	AuthClientID           string `mapstructure:"auth-client-id"`
 	AuthClientSecret       string `mapstructure:"auth-client-secret"`
 	AuthClientDefaultScope string `mapstructure:"auth-client-default-scope"`
+	CapacityExhausted      bool   `mapstructure:"capacity-exhausted"` // Optional in oso-clusters.conf ('false' by default)
 }
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -372,6 +373,8 @@ func (c *ConfigurationData) checkClusterConfig() {
 				if f.String() == "" {
 					c.appendDefaultConfigErrorMessage(fmt.Sprintf("key %v is missing in cluster config", tag))
 				}
+			case bool:
+				// Ignore
 			default:
 				c.appendDefaultConfigErrorMessage(fmt.Sprintf("wront type of key %v", tag))
 			}
