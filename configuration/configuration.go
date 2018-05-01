@@ -285,7 +285,6 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetSentryDSN() == "" {
 		c.appendDefaultConfigErrorMessage("Sentry DSN is empty")
 	}
-	c.checkClusterConfig()
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
 			"default_configuration_error": c.defaultConfigurationError.Error(),
@@ -333,7 +332,8 @@ func (c *ConfigurationData) initClusterConfig(osoClusterConfigFile, defaultClust
 		c.clusters[cluster.APIURL] = cluster
 	}
 
-	return usedClusterConfigFile, nil
+	err = c.checkClusterConfig()
+	return usedClusterConfigFile, err
 }
 
 func (c *ConfigurationData) checkServiceAccountConfig() {
@@ -366,7 +366,13 @@ func (c *ConfigurationData) checkServiceAccountConfig() {
 }
 
 // checkClusterConfig checks if there is any missing keys or empty values in oso-clusters.conf
-func (c *ConfigurationData) checkClusterConfig() {
+func (c *ConfigurationData) checkClusterConfig() error {
+	if len(c.clusters) == 0 {
+		return errors.New("empty cluster config file")
+	}
+
+	err := errors.New("")
+	ok := true
 	for _, cluster := range c.clusters {
 		iVal := reflect.ValueOf(&cluster).Elem()
 		typ := iVal.Type()
@@ -376,15 +382,21 @@ func (c *ConfigurationData) checkClusterConfig() {
 			switch f.Interface().(type) {
 			case string:
 				if f.String() == "" {
-					c.appendDefaultConfigErrorMessage(fmt.Sprintf("key %v is missing in cluster config", tag))
+					err = errors.Errorf("%s; key %v is missing in cluster config", err.Error(), tag)
+					ok = false
 				}
 			case bool:
 				// Ignore
 			default:
-				c.appendDefaultConfigErrorMessage(fmt.Sprintf("wront type of key %v", tag))
+				err = errors.Errorf("%s; wrong type of key %v", err.Error(), tag)
+				ok = false
 			}
 		}
 	}
+	if !ok {
+		return err
+	}
+	return nil
 }
 
 func convertAPIURL(apiURL string, newPrefix string, newPath string) (string, error) {
@@ -495,7 +507,11 @@ func (c *ConfigurationData) InitializeClusterWatcher() (func() error, error) {
 		for {
 			select {
 			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
 				if event.Op&fsnotify.Remove == fsnotify.Remove {
+					time.Sleep(1 * time.Second) // Wait for one second before re-adding and reloading. It might be needed if the file is removed and then re-added in some environments
 					err = watcher.Add(event.Name)
 					if err != nil {
 						log.WithFields(map[string]interface{}{
@@ -517,16 +533,13 @@ func (c *ConfigurationData) InitializeClusterWatcher() (func() error, error) {
 						"op":   event.Op.String(),
 					}).Infoln("cluster config file modified and reloaded")
 				}
+			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
 				}
-			case err, ok := <-watcher.Errors:
 				log.WithFields(map[string]interface{}{
 					"err": err,
 				}).Errorln("cluster config file watcher error")
-				if !ok {
-					return
-				}
 			}
 		}
 	}()
@@ -560,6 +573,10 @@ func (c *ConfigurationData) reloadClusterConfig() error {
 // Error contains all the details.
 // Returns nil if the default configuration is not used.
 func (c *ConfigurationData) DefaultConfigurationError() error {
+	// Lock for reading because config file watcher can update config errors
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+
 	return c.defaultConfigurationError
 }
 
@@ -579,6 +596,7 @@ func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 
 // GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
 func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
+	// Lock for reading because config file watcher can update cluster configuration
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 	return c.clusters
@@ -590,6 +608,7 @@ func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 // like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
 // Returns nil if no matching API URL found
 func (c *ConfigurationData) GetOSOClusterByURL(url string) *OSOCluster {
+	// Lock for reading because config file watcher can update cluster configuration
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 

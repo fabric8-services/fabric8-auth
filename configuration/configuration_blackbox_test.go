@@ -457,16 +457,16 @@ func TestLoadClusterConfigurationFromFile(t *testing.T) {
 func TestClusterConfigurationWithMissingKeys(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	clusterConfig, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-missing-keys.conf")
-	require.Nil(t, err)
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key name is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key app-dns is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key service-account-token is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key service-account-username is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key token-provider-id is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-id is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-secret is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-default-scope is missing")
+	_, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-missing-keys.conf")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "key name is missing")
+	assert.Contains(t, err.Error(), "key app-dns is missing")
+	assert.Contains(t, err.Error(), "key service-account-token is missing")
+	assert.Contains(t, err.Error(), "key service-account-username is missing")
+	assert.Contains(t, err.Error(), "key token-provider-id is missing")
+	assert.Contains(t, err.Error(), "key auth-client-id is missing")
+	assert.Contains(t, err.Error(), "key auth-client-secret is missing")
+	assert.Contains(t, err.Error(), "key auth-client-default-scope is missing")
 }
 
 func TestClusterConfigurationWithGeneratedURLs(t *testing.T) {
@@ -488,6 +488,21 @@ func TestClusterConfigurationWithGeneratedURLs(t *testing.T) {
 		AuthClientSecret:       "autheast2secret",
 		AuthClientDefaultScope: "user:full",
 	})
+}
+
+func TestClusterConfigurationWithEmptyArray(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	_, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-empty.conf")
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), "empty cluster config file")
+}
+
+func TestClusterConfigurationFromInvalidFile(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	_, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-invalid.conf")
+	require.Error(t, err)
 }
 
 func TestClusterConfigurationWatcher(t *testing.T) {
@@ -519,6 +534,16 @@ func TestClusterConfigurationWatcher(t *testing.T) {
 	updateClusterConfigFile(t, tmpFileName, "./conf-files/oso-clusters.conf")
 	// Check if it has been updated
 	waitForConfigUpdate(t, config, original)
+
+	// Update the config file to some invalid data
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-invalid.conf")
+	// The configuration should not change
+	waitForConfigUpdate(t, config, original)
+
+	// Fix the file
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-capacity-updated.conf")
+	// Now configuration should be updated
+	waitForConfigUpdate(t, config, !original)
 }
 
 func waitForConfigUpdate(t *testing.T, config *configuration.ConfigurationData, expected bool) {
