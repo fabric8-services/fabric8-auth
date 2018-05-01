@@ -522,7 +522,7 @@ func TestClusterConfigurationWatcher(t *testing.T) {
 }
 
 func waitForConfigUpdate(t *testing.T, config *configuration.ConfigurationData, expected bool) {
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 30; i++ {
 		time.Sleep(100 * time.Millisecond)
 		cluster := config.GetOSOClusterByURL("https://api.starter-us-east-2a.openshift.com")
 		require.NotNil(t, cluster)
