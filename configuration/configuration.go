@@ -524,14 +524,18 @@ func (c *ConfigurationData) InitializeClusterWatcher() (func() error, error) {
 					// Both can be part of file update depending on environment and actual operation.
 					err := c.reloadClusterConfig()
 					if err != nil {
+						// Do not crash. Log the error and keep using the existing configuration
 						log.WithFields(map[string]interface{}{
-							"err": err,
+							"err":  err,
+							"file": event.Name,
+							"op":   event.Op.String(),
 						}).Errorln("unable to reload cluster config file")
+					} else {
+						log.WithFields(map[string]interface{}{
+							"file": event.Name,
+							"op":   event.Op.String(),
+						}).Infoln("cluster config file modified and reloaded")
 					}
-					log.WithFields(map[string]interface{}{
-						"file": event.Name,
-						"op":   event.Op.String(),
-					}).Infoln("cluster config file modified and reloaded")
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
