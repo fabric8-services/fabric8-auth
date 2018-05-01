@@ -503,6 +503,11 @@ func TestClusterConfigurationFromInvalidFile(t *testing.T) {
 
 	_, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-invalid.conf")
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to load the JSON config file")
+
+	_, err = configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-wrong-json.conf")
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), "empty cluster config file")
 }
 
 func TestClusterConfigurationWatcher(t *testing.T) {
@@ -537,6 +542,9 @@ func TestClusterConfigurationWatcher(t *testing.T) {
 
 	// Update the config file to some invalid data
 	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-invalid.conf")
+	// The configuration should not change
+	waitForConfigUpdate(t, config, original)
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-empty.conf")
 	// The configuration should not change
 	waitForConfigUpdate(t, config, original)
 
