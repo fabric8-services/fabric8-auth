@@ -107,6 +107,15 @@ func main() {
 	}
 	defer haltSentry()
 
+	// Initialize cluster config watcher
+	haltWatcher, err := config.InitializeClusterWatcher()
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the cluster config watcher")
+	}
+	defer haltWatcher()
+
 	if config.IsPostgresDeveloperModeEnabled() && log.IsDebug() {
 		db = db.Debug()
 	}
