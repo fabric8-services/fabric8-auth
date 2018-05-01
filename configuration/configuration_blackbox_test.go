@@ -522,7 +522,7 @@ func TestClusterConfigurationWatcher(t *testing.T) {
 }
 
 func waitForConfigUpdate(t *testing.T, config *configuration.ConfigurationData, expected bool) {
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 50; i++ {
 		time.Sleep(100 * time.Millisecond)
 		cluster := config.GetOSOClusterByURL("https://api.starter-us-east-2a.openshift.com")
 		require.NotNil(t, cluster)
@@ -533,7 +533,7 @@ func waitForConfigUpdate(t *testing.T, config *configuration.ConfigurationData, 
 	require.Fail(t, "cluster config has not been reloaded within 3s")
 }
 
-func _TestClusterConfigurationWatcherNoErrorForDefaultConfig(t *testing.T) {
+func TestClusterConfigurationWatcherNoErrorForDefaultConfig(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
 	config, err := configuration.GetConfigurationData()
