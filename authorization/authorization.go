@@ -17,11 +17,38 @@ const (
 	// IdentityResourceTypeUser defines the string constant to be used for denoting a user managed by the authorization framework
 	IdentityResourceTypeUser = "identity/user"
 
+	// ResourceTypeSpace defines the string constant for the space resource type
+	ResourceTypeSpace = "openshift.io/resource/space"
+
+	// AdminRole is the constant used to denote the name of a resource's administrator role
+	AdminRole = "admin"
+
+	// SpaceContributorRole is the constant used to denote the name of the space's contributor role
+	SpaceContributorRole = "contributor"
+
+	// SpaceViewerRole is the constant used to denote the name of the space's viewer role
+	SpaceViewerRole = "viewer"
+
 	// OwnerRole is the constant used to denote the name of the organization, team or security group owner role
 	OwnerRole = "owner"
 
 	// ManageMembersScope is the scope required for users wishing to invite/remove other users to an organization, team or security group
 	ManageMembersScope = "manage_members"
+
+	// viewSpaceScope is a general scope required to perform many space-related operations
+	viewSpaceScope = "view"
+
+	// manageSpaceScope is a general scope required to perform many space-related operations
+	manageSpaceScope = "manage"
+
+	// contributeSpaceScope is a general scope required to perform many space-related operations
+	contributeSpaceScope = "contribute"
+
+	// ManageTeamsScope is the scope required for users wishing to manage teams for a space
+	ManageTeamsInSpaceScope = manageSpaceScope
+
+	// ViewTeamsInSpaceScope is the scope required for users wishing to view the teams in a space
+	ViewTeamsInSpaceScope = viewSpaceScope
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities
@@ -35,22 +62,30 @@ func CanHaveMembers(resourceTypeName string) bool {
 // membership or by having been granted a role.  It contains metadata about the Identity's relationship with the other
 // entity, including its membership state, and any roles it may have been assigned.
 type IdentityAssociation struct {
-	ResourceID   string
-	ResourceName string
-	IdentityID   *uuid.UUID
-	Member       bool
-	Roles        []string
+	ResourceID       string
+	ResourceName     string
+	ParentResourceID *string
+	IdentityID       *uuid.UUID
+	Member           bool
+	Roles            []string
 }
 
 // AppendAssociation appends the association state specified by the parameter values to an existing IdentityAssociation array
-func AppendAssociation(associations []IdentityAssociation, resourceID string, resourceName *string, identityID *uuid.UUID, member bool, role *string) []IdentityAssociation {
+func AppendAssociation(associations []IdentityAssociation, resourceID string, resourceName *string, parentResourceID *string,
+	identityID *uuid.UUID, member bool, role *string) []IdentityAssociation {
 	found := false
 	for i, assoc := range associations {
 		if assoc.ResourceID == resourceID {
 			found = true
 
 			if assoc.IdentityID == nil && identityID != nil {
-				assoc.IdentityID = identityID
+				id := *identityID
+				assoc.IdentityID = &id
+			}
+
+			if assoc.ParentResourceID == nil && parentResourceID != nil {
+				prID := *parentResourceID
+				assoc.ParentResourceID = &prID
 			}
 
 			if !assoc.Member && member {
@@ -81,12 +116,24 @@ func AppendAssociation(associations []IdentityAssociation, resourceID string, re
 		if role != nil {
 			roles = append(roles, *role)
 		}
+		var id *uuid.UUID
+		if identityID != nil {
+			value := *identityID
+			id = &value
+		}
+		var prID *string
+		if parentResourceID != nil {
+			value := *parentResourceID
+			prID = &value
+		}
+
 		associations = append(associations, IdentityAssociation{
-			ResourceID:   resourceID,
-			ResourceName: *resourceName,
-			IdentityID:   identityID,
-			Member:       member,
-			Roles:        roles,
+			ResourceID:       resourceID,
+			ResourceName:     *resourceName,
+			ParentResourceID: prID,
+			IdentityID:       id,
+			Member:           member,
+			Roles:            roles,
 		})
 	}
 
@@ -102,7 +149,9 @@ func MergeAssociations(associations []IdentityAssociation, merge []IdentityAssoc
 			if assoc.ResourceID == merging.ResourceID {
 				found = true
 
-				assoc.Member = merging.Member
+				if !assoc.Member {
+					assoc.Member = merging.Member
+				}
 
 				if assoc.IdentityID == nil && merging.IdentityID != nil {
 					assoc.IdentityID = merging.IdentityID

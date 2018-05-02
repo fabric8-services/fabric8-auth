@@ -14,6 +14,7 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
+	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -137,6 +138,10 @@ func (g *GormDB) PermissionService() permissionservice.PermissionService {
 
 func (g *GormDB) RoleManagementService() roleservice.RoleManagementService {
 	return roleservice.NewRoleManagementService(g)
+}
+
+func (g *GormDB) TeamService() teamservice.TeamService {
+	return teamservice.NewTeamService(g, g)
 }
 
 func (g *GormBase) DB() *gorm.DB {

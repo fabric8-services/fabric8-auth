@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
@@ -132,4 +133,42 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return ctx.OK([]byte{})
+}
+
+// ListTeams runs the listTeams action.
+func (c *SpaceController) ListTeams(ctx *app.ListTeamsSpaceContext) error {
+	currentUser, err := login.ContextIdentity(ctx)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	}
+
+	if currentUser == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
+	}
+
+	teams, err := c.app.TeamService().ListTeamsInSpace(ctx, *currentUser, ctx.SpaceID)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to list teams")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.OK(&app.TeamArray{convertToTeamData(teams)})
+}
+
+func convertToTeamData(teams []account.Identity) []*app.TeamData {
+	results := []*app.TeamData{}
+
+	for _, team := range teams {
+		teamData := &app.TeamData{
+			ID:   team.ID.String(),
+			Name: team.IdentityResource.Name,
+		}
+
+		results = append(results, teamData)
+	}
+
+	return results
 }

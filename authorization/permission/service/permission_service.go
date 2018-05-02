@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
 )
 
 type PermissionService interface {
 	HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error)
+	RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error
 }
 
 // PermissionServiceImpl is the implementation of the interface for
@@ -36,4 +39,19 @@ func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UU
 	}
 
 	return len(identityRoles) > 0, nil
+}
+
+// RequireScope is the same as HasScope, except instead of returning a boolean value it will just return an error if the
+// identity does not have the specified scope for the resource
+func (s *PermissionServiceImpl) RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error {
+	result, err := s.HasScope(ctx, identityID, resourceID, scopeName)
+	if err != nil {
+		return errors.NewInternalError(ctx, err)
+	}
+
+	if !result {
+		return errors.NewForbiddenError(fmt.Sprintf("identity with ID %s does not have required scope %s for resource %s", identityID.String(), scopeName, resourceID))
+	}
+
+	return nil
 }

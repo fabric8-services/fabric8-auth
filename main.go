@@ -220,6 +220,7 @@ func main() {
 
 	providerFactory := link.NewOauthProviderFactory(config, appDB)
 	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
+
 	// Mount "token" controller
 	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, config)
 	app.MountTokenController(service, tokenCtrl)
@@ -276,6 +277,10 @@ func main() {
 	// Mount "organizations" controller
 	organizationCtrl := controller.NewOrganizationController(service, appDB)
 	app.MountOrganizationController(service, organizationCtrl)
+
+	// Mount "teams" controller
+	teamCtrl := controller.NewTeamController(service, appDB)
+	app.MountTeamController(service, teamCtrl)
 
 	// Mount "invitations" controller
 	invitationCtrl := controller.NewInvitationController(service, appDB)
