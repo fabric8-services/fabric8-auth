@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"

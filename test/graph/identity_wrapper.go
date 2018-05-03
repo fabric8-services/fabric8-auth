@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )

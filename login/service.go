@@ -12,22 +12,23 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	name "github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	keycloaktoken "github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -787,7 +788,7 @@ func generateGravatarURL(email string) (string, error) {
 // profile updated is needed & whether token refresh is needed.
 
 func (keycloak *KeycloakOAuthProvider) equalsTokenClaims(ctx context.Context, claims *token.TokenClaims, identity account.Identity) bool {
-	computedFullName := account.GenerateFullName(&claims.GivenName, &claims.FamilyName)
+	computedFullName := name.GenerateFullName(&claims.GivenName, &claims.FamilyName)
 	if identity.Username != claims.Username ||
 		identity.User.FullName != computedFullName ||
 		identity.User.Company != claims.Company ||
@@ -818,7 +819,7 @@ func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx c
 		return false, err
 	}
 
-	computedFullName := account.GenerateFullName(retrievedUserProfile.FirstName, retrievedUserProfile.LastName)
+	computedFullName := name.GenerateFullName(retrievedUserProfile.FirstName, retrievedUserProfile.LastName)
 
 	if (retrievedUserProfile.Username == nil || identity.Username != *retrievedUserProfile.Username) ||
 		(retrievedUserProfile.Email == nil || identity.User.Email != *retrievedUserProfile.Email) ||

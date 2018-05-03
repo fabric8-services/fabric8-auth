@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	name "github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/token"
+
 	_ "github.com/lib/pq"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -95,7 +97,7 @@ func TestEqualsTokenClaimsNotEqual(t *testing.T) {
 	identity := account.Identity{
 		Username: claims.Username + "noise",
 		User: account.User{
-			FullName:      account.GenerateFullName(&claims.GivenName, &claims.FamilyName),
+			FullName:      name.GenerateFullName(&claims.GivenName, &claims.FamilyName),
 			Email:         claims.Email + "noise",
 			EmailVerified: !claims.EmailVerified,
 		},
@@ -118,7 +120,7 @@ func TestEqualsTokenClaimsEqual(t *testing.T) {
 	identity := account.Identity{
 		Username: claims.Username,
 		User: account.User{
-			FullName:      account.GenerateFullName(&claims.GivenName, &claims.FamilyName),
+			FullName:      name.GenerateFullName(&claims.GivenName, &claims.FamilyName),
 			Email:         claims.Email,
 			Company:       claims.Company,
 			EmailVerified: false,

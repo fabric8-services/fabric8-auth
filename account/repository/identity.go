@@ -1,4 +1,4 @@
-package account
+package repository
 
 import (
 	"context"
@@ -7,13 +7,13 @@ import (
 	"time"
 
 	repository "github.com/fabric8-services/fabric8-auth/application/repository/base"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"database/sql"
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"

@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/resource"
+
 	"github.com/stretchr/testify/assert"
 )
 

@@ -9,7 +9,7 @@ import (
 	"context"
 
 	token "github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/auth"
