@@ -20,7 +20,7 @@ type UserController struct {
 	app             application.Application
 	tokenManager    token.Manager
 	config          UserControllerConfiguration
-	InitTenant      func(ctx context.Context) error
+	Tenant          service.Tenant
 }
 
 // UserControllerConfiguration the Configuration for the UserController
@@ -52,9 +52,9 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 	}
 
 	return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-		if c.InitTenant != nil {
+		if c.Tenant != nil {
 			go func(ctx context.Context) {
-				c.InitTenant(ctx)
+				c.Tenant.Init(ctx)
 			}(ctx)
 		}
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))

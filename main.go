@@ -241,7 +241,7 @@ func main() {
 	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
-		userCtrl.InitTenant = accountservice.NewInitTenant(config)
+		userCtrl.Tenant = accountservice.NewTenant(config)
 	}
 	app.MountUserController(service, userCtrl)
 

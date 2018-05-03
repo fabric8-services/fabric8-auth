@@ -16,16 +16,22 @@ type tenantConfig interface {
 	GetTenantServiceURL() string
 }
 
-// NewInitTenant creates a new tenant service in oso
-func NewInitTenant(config tenantConfig) func(context.Context) error {
-	return func(ctx context.Context) error {
-		return InitTenant(ctx, config)
-	}
+type Tenant interface {
+	Init(ctx context.Context) error
 }
 
-// InitTenant creates a new tenant service in oso
-func InitTenant(ctx context.Context, config tenantConfig) error {
-	c, err := createClient(ctx, config)
+type tenantImpl struct {
+	config tenantConfig
+}
+
+// NewTenant creates a new tenant service
+func NewTenant(config tenantConfig) Tenant {
+	return &tenantImpl{config: config}
+}
+
+// Init creates a new tenant in OSO
+func (t *tenantImpl) Init(ctx context.Context) error {
+	c, err := createClient(ctx, t.config)
 	if err != nil {
 		return err
 	}
