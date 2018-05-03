@@ -802,6 +802,11 @@ func extractServiceAccountName(ctx context.Context) (string, bool) {
 	return accountNameTyped, isString
 }
 
+//// NewAuthServiceAccountSigner return a new signer based on Auth Service Account
+//func (mgm *tokenManager) NewAuthServiceAccountSigner() client.Signer {
+//	return &goasupport.JWTSigner{Token: mgm.AuthServiceAccountToken()}
+//}
+
 // CheckClaims checks if all the required claims are present in the access token
 func CheckClaims(claims *TokenClaims) error {
 	if claims.Subject == "" {

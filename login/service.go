@@ -406,7 +406,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	return &redirectTo, userToken, nil
 }
 
-func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeytcloakUserRequest, config Configuration, identity *account.Identity) error {
+func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeycloakUserRequest, config Configuration, identity *account.Identity) error {
 	tokenEndpoint, err := config.GetKeycloakEndpointToken(request)
 	if err != nil {
 		return autherrors.NewInternalError(ctx, err)

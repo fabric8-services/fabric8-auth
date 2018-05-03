@@ -235,7 +235,7 @@ func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersConte
 
 	userAttributes := ctx.Payload.Data.Attributes
 
-	keycloakUser := login.KeytcloakUserRequest{
+	keycloakUser := login.KeycloakUserRequest{
 		Username: &userAttributes.Username,
 		Email:    &userAttributes.Email,
 	}
@@ -997,7 +997,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 			}
 
-			keycloakUser := login.KeytcloakUserRequest{
+			keycloakUser := login.KeycloakUserRequest{
 				Username:      &identity.Username,
 				Email:         &verfiedUser.Email,
 				EmailVerified: &isVerified,

@@ -96,7 +96,7 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeytcloakUserRequest{
+	testKeycloakUserData := login.KeycloakUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
@@ -151,7 +151,7 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeytcloakUserRequest{
+	testKeycloakUserData := login.KeycloakUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
@@ -182,7 +182,7 @@ func (s *ProfileUserBlackBoxTest) TestCreateKeycloakUserWithDefaults() {
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeytcloakUserRequest{
+	testKeycloakUserData := login.KeycloakUserRequest{
 		Username:   &testUserName,
 		FirstName:  &testFirstName,
 		LastName:   &testLastName,
@@ -214,7 +214,7 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeytcloakUserRequest{
+	testKeycloakUserData := login.KeycloakUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
@@ -241,7 +241,7 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
 
 }
 
-func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeytcloakUserRequest) *string {
+func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeycloakUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)
@@ -249,7 +249,7 @@ func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeytcloakUserReq
 	return url
 }
 
-func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.KeytcloakUserRequest) *string {
+func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.KeycloakUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)
@@ -257,7 +257,7 @@ func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.Keytcloa
 	return url
 }
 
-func (s *ProfileUserBlackBoxTest) updateExistingUser409(userProfile *login.KeytcloakUserRequest) *string {
+func (s *ProfileUserBlackBoxTest) updateExistingUser409(userProfile *login.KeycloakUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.VersionConflictError{}, err)
