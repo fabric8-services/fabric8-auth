@@ -2,7 +2,7 @@ package graph
 
 import (
 	"database/sql"
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"

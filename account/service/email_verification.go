@@ -1,23 +1,24 @@
-package email
+package service
 
 import (
-	"github.com/fabric8-services/fabric8-auth/account"
+	"context"
+
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	authclient "github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
-
-	"context"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 )
 
 type EmailVerificationService interface {
-	SendVerificationCode(ctx context.Context, req *goa.RequestData, identity account.Identity) (*account.VerificationCode, error)
-	VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error)
+	SendVerificationCode(ctx context.Context, req *goa.RequestData, identity repository.Identity) (*repository.VerificationCode, error)
+	VerifyCode(ctx context.Context, code string) (*repository.VerificationCode, error)
 }
 
 type EmailVerificationClient struct {
@@ -38,10 +39,10 @@ func NewEmailVerificationClient(app application.Application, notificationChannel
 }
 
 // SendVerificationCode generates and sends out an email with verification code.
-func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req *goa.RequestData, identity account.Identity) (*account.VerificationCode, error) {
+func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req *goa.RequestData, identity repository.Identity) (*repository.VerificationCode, error) {
 
 	generatedCode := uuid.NewV4().String()
-	newVerificationCode := account.VerificationCode{
+	newVerificationCode := repository.VerificationCode{
 		User: identity.User,
 		Code: generatedCode,
 	}
@@ -73,9 +74,9 @@ func (c *EmailVerificationClient) generateVerificationURL(ctx context.Context, r
 }
 
 // VerifyCode validates whether the code is present in our database and returns a non-nil if yes.
-func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error) {
+func (c *EmailVerificationClient) VerifyCode(ctx context.Context, code string) (*repository.VerificationCode, error) {
 
-	var verificationCode *account.VerificationCode
+	var verificationCode *repository.VerificationCode
 
 	log.Debug(ctx, map[string]interface{}{
 		"code": code,

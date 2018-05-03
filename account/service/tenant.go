@@ -1,4 +1,4 @@
-package account
+package service
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
 	"github.com/goadesign/goa/client"
 )
 

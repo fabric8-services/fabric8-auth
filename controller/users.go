@@ -3,13 +3,17 @@ package controller
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/email"
+	accountrepo "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -20,10 +24,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit"
 
-	"regexp"
-
-	"github.com/fabric8-services/fabric8-auth/application/repository"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
@@ -38,7 +38,7 @@ type UsersController struct {
 	config                   UsersControllerConfiguration
 	userProfileService       login.UserProfileService
 	RemoteWITService         wit.RemoteWITService
-	EmailVerificationService email.EmailVerificationService
+	EmailVerificationService service.EmailVerificationService
 	keycloakLinkService      link.KeycloakIDPService
 }
 
@@ -75,7 +75,7 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 	tenantSA := token.IsSpecificServiceAccount(ctx, token.Tenant)
 	isServiceAccount := tenantSA || token.IsSpecificServiceAccount(ctx, token.Notification)
 
-	var identity *account.Identity
+	var identity *accountrepo.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		identityID, err := uuid.FromString(ctx.ID)
 		if err != nil {
@@ -122,8 +122,8 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 	if preview {
 		log.Info(ctx, map[string]interface{}{"email": ctx.Payload.Data.Attributes.Email}, "ignoring preview user")
-		user := &account.User{Email: ctx.Payload.Data.Attributes.Email, Cluster: ctx.Payload.Data.Attributes.Cluster}
-		identity := &account.Identity{Username: ctx.Payload.Data.Attributes.Username, ProviderType: account.KeycloakIDP}
+		user := &accountrepo.User{Email: ctx.Payload.Data.Attributes.Email, Cluster: ctx.Payload.Data.Attributes.Cluster}
+		identity := &accountrepo.Identity{Username: ctx.Payload.Data.Attributes.Username, ProviderType: accountrepo.KeycloakIDP}
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 	}
 	// -----
@@ -301,33 +301,33 @@ func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersConte
 	return &identityID, nil
 }
 
-func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID uuid.UUID) (*account.Identity, *account.User, error) {
+func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID uuid.UUID) (*accountrepo.Identity, *accountrepo.User, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identityID, "user attributes": ctx.Payload.Data.Attributes}, "creating a new user in DB...")
 	userID := uuid.NewV4()
 	var err error
 
-	var user *account.User
-	var identity *account.Identity
+	var user *accountrepo.User
+	var identity *accountrepo.Identity
 
 	// Mandatory attributes
 	// "username", "email", "cluster"
 
-	user = &account.User{
+	user = &accountrepo.User{
 		ID:            userID,
 		Email:         ctx.Payload.Data.Attributes.Email,
 		Cluster:       ctx.Payload.Data.Attributes.Cluster,
 		EmailPrivate:  false,
 		EmailVerified: true,
-		FeatureLevel:  account.DefaultFeatureLevel,
+		FeatureLevel:  accountrepo.DefaultFeatureLevel,
 	}
-	identity = &account.Identity{
+	identity = &accountrepo.Identity{
 		ID:           identityID,
 		Username:     ctx.Payload.Data.Attributes.Username,
-		ProviderType: account.KeycloakIDP, // Ignore Provider Type passed in the payload. We should always use "kc".
+		ProviderType: accountrepo.KeycloakIDP, // Ignore Provider Type passed in the payload. We should always use "kc".
 	}
 
 	// associate foreign key
-	identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
+	identity.UserID = accountrepo.NullUUID{UUID: user.ID, Valid: true}
 
 	// Optional Attributes
 	registrationCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
@@ -491,8 +491,8 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	tokenString := jwt.ContextJWT(ctx).Raw
 	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
 
-	var identity *account.Identity
-	var user *account.User
+	var identity *accountrepo.Identity
+	var user *accountrepo.User
 
 	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		identity, err = tr.Identities().Load(ctx, loggedInIdentity.ID)
@@ -729,7 +729,7 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to update users."))
 	}
 
-	var identity *account.Identity
+	var identity *accountrepo.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		id, err := uuid.FromString(ctx.ID)
 		if err != nil {
@@ -763,7 +763,7 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
 }
 
-func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.User, updatedFeatureLevel *string) error {
+func (c *UsersController) updateFeatureLevel(ctx context.Context, user *accountrepo.User, updatedFeatureLevel *string) error {
 	if log.IsDebug() {
 		newFeatureLevel := "<nil>"
 		if updatedFeatureLevel != nil {
@@ -773,9 +773,9 @@ func (c *UsersController) updateFeatureLevel(ctx context.Context, user *account.
 	}
 	if updatedFeatureLevel != nil && *updatedFeatureLevel != user.FeatureLevel {
 		// handle the case where the value needs to be reset, when the new value is "" (empty string) or "released"
-		if *updatedFeatureLevel == "" || *updatedFeatureLevel == account.DefaultFeatureLevel {
-			log.Debug(ctx, map[string]interface{}{"user_id": user.ID}, "resetting feature level to %s", account.DefaultFeatureLevel)
-			user.FeatureLevel = account.DefaultFeatureLevel
+		if *updatedFeatureLevel == "" || *updatedFeatureLevel == accountrepo.DefaultFeatureLevel {
+			log.Debug(ctx, map[string]interface{}{"user_id": user.ID}, "resetting feature level to %s", accountrepo.DefaultFeatureLevel)
+			user.FeatureLevel = accountrepo.DefaultFeatureLevel
 		} else {
 			// if the level is 'internal', we need to check against the email address to verify that the user is a Red Hat employee
 			if *updatedFeatureLevel == "internal" &&
@@ -829,8 +829,8 @@ func isUsernameValid(username string) bool {
 	return false
 }
 
-func isUsernameUnique(ctx context.Context, repos repository.Repositories, username string, identity account.Identity) (bool, error) {
-	usersWithSameUserName, err := repos.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
+func isUsernameUnique(ctx context.Context, repos repository.Repositories, username string, identity accountrepo.Identity) (bool, error) {
+	usersWithSameUserName, err := repos.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.KeycloakIDP))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"user_name": username,
@@ -846,8 +846,8 @@ func isUsernameUnique(ctx context.Context, repos repository.Repositories, userna
 	return true, nil
 }
 
-func isEmailUnique(ctx context.Context, repos repository.Repositories, email string, user account.User) (bool, error) {
-	usersWithSameEmail, err := repos.Users().Query(account.UserFilterByEmail(email))
+func isEmailUnique(ctx context.Context, repos repository.Repositories, email string, user accountrepo.User) (bool, error) {
+	usersWithSameEmail, err := repos.Users().Query(accountrepo.UserFilterByEmail(email))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"email": email,
@@ -866,7 +866,7 @@ func isEmailUnique(ctx context.Context, repos repository.Repositories, email str
 func (c *UsersController) userExistsInDB(ctx context.Context, email string, username string) (bool, error) {
 	var exists bool
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
-		users, err := tr.Users().Query(account.UserFilterByEmail(email))
+		users, err := tr.Users().Query(accountrepo.UserFilterByEmail(email))
 		if err != nil {
 			return err
 		}
@@ -875,7 +875,7 @@ func (c *UsersController) userExistsInDB(ctx context.Context, email string, user
 			exists = true
 			return nil
 		}
-		identities, err := tr.Identities().Query(account.IdentityFilterByUsername(username), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err := tr.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.KeycloakIDP))
 		if err != nil {
 			return err
 		}
@@ -902,8 +902,8 @@ func (c *UsersController) userExistsInDB(ctx context.Context, email string, user
 
 // List runs the list action.
 func (c *UsersController) List(ctx *app.ListUsersContext) error {
-	var users []account.User
-	var identities []account.Identity
+	var users []accountrepo.User
+	var identities []accountrepo.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
 		users, identities, err = filterUsers(tr, ctx)
@@ -1022,10 +1022,10 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 	return ctx.TemporaryRedirect()
 }
 
-func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]account.User, []account.Identity, error) {
+func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]accountrepo.User, []accountrepo.Identity, error) {
 	var err error
-	var resultUsers []account.User
-	var resultIdentities []account.Identity
+	var resultUsers []accountrepo.User
+	var resultIdentities []accountrepo.Identity
 	/*
 		There are 2 database tables we fetch the data from : identities , users
 		First, we filter on the attributes of identities table - providerType , username
@@ -1035,12 +1035,12 @@ func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]ac
 	userFilters := []func(*gorm.DB) *gorm.DB{}
 	/*** Start filtering on Identities table ****/
 	if ctx.FilterUsername != nil {
-		identityFilters = append(identityFilters, account.IdentityFilterByUsername(*ctx.FilterUsername))
+		identityFilters = append(identityFilters, accountrepo.IdentityFilterByUsername(*ctx.FilterUsername))
 	}
 	// Add more filters when needed , here. ..
 	if len(identityFilters) != 0 {
-		identityFilters = append(identityFilters, account.IdentityFilterByProviderType(account.KeycloakIDP))
-		identityFilters = append(identityFilters, account.IdentityWithUser())
+		identityFilters = append(identityFilters, accountrepo.IdentityFilterByProviderType(accountrepo.KeycloakIDP))
+		identityFilters = append(identityFilters, accountrepo.IdentityWithUser())
 		// From a data model perspective, we are querying by identity ( and not user )
 		filteredIdentities, err := repos.Identities().Query(identityFilters...)
 		if err != nil {
@@ -1056,11 +1056,11 @@ func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]ac
 			}
 		}
 	} else {
-		var filteredUsers []account.User
+		var filteredUsers []accountrepo.User
 		/*** Start filtering on Users table ****/
 		if ctx.FilterEmail != nil {
-			userFilters = append(userFilters, account.UserFilterByEmail(*ctx.FilterEmail))
-			userFilters = append(userFilters, account.UserFilterByEmailPrivacy(false)) // Ignore users with private emails
+			userFilters = append(userFilters, accountrepo.UserFilterByEmail(*ctx.FilterEmail))
+			userFilters = append(userFilters, accountrepo.UserFilterByEmailPrivacy(false)) // Ignore users with private emails
 		}
 		// .. Add other filters in future when needed into the userFilters slice in the above manner.
 		if len(userFilters) != 0 {
@@ -1070,8 +1070,8 @@ func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]ac
 			}
 		} else {
 			// Soft-kill the API for listing all Users /api/users
-			resultUsers = []account.User{}
-			resultIdentities = []account.Identity{}
+			resultUsers = []accountrepo.User{}
+			resultIdentities = []accountrepo.Identity{}
 			return resultUsers, resultIdentities, nil
 		}
 		if err != nil {
@@ -1087,9 +1087,9 @@ func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]ac
 
 // loadKeyCloakIdentities loads keycloak identities for the users and returns the valid users along with their KC identities
 // (if a user is missing his/her KC identity, he/she is filtered out of the result array)
-func loadKeyCloakIdentities(repos repository.Repositories, users []account.User) ([]account.User, []account.Identity, error) {
-	var resultUsers []account.User
-	var resultIdentities []account.Identity
+func loadKeyCloakIdentities(repos repository.Repositories, users []accountrepo.User) ([]accountrepo.User, []accountrepo.Identity, error) {
+	var resultUsers []accountrepo.User
+	var resultIdentities []accountrepo.Identity
 	for _, user := range users {
 		identity, err := loadKeyCloakIdentity(repos, user)
 		// if we can't find the Keycloak identity
@@ -1103,13 +1103,13 @@ func loadKeyCloakIdentities(repos repository.Repositories, users []account.User)
 	return resultUsers, resultIdentities, nil
 }
 
-func loadKeyCloakIdentity(repos repository.Repositories, user account.User) (*account.Identity, error) {
-	identities, err := repos.Identities().Query(account.IdentityFilterByUserID(user.ID))
+func loadKeyCloakIdentity(repos repository.Repositories, user accountrepo.User) (*accountrepo.Identity, error) {
+	identities, err := repos.Identities().Query(accountrepo.IdentityFilterByUserID(user.ID))
 	if err != nil {
 		return nil, err
 	}
 	for _, identity := range identities {
-		if identity.ProviderType == account.KeycloakIDP {
+		if identity.ProviderType == accountrepo.KeycloakIDP {
 			return &identity, nil
 		}
 	}
@@ -1121,7 +1121,7 @@ func loadKeyCloakIdentity(repos repository.Repositories, user account.User) (*ac
 // 'emailPrivate' = true/false.
 // if isAuthenticated is set of False, then the 'email' field is populated only if
 // 'emailPrivate' = false.
-func ConvertToAppUser(request *goa.RequestData, user *account.User, identity *account.Identity, isAuthenticated bool) *app.User {
+func ConvertToAppUser(request *goa.RequestData, user *accountrepo.User, identity *accountrepo.Identity, isAuthenticated bool) *app.User {
 	userID := user.ID.String()
 	identityID := identity.ID.String()
 	fullName := user.FullName

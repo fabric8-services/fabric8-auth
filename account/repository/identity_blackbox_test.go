@@ -1,9 +1,9 @@
-package account_test
+package repository_test
 
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
@@ -29,15 +29,15 @@ func (s *identityBlackBoxTest) SetupTest() {
 
 func (s *identityBlackBoxTest) TestOKToDelete() {
 	// given
-	identity := &account.Identity{
+	identity := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "someuserTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: repository.KeycloakIDP}
 
-	identity2 := &account.Identity{
+	identity2 := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "onemoreuserTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: repository.KeycloakIDP}
 
 	err := s.Application.Identities().Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
@@ -108,18 +108,18 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNot
 
 func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 	// Create test user & identity
-	testUser := &account.User{
+	testUser := &repository.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
 		FullName: "TestLoadIdentityAndUserOK Developer",
 		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
-	testIdentity := &account.Identity{
+	testIdentity := &repository.Identity{
 		Username:     "TestLoadIdentityAndUserOK" + uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: repository.KeycloakIDP,
 		User:         *testUser,
 	}
-	userRepository := account.NewUserRepository(s.DB)
+	userRepository := repository.NewUserRepository(s.DB)
 	userRepository.Create(s.Ctx, testUser)
 	s.Application.Identities().Create(s.Ctx, testIdentity)
 
@@ -138,18 +138,18 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 
 func (s *identityBlackBoxTest) TestUserIdentityIsUser() {
 	// Create test user & identity
-	testUser := &account.User{
+	testUser := &repository.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
 		FullName: "TestUserIdentityIsUser Developer",
 		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
-	testIdentity := &account.Identity{
+	testIdentity := &repository.Identity{
 		Username:     "TestUserIdentityIsUser" + uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: repository.KeycloakIDP,
 		User:         *testUser,
 	}
-	userRepository := account.NewUserRepository(s.DB)
+	userRepository := repository.NewUserRepository(s.DB)
 	userRepository.Create(s.Ctx, testUser)
 	s.Application.Identities().Create(s.Ctx, testIdentity)
 
@@ -242,11 +242,11 @@ func (s *identityBlackBoxTest) TestFindIdentitiesByResourceTypeWithParentResourc
 	require.Len(s.T(), identities, 2)
 }
 
-func createAndLoad(s *identityBlackBoxTest) *account.Identity {
-	identity := &account.Identity{
+func createAndLoad(s *identityBlackBoxTest) *repository.Identity {
+	identity := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "someuserTestIdentity2",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: repository.KeycloakIDP}
 
 	err := s.Application.Identities().Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")

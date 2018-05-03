@@ -8,9 +8,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/email"
-	"github.com/fabric8-services/fabric8-auth/account/userinfo"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -238,11 +237,11 @@ func main() {
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
-	userInfoProvider := userinfo.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
+	userInfoProvider := accountservice.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
 	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
-		userCtrl.InitTenant = account.NewInitTenant(config)
+		userCtrl.InitTenant = accountservice.NewInitTenant(config)
 	}
 	app.MountUserController(service, userCtrl)
 
@@ -253,7 +252,7 @@ func main() {
 	// Mount "users" controller
 	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
 
-	emailVerificationService := email.NewEmailVerificationClient(appDB, notificationChannel)
+	emailVerificationService := accountservice.NewEmailVerificationClient(appDB, notificationChannel)
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
