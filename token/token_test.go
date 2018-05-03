@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -20,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
+	"net/http"
 )
 
 func TestToken(t *testing.T) {
@@ -308,6 +310,21 @@ func (s *TestTokenSuite) TestCheckClaimsFails() {
 		Username: "testuser",
 	}
 	assert.NotNil(s.T(), token.CheckClaims(claimsNoSubject))
+}
+
+func (s *TestTokenSuite) TestAuthServiceAccountSigner() {
+	ctx := tokencontext.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
+	signer, err := token.AuthServiceAccountSigner(ctx)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), signer)
+
+	// Sign request
+	req := &http.Request{Header: map[string][]string{}}
+	err = signer.Sign(req)
+	require.NoError(s.T(), err)
+
+	// Request should have Auth SA token in Authorization header
+	assert.Equal(s.T(), "Bearer "+testtoken.TokenManager.AuthServiceAccountToken(), req.Header.Get("Authorization"))
 }
 
 func (s *TestTokenSuite) TestLocateTokenInContex() {

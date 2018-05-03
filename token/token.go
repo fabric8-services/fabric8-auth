@@ -23,7 +23,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -792,10 +794,19 @@ func extractServiceAccountName(ctx context.Context) (string, bool) {
 	return accountNameTyped, isString
 }
 
-//// NewAuthServiceAccountSigner return a new signer based on Auth Service Account
-//func (mgm *tokenManager) NewAuthServiceAccountSigner() client.Signer {
-//	return &goasupport.JWTSigner{Token: mgm.AuthServiceAccountToken()}
-//}
+// AuthServiceAccountSigner returns a new JWT signer which uses the Auth Service Account token
+func (mgm *tokenManager) AuthServiceAccountSigner() client.Signer {
+	return &goasupport.JWTSigner{Token: mgm.AuthServiceAccountToken()}
+}
+
+// AuthServiceAccountSigner returns a new JWT signer which uses the Auth Service Account token
+func AuthServiceAccountSigner(ctx context.Context) (client.Signer, error) {
+	tm, err := ReadManagerFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return tm.AuthServiceAccountSigner(), nil
+}
 
 // CheckClaims checks if all the required claims are present in the access token
 func CheckClaims(claims *TokenClaims) error {

@@ -54,8 +54,8 @@ func (t *tenantService) createClientWithContextSigner(ctx context.Context) (*ten
 	return c, nil
 }
 
-// createClientWithSASigner creates with a signer based on Auth Service Account
-func (t *tenantService) createClientWithSASigner(ctx context.Context) (*tenant.Client, error) {
+// createClientWithSASigner creates a client with a JWT signer which uses the Auth Service Account token
+func (t *tenantService) createClientWithServiceAccountSigner(ctx context.Context) (*tenant.Client, error) {
 	c, err := t.createClient(ctx)
 	if err != nil {
 		return nil, err
