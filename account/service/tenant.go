@@ -2,11 +2,17 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
+	goauuid "github.com/goadesign/goa/uuid"
+	"github.com/satori/go.uuid"
+	"net/http"
 )
 
 type tenantConfig interface {
@@ -16,6 +22,7 @@ type tenantConfig interface {
 // Tenant represents Tenant Service
 type Tenant interface {
 	Init(ctx context.Context) error
+	Delete(ctx context.Context, identityID uuid.UUID) error
 }
 
 type tenantService struct {
@@ -42,6 +49,36 @@ func (t *tenantService) Init(ctx context.Context) error {
 	}
 
 	return err
+}
+
+// Delete deletes tenants for the identity
+func (t *tenantService) Delete(ctx context.Context, identityID uuid.UUID) error {
+	c, err := t.createClientWithServiceAccountSigner(ctx)
+	if err != nil {
+		return err
+	}
+
+	tenantID, err := goauuid.FromString(identityID.String())
+	if err != nil {
+		return err
+	}
+
+	response, err := c.DeleteTenants(goasupport.ForwardContextRequestID(ctx), tenant.DeleteTenantsPath(tenantID))
+	if err != nil {
+		return err
+	}
+	defer rest.CloseResponse(response)
+
+	if response.StatusCode != http.StatusNoContent {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id":     identityID.String(),
+			"response_status": response.Status,
+			"response_body":   rest.ReadBody(response.Body),
+		}, "unable to delete tenants")
+		return errors.New("unable to delete tenants")
+	}
+
+	return nil
 }
 
 // createClientWithContextSigner creates with a signer based on current context

@@ -2,14 +2,12 @@ package token_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/repository"
-	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/resource"
+	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
@@ -25,21 +23,11 @@ import (
 )
 
 func TestToken(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
 	suite.Run(t, &TestTokenSuite{})
 }
 
 type TestTokenSuite struct {
-	suite.Suite
-	config *configuration.ConfigurationData
-}
-
-func (s *TestTokenSuite) SetupSuite() {
-	var err error
-	s.config, err = configuration.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
-	}
+	testsuite.UnitTestSuite
 }
 
 func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
