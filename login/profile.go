@@ -9,9 +9,11 @@ import (
 	"net/http"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
 	errs "github.com/pkg/errors"
 )
 
@@ -420,7 +422,7 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 	return &keycloakUserProfileResponse, err
 }
 
-func keycloakUserRequestFromIdentity(identity account.Identity) KeytcloakUserRequest {
+func keycloakUserRequestFromIdentity(identity repository.Identity) KeytcloakUserRequest {
 	firstName, lastName := account.SplitFullName(identity.User.FullName)
 	return KeytcloakUserRequest{
 		Username:      &identity.Username,

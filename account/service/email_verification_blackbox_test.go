@@ -1,11 +1,11 @@
-package email_test
+package service_test
 
 import (
 	"context"
 	"net/http"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/email"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
@@ -18,8 +18,8 @@ import (
 
 type verificationServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	verificationService email.EmailVerificationService
-	repo                *account.GormVerificationCodeRepository
+	verificationService service.EmailVerificationService
+	repo                *repository.GormVerificationCodeRepository
 }
 
 func TestRunVerificationServiceBlackboxTest(t *testing.T) {
@@ -28,8 +28,8 @@ func TestRunVerificationServiceBlackboxTest(t *testing.T) {
 
 func (s *verificationServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = account.NewVerificationCodeRepository(s.DB)
-	s.verificationService = email.NewEmailVerificationClient(s.Application, &test.NotificationChannel{})
+	s.repo = repository.NewVerificationCodeRepository(s.DB)
+	s.verificationService = service.NewEmailVerificationClient(s.Application, &test.NotificationChannel{})
 }
 
 func (s *verificationServiceBlackboxTest) TestSendVerificationCodeOK() {
@@ -57,7 +57,7 @@ func (s *verificationServiceBlackboxTest) TestVerifyCodeOK() {
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
 	generatedCode := uuid.NewV4().String()
-	newVerificationCode := account.VerificationCode{
+	newVerificationCode := repository.VerificationCode{
 		User: identity.User,
 		Code: generatedCode,
 	}
@@ -79,7 +79,7 @@ func (s *verificationServiceBlackboxTest) TestVerifyCodeFails() {
 	require.Equal(s.T(), identity.ProviderType, "kc")
 
 	generatedCode := uuid.NewV4().String()
-	newVerificationCode := account.VerificationCode{
+	newVerificationCode := repository.VerificationCode{
 		User: identity.User,
 		Code: generatedCode,
 	}

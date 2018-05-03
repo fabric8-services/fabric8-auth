@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/userinfo"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
@@ -32,16 +33,16 @@ func TestRunUserInfoREST(t *testing.T) {
 	suite.Run(t, &TestUserInfoREST{})
 }
 
-func (rest *TestUserInfoREST) SecuredController(identity account.Identity) (*goa.Service, *UserinfoController) {
+func (rest *TestUserInfoREST) SecuredController(identity repository.Identity) (*goa.Service, *UserinfoController) {
 	svc := testsupport.ServiceAsUser("Userinfo-Service", identity)
-	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
+	userInfoProvider := service.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
 	controller := NewUserinfoController(svc, userInfoProvider, rest.Application, testtoken.TokenManager)
 	return svc, controller
 }
 
 func (rest *TestUserInfoREST) UnsecuredController() (*goa.Service, *UserinfoController) {
 	svc := goa.New("Userinfo-Service")
-	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
+	userInfoProvider := service.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
 	controller := NewUserinfoController(svc, userInfoProvider, rest.Application, testtoken.TokenManager)
 	return svc, controller
 }
@@ -99,7 +100,7 @@ func (rest *TestUserInfoREST) TestShowUserinfoDeprovisionedUserFails() {
 }
 
 func (rest *TestUserInfoREST) checkPrivateEmailVisible(emailPrivate bool) {
-	testUser := account.User{
+	testUser := repository.User{
 		ID:           uuid.NewV4(),
 		Email:        uuid.NewV4().String(),
 		FullName:     "Test Developer",
@@ -116,7 +117,7 @@ func (rest *TestUserInfoREST) checkPrivateEmailVisible(emailPrivate bool) {
 	require.Equal(rest.T(), testUser.Email, *returnedUserinfo.Email)
 }
 
-func (rest *TestUserInfoREST) assertCurrentUserInfo(actualUser *app.UserInfo, expectedIdentity account.Identity, expectedUser account.User) {
+func (rest *TestUserInfoREST) assertCurrentUserInfo(actualUser *app.UserInfo, expectedIdentity repository.Identity, expectedUser repository.User) {
 	require.NotNil(rest.T(), actualUser)
 	require.NotNil(rest.T(), actualUser.Email)
 	require.Equal(rest.T(), expectedUser.Email, *actualUser.Email)
