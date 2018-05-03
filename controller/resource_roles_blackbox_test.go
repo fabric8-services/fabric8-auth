@@ -1,6 +1,7 @@
 package controller_test
 
 import (
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -26,7 +27,12 @@ func (s *TestResourceRolesRest) SetupSuite() {
 }
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
-	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Resource-roles-Service", identity)
+	return svc, NewResourceRolesController(svc, rest.Application)
+}
+
+func (rest *TestResourceRolesRest) UnSecuredController() (*goa.Service, *ResourceRolesController) {
+	svc := testsupport.UnsecuredService("Resource-roles-Service")
 	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
@@ -203,6 +209,82 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedO
 
 	// include these as a side-test
 	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, resourceRef.ResourceID, uuid.NewV4().String())
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleOK() {
+
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.UpdateUserID
+	for i := 0; i <= 2; i++ {
+		testUser := g.CreateUser(g.ID("someusername"))
+		res.AddViewer(testUser)
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: testUser.Identity().ID.String()})
+	}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleUnauthorized() {
+	svc, ctrl := rest.UnSecuredController()
+	payload := app.AssignRoleResourceRolesPayload{
+		Data: []*app.UpdateUserID{},
+	}
+	test.AssignRoleResourceRolesUnauthorized(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String(), uuid.NewV4().String(), &payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.UpdateUserID
+	for i := 0; i <= 2; i++ {
+		testUser := g.CreateUser(g.ID("someusername"))
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: testUser.Identity().ID.String()})
+	}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesBadRequest(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRoles() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.UpdateUserID
+	for i := 0; i <= 2; i++ {
+		testUser := g.CreateUser(g.ID("someusername"))
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: testUser.Identity().ID.String()})
+	}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddContributor(adminUser) //not really an admin
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesForbidden(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
 }
 
 func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, pool *app.Identityroles, isInherited bool) bool {
