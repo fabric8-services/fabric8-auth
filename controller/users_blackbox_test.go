@@ -1441,11 +1441,11 @@ func (s *UsersControllerTestSuite) generateUsersTag(allUsers app.UserArray) stri
 
 type dummyRemoteWITService struct{}
 
-func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
 	return nil
 }
 
-func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *accountrepo.Identity, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, identity *accountrepo.Identity, witURL string, identityID string) error {
 	return nil
 }
 

@@ -4,16 +4,14 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"net/http"
+	"os"
 	"testing"
 
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
-
-	"os"
+	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -28,54 +26,53 @@ func TestToken(t *testing.T) {
 }
 
 type TestWhiteboxTokenSuite struct {
-	suite.Suite
-	config       *config.ConfigurationData
+	testsuite.UnitTestSuite
 	privateKey   *rsa.PrivateKey
 	tokenManager *tokenManager
 }
 
 func (s *TestWhiteboxTokenSuite) SetupSuite() {
-	var err error
-	s.config, err = config.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("failed to setup the configuration: %s", err.Error()))
-	}
-	m, err := NewManager(s.config)
-	require.Nil(s.T(), err)
+	s.UnitTestSuite.SetupSuite()
+	m, err := NewManager(s.Config)
+	require.NoError(s.T(), err)
 	require.NotNil(s.T(), m)
 	tm, ok := m.(*tokenManager)
 	require.True(s.T(), ok)
 	s.tokenManager = tm
 }
 
-func (s *TestWhiteboxTokenSuite) SetupTest() {
-	var err error
-	s.config, err = config.GetConfigurationData()
-	if err != nil {
-		panic(fmt.Errorf("failed to setup the configuration: %s", err.Error()))
-	}
+type authURLConfig struct {
+	config.ConfigurationData
+	authURL string
+}
+
+func (c *authURLConfig) GetAuthServiceURL() string {
+	return c.authURL
+}
+
+func (s *TestWhiteboxTokenSuite) tokenManagerWithAuthURL() (*tokenManager, string) {
+	authURL := uuid.NewV4().String()
+	m, err := NewManager(&authURLConfig{ConfigurationData: *s.Config, authURL: authURL})
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), m)
+	tm, ok := m.(*tokenManager)
+	require.True(s.T(), ok)
+	return tm, authURL
 }
 
 func (s *TestWhiteboxTokenSuite) TestAuthServiceAccountGeneratedOK() {
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "example.com"},
-	}
+	m, authURL := s.tokenManagerWithAuthURL()
+	tokenString := m.AuthServiceAccountToken()
+	s.checkServiceAccountToken(tokenString, AuthServiceAccountID, "fabric8-auth", authURL)
 
-	tokenString, err := s.tokenManager.AuthServiceAccountToken(r)
-	require.Nil(s.T(), err)
-
-	s.checkServiceAccountToken(tokenString, AuthServiceAccountID, "fabric8-auth")
 }
 
 func (s *TestWhiteboxTokenSuite) TestServiceAccountGeneratedOK() {
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "example.com"},
-	}
-
 	saID := uuid.NewV4().String()
-	tokenString, err := s.tokenManager.GenerateServiceAccountToken(r, saID, "test-token")
+	m, authURL := s.tokenManagerWithAuthURL()
+	tokenString, err := m.GenerateServiceAccountToken(saID, "test-token")
 	require.Nil(s.T(), err)
-	s.checkServiceAccountToken(tokenString, saID, "test-token")
+	s.checkServiceAccountToken(tokenString, saID, "test-token", authURL)
 }
 
 func (s *TestWhiteboxTokenSuite) TestNotAServiceAccountFails() {
@@ -88,7 +85,7 @@ func (s *TestWhiteboxTokenSuite) TestIsServiceAccountFails() {
 	assert.False(s.T(), IsServiceAccount(ctx))
 }
 
-func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken string, saID string, saName string) {
+func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken, saID, saName, iss string) {
 	token, err := jwt.Parse(rawToken, func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
@@ -114,7 +111,7 @@ func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken string, saID 
 	_, err = uuid.FromString(jti)
 	require.Nil(s.T(), err)
 	require.NotEmpty(s.T(), claims["iat"])
-	require.Equal(s.T(), "http://example.com", claims["iss"])
+	require.Equal(s.T(), iss, claims["iss"])
 
 	ctx := goajwt.WithJWT(context.Background(), token)
 	assert.True(s.T(), IsSpecificServiceAccount(ctx, saName))
@@ -135,12 +132,12 @@ func (s *TestWhiteboxTokenSuite) TestPrivateKeysLoaded() {
 	require.Equal(s.T(), 3, len(s.tokenManager.PublicKeys()))
 
 	// SA key
-	_, serviceAccountKid := s.config.GetServiceAccountPrivateKey()
+	_, serviceAccountKid := s.Config.GetServiceAccountPrivateKey()
 	require.NotEqual(s.T(), "", serviceAccountKid)
 	require.NotNil(s.T(), s.tokenManager.PublicKey(serviceAccountKid))
 
 	// User key
-	_, userAccountKid := s.config.GetUserAccountPrivateKey()
+	_, userAccountKid := s.Config.GetUserAccountPrivateKey()
 	require.NotEqual(s.T(), "", userAccountKid)
 	require.NotNil(s.T(), s.tokenManager.PublicKey(userAccountKid))
 
@@ -195,12 +192,7 @@ func (s *TestWhiteboxTokenSuite) checkPrivateKeyLoaded(keyEnvVarName, keyEnvVarV
 }
 
 func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "example.com"},
-	}
-
-	tokenString, err := s.tokenManager.AuthServiceAccountToken(r)
-	require.Nil(s.T(), err)
+	tokenString := s.tokenManager.AuthServiceAccountToken()
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
@@ -227,7 +219,7 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 	_, err = uuid.FromString(jti)
 	require.Nil(s.T(), err)
 	require.NotEmpty(s.T(), claims["iat"])
-	require.Equal(s.T(), "http://example.com", claims["iss"])
+	require.Equal(s.T(), "http://localhost", claims["iss"])
 }
 
 const (
