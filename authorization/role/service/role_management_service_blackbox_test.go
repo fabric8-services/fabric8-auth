@@ -3,6 +3,7 @@ package service_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -205,18 +206,18 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
 	var usersToBeAsserted []uuid.UUID
 	for i := 0; i < 10; i++ {
 		userToBeAssigned := g.CreateUser(g.ID("adminname"))
-		err := s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), "admin")
+		err := s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), authorization.AdminRole)
 		require.Nil(s.T(), err)
 		usersToBeAsserted = append(usersToBeAsserted, userToBeAssigned.Identity().ID)
 	}
 
 	// noise
 	for i := 0; i < 10; i++ {
-		err := s.repo.Assign(context.Background(), g.CreateUser(g.ID("adminname")).Identity().ID, g.CreateSpace(g.ID("myspace")).SpaceID(), "admin")
+		err := s.repo.Assign(context.Background(), g.CreateUser(g.ID("adminname")).Identity().ID, g.CreateSpace(g.ID("myspace")).SpaceID(), authorization.AdminRole)
 		require.Nil(s.T(), err)
 	}
 
-	assignedRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), newSpace.SpaceID(), "admin")
+	assignedRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.AdminRole)
 	require.Nil(s.T(), err)
 	require.Len(s.T(), assignedRoles, 10)
 	validateAssignee(s.T(), usersToBeAsserted, newSpace.SpaceID(), assignedRoles)

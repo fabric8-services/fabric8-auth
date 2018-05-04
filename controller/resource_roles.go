@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -104,7 +105,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for assigning roles to other users.
 
-	hasScope, err := c.app.PermissionService().HasScope(ctx, *currentUser, ctx.ResourceID, "manage")
+	hasScope, err := c.app.PermissionService().HasScope(ctx, *currentUser, ctx.ResourceID, authorization.ManageTeamsInSpaceScope)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
