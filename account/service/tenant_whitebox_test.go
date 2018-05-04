@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"errors"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/goadesign/goa/client"
 	"github.com/satori/go.uuid"
@@ -35,7 +36,7 @@ type TestTenantSuite struct {
 func (s *TestTenantSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
 	s.tenantConfig = &tenantURLConfig{ConfigurationData: *s.Config, tenantURL: "https://some.tenant.io"}
-	s.ts = s.newTenant()
+	s.ts = NewTenant(s.tenantConfig).(*tenantService)
 	doer := authtest.NewDummyHttpDoer()
 	s.ts.doer = doer
 	s.doer = doer
@@ -46,12 +47,12 @@ func (s *TestTenantSuite) TestNewInitTenantOK() {
 }
 
 func (s *TestTenantSuite) TestDefaultDoer() {
-	ts := s.newTenant()
+	ts := NewTenant(s.tenantConfig).(*tenantService)
 	assert.Equal(s.T(), ts.config, s.tenantConfig)
 	assert.Equal(s.T(), ts.doer, rest.DefaultHttpDoer())
 }
 
-func (s *TestTenantSuite) TestInitOK() {
+func (s *TestTenantSuite) TestInit() {
 	ctx, token, reqID := s.newContext()
 
 	s.doer.Client.Error = nil
@@ -65,16 +66,55 @@ func (s *TestTenantSuite) TestInitOK() {
 		assert.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
 	}
 
+	// OK
 	err := s.ts.Init(ctx)
 	require.NoError(s.T(), err)
+
+	// Fail if client returned an error
+	s.doer.Client.Response = nil
+	s.doer.Client.Error = errors.New("something went wrong")
+	err = s.ts.Init(ctx)
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), "something went wrong", err.Error())
+
+	// Fail if tenant service URL is invalid
+	tenant := NewTenant(&tenantURLConfig{ConfigurationData: *s.Config, tenantURL: "::::"})
+	ts := tenant.(*tenantService)
+	doer := authtest.NewDummyHttpDoer()
+	ts.doer = doer
+	doer.Client.Error = nil
+	body = ioutil.NopCloser(bytes.NewReader([]byte{}))
+	doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+
+	err = ts.Init(ctx)
+	require.Error(s.T(), err)
 }
 
-func (s *TestTenantSuite) newTenant() *tenantService {
-	tenant := NewTenant(s.tenantConfig)
-	require.NotNil(s.T(), tenant)
-	require.IsType(s.T(), &tenantService{}, tenant)
+func (s *TestTenantSuite) _TestDelete() {
+	ctx, _, reqID := s.newContext()
 
-	return tenant.(*tenantService)
+	token := "Auth"
+	s.doer.Client.Error = nil
+	body := ioutil.NopCloser(bytes.NewReader([]byte{}))
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+	identityID := uuid.NewV4().String()
+	s.doer.Client.AssertRequest = func(req *http.Request) {
+		assert.Equal(s.T(), "DELETE", req.Method)
+		assert.Equal(s.T(), "https://some.tenant.io/api/tenants/"+identityID, req.URL.String())
+		assert.Equal(s.T(), "Bearer "+token, req.Header.Get("Authorization"))
+		assert.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
+	}
+
+	// OK
+	err := s.ts.Init(ctx)
+	require.NoError(s.T(), err)
+
+	// Fail if client returned an error
+	s.doer.Client.Response = nil
+	s.doer.Client.Error = errors.New("something went wrong")
+	err = s.ts.Init(ctx)
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), "something went wrong", err.Error())
 }
 
 func (s *TestTenantSuite) newContext() (context.Context, string, string) {
