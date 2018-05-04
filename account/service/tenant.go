@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/account/tenant"
@@ -12,7 +13,6 @@ import (
 
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
-	"net/http"
 )
 
 type tenantConfig interface {

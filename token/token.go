@@ -46,6 +46,7 @@ const (
 	JenkinsIdler       = "fabric8-jenkins-idler"
 	JenkinsProxy       = "fabric8-jenkins-proxy"
 	OnlineRegistration = "online-registration"
+	RhChe              = "rh-che"
 )
 
 // configuration represents configuration needed to construct a token manager

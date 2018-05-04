@@ -33,17 +33,17 @@ type configuration interface {
 
 // HttpClientDoer implements HttpDoer
 type HttpClientDoer struct {
-	httpClient HttpClient
+	HttpClient HttpClient
 }
 
 // DefaultHttpDoer creates a new HttpDoer with default http client
 func DefaultHttpDoer() HttpDoer {
-	return &HttpClientDoer{httpClient: http.DefaultClient}
+	return &HttpClientDoer{HttpClient: http.DefaultClient}
 }
 
 // Do overrides Do method of the default goa client Doer. It's needed for mocking http clients in tests.
 func (d *HttpClientDoer) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
-	return d.httpClient.Do(req)
+	return d.HttpClient.Do(req)
 }
 
 // Host returns the host from the given request if run in prod mode or if config is nil
