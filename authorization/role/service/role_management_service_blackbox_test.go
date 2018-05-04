@@ -1,6 +1,8 @@
 package service_test
 
 import (
+	"github.com/fabric8-services/fabric8-auth/errors"
+	errs "github.com/pkg/errors"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -225,14 +227,14 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
 	err := s.repo.Assign(context.Background(), uuid.NewV4(), uuid.NewV4().String(), uuid.NewV4().String())
-	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
 	newSpace := g.CreateSpace(g.ID("myspace"))
 	err := s.repo.Assign(context.Background(), uuid.NewV4(), newSpace.SpaceID(), uuid.NewV4().String())
-	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
 func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {
