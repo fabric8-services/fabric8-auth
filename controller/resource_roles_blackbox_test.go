@@ -222,7 +222,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleOK() {
 	res := g.CreateSpace(g.ID("somespacename"))
 
 	var identitiesToBeAssigned []*app.UpdateUserID
-	for i := 0; i <= 2; i++ {
+	for i := 0; i <= 10; i++ {
 		testUser := g.CreateUser(g.ID("someusername"))
 		res.AddViewer(testUser)
 		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: testUser.Identity().ID.String()})
