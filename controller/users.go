@@ -40,6 +40,7 @@ type UsersController struct {
 	RemoteWITService         wit.RemoteWITService
 	EmailVerificationService service.EmailVerificationService
 	keycloakLinkService      link.KeycloakIDPService
+	tenantService            service.Tenant
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -59,7 +60,7 @@ type UsersControllerConfiguration interface {
 }
 
 // NewUsersController creates a users controller.
-func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService) *UsersController {
+func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService, tenantService service.Tenant) *UsersController {
 	return &UsersController{
 		Controller:          service.NewController("UsersController"),
 		app:                 app,
@@ -67,6 +68,7 @@ func NewUsersController(service *goa.Service, app application.Application, confi
 		userProfileService:  userProfileService,
 		RemoteWITService:    &wit.RemoteWITServiceCaller{},
 		keycloakLinkService: linkService,
+		tenantService:       tenantService,
 	}
 }
 
@@ -756,7 +758,22 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 			return tr.Users().Save(ctx, user)
 		})
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": ctx.ID,
+			}, "unable to deprovision user in Auth DB")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, err.Error()))
+		}
+		if c.tenantService != nil {
+			// Delete tenant
+			err = c.tenantService.Delete(ctx, identity.ID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":         err,
+					"identity_id": ctx.ID,
+				}, "unable to delete tenant when deprovisioning user")
+				// Log the error and proceed
+			}
 		}
 	}
 

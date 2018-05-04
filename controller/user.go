@@ -20,7 +20,7 @@ type UserController struct {
 	app             application.Application
 	tokenManager    token.Manager
 	config          UserControllerConfiguration
-	Tenant          service.Tenant
+	tenantService   service.Tenant
 }
 
 // UserControllerConfiguration the Configuration for the UserController
@@ -29,13 +29,14 @@ type UserControllerConfiguration interface {
 }
 
 // NewUserController creates a user controller.
-func NewUserController(service *goa.Service, userInfoService service.UserInfoService, app application.Application, tokenManager token.Manager, config UserControllerConfiguration) *UserController {
+func NewUserController(service *goa.Service, userInfoService service.UserInfoService, app application.Application, tokenManager token.Manager, config UserControllerConfiguration, tenantService service.Tenant) *UserController {
 	return &UserController{
 		Controller:      service.NewController("UserController"),
 		userInfoService: userInfoService,
 		app:             app,
 		tokenManager:    tokenManager,
 		config:          config,
+		tenantService:   tenantService,
 	}
 }
 
@@ -52,9 +53,9 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 	}
 
 	return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
-		if c.Tenant != nil {
+		if c.tenantService != nil {
 			go func(ctx context.Context) {
-				c.Tenant.Init(ctx)
+				c.tenantService.Init(ctx)
 			}(ctx)
 		}
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))

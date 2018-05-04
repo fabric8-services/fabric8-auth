@@ -236,13 +236,15 @@ func main() {
 	openidConfigurationCtrl := controller.NewOpenidConfigurationController(service)
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
+	var tenantService accountservice.Tenant
+	if config.GetTenantServiceURL() != "" {
+		log.Logger().Infof("Enabling Tenant service %v", config.GetTenantServiceURL())
+		tenantService = accountservice.NewTenant(config)
+	}
+
 	// Mount "user" controller
 	userInfoProvider := accountservice.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
-	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config)
-	if config.GetTenantServiceURL() != "" {
-		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
-		userCtrl.Tenant = accountservice.NewTenant(config)
-	}
+	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config, tenantService)
 	app.MountUserController(service, userCtrl)
 
 	// Mount "search" controller
@@ -253,7 +255,7 @@ func main() {
 	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
 
 	emailVerificationService := accountservice.NewEmailVerificationClient(appDB, notificationChannel)
-	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
+	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService, tenantService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 
