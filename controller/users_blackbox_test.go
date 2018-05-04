@@ -42,6 +42,7 @@ type UsersControllerTestSuite struct {
 	identityRepo   accountrepo.IdentityRepository
 	profileService login.UserProfileService
 	linkAPIService link.KeycloakIDPService
+	tenantService  *dummyTenantService
 }
 
 func (s *UsersControllerTestSuite) SetupSuite() {
@@ -56,6 +57,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
+	s.tenantService = &dummyTenantService{}
 }
 
 func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersController) {
@@ -95,7 +97,7 @@ func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identi
 
 func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, s.tenantService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -868,7 +870,22 @@ func (s *UsersControllerTestSuite) TestDeprovisionUser() {
 	// Reg app can update
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 	s.checkIfUserDeprovisioned(identity.ID, false)
+	s.tenantService.identityID = uuid.NewV4()
+	s.tenantService.error = nil
 	_, result := test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
+	require.NotNil(s.T(), result)
+	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
+	s.checkIfUserDeprovisioned(identity.ID, true)
+
+	// Check if tenant service was called
+	assert.Equal(s.T(), identity.ID, s.tenantService.identityID)
+
+	// User is deprovisioned even if tenant service failed
+	s.tenantService.error = errors.NewInternalErrorFromString(nil, "tenant service failed")
+	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	s.checkIfUserDeprovisioned(identity.ID, false)
+	_, result = test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
 	require.NotNil(s.T(), result)
 	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
 	s.checkIfUserDeprovisioned(identity.ID, true)
@@ -1710,4 +1727,18 @@ func (s *DummyEmailVerificationService) SendVerificationCode(ctx context.Context
 
 func (s *DummyEmailVerificationService) VerifyCode(ctx context.Context, code string) (*accountrepo.VerificationCode, error) {
 	return nil, nil
+}
+
+type dummyTenantService struct {
+	identityID uuid.UUID
+	error
+}
+
+func (s *dummyTenantService) Init(ctx context.Context) error {
+	return nil
+}
+
+func (s *dummyTenantService) Delete(ctx context.Context, identityID uuid.UUID) error {
+	s.identityID = identityID
+	return s.error
 }
