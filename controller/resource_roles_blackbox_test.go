@@ -303,7 +303,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleWithInvalidIdentityIDBadRequest
 
 	// Create a user who has the privileges to assign roles
 	adminUser := g.CreateUser("adminuser")
-	res.AddContributor(adminUser) //not really an admin
+	res.AddAdmin(adminUser) //not really an admin
 
 	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
 	payload := &app.AssignRoleResourceRolesPayload{
@@ -318,7 +318,9 @@ func (rest *TestResourceRolesRest) TestAssignRoleWithIncompleteTokenClaims() {
 	res := g.CreateSpace(g.ID("somespacename"))
 
 	var identitiesToBeAssigned []*app.UpdateUserID
-
+	for i := 0; i <= 2; i++ {
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: uuid.NewV4().String() + "#$%"})
+	}
 	adminUser := g.CreateUser("adminuser")
 	res.AddContributor(adminUser) //not really an admin
 
