@@ -101,9 +101,7 @@ func (s *TestTenantSuite) TestDelete() {
 	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusNoContent}
 	identityID := uuid.NewV4()
 	s.doer.Client.AssertRequest = func(req *http.Request) {
-		// !!!!!!!!!!!! TODO GET -> DELETE
-		//assert.Equal(s.T(), "DELETE", req.Method)
-		assert.Equal(s.T(), "GET", req.Method)
+		assert.Equal(s.T(), "DELETE", req.Method)
 		assert.Equal(s.T(), "https://some.tenant.io/api/tenants/"+identityID.String(), req.URL.String())
 		assert.Equal(s.T(), "Bearer "+token, req.Header.Get("Authorization"))
 		assert.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
