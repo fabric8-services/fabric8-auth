@@ -104,7 +104,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for assigning roles to other users.
 
-	hasScope, err := c.app.PermissionService().HasScope(ctx, *currentUser, ctx.ResourceID, "admin")
+	hasScope, err := c.app.PermissionService().HasScope(ctx, *currentUser, ctx.ResourceID, "manage")
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
