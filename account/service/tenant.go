@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"github.com/fabric8-services/fabric8-auth/token"
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
 )
@@ -75,7 +76,7 @@ func (t *tenantService) Delete(ctx context.Context, identityID uuid.UUID) error 
 			"response_status": response.Status,
 			"response_body":   rest.ReadBody(response.Body),
 		}, "unable to delete tenants")
-		return errors.New("unable to delete tenants")
+		return errors.New("unable to delete tenant")
 	}
 
 	return nil
@@ -97,7 +98,11 @@ func (t *tenantService) createClientWithServiceAccountSigner(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
-	c.SetJWTSigner(goasupport.NewForwardSigner(ctx))
+	signer, err := token.AuthServiceAccountSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c.SetJWTSigner(signer)
 	return c, nil
 }
 
