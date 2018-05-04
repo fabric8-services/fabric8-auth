@@ -113,10 +113,18 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to assign roles"))
 	}
 
-	// In batch assignment of roles all selected users must have previously been assigned
-	// privileges for the resource, otherwise the invitation workflow should be used instead
+	var identitiesToBeAssigned []uuid.UUID
 	for _, identity := range ctx.Payload.Data {
 		identityIDAsUUID, err := uuid.FromString(identity.ID)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identity", identity.ID).Expected("uuid"))
+		}
+		identitiesToBeAssigned = append(identitiesToBeAssigned, identityIDAsUUID)
+	}
+
+	// In batch assignment of roles all selected users must have previously been assigned
+	// privileges for the resource, otherwise the invitation workflow should be used instead
+	for _, identityIDAsUUID := range identitiesToBeAssigned {
 		assignedRoles, err := c.app.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, ctx.ResourceID, identityIDAsUUID)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
@@ -127,21 +135,22 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 				"identity_id": identityIDAsUUID,
 				"role":        ctx.RoleName,
 			}, "identity not part of a  resource cannot be assigned a role")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identityID", identity.ID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identity.ID)))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID)))
 		}
 	}
 
 	// Now that we have confirmed that all users have pre-existing role assignments
 	// we can proceed with the assignment of roles.
-	var identityIDs []uuid.UUID
-	for _, identity := range ctx.Payload.Data {
-		identityIDAsUUID, err := uuid.FromString(identity.ID)
+	for _, identityIDAsUUID := range identitiesToBeAssigned {
+		err = c.app.RoleManagementService().Assign(ctx, identityIDAsUUID, ctx.ResourceID, ctx.RoleName)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identityID", identity.ID).Expected("uuid"))
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+				"identity_id": identityIDAsUUID,
+				"role":        ctx.RoleName,
+			}, "assignment failed")
+			return jsonapi.JSONErrorResponse(ctx, err)
 		}
-		identityIDs = append(identityIDs, identityIDAsUUID)
-		identityAsUUID, err := uuid.FromString(identity.ID)
-		err = c.app.RoleManagementService().Assign(ctx, identityAsUUID, ctx.ResourceID, ctx.RoleName)
 	}
 
 	if err != nil {

@@ -31,6 +31,11 @@ func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity accoun
 	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
+func (rest *TestResourceRolesRest) SecuredControllerWithIncompleteIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
+	svc := testsupport.ServiceAsUserWithIncompleteClaims("Resource-roles-Service", identity)
+	return svc, NewResourceRolesController(svc, rest.Application)
+}
+
 func (rest *TestResourceRolesRest) UnSecuredController() (*goa.Service, *ResourceRolesController) {
 	svc := testsupport.UnsecuredService("Resource-roles-Service")
 	return svc, NewResourceRolesController(svc, rest.Application)
@@ -285,6 +290,44 @@ func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRole
 	}
 
 	test.AssignRoleResourceRolesForbidden(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleWithInvalidIdentityIDBadRequest() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.UpdateUserID
+	for i := 0; i <= 2; i++ {
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: uuid.NewV4().String() + "#$%"})
+	}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddContributor(adminUser) //not really an admin
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesBadRequest(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleWithIncompleteTokenClaims() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.UpdateUserID
+
+	adminUser := g.CreateUser("adminuser")
+	res.AddContributor(adminUser) //not really an admin
+
+	svc, ctrl := rest.SecuredControllerWithIncompleteIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesUnauthorized(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
 }
 
 func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, pool *app.Identityroles, isInherited bool) bool {
