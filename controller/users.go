@@ -764,20 +764,30 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 			}, "unable to deprovision user in Auth DB")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, err.Error()))
 		}
-		if c.tenantService != nil {
-			// Delete tenant
-			err = c.tenantService.Delete(ctx, identity.ID)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":         err,
-					"identity_id": ctx.ID,
-				}, "unable to delete tenant when deprovisioning user")
-				// Log the error and proceed
-			}
+		if *ctx.Payload.Data.Attributes.Deprovisioned {
+			// Only if Deprovisioned = True, we shall remove the user's resources
+			// from OpenShift Online
+			c.deprovisionUserInOpenShift(ctx, *identity)
 		}
+		// When deprovisioned = false, we can leave the re-provisioning to the GET /api/user endpoint for now.
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
+}
+
+func (c *UsersController) deprovisionUserInOpenShift(ctx context.Context, identity accountrepo.Identity) error {
+	if c.tenantService != nil {
+		// Delete tenant
+		err := c.tenantService.Delete(ctx, identity.ID)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": identity.ID,
+			}, "unable to delete tenant when deprovisioning user")
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *UsersController) updateFeatureLevel(ctx context.Context, user *accountrepo.User, updatedFeatureLevel *string) error {
