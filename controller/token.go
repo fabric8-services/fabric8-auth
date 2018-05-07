@@ -21,6 +21,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
+	remotewitservice "github.com/fabric8-services/fabric8-auth/wit"
 
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
@@ -151,6 +152,18 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	tokens := app.AuthTokenCollection{convertToken(*tokenSet)}
+
+	var remotewitserviceCaller remotewitservice.RemoteWITServiceCaller
+	witURL, err := c.Configuration.GetWITURL(ctx.RequestData)
+	err = remotewitserviceCaller.CreateWITUser(ctx, ctx.RequestData, &devIdentity, witURL, devIdentity.ID.String())
+	if err != nil {
+		log.Warn(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": devIdentity.ID,
+			"username":    devIdentity.Username,
+			"wit_url":     witURL,
+		}, "unable to create user in WIT ")
+	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return ctx.OK(tokens)
