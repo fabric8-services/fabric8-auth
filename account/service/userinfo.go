@@ -33,7 +33,7 @@ type UserInfoService interface {
 	UserInfo(ctx context.Context) (*account.User, *account.Identity, error)
 }
 
-// UserInfo gets user infomation given a context containing access_token
+// UserInfo gets user information given a context containing access_token
 func (userInfoProvider *UserInfoProvider) UserInfo(ctx context.Context) (*account.User, *account.Identity, error) {
 
 	id, err := userInfoProvider.TokenManager.Locate(ctx)

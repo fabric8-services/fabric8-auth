@@ -12,21 +12,21 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
-	"github.com/goadesign/goa"
+
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
 
 // RemoteWITService specifies the behaviour of a remote WIT caller
 type RemoteWITService interface {
-	UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error
-	CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error
+	UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error
+	CreateWITUser(ctx context.Context, identity *account.Identity, witURL string, identityID string) error
 }
 
 type RemoteWITServiceCaller struct{}
 
 // UpdateWITUser updates user in WIT
-func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
+func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
 
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
@@ -46,7 +46,7 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 		},
 	}
 
-	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, witURL)
+	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, req *goa.Req
 }
 
 // CreateWITUser creates a new user in WIT
-func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
+func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, identity *account.Identity, witURL string, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
@@ -88,7 +88,7 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 		},
 	}
 
-	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, req, witURL)
+	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (r *RemoteWITServiceCaller) CreateWITUser(ctx context.Context, req *goa.Req
 }
 
 // CreateSecureRemoteClientAsServiceAccount creates a client that would communicate with WIT service using a service account token.
-func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.RequestData, remoteURL string) (*witservice.Client, error) {
+func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, remoteURL string) (*witservice.Client, error) {
 	u, err := url.Parse(remoteURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -126,7 +126,7 @@ func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.Requ
 	witclient.Host = u.Host
 	witclient.Scheme = u.Scheme
 
-	serviceAccountToken, err := getServiceAccountToken(ctx, req)
+	serviceAccountToken, err := getServiceAccountToken(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func CreateSecureRemoteClientAsServiceAccount(ctx context.Context, req *goa.Requ
 	return witclient, nil
 }
 
-func getServiceAccountToken(ctx context.Context, request *goa.RequestData) (string, error) {
+func getServiceAccountToken(ctx context.Context) (string, error) {
 	manager, err := token.ReadManagerFromContext(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -153,5 +153,5 @@ func getServiceAccountToken(ctx context.Context, request *goa.RequestData) (stri
 		}, "unable to obtain service token")
 		return "", err
 	}
-	return (*manager).AuthServiceAccountToken(request)
+	return (*manager).AuthServiceAccountToken(), nil
 }

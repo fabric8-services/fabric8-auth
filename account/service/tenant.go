@@ -2,30 +2,43 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	"github.com/goadesign/goa/client"
+	"github.com/fabric8-services/fabric8-auth/token"
+	goauuid "github.com/goadesign/goa/uuid"
+	"github.com/satori/go.uuid"
 )
 
 type tenantConfig interface {
 	GetTenantServiceURL() string
 }
 
-// NewInitTenant creates a new tenant service in oso
-func NewInitTenant(config tenantConfig) func(context.Context) error {
-	return func(ctx context.Context) error {
-		return InitTenant(ctx, config)
-	}
+// Tenant represents Tenant Service
+type Tenant interface {
+	Init(ctx context.Context) error
+	Delete(ctx context.Context, identityID uuid.UUID) error
 }
 
-// InitTenant creates a new tenant service in oso
-func InitTenant(ctx context.Context, config tenantConfig) error {
-	c, err := createClient(ctx, config)
+type tenantService struct {
+	config tenantConfig
+	doer   rest.HttpDoer
+}
+
+// NewTenant creates a new tenant service
+func NewTenant(config tenantConfig) Tenant {
+	return &tenantService{config: config, doer: rest.DefaultHttpDoer()}
+}
+
+// Init creates a new tenant in OSO
+func (t *tenantService) Init(ctx context.Context) error {
+	c, err := t.createClientWithContextSigner(ctx)
 	if err != nil {
 		return err
 	}
@@ -39,15 +52,69 @@ func InitTenant(ctx context.Context, config tenantConfig) error {
 	return err
 }
 
-func createClient(ctx context.Context, config tenantConfig) (*tenant.Client, error) {
-	u, err := url.Parse(config.GetTenantServiceURL())
+// Delete deletes tenants for the identity
+func (t *tenantService) Delete(ctx context.Context, identityID uuid.UUID) error {
+	c, err := t.createClientWithServiceAccountSigner(ctx)
+	if err != nil {
+		return err
+	}
+
+	tenantID, err := goauuid.FromString(identityID.String())
+	if err != nil {
+		return err
+	}
+
+	response, err := c.DeleteTenants(goasupport.ForwardContextRequestID(ctx), tenant.DeleteTenantsPath(tenantID))
+	if err != nil {
+		return err
+	}
+	defer rest.CloseResponse(response)
+	respBody := rest.ReadBody(response.Body)
+
+	if response.StatusCode != http.StatusNoContent {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id":     identityID.String(),
+			"response_status": response.Status,
+			"response_body":   respBody,
+		}, "unable to delete tenants")
+		return errors.New("unable to delete tenant")
+	}
+
+	return nil
+}
+
+// createClientWithContextSigner creates with a signer based on current context
+func (t *tenantService) createClientWithContextSigner(ctx context.Context) (*tenant.Client, error) {
+	c, err := t.createClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c.SetJWTSigner(goasupport.NewForwardSigner(ctx))
+	return c, nil
+}
+
+// createClientWithSASigner creates a client with a JWT signer which uses the Auth Service Account token
+func (t *tenantService) createClientWithServiceAccountSigner(ctx context.Context) (*tenant.Client, error) {
+	c, err := t.createClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	signer, err := token.AuthServiceAccountSigner(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c.SetJWTSigner(signer)
+	return c, nil
+}
+
+func (t *tenantService) createClient(ctx context.Context) (*tenant.Client, error) {
+	u, err := url.Parse(t.config.GetTenantServiceURL())
 	if err != nil {
 		return nil, err
 	}
 
-	c := tenant.New(client.HTTPClientDoer(http.DefaultClient))
+	c := tenant.New(t.doer)
 	c.Host = u.Host
 	c.Scheme = u.Scheme
-	c.SetJWTSigner(goasupport.NewForwardSigner(ctx))
 	return c, nil
 }

@@ -75,7 +75,7 @@ type KeycloakUserProfileResponse struct {
 	"email":"<EMAIL>","attributes":{"approved":["true"],
 		"rhd_username":["<USERNAME>"],"company":["<company claim from RHD token>"]}}
 */
-type KeytcloakUserRequest struct {
+type KeycloakUserRequest struct {
 	Username      *string                        `json:"username"`
 	Enabled       *bool                          `json:"enabled"`
 	EmailVerified *bool                          `json:"emailVerified"`
@@ -99,7 +99,7 @@ func NewKeycloakUserProfile(firstName *string, lastName *string, email *string, 
 type UserProfileService interface {
 	Update(ctx context.Context, conkeycloakUserProfile *KeycloakUserProfile, accessToken string, keycloakProfileURL string) error
 	Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*KeycloakUserProfileResponse, error)
-	CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error)
+	CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeycloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error)
 }
 
 // KeycloakUserProfileClient describes the interface between platform and Keycloak User profile service.
@@ -117,7 +117,7 @@ func NewKeycloakUserProfileClient() *KeycloakUserProfileClient {
 // CreateOrUpdate creates the user in Keycloak using the admin REST API
 // If the user already exists then the user will be updated
 // Returns true if a new user has been created and false if the existing user has been updated
-func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error) {
+func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeycloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error) {
 	defaultState := true
 	keycloakUserRequest.Enabled = &defaultState
 	keycloakUserRequest.EmailVerified = &defaultState
@@ -205,7 +205,7 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 	return &createdUserURLString, true, nil
 }
 
-func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Context, keycloakUserRequest *KeytcloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error) {
+func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Context, keycloakUserRequest *KeycloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error) {
 	user, err := userProfileClient.loadUser(ctx, *keycloakUserRequest.Username, protectedAccessToken, keycloakAdminUserAPIURL)
 	if err != nil {
 		return nil, err
@@ -422,9 +422,9 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 	return &keycloakUserProfileResponse, err
 }
 
-func keycloakUserRequestFromIdentity(identity repository.Identity) KeytcloakUserRequest {
+func keycloakUserRequestFromIdentity(identity repository.Identity) KeycloakUserRequest {
 	firstName, lastName := account.SplitFullName(identity.User.FullName)
-	return KeytcloakUserRequest{
+	return KeycloakUserRequest{
 		Username:      &identity.Username,
 		FirstName:     &firstName,
 		LastName:      &lastName,

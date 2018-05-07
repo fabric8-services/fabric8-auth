@@ -5,7 +5,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/magiconair/properties/assert"
+	"github.com/fabric8-services/fabric8-auth/rest"
+
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,11 +17,22 @@ type DummyHttpClient struct {
 	AssertRequest func(req *http.Request)
 }
 
+type DummyHttpDoer struct {
+	*rest.HttpClientDoer
+	Client *DummyHttpClient
+}
+
 func (c *DummyHttpClient) Do(req *http.Request) (*http.Response, error) {
 	if c.AssertRequest != nil {
 		c.AssertRequest(req)
 	}
 	return c.Response, c.Error
+}
+
+func NewDummyHttpDoer() *DummyHttpDoer {
+	client := &DummyHttpClient{}
+	doer := &rest.HttpClientDoer{HttpClient: client}
+	return &DummyHttpDoer{HttpClientDoer: doer, Client: client}
 }
 
 func EqualURLs(t *testing.T, expected string, actual string) {

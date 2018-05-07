@@ -64,10 +64,6 @@ required = [
   version = "1.9.1"
 
 [[constraint]]
-  name = "github.com/magiconair/properties"
-  version = "1.7.0"
-
-[[constraint]]
   name = "github.com/pkg/errors"
   version = "0.8.0"
 
@@ -101,7 +97,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-tenant"
-  revision = "2614bf1824754901b7e2f9d7b4ad4d7e3bac61ff"
+  revision = "7e149ee841ea9fe7d439f206781b51cacde5d4d3"
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"

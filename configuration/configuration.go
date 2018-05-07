@@ -279,8 +279,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetOSORegistrationAppAdminToken() == "" {
 		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
 	}
-	if c.GetEnvironment() == "local" || c.GetEnvironment() == "" {
-		c.appendDefaultConfigErrorMessage("Environment is empty or set to local")
+	if c.GetAuthServiceURL() == "http://localhost" {
+		c.appendDefaultConfigErrorMessage("environment is expected to be set to 'production' or 'prod-preview'")
 	}
 	if c.GetSentryDSN() == "" {
 		c.appendDefaultConfigErrorMessage("Sentry DSN is empty")
@@ -582,6 +582,18 @@ func (c *ConfigurationData) DefaultConfigurationError() error {
 	defer c.mux.RUnlock()
 
 	return c.defaultConfigurationError
+}
+
+// GetAuthServiceUrl returns Auth Service URL
+func (c *ConfigurationData) GetAuthServiceURL() string {
+	switch c.GetEnvironment() {
+	case prodEnvironment:
+		return "https://auth.openshift.io"
+	case prodPreviewEnvironment:
+		return "https://auth.prod-preview.openshift.io"
+	default:
+		return "http://localhost"
+	}
 }
 
 // GetServiceAccounts returns a map of service account configurations by service account ID

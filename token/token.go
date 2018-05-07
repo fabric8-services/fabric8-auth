@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -24,7 +23,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -37,12 +38,15 @@ const (
 
 	// Service Account Names
 
+	Auth               = "fabric8-auth"
+	WIT                = "fabric8-wit"
 	OsoProxy           = "fabric8-oso-proxy"
 	Tenant             = "fabric8-tenant"
 	Notification       = "fabric8-notification"
 	JenkinsIdler       = "fabric8-jenkins-idler"
 	JenkinsProxy       = "fabric8-jenkins-proxy"
 	OnlineRegistration = "online-registration"
+	RhChe              = "rh-che"
 )
 
 // configuration represents configuration needed to construct a token manager
@@ -55,6 +59,7 @@ type configuration interface {
 	IsPostgresDeveloperModeEnabled() bool
 	GetAccessTokenExpiresIn() int64
 	GetRefreshTokenExpiresIn() int64
+	GetAuthServiceURL() string
 }
 
 // TokenClaims represents access token claims
@@ -98,9 +103,9 @@ type Manager interface {
 	PublicKey(keyID string) *rsa.PublicKey
 	JSONWebKeys() jwk.JSONKeys
 	PemKeys() jwk.JSONKeys
-	AuthServiceAccountToken(req *goa.RequestData) (string, error)
-	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
-	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
+	AuthServiceAccountToken() string
+	GenerateServiceAccountToken(saID string, saName string) (string, error)
+	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
@@ -115,7 +120,6 @@ type tokenManager struct {
 	jsonWebKeys              jwk.JSONKeys
 	pemKeys                  jwk.JSONKeys
 	serviceAccountToken      string
-	serviceAccountLock       sync.RWMutex
 	config                   configuration
 }
 
@@ -174,6 +178,8 @@ func NewManager(config configuration) (Manager, error) {
 		return nil, errors.New("unable to convert public keys to PEM Keys")
 	}
 	tm.pemKeys = jsonKeys
+
+	tm.initServiceAccountToken()
 
 	return tm, nil
 }
@@ -346,25 +352,12 @@ func (mgm *tokenManager) PublicKeys() []*rsa.PublicKey {
 }
 
 // AuthServiceAccountToken returns the service account token which authenticates the Auth service
-func (mgm *tokenManager) AuthServiceAccountToken(req *goa.RequestData) (string, error) {
-	var token string
-	if token = mgm.getServiceAccountToken(); token == "" {
-		return mgm.initServiceAccountToken(req)
-	}
-	return token, nil
-}
-
-func (mgm *tokenManager) getServiceAccountToken() string {
-	mgm.serviceAccountLock.RLock()
-	defer mgm.serviceAccountLock.RUnlock()
+func (mgm *tokenManager) AuthServiceAccountToken() string {
 	return mgm.serviceAccountToken
 }
 
-func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, error) {
-	mgm.serviceAccountLock.Lock()
-	defer mgm.serviceAccountLock.Unlock()
-
-	tokenStr, err := mgm.GenerateServiceAccountToken(req, AuthServiceAccountID, "fabric8-auth")
+func (mgm *tokenManager) initServiceAccountToken() (string, error) {
+	tokenStr, err := mgm.GenerateServiceAccountToken(AuthServiceAccountID, Auth)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -374,8 +367,8 @@ func (mgm *tokenManager) initServiceAccountToken(req *goa.RequestData) (string, 
 }
 
 // GenerateServiceAccountToken generates and signs a new Service Account Token (Protection API Token)
-func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error) {
-	token := mgm.GenerateUnsignedServiceAccountToken(req, saID, saName)
+func (mgm *tokenManager) GenerateServiceAccountToken(saID string, saName string) (string, error) {
+	token := mgm.GenerateUnsignedServiceAccountToken(saID, saName)
 	tokenStr, err := token.SignedString(mgm.serviceAccountPrivateKey.Key)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -384,7 +377,7 @@ func (mgm *tokenManager) GenerateServiceAccountToken(req *goa.RequestData, saID 
 }
 
 // GenerateUnsignedServiceAccountToken generates an unsigned Service Account Token (Protection API Token)
-func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token {
+func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.serviceAccountPrivateKey.KeyID
 	claims := token.Claims.(jwt.MapClaims)
@@ -392,7 +385,7 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestDat
 	claims["sub"] = saID
 	claims["jti"] = uuid.NewV4().String()
 	claims["iat"] = time.Now().Unix()
-	claims["iss"] = rest.AbsoluteURL(req, "", nil)
+	claims["iss"] = mgm.config.GetAuthServiceURL()
 	claims["scopes"] = []string{"uma_protection"}
 	return token
 }
@@ -800,6 +793,20 @@ func extractServiceAccountName(ctx context.Context) (string, bool) {
 	}
 	accountNameTyped, isString := accountName.(string)
 	return accountNameTyped, isString
+}
+
+// AuthServiceAccountSigner returns a new JWT signer which uses the Auth Service Account token
+func (mgm *tokenManager) AuthServiceAccountSigner() client.Signer {
+	return &goasupport.JWTSigner{Token: mgm.AuthServiceAccountToken()}
+}
+
+// AuthServiceAccountSigner returns a new JWT signer which uses the Auth Service Account token
+func AuthServiceAccountSigner(ctx context.Context) (client.Signer, error) {
+	tm, err := ReadManagerFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return tm.AuthServiceAccountSigner(), nil
 }
 
 // CheckClaims checks if all the required claims are present in the access token
