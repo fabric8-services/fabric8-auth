@@ -255,6 +255,27 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
+func (s *identityRoleBlackBoxTest) TestCreateIdentityExistingAssignmentFails() {
+	g := s.DBTestSuite.NewTestGraph()
+
+	existingUser := g.CreateUser(g.ID("somename"))
+	knownRoleID := getKnownRoleIDForSpace(s)
+	newSpace := g.CreateSpace(g.ID("myspace"))
+
+	ir := role.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		IdentityID:     existingUser.Identity().ID,
+		ResourceID:     newSpace.SpaceID(),
+		RoleID:         knownRoleID,
+	}
+	err := s.repo.Create(context.Background(), &ir)
+	require.NoError(s.T(), err)
+
+	ir.IdentityRoleID = uuid.NewV4()
+	err = s.repo.Create(context.Background(), &ir)
+	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
+}
+
 func getKnownRoleIDForSpace(s *identityRoleBlackBoxTest) uuid.UUID {
 	roles, err := s.roleRepo.FindRolesByResourceType(context.Background(), authorization.ResourceTypeSpace)
 	require.Nil(s.T(), err)
