@@ -11,6 +11,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -21,8 +22,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
-
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	remotewitservice "github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -151,6 +151,18 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	tokens := app.AuthTokenCollection{convertToken(*tokenSet)}
+
+	var remotewitserviceCaller remotewitservice.RemoteWITServiceCaller
+	witURL, err := c.Configuration.GetWITURL(ctx.RequestData)
+	err = remotewitserviceCaller.CreateWITUser(ctx, ctx.RequestData, &devIdentity, witURL, devIdentity.ID.String())
+	if err != nil {
+		log.Warn(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": devIdentity.ID,
+			"username":    devIdentity.Username,
+			"wit_url":     witURL,
+		}, "unable to create user in WIT ")
+	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return ctx.OK(tokens)

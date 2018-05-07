@@ -1,8 +1,11 @@
 package service_test
 
 import (
+	"github.com/fabric8-services/fabric8-auth/errors"
+	errs "github.com/pkg/errors"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -10,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"context"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -195,4 +199,53 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
 	require.NoError(t, err)
 	require.Equal(t, 0, len(identityRoles))
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace(g.ID("myspace"))
+
+	var usersToBeAsserted []uuid.UUID
+	for i := 0; i < 10; i++ {
+		userToBeAssigned := g.CreateUser(g.ID("adminname"))
+		err := s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), authorization.AdminRole)
+		require.Nil(s.T(), err)
+		usersToBeAsserted = append(usersToBeAsserted, userToBeAssigned.Identity().ID)
+	}
+
+	// noise
+	for i := 0; i < 10; i++ {
+		err := s.repo.Assign(context.Background(), g.CreateUser(g.ID("adminname")).Identity().ID, g.CreateSpace(g.ID("myspace")).SpaceID(), authorization.AdminRole)
+		require.Nil(s.T(), err)
+	}
+
+	assignedRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.AdminRole)
+	require.Nil(s.T(), err)
+	require.Len(s.T(), assignedRoles, 10)
+	validateAssignee(s.T(), usersToBeAsserted, newSpace.SpaceID(), assignedRoles)
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
+	err := s.repo.Assign(context.Background(), uuid.NewV4(), uuid.NewV4().String(), uuid.NewV4().String())
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace(g.ID("myspace"))
+	err := s.repo.Assign(context.Background(), uuid.NewV4(), newSpace.SpaceID(), uuid.NewV4().String())
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {
+	for _, returnedAssignment := range returnedAssignedRoles {
+		require.Equal(t, resourceID, returnedAssignment.ResourceID)
+		foundUser := false
+		for _, i := range amongUsers {
+			if i == returnedAssignment.IdentityID {
+				foundUser = true
+			}
+		}
+		require.True(t, foundUser)
+	}
 }

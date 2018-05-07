@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"context"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -176,6 +177,33 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
 
 	require.Len(s.T(), identityRoles, 1)
 	require.Equal(s.T(), identityRole.IdentityRoleID, identityRoles[0].IdentityRoleID)
+}
+
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace(g.ID("myspace"))
+
+	var createdIdentities []uuid.UUID
+
+	for i := 0; i <= 10; i++ {
+		user := g.CreateUser(g.ID("foo"))
+		newSpace.AddAdmin(user)
+		createdIdentities = append(createdIdentities, user.Identity().ID)
+	}
+
+	// noise
+	for i := 0; i <= 10; i++ {
+		g.CreateSpace(g.ID("myspace")).AddAdmin(g.CreateUser(g.ID("somename")))
+		newSpace.AddContributor(g.CreateUser(g.ID("someothername")))
+	}
+
+	for _, i := range createdIdentities {
+		result, err := s.repo.FindIdentityRolesByIdentityAndResource(context.Background(), newSpace.SpaceID(), i)
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)
+		require.Equal(s.T(), i, result[0].IdentityID)
+		require.Equal(s.T(), newSpace.SpaceID(), result[0].ResourceID)
+	}
 }
 
 func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
