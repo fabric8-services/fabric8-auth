@@ -34,7 +34,7 @@ func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = rolescope.NewRoleManagementService(s.Application)
+	s.repo = rolescope.NewRoleManagementService(s.Application, s.Application)
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScope = resourcetype.NewResourceTypeScopeRepository(s.DB)
@@ -225,6 +225,18 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
 	validateAssignee(s.T(), usersToBeAsserted, newSpace.SpaceID(), assignedRoles)
 }
 
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace(g.ID("myspace"))
+
+	userToBeAssigned := g.CreateUser(g.ID("somename"))
+	err := s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), authorization.AdminRole)
+	require.Nil(s.T(), err)
+
+	err = s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), authorization.AdminRole)
+	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
+}
+
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
 	err := s.repo.Assign(context.Background(), uuid.NewV4(), uuid.NewV4().String(), uuid.NewV4().String())
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
@@ -234,6 +246,13 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
 	newSpace := g.CreateSpace(g.ID("myspace"))
 	err := s.repo.Assign(context.Background(), uuid.NewV4(), newSpace.SpaceID(), uuid.NewV4().String())
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace(g.ID("myspace"))
+	err := s.repo.Assign(context.Background(), uuid.NewV4(), newSpace.SpaceID(), authorization.AdminRole)
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 

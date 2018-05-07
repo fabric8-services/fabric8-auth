@@ -137,7 +137,7 @@ func (g *GormDB) PermissionService() permissionservice.PermissionService {
 }
 
 func (g *GormDB) RoleManagementService() roleservice.RoleManagementService {
-	return roleservice.NewRoleManagementService(g)
+	return roleservice.NewRoleManagementService(g, g)
 }
 
 func (g *GormDB) TeamService() teamservice.TeamService {

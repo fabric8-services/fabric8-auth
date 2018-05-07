@@ -18,8 +18,8 @@ type RoleManagementService interface {
 }
 
 // NewRoleManagementService creates a new service to manage role assignments
-func NewRoleManagementService(repo repository.Repositories) *RoleManagementServiceImpl {
-	return &RoleManagementServiceImpl{repo: repo}
+func NewRoleManagementService(repo repository.Repositories, tm transaction.TransactionManager) *RoleManagementServiceImpl {
+	return &RoleManagementServiceImpl{repo: repo, tm: tm}
 }
 
 // RoleManagementServiceImpl implements the RoleManagementService to manage role assignments

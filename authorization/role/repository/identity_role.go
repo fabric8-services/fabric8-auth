@@ -114,6 +114,18 @@ func (m *GormIdentityRoleRepository) Create(ctx context.Context, u *IdentityRole
 			"identity_role_id": u.IdentityRoleID,
 			"err":              err,
 		}, "unable to create the identity role")
+		if gormsupport.IsUniqueViolation(err, "uq_identity_role_identity_role_resource") {
+			return errs.WithStack(errors.NewDataConflictError(err.Error()))
+		}
+		if gormsupport.IsForeignKeyViolation(err, "identity_role_identity_id_fkey") {
+			return errs.WithStack(errors.NewNotFoundError("identity", u.IdentityID.String()))
+		}
+		if gormsupport.IsForeignKeyViolation(err, "identity_role_resource_id_fkey") {
+			return errs.WithStack(errors.NewNotFoundError("resource", u.ResourceID))
+		}
+		if gormsupport.IsForeignKeyViolation(err, "identity_role_role_id_fkey") {
+			return errs.WithStack(errors.NewNotFoundError("role", u.RoleID.String()))
+		}
 		return errs.WithStack(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
