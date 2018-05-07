@@ -155,7 +155,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 
 	var remotewitserviceCaller remotewitservice.RemoteWITServiceCaller
 	witURL, err := c.Configuration.GetWITURL(ctx.RequestData)
-	err = remotewitserviceCaller.CreateWITUser(ctx, ctx.RequestData, &devIdentity, witURL, devIdentity.ID.String())
+	err = remotewitserviceCaller.CreateWITUser(ctx, &devIdentity, witURL, devIdentity.ID.String())
 	if err != nil {
 		log.Warn(ctx, map[string]interface{}{
 			"err":         err,
