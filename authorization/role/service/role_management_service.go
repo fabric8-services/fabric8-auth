@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/satori/go.uuid"
@@ -24,6 +25,7 @@ func NewRoleManagementService(repo repository.Repositories) *RoleManagementServi
 // RoleManagementServiceImpl implements the RoleManagementService to manage role assignments
 type RoleManagementServiceImpl struct {
 	repo repository.Repositories
+	tm   transaction.TransactionManager
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
@@ -42,23 +44,30 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 }
 
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (r *RoleManagementServiceImpl) Assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleName string) error {
-	rt, err := r.repo.ResourceRepository().Load(ctx, resourceID)
 
-	if err != nil {
-		return err
-	}
+	err := transaction.Transactional(r.tm, func(tr transaction.TransactionalResources) error {
 
-	roleRef, err := r.repo.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
-	if err != nil {
-		return err
-	}
+		rt, err := r.repo.ResourceRepository().Load(ctx, resourceID)
 
-	ir := rolerepo.IdentityRole{
-		ResourceID: resourceID,
-		IdentityID: identityID,
-		RoleID:     roleRef.RoleID,
-	}
+		if err != nil {
+			return err
+		}
 
-	return r.repo.IdentityRoleRepository().Create(ctx, &ir)
+		roleRef, err := r.repo.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
+		if err != nil {
+			return err
+		}
+
+		ir := rolerepo.IdentityRole{
+			ResourceID: resourceID,
+			IdentityID: identityID,
+			RoleID:     roleRef.RoleID,
+		}
+
+		return r.repo.IdentityRoleRepository().Create(ctx, &ir)
+	})
+
+	return err
 }
