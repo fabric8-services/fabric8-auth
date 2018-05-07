@@ -240,6 +240,32 @@ func (rest *TestResourceRolesRest) TestAssignRoleOK() {
 	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
 }
 
+func (rest *TestResourceRolesRest) TestAssignRoleConflict() {
+
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	testUser := g.CreateUser(g.ID("someusername"))
+	res.AddViewer(testUser)
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: []*app.UpdateUserID{
+			&app.UpdateUserID{
+				ID:   testUser.Identity().ID.String(),
+				Type: "identities",
+			},
+		},
+	}
+
+	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
+	test.AssignRoleResourceRolesConflict(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), authorization.SpaceContributorRole, payload)
+}
+
 func (rest *TestResourceRolesRest) TestAssignRoleUnauthorized() {
 	svc, ctrl := rest.UnSecuredController()
 	payload := app.AssignRoleResourceRolesPayload{

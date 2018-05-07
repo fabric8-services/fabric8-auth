@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -10,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	errs "github.com/pkg/errors"
 
 	"context"
 	"github.com/satori/go.uuid"
@@ -204,6 +206,63 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() 
 		require.Equal(s.T(), i, result[0].IdentityID)
 		require.Equal(s.T(), newSpace.SpaceID(), result[0].ResourceID)
 	}
+}
+
+func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace(g.ID("myspace"))
+
+	knownRoleID := getKnownRoleIDForSpace(s)
+
+	ir := role.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		IdentityID:     uuid.NewV4(), // unknown identity
+		ResourceID:     newSpace.SpaceID(),
+		RoleID:         knownRoleID,
+	}
+	err := s.repo.Create(context.Background(), &ir)
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace(g.ID("myspace"))
+	existingUser := g.CreateUser(g.ID("somename"))
+
+	ir := role.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		IdentityID:     existingUser.Identity().ID,
+		ResourceID:     newSpace.SpaceID(),
+		RoleID:         uuid.NewV4(), // unknown role
+	}
+	err := s.repo.Create(context.Background(), &ir)
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
+	g := s.DBTestSuite.NewTestGraph()
+
+	existingUser := g.CreateUser(g.ID("somename"))
+	knownRoleID := getKnownRoleIDForSpace(s)
+
+	ir := role.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		IdentityID:     existingUser.Identity().ID,
+		ResourceID:     uuid.NewV4().String(),
+		RoleID:         knownRoleID,
+	}
+	err := s.repo.Create(context.Background(), &ir)
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func getKnownRoleIDForSpace(s *identityRoleBlackBoxTest) uuid.UUID {
+	roles, err := s.roleRepo.FindRolesByResourceType(context.Background(), authorization.ResourceTypeSpace)
+	require.Nil(s.T(), err)
+	require.Len(s.T(), roles, 3)
+
+	knownRoleID, err := uuid.FromString(roles[0].RoleID)
+	require.Nil(s.T(), err)
+	return knownRoleID
 }
 
 func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
