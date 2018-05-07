@@ -264,8 +264,36 @@ func TestGetEnvironmentOK(t *testing.T) {
 	os.Unsetenv(constAuthEnvironment)
 	assert.Equal(t, constLocalEnv, config.GetEnvironment())
 
+	// Test auth service URL
+
+	// Environment not set
+	saConfig, err := configuration.GetConfigurationData()
+	require.NoError(t, err)
+	assert.Equal(t, "http://localhost", saConfig.GetAuthServiceURL())
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "environment is expected to be set to 'production' or 'prod-preview'")
+
+	// Environment set to some unknown value
+	os.Setenv(constAuthEnvironment, "somethingelse")
+	saConfig, err = configuration.GetConfigurationData()
+	require.NoError(t, err)
+	assert.Equal(t, "http://localhost", saConfig.GetAuthServiceURL())
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "environment is expected to be set to 'production' or 'prod-preview'")
+
+	// Environment set to prod-preview
 	os.Setenv(constAuthEnvironment, "prod-preview")
-	assert.Equal(t, "prod-preview", config.GetEnvironment())
+	saConfig, err = configuration.GetConfigurationData()
+	require.NoError(t, err)
+	assert.Equal(t, "prod-preview", saConfig.GetEnvironment())
+	assert.Equal(t, "https://auth.prod-preview.openshift.io", saConfig.GetAuthServiceURL())
+	assert.NotContains(t, saConfig.DefaultConfigurationError().Error(), "environment is expected to be set to 'production' or 'prod-preview'")
+
+	// Environment set to production
+	os.Setenv(constAuthEnvironment, "production")
+	saConfig, err = configuration.GetConfigurationData()
+	require.NoError(t, err)
+	assert.Equal(t, "production", saConfig.GetEnvironment())
+	assert.Equal(t, "https://auth.openshift.io", saConfig.GetAuthServiceURL())
+	assert.NotContains(t, saConfig.DefaultConfigurationError().Error(), "environment is expected to be set to 'production' or 'prod-preview'")
 }
 
 func TestGetSentryDSNOK(t *testing.T) {

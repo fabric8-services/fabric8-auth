@@ -2,9 +2,10 @@ package login
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"net/http"
 	"testing"
+
+	"github.com/fabric8-services/fabric8-auth/auth"
 
 	"github.com/fabric8-services/fabric8-auth/login/link"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
@@ -92,7 +93,7 @@ func (s *ProfileUserWhiteboxTest) TestKeycloakLoadUser() {
 		URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := KeytcloakUserRequest{
+	testKeycloakUserData := KeycloakUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
@@ -112,7 +113,7 @@ func (s *ProfileUserWhiteboxTest) TestKeycloakLoadUser() {
 
 }
 
-func (s *ProfileUserWhiteboxTest) createUser(userProfile *KeytcloakUserRequest) *string {
+func (s *ProfileUserWhiteboxTest) createUser(userProfile *KeycloakUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)

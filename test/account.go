@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"database/sql"
+
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resourceRepo "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
@@ -197,7 +198,7 @@ func EmbedTestIdentityTokenInContext(db *gorm.DB, username string) (account.Iden
 	}
 
 	// Embed Token in the context
-	ctx, err := token.EmbedTokenInContext(identity.ID.String(), identity.Username)
+	ctx, _, err := token.EmbedTokenInContext(identity.ID.String(), identity.Username)
 
 	return identity, ctx, err
 }

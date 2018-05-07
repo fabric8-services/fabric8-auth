@@ -40,6 +40,7 @@ type UsersController struct {
 	RemoteWITService         wit.RemoteWITService
 	EmailVerificationService service.EmailVerificationService
 	keycloakLinkService      link.KeycloakIDPService
+	tenantService            service.Tenant
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
@@ -59,7 +60,7 @@ type UsersControllerConfiguration interface {
 }
 
 // NewUsersController creates a users controller.
-func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService) *UsersController {
+func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService, tenantService service.Tenant) *UsersController {
 	return &UsersController{
 		Controller:          service.NewController("UsersController"),
 		app:                 app,
@@ -67,6 +68,7 @@ func NewUsersController(service *goa.Service, app application.Application, confi
 		userProfileService:  userProfileService,
 		RemoteWITService:    &wit.RemoteWITServiceCaller{},
 		keycloakLinkService: linkService,
+		tenantService:       tenantService,
 	}
 }
 
@@ -187,7 +189,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	err = c.RemoteWITService.CreateWITUser(ctx.Context, ctx.RequestData, identity, witURL, identityID.String())
+	err = c.RemoteWITService.CreateWITUser(ctx.Context, identity, witURL, identityID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":              err,
@@ -235,7 +237,7 @@ func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersConte
 
 	userAttributes := ctx.Payload.Data.Attributes
 
-	keycloakUser := login.KeytcloakUserRequest{
+	keycloakUser := login.KeycloakUserRequest{
 		Username: &userAttributes.Username,
 		Email:    &userAttributes.Email,
 	}
@@ -707,7 +709,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			}
 		}
 	}
-	err = c.updateWITUser(ctx, ctx.RequestData, identity.ID.String())
+	err = c.updateWITUser(ctx, identity.ID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"user_id":     user.ID,
@@ -756,11 +758,36 @@ func (c *UsersController) UpdateByServiceAccount(ctx *app.UpdateByServiceAccount
 			return tr.Users().Save(ctx, user)
 		})
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": ctx.ID,
+			}, "unable to deprovision user in Auth DB")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalErrorFromString(ctx, err.Error()))
 		}
+		if *ctx.Payload.Data.Attributes.Deprovisioned {
+			// Only if Deprovisioned = True, we shall remove the user's resources
+			// from OpenShift Online
+			c.deprovisionUserInOpenShift(ctx, *identity)
+		}
+		// When deprovisioned = false, we can leave the re-provisioning to the GET /api/user endpoint for now.
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
+}
+
+func (c *UsersController) deprovisionUserInOpenShift(ctx context.Context, identity accountrepo.Identity) error {
+	if c.tenantService != nil {
+		// Delete tenant
+		err := c.tenantService.Delete(ctx, identity.ID)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": identity.ID,
+			}, "unable to delete tenant when deprovisioning user")
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *UsersController) updateFeatureLevel(ctx context.Context, user *accountrepo.User, updatedFeatureLevel *string) error {
@@ -790,7 +817,7 @@ func (c *UsersController) updateFeatureLevel(ctx context.Context, user *accountr
 	return nil
 }
 
-func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *goa.RequestData, identityID string) error {
+func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, identityID string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
@@ -811,7 +838,7 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, request *go
 	if err != nil {
 		return err
 	}
-	return c.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
+	return c.RemoteWITService.UpdateWITUser(ctx, updateUserPayload, witURL, identityID)
 }
 
 func isEmailValid(email string) bool {
@@ -997,7 +1024,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 			}
 
-			keycloakUser := login.KeytcloakUserRequest{
+			keycloakUser := login.KeycloakUserRequest{
 				Username:      &identity.Username,
 				Email:         &verfiedUser.Email,
 				EmailVerified: &isVerified,
