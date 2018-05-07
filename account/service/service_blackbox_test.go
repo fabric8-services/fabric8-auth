@@ -62,7 +62,7 @@ func (s *serviceBlackBoxTest) TestShowUserInfoUnauthorized() {
 
 	// Generate Token with an identity that doesn't exist in the database
 	sub := uuid.NewV4().String()
-	ctx, err := testtoken.EmbedTokenInContext(sub, uuid.NewV4().String())
+	ctx, _, err := testtoken.EmbedTokenInContext(sub, uuid.NewV4().String())
 	require.Nil(s.T(), err)
 
 	_, _, err = s.userInfoProvider.UserInfo(ctx)

@@ -231,7 +231,7 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 	return d.dummyGetResponse, nil
 }
 
-func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
+func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *KeycloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
 	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
 	return &url, true, nil
 }

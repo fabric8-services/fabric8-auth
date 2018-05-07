@@ -11,6 +11,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -22,7 +23,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -511,7 +511,7 @@ func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.Exchan
 	for _, hash := range sa.Secrets {
 		if bcrypt.CompareHashAndPassword([]byte(hash), secret) == nil {
 			tokenType := "bearer"
-			accessToken, err := c.TokenManager.GenerateServiceAccountToken(ctx.RequestData, sa.ID, sa.Name)
+			accessToken, err := c.TokenManager.GenerateServiceAccountToken(sa.ID, sa.Name)
 			if err != nil {
 				return nil, err
 			}

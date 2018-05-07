@@ -42,6 +42,7 @@ type UsersControllerTestSuite struct {
 	identityRepo   accountrepo.IdentityRepository
 	profileService login.UserProfileService
 	linkAPIService link.KeycloakIDPService
+	tenantService  *dummyTenantService
 }
 
 func (s *UsersControllerTestSuite) SetupSuite() {
@@ -52,15 +53,16 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
 	s.linkAPIService = &dummyKeycloakLinkService{}
-	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
+	s.tenantService = &dummyTenantService{}
 }
 
 func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersController) {
 	svc := testsupport.UnsecuredService("Users-Service")
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -71,7 +73,7 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 	require.Nil(s.T(), err)
 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -79,7 +81,7 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 
 func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -87,7 +89,7 @@ func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identi
 
 func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identity accountrepo.Identity, emailSuccess bool) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
 	controller.EmailVerificationService = &DummyEmailVerificationService{success: emailSuccess}
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -95,7 +97,7 @@ func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identi
 
 func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, s.tenantService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -868,10 +870,34 @@ func (s *UsersControllerTestSuite) TestDeprovisionUser() {
 	// Reg app can update
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 	s.checkIfUserDeprovisioned(identity.ID, false)
+	s.tenantService.identityID = uuid.NewV4()
+	s.tenantService.error = nil
 	_, result := test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
 	require.NotNil(s.T(), result)
 	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
 	s.checkIfUserDeprovisioned(identity.ID, true)
+
+	// Check if tenant service was called
+	assert.Equal(s.T(), identity.ID, s.tenantService.identityID)
+
+	// User is deprovisioned even if tenant service failed
+	s.tenantService.error = errors.NewInternalErrorFromString(nil, "tenant service failed")
+	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	s.checkIfUserDeprovisioned(identity.ID, false)
+	_, result = test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
+	require.NotNil(s.T(), result)
+	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
+	s.checkIfUserDeprovisioned(identity.ID, true)
+
+	// deprovisoned = false , and check that tenant service was NOT called.
+	deprovisioned = false
+	updateUsersPayload.Data.Attributes.Deprovisioned = &deprovisioned
+	s.tenantService.identityID = uuid.NewV4()
+	s.tenantService.error = nil
+	test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
+	s.checkIfUserDeprovisioned(identity.ID, false)
+	assert.NotEqual(s.T(), identity.ID, s.tenantService.identityID)
 
 	// Fails if unknown identity
 	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.NewV4().String(), updateUsersPayload)
@@ -1441,11 +1467,11 @@ func (s *UsersControllerTestSuite) generateUsersTag(allUsers app.UserArray) stri
 
 type dummyRemoteWITService struct{}
 
-func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.RequestData, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
 	return nil
 }
 
-func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *accountrepo.Identity, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, identity *accountrepo.Identity, witURL string, identityID string) error {
 	return nil
 }
 
@@ -1473,7 +1499,7 @@ func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, k
 	return d.dummyGetResponse, nil
 }
 
-func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *login.KeytcloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
+func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *login.KeycloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
 	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
 	return &url, true, nil
 }
@@ -1710,4 +1736,18 @@ func (s *DummyEmailVerificationService) SendVerificationCode(ctx context.Context
 
 func (s *DummyEmailVerificationService) VerifyCode(ctx context.Context, code string) (*accountrepo.VerificationCode, error) {
 	return nil, nil
+}
+
+type dummyTenantService struct {
+	identityID uuid.UUID
+	error
+}
+
+func (s *dummyTenantService) Init(ctx context.Context) error {
+	return nil
+}
+
+func (s *dummyTenantService) Delete(ctx context.Context, identityID uuid.UUID) error {
+	s.identityID = identityID
+	return s.error
 }

@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"golang.org/x/oauth2"
-	"net/http"
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -105,13 +104,10 @@ func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Se
 // WithServiceAccountAuthz fills the context with token
 // Token is filled using input Identity object and resource authorization information
 func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, ident account.Identity) context.Context {
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "example.com"},
-	}
 	if ident.ID == uuid.Nil {
 		ident.ID = uuid.NewV4()
 	}
-	token := tokenManager.GenerateUnsignedServiceAccountToken(r, ident.ID.String(), ident.Username)
+	token := tokenManager.GenerateUnsignedServiceAccountToken(ident.ID.String(), ident.Username)
 	return goajwt.WithJWT(ctx, token)
 }
 

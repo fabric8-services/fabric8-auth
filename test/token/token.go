@@ -27,26 +27,26 @@ var config = configurationData()
 var TokenManager = newManager()
 
 // EmbedTokenInContext generates a token and embed it into the context
-func EmbedTokenInContext(sub, username string) (context.Context, error) {
+func EmbedTokenInContext(sub, username string) (context.Context, string, error) {
 	// Generate Token with an identity that doesn't exist in the database
 	tokenString, err := GenerateToken(sub, username)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	extracted, err := TokenManager.Parse(context.Background(), tokenString)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Embed Token in the context
 	ctx := jwtgoa.WithJWT(context.Background(), extracted)
-	return ctx, nil
+	return ctx, tokenString, nil
 }
 
 // EmbedIdentityInContext generates a token for the given identity and embed it into the context along with token manager
 func EmbedIdentityInContext(identity account.Identity) (context.Context, error) {
-	ctx, err := EmbedTokenInContext(identity.ID.String(), identity.Username)
+	ctx, _, err := EmbedTokenInContext(identity.ID.String(), identity.Username)
 	if err != nil {
 		return nil, err
 	}

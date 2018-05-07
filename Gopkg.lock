@@ -54,7 +54,7 @@
 [[projects]]
   name = "github.com/fabric8-services/fabric8-tenant"
   packages = ["design"]
-  revision = "2614bf1824754901b7e2f9d7b4ad4d7e3bac61ff"
+  revision = "7e149ee841ea9fe7d439f206781b51cacde5d4d3"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-wit"
@@ -199,10 +199,7 @@
 
 [[projects]]
   name = "github.com/magiconair/properties"
-  packages = [
-    ".",
-    "assert"
-  ]
+  packages = ["."]
   revision = "c3beff4c2358b44d0493c7dda585e7db7ff28ae6"
   version = "v1.7.6"
 
@@ -452,6 +449,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "09e4324930847647bc84dfaa8272754e337c7dd7bcf05b187556d3940ff6e90c"
+  inputs-digest = "591223576391fb12b07f9f4d3e829efe50be9a8e46eac1875cfd7aeaf0b5fd65"
   solver-name = "gps-cdcl"
   solver-version = 1
