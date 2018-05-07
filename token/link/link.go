@@ -15,7 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/userinfo"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
@@ -36,14 +36,14 @@ func TestRunUserREST(t *testing.T) {
 
 func (rest *TestUserREST) SecuredController(identity account.Identity) (*goa.Service, *UserController) {
 	svc := testsupport.ServiceAsUser("User-Service", identity)
-	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
+	userInfoProvider := service.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
 	controller := NewUserController(svc, userInfoProvider, rest.Application, testtoken.TokenManager, rest.Configuration)
 	return svc, controller
 }
 
 func (rest *TestUserREST) UnsecuredController() (*goa.Service, *UserController) {
 	svc := goa.New("User-Service")
-	userInfoProvider := userinfo.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
+	userInfoProvider := service.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
 	controller := NewUserController(svc, userInfoProvider, rest.Application, testtoken.TokenManager, rest.Configuration)
 	return svc, controller
 }

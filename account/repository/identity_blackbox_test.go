@@ -1,13 +1,14 @@
-package account_test
+package repository_test
 
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,15 +29,15 @@ func (s *identityBlackBoxTest) SetupTest() {
 
 func (s *identityBlackBoxTest) TestOKToDelete() {
 	// given
-	identity := &account.Identity{
+	identity := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "someuserTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: repository.KeycloakIDP}
 
-	identity2 := &account.Identity{
+	identity2 := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "onemoreuserTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: repository.KeycloakIDP}
 
 	err := s.Application.Identities().Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
@@ -107,18 +108,18 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserFailsIfUserOrIdentityDoNot
 
 func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 	// Create test user & identity
-	testUser := &account.User{
+	testUser := &repository.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
 		FullName: "TestLoadIdentityAndUserOK Developer",
 		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
-	testIdentity := &account.Identity{
+	testIdentity := &repository.Identity{
 		Username:     "TestLoadIdentityAndUserOK" + uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: repository.KeycloakIDP,
 		User:         *testUser,
 	}
-	userRepository := account.NewUserRepository(s.DB)
+	userRepository := repository.NewUserRepository(s.DB)
 	userRepository.Create(s.Ctx, testUser)
 	s.Application.Identities().Create(s.Ctx, testIdentity)
 
@@ -137,18 +138,18 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 
 func (s *identityBlackBoxTest) TestUserIdentityIsUser() {
 	// Create test user & identity
-	testUser := &account.User{
+	testUser := &repository.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
 		FullName: "TestUserIdentityIsUser Developer",
 		Cluster:  "https://api.starter-us-east-2a.openshift.com",
 	}
-	testIdentity := &account.Identity{
+	testIdentity := &repository.Identity{
 		Username:     "TestUserIdentityIsUser" + uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: repository.KeycloakIDP,
 		User:         *testUser,
 	}
-	userRepository := account.NewUserRepository(s.DB)
+	userRepository := repository.NewUserRepository(s.DB)
 	userRepository.Create(s.Ctx, testUser)
 	s.Application.Identities().Create(s.Ctx, testIdentity)
 
@@ -183,11 +184,69 @@ func (s *identityBlackBoxTest) TestFindIdentityMemberships() {
 	require.Equal(s.T(), orgName, associations[0].ResourceName)
 }
 
-func createAndLoad(s *identityBlackBoxTest) *account.Identity {
-	identity := &account.Identity{
+func (s *identityBlackBoxTest) TestFindIdentityTeamMemberships() {
+	g := s.DBTestSuite.NewTestGraph()
+	g.CreateTeam(g.ID("tm"), g.CreateSpace(g.ID("spc"))).AddMember(g.CreateUser(g.ID("m")))
+
+	// Find the member's memberships
+	associations, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, g.UserByID("m").Identity().ID, nil)
+	require.NoError(s.T(), err)
+
+	// There should be 1 entry
+	require.Equal(s.T(), 1, len(associations))
+	require.Equal(s.T(), g.TeamByID("tm").TeamID(), *associations[0].IdentityID)
+	require.True(s.T(), associations[0].Member)
+	require.Equal(s.T(), g.TeamByID("tm").TeamName(), associations[0].ResourceName)
+	require.Equal(s.T(), g.SpaceByID("spc").SpaceID(), *associations[0].ParentResourceID)
+}
+
+// TestFindIdentitiesByResourceTypeWithParentResource creates a combination of spaces/teams and then uses the finder method to find them
+func (s *identityBlackBoxTest) TestFindIdentitiesByResourceTypeWithParentResource() {
+	g := s.DBTestSuite.NewTestGraph()
+	spc := g.CreateSpace(g.ID("spc"))
+	t1 := g.CreateTeam(g.ID("t1"), spc)
+	t2 := g.CreateTeam(g.ID("t2"), spc)
+	t3 := g.CreateTeam(g.ID("t3"), spc)
+
+	spc2 := g.CreateSpace(g.ID("spc2"))
+	g.CreateTeam(g.ID("t4"), spc2)
+	g.CreateTeam(g.ID("t5"), spc2)
+
+	rt := g.LoadResourceType(authorization.IdentityResourceTypeTeam)
+
+	identities, err := s.Application.Identities().FindIdentitiesByResourceTypeWithParentResource(s.Ctx, rt.ResourceType().ResourceTypeID, spc.SpaceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identities, 3)
+	t1Found := false
+	t2Found := false
+	t3Found := false
+	for i := range identities {
+		if identities[i].ID == t1.TeamID() {
+			t1Found = true
+			require.Equal(s.T(), t1.TeamName(), identities[i].IdentityResource.Name)
+		} else if identities[i].ID == t2.TeamID() {
+			t2Found = true
+			require.Equal(s.T(), t2.TeamName(), identities[i].IdentityResource.Name)
+		} else if identities[i].ID == t3.TeamID() {
+			t3Found = true
+			require.Equal(s.T(), t3.TeamName(), identities[i].IdentityResource.Name)
+		}
+	}
+
+	require.True(s.T(), t1Found)
+	require.True(s.T(), t2Found)
+	require.True(s.T(), t3Found)
+
+	identities, err = s.Application.Identities().FindIdentitiesByResourceTypeWithParentResource(s.Ctx, rt.ResourceType().ResourceTypeID, spc2.SpaceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identities, 2)
+}
+
+func createAndLoad(s *identityBlackBoxTest) *repository.Identity {
+	identity := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "someuserTestIdentity2",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: repository.KeycloakIDP}
 
 	err := s.Application.Identities().Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")

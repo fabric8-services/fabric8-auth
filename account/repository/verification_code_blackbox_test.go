@@ -1,21 +1,23 @@
-package account_test
+package repository_test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/account"
+	"testing"
+
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
+
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type verificationCodeBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo *account.GormVerificationCodeRepository
+	repo *repository.GormVerificationCodeRepository
 }
 
 func TestRunverificationCodeBlackboxTest(t *testing.T) {
@@ -25,7 +27,7 @@ func TestRunverificationCodeBlackboxTest(t *testing.T) {
 func (s *verificationCodeBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB = s.DB.Debug()
-	s.repo = account.NewVerificationCodeRepository(s.DB)
+	s.repo = repository.NewVerificationCodeRepository(s.DB)
 }
 
 func (s *verificationCodeBlackboxTest) TestVerificationCodeOKToLoad() {
@@ -54,13 +56,13 @@ func (s *verificationCodeBlackboxTest) TestVerificationCodeOKToDelete() {
 	require.Error(s.T(), err, errors.NotFoundError{})
 }
 
-func createAndLoadVerificationCode(s *verificationCodeBlackboxTest) *account.VerificationCode {
+func createAndLoadVerificationCode(s *verificationCodeBlackboxTest) *repository.VerificationCode {
 
 	identity, err := test.CreateTestIdentityAndUser(s.DB, uuid.NewV4().String(), "kc")
 
 	require.NoError(s.T(), err)
 
-	verificationCode := account.VerificationCode{
+	verificationCode := repository.VerificationCode{
 		ID:     uuid.NewV4(),
 		Code:   uuid.NewV4().String(),
 		UserID: identity.User.ID,
@@ -76,7 +78,7 @@ func createAndLoadVerificationCode(s *verificationCodeBlackboxTest) *account.Ver
 	return verificationCodeRetrieved
 }
 
-func (s *verificationCodeBlackboxTest) assertCode(expected account.VerificationCode, actual account.VerificationCode) {
+func (s *verificationCodeBlackboxTest) assertCode(expected repository.VerificationCode, actual repository.VerificationCode) {
 	assert.Equal(s.T(), expected.Code, actual.Code)
 	assert.Equal(s.T(), expected.ID, actual.ID)
 	assert.Equal(s.T(), actual.UserID, expected.UserID)

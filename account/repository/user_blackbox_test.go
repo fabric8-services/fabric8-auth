@@ -1,10 +1,11 @@
-package account_test
+package repository_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
@@ -16,7 +17,7 @@ import (
 
 type userBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo account.UserRepository
+	repo repository.UserRepository
 }
 
 func TestRunUserBlackBoxTest(t *testing.T) {
@@ -25,7 +26,7 @@ func TestRunUserBlackBoxTest(t *testing.T) {
 
 func (s *userBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = account.NewUserRepository(s.DB)
+	s.repo = repository.NewUserRepository(s.DB)
 }
 
 func (s *userBlackBoxTest) TestOKToDelete() {
@@ -93,7 +94,7 @@ func (s *userBlackBoxTest) TestOKToSave() {
 
 func (s *userBlackBoxTest) TestCreateUserWithoutClusterFails() {
 	t := s.T()
-	user := &account.User{
+	user := &repository.User{
 		ID:       uuid.NewV4(),
 		Email:    "noclustersomeuser@TestUser" + uuid.NewV4().String(),
 		FullName: "someuserTestUser" + uuid.NewV4().String(),
@@ -165,12 +166,12 @@ func (s *userBlackBoxTest) TestEmailFilters() {
 
 	// Filter users by email
 
-	users, err := s.repo.Query(account.UserFilterByEmail(userWithPublicEmail.Email))
+	users, err := s.repo.Query(repository.UserFilterByEmail(userWithPublicEmail.Email))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), users, 1)
 	require.Equal(s.T(), userWithPublicEmail.Email, users[0].Email)
 
-	users, err = s.repo.Query(account.UserFilterByEmail(userWithPrivateEmail.Email))
+	users, err = s.repo.Query(repository.UserFilterByEmail(userWithPrivateEmail.Email))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), users, 1)
 	require.Equal(s.T(), userWithPrivateEmail.Email, users[0].Email)
@@ -183,30 +184,30 @@ func (s *userBlackBoxTest) TestEmailFilters() {
 	// Filter users by email and email privacy
 
 	// Search for a public email and the give email is public. User is found
-	users, err = s.repo.Query(account.UserFilterByEmail(userWithPublicEmail.Email), account.UserFilterByEmailPrivacy(false))
+	users, err = s.repo.Query(repository.UserFilterByEmail(userWithPublicEmail.Email), repository.UserFilterByEmailPrivacy(false))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), users, 1)
 	require.Equal(s.T(), userWithPublicEmail.Email, users[0].Email)
 
 	// Search for a public email but the give email is private. User is not found
-	users, err = s.repo.Query(account.UserFilterByEmail(userWithPrivateEmail.Email), account.UserFilterByEmailPrivacy(false))
+	users, err = s.repo.Query(repository.UserFilterByEmail(userWithPrivateEmail.Email), repository.UserFilterByEmailPrivacy(false))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), users, 0)
 
 	// Search for a private email and the give email is private. User is found
-	users, err = s.repo.Query(account.UserFilterByEmail(userWithPrivateEmail.Email), account.UserFilterByEmailPrivacy(true))
+	users, err = s.repo.Query(repository.UserFilterByEmail(userWithPrivateEmail.Email), repository.UserFilterByEmailPrivacy(true))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), users, 1)
 	require.Equal(s.T(), userWithPrivateEmail.Email, users[0].Email)
 
 	// Search for a private email but the give email is public. User is not found
-	users, err = s.repo.Query(account.UserFilterByEmail(userWithPublicEmail.Email), account.UserFilterByEmailPrivacy(true))
+	users, err = s.repo.Query(repository.UserFilterByEmail(userWithPublicEmail.Email), repository.UserFilterByEmailPrivacy(true))
 	require.NoError(s.T(), err)
 	require.Len(s.T(), users, 0)
 }
 
 func (s *userBlackBoxTest) checkPrivateEmailFilter(privateEmails bool, expectedEmail string) {
-	users, err := s.repo.Query(account.UserFilterByEmailPrivacy(privateEmails))
+	users, err := s.repo.Query(repository.UserFilterByEmailPrivacy(privateEmails))
 	require.NoError(s.T(), err)
 	require.True(s.T(), len(users) > 0)
 	var found bool
@@ -219,8 +220,8 @@ func (s *userBlackBoxTest) checkPrivateEmailFilter(privateEmails bool, expectedE
 	require.True(s.T(), found)
 }
 
-func createAndLoadUser(s *userBlackBoxTest, emailPrivate bool) *account.User {
-	user := &account.User{
+func createAndLoadUser(s *userBlackBoxTest, emailPrivate bool) *repository.User {
+	user := &repository.User{
 		ID:           uuid.NewV4(),
 		Email:        "someuser@TestUser" + uuid.NewV4().String(),
 		EmailPrivate: emailPrivate,

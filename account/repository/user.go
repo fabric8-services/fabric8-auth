@@ -1,21 +1,21 @@
-package account
+package repository
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/account"
 	repository "github.com/fabric8-services/fabric8-auth/application/repository/base"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"fmt"
-
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // In future, we could add support for FieldDefinitions the way we have for workitems.
@@ -37,9 +37,9 @@ type User struct {
 	FeatureLevel  string // the level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
 	Cluster       string // The OpenShift cluster allocted to the user.
 	// Whether the user has been deprovisioned
-	Deprovisioned      bool               `gorm:"column:deprovisioned"`
-	Identities         []Identity         // has many Identities from different IDPs
-	ContextInformation ContextInformation `sql:"type:jsonb"` // context information of the user activity
+	Deprovisioned      bool                       `gorm:"column:deprovisioned"`
+	Identities         []Identity                 // has many Identities from different IDPs
+	ContextInformation account.ContextInformation `sql:"type:jsonb"` // context information of the user activity
 }
 
 const (

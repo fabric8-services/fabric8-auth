@@ -3,7 +3,7 @@ package controller_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	authrest "github.com/fabric8-services/fabric8-auth/rest"
@@ -54,6 +54,7 @@ func (rest *TestClustersREST) checkShowForServiceAccount(saName string) {
 		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.MetricsURL), cluster.MetricsURL)
 		require.Equal(rest.T(), authrest.AddTrailingSlashToURL(configCluster.LoggingURL), cluster.LoggingURL)
 		require.Equal(rest.T(), configCluster.AppDNS, cluster.AppDNS)
+		require.Equal(rest.T(), configCluster.CapacityExhausted, cluster.CapacityExhausted)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
@@ -55,7 +56,7 @@ func (s *TestTokenSuite) checkGenerateUserTokenForIdentity(offlineToken bool) {
 	s.assertGeneratedToken(token, identity, offlineToken)
 }
 
-func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, identity account.Identity, offlineToken bool) {
+func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, identity repository.Identity, offlineToken bool) {
 	require.NotNil(s.T(), generatedToken)
 	assert.Equal(s.T(), "bearer", generatedToken.TokenType)
 
@@ -202,15 +203,15 @@ func (s *TestTokenSuite) checkConvertToken(offlineToken bool) {
 	s.assertGeneratedToken(token, identity, offlineToken)
 }
 
-func (s *TestTokenSuite) generateToken(offlineToken bool) (*oauth2.Token, account.Identity, context.Context) {
+func (s *TestTokenSuite) generateToken(offlineToken bool) (*oauth2.Token, repository.Identity, context.Context) {
 	ctx := testtoken.ContextWithRequest(nil)
-	user := account.User{
+	user := repository.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
 		FullName: uuid.NewV4().String(),
 		Cluster:  uuid.NewV4().String(),
 	}
-	identity := account.Identity{
+	identity := repository.Identity{
 		ID:       uuid.NewV4(),
 		User:     user,
 		Username: uuid.NewV4().String(),
@@ -222,7 +223,7 @@ func (s *TestTokenSuite) generateToken(offlineToken bool) (*oauth2.Token, accoun
 }
 
 func (s *TestTokenSuite) TestValidOAuthAccessToken() {
-	identity := account.Identity{
+	identity := repository.Identity{
 		ID:       uuid.NewV4(),
 		Username: "testuser",
 	}

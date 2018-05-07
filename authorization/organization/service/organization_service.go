@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"

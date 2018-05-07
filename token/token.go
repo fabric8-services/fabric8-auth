@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/account/repository"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -100,8 +101,8 @@ type Manager interface {
 	AuthServiceAccountToken(req *goa.RequestData) (string, error)
 	GenerateServiceAccountToken(req *goa.RequestData, saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(req *goa.RequestData, saID string, saName string) *jwt.Token
-	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error)
-	GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*oauth2.Token, error)
+	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
+	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 }
@@ -397,7 +398,7 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(req *goa.RequestDat
 }
 
 // GenerateUserToken generates an OAuth2 user token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *account.Identity) (*oauth2.Token, error) {
+func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error) {
 	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, keycloakToken.AccessToken, identity)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -443,7 +444,7 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 }
 
 // GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
-func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*oauth2.Token, error) {
+func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error) {
 	nowTime := time.Now().Unix()
 	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
 	if err != nil {
@@ -483,7 +484,7 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 }
 
 // GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *account.Identity) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *repository.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
@@ -560,7 +561,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 }
 
 // GenerateUnsignedUserAccessTokenForIdentity generates an unsigned OAuth2 user access token for the given identity
-func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Context, identity account.Identity) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Context, identity repository.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
@@ -603,7 +604,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 }
 
 // GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakRefreshToken string, identity *account.Identity) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakRefreshToken string, identity *repository.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
@@ -644,7 +645,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 }
 
 // GenerateUnsignedUserRefreshTokenForIdentity generates an unsigned OAuth2 user refresh token for the given identity
-func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity account.Identity, offlineToken bool) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 

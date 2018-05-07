@@ -1,13 +1,15 @@
-package email
+package service
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/test"
-	"github.com/goadesign/goa"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+
+	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/test"
+
+	"github.com/goadesign/goa"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVerificationURL(t *testing.T) {

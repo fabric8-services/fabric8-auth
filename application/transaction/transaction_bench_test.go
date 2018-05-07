@@ -8,7 +8,7 @@ import (
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"

@@ -1,4 +1,4 @@
-package account
+package repository
 
 import (
 	"context"
@@ -7,13 +7,13 @@ import (
 	"time"
 
 	repository "github.com/fabric8-services/fabric8-auth/application/repository/base"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"database/sql"
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -128,6 +128,7 @@ type IdentityRepository interface {
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
+	FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -459,7 +460,7 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	var identities []Identity
 
 	// query for identities in which the user is a member
-	q := m.db.Table(m.TableName()).Preload("IdentityResource")
+	q := m.db.Table(m.TableName()).Preload("IdentityResource").Preload("IdentityResource.ParentResource")
 
 	// with the specified resourceType
 	if resourceType != nil {
@@ -478,8 +479,37 @@ func (m *GormIdentityRepository) FindIdentityMemberships(ctx context.Context, id
 	}
 
 	for _, identity := range identities {
-		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, &identity.ID, true, nil)
+		// TODO for some reason gorm's nested preloads aren't working here, some time should be spent in the gorm source code to find out why,
+		// after which we should be able to remove this code
+		if identity.IdentityResource.ParentResourceID != nil && identity.IdentityResource.ParentResource == nil {
+
+			var native resource.Resource
+			err = m.db.Table("resource").Where("resource_id = ?", identity.IdentityResource.ParentResourceID).Find(&native).Error
+			if err != nil {
+				return nil, err
+			}
+			identity.IdentityResource.ParentResource = &native
+		}
+
+		associations = authorization.AppendAssociation(associations, identity.IdentityResourceID.String, &identity.IdentityResource.Name, identity.IdentityResource.ParentResourceID, &identity.ID, true, nil)
 	}
 
 	return associations, nil
+}
+
+// FindIdentitiesWithParentResource returns an array of Identity objects for which their corresponding resource is a child of the specified parent resource
+func (m *GormIdentityRepository) FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "FindIdentitiesByResourceTypeWithParentResource"}, time.Now())
+
+	var identities []Identity
+
+	err := m.db.Table(m.TableName()).Preload("IdentityResource").
+		Joins("JOIN resource r ON r.resource_id = identities.identity_resource_id AND r.resource_type_id = ? AND r.parent_resource_id = ?", resourceTypeID, parentResourceID).
+		Find(&identities).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return identities, nil
 }

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"

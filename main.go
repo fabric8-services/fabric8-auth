@@ -8,9 +8,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/email"
-	"github.com/fabric8-services/fabric8-auth/account/userinfo"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -23,6 +22,7 @@ import (
 	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
@@ -92,6 +92,28 @@ func main() {
 			break
 		}
 	}
+
+	// Initialize sentry client
+	haltSentry, err := sentry.InitializeSentryClient(
+		config.GetSentryDSN(),
+		sentry.WithRelease(controller.Commit),
+		sentry.WithEnvironment(config.GetEnvironment()),
+	)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the sentry client")
+	}
+	defer haltSentry()
+
+	// Initialize cluster config watcher
+	haltWatcher, err := config.InitializeClusterWatcher()
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to setup the cluster config watcher")
+	}
+	defer haltWatcher()
 
 	if config.IsPostgresDeveloperModeEnabled() && log.IsDebug() {
 		db = db.Debug()
@@ -197,6 +219,7 @@ func main() {
 
 	providerFactory := link.NewOauthProviderFactory(config, appDB)
 	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
+
 	// Mount "token" controller
 	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, config)
 	app.MountTokenController(service, tokenCtrl)
@@ -214,11 +237,11 @@ func main() {
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
 	// Mount "user" controller
-	userInfoProvider := userinfo.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
+	userInfoProvider := accountservice.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
 	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config)
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Init Tenant service %v", config.GetTenantServiceURL())
-		userCtrl.InitTenant = account.NewInitTenant(config)
+		userCtrl.InitTenant = accountservice.NewInitTenant(config)
 	}
 	app.MountUserController(service, userCtrl)
 
@@ -229,7 +252,7 @@ func main() {
 	// Mount "users" controller
 	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
 
-	emailVerificationService := email.NewEmailVerificationClient(appDB, notificationChannel)
+	emailVerificationService := accountservice.NewEmailVerificationClient(appDB, notificationChannel)
 	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
@@ -253,6 +276,10 @@ func main() {
 	// Mount "organizations" controller
 	organizationCtrl := controller.NewOrganizationController(service, appDB)
 	app.MountOrganizationController(service, organizationCtrl)
+
+	// Mount "teams" controller
+	teamCtrl := controller.NewTeamController(service, appDB)
+	app.MountTeamController(service, teamCtrl)
 
 	// Mount "invitations" controller
 	invitationCtrl := controller.NewInvitationController(service, appDB)

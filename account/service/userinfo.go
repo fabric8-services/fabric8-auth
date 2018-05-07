@@ -1,10 +1,10 @@
-package userinfo
+package service
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"

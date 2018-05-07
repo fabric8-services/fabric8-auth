@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	applicationrepo "github.com/fabric8-services/fabric8-auth/application/repository/base"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
@@ -331,9 +331,10 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 
 	// query for identities in which the user is a member
 	q := m.db.Table(m.TableName()).
-		Select("identity_role.resource_id AS ResourceID, r.name AS ResourceName, i.id AS IdentityID, role.name AS RoleName").
+		Select("identity_role.resource_id AS ResourceID, r.name AS ResourceName, role.name AS RoleName, i.id AS IdentityID, r.parent_resource_id AS ParentResourceID").
 		Joins("JOIN resource r ON r.resource_id = identity_role.resource_id").
-		Joins("LEFT JOIN identities i ON r.resource_id = i.identity_resource_id")
+		Joins("LEFT JOIN identities i ON r.resource_id = i.identity_resource_id").
+		Joins("LEFT JOIN resource pr ON r.parent_resource_id = pr.resource_id")
 
 	// with the specified resourceType
 	if resourceType != nil {
@@ -353,12 +354,13 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 	}
 
 	for rows.Next() {
-		var resourceid string
-		var resourcename string
-		var identityid *uuid.UUID
-		var rolename string
-		rows.Scan(&resourceid, &resourcename, &identityid, &rolename)
-		associations = authorization.AppendAssociation(associations, resourceid, &resourcename, identityid, false, &rolename)
+		var resourceID string
+		var resourceName string
+		var roleName string
+		var identityID uuid.UUID
+		var parentResourceID string
+		rows.Scan(&resourceID, &resourceName, &roleName, &identityID, &parentResourceID)
+		associations = authorization.AppendAssociation(associations, resourceID, &resourceName, &parentResourceID, &identityID, false, &roleName)
 	}
 
 	return associations, nil

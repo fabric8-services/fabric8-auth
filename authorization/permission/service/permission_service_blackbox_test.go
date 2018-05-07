@@ -3,7 +3,7 @@ package service_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	permissionmodel "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -122,6 +122,9 @@ func (s *permissionServiceBlackBoxTest) TestPermissionForUserAssignedDirectRoleF
 	result, err := s.permissionService.HasScope(s.Ctx, identity.ID, resource.ResourceID, testAreaScopeName)
 	require.NoError(s.T(), err)
 	require.True(s.T(), result, "User should have assigned scope for resource")
+
+	// Also check the RequireScope method
+	require.NoError(s.T(), s.permissionService.RequireScope(s.Ctx, identity.ID, resource.ResourceID, testAreaScopeName))
 }
 
 /*
@@ -172,6 +175,9 @@ func (s *permissionServiceBlackBoxTest) TestPermissionForUserAssignedDirectRoleF
 	result, err = s.permissionService.HasScope(s.Ctx, identity.ID, otherResource.ResourceID, testAreaScopeName)
 	require.NoError(s.T(), err)
 	require.False(s.T(), result, "User should not have assigned scope for other resource")
+
+	// Also exercise the RequireScope method
+	require.Error(s.T(), s.permissionService.RequireScope(s.Ctx, identity.ID, otherResource.ResourceID, testAreaScopeName))
 }
 
 /*

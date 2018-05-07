@@ -2,6 +2,7 @@ package configuration_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io"
 )
 
 const (
@@ -244,6 +246,44 @@ func TestGetWITURLNotDevModeOK(t *testing.T) {
 	assert.Equal(t, "http://myauthsubdomain.service.domain.org", computedWITURL)
 }
 
+func TestGetEnvironmentOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	constAuthEnvironment := "AUTH_ENVIRONMENT"
+	constAuthSentryDSN := "AUTH_SENTRY_DSN"
+	constLocalEnv := "local"
+
+	existingEnvironmentName := os.Getenv(constAuthEnvironment)
+	existingSentryDSN := os.Getenv(constAuthSentryDSN)
+	defer func() {
+		os.Setenv(constAuthEnvironment, existingEnvironmentName)
+		os.Setenv(constAuthSentryDSN, existingSentryDSN)
+		resetConfiguration()
+	}()
+
+	os.Unsetenv(constAuthEnvironment)
+	assert.Equal(t, constLocalEnv, config.GetEnvironment())
+
+	os.Setenv(constAuthEnvironment, "prod-preview")
+	assert.Equal(t, "prod-preview", config.GetEnvironment())
+}
+
+func TestGetSentryDSNOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	constSentryDSN := "AUTH_SENTRY_DSN"
+	existingDSN := os.Getenv(constSentryDSN)
+	defer func() {
+		os.Setenv(constSentryDSN, existingDSN)
+		resetConfiguration()
+	}()
+
+	os.Unsetenv(constSentryDSN)
+	assert.Equal(t, "", config.GetSentryDSN())
+
+	os.Setenv(constSentryDSN, "something")
+	assert.Equal(t, "something", config.GetSentryDSN())
+}
+
 func TestGetWITURLDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
@@ -417,16 +457,16 @@ func TestLoadClusterConfigurationFromFile(t *testing.T) {
 func TestClusterConfigurationWithMissingKeys(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	clusterConfig, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-missing-keys.conf")
-	require.Nil(t, err)
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key name is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key app-dns is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key service-account-token is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key service-account-username is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key token-provider-id is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-id is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-secret is missing")
-	assert.Contains(t, clusterConfig.DefaultConfigurationError().Error(), "key auth-client-default-scope is missing")
+	_, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-missing-keys.conf")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "key name is missing")
+	assert.Contains(t, err.Error(), "key app-dns is missing")
+	assert.Contains(t, err.Error(), "key service-account-token is missing")
+	assert.Contains(t, err.Error(), "key service-account-username is missing")
+	assert.Contains(t, err.Error(), "key token-provider-id is missing")
+	assert.Contains(t, err.Error(), "key auth-client-id is missing")
+	assert.Contains(t, err.Error(), "key auth-client-secret is missing")
+	assert.Contains(t, err.Error(), "key auth-client-default-scope is missing")
 }
 
 func TestClusterConfigurationWithGeneratedURLs(t *testing.T) {
@@ -450,6 +490,120 @@ func TestClusterConfigurationWithGeneratedURLs(t *testing.T) {
 	})
 }
 
+func TestClusterConfigurationWithEmptyArray(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	_, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-empty.conf")
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), "empty cluster config file")
+}
+
+func TestClusterConfigurationFromInvalidFile(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	_, err := configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-invalid.conf")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to load the JSON config file")
+
+	_, err = configuration.NewConfigurationData("", "", "./conf-files/tests/oso-clusters-wrong-json.conf")
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), "empty cluster config file")
+}
+
+func TestClusterConfigurationWatcher(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	// Create a temp file with content from ./conf-files/oso-clusters-custom.conf
+	tmpFileName := createTempClusterConfigFile(t)
+	defer os.Remove(tmpFileName)
+
+	// Load configuration from the temp file
+	config, err := configuration.NewConfigurationData("", "", tmpFileName)
+	require.NoError(t, err)
+	cluster := config.GetOSOClusterByURL("https://api.starter-us-east-2a.openshift.com")
+	require.NotNil(t, cluster)
+
+	original := cluster.CapacityExhausted
+
+	// Start watching
+	haltWatcher, err := config.InitializeClusterWatcher()
+	require.NoError(t, err)
+	defer haltWatcher()
+
+	// Update the config file
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-capacity-updated.conf")
+	// Check if it has been updated
+	waitForConfigUpdate(t, config, !original)
+
+	// Update the config file back to the original
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/oso-clusters.conf")
+	// Check if it has been updated
+	waitForConfigUpdate(t, config, original)
+
+	// Update the config file to some invalid data
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-invalid.conf")
+	// The configuration should not change
+	waitForConfigUpdate(t, config, original)
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-empty.conf")
+	// The configuration should not change
+	waitForConfigUpdate(t, config, original)
+
+	// Fix the file
+	updateClusterConfigFile(t, tmpFileName, "./conf-files/tests/oso-clusters-capacity-updated.conf")
+	// Now configuration should be updated
+	waitForConfigUpdate(t, config, !original)
+}
+
+func waitForConfigUpdate(t *testing.T, config *configuration.ConfigurationData, expected bool) {
+	for i := 0; i < 30; i++ {
+		time.Sleep(100 * time.Millisecond)
+		cluster := config.GetOSOClusterByURL("https://api.starter-us-east-2a.openshift.com")
+		require.NotNil(t, cluster)
+		if expected == cluster.CapacityExhausted {
+			return
+		}
+	}
+	require.Fail(t, "cluster config has not been reloaded within 3s")
+}
+
+func TestClusterConfigurationWatcherNoErrorForDefaultConfig(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+
+	config, err := configuration.GetConfigurationData()
+	require.NoError(t, err)
+
+	haltWatcher, err := config.InitializeClusterWatcher()
+	require.NoError(t, err)
+	defer haltWatcher()
+}
+
+func createTempClusterConfigFile(t *testing.T) string {
+	to, err := ioutil.TempFile("", "oso-clusters.conf")
+	require.NoError(t, err)
+	defer to.Close()
+
+	from, err := os.Open("./conf-files/oso-clusters.conf")
+	require.NoError(t, err)
+	defer from.Close()
+
+	_, err = io.Copy(to, from)
+	require.NoError(t, err)
+	return to.Name()
+}
+
+func updateClusterConfigFile(t *testing.T, to, from string) {
+	fromFile, err := os.Open(from)
+	require.NoError(t, err)
+	defer fromFile.Close()
+
+	toFile, err := os.OpenFile(to, os.O_RDWR|os.O_CREATE, 0666)
+	require.NoError(t, err)
+	defer toFile.Close()
+
+	_, err = io.Copy(toFile, fromFile)
+	require.NoError(t, err)
+}
+
 func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.OSOCluster) {
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2",
@@ -464,6 +618,7 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 		AuthClientID:           "autheast2",
 		AuthClientSecret:       "autheast2secret",
 		AuthClientDefaultScope: "user:full",
+		CapacityExhausted:      false,
 	})
 	checkCluster(t, clusters, configuration.OSOCluster{
 		Name:                   "us-east-2a",
@@ -478,6 +633,22 @@ func checkClusterConfiguration(t *testing.T, clusters map[string]configuration.O
 		AuthClientID:           "autheast2a",
 		AuthClientSecret:       "autheast2asecret",
 		AuthClientDefaultScope: "user:full",
+		CapacityExhausted:      false,
+	})
+	checkCluster(t, clusters, configuration.OSOCluster{
+		Name:                   "us-east-1a",
+		APIURL:                 "https://api.starter-us-east-1a.openshift.com",
+		ConsoleURL:             "https://console.starter-us-east-1a.openshift.com/console",
+		MetricsURL:             "https://metrics.starter-us-east-1a.openshift.com",
+		LoggingURL:             "https://console.starter-us-east-1a.openshift.com/console",
+		AppDNS:                 "b542.starter-us-east-1a.openshiftapps.com",
+		ServiceAccountToken:    "sdfjdlfjdfkjdlfjd12324434543085djdfjd084508gfdkjdofkjg43854085dlkjdlk",
+		ServiceAccountUsername: "dsaas",
+		TokenProviderID:        "886c7ea3-ef97-443d-b345-de94b94bb65d",
+		AuthClientID:           "autheast1a",
+		AuthClientSecret:       "autheast1asecret",
+		AuthClientDefaultScope: "user:full",
+		CapacityExhausted:      true,
 	})
 }
 

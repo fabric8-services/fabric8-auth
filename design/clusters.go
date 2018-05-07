@@ -20,7 +20,8 @@ var clusterData = a.Type("ClusterData", func() {
 	a.Attribute("metrics-url", d.String, "Metrics URL")
 	a.Attribute("logging-url", d.String, "Logging URL")
 	a.Attribute("app-dns", d.String, "User application domain name in the cluster")
-	a.Required("name", "console-url", "metrics-url", "api-url", "logging-url", "app-dns")
+	a.Attribute("capacity-exhausted", d.Boolean, "Cluster is full if set to 'true'")
+	a.Required("name", "console-url", "metrics-url", "api-url", "logging-url", "app-dns", "capacity-exhausted")
 })
 
 var _ = a.Resource("clusters", func() {

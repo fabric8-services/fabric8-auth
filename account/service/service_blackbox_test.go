@@ -1,12 +1,12 @@
-package userinfo_test
+package service_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/userinfo"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	authtest "github.com/fabric8-services/fabric8-auth/test"
@@ -19,7 +19,7 @@ import (
 
 type serviceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	userInfoProvider userinfo.UserInfoProvider
+	userInfoProvider service.UserInfoProvider
 }
 
 func TestRunServiceBlackBoxTest(t *testing.T) {
@@ -32,7 +32,7 @@ func TestRunServiceBlackBoxTest(t *testing.T) {
 // It sets up a database connection for all the tests in this suite without polluting global space.
 func (s *serviceBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.userInfoProvider = userinfo.UserInfoProvider{
+	s.userInfoProvider = service.UserInfoProvider{
 		TokenManager: testtoken.TokenManager,
 		Identities:   account.NewIdentityRepository(s.DB),
 		Users:        account.NewUserRepository(s.DB),

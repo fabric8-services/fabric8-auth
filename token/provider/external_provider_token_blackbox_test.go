@@ -155,6 +155,42 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAn
 
 }
 
+func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAndProviderIDLatest() {
+	// given
+	externalToken := createAndLoadExternalToken(s)
+
+	lastTokenID := externalToken.ID // initialize
+	for i := 0; i < 10; i++ {
+		anotherExternalToken := provider.ExternalToken{
+			ID:         uuid.NewV4(),
+			ProviderID: externalToken.ProviderID,
+			Token:      uuid.NewV4().String(),
+			Scope:      "user:full",
+			IdentityID: externalToken.IdentityID,
+			Username:   externalToken.Username,
+		}
+		createExternalToken(s, anotherExternalToken)
+		createAndLoadExternalToken(s) // add more noisy data
+
+		lastTokenID = anotherExternalToken.ID
+	}
+
+	// when
+	tokens, err := s.repo.LoadByProviderIDAndIdentityID(s.Ctx, externalToken.ProviderID, externalToken.IdentityID)
+
+	// then
+	require.Nil(s.T(), err, "Could not filter out externalTokens")
+
+	require.Len(s.T(), tokens, 11)
+	for _, t := range tokens {
+		require.Equal(s.T(), externalToken.IdentityID, t.IdentityID)
+		require.Equal(s.T(), externalToken.Username, t.Username)
+	}
+
+	require.Equal(s.T(), lastTokenID, tokens[0].ID)
+
+}
+
 func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.ExternalToken {
 
 	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
@@ -171,6 +207,18 @@ func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.External
 	fmt.Println(externalToken)
 
 	err = s.repo.Create(s.Ctx, &externalToken)
+	require.Nil(s.T(), err, "Could not create externalToken")
+	// when
+	externalTokenRetrieved, err := s.repo.Load(s.Ctx, externalToken.ID)
+	// then
+	require.Nil(s.T(), err, "Could not load externalToken")
+	s.assertToken(externalToken, *externalTokenRetrieved)
+	return externalTokenRetrieved
+}
+
+func createExternalToken(s *externalTokenBlackboxTest, externalToken provider.ExternalToken) *provider.ExternalToken {
+
+	err := s.repo.Create(s.Ctx, &externalToken)
 	require.Nil(s.T(), err, "Could not create externalToken")
 	// when
 	externalTokenRetrieved, err := s.repo.Load(s.Ctx, externalToken.ID)

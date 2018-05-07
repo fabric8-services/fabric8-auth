@@ -7,10 +7,12 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -125,6 +127,10 @@ const (
 	varTenantServiceURL       = "tenant.serviceurl"
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
+
+	// sentry
+	varEnvironment = "environment"
+	varSentryDSN   = "sentry.dsn"
 )
 
 type serviceAccountConfig struct {
@@ -156,6 +162,7 @@ type OSOCluster struct {
 	AuthClientID           string `mapstructure:"auth-client-id"`
 	AuthClientSecret       string `mapstructure:"auth-client-secret"`
 	AuthClientDefaultScope string `mapstructure:"auth-client-default-scope"`
+	CapacityExhausted      bool   `mapstructure:"capacity-exhausted"` // Optional in oso-clusters.conf ('false' by default)
 }
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -167,9 +174,12 @@ type ConfigurationData struct {
 	sa map[string]ServiceAccount
 
 	// OSO Cluster Configuration is a map of clusters where the key == the OSO cluster API URL
-	clusters map[string]OSOCluster
+	clusters              map[string]OSOCluster
+	clusterConfigFilePath string
 
 	defaultConfigurationError error
+
+	mux sync.RWMutex
 }
 
 // NewConfigurationData creates a configuration reader object using configurable configuration file paths
@@ -195,7 +205,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	// Set up the service account configuration (stored in a separate config file)
-	saViper, defaultConfigErrorMsg, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
+	saViper, defaultConfigErrorMsg, _, err := readFromJSONFile(serviceAccountConfigFile, defaultServiceAccountConfigPath, serviceAccountConfigFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -215,42 +225,11 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	c.checkServiceAccountConfig()
 
 	// Set up the OSO cluster configuration (stored in a separate config file)
-	clusterViper, defaultConfigErrorMsg, err := readFromJSONFile(osoClusterConfigFile, defaultOsoClusterConfigPath, osoClusterConfigFileName)
+	clusterConfigFilePath, err := c.initClusterConfig(osoClusterConfigFile, defaultOsoClusterConfigPath)
 	if err != nil {
 		return nil, err
 	}
-	if defaultConfigErrorMsg != nil {
-		c.appendDefaultConfigErrorMessage(*defaultConfigErrorMsg)
-	}
-
-	var clusterConf osoClusterConfig
-	err = clusterViper.Unmarshal(&clusterConf)
-	if err != nil {
-		return nil, err
-	}
-	c.clusters = map[string]OSOCluster{}
-	for _, cluster := range clusterConf.Clusters {
-		if cluster.ConsoleURL == "" {
-			cluster.ConsoleURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return nil, err
-			}
-		}
-		if cluster.MetricsURL == "" {
-			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
-			if err != nil {
-				return nil, err
-			}
-		}
-		if cluster.LoggingURL == "" {
-			// This is not a typo; the logging host is the same as the console host in current k8s
-			cluster.LoggingURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return nil, err
-			}
-		}
-		c.clusters[cluster.APIURL] = cluster
-	}
+	c.clusterConfigFilePath = clusterConfigFilePath
 
 	// Check sensitive default configuration
 	if c.IsPostgresDeveloperModeEnabled() {
@@ -300,7 +279,12 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetOSORegistrationAppAdminToken() == "" {
 		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
 	}
-	c.checkClusterConfig()
+	if c.GetEnvironment() == "local" || c.GetEnvironment() == "" {
+		c.appendDefaultConfigErrorMessage("Environment is empty or set to local")
+	}
+	if c.GetSentryDSN() == "" {
+		c.appendDefaultConfigErrorMessage("Sentry DSN is empty")
+	}
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
 			"default_configuration_error": c.defaultConfigurationError.Error(),
@@ -308,6 +292,48 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	return c, nil
+}
+
+func (c *ConfigurationData) initClusterConfig(osoClusterConfigFile, defaultClusterConfigFile string) (string, error) {
+	clusterViper, defaultConfigErrorMsg, usedClusterConfigFile, err := readFromJSONFile(osoClusterConfigFile, defaultClusterConfigFile, osoClusterConfigFileName)
+	if err != nil {
+		return usedClusterConfigFile, err
+	}
+	if defaultConfigErrorMsg != nil {
+		c.appendDefaultConfigErrorMessage(*defaultConfigErrorMsg)
+	}
+
+	var clusterConf osoClusterConfig
+	err = clusterViper.Unmarshal(&clusterConf)
+	if err != nil {
+		return usedClusterConfigFile, err
+	}
+	c.clusters = map[string]OSOCluster{}
+	for _, cluster := range clusterConf.Clusters {
+		if cluster.ConsoleURL == "" {
+			cluster.ConsoleURL, err = convertAPIURL(cluster.APIURL, "console", "console")
+			if err != nil {
+				return usedClusterConfigFile, err
+			}
+		}
+		if cluster.MetricsURL == "" {
+			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
+			if err != nil {
+				return usedClusterConfigFile, err
+			}
+		}
+		if cluster.LoggingURL == "" {
+			// This is not a typo; the logging host is the same as the console host in current k8s
+			cluster.LoggingURL, err = convertAPIURL(cluster.APIURL, "console", "console")
+			if err != nil {
+				return usedClusterConfigFile, err
+			}
+		}
+		c.clusters[cluster.APIURL] = cluster
+	}
+
+	err = c.checkClusterConfig()
+	return usedClusterConfigFile, err
 }
 
 func (c *ConfigurationData) checkServiceAccountConfig() {
@@ -340,7 +366,13 @@ func (c *ConfigurationData) checkServiceAccountConfig() {
 }
 
 // checkClusterConfig checks if there is any missing keys or empty values in oso-clusters.conf
-func (c *ConfigurationData) checkClusterConfig() {
+func (c *ConfigurationData) checkClusterConfig() error {
+	if len(c.clusters) == 0 {
+		return errors.New("empty cluster config file")
+	}
+
+	err := errors.New("")
+	ok := true
 	for _, cluster := range c.clusters {
 		iVal := reflect.ValueOf(&cluster).Elem()
 		typ := iVal.Type()
@@ -350,13 +382,21 @@ func (c *ConfigurationData) checkClusterConfig() {
 			switch f.Interface().(type) {
 			case string:
 				if f.String() == "" {
-					c.appendDefaultConfigErrorMessage(fmt.Sprintf("key %v is missing in cluster config", tag))
+					err = errors.Errorf("%s; key %v is missing in cluster config", err.Error(), tag)
+					ok = false
 				}
+			case bool:
+				// Ignore
 			default:
-				c.appendDefaultConfigErrorMessage(fmt.Sprintf("wront type of key %v", tag))
+				err = errors.Errorf("%s; wrong type of key %v", err.Error(), tag)
+				ok = false
 			}
 		}
 	}
+	if !ok {
+		return err
+	}
+	return nil
 }
 
 func convertAPIURL(apiURL string, newPrefix string, newPath string) (string, error) {
@@ -373,7 +413,7 @@ func convertAPIURL(apiURL string, newPrefix string, newPath string) (string, err
 	return newURL.String(), nil
 }
 
-func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, *string, error) {
+func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, *string, string, error) {
 	jsonViper := viper.New()
 	jsonViper.SetTypeByDefaultValue(true)
 
@@ -383,14 +423,14 @@ func readFromJSONFile(configFilePath string, defaultConfigFilePath string, confi
 	if configFilePath != "" {
 		// If a JSON configuration file has been specified, check if it exists
 		if _, err := os.Stat(configFilePath); err != nil {
-			return nil, nil, err
+			return nil, nil, configFilePath, err
 		}
 	} else {
 		// If the JSON configuration file has not been specified
 		// then we default to <defaultConfigFile>
 		configFilePath, err = pathExists(defaultConfigFilePath)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, defaultConfigFilePath, err
 		}
 		etcJSONConfigUsed = configFilePath != ""
 	}
@@ -399,24 +439,26 @@ func readFromJSONFile(configFilePath string, defaultConfigFilePath string, confi
 		errMsg := fmt.Sprintf("%s is not used", defaultConfigFilePath)
 		defaultConfigErrorMsg = &errMsg
 	}
+	usedFile := configFilePath
 
 	jsonViper.SetConfigType("json")
 	if configFilePath == "" {
-		// Load the default config
+		// Load the built-in config file (used in dev mode)
+		usedFile = "./configuration/conf-files/" + configFileName
 		data, err := Asset(configFileName)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, usedFile, err
 		}
 		jsonViper.ReadConfig(bytes.NewBuffer(data))
 	} else {
 		jsonViper.SetConfigFile(configFilePath)
 		err := jsonViper.ReadInConfig()
 		if err != nil {
-			return nil, nil, errors.Errorf("failed to load the JSON config file (%s): %s \n", configFilePath, err)
+			return nil, nil, usedFile, errors.Errorf("failed to load the JSON config file (%s): %s \n", configFilePath, err)
 		}
 	}
 
-	return jsonViper, defaultConfigErrorMsg, nil
+	return jsonViper, defaultConfigErrorMsg, usedFile, nil
 }
 
 func (c *ConfigurationData) appendDefaultConfigErrorMessage(message string) {
@@ -453,11 +495,92 @@ func getOSOClusterConfigFile() string {
 	return envOSOClusterConfigFile
 }
 
+// InitializeClusterWatcher initializes a file watcher for the cluster config file
+// When the file is updated the configuration synchronously reload the cluster configuration
+func (c *ConfigurationData) InitializeClusterWatcher() (func() error, error) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		for {
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				if event.Op&fsnotify.Remove == fsnotify.Remove {
+					time.Sleep(1 * time.Second) // Wait for one second before re-adding and reloading. It might be needed if the file is removed and then re-added in some environments
+					err = watcher.Add(event.Name)
+					if err != nil {
+						log.WithFields(map[string]interface{}{
+							"file": event.Name,
+						}).Errorln("cluster config was removed but unable to re-add it to watcher")
+					}
+				}
+				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Remove == fsnotify.Remove {
+					// Reload config if operation is Write or Remove.
+					// Both can be part of file update depending on environment and actual operation.
+					err := c.reloadClusterConfig()
+					if err != nil {
+						// Do not crash. Log the error and keep using the existing configuration
+						log.WithFields(map[string]interface{}{
+							"err":  err,
+							"file": event.Name,
+							"op":   event.Op.String(),
+						}).Errorln("unable to reload cluster config file")
+					} else {
+						log.WithFields(map[string]interface{}{
+							"file": event.Name,
+							"op":   event.Op.String(),
+						}).Infoln("cluster config file modified and reloaded")
+					}
+				}
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				log.WithFields(map[string]interface{}{
+					"err": err,
+				}).Errorln("cluster config file watcher error")
+			}
+		}
+	}()
+
+	configFilePath, err := pathExists(c.clusterConfigFilePath)
+	if err == nil && configFilePath != "" {
+		err = watcher.Add(configFilePath)
+		log.WithFields(map[string]interface{}{
+			"file": c.clusterConfigFilePath,
+		}).Infoln("cluster config file watcher initialized")
+	} else {
+		// OK in Dev Mode
+		log.WithFields(map[string]interface{}{
+			"file": c.clusterConfigFilePath,
+		}).Warnln("cluster config file watcher not initialized for non-existent file")
+	}
+
+	return watcher.Close, err
+}
+
+func (c *ConfigurationData) reloadClusterConfig() error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	_, err := c.initClusterConfig("", c.clusterConfigFilePath)
+	return err
+}
+
 // DefaultConfigurationError returns an error if the default values is used
 // for sensitive configuration like service account secrets or private keys.
 // Error contains all the details.
 // Returns nil if the default configuration is not used.
 func (c *ConfigurationData) DefaultConfigurationError() error {
+	// Lock for reading because config file watcher can update config errors
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+
 	return c.defaultConfigurationError
 }
 
@@ -477,6 +600,9 @@ func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 
 // GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
 func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
+	// Lock for reading because config file watcher can update cluster configuration
+	c.mux.RLock()
+	defer c.mux.RUnlock()
 	return c.clusters
 }
 
@@ -486,7 +612,11 @@ func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 // like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
 // Returns nil if no matching API URL found
 func (c *ConfigurationData) GetOSOClusterByURL(url string) *OSOCluster {
-	for apiURL, cluster := range c.GetOSOClusters() {
+	// Lock for reading because config file watcher can update cluster configuration
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+
+	for apiURL, cluster := range c.clusters {
 		if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
 			return &cluster
 		}
@@ -594,6 +724,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Regex to be used to check if the user with such email should be ignored during account provisioning
 	c.v.SetDefault(varIgnoreEmailInProd, ".+\\+preview.*\\@redhat\\.com")
+
+	// prod-preview or prod
+	c.v.SetDefault(varEnvironment, "local")
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -880,6 +1013,11 @@ func (c *ConfigurationData) GetNotificationServiceURL() string {
 	return c.v.GetString(varNotificationServiceURL)
 }
 
+// GetSentryDSN returns the secret needed to securely communicate with https://errortracking.prod-preview.openshift.io/openshift_io/fabric8-auth/
+func (c *ConfigurationData) GetSentryDSN() string {
+	return c.v.GetString(varSentryDSN)
+}
+
 // GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
@@ -1124,120 +1262,9 @@ func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 	return c.v.GetString(varIgnoreEmailInProd)
 }
 
-const (
-	defaultHeaderMaxLength = 5000 // bytes
-
-	// Auth-related defaults
-
-	// RSAPrivateKey for signing JWT Tokens for service accounts
-	// ssh-keygen -f auth_rsa
-	DefaultServiceAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
-MIIEpQIBAAKCAQEAnwrjH5iTSErw9xUptp6QSFoUfpHUXZ+PaslYSUrpLjw1q27O
-DSFwmhV4+dAaTMO5chFv/kM36H3ZOyA146nwxBobS723okFaIkshRrf6qgtD6coT
-HlVUSBTAcwKEjNn4C9jtEpyOl+eSgxhMzRH3bwTIFlLlVMiZf7XVE7P3yuOCpqkk
-2rdYVSpQWQWKU+ZRywJkYcLwjEYjc70AoNpjO5QnY+Exx98E30iEdPHZpsfNhsjh
-9Z7IX5TrMYgz7zBTw8+niO/uq3RBaHyIhDbvenbR9Q59d88lbnEeHKgSMe2RQpFR
-3rxFRkc/64Rn/bMuL/ptNowPqh1P+9GjYzWmPwIDAQABAoIBAQCBCl5ZpnvprhRx
-BVTA/Upnyd7TCxNZmzrME+10Gjmz79pD7DV25ejsu/taBYUxP6TZbliF3pggJOv6
-UxomTB4znlMDUz0JgyjUpkyril7xVQ6XRAPbGrS1f1Def+54MepWAn3oGeqASb3Q
-bAj0Yl12UFTf+AZmkhQpUKk/wUeN718EIY4GRHHQ6ykMSqCKvdnVbMyb9sIzbSTl
-v+l1nQFnB/neyJq6P0Q7cxlhVj03IhYj/AxveNlKqZd2Ih3m/CJo0Abtwhx+qHZp
-cCBrYj7VelEaGARTmfoIVoGxFGKZNCcNzn7R2ic7safxXqeEnxugsAYX/UmMoq1b
-vMYLcaLRAoGBAMqMbbgejbD8Cy6wa5yg7XquqOP5gPdIYYS88TkQTp+razDqKPIU
-hPKetnTDJ7PZleOLE6eJ+dQJ8gl6D/dtOsl4lVRy/BU74dk0fYMiEfiJMYEYuAU0
-MCramo3HAeySTP8pxSLFYqJVhcTpL9+NQgbpJBUlx5bLDlJPl7auY077AoGBAMkD
-UpJRIv/0gYSz5btVheEyDzcqzOMZUVsngabH7aoQ49VjKrfLzJ9WznzJS5gZF58P
-vB7RLuIA8m8Y4FUwxOr4w9WOevzlFh0gyzgNY4gCwrzEryOZqYYqCN+8QLWfq/hL
-+gYFYpEW5pJ/lAy2i8kPanC3DyoqiZCsUmlg6JKNAoGBAIdCkf6zgKGhHwKV07cs
-DIqx2p0rQEFid6UB3ADkb+zWt2VZ6fAHXeT7shJ1RK0o75ydgomObWR5I8XKWqE7
-s1dZjDdx9f9kFuVK1Upd1SxoycNRM4peGJB1nWJydEl8RajcRwZ6U+zeOc+OfWbH
-WUFuLadlrEx5212CQ2k+OZlDAoGAdsH2w6kZ83xCFOOv41ioqx5HLQGlYLpxfVg+
-2gkeWa523HglIcdPEghYIBNRDQAuG3RRYSeW+kEy+f4Jc2tHu8bS9FWkRcsWoIji
-ZzBJ0G5JHPtaub6sEC6/ZWe0F1nJYP2KLop57FxKRt0G2+fxeA0ahpMwa2oMMiQM
-4GM3pHUCgYEAj2ZjjsF2MXYA6kuPUG1vyY9pvj1n4fyEEoV/zxY1k56UKboVOtYr
-BA/cKaLPqUF+08Tz/9MPBw51UH4GYfppA/x0ktc8998984FeIpfIFX6I2U9yUnoQ
-OCCAgsB8g8yTB4qntAYyfofEoDiseKrngQT5DSdxd51A/jw7B8WyBK8=
------END RSA PRIVATE KEY-----`
-
-	defaultServiceAccountPrivateKeyID = "9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs"
-
-	DefaultUserAccountPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEA40yB6SNoU4SpWxTfG5ilu+BlLYikRyyEcJIGg//w/GyqtjvT
-/CVo92DRTh/DlrgwjSitmZrhauBnrCOoUBMin0/TXeSo3w2M5tEiiIFPbTDRf2jM
-fbSGEOke9O0USCCR+bM2TncrgZR74qlSwq38VCND4zHc89rAzqJ2LVM2aXkuBbO7
-TcgLNyooBrpOK9khVHAD64cyODAdJY4esUjcLdlcB7TMDGOgxGGn2RARU7+TUf32
-gZZbTMikbuPM5gXuzGlo/22ECbQSKuZpbGwgPIAZ5NN9QA4D1NRz9+KDoiXZ6deZ
-TTVCrZykJJ6RyLNfRh+XS+6G5nvcqAmfBpyOWwIDAQABAoIBAE5pBie23zZwfTu+
-Z3jNn96/+idLC+DBqq5qsXS3xhpOIlXbLbW98gfkjk+1BXPo9la7wadLlpeX8iuf
-4WA+OaNblj69ssO/mOvHGXKdqRixzpN1Q5XZwKX0xYkYf/ahxbmt6P4IfimlX1dB
-shsWigU8ZR7rBJ3ayMh/ouTf39ViIbXsHYpEubmACcLaOlXbEuZNr7ofkFQKl/mh
-XLWUeOoM97xY6Agw/gv60GIcxIC5OAg7iNqS+XNzhba7f2nf2YqodbN9H1BmEJsf
-RRaTTWlZAiQXC8lpZOKwP7DiMLOT78lfmlYtquEBhwRbXazfzsdf67Mr4Kdl2Cej
-Jy0EGwECgYEA/DZWB0Lb0tPdT1FmORNrBfGg3PjhX9FOilhbtUgX3nNKp8Zsi3yO
-yN6hf0/98qIGlmAQi5C92cXpdhqTiVAGktWD+q0a1W99udIjinS1tFrKgNtOyBWN
-uwDBZyhw8RrwpQinMe7B966SVDaphvvOWlB1TadMDh5kReJCYpvRCrMCgYEA5rZj
-djCU2UqMw6jIP07nCFjWgxPPjg7jP8aRo07oW2mv1sEA0doCyoZaMrdNeGd3fB0B
-sm+IvlQtWD7r0tWZI1GkYpdRkDFurdkIzVPV5pMwH4ByOq/Jf5ZqtjIpoMaRBirA
-whJyjmiGU3yDyPDLtEFpNgqM3mIyxS6M6UGKYbkCgYEAg6w+d6YBK+1uQiXGD5BC
-tKS0jgjlaOfWcEW3A0qzI3Dfjf3610vdI6OPfu8dLppGhCV9HdAgPdykiQNQ+UQt
-WmVcdPgA5WNCqUu7QGK0Joer52AXnkAacYHwdtHXPRkKf66n01rKK2wZexvan91A
-m0gcJcFs5IYbZZy9ecvNdB8CgYEAo4JZ5Vay93j1YGnLWcrixDCp/wXYUJbOidGC
-QBpZZQf3Hh11JkT7O2uSm2T727yAmw63uC2B3VotNOCLI8ZMHRLsjQ8vOCFAjqdF
-rLeg3iQss/bFfkA9b1Y8VNoiVJbGC3fbWu/WDoWXxa12fL/jruG43hsGEUnJL6Q5
-K8tOdskCgYABpoHFRxsvJ5Sp9CUS3BBTicVSkpAjoX2O3+cS9XL8IsIqZEMW7VKb
-16/H2BRvI0uUq12t+UCc0P0SyrWRGxwGR5zSYHVDOot5EDHqE8aYSbX4jiXtAAiu
-qCn3Rug8QWyBjjxnU3CxPRiLSmEllQAAVlzfRWn6kL4RKSyruUhZaA==
------END RSA PRIVATE KEY-----`
-
-	defaultUserAccountPrivateKeyID = "aUGv8mQA85jg4V1DU8Uk1W0uKsxn187KQONAGl6AMtc"
-
-	devModePublicKey = `-----BEGIN RSA PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvQ8p+HsTMrgcsuIMoOR1
-LXRhynL9YAU0qoDON6PLKCpdBv0Xy/jnsPjo5DrtUOijuJcID8CR7E0hYpY9MgK5
-H5pDFwC4lbUVENquHEVS/E0pQSKCIzSmORcIhjYW2+wKfDOVjeudZwdFBIxJ6KpI
-ty/aF78hlUJZuvghFVqoHQYTq/DZOmKjS+PAVLw8FKE3wa/3WU0EkpP+iovRMCkl
-lzxqrcLPIvx+T2gkwe0bn0kTvdMOhTLTN2tuvKrFpVUxVi8RM/V8PtgdKroxnES7
-SyUqK8rLO830jKJzAYrByQL+sdGuSqInIY/geahQHEGTwMI0CLj6zfhpjSgCflst
-vwIDAQAB
------END RSA PUBLIC KEY-----`
-
-	devModePublicKeyID = "bNq-BCOR3ev-E6buGSaPrU-0SXX8whhDlmZ6geenkTE"
-
-	defaultDBPassword = "mysecretpassword"
-
-	defaultGitHubClientSecret = "48d1498c849616dfecf83cf74f22dfb361ee2511"
-
-	defaultLogLevel = "info"
-
-	defaultKeycloakClientID     = "fabric8-online-platform"
-	defaultKeycloakSecret       = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
-	defaultPublicOauthClientID  = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	defaultKeycloakDomainPrefix = "sso"
-	defaultKeycloakRealm        = "fabric8"
-	defaultWITDomainPrefix      = "api"
-
-	// Github does not allow committing actual OAuth tokens no matter how less privilege the token has
-	camouflagedAccessToken = "751e16a8b39c0985066-AccessToken-4871777f2c13b32be8550"
-
-	defaultKeycloakTesUserName    = "testuser"
-	defaultKeycloakTesUserSecret  = "testuser"
-	defaultKeycloakTesUser2Name   = "testuser2"
-	defaultKeycloakTesUser2Secret = "testuser2"
-
-	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
-	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
-	devModeKeycloakRealm = "fabric8-test"
-	devModeWITURL        = "http://localhost:8080"
-
-	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
-	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
-	// In prod mode the following regex will be used by default:
-	DefaultValidRedirectURLs = "^(https|http)://(([^/?#]+[.])?(?i:openshift[.]io)|localhost)((/|:).*)?$" // *.openshift.io/* and localhost
-	devModeValidRedirectURLs = ".*"
-
-	serviceAccountConfigFileName    = "service-account-secrets.conf"
-	defaultServiceAccountConfigPath = "/etc/fabric8/" + serviceAccountConfigFileName
-
-	osoClusterConfigFileName    = "oso-clusters.conf"
-	defaultOsoClusterConfigPath = "/etc/fabric8/" + osoClusterConfigFileName
-)
+// GetEnvironment returns the current environment application is deployed in
+// like 'production', 'prod-preview', 'local', etc as the value of environment variable
+// `AUTH_ENVIRONMENT` is set.
+func (c *ConfigurationData) GetEnvironment() string {
+	return c.v.GetString(varEnvironment)
+}

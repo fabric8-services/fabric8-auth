@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/email"
+	accountrepo "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
@@ -37,8 +38,8 @@ type UsersControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
 	svc            *goa.Service
 	controller     *UsersController
-	userRepo       account.UserRepository
-	identityRepo   account.IdentityRepository
+	userRepo       accountrepo.UserRepository
+	identityRepo   accountrepo.IdentityRepository
 	profileService login.UserProfileService
 	linkAPIService link.KeycloakIDPService
 }
@@ -60,7 +61,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersController) {
 	svc := testsupport.UnsecuredService("Users-Service")
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -71,20 +72,20 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
-func (s *UsersControllerTestSuite) SecuredController(identity account.Identity) (*goa.Service, *UsersController) {
+func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.EmailVerificationService = email.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
-func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identity account.Identity, emailSuccess bool) (*goa.Service, *UsersController) {
+func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identity accountrepo.Identity, emailSuccess bool) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = &DummyEmailVerificationService{success: emailSuccess}
@@ -92,7 +93,7 @@ func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identi
 	return svc, controller
 }
 
-func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity account.Identity) (*goa.Service, *UsersController) {
+func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
@@ -114,12 +115,12 @@ func (s *UsersControllerTestSuite) TestCreateRandomUser() {
 		assert.Equal(t, identity.ProviderType, *result.Data.Attributes.ProviderType)
 		assert.Equal(t, identity.Username, *result.Data.Attributes.Username)
 		assert.Equal(t, user.Company, *result.Data.Attributes.Company)
-		assert.Equal(t, account.DefaultFeatureLevel, *result.Data.Attributes.FeatureLevel)
+		assert.Equal(t, accountrepo.DefaultFeatureLevel, *result.Data.Attributes.FeatureLevel)
 	})
 }
 
 func (s *UsersControllerTestSuite) updateDeprovisionedAttribute(deprovisioned bool) {
-	var identity account.Identity
+	var identity accountrepo.Identity
 	var err error
 	if deprovisioned {
 		_, identity = s.createRandomUserIdentity(s.T(), "tes-updateDeprovisionedAttribute")
@@ -846,7 +847,7 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 }
 
 func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expected bool) {
-	identityRepository := account.NewIdentityRepository(s.DB)
+	identityRepository := accountrepo.NewIdentityRepository(s.DB)
 	identity, err := identityRepository.LoadWithUser(context.Background(), id)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), expected, identity.User.Deprovisioned)
@@ -954,7 +955,7 @@ func (s *UsersControllerTestSuite) TestVerifyEmail() {
 			}))
 		test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 		// then
-		codes, err := s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
+		codes, err := s.Application.VerificationCodes().Query(accountrepo.VerificationCodeWithUser(), accountrepo.VerificationCodeFilterByUserID(user.ID))
 		require.NoError(s.T(), err)
 		require.Len(s.T(), codes, 1)
 		verificationCode := codes[0].Code
@@ -963,7 +964,7 @@ func (s *UsersControllerTestSuite) TestVerifyEmail() {
 		redirectLocation := rw.Header().Get("Location")
 		assert.Equal(s.T(), "https://prod-preview.openshift.io/_home?verified=true", redirectLocation)
 
-		codes, err = s.Application.VerificationCodes().Query(account.VerificationCodeWithUser(), account.VerificationCodeFilterByUserID(user.ID))
+		codes, err = s.Application.VerificationCodes().Query(accountrepo.VerificationCodeWithUser(), accountrepo.VerificationCodeFilterByUserID(user.ID))
 		require.NoError(s.T(), err)
 		require.Len(s.T(), codes, 0)
 	})
@@ -1222,36 +1223,36 @@ func (s *UsersControllerTestSuite) TestListUsersByEmailNotModifiedUsingIfNoneMat
 }
 
 // a function to customize the generated `random` user
-type CreateUserOption func(user *account.User)
+type CreateUserOption func(user *accountrepo.User)
 
 func WithFeatureLevel(level string) CreateUserOption {
-	return func(user *account.User) {
+	return func(user *accountrepo.User) {
 		user.FeatureLevel = level
 	}
 }
 
 func WithEmailAddress(email string) CreateUserOption {
-	return func(user *account.User) {
+	return func(user *accountrepo.User) {
 		user.Email = email
 	}
 }
 
 func WithEmailAddressVerified(verified bool) CreateUserOption {
-	return func(user *account.User) {
+	return func(user *accountrepo.User) {
 		user.EmailVerified = verified
 	}
 }
 
-func (s *UsersControllerTestSuite) createRandomUserIdentity(t *testing.T, fullname string, options ...CreateUserOption) (account.User, account.Identity) {
-	user := account.User{
+func (s *UsersControllerTestSuite) createRandomUserIdentity(t *testing.T, fullname string, options ...CreateUserOption) (accountrepo.User, accountrepo.Identity) {
+	user := accountrepo.User{
 		Email:        uuid.NewV4().String() + "primaryForUpdat7e@example.com",
 		FullName:     fullname,
 		ImageURL:     "someURLForUpdate",
 		ID:           uuid.NewV4(),
 		Company:      uuid.NewV4().String() + "company",
 		Cluster:      "https://api.openshift.com",
-		EmailPrivate: false,                       // being explicit
-		FeatureLevel: account.DefaultFeatureLevel, // being explicit
+		EmailPrivate: false,                           // being explicit
+		FeatureLevel: accountrepo.DefaultFeatureLevel, // being explicit
 	}
 	for _, option := range options {
 		option(&user)
@@ -1270,11 +1271,11 @@ func findUser(id uuid.UUID, userData []*app.UserData) *app.UserData {
 	return nil
 }
 
-func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser account.User, expectedIdentity account.Identity) {
+func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser accountrepo.User, expectedIdentity accountrepo.Identity) {
 	require.NotNil(t, actual)
 	assert.Equal(t, expectedIdentity.Username, *actual.Attributes.Username)
 	if expectedIdentity.ProviderType == "" {
-		assert.Equal(t, account.KeycloakIDP, *actual.Attributes.ProviderType)
+		assert.Equal(t, accountrepo.KeycloakIDP, *actual.Attributes.ProviderType)
 	} else {
 		assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	}
@@ -1303,7 +1304,7 @@ func assertContextInformation(t *testing.T, expected account.ContextInformation,
 	}
 }
 
-func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, expectedIdentity account.Identity) {
+func assertUser(t *testing.T, actual *app.UserData, expectedUser accountrepo.User, expectedIdentity accountrepo.Identity) {
 	require.NotNil(t, actual)
 	assert.Equal(t, expectedIdentity.ID.String(), *actual.ID)
 	assert.Equal(t, expectedIdentity.Username, *actual.Attributes.Username)
@@ -1322,7 +1323,7 @@ func assertUser(t *testing.T, actual *app.UserData, expectedUser account.User, e
 	assert.Equal(t, expectedUser.Cluster+"/", *actual.Attributes.Cluster)
 }
 
-func assertSingleUserResponseHeaders(t *testing.T, res http.ResponseWriter, appUser *app.User, modelUser account.User) {
+func assertSingleUserResponseHeaders(t *testing.T, res http.ResponseWriter, appUser *app.User, modelUser accountrepo.User) {
 	require.NotNil(t, res.Header()[app.LastModified])
 	// assert.Equal(t, getUserUpdatedAt(*appUser).UTC().Format(http.TimeFormat), res.Header()[app.LastModified][0])
 	require.NotNil(t, res.Header()[app.ETag])
@@ -1330,7 +1331,7 @@ func assertSingleUserResponseHeaders(t *testing.T, res http.ResponseWriter, appU
 	// assert.Equal(t, app.GenerateEntityTag(modelUser), res.Header()[app.ETag][0])
 }
 
-func assertMultiUsersResponseHeaders(t *testing.T, res http.ResponseWriter, lastCreatedUser account.User) {
+func assertMultiUsersResponseHeaders(t *testing.T, res http.ResponseWriter, lastCreatedUser accountrepo.User) {
 	require.NotNil(t, res.Header()[app.LastModified])
 	// assert.Equal(t, lastCreatedUser.UpdatedAt.Truncate(time.Second).UTC().Format(http.TimeFormat), res.Header()[app.LastModified][0])
 	require.NotNil(t, res.Header()[app.CacheControl])
@@ -1427,7 +1428,7 @@ func (s *UsersControllerTestSuite) generateUsersTag(allUsers app.UserArray) stri
 	for i, user := range allUsers.Data {
 		userID, err := uuid.FromString(*user.Attributes.UserID)
 		require.Nil(s.T(), err)
-		entities[i] = account.User{
+		entities[i] = accountrepo.User{
 			ID: userID,
 			Lifecycle: gormsupport.Lifecycle{
 				UpdatedAt: *user.Attributes.UpdatedAt,
@@ -1444,7 +1445,7 @@ func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, req *goa.Requ
 	return nil
 }
 
-func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, req *goa.RequestData, identity *accountrepo.Identity, witURL string, identityID string) error {
 	return nil
 }
 
@@ -1499,7 +1500,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
 	identity.User = user
-	identity.ProviderType = account.KeycloakIDP
+	identity.ProviderType = accountrepo.KeycloakIDP
 	identity.RegistrationCompleted = true
 
 	user.ContextInformation = map[string]interface{}{
@@ -1513,7 +1514,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	user.ImageURL = "some image"
 	user.URL = "some url"
 	user.Cluster = "https://some.cluster.com"
-	user.FeatureLevel = account.DefaultFeatureLevel
+	user.FeatureLevel = accountrepo.DefaultFeatureLevel
 	rhdUserName := "somerhdusername"
 	approved := false
 
@@ -1560,13 +1561,13 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithRequiredFie
 }
 
 func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email string) {
-	user := account.User{
+	user := accountrepo.User{
 		ID:           uuid.NewV4(),
 		Email:        email,
 		Cluster:      "some cluster",
-		FeatureLevel: account.DefaultFeatureLevel,
+		FeatureLevel: accountrepo.DefaultFeatureLevel,
 	}
-	identity := account.Identity{
+	identity := accountrepo.Identity{
 		ID:       uuid.NewV4(),
 		Username: "TestDeveloper" + uuid.NewV4().String(),
 		User:     user,
@@ -1647,7 +1648,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUser
 	// With only required fields should be OK
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.NotNil(s.T(), appUser)
-	assertCreatedUser(s.T(), appUser.Data, account.User{Cluster: cluster, Email: email}, account.Identity{Username: username})
+	assertCreatedUser(s.T(), appUser.Data, accountrepo.User{Cluster: cluster, Email: email}, accountrepo.Identity{Username: username})
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserUnauthorized() {
@@ -1700,13 +1701,13 @@ type DummyEmailVerificationService struct {
 	success bool
 }
 
-func (s *DummyEmailVerificationService) SendVerificationCode(ctx context.Context, req *goa.RequestData, identity account.Identity) (*account.VerificationCode, error) {
+func (s *DummyEmailVerificationService) SendVerificationCode(ctx context.Context, req *goa.RequestData, identity accountrepo.Identity) (*accountrepo.VerificationCode, error) {
 	if s.success {
 		return nil, nil
 	}
 	return nil, errors.NewInternalErrorFromString(ctx, "failed to send out email")
 }
 
-func (s *DummyEmailVerificationService) VerifyCode(ctx context.Context, code string) (*account.VerificationCode, error) {
+func (s *DummyEmailVerificationService) VerifyCode(ctx context.Context, code string) (*accountrepo.VerificationCode, error) {
 	return nil, nil
 }
