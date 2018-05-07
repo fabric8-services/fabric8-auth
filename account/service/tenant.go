@@ -69,12 +69,13 @@ func (t *tenantService) Delete(ctx context.Context, identityID uuid.UUID) error 
 		return err
 	}
 	defer rest.CloseResponse(response)
+	respBody := rest.ReadBody(response.Body)
 
 	if response.StatusCode != http.StatusNoContent {
 		log.Error(ctx, map[string]interface{}{
 			"identity_id":     identityID.String(),
 			"response_status": response.Status,
-			"response_body":   rest.ReadBody(response.Body),
+			"response_body":   respBody,
 		}, "unable to delete tenants")
 		return errors.New("unable to delete tenant")
 	}

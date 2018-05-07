@@ -890,6 +890,15 @@ func (s *UsersControllerTestSuite) TestDeprovisionUser() {
 	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
 	s.checkIfUserDeprovisioned(identity.ID, true)
 
+	// deprovisoned = false , and check that tenant service was NOT called.
+	deprovisioned = false
+	updateUsersPayload.Data.Attributes.Deprovisioned = &deprovisioned
+	s.tenantService.identityID = uuid.NewV4()
+	s.tenantService.error = nil
+	test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
+	s.checkIfUserDeprovisioned(identity.ID, false)
+	assert.NotEqual(s.T(), identity.ID, s.tenantService.identityID)
+
 	// Fails if unknown identity
 	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.NewV4().String(), updateUsersPayload)
 
