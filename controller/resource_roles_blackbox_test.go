@@ -255,7 +255,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleConflict() {
 	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
 	payload := &app.AssignRoleResourceRolesPayload{
 		Data: []*app.UpdateUserID{
-			&app.UpdateUserID{
+			{
 				ID:   testUser.Identity().ID.String(),
 				Type: "identities",
 			},
