@@ -143,6 +143,11 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 	for _, identityIDAsUUID := range identitiesToBeAssigned {
 		assignedRoles, err := c.app.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, ctx.ResourceID, identityIDAsUUID)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+				"identity_id": *currentUser,
+				"role":        ctx.RoleName,
+			}, "error looking up existing assignments")
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 		if len(assignedRoles) == 0 {
