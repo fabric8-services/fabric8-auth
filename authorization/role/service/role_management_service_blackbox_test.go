@@ -238,14 +238,17 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
-	err := s.repo.Assign(context.Background(), uuid.NewV4(), uuid.NewV4().String(), uuid.NewV4().String())
+	g := s.DBTestSuite.NewTestGraph()
+	identityID := g.CreateUser(g.ID("somename")).Identity().ID
+	err := s.repo.Assign(context.Background(), identityID, uuid.NewV4().String(), authorization.SpaceContributorRole)
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
 	newSpace := g.CreateSpace(g.ID("myspace"))
-	err := s.repo.Assign(context.Background(), uuid.NewV4(), newSpace.SpaceID(), uuid.NewV4().String())
+	identityID := g.CreateUser(g.ID("somename")).Identity().ID
+	err := s.repo.Assign(context.Background(), identityID, newSpace.SpaceID(), uuid.NewV4().String())
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
