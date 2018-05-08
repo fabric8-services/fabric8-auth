@@ -296,6 +296,9 @@ func (rest *TestTokenREST) TestGenerateOK() {
 	_, result := test.GenerateTokenOK(rest.T(), svc.Context, svc, ctrl)
 	require.Len(rest.T(), result, 1)
 	validateToken(rest.T(), result[0])
+	claims, err := testtoken.TokenManager.ParseToken(context.Background(), *result[0].Token.AccessToken)
+	require.NoError(rest.T(), err)
+	require.NotEqual(rest.T(), "00000000-00000000-00000000-00000000", claims.Subject)
 }
 
 func validateToken(t *testing.T, token *app.AuthToken) {
