@@ -124,11 +124,13 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	if len(identities) == 0 {
 		// Dev user doesn't exist yet. Let's create it.
 		devUser := account.User{
+			ID:            uuid.NewV4(),
 			EmailVerified: true,
 			FullName:      "OSIO Developer",
 			Email:         "osio-developer@email.com",
 		}
 		devIdentity = account.Identity{
+			ID:                    uuid.NewV4(),
 			User:                  devUser,
 			Username:              devUsername,
 			ProviderType:          account.KeycloakIDP,
