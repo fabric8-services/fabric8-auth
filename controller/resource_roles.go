@@ -96,10 +96,11 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 
 	currentUser, err := login.ContextIdentity(ctx)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"role":        ctx.RoleName,
+		}, "error getting identity information from token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
-	}
-	if currentUser == nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("identity ID not found in token"))
 	}
 
 	// check if the current user token belongs to a user who has the necessary privileges
@@ -107,9 +108,19 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 
 	hasScope, err := c.app.PermissionService().HasScope(ctx, *currentUser, ctx.ResourceID, authorization.ManageTeamsInSpaceScope)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"identity_id": *currentUser,
+			"role":        ctx.RoleName,
+		}, "error determining if user has manage scope")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	if !hasScope {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"identity_id": *currentUser,
+			"role":        ctx.RoleName,
+		}, "user not authorizied to assign roles")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to assign roles"))
 	}
 
@@ -117,6 +128,11 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 	for _, identity := range ctx.Payload.Data {
 		identityIDAsUUID, err := uuid.FromString(identity.ID)
 		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+				"identity_id": identity.ID,
+				"role":        ctx.RoleName,
+			}, "invalid identity ID")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identity", identity.ID).Expected("uuid"))
 		}
 		identitiesToBeAssigned = append(identitiesToBeAssigned, identityIDAsUUID)
@@ -153,9 +169,6 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 		}
 	}
 
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
 	return ctx.NoContent()
 }
 
