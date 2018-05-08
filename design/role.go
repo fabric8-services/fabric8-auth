@@ -77,7 +77,7 @@ var _ = a.Resource("resource_roles", func() {
 			a.PATCH("/:resourceID/roles/:roleName"),
 		)
 		a.Payload(updateUserIDList) // should refactor this variable's name in collaborators design definition too.
-		a.Description("Assigns an identity to a role, for a specific resource")
+		a.Description("Assigns a role to a identity, for a specific resource")
 		a.Response(d.NoContent)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
