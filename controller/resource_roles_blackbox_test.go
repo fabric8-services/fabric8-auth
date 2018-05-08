@@ -279,6 +279,15 @@ func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
 	res := g.CreateSpace(g.ID("somespacename"))
 
 	var identitiesToBeAssigned []*app.UpdateUserID
+
+	// some already have roles assigned
+	for i := 0; i <= 2; i++ {
+		testUser := g.CreateUser(g.ID("someusername"))
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: testUser.Identity().ID.String()})
+		res.AddViewer(testUser)
+	}
+
+	// while others don't have any role assigned.
 	for i := 0; i <= 2; i++ {
 		testUser := g.CreateUser(g.ID("someusername"))
 		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: testUser.Identity().ID.String()})
@@ -303,6 +312,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRole
 	var identitiesToBeAssigned []*app.UpdateUserID
 	for i := 0; i <= 2; i++ {
 		testUser := g.CreateUser(g.ID("someusername"))
+		res.AddViewer(testUser)
 		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.UpdateUserID{Type: "identities", ID: testUser.Identity().ID.String()})
 	}
 
@@ -329,7 +339,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleWithInvalidIdentityIDBadRequest
 
 	// Create a user who has the privileges to assign roles
 	adminUser := g.CreateUser("adminuser")
-	res.AddAdmin(adminUser) //not really an admin
+	res.AddAdmin(adminUser)
 
 	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
 	payload := &app.AssignRoleResourceRolesPayload{
