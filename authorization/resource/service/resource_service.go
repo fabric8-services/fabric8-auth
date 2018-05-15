@@ -16,7 +16,6 @@ type ResourceService interface {
 	Delete(ctx context.Context, resourceID string) error
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
 	Register(ctx context.Context, resourceType string, resourceID, parentResourceID *string) (*resource.Resource, error)
-	Update(ctx context.Context, resourceID, parentResourceID string) (*resource.Resource, error)
 }
 
 // resourceServiceImpl is the implementation of the interface for
@@ -112,34 +111,6 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceType string,
 
 		// Persist the resource
 		return tr.ResourceRepository().Create(ctx, res)
-	})
-
-	return res, err
-}
-
-// Update updates the resource.
-// Only parent resource ID update is currently supported.
-// If parentResourceID == "" then the parent resource ID will be set to nil.
-// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *resourceServiceImpl) Update(ctx context.Context, resourceID, parentResourceID string) (*resource.Resource, error) {
-
-	var res *resource.Resource
-
-	err := transaction.Transactional(s.tm, func(tr transaction.TransactionalResources) error {
-		var err error
-		res, err = tr.ResourceRepository().Load(ctx, resourceID)
-		if err != nil {
-			return err
-		}
-
-		// Update the parent resource
-		// If an empty string then set to nil
-		if parentResourceID == "" {
-			res.ParentResourceID = nil
-		} else {
-			res.ParentResourceID = &parentResourceID
-		}
-		return tr.ResourceRepository().Save(ctx, res)
 	})
 
 	return res, err

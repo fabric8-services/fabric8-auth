@@ -82,23 +82,3 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 
 	return ctx.Created(&app.RegisterResourceResponse{ResourceID: &res.ResourceID})
 }
-
-// Update runs the update action.
-func (c *ResourceController) Update(ctx *app.UpdateResourceContext) error {
-
-	if !token.IsServiceAccount(ctx) {
-		log.Error(ctx, map[string]interface{}{}, "Unable to register resource. Not a service account")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
-	}
-
-	svc := resourceservice.NewResourceService(c.app, c.app)
-	res, err := svc.Update(ctx, ctx.ResourceID, ctx.Payload.ParentResourceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-		}, "unable to update resource")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	return ctx.OK(&app.RegisterResourceResponse{ResourceID: &res.ResourceID})
-}

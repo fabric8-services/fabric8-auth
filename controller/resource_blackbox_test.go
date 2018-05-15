@@ -172,63 +172,6 @@ func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated()
 	require.EqualValues(rest.T(), payload.ParentResourceID, readResource.ParentResourceID)
 }
 
-func (rest *TestResourceREST) TestUpdateResource() {
-	// Create the resource first
-	payload := &app.RegisterResourcePayload{
-		ParentResourceID: nil,
-		Type:             "openshift.io/resource/area",
-	}
-
-	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
-
-	require.NotNil(rest.T(), created)
-	require.NotNil(rest.T(), created.ResourceID)
-
-	_, readCreatedResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
-
-	require.EqualValues(rest.T(), created.ResourceID, readCreatedResource.ResourceID)
-
-	// Create another resource - we will use this as the parent
-	parentPayload := &app.RegisterResourcePayload{
-		ParentResourceID: nil,
-		Type:             "openshift.io/resource/area",
-	}
-
-	// Create the parent resource
-	_, parentCreated := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, parentPayload)
-
-	// Confirm it was created successfully
-	require.NotNil(rest.T(), parentCreated)
-	require.NotNil(rest.T(), parentCreated.ResourceID)
-
-	// Now test setting the original resource's parent to the newly created resource
-	updatePayload := &app.UpdateResourcePayload{
-		ParentResourceID: *parentCreated.ResourceID,
-	}
-
-	// Update the original resource
-	_, updated := test.UpdateResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID, updatePayload)
-	require.EqualValues(rest.T(), created.ResourceID, updated.ResourceID)
-
-	// Read the resource again, and check the parent resource has been updated
-	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
-
-	require.EqualValues(rest.T(), *parentCreated.ResourceID, *readResource.ParentResourceID)
-
-	// Now test clearing the original resource's parent to nil
-	updatePayload = &app.UpdateResourcePayload{
-		ParentResourceID: "",
-	}
-
-	// Update the original resource
-	_, updated = test.UpdateResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID, updatePayload)
-
-	// Read the resource again, and check the parent resource has been cleared
-	_, readResource = test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
-
-	require.Nil(rest.T(), readResource.ParentResourceID)
-}
-
 func (rest *TestResourceREST) TestDeleteResource() {
 
 	// Create the resource first
@@ -248,5 +191,4 @@ func (rest *TestResourceREST) TestDeleteResource() {
 	test.DeleteResourceNoContent(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
 
 	test.ReadResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
-
 }

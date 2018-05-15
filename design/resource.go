@@ -40,24 +40,6 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 	})
 
-	a.Action("update", func() {
-		a.Routing(
-			a.PATCH("/:resourceId"),
-		)
-		a.Params(func() {
-			a.Param("resourceId", d.String, "Identifier of the resource to update")
-		})
-		a.Description("Update the details of the specified resource")
-		a.Payload(UpdateResourceMedia)
-		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.Forbidden, JSONAPIErrors)
-		a.Response(d.TemporaryRedirect)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.BadRequest, JSONAPIErrors)
-		a.Response(d.NotFound, JSONAPIErrors)
-		a.Response(d.OK, RegisterResourceResponseMedia)
-	})
-
 	a.Action("delete", func() {
 		a.Routing(
 			a.DELETE("/:resourceId"),
@@ -90,17 +72,6 @@ var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 		a.Attribute("type")
 		a.Attribute("parent_resource_id")
 		a.Attribute("resource_id")
-	})
-})
-
-var UpdateResourceMedia = a.MediaType("application/vnd.update_resource+json", func() {
-	a.Description("Payload for updating a resource")
-	a.Attributes(func() {
-		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs. If set to an empty string then the resource won't have any parent resource anymore")
-		a.Required("parent_resource_id")
-	})
-	a.View("default", func() {
-		a.Attribute("parent_resource_id")
 	})
 })
 
