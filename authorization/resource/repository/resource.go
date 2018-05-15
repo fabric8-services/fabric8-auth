@@ -158,7 +158,8 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 func (m *GormResourceRepository) Save(ctx context.Context, resource *Resource) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, resource.ResourceID)
+	err := m.db.Save(resource).Error
+
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resource.ResourceID,
@@ -166,13 +167,12 @@ func (m *GormResourceRepository) Save(ctx context.Context, resource *Resource) e
 		}, "unable to update the resource")
 		return errs.WithStack(err)
 	}
-	err = m.db.Model(obj).Save(resource).Error
 
 	log.Debug(ctx, map[string]interface{}{
 		"resource_id": resource.ResourceID,
 	}, "Resource saved!")
 
-	return errs.WithStack(err)
+	return nil
 }
 
 // Delete removes a single record.

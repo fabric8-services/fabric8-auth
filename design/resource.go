@@ -16,9 +16,9 @@ var _ = a.Resource("resource", func() {
 			a.POST(""),
 		)
 		a.Description("Register a new resource")
-		a.Payload(ResourceMedia)
+		a.Payload(RegisterResourceMedia)
 		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.Created, RegisterResourceMedia)
+		a.Response(d.Created, RegisterResourceResponseMedia)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
@@ -55,7 +55,7 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
-		a.Response(d.OK, RegisterResourceMedia)
+		a.Response(d.OK, RegisterResourceResponseMedia)
 	})
 
 	a.Action("delete", func() {
@@ -80,17 +80,13 @@ var _ = a.Resource("resource", func() {
 var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 	a.Description("A Protected Resource")
 	a.Attributes(func() {
-		a.Attribute("resource_owner_id", d.String, "Identifier for the owner of the resource")
 		a.Attribute("resource_scopes", a.ArrayOf(d.String), "The valid scopes for this resource")
-		a.Attribute("name", d.String, "The name of the resource")
 		a.Attribute("type", d.String, "The type of resource")
 		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs")
 		a.Attribute("resource_id", d.String, "The identifier for this resource. If left blank, one will be generated")
-		a.Required("resource_owner_id", "name", "type")
 	})
 	a.View("default", func() {
 		a.Attribute("resource_scopes")
-		a.Attribute("name")
 		a.Attribute("type")
 		a.Attribute("parent_resource_id")
 		a.Attribute("resource_id")
@@ -100,23 +96,35 @@ var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 var UpdateResourceMedia = a.MediaType("application/vnd.update_resource+json", func() {
 	a.Description("Payload for updating a resource")
 	a.Attributes(func() {
-		a.Attribute("resource_owner_id", d.String, "Identifier for the owner of the resource")
-		a.Attribute("resource_scopes", a.ArrayOf(d.String), "The valid scopes for this resource")
-		a.Attribute("name", d.String, "The name of the resource")
-		a.Attribute("type", d.String, "The type of resource")
-		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs")
+		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs. If set to an empty string then the resource won't have any parent resource anymore")
+		a.Required("parent_resource_id")
 	})
 	a.View("default", func() {
-		a.Attribute("name")
+		a.Attribute("parent_resource_id")
 	})
 })
 
 var RegisterResourceMedia = a.MediaType("application/vnd.register_resource+json", func() {
-	a.Description("Response returned when a resource is registered")
+	a.Description("Payload for registering a resource")
 	a.Attributes(func() {
-		a.Attribute("_id", d.String, "The identifier for the registered resource")
+		a.Attribute("type", d.String, "The type of resource")
+		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs")
+		a.Attribute("resource_id", d.String, "The identifier for this resource. If left blank, one will be generated")
+		a.Required("type")
 	})
 	a.View("default", func() {
-		a.Attribute("_id")
+		a.Attribute("type")
+		a.Attribute("parent_resource_id")
+		a.Attribute("resource_id")
+	})
+})
+
+var RegisterResourceResponseMedia = a.MediaType("application/vnd.register_resource_response+json", func() {
+	a.Description("Response returned when a resource is registered")
+	a.Attributes(func() {
+		a.Attribute("resource_id", d.String, "The identifier for the registered resource")
+	})
+	a.View("default", func() {
+		a.Attribute("resource_id")
 	})
 })
