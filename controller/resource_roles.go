@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -103,27 +101,6 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
-	// check if the current user token belongs to a user who has the necessary privileges
-	// for assigning roles to other users.
-
-	hasScope, err := c.app.PermissionService().HasScope(ctx, *currentUser, ctx.ResourceID, authorization.ManageTeamsInSpaceScope)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"identity_id": *currentUser,
-			"role":        ctx.RoleName,
-		}, "error determining if user has manage scope")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	if !hasScope {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"identity_id": *currentUser,
-			"role":        ctx.RoleName,
-		}, "user not authorizied to assign roles")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to assign roles"))
-	}
-
 	var identitiesToBeAssigned []uuid.UUID
 	for _, identity := range ctx.Payload.Data {
 		identityIDAsUUID, err := uuid.FromString(identity.ID)
@@ -137,43 +114,10 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 		}
 		identitiesToBeAssigned = append(identitiesToBeAssigned, identityIDAsUUID)
 	}
-
-	// In batch assignment of roles all selected users must have previously been assigned
-	// privileges for the resource, otherwise the invitation workflow should be used instead
-	for _, identityIDAsUUID := range identitiesToBeAssigned {
-		assignedRoles, err := c.app.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, ctx.ResourceID, identityIDAsUUID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": ctx.ResourceID,
-				"identity_id": *currentUser,
-				"role":        ctx.RoleName,
-			}, "error looking up existing assignments")
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-		if len(assignedRoles) == 0 {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": ctx.ResourceID,
-				"identity_id": identityIDAsUUID,
-				"role":        ctx.RoleName,
-			}, "identity not part of a  resource cannot be assigned a role")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID)))
-		}
+	err = c.app.RoleManagementService().Assign(ctx, *currentUser, identitiesToBeAssigned, ctx.ResourceID, ctx.RoleName)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-
-	// Now that we have confirmed that all users have pre-existing role assignments
-	// we can proceed with the assignment of roles.
-	for _, identityIDAsUUID := range identitiesToBeAssigned {
-		err = c.app.RoleManagementService().Assign(ctx, identityIDAsUUID, ctx.ResourceID, ctx.RoleName)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": ctx.ResourceID,
-				"identity_id": identityIDAsUUID,
-				"role":        ctx.RoleName,
-			}, "assignment failed")
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-	}
-
 	return ctx.NoContent()
 }
 
