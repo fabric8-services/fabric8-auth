@@ -61,16 +61,19 @@ func CanHaveMembers(resourceTypeName string) bool {
 		resourceTypeName == IdentityResourceTypeGroup
 }
 
-// ScopeForManagingResourceType returns the name of the scope that gives a user privileges to manage resources
-func ScopeForManagingResourceType(resourceType string) string {
+// ScopeForManagingRolesInResourceType returns the name of the scope that gives a user privileges to manage roles in a resource
+func ScopeForManagingRolesInResourceType(resourceType string) string {
 	switch resourceType {
 	case ResourceTypeSpace:
 		return ManageRoleAssignmentsInSpaceScope
 	case IdentityResourceTypeOrganization:
 		return ManageMembersScope
 	case IdentityResourceTypeTeam:
-		return ManageTeamsInSpaceScope
+		return ManageMembersScope
+	case IdentityResourceTypeGroup:
+		return ManageMembersScope
 	}
+	// a default which we can choose to change later
 	return ManageRoleAssignmentsInSpaceScope
 }
 

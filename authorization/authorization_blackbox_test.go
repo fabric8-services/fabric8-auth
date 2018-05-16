@@ -147,11 +147,11 @@ func (s *authorizationBlackBoxTest) TestMergeAssociations() {
 }
 
 func (s *authorizationBlackBoxTest) TestScopeForManagingResourceType() {
-	require.Equal(s.T(), authorization.ScopeForManagingResourceType(authorization.ResourceTypeSpace), authorization.ManageRoleAssignmentsInSpaceScope)
-	require.Equal(s.T(), authorization.ScopeForManagingResourceType(authorization.IdentityResourceTypeOrganization), authorization.ManageMembersScope)
-	require.Equal(s.T(), authorization.ScopeForManagingResourceType(authorization.IdentityResourceTypeTeam), authorization.ManageTeamsInSpaceScope)
+	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.ResourceTypeSpace), authorization.ManageRoleAssignmentsInSpaceScope)
+	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeOrganization), authorization.ManageMembersScope)
+	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeTeam), authorization.ManageMembersScope)
+	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeGroup), authorization.ManageMembersScope)
 
-	// nothing defined for this resource type
-	require.Equal(s.T(), authorization.ScopeForManagingResourceType(authorization.IdentityResourceTypeGroup), authorization.ManageRoleAssignmentsInSpaceScope)
-
+	// test the default
+	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeUser), authorization.ManageRoleAssignmentsInSpaceScope)
 }

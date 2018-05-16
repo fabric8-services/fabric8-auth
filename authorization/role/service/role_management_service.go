@@ -79,7 +79,7 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	// for assigning roles to other users.
 
 	permissionService := permservice.NewPermissionService(r.repo)
-	hasScope, err := permissionService.HasScope(ctx, assignedBy, resourceID, authorization.ScopeForManagingResourceType(rt.Name))
+	hasScope, err := permissionService.HasScope(ctx, assignedBy, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resourceID,
