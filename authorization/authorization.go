@@ -44,11 +44,14 @@ const (
 	// contributeSpaceScope is a general scope required to perform many space-related operations
 	contributeSpaceScope = "contribute"
 
-	// ManageTeamsScope is the scope required for users wishing to manage teams for a space
+	// ManageTeamsInSpaceScope is the scope required for users wishing to manage teams for a space
 	ManageTeamsInSpaceScope = manageSpaceScope
 
 	// ViewTeamsInSpaceScope is the scope required for users wishing to view the teams in a space
 	ViewTeamsInSpaceScope = viewSpaceScope
+
+	// ManageRoleAssignmentsInSpaceScope is the scope required for managing role assignments in a space
+	ManageRoleAssignmentsInSpaceScope = manageSpaceScope
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities
