@@ -61,6 +61,19 @@ func CanHaveMembers(resourceTypeName string) bool {
 		resourceTypeName == IdentityResourceTypeGroup
 }
 
+// ScopeForManagingResourceType returns the name of the scope that gives a user privileges to manage resources
+func ScopeForManagingResourceType(resourceType string) string {
+	switch resourceType {
+	case ResourceTypeSpace:
+		return ManageRoleAssignmentsInSpaceScope
+	case IdentityResourceTypeOrganization:
+		return ManageMembersScope
+	case IdentityResourceTypeTeam:
+		return ManageTeamsInSpaceScope
+	}
+	return ManageRoleAssignmentsInSpaceScope
+}
+
 // IdentityAssociation represents an association between an Identity and either another Identity or a Resource, whether by
 // membership or by having been granted a role.  It contains metadata about the Identity's relationship with the other
 // entity, including its membership state, and any roles it may have been assigned.
