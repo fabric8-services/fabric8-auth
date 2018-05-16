@@ -63,6 +63,18 @@ func (r *RoleManagementServiceImpl) assign(ctx context.Context, identityID uuid.
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, identitiesToBeAssigned []uuid.UUID, resourceID string, roleName string) error {
+
+	rt, err := r.repo.ResourceRepository().Load(ctx, resourceID)
+
+	if err != nil {
+		return err
+	}
+
+	roleRef, err := r.repo.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
+	if err != nil {
+		return err
+	}
+
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for assigning roles to other users.
 
@@ -105,17 +117,6 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 			}, "identity not part of a resource cannot be assigned a role")
 			return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
 		}
-	}
-
-	rt, err := r.repo.ResourceRepository().Load(ctx, resourceID)
-
-	if err != nil {
-		return err
-	}
-
-	roleRef, err := r.repo.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
-	if err != nil {
-		return err
 	}
 
 	err = transaction.Transactional(r.tm, func(tr transaction.TransactionalResources) error {

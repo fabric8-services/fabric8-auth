@@ -204,59 +204,74 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
 	g := s.DBTestSuite.NewTestGraph()
 	newSpace := g.CreateSpace(g.ID("myspace"))
+	adminUser := g.CreateUser("adminuser-who-adds-the-others")
+	newSpace.AddAdmin(adminUser)
 
 	var usersToBeAsserted []uuid.UUID
 	for i := 0; i < 10; i++ {
 		userToBeAssigned := g.CreateUser(g.ID("adminname"))
-		err := s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), authorization.AdminRole)
-		require.Nil(s.T(), err)
+		newSpace.AddViewer(userToBeAssigned)
 		usersToBeAsserted = append(usersToBeAsserted, userToBeAssigned.Identity().ID)
 	}
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, usersToBeAsserted, newSpace.SpaceID(), authorization.AdminRole)
+	require.Nil(s.T(), err)
 
-	// noise
-	for i := 0; i < 10; i++ {
-		err := s.repo.Assign(context.Background(), g.CreateUser(g.ID("adminname")).Identity().ID, g.CreateSpace(g.ID("myspace")).SpaceID(), authorization.AdminRole)
-		require.Nil(s.T(), err)
-	}
+	s.addNoisyAssignments()
 
 	assignedRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.AdminRole)
-	require.Nil(s.T(), err)
-	require.Len(s.T(), assignedRoles, 10)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), assignedRoles, 11)
+
+	usersToBeAsserted = append(usersToBeAsserted, adminUser.Identity().ID)
 	validateAssignee(s.T(), usersToBeAsserted, newSpace.SpaceID(), assignedRoles)
+}
+
+func (s *roleManagementServiceBlackboxTest) addNoisyAssignments() {
+	g := s.DBTestSuite.NewTestGraph()
+	for i := 0; i < 10; i++ {
+		randomAssignee := g.CreateUser(g.ID("assignee"))
+		g.CreateSpace(g.ID("myspace")).AddContributor(randomAssignee)
+	}
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
 	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace(g.ID("myspace"))
+	spaceAdmin := g.CreateUser("adminuser")
+	newSpace := g.CreateSpace(g.ID("myspace")).AddAdmin(spaceAdmin)
 
 	userToBeAssigned := g.CreateUser(g.ID("somename"))
-	err := s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), authorization.AdminRole)
-	require.Nil(s.T(), err)
+	newSpace.AddContributor(userToBeAssigned).AddAdmin(userToBeAssigned)
 
-	err = s.repo.Assign(context.Background(), userToBeAssigned.Identity().ID, newSpace.SpaceID(), authorization.AdminRole)
+	// lets try to add the same role again
+	err := s.repo.Assign(context.Background(), spaceAdmin.Identity().ID, []uuid.UUID{userToBeAssigned.Identity().ID}, newSpace.SpaceID(), authorization.AdminRole)
+	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
 	identityID := g.CreateUser(g.ID("somename")).Identity().ID
-	err := s.repo.Assign(context.Background(), identityID, uuid.NewV4().String(), authorization.SpaceContributorRole)
+	userToBeAdded := []uuid.UUID{g.CreateUser("randomuser").Identity().ID}
+	err := s.repo.Assign(context.Background(), identityID, userToBeAdded, uuid.NewV4().String(), authorization.SpaceContributorRole)
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace(g.ID("myspace"))
-	identityID := g.CreateUser(g.ID("somename")).Identity().ID
-	err := s.repo.Assign(context.Background(), identityID, newSpace.SpaceID(), uuid.NewV4().String())
+	adminUser := g.CreateUser(g.ID("somename"))
+	newSpace := g.CreateSpace(g.ID("myspace")).AddAdmin(adminUser)
+	userToBeAdded := []uuid.UUID{g.CreateUser("randomuser").Identity().ID}
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, userToBeAdded, newSpace.SpaceID(), uuid.NewV4().String())
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace(g.ID("myspace"))
-	err := s.repo.Assign(context.Background(), uuid.NewV4(), newSpace.SpaceID(), authorization.AdminRole)
-	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+	adminUser := g.CreateUser(g.ID("somename"))
+	newSpace := g.CreateSpace(g.ID("myspace")).AddAdmin(adminUser)
+	userToBeAdded := []uuid.UUID{uuid.NewV4()}
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, userToBeAdded, newSpace.SpaceID(), authorization.AdminRole)
+	require.IsType(s.T(), errors.BadParameterError{}, errs.Cause(err))
 }
 
 func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {
