@@ -5,12 +5,14 @@ import (
 	"strconv"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
@@ -18,7 +20,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -142,6 +143,10 @@ func (g *GormDB) RoleManagementService() roleservice.RoleManagementService {
 
 func (g *GormDB) TeamService() teamservice.TeamService {
 	return teamservice.NewTeamService(g, g)
+}
+
+func (g *GormDB) ResourceService() resourceservice.ResourceService {
+	return resourceservice.NewResourceService(g, g)
 }
 
 func (g *GormBase) DB() *gorm.DB {
