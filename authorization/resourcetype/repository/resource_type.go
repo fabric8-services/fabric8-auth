@@ -69,7 +69,7 @@ func (m *GormResourceTypeRepository) Lookup(ctx context.Context, name string) (*
 	var native ResourceType
 	err := m.db.Table(m.TableName()).Where("name = ?", name).First(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errors.NewNotFoundError("resource_type", name)
+		return nil, errors.NewNotFoundErrorWithKey("resource_type", "name", name)
 	}
 	return &native, err
 }

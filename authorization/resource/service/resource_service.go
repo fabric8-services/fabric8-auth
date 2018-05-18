@@ -15,7 +15,7 @@ import (
 type ResourceService interface {
 	Delete(ctx context.Context, resourceID string) error
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
-	Register(ctx context.Context, resourceType string, resourceID, parentResourceID *string) (*resource.Resource, error)
+	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
 }
 
 // resourceServiceImpl is the implementation of the interface for
@@ -66,16 +66,16 @@ func (s *resourceServiceImpl) Read(ctx context.Context, resourceID string) (*app
 
 // Register registers/creates a new resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *resourceServiceImpl) Register(ctx context.Context, resourceType string, resourceID, parentResourceID *string) (*resource.Resource, error) {
+func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error) {
 
 	var res *resource.Resource
 
 	err := transaction.Transactional(s.tm, func(tr transaction.TransactionalResources) error {
 
 		// Lookup the resource type
-		resourceType, err := tr.ResourceTypeRepository().Lookup(ctx, resourceType)
+		resourceType, err := tr.ResourceTypeRepository().Lookup(ctx, resourceTypeName)
 		if err != nil {
-			return errors.NewBadParameterError("type", resourceType)
+			return errors.NewBadParameterErrorFromString("type", resourceTypeName, err.Error())
 		}
 
 		// Lookup the parent resource if it's specified
@@ -107,6 +107,7 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceType string,
 			ParentResourceID: parentResourceID,
 			ResourceType:     *resourceType,
 			ResourceTypeID:   resourceType.ResourceTypeID,
+			ParentResource:   parentResource,
 		}
 
 		// Persist the resource
