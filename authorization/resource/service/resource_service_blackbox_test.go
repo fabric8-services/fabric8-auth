@@ -66,8 +66,7 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithoutParen
 	assert.Equal(s.T(), []string{"view", "contribute", "manage"}, r.ResourceScopes)
 
 	// Delete
-	err = s.resourceService.Delete(context.Background(), resource.ResourceID)
-	require.NoError(s.T(), err)
+	s.checkDeleteResource(resource.ResourceID)
 }
 
 func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK() {
@@ -100,12 +99,20 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK
 	assert.Equal(s.T(), []string{"view", "contribute", "manage"}, r.ResourceScopes)
 
 	// Delete
-	err = s.resourceService.Delete(context.Background(), resource.ResourceID)
-	require.NoError(s.T(), err)
+	s.checkDeleteResource(resource.ResourceID)
 }
 
 func (s *resourceServiceBlackBoxTest) TestReadUnknownResourceFails() {
-	unknownResourceID := uuid.NewV4().String()
-	_, err := s.resourceService.Read(context.Background(), unknownResourceID)
-	require.EqualError(s.T(), err, fmt.Sprintf("resource with id '%s' not found", unknownResourceID))
+	s.checkUnknownResourceID(uuid.NewV4().String())
+}
+
+func (s *resourceServiceBlackBoxTest) checkDeleteResource(resourceID string) {
+	err := s.resourceService.Delete(context.Background(), resourceID)
+	require.NoError(s.T(), err)
+	s.checkUnknownResourceID(resourceID)
+}
+
+func (s *resourceServiceBlackBoxTest) checkUnknownResourceID(resourceID string) {
+	_, err := s.resourceService.Read(context.Background(), resourceID)
+	require.EqualError(s.T(), err, fmt.Sprintf("resource with id '%s' not found", resourceID))
 }
