@@ -11,7 +11,7 @@ import (
 const (
 	stBadParameterErrorMsg         = "Bad value for parameter '%s': '%v' - %s"
 	stBadParameterErrorExpectedMsg = "Bad value for parameter '%s': '%v' (expected: '%v') - %s"
-	stNotFoundErrorMsg             = "%s with id '%s' not found"
+	stNotFoundErrorMsg             = "%s with %s '%s' not found"
 )
 
 // Constants that can be used to identify internal server errors
@@ -203,16 +203,22 @@ type ConversionError struct {
 // NotFoundError means the object specified for the operation does not exist
 type NotFoundError struct {
 	entity string
-	ID     string
+	key    string
+	value  string
 }
 
 func (err NotFoundError) Error() string {
-	return fmt.Sprintf(stNotFoundErrorMsg, err.entity, err.ID)
+	return fmt.Sprintf(stNotFoundErrorMsg, err.entity, err.key, err.value)
 }
 
 // NewNotFoundError returns the custom defined error of type NewNotFoundError.
-func NewNotFoundError(entity string, id string) NotFoundError {
-	return NotFoundError{entity: entity, ID: id}
+func NewNotFoundError(entity string, value string) NotFoundError {
+	return NotFoundError{entity: entity, key: "id", value: value}
+}
+
+// NewNotFoundErrorWithKey returns the custom defined error of type NewNotFoundError and custom key name (instead of the default 'ID")
+func NewNotFoundErrorWithKey(entity string, key, value string) NotFoundError {
+	return NotFoundError{entity: entity, key: key, value: value}
 }
 
 // IsNotFoundError returns true if the cause of the given error can be

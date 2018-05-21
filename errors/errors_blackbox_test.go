@@ -51,6 +51,9 @@ func TestNewNotFoundError(t *testing.T) {
 	value := "10"
 	err := errors.NewNotFoundError(param, value)
 	assert.Equal(t, fmt.Sprintf("%s with id '%s' not found", param, value), err.Error())
+
+	err = errors.NewNotFoundErrorWithKey(param, "name", value)
+	assert.Equal(t, fmt.Sprintf("%s with name '%s' not found", param, value), err.Error())
 }
 
 func TestNewUnauthorizedError(t *testing.T) {
