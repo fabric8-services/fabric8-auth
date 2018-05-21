@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
-	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
@@ -20,6 +19,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/registry"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -53,7 +54,13 @@ const (
 //var y application.Application = &GormTransaction{}
 
 func NewGormDB(db *gorm.DB) *GormDB {
-	return &GormDB{GormBase{db: db}, ""}
+	val := new(GormDB)
+	val.db = db
+	val.txIsoLevel = ""
+	val.baseServiceContext = service.NewServiceContext(val, val)
+	return val
+
+	//&GormDB{GormBase{db: db}, "", serviceFactory: service.NewServiceFactory()}
 }
 
 // GormBase is a base struct for gorm implementations of db & transaction
@@ -69,7 +76,8 @@ type GormTransaction struct {
 // GormDB implements the TransactionManager interface methods for initiating a new transaction
 type GormDB struct {
 	GormBase
-	txIsoLevel string
+	txIsoLevel         string
+	baseServiceContext service.ServiceContext
 }
 
 func (g *GormBase) SpaceResources() space.ResourceRepository {
@@ -129,8 +137,8 @@ func (g *GormDB) InvitationService() invitationservice.InvitationService {
 	return invitationservice.NewInvitationService(g)
 }
 
-func (g *GormDB) OrganizationService() organizationservice.OrganizationService {
-	return organizationservice.NewOrganizationService(g, g)
+func (g *GormDB) OrganizationService() service.OrganizationService {
+	return registry.NewService(service.OrganizationServiceType, &g.baseServiceContext).(service.OrganizationService)
 }
 
 func (g *GormDB) PermissionService() permissionservice.PermissionService {

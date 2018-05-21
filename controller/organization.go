@@ -5,7 +5,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -44,8 +43,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("organization name cannot be empty"))
 	}
 
-	svc := organizationservice.NewOrganizationService(c.app, c.app)
-	organizationId, err := svc.CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
+	organizationId, err := c.app.OrganizationService().CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -76,8 +74,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("error finding the current user"))
 	}
 
-	svc := organizationservice.NewOrganizationService(c.app, c.app)
-	orgs, err := svc.ListOrganizations(ctx, *currentUser)
+	orgs, err := c.app.OrganizationService().ListOrganizations(ctx, *currentUser)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
