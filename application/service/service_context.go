@@ -20,11 +20,12 @@ func NewServiceContext(repos repository.Repositories, tm transaction.Transaction
 }
 
 func (s *ServiceContext) Repositories() repository.Repositories {
-	return s.repositories
+	return *s.repositories
 }
 
-func (s *ServiceContext) CreateOrJoinTransaction() error {
+func (s *ServiceContext) ExecuteInTransaction(todo func() error) error {
 	if !s.inTransaction {
+		// If we are not in a transaction already, start a new transaction
 		var tx transaction.Transaction
 		var err error
 		if tx, err = s.transactionManager.BeginTransaction(); err != nil {
@@ -35,18 +36,29 @@ func (s *ServiceContext) CreateOrJoinTransaction() error {
 			return errors.WithStack(err)
 		}
 
+		// Set the transaction flag to true
+		s.inTransaction = true
+
+		// Replace the repositories property with the transactional repositories
+		savedRepos := &s.repositories
+		transactionRepos := tx.(repository.Repositories)
+		s.repositories = &transactionRepos
+
+		// Ensure changes are reverted at the end of the transaction
+		defer s.endTransaction(*savedRepos)
+
 		return func() error {
 			errorChan := make(chan error, 1)
-			txTimeout := time.After(transaction.databaseTransactionTimeout)
+			txTimeout := time.After(transaction.DatabaseTransactionTimeout())
 
-			go func(f transaction.TransactionalResources) {
+			go func() {
 				defer func() {
 					if err := recover(); err != nil {
 						errorChan <- errors.New(fmt.Sprintf("Unknown error: %v", err))
 					}
 				}()
-				errorChan <- todo(tx)
-			}(tx)
+				errorChan <- todo()
+			}()
 
 			select {
 			case err := <-errorChan:
@@ -70,16 +82,10 @@ func (s *ServiceContext) CreateOrJoinTransaction() error {
 			}
 		}()
 
-		savedRepos := &s.repositories
-		defer s.endTransaction(*savedRepos)
-		s.inTransaction = true
-
-		transaction.Transactional(s.transactionManager, func(res transaction.TransactionalResources) error {
-			repos := res.(repository.Repositories)
-			s.repositories = &repos
-			return nil
-		})
-
+		return err
+	} else {
+		// If we are in a transaction, simply execute the passed function
+		return todo()
 	}
 }
 

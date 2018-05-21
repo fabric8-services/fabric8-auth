@@ -24,6 +24,6 @@ func (s *BaseService) Services() *service.Services {
 }
 
 func (s *BaseService) Transactional(todo func() error) error {
-	s.serviceContext.CreateOrJoinTransaction()
-	return todo()
+	err := s.serviceContext.ExecuteInTransaction(todo)
+	return err
 }
