@@ -7,6 +7,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
 )
@@ -85,6 +87,38 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 	return ctx.OK(&app.Identityroles{
 		Data: rolesList,
 	})
+}
+
+// AssignRole assigns a specific role for a resource, to one or more identities.
+func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
+
+	currentUser, err := login.ContextIdentity(ctx)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"role":        ctx.RoleName,
+		}, "error getting identity information from token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	}
+
+	var identitiesToBeAssigned []uuid.UUID
+	for _, identity := range ctx.Payload.Data {
+		identityIDAsUUID, err := uuid.FromString(identity.ID)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"resource_id": ctx.ResourceID,
+				"identity_id": identity.ID,
+				"role":        ctx.RoleName,
+			}, "invalid identity ID")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identity", identity.ID).Expected("uuid"))
+		}
+		identitiesToBeAssigned = append(identitiesToBeAssigned, identityIDAsUUID)
+	}
+	err = c.app.RoleManagementService().Assign(ctx, *currentUser, identitiesToBeAssigned, ctx.ResourceID, ctx.RoleName)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.NoContent()
 }
 
 func convertIdentityRoleToAppRoles(roles []role.IdentityRole) []*app.IdentityRolesData {

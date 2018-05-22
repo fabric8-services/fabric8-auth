@@ -60,6 +60,20 @@ func fillClaimsWithIdentity(ident account.Identity) *jwt.Token {
 	return token
 }
 
+// WithIncompleteIdentity fills the context with token
+// Token is filled using input Identity object but without the sub claim
+func WithIncompleteIdentity(ctx context.Context, ident account.Identity) context.Context {
+	token := fillIncompleteClaimsWithIdentity(ident)
+	return goajwt.WithJWT(ctx, token)
+}
+
+func fillIncompleteClaimsWithIdentity(ident account.Identity) *jwt.Token {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Claims.(jwt.MapClaims)["imageURL"] = ident.User.ImageURL
+	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
+	return token
+}
+
 func service(serviceName string, key interface{}, u account.Identity, authz *token.AuthorizationPayload) *goa.Service {
 	svc := goa.New(serviceName)
 	if authz == nil {
@@ -75,6 +89,13 @@ func service(serviceName string, key interface{}, u account.Identity, authz *tok
 func ServiceAsUser(serviceName string, u account.Identity) *goa.Service {
 	svc := service(serviceName, nil, u, nil)
 	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: &dummySpaceAuthzService{}})
+	return svc
+}
+
+// ServiceAsUserWithIncompleteClaims creates a new service and fill the context with input Identity
+func ServiceAsUserWithIncompleteClaims(serviceName string, u account.Identity) *goa.Service {
+	svc := service(serviceName, nil, u, nil)
+	svc.Context = WithIncompleteIdentity(svc.Context, u)
 	return svc
 }
 

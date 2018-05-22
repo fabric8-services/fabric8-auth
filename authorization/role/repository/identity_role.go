@@ -68,6 +68,7 @@ type IdentityRoleRepository interface {
 	FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error)
 	FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
+	FindIdentityRolesByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]IdentityRole, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -113,6 +114,18 @@ func (m *GormIdentityRoleRepository) Create(ctx context.Context, u *IdentityRole
 			"identity_role_id": u.IdentityRoleID,
 			"err":              err,
 		}, "unable to create the identity role")
+		if gormsupport.IsUniqueViolation(err, "uq_identity_role_identity_role_resource") {
+			return errs.WithStack(errors.NewDataConflictError(err.Error()))
+		}
+		if gormsupport.IsForeignKeyViolation(err, "identity_role_identity_id_fkey") {
+			return errs.WithStack(errors.NewNotFoundError("identity", u.IdentityID.String()))
+		}
+		if gormsupport.IsForeignKeyViolation(err, "identity_role_resource_id_fkey") {
+			return errs.WithStack(errors.NewNotFoundError("resource", u.ResourceID))
+		}
+		if gormsupport.IsForeignKeyViolation(err, "identity_role_role_id_fkey") {
+			return errs.WithStack(errors.NewNotFoundError("role", u.RoleID.String()))
+		}
 		return errs.WithStack(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
@@ -404,4 +417,38 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Con
 	}
 
 	return identityRoles, nil
+}
+
+// FindIdentityRolesByIdentityAndResource returns all identity roles by identity ID and resource ID
+func (m *GormIdentityRoleRepository) FindIdentityRolesByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]IdentityRole, error) {
+	return m.query(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID))
+}
+
+// Query exposes an open ended Query model
+func (m *GormIdentityRoleRepository) query(funcs ...func(*gorm.DB) *gorm.DB) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())
+	var rows []IdentityRole
+	err := m.db.Scopes(funcs...).Table(m.TableName()).Find(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	log.Debug(nil, map[string]interface{}{
+		"identity_roles": rows,
+	}, "Identity query executed successfully!")
+
+	return rows, nil
+}
+
+// IdentityRoleFilterByResource is a gorm filter for resource ID
+func identityRoleFilterByResource(resourceID string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("resource_id = ?", resourceID)
+	}
+}
+
+// IdentityRoleFilterByIdentityID is a gorm filter for Identity ID.
+func identityRoleFilterByIdentityID(identityID uuid.UUID) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Where("identity_id = ?", identityID)
+	}
 }

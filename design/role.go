@@ -22,6 +22,7 @@ var _ = a.Resource("roles", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+
 })
 
 var rolesMedia = a.MediaType("application/vnd.roles+json", func() {
@@ -69,6 +70,21 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+	a.Action("assignRole", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PATCH("/:resourceID/roles/:roleName"),
+		)
+		a.Payload(updateUserIDList) // should refactor this variable's name in collaborators design definition too.
+		a.Description("Assigns a role to a identity, for a specific resource")
+		a.Response(d.NoContent)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Conflict, JSONAPIErrors)
 	})
 })
 
