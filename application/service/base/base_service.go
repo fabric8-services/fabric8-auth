@@ -10,9 +10,8 @@ type BaseService struct {
 	serviceContext service.ServiceContext
 }
 
-func (s *BaseService) Init(serviceContext *service.ServiceContext) interface{} {
-	s.serviceContext = *serviceContext
-	return *s
+func NewBaseService(context *service.ServiceContext) BaseService {
+	return BaseService{serviceContext: *context}
 }
 
 func (s *BaseService) Repositories() repository.Repositories {

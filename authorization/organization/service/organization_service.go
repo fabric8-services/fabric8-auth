@@ -24,9 +24,7 @@ type organizationServiceImpl struct {
 
 // NewOrganizationService creates a new service.
 func NewOrganizationService(context *service.ServiceContext) service.OrganizationService {
-	svc := new(organizationServiceImpl)
-	svc.Init(context)
-	return svc
+	return &organizationServiceImpl{base.NewBaseService(context)}
 }
 
 // Creates a new organization.  The specified identityID is the user creating the organization, while the name parameter
