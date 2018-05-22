@@ -1,15 +1,18 @@
 package controller_test
 
 import (
+	"context"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -19,9 +22,10 @@ import (
 
 type TestSpaceREST struct {
 	gormtestsupport.DBTestSuite
-	resourceID   string
-	permissionID string
-	policyID     string
+	resourceID      string
+	permissionID    string
+	policyID        string
+	resourceService resourceservice.ResourceService
 }
 
 func TestRunSpaceREST(t *testing.T) {
@@ -34,6 +38,7 @@ func (rest *TestSpaceREST) SetupTest() {
 	rest.resourceID = uuid.NewV4().String()
 	rest.permissionID = uuid.NewV4().String()
 	rest.policyID = uuid.NewV4().String()
+	rest.resourceService = resourceservice.NewResourceService(rest.Application, rest.Application)
 }
 
 func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController) {
@@ -89,15 +94,18 @@ func (rest *TestSpaceREST) TestCreateSpaceUnauthorizedDeprovisionedUser() {
 }
 
 func (rest *TestSpaceREST) TestCreateSpaceOK() {
-	// given
 	svc, ctrl := rest.SecuredController()
-	// when
-	_, created := test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
-	// then
+	spaceID := uuid.NewV4()
+
+	_, created := test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, spaceID)
 	require.NotNil(rest.T(), created.Data)
 	assert.Equal(rest.T(), rest.resourceID, created.Data.ResourceID)
 	assert.Equal(rest.T(), rest.permissionID, created.Data.PermissionID)
 	assert.Equal(rest.T(), rest.policyID, created.Data.PolicyID)
+
+	// Check if the corresponding authZ resource has been created
+	_, err := rest.resourceService.Read(context.Background(), spaceID.String())
+	require.NoError(rest.T(), err)
 }
 
 func (rest *TestSpaceREST) TestFailDeleteSpaceUnauthorized() {
@@ -115,24 +123,54 @@ func (rest *TestSpaceREST) TestDeleteSpaceUnauthorizedDeprovisionedUser() {
 }
 
 func (rest *TestSpaceREST) TestDeleteSpaceOK() {
-	// given
+
+	// Create a space
 	svc, ctrl := rest.SecuredController()
 	id := uuid.NewV4()
-	// when
 	test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
-	// then
+
+	// Check if the corresponding authZ resource has been created
+	_, err := rest.resourceService.Read(context.Background(), id.String())
+	require.NoError(rest.T(), err)
+
+	// Delete the space
+	test.DeleteSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
+
+	// Check if the corresponding authZ resource has been deleted
+	_, err = rest.resourceService.Read(context.Background(), id.String())
+	require.Error(rest.T(), err)
+	require.EqualError(rest.T(), err, fmt.Sprintf("resource with id '%s' not found", id.String()))
+}
+
+func (rest *TestSpaceREST) TestDeleteOldSpaceOK() {
+
+	// Create a space
+	svc, ctrl := rest.SecuredController()
+	id := uuid.NewV4()
+	test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
+
+	// Now let's emulate an old space which was created before we started to register resources for new spaces
+	// Delete the corresponding resource for the created space
+	err := rest.resourceService.Delete(context.Background(), id.String())
+	require.NoError(rest.T(), err)
+
+	// Try to delete the space. It should not fail even if the corresponding resource is not found
 	test.DeleteSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
 }
 
 func (rest *TestSpaceREST) TestDeleteSpaceIfUserIsNotSpaceOwnerForbidden() {
-	// given
+	// Create a space
 	svcOwner, ctrlOwner := rest.SecuredController()
 	svcNotOwner, ctrlNotOwner := rest.SecuredController()
 	id := uuid.NewV4()
-	// when
 	test.CreateSpaceOK(rest.T(), svcOwner.Context, svcOwner, ctrlOwner, id)
-	// then
+
+	// Try to delete
 	test.DeleteSpaceForbidden(rest.T(), svcNotOwner.Context, svcNotOwner, ctrlNotOwner, id)
+
+	// Check if the corresponding authZ resource still exists
+	_, err := rest.resourceService.Read(context.Background(), id.String())
+	require.NoError(rest.T(), err)
 }
 
 /*

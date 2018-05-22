@@ -6,11 +6,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/space"
+
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -65,11 +67,22 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 	}
 
 	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
-		// Create space resource which will represent the keyclok resource associated with this space
+		// Create space resource which will represent the keycloak resource associated with this space
 		_, err = tr.SpaceResources().Create(ctx, spaceResource)
 		return err
 	})
 	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	// Create AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
+	svc := c.app.ResourceService()
+	spaceID := ctx.SpaceID.String()
+	_, err = svc.Register(ctx, authorization.ResourceTypeSpace, &spaceID, nil)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"space_id": ctx.SpaceID,
+		}, "unable to register resource for space")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -132,6 +145,24 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	// Try to delete AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
+	// Old spaces doesn't have any registered resources, so, we don't return an error if unable to find the corresponding resource
+	svc := c.app.ResourceService()
+	err = svc.Delete(ctx, ctx.SpaceID.String())
+	if err != nil {
+		if notFound, _ := errors.IsNotFoundError(err); notFound {
+			log.Warn(ctx, map[string]interface{}{
+				"space_id": ctx.SpaceID,
+			}, "unable to delete authZ space resource: resource not found; that's OK for old spaces")
+		} else {
+			log.Error(ctx, map[string]interface{}{
+				"space_id": ctx.SpaceID,
+			}, "unable to delete authZ space resource")
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+	}
+
 	return ctx.OK([]byte{})
 }
 
