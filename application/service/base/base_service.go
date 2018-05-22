@@ -7,11 +7,11 @@ import (
 
 // BaseService provides transaction control and other common features for service implementations
 type BaseService struct {
-	serviceContext *service.ServiceContext
+	serviceContext service.ServiceContext
 }
 
 func (s *BaseService) Init(serviceContext *service.ServiceContext) interface{} {
-	s.serviceContext = serviceContext
+	s.serviceContext = *serviceContext
 	return *s
 }
 

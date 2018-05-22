@@ -10,17 +10,17 @@ import (
 )
 
 type ServiceContext struct {
-	repositories       *repository.Repositories
+	repositories       repository.Repositories
 	transactionManager transaction.TransactionManager
 	inTransaction      bool
 }
 
 func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager) *ServiceContext {
-	return &ServiceContext{repositories: &repos, transactionManager: tm, inTransaction: false}
+	return &ServiceContext{repositories: repos, transactionManager: tm, inTransaction: false}
 }
 
 func (s *ServiceContext) Repositories() repository.Repositories {
-	return *s.repositories
+	return s.repositories
 }
 
 func (s *ServiceContext) ExecuteInTransaction(todo func() error) error {
@@ -40,12 +40,12 @@ func (s *ServiceContext) ExecuteInTransaction(todo func() error) error {
 		s.inTransaction = true
 
 		// Replace the repositories property with the transactional repositories
-		savedRepos := &s.repositories
+		savedRepos := s.repositories
 		transactionRepos := tx.(repository.Repositories)
-		s.repositories = &transactionRepos
+		s.repositories = transactionRepos
 
 		// Ensure changes are reverted at the end of the transaction
-		defer s.endTransaction(*savedRepos)
+		defer s.endTransaction(savedRepos)
 
 		return func() error {
 			errorChan := make(chan error, 1)
@@ -89,7 +89,7 @@ func (s *ServiceContext) ExecuteInTransaction(todo func() error) error {
 	}
 }
 
-func (s *ServiceContext) endTransaction(savedRepos *repository.Repositories) {
+func (s *ServiceContext) endTransaction(savedRepos repository.Repositories) {
 	s.inTransaction = false
 	s.repositories = savedRepos
 }
