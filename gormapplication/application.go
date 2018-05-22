@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
+	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
@@ -20,7 +21,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/registry"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -57,7 +57,6 @@ func NewGormDB(db *gorm.DB) *GormDB {
 	val := new(GormDB)
 	val.db = db
 	val.txIsoLevel = ""
-	val.baseServiceContext = service.NewServiceContext(val, val)
 	return val
 
 	//&GormDB{GormBase{db: db}, "", serviceFactory: service.NewServiceFactory()}
@@ -76,8 +75,7 @@ type GormTransaction struct {
 // GormDB implements the TransactionManager interface methods for initiating a new transaction
 type GormDB struct {
 	GormBase
-	txIsoLevel         string
-	baseServiceContext service.ServiceContext
+	txIsoLevel string
 }
 
 func (g *GormBase) SpaceResources() space.ResourceRepository {
@@ -138,7 +136,7 @@ func (g *GormDB) InvitationService() invitationservice.InvitationService {
 }
 
 func (g *GormDB) OrganizationService() service.OrganizationService {
-	return registry.NewService(service.OrganizationServiceType, &g.baseServiceContext).(service.OrganizationService)
+	return organizationservice.NewOrganizationService(service.NewServiceContext(g, g))
 }
 
 func (g *GormDB) PermissionService() permissionservice.PermissionService {

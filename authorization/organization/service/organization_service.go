@@ -5,9 +5,7 @@ import (
 	"fmt"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
-	"github.com/fabric8-services/fabric8-auth/application/service/registry"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -15,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"database/sql"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/satori/go.uuid"
 )
 
@@ -23,9 +22,11 @@ type organizationServiceImpl struct {
 	base.BaseService
 }
 
-// newOrganizationService creates a new service.
-func newOrganizationService() interface{} {
-	return &organizationServiceImpl{} //repo: repo, tm: tm}
+// NewOrganizationService creates a new service.
+func NewOrganizationService(context *service.ServiceContext) service.OrganizationService {
+	svc := new(organizationServiceImpl)
+	svc.Init(context)
+	return svc
 }
 
 // Creates a new organization.  The specified identityID is the user creating the organization, while the name parameter
@@ -35,8 +36,6 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, identi
 	var organizationId uuid.UUID
 
 	err := s.Transactional(func() error {
-		//err := transaction.Transactional(s.tm, func(tr transaction.TransactionalResources) error {
-
 		// Lookup the identity for the current user
 		userIdentity, err := s.Repositories().Identities().Load(ctx, identityID)
 		if err != nil {
@@ -125,8 +124,4 @@ func (s *organizationServiceImpl) ListOrganizations(ctx context.Context, identit
 	}
 
 	return authorization.MergeAssociations(memberships, roles), nil
-}
-
-func init() {
-	registry.Register(service.OrganizationServiceType, newOrganizationService)
 }

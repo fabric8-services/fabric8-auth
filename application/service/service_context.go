@@ -15,8 +15,8 @@ type ServiceContext struct {
 	inTransaction      bool
 }
 
-func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager) ServiceContext {
-	return ServiceContext{repositories: &repos, transactionManager: tm, inTransaction: false}
+func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager) *ServiceContext {
+	return &ServiceContext{repositories: &repos, transactionManager: tm, inTransaction: false}
 }
 
 func (s *ServiceContext) Repositories() repository.Repositories {

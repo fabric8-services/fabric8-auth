@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
-	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
@@ -22,7 +22,7 @@ type invitationServiceBlackBoxTest struct {
 	invitationRepo invitationrepo.InvitationRepository
 	identityRepo   account.IdentityRepository
 	invService     invitationservice.InvitationService
-	orgService     organizationservice.OrganizationService
+	orgService     service.OrganizationService
 }
 
 func TestRunInvitationServiceBlackBoxTest(t *testing.T) {
@@ -34,7 +34,7 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.invitationRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.invService = invitationservice.NewInvitationService(s.Application)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
-	s.orgService = organizationservice.NewOrganizationService(s.Application, s.Application)
+	s.orgService = s.Application.OrganizationService()
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
