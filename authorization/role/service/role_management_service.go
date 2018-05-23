@@ -48,18 +48,6 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 	return r.repo.RoleRepository().FindRolesByResourceType(ctx, resourceType)
 }
 
-// assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
-func (r *RoleManagementServiceImpl) assign(ctx context.Context, identityID uuid.UUID, resourceID string, roleRef rolerepo.Role) error {
-
-	ir := rolerepo.IdentityRole{
-		ResourceID: resourceID,
-		IdentityID: identityID,
-		RoleID:     roleRef.RoleID,
-	}
-
-	return r.repo.IdentityRoleRepository().Create(ctx, &ir)
-}
-
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, identitiesToBeAssigned []uuid.UUID, resourceID string, roleName string) error {
@@ -123,7 +111,14 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 		// Now that we have confirmed that all users have pre-existing role assignments
 		// we can proceed with the assignment of roles.
 		for _, identityIDAsUUID := range identitiesToBeAssigned {
-			err = r.assign(ctx, identityIDAsUUID, resourceID, *roleRef)
+			ir := rolerepo.IdentityRole{
+				ResourceID: resourceID,
+				IdentityID: identityIDAsUUID,
+				RoleID:     roleRef.RoleID,
+			}
+
+			err = r.repo.IdentityRoleRepository().Create(ctx, &ir)
+
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"resource_id": resourceID,

@@ -183,20 +183,20 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
 
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() {
 	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace(g.ID("myspace"))
+	newSpace := g.CreateSpace()
 
 	var createdIdentities []uuid.UUID
 
 	for i := 0; i <= 10; i++ {
-		user := g.CreateUser(g.ID("foo"))
+		user := g.CreateUser()
 		newSpace.AddAdmin(user)
 		createdIdentities = append(createdIdentities, user.Identity().ID)
 	}
 
 	// noise
 	for i := 0; i <= 10; i++ {
-		g.CreateSpace(g.ID("myspace")).AddAdmin(g.CreateUser(g.ID("somename")))
-		newSpace.AddContributor(g.CreateUser(g.ID("someothername")))
+		g.CreateSpace().AddAdmin(g.CreateUser())
+		newSpace.AddContributor(g.CreateUser())
 	}
 
 	for _, i := range createdIdentities {
@@ -210,7 +210,7 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() 
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
 	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace(g.ID("myspace"))
+	newSpace := g.CreateSpace()
 
 	knownRoleID := getKnownRoleIDForSpace(s)
 
@@ -226,8 +226,8 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
 	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace(g.ID("myspace"))
-	existingUser := g.CreateUser(g.ID("somename"))
+	newSpace := g.CreateSpace()
+	existingUser := g.CreateUser()
 
 	ir := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
@@ -242,7 +242,7 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
 	g := s.DBTestSuite.NewTestGraph()
 
-	existingUser := g.CreateUser(g.ID("somename"))
+	existingUser := g.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)
 
 	ir := role.IdentityRole{
@@ -258,9 +258,9 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
 func (s *identityRoleBlackBoxTest) TestCreateIdentityExistingAssignmentFails() {
 	g := s.DBTestSuite.NewTestGraph()
 
-	existingUser := g.CreateUser(g.ID("somename"))
+	existingUser := g.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)
-	newSpace := g.CreateSpace(g.ID("myspace"))
+	newSpace := g.CreateSpace()
 
 	ir := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
