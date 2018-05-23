@@ -203,17 +203,20 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
 	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace(g.ID("myspace"))
+	newSpace := g.CreateSpace()
 	adminUser := g.CreateUser("adminuser-who-adds-the-others")
 	newSpace.AddAdmin(adminUser)
 
 	var usersToBeAsserted []uuid.UUID
 	for i := 0; i < 10; i++ {
-		userToBeAssigned := g.CreateUser(g.ID("adminname"))
+		userToBeAssigned := g.CreateUser()
 		newSpace.AddViewer(userToBeAssigned)
 		usersToBeAsserted = append(usersToBeAsserted, userToBeAssigned.Identity().ID)
 	}
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, usersToBeAsserted, newSpace.SpaceID(), authorization.AdminRole)
+	roleAssignments := make(map[string][]uuid.UUID)
+	roleAssignments[authorization.AdminRole] = usersToBeAsserted
+
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID())
 	require.Nil(s.T(), err)
 
 	s.addNoisyAssignments()
@@ -229,48 +232,59 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
 func (s *roleManagementServiceBlackboxTest) addNoisyAssignments() {
 	g := s.DBTestSuite.NewTestGraph()
 	for i := 0; i < 10; i++ {
-		randomAssignee := g.CreateUser(g.ID("assignee"))
-		g.CreateSpace(g.ID("myspace")).AddContributor(randomAssignee)
+		randomAssignee := g.CreateUser()
+		g.CreateSpace().AddContributor(randomAssignee)
 	}
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
 	g := s.DBTestSuite.NewTestGraph()
 	spaceAdmin := g.CreateUser("adminuser")
-	newSpace := g.CreateSpace(g.ID("myspace")).AddAdmin(spaceAdmin)
+	newSpace := g.CreateSpace().AddAdmin(spaceAdmin)
 
-	userToBeAssigned := g.CreateUser(g.ID("somename"))
+	roleAssignments := make(map[string][]uuid.UUID)
+	userToBeAssigned := g.CreateUser()
 	newSpace.AddContributor(userToBeAssigned).AddAdmin(userToBeAssigned)
+	roleAssignments[authorization.AdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
 
 	// lets try to add the same role again
-	err := s.repo.Assign(context.Background(), spaceAdmin.Identity().ID, []uuid.UUID{userToBeAssigned.Identity().ID}, newSpace.SpaceID(), authorization.AdminRole)
+	err := s.repo.Assign(context.Background(), spaceAdmin.Identity().ID, roleAssignments, newSpace.SpaceID())
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
-	identityID := g.CreateUser(g.ID("somename")).Identity().ID
+	identityID := g.CreateUser().Identity().ID
 	userToBeAdded := []uuid.UUID{g.CreateUser("randomuser").Identity().ID}
-	err := s.repo.Assign(context.Background(), identityID, userToBeAdded, uuid.NewV4().String(), authorization.SpaceContributorRole)
+	roleAssignments := make(map[string][]uuid.UUID)
+	roleAssignments[authorization.SpaceContributorRole] = userToBeAdded
+
+	err := s.repo.Assign(context.Background(), identityID, roleAssignments, uuid.NewV4().String())
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
-	adminUser := g.CreateUser(g.ID("somename"))
-	newSpace := g.CreateSpace(g.ID("myspace")).AddAdmin(adminUser)
+	adminUser := g.CreateUser()
+	newSpace := g.CreateSpace().AddAdmin(adminUser)
 	userToBeAdded := []uuid.UUID{g.CreateUser("randomuser").Identity().ID}
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, userToBeAdded, newSpace.SpaceID(), uuid.NewV4().String())
+	roleAssignments := make(map[string][]uuid.UUID)
+	roleAssignments[uuid.NewV4().String()] = userToBeAdded
+
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID())
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound() {
 	g := s.DBTestSuite.NewTestGraph()
-	adminUser := g.CreateUser(g.ID("somename"))
-	newSpace := g.CreateSpace(g.ID("myspace")).AddAdmin(adminUser)
+	adminUser := g.CreateUser()
+	newSpace := g.CreateSpace().AddAdmin(adminUser)
 	userToBeAdded := []uuid.UUID{uuid.NewV4()}
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, userToBeAdded, newSpace.SpaceID(), authorization.AdminRole)
+	roleAssignments := make(map[string][]uuid.UUID)
+	roleAssignments[authorization.AdminRole] = userToBeAdded
+
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID())
 	require.IsType(s.T(), errors.BadParameterError{}, errs.Cause(err))
 }
 
