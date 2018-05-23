@@ -129,6 +129,6 @@ var assignRoleArray = a.MediaType("application/vnd.assign-role-array+json", func
 
 var assignRoleData = a.Type("AssignRoleData", func() {
 	a.Attribute("role", d.String, "name of the role to assign")
-	a.Attribute("id", d.String, "identity id to assign role to")
-	a.Required("role", "id")
+	a.Attribute("ids", a.ArrayOf(d.String), "identity ids to assign role to")
+	a.Required("role", "ids")
 })
