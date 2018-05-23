@@ -96,25 +96,29 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
-			"role":        ctx.RoleName,
 		}, "error getting identity information from token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
 
-	var identitiesToBeAssigned []uuid.UUID
-	for _, identity := range ctx.Payload.Data {
-		identityIDAsUUID, err := uuid.FromString(identity.ID)
+	roleAssignments := make(map[string][]uuid.UUID)
+	//var identitiesToBeAssigned []uuid.UUID
+	for _, assignment := range ctx.Payload.Data {
+		identityIDAsUUID, err := uuid.FromString(assignment.ID)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"resource_id": ctx.ResourceID,
-				"identity_id": identity.ID,
-				"role":        ctx.RoleName,
+				"identity_id": assignment.ID,
+				"role":        assignment.Role,
 			}, "invalid identity ID")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identity", identity.ID).Expected("uuid"))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identity", assignment.ID).Expected("uuid"))
 		}
-		identitiesToBeAssigned = append(identitiesToBeAssigned, identityIDAsUUID)
+		if ids, found := roleAssignments[assignment.Role]; found {
+			roleAssignments[assignment.Role] = append(ids, identityIDAsUUID)
+		} else {
+			roleAssignments[assignment.Role] = []uuid.UUID{identityIDAsUUID}
+		}
 	}
-	err = c.app.RoleManagementService().Assign(ctx, *currentUser, identitiesToBeAssigned, ctx.ResourceID, ctx.RoleName)
+	err = c.app.RoleManagementService().Assign(ctx, *currentUser, roleAssignments, ctx.ResourceID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

@@ -19,7 +19,7 @@ type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
-	Assign(ctx context.Context, assignedBy uuid.UUID, identitiesToBeAssigned []uuid.UUID, resourceID string, roleName string) error
+	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string) error
 }
 
 // NewRoleManagementService creates a new service to manage role assignments
@@ -50,84 +50,92 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, identitiesToBeAssigned []uuid.UUID, resourceID string, roleName string) error {
-
+func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string) error {
+	// Lookup the resourceID and ensure the resource is valid
 	rt, err := r.repo.ResourceRepository().Load(ctx, resourceID)
-
-	if err != nil {
-		return err
-	}
-
-	roleRef, err := r.repo.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
 	if err != nil {
 		return err
 	}
 
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for assigning roles to other users.
-
 	permissionService := permservice.NewPermissionService(r.repo)
 	hasScope, err := permissionService.HasScope(ctx, assignedBy, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resourceID,
 			"identity_id": assignedBy,
-			"role":        roleName,
-		}, "error determining if user has manage scope")
+		}, "error determining if user may manage roles for resource")
 		return err
 	}
 	if !hasScope {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resourceID,
 			"identity_id": assignedBy,
-			"role":        roleName,
 		}, "user not authorizied to assign roles")
 		return errors.NewForbiddenError("user is not authorized to assign roles")
 	}
 
-	// In batch assignment of roles all selected users must have previously been assigned
+	// Valid all the roles and user identity IDs, and ensure each user has been previously assigned
 	// privileges for the resource, otherwise the invitation workflow should be used instead
-	for _, identityIDAsUUID := range identitiesToBeAssigned {
-		assignedRoles, err := r.repo.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, resourceID, identityIDAsUUID)
+	assignments := make(map[uuid.UUID][]uuid.UUID)
+
+	for k, v := range roleAssignments {
+		roleRef, err := r.repo.RoleRepository().Lookup(ctx, k, rt.ResourceType.Name)
 		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": resourceID,
-				"identity_id": assignedBy,
-				"role":        roleName,
-			}, "error looking up existing assignments")
 			return err
 		}
-		if len(assignedRoles) == 0 {
-			log.Error(ctx, map[string]interface{}{
-				"resource_id": resourceID,
-				"identity_id": identityIDAsUUID,
-				"role":        roleName,
-			}, "identity not part of a resource cannot be assigned a role")
-			return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
+
+		for _, identityIDAsUUID := range v {
+			assignedRoles, err := r.repo.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, resourceID, identityIDAsUUID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"resource_id": resourceID,
+					"identity_id": assignedBy,
+				}, "error looking up existing assignments")
+				return err
+			}
+			if len(assignedRoles) == 0 {
+				log.Error(ctx, map[string]interface{}{
+					"resource_id": resourceID,
+					"identity_id": identityIDAsUUID,
+				}, "identity not previously assigned a resource role cannot be assigned another role")
+				return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
+			}
+
+			if ids, found := assignments[roleRef.RoleID]; found {
+				assignments[roleRef.RoleID] = append(ids, identityIDAsUUID)
+			} else {
+				assignments[roleRef.RoleID] = []uuid.UUID{identityIDAsUUID}
+			}
 		}
 	}
 
 	err = transaction.Transactional(r.tm, func(tr transaction.TransactionalResources) error {
 		// Now that we have confirmed that all users have pre-existing role assignments
 		// we can proceed with the assignment of roles.
-		for _, identityIDAsUUID := range identitiesToBeAssigned {
-			ir := rolerepo.IdentityRole{
-				ResourceID: resourceID,
-				IdentityID: identityIDAsUUID,
-				RoleID:     roleRef.RoleID,
-			}
 
-			err = r.repo.IdentityRoleRepository().Create(ctx, &ir)
+		for roleID, ids := range assignments {
+			for _, identityIDAsUUID := range ids {
+				ir := rolerepo.IdentityRole{
+					ResourceID: resourceID,
+					IdentityID: identityIDAsUUID,
+					RoleID:     roleID,
+				}
 
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"resource_id": resourceID,
-					"identity_id": identityIDAsUUID,
-					"role":        roleName,
-				}, "assignment failed")
-				return err
+				err = r.repo.IdentityRoleRepository().Create(ctx, &ir)
+
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"resource_id": resourceID,
+						"identity_id": identityIDAsUUID,
+						"role_id":     roleID,
+					}, "assignment failed")
+					return err
+				}
 			}
 		}
+
 		return nil
 	})
 
