@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -11,6 +12,7 @@ import (
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/satori/go.uuid"
 )
 
@@ -19,7 +21,7 @@ type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
-	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string) error
+	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 }
 
 // NewRoleManagementService creates a new service to manage role assignments
@@ -49,8 +51,12 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 }
 
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
+// roleAssignments is a map of role assignments where the key is a role name and the value is an array of IDs of the identities
+// which we want to assign the role to.
+// If appendToExistingRoles == true then the new roles for these identities will be appended to the existing roles.
+// If appendToExistingRoles == false then the new roles will replace the existing ones (the existing ones will be deleted).
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string) error {
+func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error {
 	// Lookup the resourceID and ensure the resource is valid
 	rt, err := r.repo.ResourceRepository().Load(ctx, resourceID)
 	if err != nil {
@@ -72,7 +78,7 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resourceID,
 			"identity_id": assignedBy,
-		}, "user not authorizied to assign roles")
+		}, "user not authorized to assign roles")
 		return errors.NewForbiddenError("user is not authorized to assign roles")
 	}
 
@@ -80,13 +86,21 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	// privileges for the resource, otherwise the invitation workflow should be used instead
 	assignments := make(map[uuid.UUID][]uuid.UUID)
 
-	for k, v := range roleAssignments {
-		roleRef, err := r.repo.RoleRepository().Lookup(ctx, k, rt.ResourceType.Name)
-		if err != nil {
-			return err
+	var existingRoleIDs []uuid.UUID
+
+	roleIDByNameCache := make(map[string]uuid.UUID)
+	for roleName, identityIDs := range roleAssignments {
+		roleID, found := roleIDByNameCache[roleName] // Use local cache instead of looking up for every role used in the assignments
+		if !found {
+			roleRef, err := r.repo.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
+			if err != nil {
+				return err
+			}
+			roleID = roleRef.RoleID
+			roleIDByNameCache[roleName] = roleID
 		}
 
-		for _, identityIDAsUUID := range v {
+		for _, identityIDAsUUID := range identityIDs {
 			assignedRoles, err := r.repo.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, resourceID, identityIDAsUUID)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
@@ -103,10 +117,13 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 				return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
 			}
 
-			if ids, found := assignments[roleRef.RoleID]; found {
-				assignments[roleRef.RoleID] = append(ids, identityIDAsUUID)
+			if ids, found := assignments[roleID]; found {
+				assignments[roleID] = append(ids, identityIDAsUUID)
 			} else {
-				assignments[roleRef.RoleID] = []uuid.UUID{identityIDAsUUID}
+				assignments[roleID] = []uuid.UUID{identityIDAsUUID}
+			}
+			for _, role := range assignedRoles {
+				existingRoleIDs = append(existingRoleIDs, role.IdentityRoleID)
 			}
 		}
 	}
@@ -114,6 +131,20 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	err = transaction.Transactional(r.tm, func(tr transaction.TransactionalResources) error {
 		// Now that we have confirmed that all users have pre-existing role assignments
 		// we can proceed with the assignment of roles.
+
+		if !appendToExistingRoles {
+			// Delete all existing roles before creating the new ones
+			deletedRoles := make(map[uuid.UUID]bool)
+			for _, roleID := range existingRoleIDs {
+				if _, found := deletedRoles[roleID]; !found { // Skip duplicated roles
+					err = r.repo.IdentityRoleRepository().Delete(ctx, roleID)
+					if err != nil {
+						return err
+					}
+					deletedRoles[roleID] = true
+				}
+			}
+		}
 
 		for roleID, ids := range assignments {
 			for _, identityIDAsUUID := range ids {

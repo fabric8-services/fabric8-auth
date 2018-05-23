@@ -1,8 +1,7 @@
 package service_test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/errors"
-	errs "github.com/pkg/errors"
+	"context"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -10,12 +9,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/service"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"context"
 	"github.com/jinzhu/gorm"
+	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -24,7 +25,6 @@ type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 	repo              rolescope.RoleManagementService
 	roleRepo          rolerepo.RoleRepository
-	resourcetypeRepo  resourcetype.ResourceTypeRepository
 	resourceTypeScope resourcetype.ResourceTypeScopeRepository
 }
 
@@ -36,7 +36,6 @@ func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = rolescope.NewRoleManagementService(s.Application, s.Application)
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
-	s.resourcetypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 	s.resourceTypeScope = resourcetype.NewResourceTypeScopeRepository(s.DB)
 }
 
@@ -201,32 +200,79 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 	require.Equal(t, 0, len(identityRoles))
 }
 
-func (s *roleManagementServiceBlackboxTest) TestAssignRoleOK() {
+func (s *roleManagementServiceBlackboxTest) TestAssertRolesWithAppendingToExistingOK() {
+	s.checkAssignRoleOK(true)
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssertRolesWithReplacingExistingOK() {
+	s.checkAssignRoleOK(false)
+}
+
+func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRoles bool) {
 	g := s.DBTestSuite.NewTestGraph()
 	newSpace := g.CreateSpace()
 	adminUser := g.CreateUser("adminuser-who-adds-the-others")
 	newSpace.AddAdmin(adminUser)
 
-	var usersToBeAsserted []uuid.UUID
-	for i := 0; i < 10; i++ {
+	var allUsersToBeAssigned []uuid.UUID
+	var usersToBeAssignedAsAdmin []uuid.UUID
+	var usersToBeAssignedAsContributor []uuid.UUID
+	// Assign Admin role to 5 users
+	for i := 0; i < 5; i++ {
 		userToBeAssigned := g.CreateUser()
 		newSpace.AddViewer(userToBeAssigned)
-		usersToBeAsserted = append(usersToBeAsserted, userToBeAssigned.Identity().ID)
+		usersToBeAssignedAsAdmin = append(usersToBeAssignedAsAdmin, userToBeAssigned.Identity().ID)
+		allUsersToBeAssigned = append(allUsersToBeAssigned, userToBeAssigned.Identity().ID)
 	}
-	roleAssignments := make(map[string][]uuid.UUID)
-	roleAssignments[authorization.AdminRole] = usersToBeAsserted
+	// Also assign Contributor role to the other 5 users
+	for i := 0; i < 5; i++ {
+		userToBeAssigned := g.CreateUser()
+		newSpace.AddViewer(userToBeAssigned)
+		usersToBeAssignedAsContributor = append(usersToBeAssignedAsContributor, userToBeAssigned.Identity().ID)
+		allUsersToBeAssigned = append(allUsersToBeAssigned, userToBeAssigned.Identity().ID)
+	}
+	// And one more user with both Admin and Contributor roles
+	userToBeAssigned := g.CreateUser()
+	newSpace.AddViewer(userToBeAssigned)
+	usersToBeAssignedAsAdmin = append(usersToBeAssignedAsAdmin, userToBeAssigned.Identity().ID)
+	usersToBeAssignedAsContributor = append(usersToBeAssignedAsContributor, userToBeAssigned.Identity().ID)
+	allUsersToBeAssigned = append(allUsersToBeAssigned, userToBeAssigned.Identity().ID)
 
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID())
+	roleAssignments := make(map[string][]uuid.UUID)
+	roleAssignments[authorization.AdminRole] = usersToBeAssignedAsAdmin
+	roleAssignments[authorization.SpaceContributorRole] = usersToBeAssignedAsContributor
+
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), appendToExistingRoles)
 	require.Nil(s.T(), err)
 
 	s.addNoisyAssignments()
 
-	assignedRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.AdminRole)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), assignedRoles, 11)
+	// Check the new Admin roles were assigned
+	usersToBeAssertedPlusAdmin := append(usersToBeAssignedAsAdmin, adminUser.Identity().ID)
+	s.checkRoleAssignments(usersToBeAssertedPlusAdmin, authorization.AdminRole, newSpace.SpaceID())
 
-	usersToBeAsserted = append(usersToBeAsserted, adminUser.Identity().ID)
-	validateAssignee(s.T(), usersToBeAsserted, newSpace.SpaceID(), assignedRoles)
+	// Check the new Contributor roles were assigned
+	s.checkRoleAssignments(usersToBeAssignedAsContributor, authorization.SpaceContributorRole, newSpace.SpaceID())
+
+	// Check the old roles were deleted or still present depending on appendToExistingRoles param
+	oldAssignedViewerRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.SpaceViewerRole)
+	require.NoError(s.T(), err)
+	if !appendToExistingRoles {
+		// Check that the old view roles are now deleted from the the users for the resource
+		assert.Len(s.T(), oldAssignedViewerRoles, 0)
+	} else {
+		// Check that the old view roles are are still present
+		assert.Len(s.T(), oldAssignedViewerRoles, 11)
+		validateAssignee(s.T(), allUsersToBeAssigned, newSpace.SpaceID(), oldAssignedViewerRoles)
+	}
+}
+
+func (s *roleManagementServiceBlackboxTest) checkRoleAssignments(identities []uuid.UUID, roleName, resourceID string) {
+	newAssignedRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), resourceID, roleName)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), newAssignedRoles, len(identities))
+
+	validateAssignee(s.T(), identities, resourceID, newAssignedRoles)
 }
 
 func (s *roleManagementServiceBlackboxTest) addNoisyAssignments() {
@@ -248,7 +294,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
 	roleAssignments[authorization.AdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
 
 	// lets try to add the same role again
-	err := s.repo.Assign(context.Background(), spaceAdmin.Identity().ID, roleAssignments, newSpace.SpaceID())
+	err := s.repo.Assign(context.Background(), spaceAdmin.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
 }
@@ -260,7 +306,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
 	roleAssignments := make(map[string][]uuid.UUID)
 	roleAssignments[authorization.SpaceContributorRole] = userToBeAdded
 
-	err := s.repo.Assign(context.Background(), identityID, roleAssignments, uuid.NewV4().String())
+	err := s.repo.Assign(context.Background(), identityID, roleAssignments, uuid.NewV4().String(), false)
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
@@ -272,7 +318,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 	roleAssignments := make(map[string][]uuid.UUID)
 	roleAssignments[uuid.NewV4().String()] = userToBeAdded
 
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID())
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
@@ -284,7 +330,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound()
 	roleAssignments := make(map[string][]uuid.UUID)
 	roleAssignments[authorization.AdminRole] = userToBeAdded
 
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID())
+	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	require.IsType(s.T(), errors.BadParameterError{}, errs.Cause(err))
 }
 

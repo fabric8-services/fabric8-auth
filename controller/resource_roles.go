@@ -120,7 +120,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 			}
 		}
 	}
-	err = c.app.RoleManagementService().Assign(ctx, *currentUser, roleAssignments, ctx.ResourceID)
+	err = c.app.RoleManagementService().Assign(ctx, *currentUser, roleAssignments, ctx.ResourceID, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

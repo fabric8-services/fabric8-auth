@@ -14,6 +14,7 @@ import (
 	errs "github.com/pkg/errors"
 
 	"context"
+	"fmt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,14 @@ func (s *identityRoleBlackBoxTest) TestOKToDelete() {
 		// that none of the role objects returned include the one deleted.
 		require.NotEqual(s.T(), identityRole.IdentityRoleID.String(), data.IdentityRoleID.String())
 	}
+}
+
+func (s *identityRoleBlackBoxTest) TestDeleteUnknownFails() {
+	identityRoleID := uuid.NewV4()
+
+	err := s.repo.Delete(s.Ctx, identityRoleID)
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), fmt.Sprintf("identity_role with id '%s' not found", identityRoleID), err.Error())
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToLoad() {
