@@ -76,14 +76,21 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 	}
 
 	// Create AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
-	svc := c.app.ResourceService()
 	spaceID := ctx.SpaceID.String()
-	_, err = svc.Register(ctx, authorization.ResourceTypeSpace, &spaceID, nil)
+	res, err := c.app.ResourceService().Register(ctx, authorization.ResourceTypeSpace, &spaceID, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"space_id": ctx.SpaceID,
 		}, "unable to register resource for space")
 		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	err = c.app.RoleManagementService().AssignAsAdmin(ctx, currentIdentity.ID, authorization.AdminRole, *res)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"space_id": ctx.SpaceID,
+		}, "unable to assign space admin role to space creator")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
 	log.Debug(ctx, map[string]interface{}{
@@ -162,6 +169,8 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 	}
+
+	// TODO Clean up Identity-role's assigned to this resource/space?
 
 	return ctx.OK([]byte{})
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	permservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -22,6 +23,7 @@ type RoleManagementService interface {
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
+	AssignAsAdmin(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error
 }
 
 // NewRoleManagementService creates a new service to manage role assignments
@@ -50,7 +52,7 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 	return r.repo.RoleRepository().FindRolesByResourceType(ctx, resourceType)
 }
 
-// Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
+// Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource.
 // roleAssignments is a map of role assignments where the key is a role name and the value is an array of IDs of the identities
 // which we want to assign the role to.
 // If appendToExistingRoles == true then the new roles for these identities will be appended to the existing roles.
@@ -157,6 +159,30 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 		}
 
 		return nil
+	})
+
+	return err
+}
+
+// AssignAsAdmin assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource.
+// This method doesn't check any permissions and assumes that the caller did all needed permissions checks.
+// As an example: this method is to be used when creating a resource (space) to assign initial admin role to the resource creator.
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
+func (r *RoleManagementServiceImpl) AssignAsAdmin(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error {
+
+	err := transaction.Transactional(r.tm, func(tr transaction.TransactionalResources) error {
+		role, err := r.repo.RoleRepository().Lookup(ctx, roleName, res.ResourceType.Name)
+		if err != nil {
+			return err
+		}
+
+		ir := rolerepo.IdentityRole{
+			ResourceID: res.ResourceID,
+			IdentityID: assignedTo,
+			RoleID:     role.RoleID,
+		}
+
+		return r.repo.IdentityRoleRepository().Create(ctx, &ir)
 	})
 
 	return err
