@@ -22,7 +22,6 @@ var _ = a.Resource("roles", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
-
 })
 
 var rolesMedia = a.MediaType("application/vnd.roles+json", func() {
@@ -74,7 +73,7 @@ var _ = a.Resource("resource_roles", func() {
 	a.Action("assignRole", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.PATCH("/:resourceID/roles"),
+			a.PUT("/:resourceID/roles"),
 		)
 		a.Payload(assignRoleArray) // should refactor this variable's name in collaborators design definition too.
 		a.Description("Assigns roles to one or more identities, for a specific resource")
@@ -119,7 +118,6 @@ var assignRoleArray = a.MediaType("application/vnd.assign-role-array+json", func
 	a.Attributes(func() {
 		a.Attribute("data", a.ArrayOf(assignRoleData))
 		a.Required("data")
-
 	})
 	a.View("default", func() {
 		a.Attribute("data")

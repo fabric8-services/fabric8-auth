@@ -47,7 +47,7 @@ func TestRunResourceRolesRest(t *testing.T) {
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 
-	// Create a role for the inbuild resource type
+	// Create a role for the inbuilt resource type
 	// Create a resource of the inbuilt resource type
 	// Create two assignments for that role.
 

@@ -66,20 +66,9 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for assigning roles to other users.
 	permissionService := permservice.NewPermissionService(r.repo)
-	hasScope, err := permissionService.HasScope(ctx, assignedBy, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
+	err = permissionService.RequireScope(ctx, assignedBy, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": resourceID,
-			"identity_id": assignedBy,
-		}, "error determining if user may manage roles for resource")
 		return err
-	}
-	if !hasScope {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": resourceID,
-			"identity_id": assignedBy,
-		}, "user not authorized to assign roles")
-		return errors.NewForbiddenError("user is not authorized to assign roles")
 	}
 
 	// Valid all the roles and user identity IDs, and ensure each user has been previously assigned

@@ -169,7 +169,7 @@ func (s *roleManagementServiceBlackboxTest) checkRoleBelongsToResourceType(db *g
 	require.True(s.T(), len(roleScopesRetrieved) >= 1)
 	for _, r := range roleScopesRetrieved {
 		roleID, err := uuid.FromString(r.RoleID)
-		require.Nil(s.T(), err)
+		require.NoError(s.T(), err)
 
 		existingRole, err := s.roleRepo.Load(s.Ctx, roleID)
 		require.NoError(s.T(), err)
@@ -243,7 +243,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 	roleAssignments[authorization.SpaceContributorRole] = usersToBeAssignedAsContributor
 
 	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), appendToExistingRoles)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 
 	s.addNoisyAssignments()
 
@@ -281,6 +281,22 @@ func (s *roleManagementServiceBlackboxTest) addNoisyAssignments() {
 		randomAssignee := g.CreateUser()
 		g.CreateSpace().AddContributor(randomAssignee)
 	}
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithLackOfPermissionsFails() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace()
+	viewer := g.CreateUser("viewer-who-tries-to-assign-roles")
+	newSpace.AddViewer(viewer)
+
+	userToBeAssigned := g.CreateUser()
+	newSpace.AddViewer(userToBeAssigned)
+
+	roleAssignments := make(map[string][]uuid.UUID)
+	roleAssignments[authorization.AdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
+
+	err := s.repo.Assign(context.Background(), viewer.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
+	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", viewer.Identity().ID.String(), newSpace.SpaceID())
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
