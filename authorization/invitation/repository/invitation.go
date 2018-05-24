@@ -184,14 +184,17 @@ func (m *GormInvitationRepository) Delete(ctx context.Context, id uuid.UUID) err
 
 	obj := Invitation{InvitationID: id}
 
-	err := m.db.Delete(&obj).Error
+	db := m.db.Delete(&obj)
 
-	if err != nil {
+	if db.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"invitation_id": id,
-			"err":           err,
+			"err":           db.Error,
 		}, "unable to delete the invitation")
-		return errs.WithStack(err)
+		return errs.WithStack(db.Error)
+	}
+	if db.RowsAffected == 0 {
+		return errors.NewNotFoundError("invitation", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{

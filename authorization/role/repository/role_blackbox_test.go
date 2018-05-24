@@ -62,6 +62,13 @@ func (s *roleBlackBoxTest) TestOKToDelete() {
 	}
 }
 
+func (s *roleBlackBoxTest) TestDeleteUnknownFails() {
+	id := uuid.NewV4()
+
+	err := s.repo.Delete(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role with id '%s' not found", id.String())
+}
+
 func (s *roleBlackBoxTest) TestOKToLoad() {
 	r, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
 	require.NoError(s.T(), err)

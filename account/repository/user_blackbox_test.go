@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -47,6 +48,13 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 		// that none of the user objects returned include the one deleted.
 		require.NotEqual(s.T(), user.ID.String(), data.ID.String())
 	}
+}
+
+func (s *userBlackBoxTest) TestDeleteUnknownFails() {
+	id := uuid.NewV4()
+
+	err := s.repo.Delete(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "user with id '%s' not found", id.String())
 }
 
 func (s *userBlackBoxTest) TestOKToLoad() {

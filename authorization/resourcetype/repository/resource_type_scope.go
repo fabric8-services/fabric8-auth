@@ -165,14 +165,17 @@ func (m *GormResourceTypeScopeRepository) Delete(ctx context.Context, id uuid.UU
 
 	obj := ResourceTypeScope{ResourceTypeScopeID: id}
 
-	err := m.db.Delete(&obj).Error
+	db := m.db.Delete(&obj)
 
-	if err != nil {
+	if db.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": id,
-			"err": err,
+			"err": db.Error,
 		}, "unable to delete the resource type scope")
-		return errs.WithStack(err)
+		return errs.WithStack(db.Error)
+	}
+	if db.RowsAffected == 0 {
+		return errors.NewNotFoundError("resource_type_scope", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{

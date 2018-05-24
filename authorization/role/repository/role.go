@@ -171,14 +171,17 @@ func (m *GormRoleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 	obj := Role{RoleID: id}
 
-	err := m.db.Delete(&obj).Error
+	db := m.db.Delete(&obj)
 
-	if err != nil {
+	if db.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"role_id": id,
-			"err":     err,
+			"err":     db.Error,
 		}, "unable to delete the role")
-		return errs.WithStack(err)
+		return errs.WithStack(db.Error)
+	}
+	if db.RowsAffected == 0 {
+		return errors.NewNotFoundError("role", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{

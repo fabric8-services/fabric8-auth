@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	"github.com/satori/go.uuid"
 
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -99,6 +100,13 @@ func (s *resourceTypeBlackBoxTest) TestOKToDelete() {
 		// that none of the resource type objects returned include the one deleted.
 		require.NotEqual(s.T(), resourceType.ResourceTypeID.String(), data.ResourceTypeID.String())
 	}
+}
+
+func (s *resourceTypeBlackBoxTest) TestDeleteUnknownFails() {
+	id := uuid.NewV4()
+
+	err := s.repo.Delete(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource_type with id '%s' not found", id.String())
 }
 
 func (s *resourceTypeBlackBoxTest) TestOKToLoad() {
