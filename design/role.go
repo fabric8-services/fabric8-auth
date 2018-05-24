@@ -70,6 +70,21 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+	a.Action("assignRole", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PUT("/:resourceID/roles"),
+		)
+		a.Payload(assignRoleArray) // should refactor this variable's name in collaborators design definition too.
+		a.Description("Assigns roles to one or more identities, for a specific resource")
+		a.Response(d.NoContent)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Conflict, JSONAPIErrors)
+	})
 })
 
 // ResourceMedia represents a protected resource
@@ -94,4 +109,24 @@ var identityRolesData = a.Type("identityRolesData", func() {
 	a.Attribute("inherited_from", d.String, "The ID of the resource from this role was inherited")
 
 	a.Required("role_name", "assignee_id", "assignee_type", "inherited")
+})
+
+var assignRoleArray = a.MediaType("application/vnd.assign-role-array+json", func() {
+	a.UseTrait("jsonapi-media-type")
+	a.TypeName("AssignRoleArray")
+	a.Description("Role Assignment Array")
+	a.Attributes(func() {
+		a.Attribute("data", a.ArrayOf(assignRoleData))
+		a.Required("data")
+	})
+	a.View("default", func() {
+		a.Attribute("data")
+		a.Required("data")
+	})
+})
+
+var assignRoleData = a.Type("AssignRoleData", func() {
+	a.Attribute("role", d.String, "name of the role to assign")
+	a.Attribute("ids", a.ArrayOf(d.String), "identity ids to assign role to")
+	a.Required("role", "ids")
 })

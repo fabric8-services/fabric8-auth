@@ -44,11 +44,14 @@ const (
 	// contributeSpaceScope is a general scope required to perform many space-related operations
 	contributeSpaceScope = "contribute"
 
-	// ManageTeamsScope is the scope required for users wishing to manage teams for a space
+	// ManageTeamsInSpaceScope is the scope required for users wishing to manage teams for a space
 	ManageTeamsInSpaceScope = manageSpaceScope
 
 	// ViewTeamsInSpaceScope is the scope required for users wishing to view the teams in a space
 	ViewTeamsInSpaceScope = viewSpaceScope
+
+	// ManageRoleAssignmentsInSpaceScope is the scope required for managing role assignments in a space
+	ManageRoleAssignmentsInSpaceScope = manageSpaceScope
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities
@@ -56,6 +59,22 @@ func CanHaveMembers(resourceTypeName string) bool {
 	return resourceTypeName == IdentityResourceTypeOrganization ||
 		resourceTypeName == IdentityResourceTypeTeam ||
 		resourceTypeName == IdentityResourceTypeGroup
+}
+
+// ScopeForManagingRolesInResourceType returns the name of the scope that gives a user privileges to manage roles in a resource
+func ScopeForManagingRolesInResourceType(resourceType string) string {
+	switch resourceType {
+	case ResourceTypeSpace:
+		return ManageRoleAssignmentsInSpaceScope
+	case IdentityResourceTypeOrganization:
+		return ManageMembersScope
+	case IdentityResourceTypeTeam:
+		return ManageMembersScope
+	case IdentityResourceTypeGroup:
+		return ManageMembersScope
+	}
+	// a default which we can choose to change later
+	return ManageRoleAssignmentsInSpaceScope
 }
 
 // IdentityAssociation represents an association between an Identity and either another Identity or a Resource, whether by
