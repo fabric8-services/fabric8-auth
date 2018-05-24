@@ -1,6 +1,7 @@
 package controller_test
 
 import (
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -26,7 +27,17 @@ func (s *TestResourceRolesRest) SetupSuite() {
 }
 
 func (rest *TestResourceRolesRest) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
-	svc := testsupport.ServiceAsUser("Resource-roles-Service", testsupport.TestIdentity)
+	svc := testsupport.ServiceAsUser("Resource-roles-Service", identity)
+	return svc, NewResourceRolesController(svc, rest.Application)
+}
+
+func (rest *TestResourceRolesRest) SecuredControllerWithIncompleteIdentity(identity account.Identity) (*goa.Service, *ResourceRolesController) {
+	svc := testsupport.ServiceAsUserWithIncompleteClaims("Resource-roles-Service", identity)
+	return svc, NewResourceRolesController(svc, rest.Application)
+}
+
+func (rest *TestResourceRolesRest) UnSecuredController() (*goa.Service, *ResourceRolesController) {
+	svc := testsupport.UnsecuredService("Resource-roles-Service")
 	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
@@ -36,7 +47,7 @@ func TestRunResourceRolesRest(t *testing.T) {
 
 func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 
-	// Create a role for the inbuild resource type
+	// Create a role for the inbuilt resource type
 	// Create a resource of the inbuilt resource type
 	// Create two assignments for that role.
 
@@ -203,6 +214,161 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameFromInheritedO
 
 	// include these as a side-test
 	test.ListAssignedByRoleNameResourceRolesNotFound(rest.T(), rest.Ctx, svc, ctrl, resourceRef.ResourceID, uuid.NewV4().String())
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleOK() {
+
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace()
+
+	var identitiesToBeAssigned []string
+	for i := 0; i <= 10; i++ {
+		testUser := g.CreateUser()
+		res.AddViewer(testUser)
+		identitiesToBeAssigned = append(identitiesToBeAssigned, testUser.Identity().ID.String())
+	}
+
+	roleAssignment := &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: identitiesToBeAssigned}
+	assignments := []*app.AssignRoleData{roleAssignment}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: assignments,
+	}
+
+	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleConflict() {
+
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace()
+
+	testUser := g.CreateUser()
+	res.AddViewer(testUser)
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: []*app.AssignRoleData{
+			{
+				Role: authorization.SpaceContributorRole,
+				Ids:  []string{testUser.Identity().ID.String()},
+			},
+		},
+	}
+
+	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+	test.AssignRoleResourceRolesConflict(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleUnauthorized() {
+	svc, ctrl := rest.UnSecuredController()
+	payload := app.AssignRoleResourceRolesPayload{
+		Data: []*app.AssignRoleData{},
+	}
+	test.AssignRoleResourceRolesUnauthorized(rest.T(), rest.Ctx, svc, ctrl, uuid.NewV4().String(), &payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace()
+
+	var identitiesToBeAssigned []*app.AssignRoleData
+
+	// some already have roles assigned
+	for i := 0; i <= 2; i++ {
+		testUser := g.CreateUser()
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: []string{testUser.Identity().ID.String()}})
+		res.AddViewer(testUser)
+	}
+
+	// while others don't have any role assigned.
+	for i := 0; i <= 2; i++ {
+		testUser := g.CreateUser()
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: []string{testUser.Identity().ID.String()}})
+	}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesBadRequest(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRoles() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.AssignRoleData
+	for i := 0; i <= 2; i++ {
+		testUser := g.CreateUser(g.ID("someusername"))
+		res.AddViewer(testUser)
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: []string{testUser.Identity().ID.String()}})
+	}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddContributor(adminUser) //not really an admin
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesForbidden(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleWithInvalidIdentityIDBadRequest() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.AssignRoleData
+	for i := 0; i <= 2; i++ {
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: []string{uuid.NewV4().String() + "#$%"}})
+	}
+
+	// Create a user who has the privileges to assign roles
+	adminUser := g.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesBadRequest(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+}
+
+func (rest *TestResourceRolesRest) TestAssignRoleWithIncompleteTokenClaims() {
+	g := rest.DBTestSuite.NewTestGraph()
+	res := g.CreateSpace(g.ID("somespacename"))
+
+	var identitiesToBeAssigned []*app.AssignRoleData
+	for i := 0; i <= 2; i++ {
+		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: []string{uuid.NewV4().String() + "#$%"}})
+	}
+	adminUser := g.CreateUser("adminuser")
+	res.AddContributor(adminUser) //not really an admin
+
+	svc, ctrl := rest.SecuredControllerWithIncompleteIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: identitiesToBeAssigned,
+	}
+
+	test.AssignRoleResourceRolesUnauthorized(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
 }
 
 func (rest *TestResourceRolesRest) checkExists(createdRole role.IdentityRole, pool *app.Identityroles, isInherited bool) bool {
