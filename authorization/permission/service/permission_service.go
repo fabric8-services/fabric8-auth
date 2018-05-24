@@ -3,25 +3,21 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
 )
 
-type PermissionService interface {
-	HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error)
-	RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error
-}
-
-// PermissionServiceImpl is the implementation of the interface for
+// permissionServiceImpl is the implementation of the interface for
 // PermissionModelService. IMPORTANT NOTE: Transaction control is not provided by this service
-type PermissionServiceImpl struct {
-	repos repository.Repositories
+type permissionServiceImpl struct {
+	base.BaseService
 }
 
 // NewPermissionModelService creates a new service.
-func NewPermissionService(repositories repository.Repositories) PermissionService {
-	return &PermissionServiceImpl{repos: repositories}
+func NewPermissionService(context *service.ServiceContext) service.PermissionService {
+	return &permissionServiceImpl{base.NewBaseService(context)}
 }
 
 // HasScope does a permission check for a user, to determine whether they have a particular scope for the
@@ -31,9 +27,9 @@ func NewPermissionService(repositories repository.Repositories) PermissionServic
 // parent and other ancestor resources, and also takes into account role mappings, which allow roles assigned for a
 // certain type of resource in the resource ancestry to map to a role for a different resource type lower in the
 // resource hierarchy.
-func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
+func (s *permissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error) {
 
-	identityRoles, err := s.repos.IdentityRoleRepository().FindPermissions(ctx, identityID, resourceID, scopeName)
+	identityRoles, err := s.Repositories().IdentityRoleRepository().FindPermissions(ctx, identityID, resourceID, scopeName)
 	if err != nil {
 		return false, err
 	}
@@ -43,7 +39,7 @@ func (s *PermissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UU
 
 // RequireScope is the same as HasScope, except instead of returning a boolean value it will just return an error if the
 // identity does not have the specified scope for the resource
-func (s *PermissionServiceImpl) RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error {
+func (s *permissionServiceImpl) RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error {
 	result, err := s.HasScope(ctx, identityID, resourceID, scopeName)
 	if err != nil {
 		return errors.NewInternalError(ctx, err)

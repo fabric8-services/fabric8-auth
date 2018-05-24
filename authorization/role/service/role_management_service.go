@@ -2,12 +2,17 @@ package service
 
 import (
 	"context"
+<<<<<<< HEAD
 	"fmt"
 
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	permservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
+=======
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
+>>>>>>> ISSUE-490 restructing slightly
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -16,6 +21,7 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+<<<<<<< HEAD
 // RoleManagementService defines the service contract for managing role assignments
 type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
@@ -33,21 +39,31 @@ func NewRoleManagementService(repo repository.Repositories, tm transaction.Trans
 type RoleManagementServiceImpl struct {
 	repo repository.Repositories
 	tm   transaction.TransactionManager
+=======
+// NewRoleManagementService creates a new service to manage role assignments
+func NewRoleManagementService(context *service.ServiceContext) *roleManagementServiceImpl {
+	return &roleManagementServiceImpl{base.NewBaseService(context)}
+}
+
+// RoleManagementServiceImpl implements the RoleManagementService to manage role assignments
+type roleManagementServiceImpl struct {
+	base.BaseService
+>>>>>>> ISSUE-490 restructing slightly
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
-func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
-	return r.repo.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
+func (r *roleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
+	return r.Repositories().IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
 }
 
 // ListByResource lists role assignments of a specific resource.
-func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
-	return r.repo.IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
+func (r *roleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
+	return r.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
 }
 
 // ListAvailableRolesByResourceType lists role assignments of a specific resource.
-func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error) {
-	return r.repo.RoleRepository().FindRolesByResourceType(ctx, resourceType)
+func (r *roleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error) {
+	return r.Repositories().RoleRepository().FindRolesByResourceType(ctx, resourceType)
 }
 
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource

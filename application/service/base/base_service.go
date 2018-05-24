@@ -18,8 +18,8 @@ func (s *BaseService) Repositories() repository.Repositories {
 	return s.serviceContext.Repositories()
 }
 
-func (s *BaseService) Services() *service.Services {
-	return nil
+func (s *BaseService) Services() service.Services {
+	return s.serviceContext.Services()
 }
 
 func (s *BaseService) Transactional(todo func() error) error {

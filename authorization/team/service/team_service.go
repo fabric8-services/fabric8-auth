@@ -5,32 +5,24 @@ import (
 	"database/sql"
 	"fmt"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/satori/go.uuid"
 )
 
-type TeamService interface {
-	CreateTeam(ctx context.Context, identityID uuid.UUID, spaceID string, teamName string) (*uuid.UUID, error)
-	ListTeamsInSpace(ctx context.Context, identityID uuid.UUID, spaceID string) ([]account.Identity, error)
-	ListTeamsForIdentity(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
-}
-
 // teamServiceImpl is the default implementation of TeamService. It is a private struct and should only be instantiated
 // via the NewTeamService() function.
 type teamServiceImpl struct {
-	repo repository.Repositories
-	tm   transaction.TransactionManager
+	base.BaseService
 }
 
 // NewTeamService creates a new service.
-func NewTeamService(repo repository.Repositories, tm transaction.TransactionManager) TeamService {
-	return &teamServiceImpl{repo: repo, tm: tm}
+func NewTeamService(context *service.ServiceContext) service.TeamService {
+	return &teamServiceImpl{base.NewBaseService(context)}
 }
 
 // CreateTeam Creates a new team.  The specified identityID is the user creating the team, and the spaceID is the identifier for the
@@ -39,9 +31,9 @@ func NewTeamService(repo repository.Repositories, tm transaction.TransactionMana
 func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, spaceID string, teamName string) (*uuid.UUID, error) {
 	var teamID uuid.UUID
 
-	err := transaction.Transactional(s.tm, func(tr transaction.TransactionalResources) error {
+	err := s.Transactional(func() error {
 		// Validate the identity for the current user
-		identity, err := tr.Identities().LoadWithUser(ctx, identityID)
+		identity, err := s.Repositories().Identities().LoadWithUser(ctx, identityID)
 		if err != nil {
 			return errors.NewUnauthorizedError(fmt.Sprintf("unknown Identity ID %s", identityID))
 		}
@@ -51,7 +43,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 		}
 
 		// Validate the space resource
-		space, err := tr.ResourceRepository().Load(ctx, spaceID)
+		space, err := s.Repositories().ResourceRepository().Load(ctx, spaceID)
 		if err != nil {
 			return errors.NewBadParameterErrorFromString("spaceID", spaceID, "invalid space ID specified")
 		}
@@ -62,7 +54,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 		}
 
 		// Create the permission service
-		permService := permissionservice.NewPermissionService(tr)
+		permService := s.Services().PermissionService()
 
 		// Confirm that the user has the 'manage' scope for the space
 		scope, err := permService.HasScope(ctx, identityID, spaceID, authorization.ManageTeamsInSpaceScope)
@@ -75,7 +67,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 		}
 
 		// Lookup the team resource type
-		resourceType, err := tr.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeTeam)
+		resourceType, err := s.Repositories().ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeTeam)
 		if err != nil {
 			return err
 		}
@@ -88,7 +80,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 			ParentResourceID: &spaceID,
 		}
 
-		err = tr.ResourceRepository().Create(ctx, res)
+		err = s.Repositories().ResourceRepository().Create(ctx, res)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -98,7 +90,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 			IdentityResourceID: sql.NullString{res.ResourceID, true},
 		}
 
-		err = tr.Identities().Create(ctx, teamIdentity)
+		err = s.Repositories().Identities().Create(ctx, teamIdentity)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -122,7 +114,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 // Returns an array of all team identities within a space
 func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.UUID, spaceID string) ([]account.Identity, error) {
 	// Confirm that the specified spaceID is valid
-	space, err := s.repo.ResourceRepository().Load(ctx, spaceID)
+	space, err := s.Repositories().ResourceRepository().Load(ctx, spaceID)
 	if err != nil {
 		return nil, errors.NewBadParameterErrorFromString("spaceID", spaceID, "error loading space from repository")
 	}
@@ -133,7 +125,7 @@ func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.
 	}
 
 	// Create the permission service
-	permService := permissionservice.NewPermissionService(s.repo)
+	permService := s.Services().PermissionService()
 
 	// Confirm the user has the necessary privileges to list the teams in this space
 	err = permService.RequireScope(ctx, identityID, spaceID, authorization.ViewTeamsInSpaceScope)
@@ -142,13 +134,13 @@ func (s *teamServiceImpl) ListTeamsInSpace(ctx context.Context, identityID uuid.
 	}
 
 	// Lookup the team resource type
-	resourceType, err := s.repo.ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeTeam)
+	resourceType, err := s.Repositories().ResourceTypeRepository().Lookup(ctx, authorization.IdentityResourceTypeTeam)
 	if err != nil {
 		return nil, err
 	}
 
 	// Find team identities that have the space as their parent
-	identities, err := s.repo.Identities().FindIdentitiesByResourceTypeWithParentResource(ctx, resourceType.ResourceTypeID, spaceID)
+	identities, err := s.Repositories().Identities().FindIdentitiesByResourceTypeWithParentResource(ctx, resourceType.ResourceTypeID, spaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -161,14 +153,14 @@ func (s *teamServiceImpl) ListTeamsForIdentity(ctx context.Context, identityID u
 	resourceType := authorization.IdentityResourceTypeTeam
 
 	// first find the identity's memberships
-	memberships, err := s.repo.Identities().FindIdentityMemberships(ctx, identityID, &resourceType)
+	memberships, err := s.Repositories().Identities().FindIdentityMemberships(ctx, identityID, &resourceType)
 
 	if err != nil {
 		return nil, err
 	}
 
 	// then find the identity's roles
-	roles, err := s.repo.IdentityRoleRepository().FindIdentityRolesForIdentity(ctx, identityID, &resourceType)
+	roles, err := s.Repositories().IdentityRoleRepository().FindIdentityRolesForIdentity(ctx, identityID, &resourceType)
 
 	if err != nil {
 		return nil, err

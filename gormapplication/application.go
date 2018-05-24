@@ -8,19 +8,16 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
-	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
-	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
-	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -57,6 +54,9 @@ func NewGormDB(db *gorm.DB) *GormDB {
 	val := new(GormDB)
 	val.db = db
 	val.txIsoLevel = ""
+	val.serviceFactory = factory.NewServiceFactory(func() *service.ServiceContext {
+		return service.NewServiceContext(val, val)
+	})
 	return val
 
 	//&GormDB{GormBase{db: db}, "", serviceFactory: service.NewServiceFactory()}
@@ -75,7 +75,8 @@ type GormTransaction struct {
 // GormDB implements the TransactionManager interface methods for initiating a new transaction
 type GormDB struct {
 	GormBase
-	txIsoLevel string
+	txIsoLevel     string
+	serviceFactory factory.ServiceFactory
 }
 
 func (g *GormBase) SpaceResources() space.ResourceRepository {
@@ -131,24 +132,24 @@ func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return role.NewIdentityRoleRepository(g.db)
 }
 
-func (g *GormDB) InvitationService() invitationservice.InvitationService {
-	return invitationservice.NewInvitationService(g)
+func (g *GormDB) InvitationService() service.InvitationService {
+	return g.serviceFactory.InvitationService()
 }
 
 func (g *GormDB) OrganizationService() service.OrganizationService {
-	return organizationservice.NewOrganizationService(service.NewServiceContext(g, g))
+	return g.serviceFactory.OrganizationService()
 }
 
-func (g *GormDB) PermissionService() permissionservice.PermissionService {
-	return permissionservice.NewPermissionService(g)
+func (g *GormDB) PermissionService() service.PermissionService {
+	return g.serviceFactory.PermissionService()
 }
 
-func (g *GormDB) RoleManagementService() roleservice.RoleManagementService {
-	return roleservice.NewRoleManagementService(g, g)
+func (g *GormDB) RoleManagementService() service.RoleManagementService {
+	return g.serviceFactory.RoleManagementService()
 }
 
-func (g *GormDB) TeamService() teamservice.TeamService {
-	return teamservice.NewTeamService(g, g)
+func (g *GormDB) TeamService() service.TeamService {
+	return g.serviceFactory.TeamService()
 }
 
 func (g *GormDB) ResourceService() resourceservice.ResourceService {

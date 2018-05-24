@@ -10,17 +10,31 @@ import (
 )
 
 type ServiceContext struct {
-	repositories       repository.Repositories
-	transactionManager transaction.TransactionManager
-	inTransaction      bool
+	repositories              repository.Repositories
+	transactionalRepositories repository.Repositories
+	transactionManager        transaction.TransactionManager
+	inTransaction             bool
+	services                  Services
 }
 
 func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager) *ServiceContext {
-	return &ServiceContext{repositories: repos, transactionManager: tm, inTransaction: false}
+	ctx := new(ServiceContext)
+	ctx.repositories = repos
+	ctx.transactionManager = tm
+	ctx.inTransaction = false
+	return ctx
 }
 
 func (s *ServiceContext) Repositories() repository.Repositories {
-	return s.repositories
+	if s.inTransaction {
+		return s.transactionalRepositories
+	} else {
+		return s.repositories
+	}
+}
+
+func (s *ServiceContext) Services() Services {
+	return s.services
 }
 
 func (s *ServiceContext) ExecuteInTransaction(todo func() error) error {
@@ -39,13 +53,11 @@ func (s *ServiceContext) ExecuteInTransaction(todo func() error) error {
 		// Set the transaction flag to true
 		s.inTransaction = true
 
-		// Replace the repositories property with the transactional repositories
-		savedRepos := s.repositories
-		transactionRepos := tx.(repository.Repositories)
-		s.repositories = transactionRepos
+		// Set the transactional repositories property
+		s.transactionalRepositories = tx.(repository.Repositories)
 
 		// Ensure changes are reverted at the end of the transaction
-		defer s.endTransaction(savedRepos)
+		defer s.endTransaction()
 
 		return func() error {
 			errorChan := make(chan error, 1)
@@ -89,7 +101,6 @@ func (s *ServiceContext) ExecuteInTransaction(todo func() error) error {
 	}
 }
 
-func (s *ServiceContext) endTransaction(savedRepos repository.Repositories) {
+func (s *ServiceContext) endTransaction() {
 	s.inTransaction = false
-	s.repositories = savedRepos
 }
