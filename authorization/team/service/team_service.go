@@ -7,6 +7,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -21,7 +22,7 @@ type teamServiceImpl struct {
 }
 
 // NewTeamService creates a new service.
-func NewTeamService(context *service.ServiceContext) service.TeamService {
+func NewTeamService(context *servicecontext.ServiceContext) service.TeamService {
 	return &teamServiceImpl{base.NewBaseService(context)}
 }
 

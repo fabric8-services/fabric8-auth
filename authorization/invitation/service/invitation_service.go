@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
@@ -20,7 +21,7 @@ type invitationServiceImpl struct {
 	base.BaseService
 }
 
-func NewInvitationService(context *service.ServiceContext) service.InvitationService {
+func NewInvitationService(context *servicecontext.ServiceContext) service.InvitationService {
 	return &invitationServiceImpl{base.NewBaseService(context)}
 }
 

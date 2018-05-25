@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
 )
@@ -16,7 +17,7 @@ type permissionServiceImpl struct {
 }
 
 // NewPermissionModelService creates a new service.
-func NewPermissionService(context *service.ServiceContext) service.PermissionService {
+func NewPermissionService(context *servicecontext.ServiceContext) service.PermissionService {
 	return &permissionServiceImpl{base.NewBaseService(context)}
 }
 

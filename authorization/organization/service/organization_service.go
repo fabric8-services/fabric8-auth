@@ -6,6 +6,7 @@ import (
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -23,7 +24,7 @@ type organizationServiceImpl struct {
 }
 
 // NewOrganizationService creates a new service.
-func NewOrganizationService(context *service.ServiceContext) service.OrganizationService {
+func NewOrganizationService(context *servicecontext.ServiceContext) service.OrganizationService {
 	return &organizationServiceImpl{base.NewBaseService(context)}
 }
 

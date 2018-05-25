@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 
 	"github.com/jinzhu/gorm"
@@ -54,8 +55,9 @@ func NewGormDB(db *gorm.DB) *GormDB {
 	val := new(GormDB)
 	val.db = db
 	val.txIsoLevel = ""
-	val.serviceFactory = factory.NewServiceFactory(func() *service.ServiceContext {
-		return service.NewServiceContext(val, val)
+	val.serviceFactory = factory.NewServiceFactory(func() *context.ServiceContext {
+		ctx := factory.NewServiceContext(val, val)
+		return &ctx
 	})
 	return val
 
@@ -76,7 +78,7 @@ type GormTransaction struct {
 type GormDB struct {
 	GormBase
 	txIsoLevel     string
-	serviceFactory factory.ServiceFactory
+	serviceFactory *factory.ServiceFactory
 }
 
 func (g *GormBase) SpaceResources() space.ResourceRepository {

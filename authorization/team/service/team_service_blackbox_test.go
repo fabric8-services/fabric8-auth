@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/satori/go.uuid"
@@ -14,7 +13,6 @@ import (
 
 type teamServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	teamService teamservice.TeamService
 }
 
 func TestRunTeamServiceBlackBoxTest(t *testing.T) {
@@ -23,7 +21,6 @@ func TestRunTeamServiceBlackBoxTest(t *testing.T) {
 
 func (s *teamServiceBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.teamService = teamservice.NewTeamService(s.Application, s.Application)
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {
@@ -31,19 +28,19 @@ func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {
 	g.CreateSpace(g.ID("myspace")).AddAdmin(g.CreateUser(g.ID("foo")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	teamID, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID, teamName)
+	teamID, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID, teamName)
 	require.NoError(s.T(), err)
 
 	teamName2 := "TestTeam" + uuid.NewV4().String()
-	teamID2, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID, teamName2)
+	teamID2, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID, teamName2)
 	require.NoError(s.T(), err)
 
 	g.CreateSpace(g.ID("otherspace")).AddAdmin(g.CreateUser(g.ID("bar")))
 	teamName3 := "TestTeam" + uuid.NewV4().String()
-	_, err = s.teamService.CreateTeam(s.Ctx, g.UserByID("bar").Identity().ID, g.SpaceByID("otherspace").Resource().ResourceID, teamName3)
+	_, err = s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("bar").Identity().ID, g.SpaceByID("otherspace").Resource().ResourceID, teamName3)
 	require.NoError(s.T(), err)
 
-	teams, err := s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID)
+	teams, err := s.Application.TeamService().ListTeamsInSpace(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 2)
 	team1Found := false
@@ -62,7 +59,7 @@ func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {
 	require.True(s.T(), team1Found)
 	require.True(s.T(), team2Found)
 
-	teams, err = s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("bar").Identity().ID, g.SpaceByID("otherspace").Resource().ResourceID)
+	teams, err = s.Application.TeamService().ListTeamsInSpace(s.Ctx, g.UserByID("bar").Identity().ID, g.SpaceByID("otherspace").Resource().ResourceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
 }
@@ -77,25 +74,25 @@ func (s *teamServiceBlackBoxTest) TestListTeamsInSpaceForDifferentRoles() {
 	randomUser := g.CreateUser()
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	teamID, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("admin").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName)
+	teamID, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("admin").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName)
 	require.NoError(s.T(), err)
 
 	// First list the spaces as the contributor user, this should work
-	teams, err := s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("contributor").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
+	teams, err := s.Application.TeamService().ListTeamsInSpace(s.Ctx, g.UserByID("contributor").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
 	require.Equal(s.T(), *teamID, teams[0].ID)
 	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
 
 	// Then list the spaces as the viewer user, this should also work
-	teams, err = s.teamService.ListTeamsInSpace(s.Ctx, g.UserByID("viewer").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
+	teams, err = s.Application.TeamService().ListTeamsInSpace(s.Ctx, g.UserByID("viewer").Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
 	require.Equal(s.T(), *teamID, teams[0].ID)
 	require.Equal(s.T(), teamName, teams[0].IdentityResource.Name)
 
 	// Then list the spaces as a (random) new user, this should fail
-	teams, err = s.teamService.ListTeamsInSpace(s.Ctx, randomUser.Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
+	teams, err = s.Application.TeamService().ListTeamsInSpace(s.Ctx, randomUser.Identity().ID, g.SpaceByID("spc").Resource().ResourceID)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.ForbiddenError{}, err)
 }
@@ -106,7 +103,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceUser() {
 	user := g.CreateUser()
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, space.Resource().ResourceID, teamName)
+	_, err := s.Application.TeamService().CreateTeam(s.Ctx, user.Identity().ID, space.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
 }
 
@@ -115,7 +112,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForContributor() {
 	space := g.CreateSpace().AddContributor(g.CreateUser(g.ID("user")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("user").Identity().ID, space.Resource().ResourceID, teamName)
+	_, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("user").Identity().ID, space.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
 }
 
@@ -124,7 +121,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForViewer() {
 	space := g.CreateSpace().AddViewer(g.CreateUser(g.ID("user")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("user").Identity().ID, space.Resource().ResourceID, teamName)
+	_, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("user").Identity().ID, space.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
 }
 
@@ -134,7 +131,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForUnknownUser() {
 	space := g.CreateSpace()
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, userIdentityID, space.Resource().ResourceID, teamName)
+	_, err := s.Application.TeamService().CreateTeam(s.Ctx, userIdentityID, space.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
 }
 
@@ -144,7 +141,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForUnknownSpace() {
 	spaceID := uuid.NewV4().String()
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, spaceID, teamName)
+	_, err := s.Application.TeamService().CreateTeam(s.Ctx, user.Identity().ID, spaceID, teamName)
 	require.Error(s.T(), err)
 }
 
@@ -154,7 +151,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceResource() {
 	resource := g.CreateResource()
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	_, err := s.teamService.CreateTeam(s.Ctx, user.Identity().ID, resource.Resource().ResourceID, teamName)
+	_, err := s.Application.TeamService().CreateTeam(s.Ctx, user.Identity().ID, resource.Resource().ResourceID, teamName)
 	require.Error(s.T(), err)
 }
 
@@ -164,32 +161,32 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	g.CreateSpace(g.ID("spc2")).AddAdmin(g.UserByID("u1"))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
-	teamID, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName)
+	teamID, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName)
 	require.NoError(s.T(), err)
 
 	teamName2 := "TestTeam" + uuid.NewV4().String()
-	teamID2, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName2)
+	teamID2, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName2)
 	require.NoError(s.T(), err)
 
 	teamName3 := "TestTeam" + uuid.NewV4().String()
-	teamID3, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName3)
+	teamID3, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc").Resource().ResourceID, teamName3)
 	require.NoError(s.T(), err)
 
 	teamName4 := "TestTeam" + uuid.NewV4().String()
-	teamID4, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc2").Resource().ResourceID, teamName4)
+	teamID4, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc2").Resource().ResourceID, teamName4)
 	require.NoError(s.T(), err)
 
 	teamName5 := "TestTeam" + uuid.NewV4().String()
-	teamID5, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc2").Resource().ResourceID, teamName5)
+	teamID5, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("u1").Identity().ID, g.SpaceByID("spc2").Resource().ResourceID, teamName5)
 	require.NoError(s.T(), err)
 
 	g.CreateSpace(g.ID("spc3")).AddAdmin(g.CreateUser(g.ID("u2")))
 	teamName6 := "TestTeam" + uuid.NewV4().String()
-	teamID6, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("u2").Identity().ID, g.SpaceByID("spc3").Resource().ResourceID, teamName6)
+	teamID6, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("u2").Identity().ID, g.SpaceByID("spc3").Resource().ResourceID, teamName6)
 	require.NoError(s.T(), err)
 
 	teamName7 := "TestTeam" + uuid.NewV4().String()
-	teamID7, err := s.teamService.CreateTeam(s.Ctx, g.UserByID("u2").Identity().ID, g.SpaceByID("spc3").Resource().ResourceID, teamName7)
+	teamID7, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("u2").Identity().ID, g.SpaceByID("spc3").Resource().ResourceID, teamName7)
 	require.NoError(s.T(), err)
 
 	randomUser := g.CreateUser()
@@ -199,7 +196,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 		AddMember(g.CreateUser(g.ID("mbr1"))).
 		AddAdmin(g.CreateUser(g.ID("adm1")))
 
-	teams, err := s.teamService.ListTeamsForIdentity(s.Ctx, g.UserByID("mbr1").Identity().ID)
+	teams, err := s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("mbr1").Identity().ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
 	require.Equal(s.T(), *teamID, *teams[0].IdentityID)
@@ -207,7 +204,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	require.True(s.T(), teams[0].Member)
 	require.Len(s.T(), teams[0].Roles, 0)
 
-	teams, err = s.teamService.ListTeamsForIdentity(s.Ctx, g.UserByID("adm1").Identity().ID)
+	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("adm1").Identity().ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 1)
 	require.Equal(s.T(), *teamID, *teams[0].IdentityID)
@@ -216,7 +213,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	require.Equal(s.T(), authorization.AdminRole, teams[0].Roles[0])
 
 	g.LoadTeam(teamID2).AddMember(g.UserByID("mbr1"))
-	teams, err = s.teamService.ListTeamsForIdentity(s.Ctx, g.UserByID("mbr1").Identity().ID)
+	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("mbr1").Identity().ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 2)
 	t1Found := false
@@ -240,7 +237,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	g.LoadTeam(teamID3).AddAdmin(g.UserByID("adm1"))
 	g.LoadTeam(teamID4).AddMember(g.UserByID("adm1"))
 
-	teams, err = s.teamService.ListTeamsForIdentity(s.Ctx, g.UserByID("adm1").Identity().ID)
+	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("adm1").Identity().ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 3)
 	t1Found = false
@@ -275,7 +272,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	g.LoadTeam(teamID6).AddMember(g.UserByID("mbr2"))
 	g.LoadTeam(teamID7).AddMember(g.UserByID("mbr2"))
 
-	teams, err = s.teamService.ListTeamsForIdentity(s.Ctx, g.UserByID("mbr2").Identity().ID)
+	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("mbr2").Identity().ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 3)
 
@@ -302,7 +299,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	require.True(s.T(), t6Found)
 	require.True(s.T(), t7Found)
 
-	teams, err = s.teamService.ListTeamsForIdentity(s.Ctx, randomUser.Identity().ID)
+	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, randomUser.Identity().ID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), teams, 0)
 }

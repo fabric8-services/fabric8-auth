@@ -8,11 +8,11 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	rolescope "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -23,7 +23,7 @@ import (
 
 type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo              rolescope.RoleManagementService
+	repo              service.RoleManagementService
 	roleRepo          rolerepo.RoleRepository
 	resourceTypeScope resourcetype.ResourceTypeScopeRepository
 }
@@ -34,7 +34,7 @@ func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = rolescope.NewRoleManagementService(s.Application, s.Application)
+	s.repo = s.Application.RoleManagementService()
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourceTypeScope = resourcetype.NewResourceTypeScopeRepository(s.DB)
 }

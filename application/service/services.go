@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/satori/go.uuid"
@@ -32,11 +33,11 @@ type ResourceService interface {
 	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
 }
 
-// RoleManagementService defines the service contract for managing role assignments
 type RoleManagementService interface {
 	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
 	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
+	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 }
 
 type TeamService interface {
