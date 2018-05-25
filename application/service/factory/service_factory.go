@@ -9,6 +9,7 @@ import (
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
+	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -140,6 +141,10 @@ func (f *ServiceFactory) InvitationService() service.InvitationService {
 
 func (f *ServiceFactory) PermissionService() service.PermissionService {
 	return permissionservice.NewPermissionService(f.getContext())
+}
+
+func (f *ServiceFactory) ResourceService() service.ResourceService {
+	return resourceservice.NewResourceService(f.getContext())
 }
 
 func (f *ServiceFactory) RoleManagementService() service.RoleManagementService {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/satori/go.uuid"
 )
 
@@ -19,7 +20,7 @@ type resourceServiceImpl struct {
 }
 
 // NewResourceService creates a new service.
-func NewResourceService(context *service.ServiceContext) service.ResourceService {
+func NewResourceService(context *servicecontext.ServiceContext) service.ResourceService {
 	return &resourceServiceImpl{base.NewBaseService(context)}
 }
 
@@ -51,7 +52,7 @@ func (s *resourceServiceImpl) Read(ctx context.Context, resourceID string) (*app
 
 	return &app.Resource{
 		ResourceID:       &res.ResourceID,
-		Type:             res.ResourceType.Name,
+		Type:             &res.ResourceType.Name,
 		ParentResourceID: res.ParentResourceID,
 		ResourceScopes:   scopeValues,
 	}, nil

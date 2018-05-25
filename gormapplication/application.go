@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
@@ -154,8 +153,8 @@ func (g *GormDB) TeamService() service.TeamService {
 	return g.serviceFactory.TeamService()
 }
 
-func (g *GormDB) ResourceService() resourceservice.ResourceService {
-	return resourceservice.NewResourceService(g, g)
+func (g *GormDB) ResourceService() service.ResourceService {
+	return g.serviceFactory.ResourceService()
 }
 
 func (g *GormBase) DB() *gorm.DB {
