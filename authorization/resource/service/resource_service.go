@@ -64,7 +64,7 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 
 	var res *resource.Resource
 
-	err := s.Transactional(func() error {
+	err := s.ExecuteInTransaction(func() error {
 
 		// Lookup the resource type
 		resourceType, err := s.Repositories().ResourceTypeRepository().Lookup(ctx, resourceTypeName)

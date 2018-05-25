@@ -35,7 +35,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
 
-	err := s.Transactional(func() error {
+	err := s.ExecuteInTransaction(func() error {
 
 		// First try to convert inviteTo to a uuid
 		inviteToUUID, err := uuid.FromString(inviteTo)

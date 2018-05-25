@@ -68,7 +68,6 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 		// Set the transactional repositories property
 		s.transactionalRepositories = tx.(repository.Repositories)
 
-		// Ensure changes are reverted at the end of the transaction
 		defer s.endTransaction()
 
 		return func() error {
@@ -105,8 +104,6 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 				return errors.New("database transaction timeout!")
 			}
 		}()
-
-		return err
 	} else {
 		// If we are in a transaction, simply execute the passed function
 		return todo()

@@ -5,6 +5,9 @@ import (
 	"strconv"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
@@ -13,10 +16,6 @@ import (
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
-
-	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
@@ -59,8 +58,6 @@ func NewGormDB(db *gorm.DB) *GormDB {
 		return &ctx
 	})
 	return val
-
-	//&GormDB{GormBase{db: db}, "", serviceFactory: service.NewServiceFactory()}
 }
 
 // GormBase is a base struct for gorm implementations of db & transaction

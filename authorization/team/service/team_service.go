@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -32,7 +33,7 @@ func NewTeamService(context *servicecontext.ServiceContext) service.TeamService 
 func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, spaceID string, teamName string) (*uuid.UUID, error) {
 	var teamID uuid.UUID
 
-	err := s.Transactional(func() error {
+	err := s.ExecuteInTransaction(func() error {
 		// Validate the identity for the current user
 		identity, err := s.Repositories().Identities().LoadWithUser(ctx, identityID)
 		if err != nil {

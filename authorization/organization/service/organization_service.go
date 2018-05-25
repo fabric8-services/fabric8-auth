@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"database/sql"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/satori/go.uuid"
 )
@@ -34,7 +35,7 @@ func NewOrganizationService(context *servicecontext.ServiceContext) service.Orga
 func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error) {
 	var organizationId uuid.UUID
 
-	err := s.Transactional(func() error {
+	err := s.ExecuteInTransaction(func() error {
 		// Lookup the identity for the current user
 		userIdentity, err := s.Repositories().Identities().Load(ctx, identityID)
 		if err != nil {
