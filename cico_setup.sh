@@ -11,7 +11,7 @@ set -e
 function load_jenkins_vars() {
   if [ -e "jenkins-env" ]; then
     cat jenkins-env \
-      | grep -E "(DEVSHIFT_TAG_LEN|DEVSHIFT_USERNAME|DEVSHIFT_PASSWORD|JENKINS_URL|GIT_BRANCH|GIT_COMMIT|BUILD_NUMBER|ghprbSourceBranch|ghprbActualCommit|BUILD_URL|ghprbPullId)=" \
+      | grep -E "(DEVSHIFT_TAG_LEN|QUAY_USERNAME|QUAY_PASSWORD|JENKINS_URL|GIT_BRANCH|GIT_COMMIT|BUILD_NUMBER|ghprbSourceBranch|ghprbActualCommit|BUILD_URL|ghprbPullId)=" \
       | sed 's/^/export /g' \
       > ~/.jenkins-env
     source ~/.jenkins-env
@@ -110,9 +110,10 @@ function tag_push() {
 
 function deploy() {
   # Login first
-  REGISTRY="push.registry.devshift.net"
-  if [ -n "${DEVSHIFT_USERNAME}" -a -n "${DEVSHIFT_PASSWORD}" ]; then
-    docker login -u ${DEVSHIFT_USERNAME} -p ${DEVSHIFT_PASSWORD} ${REGISTRY}
+  REGISTRY="quay.io"
+
+  if [ -n "${QUAY_USERNAME}" -a -n "${QUAY_PASSWORD}" ]; then
+    docker login -u ${QUAY_USERNAME} -p ${QUAY_PASSWORD} ${REGISTRY}
   else
     echo "Could not login, missing credentials for the registry"
   fi
@@ -123,11 +124,11 @@ function deploy() {
   TAG=$(echo $GIT_COMMIT | cut -c1-${DEVSHIFT_TAG_LEN})
 
   if [ "$TARGET" = "rhel" ]; then
-    tag_push ${REGISTRY}/osio-prod/fabric8-services/fabric8-auth:$TAG
-    tag_push ${REGISTRY}/osio-prod/fabric8-services/fabric8-auth:latest
+    tag_push ${REGISTRY}/openshiftio/rhel-fabric8-services-fabric8-auth:$TAG
+    tag_push ${REGISTRY}/openshiftio/rhel-fabric8-services-fabric8-auth:latest
   else
-    tag_push ${REGISTRY}/fabric8-services/fabric8-auth:$TAG
-    tag_push ${REGISTRY}/fabric8-services/fabric8-auth:latest
+    tag_push ${REGISTRY}/openshiftio/fabric8-services-fabric8-auth:$TAG
+    tag_push ${REGISTRY}/openshiftio/fabric8-services-fabric8-auth:latest
   fi
 
   echo 'CICO: Image pushed, ready to update deployed app'
