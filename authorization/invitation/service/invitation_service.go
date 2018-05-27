@@ -5,27 +5,24 @@ import (
 	"fmt"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/satori/go.uuid"
 )
 
-type InvitationService interface {
-	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
+type invitationServiceImpl struct {
+	base.BaseService
 }
 
-type InvitationServiceImpl struct {
-	tm transaction.TransactionManager
-}
-
-func NewInvitationService(tm transaction.TransactionManager) InvitationService {
-	return &InvitationServiceImpl{tm: tm}
+func NewInvitationService(context *servicecontext.ServiceContext) service.InvitationService {
+	return &invitationServiceImpl{base.NewBaseService(context)}
 }
 
 // Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group or resource for
@@ -33,19 +30,19 @@ func NewInvitationService(tm transaction.TransactionManager) InvitationService {
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
+func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 	var inviteToIdentity *account.Identity
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
 
-	err := transaction.Transactional(s.tm, func(tr transaction.TransactionalResources) error {
+	err := s.ExecuteInTransaction(func() error {
 
 		// First try to convert inviteTo to a uuid
 		inviteToUUID, err := uuid.FromString(inviteTo)
 		// If we get an error here, the value is definitely not for an Identity so we'll treat it as a resource ID
 		if err != nil {
 			// Try to lookup a resource with the same ID value
-			inviteToResource, err = tr.ResourceRepository().Load(ctx, inviteTo)
+			inviteToResource, err = s.Repositories().ResourceRepository().Load(ctx, inviteTo)
 			if err != nil {
 				return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team, security group or resource", inviteTo), inviteTo)
 			}
@@ -54,10 +51,10 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// If we didn't successfully find a valid resource already, it means the inviteTo is a UUID
 		if inviteToResource == nil {
 			// Attempt to lookup the identity of the organization, team or security group that invitations will be issued for
-			inviteToIdentity, err = tr.Identities().Load(ctx, inviteToUUID)
+			inviteToIdentity, err = s.Repositories().Identities().Load(ctx, inviteToUUID)
 			if err != nil {
 				// That didn't work, try to lookup a resource with the same ID value
-				inviteToResource, err = tr.ResourceRepository().Load(ctx, inviteTo)
+				inviteToResource, err = s.Repositories().ResourceRepository().Load(ctx, inviteTo)
 				if err != nil {
 					return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team, security group or resource", inviteTo), inviteTo)
 				}
@@ -65,7 +62,7 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		}
 
 		// Create the permission service
-		permService := permissionservice.NewPermissionService(tr)
+		permService := s.Services().PermissionService()
 
 		if inviteToIdentity != nil {
 			// Load the resource for the identity
@@ -73,7 +70,7 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 				return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "specified identity has no resource")
 			}
 
-			identityResource, err = tr.ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+			identityResource, err = s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
 			if err != nil {
 				return errors.NewInternalError(ctx, err)
 			}
@@ -110,7 +107,7 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// For each invitation, ensure that the IdentityID value can be found and set it
 		for _, invitation := range invitations {
 			// Load the identity
-			identity, err := tr.Identities().Load(ctx, *invitation.IdentityID)
+			identity, err := s.Repositories().Identities().Load(ctx, *invitation.IdentityID)
 			if err != nil {
 				return errors.NewInternalError(ctx, err)
 			}
@@ -137,7 +134,7 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 				inv.ResourceID = &inviteToResource.ResourceID
 			}
 
-			error := tr.InvitationRepository().Create(ctx, inv)
+			error := s.Repositories().InvitationRepository().Create(ctx, inv)
 			if error != nil {
 				return errors.NewInternalError(ctx, error)
 			}
@@ -151,13 +148,13 @@ func (s *InvitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 					resourceTypeName = inviteToResource.ResourceType.Name
 				}
 
-				role, error := tr.RoleRepository().Lookup(ctx, roleName, resourceTypeName)
+				role, error := s.Repositories().RoleRepository().Lookup(ctx, roleName, resourceTypeName)
 
 				if error != nil {
 					return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", resourceTypeName))
 				}
 
-				error = tr.InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
+				error = s.Repositories().InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
 				if error != nil {
 					return errors.NewInternalError(ctx, error)
 				}

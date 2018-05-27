@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fabric8-services/fabric8-auth/application/repository"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	permservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -16,38 +15,29 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-// RoleManagementService defines the service contract for managing role assignments
-type RoleManagementService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
-	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
-	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
-	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
-}
-
 // NewRoleManagementService creates a new service to manage role assignments
-func NewRoleManagementService(repo repository.Repositories, tm transaction.TransactionManager) *RoleManagementServiceImpl {
-	return &RoleManagementServiceImpl{repo: repo, tm: tm}
+func NewRoleManagementService(context *servicecontext.ServiceContext) *roleManagementServiceImpl {
+	return &roleManagementServiceImpl{base.NewBaseService(context)}
 }
 
 // RoleManagementServiceImpl implements the RoleManagementService to manage role assignments
-type RoleManagementServiceImpl struct {
-	repo repository.Repositories
-	tm   transaction.TransactionManager
+type roleManagementServiceImpl struct {
+	base.BaseService
 }
 
 // ListByResourceAndRoleName lists role assignments of a specific resource.
-func (r *RoleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
-	return r.repo.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
+func (s *roleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
+	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
 }
 
 // ListByResource lists role assignments of a specific resource.
-func (r *RoleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
-	return r.repo.IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
+func (s *roleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
+	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
 }
 
 // ListAvailableRolesByResourceType lists role assignments of a specific resource.
-func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error) {
-	return r.repo.RoleRepository().FindRolesByResourceType(ctx, resourceType)
+func (s *roleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error) {
+	return s.Repositories().RoleRepository().FindRolesByResourceType(ctx, resourceType)
 }
 
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
@@ -56,16 +46,16 @@ func (r *RoleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 // If appendToExistingRoles == true then the new roles for these identities will be appended to the existing roles.
 // If appendToExistingRoles == false then the new roles will replace the existing ones (the existing ones will be deleted).
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error {
+func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error {
 	// Lookup the resourceID and ensure the resource is valid
-	rt, err := r.repo.ResourceRepository().Load(ctx, resourceID)
+	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
 	if err != nil {
 		return err
 	}
 
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for assigning roles to other users.
-	permissionService := permservice.NewPermissionService(r.repo)
+	permissionService := s.Services().PermissionService()
 	err = permissionService.RequireScope(ctx, assignedBy, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
 	if err != nil {
 		return err
@@ -81,7 +71,7 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	for roleName, identityIDs := range roleAssignments {
 		roleID, found := roleIDByNameCache[roleName] // Use local cache instead of looking up for every role used in the assignments
 		if !found {
-			roleRef, err := r.repo.RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
+			roleRef, err := s.Repositories().RoleRepository().Lookup(ctx, roleName, rt.ResourceType.Name)
 			if err != nil {
 				return err
 			}
@@ -90,7 +80,7 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 		}
 
 		for _, identityIDAsUUID := range identityIDs {
-			assignedRoles, err := r.repo.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, resourceID, identityIDAsUUID)
+			assignedRoles, err := s.Repositories().IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, resourceID, identityIDAsUUID)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"resource_id": resourceID,
@@ -117,7 +107,7 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 		}
 	}
 
-	err = transaction.Transactional(r.tm, func(tr transaction.TransactionalResources) error {
+	err = s.ExecuteInTransaction(func() error {
 		// Now that we have confirmed that all users have pre-existing role assignments
 		// we can proceed with the assignment of roles.
 
@@ -126,7 +116,7 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 			deletedRoles := make(map[uuid.UUID]bool)
 			for _, roleID := range existingRoleIDs {
 				if _, found := deletedRoles[roleID]; !found { // Skip duplicated roles
-					err = r.repo.IdentityRoleRepository().Delete(ctx, roleID)
+					err = s.Repositories().IdentityRoleRepository().Delete(ctx, roleID)
 					if err != nil {
 						return err
 					}
@@ -143,7 +133,7 @@ func (r *RoleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 					RoleID:     roleID,
 				}
 
-				err = r.repo.IdentityRoleRepository().Create(ctx, &ir)
+				err = s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
 
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{

@@ -13,8 +13,8 @@ import (
 
 	"github.com/goadesign/goa"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -24,13 +24,13 @@ type TestInvitationREST struct {
 	gormtestsupport.DBTestSuite
 	testIdentity account.Identity
 	service      *goa.Service
-	invService   invitationservice.InvitationService
+	invService   service.InvitationService
 	invRepo      invitationrepo.InvitationRepository
 }
 
 func (s *TestInvitationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.invService = invitationservice.NewInvitationService(s.Application)
+	s.invService = s.Application.InvitationService()
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
 
 	var err error
