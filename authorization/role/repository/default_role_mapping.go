@@ -143,7 +143,7 @@ func (m *GormDefaultRoleMappingRepository) Save(ctx context.Context, model *Defa
 		}, "unable to update default role mapping")
 		return errs.WithStack(err)
 	}
-	err = m.db.Debug().Model(obj).Select("ResourceTypeID", "FromRoleID", "ToRoleID").Updates(model).Error
+	err = m.db.Model(obj).Select("ResourceTypeID", "FromRoleID", "ToRoleID").Updates(model).Error
 	if err != nil {
 		return errs.WithStack(err)
 	}

@@ -118,14 +118,31 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
 		ToRoleID:       g.CreateRole().Role().RoleID,
 	}
 
+	otherRole := g.CreateRole()
+
 	err := s.repo.Create(s.Ctx, rm)
 	require.NoError(s.T(), err)
 
 	rm.ResourceTypeID = g.CreateResourceType().ResourceType().ResourceTypeID
+	rm.ToRoleID = otherRole.Role().RoleID
 	err = s.repo.Save(s.Ctx, rm)
 	require.NoError(s.T(), err)
 
 	updated, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
 	require.Nil(s.T(), err, "could not load default role mapping")
 	require.Equal(s.T(), rm.ResourceTypeID, updated.ResourceTypeID)
+	require.Equal(s.T(), otherRole.Role().RoleID, updated.ToRoleID)
+}
+
+func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {
+	g := s.NewTestGraph()
+	rt := g.CreateResourceType()
+	rm := g.CreateDefaultRoleMapping(rt)
+	g.CreateDefaultRoleMapping()
+
+	mappings, err := s.repo.FindForResourceType(s.Ctx, rt.ResourceType().ResourceTypeID)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), mappings, 1)
+	require.Equal(s.T(), mappings[0].DefaultRoleMappingID, rm.DefaultRoleMapping().DefaultRoleMappingID)
 }

@@ -22,6 +22,8 @@ func newDefaultRoleMappingWrapper(g *TestGraph, params []interface{}) defaultRol
 		switch t := params[i].(type) {
 		case resourceTypeWrapper:
 			resourceType = &t
+		case *resourceTypeWrapper:
+			resourceType = t
 		case roleWrapper:
 			if fromRole == nil {
 				fromRole = t.role
@@ -45,8 +47,8 @@ func newDefaultRoleMappingWrapper(g *TestGraph, params []interface{}) defaultRol
 
 	w.mapping = &role.DefaultRoleMapping{
 		ResourceTypeID: resourceType.ResourceType().ResourceTypeID,
-		FromRole:       *fromRole,
-		ToRole:         *toRole,
+		FromRoleID:     fromRole.RoleID,
+		ToRoleID:       toRole.RoleID,
 	}
 
 	err := g.app.DefaultRoleMappingRepository().Create(g.ctx, w.mapping)
