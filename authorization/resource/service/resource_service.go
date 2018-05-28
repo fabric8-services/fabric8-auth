@@ -106,6 +106,9 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 
 		// Persist the resource
 		return s.Repositories().ResourceRepository().Create(ctx, res)
+
+		// Search for any default role mappings for the resource type
+
 	})
 
 	return res, err
