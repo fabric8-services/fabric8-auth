@@ -62,6 +62,7 @@ type RoleMappingRepository interface {
 	Save(ctx context.Context, u *RoleMapping) error
 	List(ctx context.Context) ([]RoleMapping, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
+	FindForResource(ctx context.Context, resourceID string) ([]RoleMapping, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -185,4 +186,16 @@ func (m *GormRoleMappingRepository) Delete(ctx context.Context, id uuid.UUID) er
 	}, "Role mapping deleted!")
 
 	return nil
+}
+
+func (m *GormRoleMappingRepository) FindForResource(ctx context.Context, resourceID string) ([]RoleMapping, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "FindForResource"}, time.Now())
+
+	var rows []RoleMapping
+
+	err := m.db.Model(&RoleMapping{}).Where("resource_id = ?", resourceID).Find(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	return rows, nil
 }

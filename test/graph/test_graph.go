@@ -201,3 +201,13 @@ func (g *TestGraph) CreateDefaultRoleMapping(params ...interface{}) *defaultRole
 func (g *TestGraph) DefaultRoleMappingByID(id string) *defaultRoleMappingWrapper {
 	return g.graphObjects[id].(*defaultRoleMappingWrapper)
 }
+
+func (g *TestGraph) CreateRoleMapping(params ...interface{}) *roleMappingWrapper {
+	obj := newRoleMappingWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) RoleMappingByID(id string) *roleMappingWrapper {
+	return g.graphObjects[id].(*roleMappingWrapper)
+}

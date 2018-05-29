@@ -106,6 +106,30 @@ func (s *resourceServiceBlackBoxTest) TestReadUnknownResourceFails() {
 	s.checkUnknownResourceID(uuid.NewV4().String())
 }
 
+func (s *resourceServiceBlackBoxTest) TestRoleMappingsCreated() {
+	g := s.NewTestGraph()
+	// Create a default role mapping for a new resource type
+	m := g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID("rt")))
+
+	// Create another default role mapping for a different resource type
+	g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID("rt2")))
+
+	// Register a resource with the same resource type as the default role mapping
+	r, err := s.resourceService.Register(s.Ctx, g.ResourceTypeByID("rt").ResourceType().Name, nil, nil)
+	require.NoError(s.T(), err)
+
+	// Find the mappings for the new resource
+	mappings, err := s.Application.RoleMappingRepository().FindForResource(s.Ctx, r.ResourceID)
+	require.NoError(s.T(), err)
+
+	// We should have exactly 1 mapping
+	require.Len(s.T(), mappings, 1)
+
+	// It should have the same from role and to role values as the default mapping
+	require.Equal(s.T(), m.DefaultRoleMapping().FromRoleID, mappings[0].FromRoleID)
+	require.Equal(s.T(), m.DefaultRoleMapping().ToRoleID, mappings[0].ToRoleID)
+}
+
 func (s *resourceServiceBlackBoxTest) checkDeleteResource(resourceID string) {
 	err := s.resourceService.Delete(context.Background(), resourceID)
 	require.NoError(s.T(), err)

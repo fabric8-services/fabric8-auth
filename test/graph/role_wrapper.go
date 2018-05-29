@@ -27,6 +27,10 @@ func newRoleWrapper(g *TestGraph, params []interface{}) roleWrapper {
 			resourceType = t.resourceType
 		case *resourceTypeWrapper:
 			resourceType = t.resourceType
+		case resourcetype.ResourceType:
+			resourceType = &t
+		case *resourcetype.ResourceType:
+			resourceType = t
 		}
 	}
 
