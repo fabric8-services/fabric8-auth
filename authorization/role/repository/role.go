@@ -10,12 +10,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"strings"
+
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"strings"
 )
 
 type Role struct {
@@ -171,16 +172,16 @@ func (m *GormRoleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 	obj := Role{RoleID: id}
 
-	db := m.db.Delete(&obj)
+	result := m.db.Delete(&obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"role_id": id,
-			"err":     db.Error,
+			"err":     result.Error,
 		}, "unable to delete the role")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("role", id.String())
 	}
 

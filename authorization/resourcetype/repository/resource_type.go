@@ -135,16 +135,16 @@ func (m *GormResourceTypeRepository) Delete(ctx context.Context, id uuid.UUID) e
 
 	obj := ResourceType{ResourceTypeID: id}
 
-	db := m.db.Delete(&obj)
+	result := m.db.Delete(&obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_id": id,
-			"err":              db.Error,
+			"err":              result.Error,
 		}, "unable to delete the resource type")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("resource_type", id.String())
 	}
 

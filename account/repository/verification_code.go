@@ -131,16 +131,16 @@ func (m *GormVerificationCodeRepository) Delete(ctx context.Context, id uuid.UUI
 	defer goa.MeasureSince([]string{"goa", "db", "VerificationCode", "delete"}, time.Now())
 
 	obj := VerificationCode{ID: id}
-	db := m.db.Delete(obj)
+	result := m.db.Delete(obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"verification_code_id": id,
-			"err": db.Error,
+			"err": result.Error,
 		}, "unable to delete the verification_code")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("verification_code", id.String())
 	}
 
