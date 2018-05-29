@@ -16,6 +16,10 @@ func SetDatabaseTransactionTimeout(t time.Duration) {
 	databaseTransactionTimeout = t
 }
 
+func DatabaseTransactionTimeout() time.Duration {
+	return databaseTransactionTimeout
+}
+
 // TransactionalResources provides a reference to transactional resources available during a transaction
 type TransactionalResources interface {
 	repository.Repositories

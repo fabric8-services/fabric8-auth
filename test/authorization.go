@@ -5,7 +5,6 @@ import (
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
-	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -67,7 +66,7 @@ func CreateTestIdentityRoleForIdentity(ctx context.Context, db *gorm.DB, identit
 
 func CreateTestOrganization(ctx context.Context, db *gorm.DB, app application.Application, creatorIdentityID uuid.UUID, name string) (account.Identity, error) {
 
-	orgService := organizationservice.NewOrganizationService(app, app)
+	orgService := app.OrganizationService()
 
 	var organization *account.Identity
 
