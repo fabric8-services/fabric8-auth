@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ import (
 
 type resourceServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	resourceService resourceservice.ResourceService
+	resourceService service.ResourceService
 }
 
 func TestRunResourceServiceBlackBoxTest(t *testing.T) {
@@ -26,7 +26,7 @@ func TestRunResourceServiceBlackBoxTest(t *testing.T) {
 
 func (s *resourceServiceBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.resourceService = resourceservice.NewResourceService(s.Application, s.Application)
+	s.resourceService = s.Application.ResourceService()
 }
 
 func (s *resourceServiceBlackBoxTest) TestRegisterResourceUnknownResourceTypeFails() {

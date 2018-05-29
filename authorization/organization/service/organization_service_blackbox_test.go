@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -21,7 +21,7 @@ type organizationServiceBlackBoxTest struct {
 	identityRepo     account.IdentityRepository
 	identityRoleRepo role.IdentityRoleRepository
 	resourceRepo     resource.ResourceRepository
-	orgService       organizationservice.OrganizationService
+	orgService       service.OrganizationService
 }
 
 func TestRunOrganizationServiceBlackBoxTest(t *testing.T) {
@@ -34,7 +34,7 @@ func (s *organizationServiceBlackBoxTest) SetupTest() {
 	s.identityRoleRepo = role.NewIdentityRoleRepository(s.DB)
 	s.resourceRepo = resource.NewResourceRepository(s.DB)
 
-	s.orgService = organizationservice.NewOrganizationService(s.Application, s.Application)
+	s.orgService = s.Application.OrganizationService()
 }
 
 func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {
@@ -82,13 +82,16 @@ func (s *organizationServiceBlackBoxTest) TestListOrganization() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Orgs created by the first user
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identityOwner.ID, "Test Organization MMMYYY")
+	orgName := "Test Organization MMMYYY" + uuid.NewV4().String()
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identityOwner.ID, orgName)
 	require.Nil(s.T(), err, "Could not create organization")
-	orgId2, err := s.orgService.CreateOrganization(s.Ctx, identityOwner.ID, "One More Test Organization MMMYYY")
+	orgName2 := "One More Test Organization MMMYYY" + uuid.NewV4().String()
+	orgId2, err := s.orgService.CreateOrganization(s.Ctx, identityOwner.ID, orgName2)
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Org created by the second user
-	_, err = s.orgService.CreateOrganization(s.Ctx, identityAnother.ID, "Yet One More Test Organization")
+	orgName3 := "Yet One More Test Organization" + uuid.NewV4().String()
+	_, err = s.orgService.CreateOrganization(s.Ctx, identityAnother.ID, orgName3)
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Load orgs where the first user is a member
@@ -98,8 +101,8 @@ func (s *organizationServiceBlackBoxTest) TestListOrganization() {
 	// Check we get two organizations back
 	require.Equal(s.T(), 2, len(orgs), "Did not get exactly 2 organizations in list")
 
-	s.equalOrganization(*orgId, "Test Organization MMMYYY", s.findOrganizationWithID(*orgId, orgs))
-	s.equalOrganization(*orgId2, "One More Test Organization MMMYYY", s.findOrganizationWithID(*orgId2, orgs))
+	s.equalOrganization(*orgId, orgName, s.findOrganizationWithID(*orgId, orgs))
+	s.equalOrganization(*orgId2, orgName2, s.findOrganizationWithID(*orgId2, orgs))
 }
 
 func (s *organizationServiceBlackBoxTest) findOrganizationWithID(orgId uuid.UUID, orgs []authorization.IdentityAssociation) *authorization.IdentityAssociation {
