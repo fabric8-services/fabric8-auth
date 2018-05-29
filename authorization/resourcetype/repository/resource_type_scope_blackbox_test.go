@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -43,4 +44,24 @@ func (s *resourceTypeScopeBlackBoxTest) TestLookupByResourceTypeAndScope() {
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), rts.Name, returnedScope.Name)
 	require.Equal(s.T(), rts.ResourceTypeScopeID, returnedScope.ResourceTypeScopeID)
+}
+
+func (s *resourceTypeScopeBlackBoxTest) TestOKToDelete() {
+	rtRef, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+	rts, err := testsupport.CreateTestScope(s.Ctx, s.DB, *rtRef, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	err = s.repo.Delete(s.Ctx, rts.ResourceTypeScopeID)
+	require.NoError(s.T(), err)
+
+	_, err = s.repo.Load(s.Ctx, rts.ResourceTypeScopeID)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource_type_scope with id '%s' not found", rts.ResourceTypeScopeID.String())
+}
+
+func (s *resourceTypeScopeBlackBoxTest) TestDeleteUnknownFails() {
+	id := uuid.NewV4()
+
+	err := s.repo.Delete(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource_type_scope with id '%s' not found", id.String())
 }

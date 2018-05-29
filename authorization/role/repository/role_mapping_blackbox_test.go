@@ -6,6 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resourcetyperepo "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
@@ -95,6 +96,13 @@ func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName str
 
 	err = s.repo.Create(s.Ctx, &rm)
 	return rm, err
+}
+
+func (s *roleMappingBlackBoxTest) TestDeleteUnknownFails() {
+	id := uuid.NewV4()
+
+	err := s.repo.Delete(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role_mapping with id '%s' not found", id.String())
 }
 
 func (s *roleMappingBlackBoxTest) TestOKToLoad() {

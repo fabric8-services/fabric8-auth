@@ -14,11 +14,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"database/sql"
+	"strings"
+
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"strings"
 )
 
 const (
@@ -245,16 +246,16 @@ func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "delete"}, time.Now())
 
 	obj := Identity{ID: id}
-	db := m.db.Delete(obj)
+	result := m.db.Delete(obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"identity_id": id,
-			"err":         db.Error,
+			"err":         result.Error,
 		}, "unable to delete the identity")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("identity", id.String())
 	}
 

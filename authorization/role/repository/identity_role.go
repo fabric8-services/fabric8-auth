@@ -163,16 +163,16 @@ func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) e
 
 	obj := IdentityRole{IdentityRoleID: id}
 
-	db := m.db.Delete(obj)
+	result := m.db.Delete(obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"identity_role_id": id,
-			"err":              db.Error,
+			"err":              result.Error,
 		}, "unable to delete the identity role")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("identity_role", id.String())
 	}
 	log.Debug(ctx, map[string]interface{}{

@@ -167,14 +167,17 @@ func (m *GormRoleMappingRepository) Delete(ctx context.Context, id uuid.UUID) er
 
 	obj := RoleMapping{RoleMappingID: id}
 
-	err := m.db.Delete(&obj).Error
+	result := m.db.Delete(&obj)
 
-	if err != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"role_mapping_id": id,
-			"err":             err,
+			"err":             result.Error,
 		}, "unable to delete the role mapping")
-		return errs.WithStack(err)
+		return errs.WithStack(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.NewNotFoundError("role_mapping", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{
