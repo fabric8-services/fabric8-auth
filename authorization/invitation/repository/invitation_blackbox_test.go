@@ -3,12 +3,13 @@ package repository_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationRepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	roleRepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -43,6 +44,13 @@ func (s *invitationBlackBoxTest) TestOKToDelete() {
 	invitations, err = s.repo.ListForIdentity(s.Ctx, *invitation.InviteTo)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 0, len(invitations))
+}
+
+func (s *invitationBlackBoxTest) TestDeleteUnknownFails() {
+	id := uuid.NewV4()
+
+	err := s.repo.Delete(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "invitation with id '%s' not found", id.String())
 }
 
 func (s *invitationBlackBoxTest) TestOKToLoad() {

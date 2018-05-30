@@ -143,16 +143,16 @@ func (m *GormExternalTokenRepository) Delete(ctx context.Context, id uuid.UUID) 
 	defer goa.MeasureSince([]string{"goa", "db", "ExternalToken", "delete"}, time.Now())
 
 	obj := ExternalToken{ID: id}
-	db := m.db.Delete(obj)
+	result := m.db.Delete(obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"external_token_id": id,
-			"err":               db.Error,
+			"err":               result.Error,
 		}, "unable to delete the external_token")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("external_token", id.String())
 	}
 

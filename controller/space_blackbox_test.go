@@ -2,17 +2,17 @@ package controller_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +25,7 @@ type TestSpaceREST struct {
 	resourceID      string
 	permissionID    string
 	policyID        string
-	resourceService resourceservice.ResourceService
+	resourceService service.ResourceService
 }
 
 func TestRunSpaceREST(t *testing.T) {
@@ -38,7 +38,7 @@ func (rest *TestSpaceREST) SetupTest() {
 	rest.resourceID = uuid.NewV4().String()
 	rest.permissionID = uuid.NewV4().String()
 	rest.policyID = uuid.NewV4().String()
-	rest.resourceService = resourceservice.NewResourceService(rest.Application, rest.Application)
+	rest.resourceService = rest.Application.ResourceService()
 }
 
 func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController) {

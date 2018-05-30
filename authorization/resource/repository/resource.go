@@ -180,16 +180,16 @@ func (m *GormResourceRepository) Delete(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "delete"}, time.Now())
 
 	obj := Resource{ResourceID: id}
-	db := m.db.Delete(obj)
+	result := m.db.Delete(obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": id,
-			"err":         db.Error,
+			"err":         result.Error,
 		}, "unable to delete the resource")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("resource", id)
 	}
 

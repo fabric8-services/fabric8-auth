@@ -4,48 +4,42 @@ import (
 	"context"
 
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/satori/go.uuid"
 )
-
-type ResourceService interface {
-	Delete(ctx context.Context, resourceID string) error
-	Read(ctx context.Context, resourceID string) (*app.Resource, error)
-	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
-}
 
 // resourceServiceImpl is the implementation of the interface for
 // ResourceService.
 type resourceServiceImpl struct {
-	repo repository.Repositories
-	tm   transaction.TransactionManager
+	base.BaseService
 }
 
 // NewResourceService creates a new service.
-func NewResourceService(repo repository.Repositories, tm transaction.TransactionManager) ResourceService {
-	return &resourceServiceImpl{repo: repo, tm: tm}
+func NewResourceService(context *servicecontext.ServiceContext) service.ResourceService {
+	return &resourceServiceImpl{base.NewBaseService(context)}
 }
 
 // Delete deletes the resource with resourceID
 func (s *resourceServiceImpl) Delete(ctx context.Context, resourceID string) error {
 
-	return s.repo.ResourceRepository().Delete(ctx, resourceID)
+	return s.Repositories().ResourceRepository().Delete(ctx, resourceID)
 }
 
 // Read reads resource
 func (s *resourceServiceImpl) Read(ctx context.Context, resourceID string) (*app.Resource, error) {
 
-	res, err := s.repo.ResourceRepository().Load(ctx, resourceID)
+	res, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load the resource type scopes
-	scopes, err := s.repo.ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
+	scopes, err := s.Repositories().ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}
@@ -70,10 +64,10 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 
 	var res *resource.Resource
 
-	err := transaction.Transactional(s.tm, func(tr transaction.TransactionalResources) error {
+	err := s.ExecuteInTransaction(func() error {
 
 		// Lookup the resource type
-		resourceType, err := tr.ResourceTypeRepository().Lookup(ctx, resourceTypeName)
+		resourceType, err := s.Repositories().ResourceTypeRepository().Lookup(ctx, resourceTypeName)
 		if err != nil {
 			return errors.NewBadParameterErrorFromString("type", resourceTypeName, err.Error())
 		}
@@ -82,7 +76,7 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 		var parentResource *resource.Resource
 
 		if parentResourceID != nil {
-			parentResource, err = tr.ResourceRepository().Load(ctx, *parentResourceID)
+			parentResource, err = s.Repositories().ResourceRepository().Load(ctx, *parentResourceID)
 			if err != nil {
 				return errors.NewBadParameterErrorFromString("parent resource ID", *parentResourceID, err.Error())
 			}
@@ -111,7 +105,7 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 		}
 
 		// Persist the resource
-		return tr.ResourceRepository().Create(ctx, res)
+		return s.Repositories().ResourceRepository().Create(ctx, res)
 	})
 
 	return res, err

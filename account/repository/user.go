@@ -153,14 +153,17 @@ func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 	obj := User{ID: id}
 
-	err := m.db.Delete(&obj).Error
+	result := m.db.Delete(&obj)
 
-	if err != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"user_id": id,
-			"err":     err,
+			"err":     result.Error,
 		}, "unable to delete the user")
-		return errs.WithStack(err)
+		return errs.WithStack(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.NewNotFoundError("user", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{
