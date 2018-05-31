@@ -158,7 +158,8 @@ func (m *GormResourceRepository) Create(ctx context.Context, resource *Resource)
 func (m *GormResourceRepository) Save(ctx context.Context, resource *Resource) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, resource.ResourceID)
+	err := m.db.Save(resource).Error
+
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": resource.ResourceID,
@@ -166,13 +167,12 @@ func (m *GormResourceRepository) Save(ctx context.Context, resource *Resource) e
 		}, "unable to update the resource")
 		return errs.WithStack(err)
 	}
-	err = m.db.Model(obj).Save(resource).Error
 
 	log.Debug(ctx, map[string]interface{}{
 		"resource_id": resource.ResourceID,
 	}, "Resource saved!")
 
-	return errs.WithStack(err)
+	return nil
 }
 
 // Delete removes a single record.
@@ -180,16 +180,16 @@ func (m *GormResourceRepository) Delete(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "delete"}, time.Now())
 
 	obj := Resource{ResourceID: id}
-	db := m.db.Delete(obj)
+	result := m.db.Delete(obj)
 
-	if db.Error != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": id,
-			"err":         db.Error,
+			"err":         result.Error,
 		}, "unable to delete the resource")
-		return errs.WithStack(db.Error)
+		return errs.WithStack(result.Error)
 	}
-	if db.RowsAffected == 0 {
+	if result.RowsAffected == 0 {
 		return errors.NewNotFoundError("resource", id)
 	}
 

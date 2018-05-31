@@ -366,7 +366,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	// new user for WIT
 	if newUser {
-		err = keycloak.RemoteWITService.CreateWITUser(ctx, request, identity, witURL, identity.ID.String())
+		err = keycloak.RemoteWITService.CreateWITUser(ctx, identity, witURL, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
@@ -377,7 +377,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 			// let's carry on instead of erroring out
 		}
 	} else {
-		err = keycloak.updateWITUser(ctx, request, identity, witURL, identity.ID.String())
+		err = keycloak.updateWITUser(ctx, identity, witURL, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"identity_id": identity.ID,
@@ -406,7 +406,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	return &redirectTo, userToken, nil
 }
 
-func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeytcloakUserRequest, config Configuration, identity *account.Identity) error {
+func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeycloakUserRequest, config Configuration, identity *account.Identity) error {
 	tokenEndpoint, err := config.GetKeycloakEndpointToken(request)
 	if err != nil {
 		return autherrors.NewInternalError(ctx, err)
@@ -745,7 +745,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	return identity, newIdentityCreated, err
 }
 
-func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, request *goa.RequestData, identity *account.Identity, witURL string, identityID string) error {
+func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, identity *account.Identity, witURL string, identityID string) error {
 	updateUserPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
@@ -759,7 +759,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, reques
 			},
 		},
 	}
-	return keycloak.RemoteWITService.UpdateWITUser(ctx, request, updateUserPayload, witURL, identityID)
+	return keycloak.RemoteWITService.UpdateWITUser(ctx, updateUserPayload, witURL, identityID)
 }
 
 func generateGravatarURL(email string) (string, error) {

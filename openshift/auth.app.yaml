@@ -27,7 +27,7 @@ objects:
           service: auth
       spec:
         containers:
-        - image: prod.registry.devshift.net/osio-prod/fabric8-services/fabric8-auth:${IMAGE_TAG}
+        - image: ${IMAGE}:${IMAGE_TAG}
           env:
           - name: AUTH_POSTGRES_HOST
             valueFrom:
@@ -238,6 +238,8 @@ objects:
     type: ClusterIP
     sessionAffinity: null
 parameters:
+- name: IMAGE
+  value: quay.io/openshiftio/rhel-fabric8-services-fabric8-auth
 - name: IMAGE_TAG
   value: latest
 - description: Number of deployment replicas

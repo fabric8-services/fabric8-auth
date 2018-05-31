@@ -28,6 +28,6 @@ func TestBadParameterError_Error(t *testing.T) {
 func TestNotFoundError_Error(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
-	e := NotFoundError{entity: "foo", ID: "bar"}
-	assert.Equal(t, fmt.Sprintf(stNotFoundErrorMsg, e.entity, e.ID), e.Error())
+	e := NotFoundError{entity: "foo", key: "id", value: "bar"}
+	assert.Equal(t, fmt.Sprintf(stNotFoundErrorMsg, e.entity, e.key, e.value), e.Error())
 }

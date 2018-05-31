@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"golang.org/x/oauth2"
-	"net/http"
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -61,6 +60,20 @@ func fillClaimsWithIdentity(ident account.Identity) *jwt.Token {
 	return token
 }
 
+// WithIncompleteIdentity fills the context with token
+// Token is filled using input Identity object but without the sub claim
+func WithIncompleteIdentity(ctx context.Context, ident account.Identity) context.Context {
+	token := fillIncompleteClaimsWithIdentity(ident)
+	return goajwt.WithJWT(ctx, token)
+}
+
+func fillIncompleteClaimsWithIdentity(ident account.Identity) *jwt.Token {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Claims.(jwt.MapClaims)["imageURL"] = ident.User.ImageURL
+	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
+	return token
+}
+
 func service(serviceName string, key interface{}, u account.Identity, authz *token.AuthorizationPayload) *goa.Service {
 	svc := goa.New(serviceName)
 	if authz == nil {
@@ -76,6 +89,13 @@ func service(serviceName string, key interface{}, u account.Identity, authz *tok
 func ServiceAsUser(serviceName string, u account.Identity) *goa.Service {
 	svc := service(serviceName, nil, u, nil)
 	svc.Context = tokencontext.ContextWithSpaceAuthzService(svc.Context, &authz.KeycloakAuthzServiceManager{Service: &dummySpaceAuthzService{}})
+	return svc
+}
+
+// ServiceAsUserWithIncompleteClaims creates a new service and fill the context with input Identity
+func ServiceAsUserWithIncompleteClaims(serviceName string, u account.Identity) *goa.Service {
+	svc := service(serviceName, nil, u, nil)
+	svc.Context = WithIncompleteIdentity(svc.Context, u)
 	return svc
 }
 
@@ -105,13 +125,10 @@ func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Se
 // WithServiceAccountAuthz fills the context with token
 // Token is filled using input Identity object and resource authorization information
 func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, ident account.Identity) context.Context {
-	r := &goa.RequestData{
-		Request: &http.Request{Host: "example.com"},
-	}
 	if ident.ID == uuid.Nil {
 		ident.ID = uuid.NewV4()
 	}
-	token := tokenManager.GenerateUnsignedServiceAccountToken(r, ident.ID.String(), ident.Username)
+	token := tokenManager.GenerateUnsignedServiceAccountToken(ident.ID.String(), ident.Username)
 	return goajwt.WithJWT(ctx, token)
 }
 
