@@ -16,6 +16,12 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// DefaultRoleMapping is used to define a rule for creating role mappings when registering new resources.  A role
+// mapping allows an identity with a certain role for the resource to automatically inherit the privileges of another
+// role for certain types of descendent resources.  For example, a default role mapping rule that maps from the
+// organization:admin role (FromRole) to the space:admin role (ToRole) for an organization (ResourceType) resource
+// means that any identities that are assigned the admin role for the newly created organization, also inherit the
+// admin role for any space resources that are under that organization.
 type DefaultRoleMapping struct {
 	gormsupport.Lifecycle
 
@@ -143,7 +149,8 @@ func (m *GormDefaultRoleMappingRepository) Save(ctx context.Context, model *Defa
 		}, "unable to update default role mapping")
 		return errs.WithStack(err)
 	}
-	err = m.db.Model(obj).Select("ResourceTypeID", "FromRoleID", "ToRoleID").Updates(model).Error
+	// Select("ResourceTypeID", "FromRoleID", "ToRoleID").Updates(model)
+	err = m.db.Model(obj).Save(model).Error
 	if err != nil {
 		return errs.WithStack(err)
 	}
@@ -172,14 +179,18 @@ func (m *GormDefaultRoleMappingRepository) Delete(ctx context.Context, id uuid.U
 
 	obj := DefaultRoleMapping{DefaultRoleMappingID: id}
 
-	err := m.db.Delete(&obj).Error
+	result := m.db.Delete(&obj)
 
-	if err != nil {
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"default_role_mapping_id": id,
-			"err": err,
+			"err": result.Error,
 		}, "unable to delete the default role mapping")
-		return errs.WithStack(err)
+		return errs.WithStack(result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.NewNotFoundError("default_role_mapping", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{

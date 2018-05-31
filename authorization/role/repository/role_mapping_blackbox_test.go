@@ -146,6 +146,11 @@ func (s *roleMappingBlackBoxTest) TestFindForResource() {
 
 	m := g.CreateRoleMapping(g.CreateResource(g.ID("r")))
 
+	// make some noise!!
+	for i := 0; i < 10; i++ {
+		g.CreateRoleMapping()
+	}
+
 	mappings, err := s.repo.FindForResource(s.Ctx, g.ResourceByID("r").Resource().ResourceID)
 	require.NoError(s.T(), err)
 

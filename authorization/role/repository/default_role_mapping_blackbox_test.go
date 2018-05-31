@@ -4,8 +4,9 @@ import (
 	"testing"
 
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/stretchr/testify/assert"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -48,7 +49,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToDelete() {
 	require.NoError(s.T(), err)
 
 	mappings, err := s.repo.List(s.Ctx)
-	require.Nil(s.T(), err, "Could not list role mappings")
+	require.NoError(s.T(), err)
 
 	found1 := false
 	found2 := false
@@ -65,7 +66,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToDelete() {
 	require.True(s.T(), found2, "second default role mapping not found")
 
 	err = s.repo.Delete(s.Ctx, rm.DefaultRoleMappingID)
-	assert.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 
 	mappings, err = s.repo.List(s.Ctx)
 	require.Nil(s.T(), err, "Could not list role mappings")
@@ -77,20 +78,35 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToDelete() {
 	}
 }
 
+func (s *defaultRoleMappingBlackBoxTest) TestDeleteFailsForNonexistent() {
+	err := s.repo.Delete(s.Ctx, uuid.NewV4())
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+	require.Error(s.T(), err)
+}
+
 func (s *defaultRoleMappingBlackBoxTest) TestOKToLoad() {
 	g := s.NewTestGraph()
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
-		FromRoleID:     g.CreateRole(rt).Role().RoleID,
-		ToRoleID:       g.CreateRole().Role().RoleID,
+		FromRoleID:     g.CreateRole(g.ID("from"), rt).Role().RoleID,
+		ToRoleID:       g.CreateRole(g.ID("to")).Role().RoleID,
 	}
 
 	err := s.repo.Create(s.Ctx, rm)
 	require.NoError(s.T(), err)
 
-	_, err = s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
+	mapping, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
 	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), rt.ResourceType().ResourceTypeID, mapping.ResourceTypeID)
+	require.Equal(s.T(), g.RoleByID("from").Role().RoleID, mapping.FromRoleID)
+	require.Equal(s.T(), g.RoleByID("to").Role().RoleID, mapping.ToRoleID)
+}
+
+func (s *defaultRoleMappingBlackBoxTest) TestLoadFailsForNonexistent() {
+	_, err := s.repo.Load(s.Ctx, uuid.NewV4())
+	require.Error(s.T(), err)
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestExistsDefaultRoleMapping() {
@@ -129,7 +145,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
 	require.NoError(s.T(), err)
 
 	updated, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
-	require.Nil(s.T(), err, "could not load default role mapping")
+	require.NoError(s.T(), err)
 	require.Equal(s.T(), rm.ResourceTypeID, updated.ResourceTypeID)
 	require.Equal(s.T(), otherRole.Role().RoleID, updated.ToRoleID)
 }
@@ -138,7 +154,11 @@ func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {
 	g := s.NewTestGraph()
 	rt := g.CreateResourceType()
 	rm := g.CreateDefaultRoleMapping(rt)
-	g.CreateDefaultRoleMapping()
+
+	// make some noise!!
+	for i := 0; i < 10; i++ {
+		g.CreateDefaultRoleMapping()
+	}
 
 	mappings, err := s.repo.FindForResourceType(s.Ctx, rt.ResourceType().ResourceTypeID)
 	require.NoError(s.T(), err)

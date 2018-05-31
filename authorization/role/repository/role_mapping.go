@@ -16,6 +16,11 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// RoleMapping is used to define a role mapping, allowing an identity with a certain role for the resource to
+// automatically inherit the privileges of another role for certain types of descendent resources.
+// For example, a role mapping for an organization resource that maps from the organization:admin role (FromRole)
+// to the space:admin role (ToRole) means that any identities that are assigned the admin role for the organization
+// also inherit the admin role for any space resources that are under that organization.
 type RoleMapping struct {
 	gormsupport.Lifecycle
 
