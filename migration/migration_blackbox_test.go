@@ -16,7 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 	errs "github.com/pkg/errors"
@@ -224,19 +223,6 @@ func testMigration21(t *testing.T) {
 		err = rows.Scan(&resourceTypeName)
 		require.Equal(t, authorization.IdentityResourceTypeOrganization, resourceTypeName)
 	}
-
-	rows, err = sqlDB.Query("SELECT r.name FROM role r, resource_type rt WHERE r.resource_type_id = rt.resource_type_id and r.name = $1 and rt.name = $2",
-		controller.OrganizationOwnerRole, authorization.IdentityResourceTypeOrganization)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var roleName string
-		err = rows.Scan(&roleName)
-		require.NoError(t, err)
-		require.Equal(t, controller.OrganizationOwnerRole, roleName)
-	}
 }
 
 func testMigration22(t *testing.T) {
@@ -429,11 +415,6 @@ func testMigration30(t *testing.T) {
 	var teamResourceTypeID string
 	err := sqlDB.QueryRow("SELECT resource_type_id FROM resource_type WHERE name = 'identity/team'").Scan(&teamResourceTypeID)
 	require.NoError(t, err)
-
-	var roleName string
-	err = sqlDB.QueryRow("SELECT name FROM role WHERE role_id = $1 AND resource_type_id = $2", "4e03c5df-d3f6-4665-9ffa-4bef05355744", teamResourceTypeID).Scan(&roleName)
-	require.NoError(t, err)
-	require.Equal(t, authorization.AdminRole, roleName)
 
 	var scopeName string
 	err = sqlDB.QueryRow("SELECT name FROM resource_type_scope WHERE resource_type_scope_id = $1 AND resource_type_id = $2", "45cc3446-6afe-4758-82bb-41141e1783ce", teamResourceTypeID).Scan(&scopeName)

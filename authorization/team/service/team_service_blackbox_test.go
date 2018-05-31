@@ -3,7 +3,6 @@ package service_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/satori/go.uuid"
@@ -193,8 +192,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 
 	// Add members to the teams we just created, then use it to add a member and an admin
 	g.LoadTeam(teamID).
-		AddMember(g.CreateUser(g.ID("mbr1"))).
-		AddAdmin(g.CreateUser(g.ID("adm1")))
+		AddMember(g.CreateUser(g.ID("mbr1")))
 
 	teams, err := s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("mbr1").Identity().ID)
 	require.NoError(s.T(), err)
@@ -203,14 +201,6 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	require.Equal(s.T(), g.SpaceByID("spc").Resource().ResourceID, *teams[0].ParentResourceID)
 	require.True(s.T(), teams[0].Member)
 	require.Len(s.T(), teams[0].Roles, 0)
-
-	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("adm1").Identity().ID)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), teams, 1)
-	require.Equal(s.T(), *teamID, *teams[0].IdentityID)
-	require.False(s.T(), teams[0].Member)
-	require.Len(s.T(), teams[0].Roles, 1)
-	require.Equal(s.T(), authorization.AdminRole, teams[0].Roles[0])
 
 	g.LoadTeam(teamID2).AddMember(g.UserByID("mbr1"))
 	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("mbr1").Identity().ID)
@@ -233,27 +223,26 @@ func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
 	require.True(s.T(), t1Found)
 	require.True(s.T(), t2Found)
 
-	// Add the adm1 user as an admin for team 3, and as a member for team 4
-	g.LoadTeam(teamID3).AddAdmin(g.UserByID("adm1"))
-	g.LoadTeam(teamID4).AddMember(g.UserByID("adm1"))
+	// Add the adm1 user as a member for team 3, and as a member for team 4
+	g.LoadTeam(teamID3).AddMember(g.UserByID("mbr1"))
+	g.LoadTeam(teamID4).AddMember(g.UserByID("mbr1"))
 
-	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("adm1").Identity().ID)
+	teams, err = s.Application.TeamService().ListTeamsForIdentity(s.Ctx, g.UserByID("mbr1").Identity().ID)
 	require.NoError(s.T(), err)
-	require.Len(s.T(), teams, 3)
+	require.Len(s.T(), teams, 4)
 	t1Found = false
 	t3Found := false
 	t4Found := false
 	for i := range teams {
 		if *teams[i].IdentityID == *teamID {
 			t1Found = true
-			require.False(s.T(), teams[i].Member)
+			require.True(s.T(), teams[i].Member)
 			require.Equal(s.T(), g.SpaceByID("spc").SpaceID(), *teams[i].ParentResourceID)
 		} else if *teams[i].IdentityID == *teamID3 {
 			t3Found = true
-			require.False(s.T(), teams[i].Member)
+			require.True(s.T(), teams[i].Member)
 			require.Equal(s.T(), teamName3, teams[i].ResourceName)
-			require.Len(s.T(), teams[i].Roles, 1)
-			require.Equal(s.T(), authorization.AdminRole, teams[i].Roles[0])
+			require.Len(s.T(), teams[i].Roles, 0)
 			require.Equal(s.T(), g.SpaceByID("spc").SpaceID(), *teams[i].ParentResourceID)
 		} else if *teams[i].IdentityID == *teamID4 {
 			t4Found = true

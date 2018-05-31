@@ -104,8 +104,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 	scope, err := test.CreateTestScope(s.Ctx, s.DB, *resourceType, authorization.ManageMembersScope)
 	require.NoError(s.T(), err)
 
-	// Create an owner role for the resource type
-	role, err := test.CreateTestRole(s.Ctx, s.DB, *resourceType, authorization.OwnerRole)
+	// Create an admin role for the resource type
+	role, err := test.CreateTestRole(s.Ctx, s.DB, *resourceType, "admin")
 	require.NoError(s.T(), err)
 
 	// Assign the scope to our role
@@ -124,7 +124,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 	invitations := []invitation.Invitation{
 		{
 			IdentityID: &otherIdentity.ID,
-			Roles:      []string{authorization.OwnerRole},
+			Roles:      []string{"admin"},
 		},
 	}
 
@@ -147,7 +147,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 
 	// There should be 1 role only
 	require.Equal(s.T(), 1, len(roles))
-	require.Equal(s.T(), authorization.OwnerRole, roles[0].Name)
+	require.Equal(s.T(), "admin", roles[0].Name)
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueMemberInvitationFailsForResource() {
@@ -167,8 +167,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueMemberInvitationFailsForResourc
 	scope, err := test.CreateTestScope(s.Ctx, s.DB, *resourceType, authorization.ManageMembersScope)
 	require.NoError(s.T(), err)
 
-	// Create an owner role for the resource type
-	role, err := test.CreateTestRole(s.Ctx, s.DB, *resourceType, authorization.OwnerRole)
+	// Create an admin role for the resource type
+	role, err := test.CreateTestRole(s.Ctx, s.DB, *resourceType, "admin")
 	require.NoError(s.T(), err)
 
 	// Assign the scope to our role
@@ -209,8 +209,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueUnprivilegedInvitationFailsForR
 	resourceType, err := test.CreateTestResourceType(s.Ctx, s.DB, "invitation.test/foo")
 	require.NoError(s.T(), err)
 
-	// Create an owner role for the resource type
-	_, err = test.CreateTestRole(s.Ctx, s.DB, *resourceType, authorization.OwnerRole)
+	// Create an admin role for the resource type
+	_, err = test.CreateTestRole(s.Ctx, s.DB, *resourceType, "admin")
 	require.NoError(s.T(), err)
 
 	// Create a resource
@@ -221,7 +221,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueUnprivilegedInvitationFailsForR
 	invitations := []invitation.Invitation{
 		{
 			IdentityID: &otherIdentity.ID,
-			Roles:      []string{authorization.OwnerRole},
+			Roles:      []string{"admin"},
 		},
 	}
 
@@ -405,12 +405,12 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 	otherIdentity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestRoleUser")
 	require.Nil(s.T(), err, "Could not create other identity")
 
-	ownerRole := "owner"
+	adminRole := "admin"
 
 	invitations := []invitation.Invitation{
 		{
 			IdentityID: &otherIdentity.ID,
-			Roles:      []string{ownerRole},
+			Roles:      []string{adminRole},
 			Member:     false,
 		},
 	}
@@ -428,5 +428,5 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 	require.NoError(s.T(), err, "could not list roles")
 
 	require.Equal(s.T(), 1, len(roles))
-	require.Equal(s.T(), "owner", roles[0].Name)
+	require.Equal(s.T(), "admin", roles[0].Name)
 }

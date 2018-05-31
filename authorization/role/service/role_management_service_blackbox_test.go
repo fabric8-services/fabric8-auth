@@ -239,7 +239,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 	allUsersToBeAssigned = append(allUsersToBeAssigned, userToBeAssigned.Identity().ID)
 
 	roleAssignments := make(map[string][]uuid.UUID)
-	roleAssignments[authorization.AdminRole] = usersToBeAssignedAsAdmin
+	roleAssignments[authorization.SpaceAdminRole] = usersToBeAssignedAsAdmin
 	roleAssignments[authorization.SpaceContributorRole] = usersToBeAssignedAsContributor
 
 	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), appendToExistingRoles)
@@ -249,7 +249,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 
 	// Check the new Admin roles were assigned
 	usersToBeAssertedPlusAdmin := append(usersToBeAssignedAsAdmin, adminUser.Identity().ID)
-	s.checkRoleAssignments(usersToBeAssertedPlusAdmin, authorization.AdminRole, newSpace.SpaceID())
+	s.checkRoleAssignments(usersToBeAssertedPlusAdmin, authorization.SpaceAdminRole, newSpace.SpaceID())
 
 	// Check the new Contributor roles were assigned
 	s.checkRoleAssignments(usersToBeAssignedAsContributor, authorization.SpaceContributorRole, newSpace.SpaceID())
@@ -293,7 +293,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithLackOfPermissionsF
 	newSpace.AddViewer(userToBeAssigned)
 
 	roleAssignments := make(map[string][]uuid.UUID)
-	roleAssignments[authorization.AdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
+	roleAssignments[authorization.SpaceAdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
 
 	err := s.repo.Assign(context.Background(), viewer.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", viewer.Identity().ID.String(), newSpace.SpaceID())
@@ -307,7 +307,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
 	roleAssignments := make(map[string][]uuid.UUID)
 	userToBeAssigned := g.CreateUser()
 	newSpace.AddContributor(userToBeAssigned).AddAdmin(userToBeAssigned)
-	roleAssignments[authorization.AdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
+	roleAssignments[authorization.SpaceAdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
 
 	// lets try to add the same role again
 	err := s.repo.Assign(context.Background(), spaceAdmin.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
@@ -344,7 +344,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound()
 	newSpace := g.CreateSpace().AddAdmin(adminUser)
 	userToBeAdded := []uuid.UUID{uuid.NewV4()}
 	roleAssignments := make(map[string][]uuid.UUID)
-	roleAssignments[authorization.AdminRole] = userToBeAdded
+	roleAssignments[authorization.SpaceAdminRole] = userToBeAdded
 
 	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	require.IsType(s.T(), errors.BadParameterError{}, errs.Cause(err))

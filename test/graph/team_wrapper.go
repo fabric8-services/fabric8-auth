@@ -113,8 +113,3 @@ func (w *teamWrapper) addUserRole(identityID uuid.UUID, roleName string) *teamWr
 	require.NoError(w.graph.t, err)
 	return w
 }
-
-// AddAdmin assigns the admin role to a user for the team
-func (w *teamWrapper) AddAdmin(wrapper interface{}) *teamWrapper {
-	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.AdminRole)
-}
