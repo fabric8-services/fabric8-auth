@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/satori/go.uuid"
 )
 
@@ -105,7 +106,32 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 		}
 
 		// Persist the resource
-		return s.Repositories().ResourceRepository().Create(ctx, res)
+		err = s.Repositories().ResourceRepository().Create(ctx, res)
+		if err != nil {
+			return err
+		}
+
+		// Search for any default role mappings for the resource type
+		defaultRoleMappings, err := s.Repositories().DefaultRoleMappingRepository().FindForResourceType(ctx, resourceType.ResourceTypeID)
+		if err != nil {
+			return err
+		}
+
+		// For each default role mapping for the same resource type, create a role mapping for the resource
+		for _, m := range defaultRoleMappings {
+			roleMapping := &repository.RoleMapping{
+				ResourceID: rID,
+				FromRoleID: m.FromRoleID,
+				ToRoleID:   m.ToRoleID,
+			}
+
+			err = s.Repositories().RoleMappingRepository().Create(ctx, roleMapping)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	})
 
 	return res, err

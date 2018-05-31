@@ -25,4 +25,6 @@ type Repositories interface {
 	ResourceTypeScopeRepository() resourcetype.ResourceTypeScopeRepository
 	IdentityRoleRepository() role.IdentityRoleRepository
 	RoleRepository() role.RoleRepository
+	DefaultRoleMappingRepository() role.DefaultRoleMappingRepository
+	RoleMappingRepository() role.RoleMappingRepository
 }

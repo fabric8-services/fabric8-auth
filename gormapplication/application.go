@@ -130,6 +130,14 @@ func (g *GormBase) IdentityRoleRepository() role.IdentityRoleRepository {
 	return role.NewIdentityRoleRepository(g.db)
 }
 
+func (g *GormBase) DefaultRoleMappingRepository() role.DefaultRoleMappingRepository {
+	return role.NewDefaultRoleMappingRepository(g.db)
+}
+
+func (g *GormBase) RoleMappingRepository() role.RoleMappingRepository {
+	return role.NewRoleMappingRepository(g.db)
+}
+
 func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
 }
