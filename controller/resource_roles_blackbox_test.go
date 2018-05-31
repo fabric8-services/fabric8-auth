@@ -314,7 +314,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRole
 
 	var identitiesToBeAssigned []*app.AssignRoleData
 	for i := 0; i <= 2; i++ {
-		testUser := g.CreateUser(g.ID("someusername"))
+		testUser := g.CreateUser()
 		res.AddViewer(testUser)
 		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: []string{testUser.Identity().ID.String()}})
 	}

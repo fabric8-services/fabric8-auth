@@ -46,7 +46,11 @@ func NewTestGraph(t *testing.T, app application.Application, ctx context.Context
 
 // register registers a new wrapper object with the test graph's internal list of objects
 func (g *TestGraph) register(id string, wrapper interface{}) {
-	g.graphObjects[id] = wrapper
+	if _, found := g.graphObjects[id]; found {
+		require.True(g.t, false, "object identifier '%s' already registered", id)
+	} else {
+		g.graphObjects[id] = wrapper
+	}
 }
 
 func (g *TestGraph) generateIdentifier(params []interface{}) string {
@@ -108,11 +112,10 @@ func (g *TestGraph) LoadResourceType(params ...interface{}) *resourceTypeWrapper
 			resourceTypeName = &t
 		case *string:
 			resourceTypeName = t
-
 		}
 	}
 
-	require.True(g.t, resourceTypeID != nil || resourceTypeName != nil, "must specified either rresource_type_id or name parameter for the resource type to load")
+	require.True(g.t, resourceTypeID != nil || resourceTypeName != nil, "must specified either resource_type_id or name parameter for the resource type to load")
 
 	w := loadResourceTypeWrapper(g, resourceTypeID, resourceTypeName)
 	g.register(g.generateIdentifier(params), &w)
@@ -177,4 +180,34 @@ func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
 	w := loadIdentityWrapper(g, *identityID)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
+}
+
+func (g *TestGraph) CreateRole(params ...interface{}) *roleWrapper {
+	obj := newRoleWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) RoleByID(id string) *roleWrapper {
+	return g.graphObjects[id].(*roleWrapper)
+}
+
+func (g *TestGraph) CreateDefaultRoleMapping(params ...interface{}) *defaultRoleMappingWrapper {
+	obj := newDefaultRoleMappingWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) DefaultRoleMappingByID(id string) *defaultRoleMappingWrapper {
+	return g.graphObjects[id].(*defaultRoleMappingWrapper)
+}
+
+func (g *TestGraph) CreateRoleMapping(params ...interface{}) *roleMappingWrapper {
+	obj := newRoleMappingWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) RoleMappingByID(id string) *roleMappingWrapper {
+	return g.graphObjects[id].(*roleMappingWrapper)
 }

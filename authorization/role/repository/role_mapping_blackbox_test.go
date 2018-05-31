@@ -140,3 +140,21 @@ func (s *roleMappingBlackBoxTest) TestOKToSave() {
 	require.Nil(s.T(), err, "Could not load role mapping")
 	require.Equal(s.T(), rm1.ResourceID, updatedRm.ResourceID)
 }
+
+func (s *roleMappingBlackBoxTest) TestFindForResource() {
+	g := s.NewTestGraph()
+
+	m := g.CreateRoleMapping(g.CreateResource(g.ID("r")))
+
+	// make some noise!!
+	for i := 0; i < 10; i++ {
+		g.CreateRoleMapping()
+	}
+
+	mappings, err := s.repo.FindForResource(s.Ctx, g.ResourceByID("r").Resource().ResourceID)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), mappings, 1)
+	require.Equal(s.T(), m.RoleMapping().FromRoleID, mappings[0].FromRoleID)
+	require.Equal(s.T(), m.RoleMapping().ToRoleID, mappings[0].ToRoleID)
+}
