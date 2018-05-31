@@ -6,6 +6,8 @@ import (
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
+
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -69,7 +71,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToDelete() {
 	require.NoError(s.T(), err)
 
 	mappings, err = s.repo.List(s.Ctx)
-	require.Nil(s.T(), err, "Could not list role mappings")
+	require.NoError(s.T(), err, "Could not list role mappings")
 
 	for _, data := range mappings {
 		// The default role mapping rm was deleted while rm2 was not deleted, hence we check
@@ -79,9 +81,9 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestDeleteFailsForNonexistent() {
-	err := s.repo.Delete(s.Ctx, uuid.NewV4())
-	require.IsType(s.T(), errors.NotFoundError{}, err)
-	require.Error(s.T(), err)
+	id := uuid.NewV4()
+	err := s.repo.Delete(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "default_role_mapping with id '%s' not found", id.String())
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToLoad() {
@@ -105,8 +107,9 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToLoad() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestLoadFailsForNonexistent() {
-	_, err := s.repo.Load(s.Ctx, uuid.NewV4())
-	require.Error(s.T(), err)
+	id := uuid.NewV4()
+	_, err := s.repo.Load(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "default_role_mapping with id '%s' not found", id.String())
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestExistsDefaultRoleMapping() {
@@ -121,8 +124,14 @@ func (s *defaultRoleMappingBlackBoxTest) TestExistsDefaultRoleMapping() {
 	err := s.repo.Create(s.Ctx, rm)
 	require.NoError(s.T(), err)
 
-	_, err = s.repo.CheckExists(s.Ctx, rm.DefaultRoleMappingID)
+	err = s.repo.CheckExists(s.Ctx, rm.DefaultRoleMappingID)
 	require.NoError(s.T(), err)
+}
+
+func (s *defaultRoleMappingBlackBoxTest) TestExistsUnknownDefaultRoleMappingFails() {
+	id := uuid.NewV4()
+	err := s.repo.CheckExists(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "default_role_mapping with id '%s' not found", id.String())
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {

@@ -2,9 +2,9 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/application/repository/base"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
@@ -62,7 +62,7 @@ func NewDefaultRoleMappingRepository(db *gorm.DB) DefaultRoleMappingRepository {
 
 // DefaultRoleMappingRepository represents the storage interface.
 type DefaultRoleMappingRepository interface {
-	CheckExists(ctx context.Context, ID uuid.UUID) (bool, error)
+	CheckExists(ctx context.Context, ID uuid.UUID) error
 	Load(ctx context.Context, ID uuid.UUID) (*DefaultRoleMapping, error)
 	Create(ctx context.Context, u *DefaultRoleMapping) error
 	Save(ctx context.Context, u *DefaultRoleMapping) error
@@ -78,26 +78,9 @@ func (m *GormDefaultRoleMappingRepository) TableName() string {
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormDefaultRoleMappingRepository) CheckExists(ctx context.Context, ID uuid.UUID) (bool, error) {
+func (m *GormDefaultRoleMappingRepository) CheckExists(ctx context.Context, id uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "default_role_mapping", "exists"}, time.Now())
-
-	var exists bool
-	query := fmt.Sprintf(`
-		SELECT EXISTS (
-			SELECT 1 FROM %[1]s
-			WHERE
-				default_role_mapping_id=$1
-				AND deleted_at IS NULL
-		)`, m.TableName())
-
-	err := m.db.CommonDB().QueryRow(query, ID.String()).Scan(&exists)
-	if err == nil && !exists {
-		return exists, errors.NewNotFoundError(m.TableName(), ID.String())
-	}
-	if err != nil {
-		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
-	}
-	return exists, nil
+	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "default_role_mapping_id", id.String())
 }
 
 // CRUD Functions
@@ -141,24 +124,14 @@ func (m *GormDefaultRoleMappingRepository) Create(ctx context.Context, u *Defaul
 func (m *GormDefaultRoleMappingRepository) Save(ctx context.Context, model *DefaultRoleMapping) error {
 	defer goa.MeasureSince([]string{"goa", "db", "default_role_mapping", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, model.DefaultRoleMappingID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
+	err := m.db.Save(model).Error
+	if err == nil {
+		log.Debug(ctx, map[string]interface{}{
 			"default_role_mapping_id": model.DefaultRoleMappingID,
-			"err": err,
-		}, "unable to update default role mapping")
-		return errs.WithStack(err)
-	}
-	// Select("ResourceTypeID", "FromRoleID", "ToRoleID").Updates(model)
-	err = m.db.Model(obj).Save(model).Error
-	if err != nil {
-		return errs.WithStack(err)
+		}, "default role mapping saved")
 	}
 
-	log.Debug(ctx, map[string]interface{}{
-		"default_role_mapping_id": model.DefaultRoleMappingID,
-	}, "Default role mapping saved!")
-	return nil
+	return errs.WithStack(err)
 }
 
 // List returns all default role mappings
