@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -12,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -348,6 +349,51 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound()
 
 	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	require.IsType(s.T(), errors.BadParameterError{}, errs.Cause(err))
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminOK() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace()
+	spaceCreator := g.CreateUser()
+	s.addNoisyAssignments()
+
+	err := s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, authorization.AdminRole, *newSpace.Resource())
+	require.NoError(s.T(), err)
+
+	// Check the role was assigned
+	s.checkRoleAssignments([]uuid.UUID{spaceCreator.Identity().ID}, authorization.AdminRole, newSpace.SpaceID())
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignUnknownRoleAsAdminFails() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace()
+	spaceCreator := g.CreateUser()
+
+	err := s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, "unknownRole", *newSpace.Resource())
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role with name 'unknownRole' not found")
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminToUnknownIdentityFails() {
+	g := s.DBTestSuite.NewTestGraph()
+	newSpace := g.CreateSpace()
+	id := uuid.NewV4()
+
+	err := s.repo.AssignAsAdmin(context.Background(), id, authorization.AdminRole, *newSpace.Resource())
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity with id '%s' not found", id)
+}
+
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminForUnknownResourceFails() {
+	g := s.DBTestSuite.NewTestGraph()
+	spaceCreator := g.CreateUser()
+	id := uuid.NewV4().String()
+
+	// Should fail because of there is no "admin" role for an unknown resource type
+	err := s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, authorization.AdminRole, resource.Resource{})
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role with name 'admin' not found")
+
+	// Should fail because of unknown resource ID
+	err = s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, authorization.AdminRole, resource.Resource{ResourceID: id, ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace}})
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
 func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {

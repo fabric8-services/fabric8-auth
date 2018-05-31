@@ -8,6 +8,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
@@ -41,7 +42,7 @@ func (rest *TestSpaceREST) SetupTest() {
 	rest.resourceService = rest.Application.ResourceService()
 }
 
-func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController) {
+func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController, account.Identity) {
 	identity, err := testsupport.CreateTestIdentityAndUser(rest.DB, uuid.NewV4().String(), "KC")
 	require.NoError(rest.T(), err)
 
@@ -50,7 +51,7 @@ func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController) 
 		ResourceID:   &rest.resourceID,
 		PermissionID: &rest.permissionID,
 		PolicyID:     &rest.policyID,
-	})
+	}), identity
 }
 
 func (rest *TestSpaceREST) SecuredControllerForIdentity(identity account.Identity) (*goa.Service, *SpaceController) {
@@ -94,7 +95,7 @@ func (rest *TestSpaceREST) TestCreateSpaceUnauthorizedDeprovisionedUser() {
 }
 
 func (rest *TestSpaceREST) TestCreateSpaceOK() {
-	svc, ctrl := rest.SecuredController()
+	svc, ctrl, creator := rest.SecuredController()
 	spaceID := uuid.NewV4()
 
 	_, created := test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, spaceID)
@@ -104,8 +105,17 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 	assert.Equal(rest.T(), rest.policyID, created.Data.PolicyID)
 
 	// Check if the corresponding authZ resource has been created
-	_, err := rest.resourceService.Read(context.Background(), spaceID.String())
+	resource, err := rest.resourceService.Read(context.Background(), spaceID.String())
 	require.NoError(rest.T(), err)
+	assert.Equal(rest.T(), spaceID.String(), *resource.ResourceID)
+	assert.Equal(rest.T(), authorization.ResourceTypeSpace, *resource.Type)
+
+	// Check the admin role has been assigned to the space creator
+	assignedRoles, err := rest.Application.RoleManagementService().ListByResource(context.Background(), spaceID.String())
+	require.NoError(rest.T(), err)
+	require.Len(rest.T(), assignedRoles, 1)
+	assert.Equal(rest.T(), creator.ID, assignedRoles[0].Identity.ID)
+	assert.Equal(rest.T(), authorization.AdminRole, assignedRoles[0].Role.Name)
 }
 
 func (rest *TestSpaceREST) TestFailDeleteSpaceUnauthorized() {
@@ -125,7 +135,7 @@ func (rest *TestSpaceREST) TestDeleteSpaceUnauthorizedDeprovisionedUser() {
 func (rest *TestSpaceREST) TestDeleteSpaceOK() {
 
 	// Create a space
-	svc, ctrl := rest.SecuredController()
+	svc, ctrl, _ := rest.SecuredController()
 	id := uuid.NewV4()
 	test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
 
@@ -145,7 +155,7 @@ func (rest *TestSpaceREST) TestDeleteSpaceOK() {
 func (rest *TestSpaceREST) TestDeleteOldSpaceOK() {
 
 	// Create a space
-	svc, ctrl := rest.SecuredController()
+	svc, ctrl, _ := rest.SecuredController()
 	id := uuid.NewV4()
 	test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
 
@@ -160,8 +170,8 @@ func (rest *TestSpaceREST) TestDeleteOldSpaceOK() {
 
 func (rest *TestSpaceREST) TestDeleteSpaceIfUserIsNotSpaceOwnerForbidden() {
 	// Create a space
-	svcOwner, ctrlOwner := rest.SecuredController()
-	svcNotOwner, ctrlNotOwner := rest.SecuredController()
+	svcOwner, ctrlOwner, _ := rest.SecuredController()
+	svcNotOwner, ctrlNotOwner, _ := rest.SecuredController()
 	id := uuid.NewV4()
 	test.CreateSpaceOK(rest.T(), svcOwner.Context, svcOwner, ctrlOwner, id)
 

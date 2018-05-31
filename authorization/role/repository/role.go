@@ -212,7 +212,7 @@ func (m *GormRoleRepository) Lookup(ctx context.Context, name string, resourceTy
 		"left join resource_type on resource_type.resource_type_id = role.resource_type_id").Preload(
 		"ResourceType").Where("role.name = ? and resource_type.name = ?", name, resourceType).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errors.NewNotFoundError("role", name)
+		return nil, errors.NewNotFoundErrorWithKey("role", "name", name)
 	}
 	return &native, errs.WithStack(err)
 }

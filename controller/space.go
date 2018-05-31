@@ -170,8 +170,6 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 		}
 	}
 
-	// TODO Clean up Identity-role's assigned to this resource/space?
-
 	return ctx.OK([]byte{})
 }
 
