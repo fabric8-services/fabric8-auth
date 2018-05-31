@@ -35,8 +35,8 @@ func (s *resourceBlackBoxTest) SetupTest() {
 }
 
 func (s *resourceBlackBoxTest) TestOKToDelete() {
-	resource := createAndLoadResource(s)
-	createAndLoadResource(s)
+	resource := createAndLoadResource(s, nil)
+	createAndLoadResource(s, nil)
 
 	loadedResource, err := s.repo.Load(s.Ctx, resource.ResourceID)
 	require.NotNil(s.T(), loadedResource, "Created resource should be loaded")
@@ -52,7 +52,32 @@ func (s *resourceBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *resourceBlackBoxTest) TestOKToLoad() {
-	createAndLoadResource(s)
+	createAndLoadResource(s, nil)
+}
+
+func (s *resourceBlackBoxTest) TestOKToLoadChildren() {
+	parent := createAndLoadResource(s, nil)
+
+	// No children
+	foundChildren, err := s.repo.LoadChildren(s.Ctx, parent.ResourceID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), foundChildren, 0)
+
+	// Create children
+	var children []string
+	for i := 0; i < 5; i++ {
+		children = append(children, createAndLoadResource(s, &parent.ResourceID).ResourceID)
+		// Create grandchild
+		createAndLoadResource(s, &children[i])
+	}
+
+	foundChildren, err = s.repo.LoadChildren(s.Ctx, parent.ResourceID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), foundChildren, 5)
+	for _, child := range foundChildren {
+		assert.Contains(s.T(), children, child.ResourceID)
+		assert.Equal(s.T(), parent.ResourceType.Name, child.ResourceType.Name)
+	}
 }
 
 func (s *resourceBlackBoxTest) TestExistsResource() {
@@ -60,7 +85,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 
 	t.Run("resource exists", func(t *testing.T) {
 		//t.Parallel()
-		resource := createAndLoadResource(s)
+		resource := createAndLoadResource(s, nil)
 		// when
 		err := s.repo.CheckExists(s.Ctx, resource.ResourceID)
 		// then
@@ -77,7 +102,7 @@ func (s *resourceBlackBoxTest) TestExistsResource() {
 }
 
 func (s *resourceBlackBoxTest) TestOKToSave() {
-	resource := createAndLoadResource(s)
+	resource := createAndLoadResource(s, nil)
 
 	err := s.repo.Save(s.Ctx, resource)
 	require.Nil(s.T(), err, "Could not update resource")
@@ -119,13 +144,13 @@ func (s *resourceBlackBoxTest) TestCannotCreateDuplicateOrganizationNames() {
 	require.IsType(s.T(), errors.DataConflictError{}, err)
 }
 
-func createAndLoadResource(s *resourceBlackBoxTest) *resource.Resource {
+func createAndLoadResource(s *resourceBlackBoxTest, parentResourceID *string) *resource.Resource {
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
 	require.Nil(s.T(), err, "Could not find resource type")
 
 	resource := &resource.Resource{
 		ResourceID:       uuid.NewV4().String(),
-		ParentResourceID: nil,
+		ParentResourceID: parentResourceID,
 		ResourceType:     *resourceType,
 		ResourceTypeID:   resourceType.ResourceTypeID,
 	}

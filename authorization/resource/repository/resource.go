@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	repository "github.com/fabric8-services/fabric8-auth/application/repository/base"
+	"github.com/fabric8-services/fabric8-auth/application/repository/base"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
@@ -58,8 +58,9 @@ func NewResourceRepository(db *gorm.DB) ResourceRepository {
 
 // ResourceRepository represents the storage interface.
 type ResourceRepository interface {
-	repository.Exister
+	base.Exister
 	Load(ctx context.Context, id string) (*Resource, error)
+	LoadChildren(ctx context.Context, id string) ([]Resource, error)
 	Create(ctx context.Context, resource *Resource) error
 	Save(ctx context.Context, resource *Resource) error
 	Delete(ctx context.Context, id string) error
@@ -86,27 +87,22 @@ func (m *GormResourceRepository) Load(ctx context.Context, id string) (*Resource
 	return &native, errs.WithStack(err)
 }
 
+// LoadChildren returns direct children resources of the given resource or an empty array if no children found
+func (m *GormResourceRepository) LoadChildren(ctx context.Context, id string) ([]Resource, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "resource", "loadChildren"}, time.Now())
+
+	var rows []Resource
+	err := m.db.Model(&Resource{}).Preload("ResourceType").Where("parent_resource_id = ?", id).Find(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	return rows, nil
+}
+
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormResourceRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "resource", "exists"}, time.Now())
-
-	var exists bool
-	query := fmt.Sprintf(`
-		SELECT EXISTS (
-			SELECT 1 FROM %[1]s
-			WHERE
-				resource_id=$1
-				AND deleted_at IS NULL
-		)`, m.TableName())
-
-	err := m.db.CommonDB().QueryRow(query, id).Scan(&exists)
-	if err == nil && !exists {
-		return errors.NewNotFoundError(m.TableName(), id)
-	}
-	if err != nil {
-		return errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
-	}
-	return nil
+	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "resource_id", id)
 }
 
 // Create creates a new record.

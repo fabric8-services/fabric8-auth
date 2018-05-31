@@ -26,9 +26,26 @@ func NewResourceService(context *servicecontext.ServiceContext) service.Resource
 }
 
 // Delete deletes the resource with resourceID
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (s *resourceServiceImpl) Delete(ctx context.Context, resourceID string) error {
 
-	return s.Repositories().ResourceRepository().Delete(ctx, resourceID)
+	// TODO delete:
+	// Role Mapping
+	// Role Identities
+	// Child resources
+
+	err := s.ExecuteInTransaction(func() error {
+		//err := s.Repositories().RoleMappingRepository().Create(ctx, roleMapping)
+
+		err := s.Repositories().ResourceRepository().Delete(ctx, resourceID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 // Read reads resource
