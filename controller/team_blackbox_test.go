@@ -10,7 +10,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -105,7 +104,7 @@ func (rest *TestTeamREST) TestListTeamSuccess() {
 	service, controller := rest.SecuredController(rest.testIdentity)
 
 	g := rest.DBTestSuite.NewTestGraph()
-	g.CreateTeam(g.ID("t")).AddAdmin(g.LoadIdentity(&rest.testIdentity.ID))
+	g.CreateTeam(g.ID("t")).AddMember(g.LoadIdentity(&rest.testIdentity.ID))
 
 	_, teams := test.ListTeamOK(rest.T(), service.Context, service, controller)
 
@@ -115,8 +114,7 @@ func (rest *TestTeamREST) TestListTeamSuccess() {
 
 	require.Equal(rest.T(), g.TeamByID("t").TeamID().String(), team.ID)
 	require.Equal(rest.T(), g.TeamByID("t").TeamName(), team.Name)
-	require.Equal(rest.T(), 1, len(team.Roles))
-	require.Equal(rest.T(), authorization.AdminRole, team.Roles[0])
+	require.Equal(rest.T(), 0, len(team.Roles))
 }
 
 func (rest *TestTeamREST) TestListTeamUnauthorized() {

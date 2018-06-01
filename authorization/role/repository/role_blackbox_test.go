@@ -25,7 +25,7 @@ type KnownRole struct {
 }
 
 var knownRoles = []KnownRole{
-	{ResourceTypeName: "identity/organization", RoleName: "owner"},
+	{ResourceTypeName: "identity/organization", RoleName: "admin"},
 }
 
 func TestRunRoleBlackBoxTest(t *testing.T) {

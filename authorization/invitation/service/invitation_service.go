@@ -76,13 +76,9 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			}
 
 			// Confirm that the issuing user has the necessary scope to manage members for the organization, team or security group
-			scope, err := permService.HasScope(ctx, issuingUserId, inviteToIdentity.IdentityResourceID.String, authorization.ManageMembersScope)
+			err := permService.RequireScope(ctx, issuingUserId, inviteToIdentity.IdentityResourceID.String, authorization.ScopeForManagingRolesInResourceType(identityResource.ResourceType.Name))
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
-			}
-
-			if !scope {
-				return errors.NewForbiddenError(fmt.Sprintf("user requires %s scope to invite other users", authorization.ManageMembersScope))
+				return err
 			}
 
 			// We only allow membership in some identity types - confirm that we are inviting to an organization, team or security group
@@ -91,13 +87,9 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			}
 		} else if inviteToResource != nil {
 			// Confirm that the issuing user has the manage members scope for the resource
-			scope, err := permService.HasScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.ManageMembersScope)
+			err := permService.RequireScope(ctx, issuingUserId, inviteToResource.ResourceID, authorization.ScopeForManagingRolesInResourceType(inviteToResource.ResourceType.Name))
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
-			}
-
-			if !scope {
-				return errors.NewForbiddenError(fmt.Sprintf("user requires %s scope to invite other users", authorization.ManageMembersScope))
+				return err
 			}
 		}
 

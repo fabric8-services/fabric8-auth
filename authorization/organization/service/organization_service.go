@@ -72,18 +72,18 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, identi
 
 		organizationId = orgIdentity.ID
 
-		// Lookup the identity/organization owner role
-		ownerRole, err := s.Repositories().RoleRepository().Lookup(ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
+		// Lookup the identity/organization admin role
+		adminRole, err := s.Repositories().RoleRepository().Lookup(ctx, authorization.OrganizationAdminRole, authorization.IdentityResourceTypeOrganization)
 
 		if err != nil {
-			return errors.NewInternalErrorFromString(ctx, "Error looking up owner role for 'identity/organization' resource type")
+			return errors.NewInternalErrorFromString(ctx, "Error looking up admin role for 'identity/organization' resource type")
 		}
 
-		// Assign the owner role for the new organization to the current user
+		// Assign the admin role for the new organization to the current user
 		identityRole := &role.IdentityRole{
 			IdentityID: userIdentity.ID,
 			ResourceID: res.ResourceID,
-			RoleID:     ownerRole.RoleID,
+			RoleID:     adminRole.RoleID,
 		}
 
 		err = s.Repositories().IdentityRoleRepository().Create(ctx, identityRole)
