@@ -115,7 +115,7 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 	require.NoError(rest.T(), err)
 	require.Len(rest.T(), assignedRoles, 1)
 	assert.Equal(rest.T(), creator.ID, assignedRoles[0].Identity.ID)
-	assert.Equal(rest.T(), authorization.AdminRole, assignedRoles[0].Role.Name)
+	assert.Equal(rest.T(), authorization.SpaceAdminRole, assignedRoles[0].Role.Name)
 }
 
 func (rest *TestSpaceREST) TestFailDeleteSpaceUnauthorized() {
