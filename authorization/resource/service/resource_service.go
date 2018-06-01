@@ -41,8 +41,7 @@ func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, vis
 	// TODO delete:
 	// Role Mapping
 	// Role Identities
-	// associated identities also
-	// where identities.identity_resource_id = resource.resource_id
+	// associated identities where identities.identity_resource_id = resource.resource_id
 
 	// visitedChildren is used to make sure we don't have cycle resource references
 	visitedChildren[resourceID] = true
