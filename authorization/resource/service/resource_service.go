@@ -38,14 +38,12 @@ func (s *resourceServiceImpl) Delete(ctx context.Context, resourceID string) err
 }
 
 func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, visitedChildren map[string]bool) error {
-	// TODO delete:
-	// Role Mapping
-	// Role Identities
-	// associated identities where identities.identity_resource_id = resource.resource_id
+	// TODO delete associated identities where identities.identity_resource_id = resource.resource_id
+
+	// Delete children
 
 	// visitedChildren is used to make sure we don't have cycle resource references
 	visitedChildren[resourceID] = true
-
 	children, err := s.Repositories().ResourceRepository().LoadChildren(ctx, resourceID)
 	if err != nil {
 		return err
@@ -60,7 +58,18 @@ func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, vis
 			return err
 		}
 	}
-	//err := s.Repositories().RoleMappingRepository().Create(ctx, roleMapping)
+
+	// Delete role mapping
+	err = s.Repositories().RoleMappingRepository().DeleteForResource(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	// Delete identity roles
+	err = s.Repositories().IdentityRoleRepository().DeleteForResource(ctx, resourceID)
+	if err != nil {
+		return err
+	}
 
 	return s.Repositories().ResourceRepository().Delete(ctx, resourceID)
 }

@@ -94,6 +94,12 @@ func (s *roleMappingBlackBoxTest) TestOKToDeleteForResource() {
 	}
 }
 
+func (s *roleMappingBlackBoxTest) TestExistsUnknownRoleMappingFails() {
+	id := uuid.NewV4()
+	err := s.repo.CheckExists(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role_mapping with id '%s' not found", id.String())
+}
+
 func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName string, fromRoleName string, toResourceTypeName string, toRoleName string) (rolerepo.RoleMapping, error) {
 	resourceTypeRepo := resourcetyperepo.NewResourceTypeRepository(s.DB)
 

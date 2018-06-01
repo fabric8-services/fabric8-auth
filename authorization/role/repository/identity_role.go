@@ -5,7 +5,7 @@ import (
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	applicationrepo "github.com/fabric8-services/fabric8-auth/application/repository/base"
+	"github.com/fabric8-services/fabric8-auth/application/repository/base"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
@@ -58,12 +58,13 @@ func NewIdentityRoleRepository(db *gorm.DB) IdentityRoleRepository {
 
 // IdentityRoleRepository represents the storage interface.
 type IdentityRoleRepository interface {
-	applicationrepo.Exister
+	base.Exister
 	Load(ctx context.Context, ID uuid.UUID) (*IdentityRole, error)
 	Create(ctx context.Context, u *IdentityRole) error
 	Save(ctx context.Context, u *IdentityRole) error
 	List(ctx context.Context) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
+	DeleteForResource(ctx context.Context, resourceID string) error
 	FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error)
 	FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error)
@@ -94,12 +95,7 @@ func (m *GormIdentityRoleRepository) Load(ctx context.Context, id uuid.UUID) (*I
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormIdentityRoleRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "exists"}, time.Now())
-	var native IdentityRole
-	err := m.db.Table(m.TableName()).Where("identity_role_id = ?", id).Find(&native).Error
-	if err == gorm.ErrRecordNotFound {
-		return errors.NewNotFoundError("identity_role", id)
-	}
-	return nil
+	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "identity_role_id", id)
 }
 
 // Create creates a new record.
@@ -419,6 +415,18 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Con
 	}
 
 	return identityRoles, nil
+}
+
+// DeleteForResource deletes all identity roles for the given resource ID
+// No error is returned if no identity role found
+func (m *GormIdentityRoleRepository) DeleteForResource(ctx context.Context, resourceID string) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "deleteIdentityRolesForResource"}, time.Now())
+
+	err := m.db.Table(m.TableName()).Where("resource_id = ?", resourceID).Delete(nil).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return errs.WithStack(err)
+	}
+	return nil
 }
 
 // FindIdentityRolesByIdentityAndResource returns all identity roles by identity ID and resource ID

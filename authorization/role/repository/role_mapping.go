@@ -178,7 +178,7 @@ func (m *GormRoleMappingRepository) Delete(ctx context.Context, id uuid.UUID) er
 }
 
 // DeleteForResource deletes all role mappings for the given resource ID
-// If no role mappings found then nil is returned
+// No error is returned if no role mappings found
 func (m *GormRoleMappingRepository) DeleteForResource(ctx context.Context, resourceID string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "deleteForResource"}, time.Now())
 

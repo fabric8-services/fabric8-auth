@@ -73,6 +73,55 @@ func (s *identityRoleBlackBoxTest) TestDeleteUnknownFails() {
 	assert.Equal(s.T(), fmt.Sprintf("identity_role with id '%s' not found", identityRoleID), err.Error())
 }
 
+func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
+	g := s.NewTestGraph()
+
+	// Test space
+	space := g.CreateSpace()
+	// One viewer in the space
+	space.AddViewer(g.CreateUser())
+	// And 5 admins&contributors
+	for i := 0; i < 5; i++ {
+		u := g.CreateUser()
+		space.AddAdmin(u)
+		space.AddContributor(u)
+	}
+
+	// Another space which we won't delete
+	spaceX := g.CreateSpace()
+	for i := 0; i < 5; i++ {
+		spaceX.AddAdmin(g.CreateUser())
+	}
+
+	// Check all expected identity roles are present
+	idRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID())
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 11)
+
+	// Delete identity role for the space
+	err = s.repo.DeleteForResource(s.Ctx, space.SpaceID())
+	require.NoError(s.T(), err)
+
+	// Check the identity roles for the space are gone
+	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID())
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 0)
+
+	// Delete action on the resource with no identity roles should not fail
+	err = s.repo.DeleteForResource(s.Ctx, space.SpaceID())
+	require.NoError(s.T(), err)
+
+	// Check the identity roles for the other space are still preset
+	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID())
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 5)
+}
+
+func (s *identityRoleBlackBoxTest) TestOKToDeleteForUnknownResource() {
+	err := s.repo.DeleteForResource(s.Ctx, uuid.NewV4().String())
+	require.NoError(s.T(), err)
+}
+
 func (s *identityRoleBlackBoxTest) TestOKToLoad() {
 	createAndLoadIdentityRole(s)
 }
@@ -94,6 +143,12 @@ func (s *identityRoleBlackBoxTest) TestExistsRole() {
 		// then
 		require.IsType(t, errors.NotFoundError{}, err)
 	})
+}
+
+func (s *identityRoleBlackBoxTest) TestExistsUnknownIdentityRoleFails() {
+	id := uuid.NewV4().String()
+	err := s.repo.CheckExists(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with id '%s' not found", id)
 }
 
 func (s *identityRoleBlackBoxTest) TestFindPermissions() {
