@@ -100,8 +100,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 	resourceType, err := test.CreateTestResourceType(s.Ctx, s.DB, "invitation.test/space")
 	require.NoError(s.T(), err)
 
-	// Create the manage members scope for the new resource type
-	scope, err := test.CreateTestScope(s.Ctx, s.DB, *resourceType, authorization.ManageMembersScope)
+	// Create the manage members scope for the new resource type (we will use the same scope as for organizations)
+	scope, err := test.CreateTestScope(s.Ctx, s.DB, *resourceType, authorization.ManageOrganizationMembersScope)
 	require.NoError(s.T(), err)
 
 	// Create an admin role for the resource type
@@ -163,8 +163,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueMemberInvitationFailsForResourc
 	resourceType, err := test.CreateTestResourceType(s.Ctx, s.DB, "invitation.test/foo")
 	require.NoError(s.T(), err)
 
-	// Create the manage members scope for the new resource type
-	scope, err := test.CreateTestScope(s.Ctx, s.DB, *resourceType, authorization.ManageMembersScope)
+	// Create the manage members scope for the new resource type (we will use the same scope as for organizations)
+	scope, err := test.CreateTestScope(s.Ctx, s.DB, *resourceType, authorization.ManageOrganizationMembersScope)
 	require.NoError(s.T(), err)
 
 	// Create an admin role for the resource type
