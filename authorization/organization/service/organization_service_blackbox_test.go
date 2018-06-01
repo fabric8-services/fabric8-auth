@@ -67,7 +67,7 @@ func (s *organizationServiceBlackBoxTest) TestCreateOrganization() {
 		var roleName string
 		rows.Scan(&roleName)
 
-		require.Equal(s.T(), authorization.OwnerRole, roleName, "Only 'owner' role should be assigned during organization creation")
+		require.Equal(s.T(), authorization.OrganizationAdminRole, roleName, "Only 'owner' role should be assigned during organization creation")
 		roleCount++
 	}
 
@@ -120,5 +120,5 @@ func (s *organizationServiceBlackBoxTest) equalOrganization(expectedOrgID uuid.U
 	require.Equal(s.T(), false, actualOrg.Member, "User should not be a member of newly created organization")
 	require.Equal(s.T(), expectedOrgName, actualOrg.ResourceName, "Organization name is different")
 	require.Equal(s.T(), 1, len(actualOrg.Roles), "New organization should have assigned exactly 1 role")
-	require.Equal(s.T(), authorization.OwnerRole, actualOrg.Roles[0], "New organization should have assigned owner role")
+	require.Equal(s.T(), authorization.OrganizationAdminRole, actualOrg.Roles[0], "New organization should have assigned admin role")
 }

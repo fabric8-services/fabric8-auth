@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -119,7 +120,7 @@ func (rest *TestOrganizationREST) TestListOrganizationSuccess() {
 	require.Equal(rest.T(), *created.OrganizationID, org.ID)
 	require.Equal(rest.T(), orgName, org.Name)
 	require.Equal(rest.T(), 1, len(org.Roles))
-	require.Equal(rest.T(), OrganizationOwnerRole, org.Roles[0])
+	require.Equal(rest.T(), authorization.OrganizationAdminRole, org.Roles[0])
 }
 
 func (rest *TestOrganizationREST) TestListOrganizationUnauthorized() {

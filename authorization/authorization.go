@@ -20,8 +20,14 @@ const (
 	// ResourceTypeSpace defines the string constant for the space resource type
 	ResourceTypeSpace = "openshift.io/resource/space"
 
-	// AdminRole is the constant used to denote the name of a resource's administrator role
-	AdminRole = "admin"
+	// adminRole is the internal constant used to denote the administrator role for various resources
+	adminRole = "admin"
+
+	// OrganizationAdminRole is the constant used to denote the name of the organization resource's administrator role
+	OrganizationAdminRole = adminRole
+
+	// SpaceAdminRole is the constant used to denote the name of a space resource's administrator role
+	SpaceAdminRole = adminRole
 
 	// SpaceContributorRole is the constant used to denote the name of the space's contributor role
 	SpaceContributorRole = "contributor"
@@ -29,29 +35,32 @@ const (
 	// SpaceViewerRole is the constant used to denote the name of the space's viewer role
 	SpaceViewerRole = "viewer"
 
-	// OwnerRole is the constant used to denote the name of the organization, team or security group owner role
-	OwnerRole = "owner"
-
-	// ManageMembersScope is the scope required for users wishing to invite/remove other users to an organization, team or security group
-	ManageMembersScope = "manage_members"
+	// manageScope is the scope required for to manage aspects of a grouped identity
+	manageScope = "manage"
 
 	// viewSpaceScope is a general scope required to perform many space-related operations
 	viewSpaceScope = "view"
-
-	// manageSpaceScope is a general scope required to perform many space-related operations
-	manageSpaceScope = "manage"
 
 	// contributeSpaceScope is a general scope required to perform many space-related operations
 	contributeSpaceScope = "contribute"
 
 	// ManageTeamsInSpaceScope is the scope required for users wishing to manage teams for a space
-	ManageTeamsInSpaceScope = manageSpaceScope
+	ManageTeamsInSpaceScope = manageScope
+
+	// ManageOrganizationMembersScope is the scope required for users wishing to manage members of an organization
+	ManageOrganizationMembersScope = manageScope
+
+	// ManageTeamMembersScope is the scope required for users wishing to manage members of a team
+	ManageTeamMembersScope = manageScope
+
+	// ManageSecurityGroupMembersScope is the scope required for users wishing to manage members of a security group
+	ManageSecurityGroupMembersScope = manageScope
 
 	// ViewTeamsInSpaceScope is the scope required for users wishing to view the teams in a space
 	ViewTeamsInSpaceScope = viewSpaceScope
 
 	// ManageRoleAssignmentsInSpaceScope is the scope required for managing role assignments in a space
-	ManageRoleAssignmentsInSpaceScope = manageSpaceScope
+	ManageRoleAssignmentsInSpaceScope = manageScope
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities
@@ -67,11 +76,11 @@ func ScopeForManagingRolesInResourceType(resourceType string) string {
 	case ResourceTypeSpace:
 		return ManageRoleAssignmentsInSpaceScope
 	case IdentityResourceTypeOrganization:
-		return ManageMembersScope
+		return ManageOrganizationMembersScope
 	case IdentityResourceTypeTeam:
-		return ManageMembersScope
+		return ManageTeamMembersScope
 	case IdentityResourceTypeGroup:
-		return ManageMembersScope
+		return ManageSecurityGroupMembersScope
 	}
 	// a default which we can choose to change later
 	return ManageRoleAssignmentsInSpaceScope

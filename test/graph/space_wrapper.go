@@ -49,7 +49,7 @@ func (w *spaceWrapper) addUserRole(identityID uuid.UUID, roleName string) *space
 
 // AddAdmin assigns the admin role to a user for the space
 func (w *spaceWrapper) AddAdmin(wrapper interface{}) *spaceWrapper {
-	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.AdminRole)
+	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.SpaceAdminRole)
 }
 
 // AddContributor assigns the admin role to a user for the space

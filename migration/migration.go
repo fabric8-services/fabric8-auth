@@ -200,6 +200,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 30
 	m = append(m, steps{ExecuteSQLFile("030-add-team-admin-role.sql")})
 
+	// Version 31
+	m = append(m, steps{ExecuteSQLFile("031-clean-up-roles-scopes.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

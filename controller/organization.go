@@ -14,8 +14,6 @@ import (
 	"github.com/goadesign/goa"
 )
 
-const OrganizationOwnerRole = "owner"
-
 // OrganizationController implements the organization resource.
 type OrganizationController struct {
 	*goa.Controller

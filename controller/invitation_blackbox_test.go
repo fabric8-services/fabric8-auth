@@ -113,7 +113,7 @@ func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 			{
 				IdentityID: &inviteeID,
 				Member:     boolPointer(false),
-				Roles:      []string{"owner"},
+				Roles:      []string{"admin"},
 			},
 		},
 	}
@@ -135,7 +135,7 @@ func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 	// We should have 1 role
 	require.Equal(s.T(), 1, len(roles))
 	// And it should be the owner role
-	require.Equal(s.T(), "owner", roles[0].Name)
+	require.Equal(s.T(), "admin", roles[0].Name)
 }
 
 /*

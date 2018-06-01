@@ -131,7 +131,7 @@ func (s *invitationBlackBoxTest) TestAddAndListRoles() {
 	require.NoError(s.T(), err)
 
 	roleRepository := roleRepo.NewRoleRepository(s.DB)
-	role, err := roleRepository.Lookup(s.Ctx, authorization.OwnerRole, authorization.IdentityResourceTypeOrganization)
+	role, err := roleRepository.Lookup(s.Ctx, authorization.OrganizationAdminRole, authorization.IdentityResourceTypeOrganization)
 	require.NoError(s.T(), err)
 
 	err = s.repo.AddRole(s.Ctx, invitation.InvitationID, role.RoleID)
@@ -141,7 +141,7 @@ func (s *invitationBlackBoxTest) TestAddAndListRoles() {
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), 1, len(roles))
-	require.Equal(s.T(), authorization.OwnerRole, roles[0].Name)
+	require.Equal(s.T(), authorization.OrganizationAdminRole, roles[0].Name)
 }
 
 func (s *invitationBlackBoxTest) TestAddRoleFailsForInvalidRoleID() {
