@@ -116,6 +116,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration28", testMigration28)
 	t.Run("TestMigration29", testMigration29)
 	t.Run("TestMigration30", testMigration30)
+	t.Run("TestMigration31", testMigration31)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -180,7 +181,6 @@ func testMigration09(t *testing.T) {
 
 func testMigration10(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(11)], (11))
-
 	assert.True(t, dialect.HasColumn("users", "cluster"))
 }
 
@@ -421,7 +421,22 @@ func testMigration30(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, authorization.ManageTeamsInSpaceScope, scopeName)
 
-	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '45cc3446-6afe-4758-82bb-41141e1783ce' and role_id = '4e03c5df-d3f6-4665-9ffa-4bef05355744' )", 1)
+	countRows(t, "SELECT count(*) FROM role_scope WHERE ( scope_id = '45cc3446-6afe-4758-82bb-41141e1783ce' and role_id = '4e03c5df-d3f6-4665-9ffa-4bef05355744' )", 1)
+}
+
+func testMigration31(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(32)], (32))
+
+	var roleID uuid.UUID
+	err := sqlDB.QueryRow("SELECT r.role_id FROM role r, resource_type rt WHERE r.name = 'admin' AND r.resource_type_id = rt.resource_type_id AND rt.name = 'identity/organization'").Scan(&roleID)
+	require.NoError(t, err)
+
+	var resourceTypeScopeID uuid.UUID
+	err = sqlDB.QueryRow("SELECT s.resource_type_scope_id FROM resource_type_scope s, resource_type rt WHERE s.name = 'manage' AND s.resource_type_id = rt.resource_type_id AND rt.name = 'identity/organization'").Scan(&resourceTypeScopeID)
+	require.NoError(t, err)
+
+	countRows(t, "SELECT count(role_id) FROM role WHERE role_id = '4e03c5df-d3f6-4665-9ffa-4bef05355744'", 0)
+	countRows(t, "SELECT count(resource_type_scope_id) FROM resource_type_scope WHERE name = 'manage' AND resource_type_id = (SELECT resource_type_id FROM resource_type WHERE name = 'identity/team')", 0)
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
