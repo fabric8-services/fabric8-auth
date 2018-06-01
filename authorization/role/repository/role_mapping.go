@@ -2,9 +2,9 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/application/repository/base"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
@@ -61,12 +61,13 @@ func NewRoleMappingRepository(db *gorm.DB) RoleMappingRepository {
 
 // RoleMappingRepository represents the storage interface.
 type RoleMappingRepository interface {
-	CheckExists(ctx context.Context, ID uuid.UUID) (bool, error)
+	CheckExists(ctx context.Context, ID uuid.UUID) error
 	Load(ctx context.Context, ID uuid.UUID) (*RoleMapping, error)
 	Create(ctx context.Context, u *RoleMapping) error
 	Save(ctx context.Context, u *RoleMapping) error
 	List(ctx context.Context) ([]RoleMapping, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
+	DeleteForResource(ctx context.Context, resourceID string) error
 	FindForResource(ctx context.Context, resourceID string) ([]RoleMapping, error)
 }
 
@@ -77,26 +78,9 @@ func (m *GormRoleMappingRepository) TableName() string {
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormRoleMappingRepository) CheckExists(ctx context.Context, ID uuid.UUID) (bool, error) {
+func (m *GormRoleMappingRepository) CheckExists(ctx context.Context, id uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "exists"}, time.Now())
-
-	var exists bool
-	query := fmt.Sprintf(`
-		SELECT EXISTS (
-			SELECT 1 FROM %[1]s
-			WHERE
-				role_mapping_id=$1
-				AND deleted_at IS NULL
-		)`, m.TableName())
-
-	err := m.db.CommonDB().QueryRow(query, ID.String()).Scan(&exists)
-	if err == nil && !exists {
-		return exists, errors.NewNotFoundError(m.TableName(), ID.String())
-	}
-	if err != nil {
-		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
-	}
-	return exists, nil
+	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "role_mapping_id", id.String())
 }
 
 // CRUD Functions
@@ -193,8 +177,20 @@ func (m *GormRoleMappingRepository) Delete(ctx context.Context, id uuid.UUID) er
 	return nil
 }
 
+// DeleteForResource deletes all role mappings for the given resource ID
+// If no role mappings found then nil is returned
+func (m *GormRoleMappingRepository) DeleteForResource(ctx context.Context, resourceID string) error {
+	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "deleteForResource"}, time.Now())
+
+	err := m.db.Table(m.TableName()).Where("resource_id = ?", resourceID).Delete(nil).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return errs.WithStack(err)
+	}
+	return nil
+}
+
 func (m *GormRoleMappingRepository) FindForResource(ctx context.Context, resourceID string) ([]RoleMapping, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "FindForResource"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "findForResource"}, time.Now())
 
 	var rows []RoleMapping
 

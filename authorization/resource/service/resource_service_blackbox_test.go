@@ -82,7 +82,7 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK
 	assert.Equal(s.T(), "", resource.Name)
 	assert.Equal(s.T(), "6422fda4-a0fa-4d3c-8b79-8061e5c05e12", resource.ResourceTypeID.String())
 	assert.Equal(s.T(), authorization.ResourceTypeSpace, resource.ResourceType.Name)
-	assert.NotNil(s.T(), resource.ParentResourceID)
+	require.NotNil(s.T(), resource.ParentResourceID)
 	assert.Equal(s.T(), parent.ResourceID, *resource.ParentResourceID)
 	require.NotNil(s.T(), resource.ParentResource)
 	assert.Equal(s.T(), parent.ResourceID, resource.ParentResource.ResourceID)

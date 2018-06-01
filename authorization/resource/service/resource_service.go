@@ -2,15 +2,16 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fabric8-services/fabric8-auth/app"
-	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	"github.com/fabric8-services/fabric8-auth/errors"
-
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
+
 	"github.com/satori/go.uuid"
 )
 
@@ -29,23 +30,40 @@ func NewResourceService(context *servicecontext.ServiceContext) service.Resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (s *resourceServiceImpl) Delete(ctx context.Context, resourceID string) error {
 
-	// TODO delete:
-	// Role Mapping
-	// Role Identities
-	// Child resources
-
 	err := s.ExecuteInTransaction(func() error {
-		//err := s.Repositories().RoleMappingRepository().Create(ctx, roleMapping)
-
-		err := s.Repositories().ResourceRepository().Delete(ctx, resourceID)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return s.delete(ctx, resourceID, make(map[string]bool))
 	})
 
 	return err
+}
+
+func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, visitedChildren map[string]bool) error {
+	// TODO delete:
+	// Role Mapping
+	// Role Identities
+	// associated identities also
+	// where identities.identity_resource_id = resource.resource_id
+
+	// visitedChildren is used to make sure we don't have cycle resource references
+	visitedChildren[resourceID] = true
+
+	children, err := s.Repositories().ResourceRepository().LoadChildren(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		_, alreadyVisited := visitedChildren[child.ResourceID]
+		if alreadyVisited {
+			return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("cycle resource references detected for resource %s with parent %s", child.ResourceID, resourceID))
+		}
+		err := s.delete(ctx, child.ResourceID, visitedChildren)
+		if err != nil {
+			return err
+		}
+	}
+	//err := s.Repositories().RoleMappingRepository().Create(ctx, roleMapping)
+
+	return s.Repositories().ResourceRepository().Delete(ctx, resourceID)
 }
 
 // Read reads resource
@@ -105,12 +123,6 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 			rID = *resourceID
 		} else {
 			rID = uuid.NewV4().String()
-		}
-
-		var parentResourceID *string
-
-		if parentResource != nil {
-			parentResourceID = &parentResource.ResourceID
 		}
 
 		// Create a new resource instance

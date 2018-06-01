@@ -77,6 +77,14 @@ func (s *resourceBlackBoxTest) TestOKToLoadChildren() {
 	for _, child := range foundChildren {
 		assert.Contains(s.T(), children, child.ResourceID)
 		assert.Equal(s.T(), parent.ResourceType.Name, child.ResourceType.Name)
+
+		grandChildren, err := s.repo.LoadChildren(s.Ctx, child.ResourceID)
+		require.NoError(s.T(), err)
+		require.Len(s.T(), grandChildren, 1)
+
+		grandGrandChildren, err := s.repo.LoadChildren(s.Ctx, grandChildren[0].ResourceID)
+		require.NoError(s.T(), err)
+		require.Len(s.T(), grandGrandChildren, 0)
 	}
 }
 
