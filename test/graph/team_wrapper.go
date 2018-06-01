@@ -14,6 +14,7 @@ import (
 type teamWrapper struct {
 	baseWrapper
 	identity *account.Identity
+	resource *resource.Resource
 }
 
 func loadTeamWrapper(g *TestGraph, teamID uuid.UUID) teamWrapper {
@@ -57,20 +58,20 @@ func newTeamWrapper(g *TestGraph, params []interface{}) teamWrapper {
 		teamName = &nm
 	}
 
-	res := &resource.Resource{
+	w.resource = &resource.Resource{
 		Name:             *teamName,
 		ResourceType:     *resourceType,
 		ResourceTypeID:   resourceType.ResourceTypeID,
 		ParentResourceID: &space.ResourceID,
 	}
 
-	err = g.app.ResourceRepository().Create(g.ctx, res)
+	err = g.app.ResourceRepository().Create(g.ctx, w.resource)
 	require.NoError(g.t, err)
 
 	w.identity = &account.Identity{
 		ProviderType:       account.KeycloakIDP,
-		IdentityResourceID: sql.NullString{String: res.ResourceID, Valid: true},
-		IdentityResource:   *res,
+		IdentityResourceID: sql.NullString{String: w.resource.ResourceID, Valid: true},
+		IdentityResource:   *w.resource,
 	}
 
 	err = g.app.Identities().Create(g.ctx, w.identity)
@@ -89,6 +90,14 @@ func (w *teamWrapper) TeamName() string {
 
 func (w *teamWrapper) Identity() *account.Identity {
 	return w.identity
+}
+
+func (w *teamWrapper) Resource() *resource.Resource {
+	return w.resource
+}
+
+func (w *teamWrapper) ResourceID() string {
+	return w.resource.ResourceID
 }
 
 func (w *teamWrapper) AddMember(wrapper interface{}) *teamWrapper {

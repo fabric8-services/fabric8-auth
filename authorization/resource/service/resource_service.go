@@ -38,8 +38,6 @@ func (s *resourceServiceImpl) Delete(ctx context.Context, resourceID string) err
 }
 
 func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, visitedChildren map[string]bool) error {
-	// TODO delete associated identities where identities.identity_resource_id = resource.resource_id
-
 	// Delete children
 
 	// visitedChildren is used to make sure we don't have cycle resource references
@@ -67,6 +65,12 @@ func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, vis
 
 	// Delete identity roles
 	err = s.Repositories().IdentityRoleRepository().DeleteForResource(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	// Delete assosiated identities in case of Organization, Team or Security Group
+	err = s.Repositories().Identities().DeleteForResource(ctx, resourceID)
 	if err != nil {
 		return err
 	}
