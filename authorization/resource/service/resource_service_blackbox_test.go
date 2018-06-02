@@ -183,6 +183,19 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 	s.checkRoleMapping(true, spaceRoleMappingToStay.RoleMapping().RoleMappingID.String())
 }
 
+func (s *resourceServiceBlackBoxTest) TestDeleteResourceWithCycleReferencesFails() {
+	g := s.DBTestSuite.NewTestGraph()
+	parent := g.CreateResource()
+	child := g.CreateResource(parent)
+	childResourceID := child.ResourceID()
+	parent.Resource().ParentResourceID = &childResourceID
+	err := s.Application.ResourceRepository().Save(s.Ctx, parent.Resource())
+	require.NoError(s.T(), err)
+
+	err = s.resourceService.Delete(s.Ctx, parent.ResourceID())
+	testsupport.AssertError(s.T(), err, errors.InternalError{}, "cycle resource references detected for resource %s with parent %s", parent.ResourceID(), child.ResourceID())
+}
+
 func (s *resourceServiceBlackBoxTest) checkRoleMapping(shouldExist bool, roleMappingID string) {
 	err := s.Application.RoleMappingRepository().CheckExists(s.Ctx, roleMappingID)
 	if shouldExist {
