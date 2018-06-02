@@ -62,7 +62,6 @@ func newResourceWrapper(g *TestGraph, params []interface{}) resourceWrapper {
 	w.resource = &resource.Resource{
 		Name:           *resourceName,
 		ResourceTypeID: resourceType.ResourceTypeID,
-		ParentResource: parentResource,
 	}
 
 	if parentResource != nil {
@@ -72,6 +71,7 @@ func newResourceWrapper(g *TestGraph, params []interface{}) resourceWrapper {
 	err := g.app.ResourceRepository().Create(g.ctx, w.resource)
 	require.NoError(g.t, err)
 
+	w.resource.ParentResource = parentResource
 	return w
 }
 

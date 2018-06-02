@@ -2,10 +2,12 @@ package graph
 
 import (
 	"database/sql"
+
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -67,6 +69,7 @@ func newTeamWrapper(g *TestGraph, params []interface{}) teamWrapper {
 
 	err = g.app.ResourceRepository().Create(g.ctx, w.resource)
 	require.NoError(g.t, err)
+	w.resource.ParentResource = space
 
 	w.identity = &account.Identity{
 		ProviderType:       account.KeycloakIDP,
