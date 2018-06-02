@@ -11,7 +11,8 @@ import (
 // spaceWrapper represents a space resource domain object
 type spaceWrapper struct {
 	baseWrapper
-	resource *resource.Resource
+	resource       *resource.Resource
+	parentResource *resource.Resource
 }
 
 func newSpaceWrapper(g *TestGraph, params []interface{}) spaceWrapper {
@@ -20,13 +21,29 @@ func newSpaceWrapper(g *TestGraph, params []interface{}) spaceWrapper {
 	resourceType, err := g.app.ResourceTypeRepository().Lookup(g.ctx, authorization.ResourceTypeSpace)
 	require.NoError(g.t, err)
 
-	w.resource = &resource.Resource{
-		Name:           "Space-" + uuid.NewV4().String(),
-		ResourceType:   *resourceType,
-		ResourceTypeID: resourceType.ResourceTypeID,
+	var resourceID *string
+	for i := range params {
+		switch t := params[i].(type) {
+		case *organizationWrapper:
+			w.parentResource = t.Resource()
+		case organizationWrapper:
+			w.parentResource = t.Resource()
+		case *resourceWrapper:
+			w.parentResource = t.Resource()
+		case resourceWrapper:
+			w.parentResource = t.Resource()
+		case *string:
+			resourceID = t
+		case string:
+			resourceID = &t
+		}
 	}
 
-	err = g.app.ResourceRepository().Create(g.ctx, w.resource)
+	var parentResourceID *string
+	if w.parentResource != nil {
+		parentResourceID = &w.parentResource.ResourceID
+	}
+	w.resource, err = g.app.ResourceService().Register(g.ctx, resourceType.Name, resourceID, parentResourceID)
 	require.NoError(g.t, err)
 
 	return w

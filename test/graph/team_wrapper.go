@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// teamWrapper represents a space resource domain object
+// teamWrapper represents a team resource domain object
 type teamWrapper struct {
 	baseWrapper
 	identity *account.Identity

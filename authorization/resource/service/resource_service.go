@@ -57,7 +57,7 @@ func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, vis
 		}
 	}
 
-	// Delete role mapping
+	// Delete role mappings
 	err = s.Repositories().RoleMappingRepository().DeleteForResource(ctx, resourceID)
 	if err != nil {
 		return err

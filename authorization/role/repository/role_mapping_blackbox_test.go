@@ -89,15 +89,15 @@ func (s *roleMappingBlackBoxTest) TestOKToDeleteForResource() {
 
 	// Check the role mapping for other resources are still preset
 	for _, mapping := range others {
-		err = s.repo.CheckExists(s.Ctx, mapping.RoleMappingID)
+		err = s.repo.CheckExists(s.Ctx, mapping.RoleMappingID.String())
 		assert.NoError(s.T(), err)
 	}
 }
 
 func (s *roleMappingBlackBoxTest) TestExistsUnknownRoleMappingFails() {
-	id := uuid.NewV4()
+	id := uuid.NewV4().String()
 	err := s.repo.CheckExists(s.Ctx, id)
-	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role_mapping with id '%s' not found", id.String())
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role_mapping with id '%s' not found", id)
 }
 
 func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName string, fromRoleName string, toResourceTypeName string, toRoleName string) (rolerepo.RoleMapping, error) {
@@ -161,7 +161,7 @@ func (s *roleMappingBlackBoxTest) TestExistsRoleMapping() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rm1)
 
-	err = s.repo.CheckExists(s.Ctx, rm1.RoleMappingID)
+	err = s.repo.CheckExists(s.Ctx, rm1.RoleMappingID.String())
 	require.NoError(s.T(), err)
 }
 

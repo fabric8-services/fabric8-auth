@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
+
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,6 +102,118 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK
 
 	// Delete
 	s.checkDeleteResource(resource.ResourceID)
+}
+
+func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
+
+	// Create test data
+
+	g := s.DBTestSuite.NewTestGraph()
+	org := g.CreateOrganization()
+
+	spaceToDelete := g.CreateSpace(org)
+	spaceToDelete.AddAdmin(g.CreateUser(g.ID("admin-user")))
+
+	teamToDeleteA := g.CreateTeam(spaceToDelete)
+	teamToDeleteB := g.CreateTeam(spaceToDelete)
+
+	childResourceToDelete := g.CreateResource(spaceToDelete)
+	grandchildResourceToDelete := g.CreateResource(childResourceToDelete)
+
+	spaceRoleMappingToDelete := g.CreateRoleMapping(spaceToDelete)
+	grandchildRoleMappingToDelete := g.CreateRoleMapping(spaceToDelete)
+
+	spaceToStay := g.CreateSpace(org)
+	teamToStay := g.CreateTeam(spaceToStay)
+	spaceRoleMappingToStay := g.CreateRoleMapping(spaceToStay)
+
+	// Check test data
+
+	s.checkIdentity(true, teamToDeleteA.TeamID().String())
+	s.checkIdentity(true, teamToDeleteB.TeamID().String())
+
+	s.checkResource(true, spaceToDelete.SpaceID())
+	s.checkResource(true, teamToDeleteA.ResourceID())
+	s.checkResource(true, teamToDeleteB.ResourceID())
+	s.checkResource(true, childResourceToDelete.ResourceID())
+	s.checkResource(true, grandchildResourceToDelete.ResourceID())
+
+	s.checkIdentityRole(2, spaceToDelete.SpaceID())
+	s.checkIdentityRole(2, teamToDeleteA.ResourceID())
+	s.checkIdentityRole(2, teamToDeleteB.ResourceID())
+
+	s.checkRoleMapping(true, spaceRoleMappingToDelete.RoleMapping().RoleMappingID.String())
+	s.checkRoleMapping(true, grandchildRoleMappingToDelete.RoleMapping().RoleMappingID.String())
+
+	// Delete the space
+
+	err := s.resourceService.Delete(s.Ctx, spaceToDelete.SpaceID())
+	require.NoError(s.T(), err)
+
+	// Check all related artifacts for the space are gone
+
+	s.checkIdentity(false, teamToDeleteA.TeamID().String())
+	s.checkIdentity(false, teamToDeleteB.TeamID().String())
+
+	s.checkResource(false, spaceToDelete.SpaceID())
+	s.checkResource(false, teamToDeleteA.ResourceID())
+	s.checkResource(false, teamToDeleteB.ResourceID())
+
+	s.checkResource(false, childResourceToDelete.ResourceID())
+	s.checkResource(false, grandchildResourceToDelete.ResourceID())
+
+	s.checkIdentityRole(0, spaceToDelete.SpaceID())
+	s.checkIdentityRole(0, teamToDeleteA.ResourceID())
+	s.checkIdentityRole(0, teamToDeleteB.ResourceID())
+
+	s.checkRoleMapping(false, spaceRoleMappingToDelete.RoleMapping().RoleMappingID.String())
+	s.checkRoleMapping(false, grandchildRoleMappingToDelete.RoleMapping().RoleMappingID.String())
+
+	// Check all not-related artifacts are still present
+
+	s.checkResource(true, spaceToStay.SpaceID())
+	s.checkResource(true, teamToStay.ResourceID())
+
+	s.checkIdentity(true, g.UserByID("admin-user").Identity().ID.String())
+	s.checkIdentity(true, teamToStay.TeamID().String())
+
+	s.checkIdentityRole(1, spaceToStay.SpaceID())
+	s.checkIdentityRole(1, teamToStay.ResourceID())
+
+	s.checkRoleMapping(true, spaceRoleMappingToStay.RoleMapping().RoleMappingID.String())
+}
+
+func (s *resourceServiceBlackBoxTest) checkRoleMapping(shouldExist bool, roleMappingID string) {
+	err := s.Application.RoleMappingRepository().CheckExists(s.Ctx, roleMappingID)
+	if shouldExist {
+		assert.NoError(s.T(), err)
+	} else {
+		testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role_mapping with id '%s' not found", roleMappingID)
+	}
+}
+
+func (s *resourceServiceBlackBoxTest) checkIdentityRole(expectedLen int, resourceID string) {
+	roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResource(s.Ctx, resourceID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), roles, expectedLen)
+}
+
+func (s *resourceServiceBlackBoxTest) checkIdentity(shouldExist bool, identityID string) {
+	err := s.Application.Identities().CheckExists(s.Ctx, identityID)
+	if shouldExist {
+		assert.NoError(s.T(), err)
+	} else {
+		testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identities with id '%s' not found", identityID)
+	}
+}
+
+func (s *resourceServiceBlackBoxTest) checkResource(shouldExist bool, resourceID string) {
+	err := s.Application.ResourceRepository().CheckExists(s.Ctx, resourceID)
+	if shouldExist {
+		require.NoError(s.T(), err)
+	} else {
+		testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", resourceID)
+	}
 }
 
 func (s *resourceServiceBlackBoxTest) TestReadUnknownResourceFails() {

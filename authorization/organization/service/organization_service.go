@@ -31,15 +31,16 @@ func NewOrganizationService(context *servicecontext.ServiceContext) service.Orga
 
 // Creates a new organization.  The specified identityID is the user creating the organization, while the name parameter
 // specifies the organization name.  The organization's identity ID is returned.
+// Also assigns Admin role to the organization creator.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, identityID uuid.UUID, organizationName string) (*uuid.UUID, error) {
+func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creatorIdentityID uuid.UUID, organizationName string) (*uuid.UUID, error) {
 	var organizationId uuid.UUID
 
 	err := s.ExecuteInTransaction(func() error {
 		// Lookup the identity for the current user
-		userIdentity, err := s.Repositories().Identities().Load(ctx, identityID)
+		userIdentity, err := s.Repositories().Identities().Load(ctx, creatorIdentityID)
 		if err != nil {
-			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", identityID))
+			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", creatorIdentityID))
 		}
 
 		// Lookup the organization resource type

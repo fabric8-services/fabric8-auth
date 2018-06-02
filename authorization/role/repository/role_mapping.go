@@ -61,7 +61,7 @@ func NewRoleMappingRepository(db *gorm.DB) RoleMappingRepository {
 
 // RoleMappingRepository represents the storage interface.
 type RoleMappingRepository interface {
-	CheckExists(ctx context.Context, ID uuid.UUID) error
+	CheckExists(ctx context.Context, id string) error
 	Load(ctx context.Context, ID uuid.UUID) (*RoleMapping, error)
 	Create(ctx context.Context, u *RoleMapping) error
 	Save(ctx context.Context, u *RoleMapping) error
@@ -78,9 +78,9 @@ func (m *GormRoleMappingRepository) TableName() string {
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormRoleMappingRepository) CheckExists(ctx context.Context, id uuid.UUID) error {
+func (m *GormRoleMappingRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role_mapping", "exists"}, time.Now())
-	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "role_mapping_id", id.String())
+	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "role_mapping_id", id)
 }
 
 // CRUD Functions
