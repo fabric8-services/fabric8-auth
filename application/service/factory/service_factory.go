@@ -2,6 +2,8 @@ package factory
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -11,10 +13,11 @@ import (
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
 	resourceservice "github.com/fabric8-services/fabric8-auth/authorization/resource/service"
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
+	spaceservice "github.com/fabric8-services/fabric8-auth/authorization/space/service"
 	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/pkg/errors"
-	"time"
 )
 
 type serviceContextImpl struct {
@@ -150,4 +153,8 @@ func (f *ServiceFactory) RoleManagementService() service.RoleManagementService {
 
 func (f *ServiceFactory) TeamService() service.TeamService {
 	return teamservice.NewTeamService(f.getContext())
+}
+
+func (f *ServiceFactory) SpaceService() service.SpaceService {
+	return spaceservice.NewSpaceService(f.getContext())
 }

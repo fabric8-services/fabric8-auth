@@ -162,6 +162,10 @@ func (g *GormDB) ResourceService() service.ResourceService {
 	return g.serviceFactory.ResourceService()
 }
 
+func (g *GormDB) SpaceService() service.SpaceService {
+	return g.serviceFactory.SpaceService()
+}
+
 func (g *GormBase) DB() *gorm.DB {
 	return g.db
 }

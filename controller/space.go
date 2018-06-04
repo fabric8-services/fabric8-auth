@@ -6,7 +6,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -76,20 +75,11 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 	}
 
 	// Create AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
-	spaceID := ctx.SpaceID.String()
-	res, err := c.app.ResourceService().Register(ctx, authorization.ResourceTypeSpace, &spaceID, nil)
+	err = c.app.SpaceService().CreateSpace(ctx, currentIdentity.ID, ctx.SpaceID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"space_id": ctx.SpaceID,
-		}, "unable to register resource for space")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	err = c.app.RoleManagementService().ForceAssign(ctx, currentIdentity.ID, authorization.SpaceAdminRole, *res)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"space_id": ctx.SpaceID,
-		}, "unable to assign space admin role to space creator")
+		}, "unable to register resource for space or assign space admin role to space creator")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
@@ -155,8 +145,7 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 
 	// Try to delete AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
 	// Old spaces doesn't have any registered resources, so, we don't return an error if unable to find the corresponding resource
-	svc := c.app.ResourceService()
-	err = svc.Delete(ctx, ctx.SpaceID.String())
+	err = c.app.SpaceService().DeleteSpace(ctx, ctx.SpaceID.String())
 	if err != nil {
 		if notFound, _ := errors.IsNotFoundError(err); notFound {
 			log.Warn(ctx, map[string]interface{}{

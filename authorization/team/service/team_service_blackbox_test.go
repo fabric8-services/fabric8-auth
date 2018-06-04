@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -16,10 +17,6 @@ type teamServiceBlackBoxTest struct {
 
 func TestRunTeamServiceBlackBoxTest(t *testing.T) {
 	suite.Run(t, &teamServiceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
-}
-
-func (s *teamServiceBlackBoxTest) SetupTest() {
-	s.DBTestSuite.SetupTest()
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {

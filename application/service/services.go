@@ -14,6 +14,18 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+/*
+Steps for adding a new Service:
+1. Add a new service interface to application/service/service.go
+2. Create an implementation of the service interface
+3. Add a new method to service.Service interface in application/service/service.go for accessing the service interface
+   defined in step 1
+4. Add a new method to application/service/factory/service_factory.go which implements the service access method
+   from step #3 and uses the service constructor from step 2
+5. Add a new method to gormapplication/application.go which implements the service access method from step #3
+   and use the factory method from the step #4
+*/
+
 type InvitationService interface {
 	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
 }
@@ -48,6 +60,11 @@ type TeamService interface {
 	ListTeamsForIdentity(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
 }
 
+type SpaceService interface {
+	CreateSpace(ctx context.Context, spaceCreatorIdentityID uuid.UUID, spaceID string) error
+	DeleteSpace(ctx context.Context, spaceID string) error
+}
+
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
@@ -56,4 +73,5 @@ type Services interface {
 	PermissionService() PermissionService
 	RoleManagementService() RoleManagementService
 	TeamService() TeamService
+	SpaceService() SpaceService
 }
