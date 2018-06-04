@@ -85,7 +85,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	err = c.app.RoleManagementService().AssignAsAdmin(ctx, currentIdentity.ID, authorization.SpaceAdminRole, *res)
+	err = c.app.RoleManagementService().ForceAssign(ctx, currentIdentity.ID, authorization.SpaceAdminRole, *res)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"space_id": ctx.SpaceID,

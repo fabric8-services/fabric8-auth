@@ -153,11 +153,11 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	return err
 }
 
-// AssignAsAdmin assigns an identity (users, organizations, teams or groups) with a role for a specific resource.
+// ForceAssign assigns an identity (users, organizations, teams or groups) with a role for a specific resource.
 // This method doesn't check any permissions and assumes that the caller does all needed permissions checks.
 // As an example: this method is to be used when creating a resource (space) to assign initial admin role to the resource creator.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *roleManagementServiceImpl) AssignAsAdmin(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error {
+func (s *roleManagementServiceImpl) ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error {
 
 	err := s.ExecuteInTransaction(func() error {
 		role, err := s.Repositories().RoleRepository().Lookup(ctx, roleName, res.ResourceType.Name)

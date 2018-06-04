@@ -357,7 +357,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminOK() {
 	spaceCreator := g.CreateUser()
 	s.addNoisyAssignments()
 
-	err := s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
+	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
 	require.NoError(s.T(), err)
 
 	// Check the role was assigned
@@ -369,7 +369,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignUnknownRoleAsAdminFails() 
 	newSpace := g.CreateSpace()
 	spaceCreator := g.CreateUser()
 
-	err := s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, "unknownRole", *newSpace.Resource())
+	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, "unknownRole", *newSpace.Resource())
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role with name 'unknownRole' not found")
 }
 
@@ -378,7 +378,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminToUnknownIdenti
 	newSpace := g.CreateSpace()
 	id := uuid.NewV4()
 
-	err := s.repo.AssignAsAdmin(context.Background(), id, authorization.SpaceAdminRole, *newSpace.Resource())
+	err := s.repo.ForceAssign(context.Background(), id, authorization.SpaceAdminRole, *newSpace.Resource())
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity with id '%s' not found", id)
 }
 
@@ -388,11 +388,11 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminForUnknownResou
 	id := uuid.NewV4().String()
 
 	// Should fail because of there is no "admin" role for an unknown resource type
-	err := s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{})
+	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{})
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role with name 'admin' not found")
 
 	// Should fail because of unknown resource ID
-	err = s.repo.AssignAsAdmin(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{ResourceID: id, ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace}})
+	err = s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{ResourceID: id, ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace}})
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 

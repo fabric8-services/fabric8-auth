@@ -16,20 +16,24 @@ type roleMappingWrapper struct {
 func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrapper {
 	w := roleMappingWrapper{baseWrapper: baseWrapper{g}}
 
-	var resource *resource.Resource
+	var resrc *resource.Resource
 	var fromRole *role.Role
 	var toRole *role.Role
 
 	for i := range params {
 		switch t := params[i].(type) {
 		case resourceWrapper:
-			resource = t.Resource()
+			resrc = t.Resource()
 		case *resourceWrapper:
-			resource = t.Resource()
+			resrc = t.Resource()
 		case spaceWrapper:
-			resource = t.Resource()
+			resrc = t.Resource()
 		case *spaceWrapper:
-			resource = t.Resource()
+			resrc = t.Resource()
+		case resource.Resource:
+			resrc = &t
+		case *resource.Resource:
+			resrc = t
 		case roleWrapper:
 			if fromRole == nil {
 				fromRole = t.role
@@ -39,12 +43,12 @@ func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrappe
 		}
 	}
 
-	if resource == nil {
-		resource = w.graph.CreateResource().Resource()
+	if resrc == nil {
+		resrc = w.graph.CreateResource().Resource()
 	}
 
 	if fromRole == nil {
-		resourceType := w.graph.LoadResourceType(resource.ResourceTypeID)
+		resourceType := w.graph.LoadResourceType(resrc.ResourceTypeID)
 		fromRole = w.graph.CreateRole(resourceType).Role()
 	}
 
@@ -53,7 +57,7 @@ func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrappe
 	}
 
 	w.mapping = &role.RoleMapping{
-		ResourceID: resource.ResourceID,
+		ResourceID: resrc.ResourceID,
 		FromRoleID: fromRole.RoleID,
 		ToRoleID:   toRole.RoleID,
 	}

@@ -27,6 +27,7 @@ func loadTeamWrapper(g *TestGraph, teamID uuid.UUID) teamWrapper {
 	require.NoError(w.graph.t, err)
 
 	w.identity = &native
+	w.resource = &native.IdentityResource
 
 	return w
 }

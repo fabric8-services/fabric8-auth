@@ -62,13 +62,13 @@ func (s *roleMappingBlackBoxTest) TestOKToDeleteForResource() {
 	g := s.NewTestGraph()
 
 	// Create 5 role mappings
-	r := g.CreateResource(g.ID("r"))
+	r := g.CreateResource()
 	for i := 0; i < 5; i++ {
 		g.CreateRoleMapping(r)
 	}
 
 	// Check all of them are present
-	mappings, err := s.repo.FindForResource(s.Ctx, g.ResourceByID("r").Resource().ResourceID)
+	mappings, err := s.repo.FindForResource(s.Ctx, r.Resource().ResourceID)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), mappings, 5)
 
@@ -79,7 +79,7 @@ func (s *roleMappingBlackBoxTest) TestOKToDeleteForResource() {
 	}
 
 	// Delete role mappings for the resource
-	err = s.repo.DeleteForResource(s.Ctx, g.ResourceByID("r").Resource().ResourceID)
+	err = s.repo.DeleteForResource(s.Ctx, r.Resource().ResourceID)
 	require.NoError(s.T(), err)
 
 	for _, mapping := range mappings {
@@ -89,15 +89,15 @@ func (s *roleMappingBlackBoxTest) TestOKToDeleteForResource() {
 
 	// Check the role mapping for other resources are still preset
 	for _, mapping := range others {
-		err = s.repo.CheckExists(s.Ctx, mapping.RoleMappingID.String())
+		err = s.repo.CheckExists(s.Ctx, mapping.RoleMappingID)
 		assert.NoError(s.T(), err)
 	}
 }
 
 func (s *roleMappingBlackBoxTest) TestExistsUnknownRoleMappingFails() {
-	id := uuid.NewV4().String()
+	id := uuid.NewV4()
 	err := s.repo.CheckExists(s.Ctx, id)
-	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role_mapping with id '%s' not found", id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role_mapping with id '%s' not found", id.String())
 }
 
 func (s *roleMappingBlackBoxTest) createTestRoleMapping(fromResourceTypeName string, fromRoleName string, toResourceTypeName string, toRoleName string) (rolerepo.RoleMapping, error) {
@@ -161,7 +161,7 @@ func (s *roleMappingBlackBoxTest) TestExistsRoleMapping() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rm1)
 
-	err = s.repo.CheckExists(s.Ctx, rm1.RoleMappingID.String())
+	err = s.repo.CheckExists(s.Ctx, rm1.RoleMappingID)
 	require.NoError(s.T(), err)
 }
 

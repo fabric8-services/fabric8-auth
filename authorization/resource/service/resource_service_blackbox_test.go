@@ -142,8 +142,8 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 	s.checkIdentityRole(2, teamToDeleteA.ResourceID())
 	s.checkIdentityRole(2, teamToDeleteB.ResourceID())
 
-	s.checkRoleMapping(true, spaceRoleMappingToDelete.RoleMapping().RoleMappingID.String())
-	s.checkRoleMapping(true, grandchildRoleMappingToDelete.RoleMapping().RoleMappingID.String())
+	s.checkRoleMapping(true, spaceRoleMappingToDelete.RoleMapping().RoleMappingID)
+	s.checkRoleMapping(true, grandchildRoleMappingToDelete.RoleMapping().RoleMappingID)
 
 	// Delete the space
 
@@ -166,8 +166,8 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 	s.checkIdentityRole(0, teamToDeleteA.ResourceID())
 	s.checkIdentityRole(0, teamToDeleteB.ResourceID())
 
-	s.checkRoleMapping(false, spaceRoleMappingToDelete.RoleMapping().RoleMappingID.String())
-	s.checkRoleMapping(false, grandchildRoleMappingToDelete.RoleMapping().RoleMappingID.String())
+	s.checkRoleMapping(false, spaceRoleMappingToDelete.RoleMapping().RoleMappingID)
+	s.checkRoleMapping(false, grandchildRoleMappingToDelete.RoleMapping().RoleMappingID)
 
 	// Check all not-related artifacts are still present
 
@@ -180,7 +180,7 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 	s.checkIdentityRole(1, spaceToStay.SpaceID())
 	s.checkIdentityRole(1, teamToStay.ResourceID())
 
-	s.checkRoleMapping(true, spaceRoleMappingToStay.RoleMapping().RoleMappingID.String())
+	s.checkRoleMapping(true, spaceRoleMappingToStay.RoleMapping().RoleMappingID)
 }
 
 func (s *resourceServiceBlackBoxTest) TestDeleteResourceWithCycleReferencesFails() {
@@ -196,7 +196,7 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceWithCycleReferencesFails
 	testsupport.AssertError(s.T(), err, errors.InternalError{}, "cycle resource references detected for resource %s with parent %s", parent.ResourceID(), child.ResourceID())
 }
 
-func (s *resourceServiceBlackBoxTest) checkRoleMapping(shouldExist bool, roleMappingID string) {
+func (s *resourceServiceBlackBoxTest) checkRoleMapping(shouldExist bool, roleMappingID uuid.UUID) {
 	err := s.Application.RoleMappingRepository().CheckExists(s.Ctx, roleMappingID)
 	if shouldExist {
 		assert.NoError(s.T(), err)
