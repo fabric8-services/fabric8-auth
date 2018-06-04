@@ -63,7 +63,7 @@ func (s *spaceServiceBlackBoxTest) TestDeleteUnknownSpaceFails() {
 	test.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", spaceID)
 }
 
-func (s *spaceServiceBlackBoxTest) TestCanDeleteByAdminOnly() {
+func (s *spaceServiceBlackBoxTest) TestByUnauthorizedUserFails() {
 	g := s.DBTestSuite.NewTestGraph()
 	space := g.CreateSpace()
 	user := g.CreateUser()
@@ -78,8 +78,17 @@ func (s *spaceServiceBlackBoxTest) TestCanDeleteByAdminOnly() {
 	space.AddContributor(user)
 	err = s.Application.SpaceService().DeleteSpace(s.Ctx, user.Identity().ID, space.SpaceID())
 	test.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", user.Identity().ID.String(), space.SpaceID())
+}
 
-	space.AddAdmin(user)
-	err = s.Application.SpaceService().DeleteSpace(s.Ctx, user.Identity().ID, space.SpaceID())
+func (s *spaceServiceBlackBoxTest) TestDeleteOK() {
+	g := s.DBTestSuite.NewTestGraph()
+	user := g.CreateUser()
+	space := g.CreateSpace().AddAdmin(user)
+
+	err := s.Application.SpaceService().DeleteSpace(s.Ctx, user.Identity().ID, space.SpaceID())
 	require.NoError(s.T(), err)
+
+	// Check the space is gone
+	_, err = s.Application.ResourceService().Read(s.Ctx, space.SpaceID())
+	test.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", space.SpaceID())
 }
