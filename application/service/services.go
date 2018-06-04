@@ -62,7 +62,7 @@ type TeamService interface {
 
 type SpaceService interface {
 	CreateSpace(ctx context.Context, spaceCreatorIdentityID uuid.UUID, spaceID string) error
-	DeleteSpace(ctx context.Context, spaceID string) error
+	DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error
 }
 
 //Services creates instances of service layer objects

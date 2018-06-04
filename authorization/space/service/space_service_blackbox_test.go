@@ -3,9 +3,14 @@ package service_test
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/lib/pq"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,47 +23,63 @@ func TestRunSpaceServiceBlackBoxTest(t *testing.T) {
 	suite.Run(t, &spaceServiceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *spaceServiceBlackBoxTest) TestCreateOK() {
-
+func (s *spaceServiceBlackBoxTest) TestCreateByUnknownUserFails() {
+	id := uuid.NewV4()
+	err := s.Application.SpaceService().CreateSpace(s.Ctx, id, uuid.NewV4().String())
+	test.AssertError(s.T(), err, errors.NotFoundError{}, "identity with id '%s' not found", id.String())
 }
 
-func (s *spaceServiceBlackBoxTest) _TestDeleteOK() {
+func (s *spaceServiceBlackBoxTest) TestCreateOK() {
+	spaceID := uuid.NewV4().String()
 	g := s.DBTestSuite.NewTestGraph()
-	g.CreateSpace(g.ID("myspace")).AddAdmin(g.CreateUser(g.ID("foo")))
+	creator := g.CreateUser()
 
-	teamName := "TestTeam" + uuid.NewV4().String()
-	teamID, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID, teamName)
+	err := s.Application.SpaceService().CreateSpace(s.Ctx, creator.Identity().ID, spaceID)
 	require.NoError(s.T(), err)
 
-	teamName2 := "TestTeam" + uuid.NewV4().String()
-	teamID2, err := s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID, teamName2)
+	// Check if the corresponding authZ resource has been created
+	resource, err := s.Application.ResourceService().Read(s.Ctx, spaceID)
 	require.NoError(s.T(), err)
+	assert.Equal(s.T(), spaceID, *resource.ResourceID)
+	assert.Equal(s.T(), authorization.ResourceTypeSpace, *resource.Type)
 
-	g.CreateSpace(g.ID("otherspace")).AddAdmin(g.CreateUser(g.ID("bar")))
-	teamName3 := "TestTeam" + uuid.NewV4().String()
-	_, err = s.Application.TeamService().CreateTeam(s.Ctx, g.UserByID("bar").Identity().ID, g.SpaceByID("otherspace").Resource().ResourceID, teamName3)
+	// Check the admin role has been assigned to the space creator
+	assignedRoles, err := s.Application.RoleManagementService().ListByResource(s.Ctx, spaceID)
 	require.NoError(s.T(), err)
+	require.Len(s.T(), assignedRoles, 1)
+	assert.Equal(s.T(), creator.Identity().ID, assignedRoles[0].Identity.ID)
+	assert.Equal(s.T(), authorization.SpaceAdminRole, assignedRoles[0].Role.Name)
 
-	teams, err := s.Application.TeamService().ListTeamsInSpace(s.Ctx, g.UserByID("foo").Identity().ID, g.SpaceByID("myspace").Resource().ResourceID)
+	// If we try to create another space with the same ID it should fail
+	err = s.Application.SpaceService().CreateSpace(s.Ctx, creator.Identity().ID, spaceID)
+	test.AssertError(s.T(), err, &pq.Error{}, "pq: duplicate key value violates unique constraint \"resource_pkey\"")
+}
+
+func (s *spaceServiceBlackBoxTest) TestDeleteUnknownSpaceFails() {
+	g := s.DBTestSuite.NewTestGraph()
+	spaceID := uuid.NewV4().String()
+
+	err := s.Application.SpaceService().DeleteSpace(s.Ctx, g.CreateUser().Identity().ID, spaceID)
+	test.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", spaceID)
+}
+
+func (s *spaceServiceBlackBoxTest) TestCanDeleteByAdminOnly() {
+	g := s.DBTestSuite.NewTestGraph()
+	space := g.CreateSpace()
+	user := g.CreateUser()
+
+	err := s.Application.SpaceService().DeleteSpace(s.Ctx, user.Identity().ID, space.SpaceID())
+	test.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", user.Identity().ID.String(), space.SpaceID())
+
+	space.AddViewer(user)
+	err = s.Application.SpaceService().DeleteSpace(s.Ctx, user.Identity().ID, space.SpaceID())
+	test.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", user.Identity().ID.String(), space.SpaceID())
+
+	space.AddContributor(user)
+	err = s.Application.SpaceService().DeleteSpace(s.Ctx, user.Identity().ID, space.SpaceID())
+	test.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", user.Identity().ID.String(), space.SpaceID())
+
+	space.AddAdmin(user)
+	err = s.Application.SpaceService().DeleteSpace(s.Ctx, user.Identity().ID, space.SpaceID())
 	require.NoError(s.T(), err)
-	require.Len(s.T(), teams, 2)
-	team1Found := false
-	team2Found := false
-
-	for i := range teams {
-		if teams[i].ID == *teamID {
-			team1Found = true
-			require.Equal(s.T(), teamName, teams[i].IdentityResource.Name)
-		} else if teams[i].ID == *teamID2 {
-			team2Found = true
-			require.Equal(s.T(), teamName2, teams[i].IdentityResource.Name)
-		}
-	}
-
-	require.True(s.T(), team1Found)
-	require.True(s.T(), team2Found)
-
-	teams, err = s.Application.TeamService().ListTeamsInSpace(s.Ctx, g.UserByID("bar").Identity().ID, g.SpaceByID("otherspace").Resource().ResourceID)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), teams, 1)
 }

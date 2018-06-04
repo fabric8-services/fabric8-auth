@@ -25,6 +25,7 @@ func NewSpaceService(context *servicecontext.ServiceContext) service.SpaceServic
 // CreateSpace creates a new space. The specified spaceCreatorIdentityID is the user creating the space, and the spaceID is the identifier for the
 // space resource. The space creator will be assigned with Admin role in the space.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
+// TODO support creating a space for organizations
 func (s *spaceService) CreateSpace(ctx context.Context, spaceCreatorIdentityID uuid.UUID, spaceID string) error {
 
 	err := s.ExecuteInTransaction(func() error {
@@ -39,11 +40,22 @@ func (s *spaceService) CreateSpace(ctx context.Context, spaceCreatorIdentityID u
 	return err
 }
 
-// DeleteSpace deletes the space.
+// DeleteSpace deletes the space if the user has permissions to do so.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *spaceService) DeleteSpace(ctx context.Context, spaceID string) error {
+func (s *spaceService) DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error {
 
-	return s.ExecuteInTransaction(func() error {
+	err := s.ExecuteInTransaction(func() error {
+		// Check if the space exists first to make sure we return NotFoundError if it doesn't instead of Forbidden when checking permissions
+		err := s.Repositories().ResourceRepository().CheckExists(ctx, spaceID)
+		if err != nil {
+			return err
+		}
+		err = s.Services().PermissionService().RequireScope(ctx, byIdentityID, spaceID, authorization.DeleteSpaceScope)
+		if err != nil {
+			return err
+		}
 		return s.Services().ResourceService().Delete(ctx, spaceID)
 	})
+
+	return err
 }

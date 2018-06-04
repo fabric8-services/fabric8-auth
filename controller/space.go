@@ -145,16 +145,17 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 
 	// Try to delete AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
 	// Old spaces doesn't have any registered resources, so, we don't return an error if unable to find the corresponding resource
-	err = c.app.SpaceService().DeleteSpace(ctx, ctx.SpaceID.String())
+	err = c.app.SpaceService().DeleteSpace(ctx, currentIdentity.ID, ctx.SpaceID.String())
 	if err != nil {
 		if notFound, _ := errors.IsNotFoundError(err); notFound {
 			log.Warn(ctx, map[string]interface{}{
 				"space_id": ctx.SpaceID,
 			}, "unable to delete authZ space resource: resource not found; that's OK for old spaces")
+			// Just log a warning and proceed. Old spaces doesn't have any registered resources.
 		} else {
 			log.Error(ctx, map[string]interface{}{
 				"space_id": ctx.SpaceID,
-			}, "unable to delete authZ space resource")
+			}, "unable to load authZ space resource")
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 	}
