@@ -188,7 +188,7 @@ func (r *GormResourceRepository) LoadBySpace(ctx context.Context, spaceID *uuid.
 		log.Error(ctx, map[string]interface{}{
 			"space_id": spaceID.String(),
 		}, "Could not find space resource by space ID")
-		return nil, errors.NewNotFoundError("space resource", spaceID.String())
+		return nil, errors.NewNotFoundErrorWithKey("space resource", "space_id", spaceID.String())
 	}
 	if tx.Error != nil {
 		return nil, errors.NewInternalError(ctx, tx.Error)

@@ -1,7 +1,9 @@
 package graph
 
 import (
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,16 +16,24 @@ type roleMappingWrapper struct {
 func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrapper {
 	w := roleMappingWrapper{baseWrapper: baseWrapper{g}}
 
-	var resource *resourceWrapper
+	var resrc *resource.Resource
 	var fromRole *role.Role
 	var toRole *role.Role
 
 	for i := range params {
 		switch t := params[i].(type) {
 		case resourceWrapper:
-			resource = &t
+			resrc = t.Resource()
 		case *resourceWrapper:
-			resource = t
+			resrc = t.Resource()
+		case spaceWrapper:
+			resrc = t.Resource()
+		case *spaceWrapper:
+			resrc = t.Resource()
+		case resource.Resource:
+			resrc = &t
+		case *resource.Resource:
+			resrc = t
 		case roleWrapper:
 			if fromRole == nil {
 				fromRole = t.role
@@ -33,12 +43,12 @@ func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrappe
 		}
 	}
 
-	if resource == nil {
-		resource = w.graph.CreateResource()
+	if resrc == nil {
+		resrc = w.graph.CreateResource().Resource()
 	}
 
 	if fromRole == nil {
-		resourceType := w.graph.LoadResourceType(resource.Resource().ResourceTypeID)
+		resourceType := w.graph.LoadResourceType(resrc.ResourceTypeID)
 		fromRole = w.graph.CreateRole(resourceType).Role()
 	}
 
@@ -47,7 +57,7 @@ func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrappe
 	}
 
 	w.mapping = &role.RoleMapping{
-		ResourceID: resource.Resource().ResourceID,
+		ResourceID: resrc.ResourceID,
 		FromRoleID: fromRole.RoleID,
 		ToRoleID:   toRole.RoleID,
 	}

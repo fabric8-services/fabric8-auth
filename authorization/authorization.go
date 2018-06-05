@@ -41,6 +41,9 @@ const (
 	// viewSpaceScope is a general scope required to perform many space-related operations
 	viewSpaceScope = "view"
 
+	// manageSpaceScope is a general scope required to perform operations for managing a space
+	manageSpaceScope = manageScope
+
 	// contributeSpaceScope is a general scope required to perform many space-related operations
 	contributeSpaceScope = "contribute"
 
@@ -61,6 +64,9 @@ const (
 
 	// ManageRoleAssignmentsInSpaceScope is the scope required for managing role assignments in a space
 	ManageRoleAssignmentsInSpaceScope = manageScope
+
+	// DeleteSpaceScope is the scope required for deleting a space. It's a space level scope.
+	DeleteSpaceScope = manageSpaceScope
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities

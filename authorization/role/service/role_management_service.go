@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -40,7 +41,7 @@ func (s *roleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 	return s.Repositories().RoleRepository().FindRolesByResourceType(ctx, resourceType)
 }
 
-// Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource
+// Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource.
 // roleAssignments is a map of role assignments where the key is a role name and the value is an array of IDs of the identities
 // which we want to assign the role to.
 // If appendToExistingRoles == true then the new roles for these identities will be appended to the existing roles.
@@ -147,6 +148,30 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 		}
 
 		return nil
+	})
+
+	return err
+}
+
+// ForceAssign assigns an identity (users, organizations, teams or groups) with a role for a specific resource.
+// This method doesn't check any permissions and assumes that the caller does all needed permissions checks.
+// As an example: this method is to be used when creating a resource (space) to assign initial admin role to the resource creator.
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
+func (s *roleManagementServiceImpl) ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error {
+
+	err := s.ExecuteInTransaction(func() error {
+		role, err := s.Repositories().RoleRepository().Lookup(ctx, roleName, res.ResourceType.Name)
+		if err != nil {
+			return err
+		}
+
+		ir := rolerepo.IdentityRole{
+			ResourceID: res.ResourceID,
+			IdentityID: assignedTo,
+			RoleID:     role.RoleID,
+		}
+
+		return s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
 	})
 
 	return err

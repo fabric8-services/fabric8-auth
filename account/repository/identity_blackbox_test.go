@@ -4,11 +4,12 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,6 +54,30 @@ func (s *identityBlackBoxTest) TestOKToDelete() {
 	for _, ident := range identities {
 		require.NotEqual(s.T(), "someuserTestIdentity", ident.Username)
 	}
+}
+
+func (s *identityBlackBoxTest) TestOKToDeleteForResource() {
+
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	err := s.Application.Identities().CheckExists(s.Ctx, team.TeamID().String())
+	require.NoError(s.T(), err)
+	anotherTeam := g.CreateTeam()
+
+	err = s.Application.Identities().DeleteForResource(s.Ctx, team.ResourceID())
+	require.NoError(s.T(), err)
+
+	// Team is gone
+	err = s.Application.Identities().CheckExists(s.Ctx, team.TeamID().String())
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identities with id '%s' not found", team.TeamID())
+
+	// The other team is still present
+	err = s.Application.Identities().CheckExists(s.Ctx, anotherTeam.TeamID().String())
+	require.NoError(s.T(), err)
+
+	// Delete action doesn't fail even if we try to delete an identities for a resource without any assosiated identity
+	err = s.Application.Identities().DeleteForResource(s.Ctx, team.ResourceID())
+	require.NoError(s.T(), err)
 }
 
 func (s *identityBlackBoxTest) TestOKToLoad() {

@@ -156,6 +156,30 @@ func (g *TestGraph) LoadTeam(params ...interface{}) *teamWrapper {
 	return &w
 }
 
+func (g *TestGraph) CreateOrganization(params ...interface{}) *organizationWrapper {
+	obj := newOrganizationWrapper(g, params)
+	g.register(g.generateIdentifier(params), &obj)
+	return &obj
+}
+
+func (g *TestGraph) LoadOrganization(params ...interface{}) *organizationWrapper {
+	var organizationID *uuid.UUID
+	for i := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			organizationID = t
+		}
+	}
+	require.NotNil(g.t, organizationID, "Must specified a uuid parameter for the organization ID")
+	w := loadOrganizationWrapper(g, *organizationID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
+func (g *TestGraph) OrganizationByID(id string) *organizationWrapper {
+	return g.graphObjects[id].(*organizationWrapper)
+}
+
 func (g *TestGraph) CreateIdentity(params ...interface{}) *identityWrapper {
 	obj := newIdentityWrapper(g, params)
 	g.register(g.generateIdentifier(params), &obj)
@@ -178,6 +202,22 @@ func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
 	}
 	require.NotNil(g.t, identityID, "Must specified a uuid parameter for the identity ID")
 	w := loadIdentityWrapper(g, *identityID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
+func (g *TestGraph) LoadResource(params ...interface{}) *resourceWrapper {
+	var resourceID *string
+	for i := range params {
+		switch t := params[i].(type) {
+		case *string:
+			resourceID = t
+		case string:
+			resourceID = &t
+		}
+	}
+	require.NotNil(g.t, resourceID, "Must specified a string parameter for the resource ID")
+	w := loadResourceWrapper(g, *resourceID)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
 }

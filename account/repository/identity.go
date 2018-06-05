@@ -2,19 +2,18 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"strconv"
+	"strings"
 	"time"
 
-	repository "github.com/fabric8-services/fabric8-auth/application/repository/base"
+	"github.com/fabric8-services/fabric8-auth/application/repository/base"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-
-	"database/sql"
-	"strings"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
@@ -117,13 +116,14 @@ func NewIdentityRepository(db *gorm.DB) *GormIdentityRepository {
 
 // IdentityRepository represents the storage interface.
 type IdentityRepository interface {
-	repository.Exister
+	base.Exister
 	Load(ctx context.Context, id uuid.UUID) (*Identity, error)
 	LoadWithUser(ctx context.Context, id uuid.UUID) (*Identity, error)
 	Create(ctx context.Context, identity *Identity) error
 	Lookup(ctx context.Context, username, profileURL, providerType string) (*Identity, error)
 	Save(ctx context.Context, identity *Identity) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
@@ -174,7 +174,7 @@ func (m *GormIdentityRepository) LoadWithUser(ctx context.Context, id uuid.UUID)
 // CheckExists returns nil if the given ID exists otherwise returns an error
 func (m *GormIdentityRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "exists"}, time.Now())
-	return repository.CheckExists(ctx, m.db, m.TableName(), id)
+	return base.CheckExists(ctx, m.db, m.TableName(), id)
 }
 
 // Create creates a new record.
@@ -263,6 +263,15 @@ func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error
 		"identity_id": id,
 	}, "Identity deleted!")
 
+	return nil
+}
+
+func (m *GormIdentityRepository) DeleteForResource(ctx context.Context, resourceID string) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "deleteForResource"}, time.Now())
+	err := m.db.Table(m.TableName()).Where("identity_resource_id = ?", resourceID).Delete(nil).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return errs.WithStack(err)
+	}
 	return nil
 }
 
