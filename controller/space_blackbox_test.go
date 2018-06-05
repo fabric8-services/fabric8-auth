@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -116,6 +117,23 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 	require.Len(rest.T(), assignedRoles, 1)
 	assert.Equal(rest.T(), creator.ID, assignedRoles[0].Identity.ID)
 	assert.Equal(rest.T(), authorization.SpaceAdminRole, assignedRoles[0].Role.Name)
+}
+
+func (rest *TestSpaceREST) TestKeycloakResourceCreationRollBack() {
+	svc, ctrl, _ := rest.SecuredController()
+
+	g := rest.DBTestSuite.NewTestGraph()
+	space := g.CreateSpace()
+
+	spaceID, err := uuid.FromString(space.SpaceID())
+	require.NoError(rest.T(), err)
+
+	// Should fail because the space already exists.
+	test.CreateSpaceInternalServerError(rest.T(), svc.Context, svc, ctrl, spaceID)
+
+	// Check that no keycloak resource exist for this space ID
+	_, err = rest.Application.SpaceResources().LoadBySpace(svc.Context, &spaceID)
+	testsupport.AssertError(rest.T(), err, errors.NotFoundError{}, "space resource with space_id '%s' not found", spaceID.String())
 }
 
 func (rest *TestSpaceREST) TestFailDeleteSpaceUnauthorized() {

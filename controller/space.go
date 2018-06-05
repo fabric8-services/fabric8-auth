@@ -78,8 +78,20 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 	err = c.app.SpaceService().CreateSpace(ctx, currentIdentity.ID, ctx.SpaceID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
+			"err":      err,
 			"space_id": ctx.SpaceID,
 		}, "unable to register resource for space or assign space admin role to space creator")
+		// Roll back Keycloak resource creation
+		rolBackErr := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			return tr.SpaceResources().Delete(ctx, spaceResource.ID)
+		})
+		if rolBackErr != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      rolBackErr,
+				"space_id": ctx.SpaceID,
+			}, "unable to roll back space resource creation")
+		}
+
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
@@ -149,11 +161,13 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 	if err != nil {
 		if notFound, _ := errors.IsNotFoundError(err); notFound {
 			log.Warn(ctx, map[string]interface{}{
+				"err":      err,
 				"space_id": ctx.SpaceID,
 			}, "unable to delete authZ space resource: resource not found; that's OK for old spaces")
 			// Just log a warning and proceed. Old spaces doesn't have any registered resources.
 		} else {
 			log.Error(ctx, map[string]interface{}{
+				"err":      err,
 				"space_id": ctx.SpaceID,
 			}, "unable to load authZ space resource")
 			return jsonapi.JSONErrorResponse(ctx, err)
