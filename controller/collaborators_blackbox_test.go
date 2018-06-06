@@ -557,42 +557,45 @@ func (rest *TestCollaboratorsREST) checkPrivateCollaborators(expectedUserIDs []u
 }
 
 func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsOk() {
-	appl := gormapplication.NewGormDB(rest.DB)
-	resource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
-	require.Nil(rest.T(), err)
+	space := rest.DBTestSuite.Graph.LoadSpace(rest.spaceID)
 
 	svc, ctrl := rest.SecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	rest.policy.AddUserToPolicy(rest.testIdentity2.ID.String())
+
+	addPayload := &app.AddManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity1.ID.String(), Type: idnType}, {ID: rest.testIdentity2.ID.String(), Type: idnType}}}
+	test.AddManyCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, addPayload)
+
 	_, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID}, actualUsers)
-	// when/then
+
 	test.RemoveCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity2.ID.String())
 
-	updatedResource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
-	require.Nil(rest.T(), err)
-	require.True(rest.T(), resource.UpdatedAt.Before(updatedResource.UpdatedAt))
+	updatedResource, err := rest.Application.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
+	require.NoError(rest.T(), err)
+	require.True(rest.T(), space.Resource().UpdatedAt.Before(updatedResource.UpdatedAt))
 }
 
 func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsOk() {
-	// given
-	appl := gormapplication.NewGormDB(rest.DB)
-	resource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
-	require.Nil(rest.T(), err)
+	space := rest.DBTestSuite.Graph.LoadSpace(rest.spaceID)
 
 	svc, ctrl := rest.SecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
 	rest.policy.AddUserToPolicy(rest.testIdentity2.ID.String())
 	rest.policy.AddUserToPolicy(rest.testIdentity3.ID.String())
+
+	addPayload := &app.AddManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity1.ID.String(), Type: idnType}, {ID: rest.testIdentity2.ID.String(), Type: idnType}, {ID: rest.testIdentity3.ID.String(), Type: idnType}}}
+	test.AddManyCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, addPayload)
+
 	_, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID, rest.testIdentity3.ID}, actualUsers)
 	payload := &app.RemoveManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity2.ID.String(), Type: idnType}, {ID: rest.testIdentity3.ID.String(), Type: idnType}}}
-	// when/then
+
 	test.RemoveManyCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, payload)
 
-	updatedResource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
-	require.Nil(rest.T(), err)
-	require.True(rest.T(), resource.UpdatedAt.Before(updatedResource.UpdatedAt))
+	updatedResource, err := rest.Application.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
+	require.NoError(rest.T(), err)
+	require.True(rest.T(), space.Resource().UpdatedAt.Before(updatedResource.UpdatedAt))
 }
 
 func (rest *TestCollaboratorsREST) createSpace() uuid.UUID {

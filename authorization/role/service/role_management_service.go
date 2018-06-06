@@ -153,7 +153,9 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	return err
 }
 
-func (s *roleManagementServiceImpl) DeleteRoleAssignments(ctx context.Context, byIdentity uuid.UUID, forIdentities []uuid.UUID, resourceID string) error {
+// RevokeResourceRoles revokes all roles for the resource for the specified identities
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
+func (s *roleManagementServiceImpl) RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error {
 	// Lookup the resourceID and ensure the resource is valid
 	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
 	if err != nil {
@@ -163,13 +165,13 @@ func (s *roleManagementServiceImpl) DeleteRoleAssignments(ctx context.Context, b
 	// check if the current user token belongs to a user who has the necessary privileges
 	// for managing roles.
 	permissionService := s.Services().PermissionService()
-	err = permissionService.RequireScope(ctx, byIdentity, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
+	err = permissionService.RequireScope(ctx, currentIdentity, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
 	if err != nil {
 		return err
 	}
 
 	err = s.ExecuteInTransaction(func() error {
-		for _, identityID := range forIdentities {
+		for _, identityID := range identities {
 			err := s.Repositories().IdentityRoleRepository().DeleteForIdentityAndResource(ctx, resourceID, identityID)
 			if err != nil {
 				return err

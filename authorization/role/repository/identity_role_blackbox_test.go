@@ -122,6 +122,27 @@ func (s *identityRoleBlackBoxTest) TestOKToDeleteForUnknownResource() {
 	require.NoError(s.T(), err)
 }
 
+func (s *identityRoleBlackBoxTest) TestDeleteForUnknownIdentityAndResourceFails() {
+	g := s.NewTestGraph()
+	space := g.CreateSpace()
+	//space.AddViewer(g.CreateUser())
+
+	// Unknown user
+	unknownIdentityID := uuid.NewV4()
+	err := s.repo.DeleteForIdentityAndResource(s.Ctx, space.SpaceID(), unknownIdentityID)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", space.SpaceID(), unknownIdentityID)
+
+	// Unknown resource
+	unknownResourceID := uuid.NewV4().String()
+	identityID := g.CreateUser().Identity().ID
+	err = s.repo.DeleteForIdentityAndResource(s.Ctx, unknownResourceID, identityID)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", unknownResourceID, identityID)
+
+	// Resource with no identity roles
+	err = s.repo.DeleteForIdentityAndResource(s.Ctx, space.SpaceID(), identityID)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", space.SpaceID(), identityID)
+}
+
 func (s *identityRoleBlackBoxTest) TestOKToLoad() {
 	createAndLoadIdentityRole(s)
 }

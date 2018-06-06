@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -431,12 +432,22 @@ func (m *GormIdentityRoleRepository) DeleteForResource(ctx context.Context, reso
 }
 
 // DeleteForIdentityAndResource deletes all IdentityRoles for the specified identity and resource
+// ErrRecordNotFound returned if
 func (m *GormIdentityRoleRepository) DeleteForIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "deleteForIdentityAndResource"}, time.Now())
-
-	err := m.db.Scopes(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID)).Table(m.TableName()).Delete(nil).Error
-
-	return errs.WithStack(err)
+	result := m.db.Scopes(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID)).Table(m.TableName()).Delete(nil)
+	if result.Error != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         result.Error,
+			"resource_id": resourceID,
+			"identity_id": identityID,
+		}, "unable to delete identity role")
+		return errs.WithStack(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.NewNotFoundErrorFromString(fmt.Sprintf("identity_role with resource_id '%s' and identity_id '%s' not found", resourceID, identityID))
+	}
+	return nil
 }
 
 // FindIdentityRolesByIdentityAndResource returns all identity roles by identity ID and resource ID

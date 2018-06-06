@@ -171,7 +171,7 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 	return ctx.OK([]byte{})
 }
 
-func (c *CollaboratorsController) addContributors(ctx context.Context, byIdentityID uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
+func (c *CollaboratorsController) addContributors(ctx context.Context, currentIdentity uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
 	err := c.app.ResourceRepository().CheckExists(ctx, spaceID)
 	if err != nil {
 		if notFound, _ := autherrors.IsNotFoundError(err); notFound {
@@ -185,7 +185,7 @@ func (c *CollaboratorsController) addContributors(ctx context.Context, byIdentit
 		return err
 	}
 
-	err = c.app.PermissionService().RequireScope(ctx, byIdentityID, spaceID, authorization.ManageRoleAssignmentsInSpaceScope)
+	err = c.app.PermissionService().RequireScope(ctx, currentIdentity, spaceID, authorization.ManageRoleAssignmentsInSpaceScope)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (c *CollaboratorsController) removeContributors(ctx context.Context, byIden
 		}
 		toDelete = append(toDelete, identityID)
 	}
-	return c.app.RoleManagementService().DeleteRoleAssignments(ctx, byIdentityID, toDelete, spaceID)
+	return c.app.RoleManagementService().RevokeResourceRoles(ctx, byIdentityID, toDelete, spaceID)
 }
 
 func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, req *goa.RequestData, spaceID uuid.UUID, identityIDs []*app.UpdateUserID, update func(policy *auth.KeycloakPolicy, identityID string) bool) error {

@@ -64,6 +64,21 @@ func (w *spaceWrapper) addUserRole(identityID uuid.UUID, roleName string) *space
 	return w
 }
 
+func loadSpaceWrapper(g *TestGraph, resourceID string) spaceWrapper {
+	w := spaceWrapper{baseWrapper: baseWrapper{g}}
+
+	var native resource.Resource
+	err := w.graph.db.Table("resource").Preload("ParentResource").Where("resource_id = ?", resourceID).Find(&native).Error
+	require.NoError(w.graph.t, err)
+
+	w.resource = &native
+	if w.resource.ParentResource != nil {
+		w.parentResource = w.resource.ParentResource
+	}
+
+	return w
+}
+
 // AddAdmin assigns the admin role to a user for the space
 func (w *spaceWrapper) AddAdmin(wrapper interface{}) *spaceWrapper {
 	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.SpaceAdminRole)
