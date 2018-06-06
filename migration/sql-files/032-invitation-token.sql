@@ -1,0 +1,1 @@
+ALTER TABLE invitation ADD COLUMN accept_token VARCHAR NOT NULL UNIQUE;
