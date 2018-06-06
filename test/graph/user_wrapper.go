@@ -46,3 +46,7 @@ func (w *userWrapper) User() *account.User {
 func (w *userWrapper) Identity() *account.Identity {
 	return w.identity
 }
+
+func (w *userWrapper) IdentityID() uuid.UUID {
+	return w.identity.ID
+}

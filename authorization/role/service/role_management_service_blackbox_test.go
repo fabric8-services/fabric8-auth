@@ -396,6 +396,84 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminForUnknownResou
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
+func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesForUnknownResourceOrUserFails() {
+	admin := s.Graph.CreateUser()
+	toDelete := s.Graph.CreateUser()
+	space := s.Graph.CreateSpace().AddAdmin(admin).AddContributor(toDelete)
+	unknownID := uuid.NewV4()
+
+	err := s.repo.RevokeResourceRoles(s.Ctx, admin.IdentityID(), []uuid.UUID{toDelete.IdentityID()}, unknownID.String())
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", unknownID.String())
+
+	err = s.repo.RevokeResourceRoles(s.Ctx, admin.IdentityID(), []uuid.UUID{unknownID}, space.SpaceID())
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", space.SpaceID(), unknownID.String())
+}
+
+func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesByUserWithLackOfPermissionsFails() {
+	notAdmin := s.Graph.CreateUser()
+	toDelete := s.Graph.CreateUser()
+	space := s.Graph.CreateSpace().AddContributor(notAdmin).AddContributor(s.Graph.CreateUser(toDelete))
+
+	err := s.repo.RevokeResourceRoles(s.Ctx, notAdmin.IdentityID(), []uuid.UUID{toDelete.IdentityID()}, space.SpaceID())
+	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", notAdmin.IdentityID(), space.SpaceID())
+
+	unknownID := uuid.NewV4()
+	err = s.repo.RevokeResourceRoles(s.Ctx, unknownID, []uuid.UUID{toDelete.IdentityID()}, space.SpaceID())
+	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", unknownID.String(), space.SpaceID())
+}
+
+func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesOK() {
+	// Test space
+	space := s.Graph.CreateSpace()
+	// One viewer/contributor in the space to stay
+	userToStay := s.Graph.CreateUser()
+	space.AddViewer(userToStay).AddContributor(userToStay)
+	admin := s.Graph.CreateUser()
+	space.AddAdmin(admin)
+
+	// Viewers/contributors in the space which roles we want to delete
+	var usersToDelete []uuid.UUID
+	for i := 0; i < 5; i++ {
+		u := s.Graph.CreateUser()
+		usersToDelete = append(usersToDelete, u.IdentityID())
+		space.AddViewer(u).AddContributor(u)
+	}
+	// One admin to delete
+	u := s.Graph.CreateUser()
+	usersToDelete = append(usersToDelete, u.IdentityID())
+	space.AddAdmin(u)
+
+	// Make some noise
+	spaceX := s.Graph.CreateSpace()
+	for i := 0; i < 5; i++ {
+		spaceX.AddViewer(s.Graph.CreateUser()).AddContributor(s.Graph.CreateUser())
+	}
+
+	// Revoke the roles
+	err := s.repo.RevokeResourceRoles(s.Ctx, admin.IdentityID(), usersToDelete, space.SpaceID())
+	require.NoError(s.T(), err)
+
+	// Check the identity roles for the space and users are gone
+	for _, idn := range usersToDelete {
+		idRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(s.Ctx, space.SpaceID(), idn)
+		require.NoError(s.T(), err)
+		assert.Len(s.T(), idRoles, 0)
+	}
+
+	// Check the identity roles for the other users for this space are still preset
+	idRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(s.Ctx, space.SpaceID(), userToStay.Identity().ID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 2)
+	idRoles, err = s.Application.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(s.Ctx, space.SpaceID(), admin.Identity().ID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 1)
+
+	// Check the identity roles for the other space are still preset
+	idRoles, err = s.Application.IdentityRoleRepository().FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID())
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 10)
+}
+
 func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {
 	for _, returnedAssignment := range returnedAssignedRoles {
 		require.Equal(t, resourceID, returnedAssignment.ResourceID)

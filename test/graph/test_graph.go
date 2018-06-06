@@ -75,6 +75,7 @@ func (g *TestGraph) CreateUser(params ...interface{}) *userWrapper {
 }
 
 func (g *TestGraph) UserByID(id string) *userWrapper {
+	require.Contains(g.t, g.graphObjects, id, "user with such ID is not registered")
 	return g.graphObjects[id].(*userWrapper)
 }
 
@@ -86,6 +87,7 @@ func (g *TestGraph) CreateSpace(params ...interface{}) *spaceWrapper {
 }
 
 func (g *TestGraph) SpaceByID(id string) *spaceWrapper {
+	require.Contains(g.t, g.graphObjects, id, "space with such ID is not registered")
 	return g.graphObjects[id].(*spaceWrapper)
 }
 
@@ -96,6 +98,7 @@ func (g *TestGraph) CreateResourceType(params ...interface{}) *resourceTypeWrapp
 }
 
 func (g *TestGraph) ResourceTypeByID(id string) *resourceTypeWrapper {
+	require.Contains(g.t, g.graphObjects, id, "resource type with such ID is not registered")
 	return g.graphObjects[id].(*resourceTypeWrapper)
 }
 
@@ -129,6 +132,7 @@ func (g *TestGraph) CreateResource(params ...interface{}) *resourceWrapper {
 }
 
 func (g *TestGraph) ResourceByID(id string) *resourceWrapper {
+	require.Contains(g.t, g.graphObjects, id, "resource with such ID is not registered")
 	return g.graphObjects[id].(*resourceWrapper)
 }
 
@@ -177,6 +181,7 @@ func (g *TestGraph) LoadOrganization(params ...interface{}) *organizationWrapper
 }
 
 func (g *TestGraph) OrganizationByID(id string) *organizationWrapper {
+	require.Contains(g.t, g.graphObjects, id, "organization with such ID is not registered")
 	return g.graphObjects[id].(*organizationWrapper)
 }
 
@@ -187,6 +192,7 @@ func (g *TestGraph) CreateIdentity(params ...interface{}) *identityWrapper {
 }
 
 func (g *TestGraph) IdentityByID(id string) *identityWrapper {
+	require.Contains(g.t, g.graphObjects, id, "identity with such ID is not registered")
 	return g.graphObjects[id].(*identityWrapper)
 }
 
@@ -251,6 +257,7 @@ func (g *TestGraph) CreateRole(params ...interface{}) *roleWrapper {
 }
 
 func (g *TestGraph) RoleByID(id string) *roleWrapper {
+	require.Contains(g.t, g.graphObjects, id, "role with such ID is not registered")
 	return g.graphObjects[id].(*roleWrapper)
 }
 
@@ -271,5 +278,6 @@ func (g *TestGraph) CreateRoleMapping(params ...interface{}) *roleMappingWrapper
 }
 
 func (g *TestGraph) RoleMappingByID(id string) *roleMappingWrapper {
+	require.Contains(g.t, g.graphObjects, id, "role mapping with such ID is not registered")
 	return g.graphObjects[id].(*roleMappingWrapper)
 }

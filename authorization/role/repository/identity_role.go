@@ -432,7 +432,7 @@ func (m *GormIdentityRoleRepository) DeleteForResource(ctx context.Context, reso
 }
 
 // DeleteForIdentityAndResource deletes all IdentityRoles for the specified identity and resource
-// ErrRecordNotFound returned if
+// NotFoundError returned if no identity roles found to delete
 func (m *GormIdentityRoleRepository) DeleteForIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "deleteForIdentityAndResource"}, time.Now())
 	result := m.db.Scopes(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID)).Table(m.TableName()).Delete(nil)

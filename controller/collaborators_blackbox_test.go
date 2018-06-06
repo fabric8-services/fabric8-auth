@@ -557,7 +557,7 @@ func (rest *TestCollaboratorsREST) checkPrivateCollaborators(expectedUserIDs []u
 }
 
 func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsOk() {
-	space := rest.DBTestSuite.Graph.LoadSpace(rest.spaceID)
+	space := rest.Graph.LoadSpace(rest.spaceID)
 
 	svc, ctrl := rest.SecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
@@ -577,7 +577,7 @@ func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsOk() {
 }
 
 func (rest *TestCollaboratorsREST) TestRemoveManyCollaboratorsOk() {
-	space := rest.DBTestSuite.Graph.LoadSpace(rest.spaceID)
+	space := rest.Graph.LoadSpace(rest.spaceID)
 
 	svc, ctrl := rest.SecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())

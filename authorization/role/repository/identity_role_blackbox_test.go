@@ -117,6 +117,52 @@ func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
 	assert.Len(s.T(), idRoles, 5)
 }
 
+func (s *identityRoleBlackBoxTest) TestDeleteForIdentityAndResourceOK() {
+	// Test space
+	space := s.Graph.CreateSpace()
+	// One viewer/contributor in the space to stay
+	userToStay := s.Graph.CreateUser()
+	space.AddViewer(userToStay).AddContributor(userToStay)
+
+	// One viewer/contributor in the space which roles we want to delete
+	userToDelete := s.Graph.CreateUser()
+	space.AddViewer(userToDelete).AddContributor(userToDelete)
+
+	// Make some noise
+	spaceX := s.Graph.CreateSpace()
+	for i := 0; i < 5; i++ {
+		spaceX.AddAdmin(s.Graph.CreateUser()).AddContributor(s.Graph.CreateUser())
+	}
+
+	// Check all expected identity roles are present
+	idRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID())
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 4)
+
+	// Delete identity role for the space and user
+	err = s.repo.DeleteForIdentityAndResource(s.Ctx, space.SpaceID(), userToDelete.Identity().ID)
+	require.NoError(s.T(), err)
+
+	// Check the identity roles for the space and user are gone
+	idRoles, err = s.repo.FindIdentityRolesByIdentityAndResource(s.Ctx, space.SpaceID(), userToDelete.Identity().ID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 0)
+
+	// Delete action should fail if no identity roles found
+	err = s.repo.DeleteForIdentityAndResource(s.Ctx, space.SpaceID(), userToDelete.Identity().ID)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", space.SpaceID(), userToDelete.Identity().ID)
+
+	// Check the identity roles for the other user for this space are still preset
+	idRoles, err = s.repo.FindIdentityRolesByIdentityAndResource(s.Ctx, space.SpaceID(), userToStay.Identity().ID)
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 2)
+
+	// Check the identity roles for the other space are still preset
+	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID())
+	require.NoError(s.T(), err)
+	assert.Len(s.T(), idRoles, 10)
+}
+
 func (s *identityRoleBlackBoxTest) TestOKToDeleteForUnknownResource() {
 	err := s.repo.DeleteForResource(s.Ctx, uuid.NewV4().String())
 	require.NoError(s.T(), err)
