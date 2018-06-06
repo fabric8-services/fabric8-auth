@@ -1,13 +1,18 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"strings"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/authorization"
+	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -15,7 +20,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -116,7 +120,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 
 // Add user's identity to the list of space collaborators.
 func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -126,12 +130,23 @@ func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	// Now assign contributor role to the collaborator
+	err = c.addContributors(ctx, currentUser.ID, identityIDs, ctx.SpaceID.String())
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"space_id": ctx.SpaceID,
+		}, "unable to add contributors to space resource: resource not found; that's OK for old spaces")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	return ctx.OK([]byte{})
 }
 
 // AddMany adds user's identities to the list of space collaborators.
 func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -142,12 +157,59 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 	}
+
+	// Now assign contributor role to the collaborators
+	err = c.addContributors(ctx, currentUser.ID, ctx.Payload.Data, ctx.SpaceID.String())
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"space_id": ctx.SpaceID,
+		}, "unable to add contributors to space resource: resource not found; that's OK for old spaces")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	return ctx.OK([]byte{})
+}
+
+func (c *CollaboratorsController) addContributors(ctx context.Context, byIdentityID uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
+	err := c.app.ResourceRepository().CheckExists(ctx, spaceID)
+	if err != nil {
+		if notFound, _ := autherrors.IsNotFoundError(err); notFound {
+			log.Warn(ctx, map[string]interface{}{
+				"err":      err,
+				"space_id": spaceID,
+			}, "unable to add contributors to space resource: resource not found; that's OK for old spaces")
+			// Just log the warning. Old spaces doesn't have any registered resources.
+			return nil
+		}
+		return err
+	}
+
+	err = c.app.PermissionService().RequireScope(ctx, byIdentityID, spaceID, authorization.ManageRoleAssignmentsInSpaceScope)
+	if err != nil {
+		return err
+	}
+
+	res := resource.Resource{ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace}, ResourceID: spaceID}
+	for _, contributor := range contributors {
+		identityID, err := uuid.FromString(contributor.ID)
+		if err != nil {
+			return autherrors.NewBadParameterError("ids", contributor.ID).Expected("uuid")
+		}
+
+		// Have to use ForceAssign() because Assign() requires assignees to already have any role in the space
+		err = c.app.RoleManagementService().ForceAssign(ctx, identityID, authorization.SpaceContributorRole, res)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Remove user from the list of space collaborators.
 func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -157,12 +219,19 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	// Now delete the contributor role from the collaborator
+	err = c.removeContributors(ctx, currentUser.ID, identityIDs, ctx.SpaceID.String())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	return ctx.OK([]byte{})
 }
 
 // RemoveMany removes users from the list of space collaborators.
 func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsContext) error {
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -172,9 +241,40 @@ func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsCon
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
+
+		// Now delete the contributor role from the collaborators
+		err = c.removeContributors(ctx, currentUser.ID, ctx.Payload.Data, ctx.SpaceID.String())
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
 	}
 
 	return ctx.OK([]byte{})
+}
+
+func (c *CollaboratorsController) removeContributors(ctx context.Context, byIdentityID uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
+	err := c.app.ResourceRepository().CheckExists(ctx, spaceID)
+	if err != nil {
+		if notFound, _ := autherrors.IsNotFoundError(err); notFound {
+			log.Warn(ctx, map[string]interface{}{
+				"err":      err,
+				"space_id": spaceID,
+			}, "unable to add contributors to space resource: resource not found; that's OK for old spaces")
+			// Just log the warning. Old spaces doesn't have any registered resources.
+			return nil
+		}
+		return err
+	}
+
+	toDelete := []uuid.UUID{}
+	for _, contributor := range contributors {
+		identityID, err := uuid.FromString(contributor.ID)
+		if err != nil {
+			return autherrors.NewBadParameterError("ids", contributor.ID).Expected("uuid")
+		}
+		toDelete = append(toDelete, identityID)
+	}
+	return c.app.RoleManagementService().DeleteRoleAssignments(ctx, byIdentityID, toDelete, spaceID)
 }
 
 func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, req *goa.RequestData, spaceID uuid.UUID, identityIDs []*app.UpdateUserID, update func(policy *auth.KeycloakPolicy, identityID string) bool) error {

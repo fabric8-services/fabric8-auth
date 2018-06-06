@@ -65,6 +65,7 @@ type IdentityRoleRepository interface {
 	List(ctx context.Context) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 	DeleteForResource(ctx context.Context, resourceID string) error
+	DeleteForIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) error
 	FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error)
 	FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error)
@@ -427,6 +428,15 @@ func (m *GormIdentityRoleRepository) DeleteForResource(ctx context.Context, reso
 		return errs.WithStack(err)
 	}
 	return nil
+}
+
+// DeleteForIdentityAndResource deletes all IdentityRoles for the specified identity and resource
+func (m *GormIdentityRoleRepository) DeleteForIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "deleteForIdentityAndResource"}, time.Now())
+
+	err := m.db.Scopes(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID)).Table(m.TableName()).Delete(nil).Error
+
+	return errs.WithStack(err)
 }
 
 // FindIdentityRolesByIdentityAndResource returns all identity roles by identity ID and resource ID
