@@ -69,8 +69,8 @@ type IdentityRoleRepository interface {
 	DeleteForIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) error
 	FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error)
 	FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
-	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error)
-	FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
+	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string, includeParenResources bool) ([]IdentityRole, error)
+	FindIdentityRolesByResource(ctx context.Context, resourceID string, includeParenResources bool) ([]IdentityRole, error)
 	FindIdentityRolesByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]IdentityRole, error)
 }
 
@@ -380,8 +380,15 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 }
 
 // FindIdentityRolesByResourceAndRoleName returns an array of IdentityRole objects that match the specified resource and role name
-func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResourceAndRoleName"}, time.Now())
+func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string, includeParenResources bool) ([]IdentityRole, error) {
+	if includeParenResources {
+		return m.findIdentityRolesByResourceAndRoleNameWithParents(ctx, resourceID, roleName)
+	}
+	return m.findIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
+}
+
+func (m *GormIdentityRoleRepository) findIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResourceAndRoleName"}, time.Now())
 
 	var identityRoles []IdentityRole
 
@@ -392,14 +399,51 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx 
 	return identityRoles, err
 }
 
+func (m *GormIdentityRoleRepository) findIdentityRolesByResourceAndRoleNameWithParents(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResourceAndRoleNameWithParents"}, time.Now())
+
+	var identityRoles []IdentityRole
+
+	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+		Where(`resource_id in (WITH RECURSIVE r AS (
+      SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
+      UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
+	    SELECT r.resource_id FROM r)`, resourceID).
+		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Find(&identityRoles).Error
+
+	return identityRoles, err
+}
+
 // FindIdentityRolesByResource returns an array of IdentityRole for the specified resource
-func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResource"}, time.Now())
+func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Context, resourceID string, includeParenResources bool) ([]IdentityRole, error) {
+	if includeParenResources {
+		return m.findIdentityRolesByResourceWithParents(ctx, resourceID)
+	}
+	return m.findIdentityRolesByResource(ctx, resourceID)
+}
+
+func (m *GormIdentityRoleRepository) findIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResource"}, time.Now())
 
 	var identityRoles []IdentityRole
 
 	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
 		Where(`resource_id = ?`, resourceID).Find(&identityRoles).Error
+
+	return identityRoles, err
+}
+
+func (m *GormIdentityRoleRepository) findIdentityRolesByResourceWithParents(ctx context.Context, resourceID string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResourceWithParents"}, time.Now())
+
+	var identityRoles []IdentityRole
+
+	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+		Where(`resource_id in (WITH RECURSIVE r AS (
+      SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
+      UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
+	    SELECT r.resource_id FROM r)`, resourceID).
+		Find(&identityRoles).Error
 
 	return identityRoles, err
 }

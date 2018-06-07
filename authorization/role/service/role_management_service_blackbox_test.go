@@ -248,7 +248,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 	s.checkRoleAssignments(usersToBeAssignedAsContributor, authorization.SpaceContributorRole, newSpace.SpaceID())
 
 	// Check the old roles were deleted or still present depending on appendToExistingRoles param
-	oldAssignedViewerRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.SpaceViewerRole)
+	oldAssignedViewerRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.SpaceViewerRole, false)
 	require.NoError(s.T(), err)
 	if !appendToExistingRoles {
 		// Check that the old view roles are now deleted from the the users for the resource
@@ -261,7 +261,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 }
 
 func (s *roleManagementServiceBlackboxTest) checkRoleAssignments(identities []uuid.UUID, roleName, resourceID string) {
-	newAssignedRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(context.Background(), resourceID, roleName)
+	newAssignedRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(context.Background(), resourceID, roleName, false)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), newAssignedRoles, len(identities))
 
@@ -461,7 +461,7 @@ func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesOK() {
 	assert.Len(s.T(), idRoles, 1)
 
 	// Check the identity roles for the other space are still preset
-	idRoles, err = s.Application.IdentityRoleRepository().FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID())
+	idRoles, err = s.Application.IdentityRoleRepository().FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID(), false)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), idRoles, 10)
 }

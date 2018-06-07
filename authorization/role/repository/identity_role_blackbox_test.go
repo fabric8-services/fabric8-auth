@@ -94,7 +94,7 @@ func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
 	}
 
 	// Check all expected identity roles are present
-	idRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID())
+	idRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID(), false)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), idRoles, 11)
 
@@ -103,7 +103,7 @@ func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
 	require.NoError(s.T(), err)
 
 	// Check the identity roles for the space are gone
-	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID())
+	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID(), false)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), idRoles, 0)
 
@@ -112,7 +112,7 @@ func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
 	require.NoError(s.T(), err)
 
 	// Check the identity roles for the other space are still preset
-	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID())
+	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID(), false)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), idRoles, 5)
 }
@@ -135,7 +135,7 @@ func (s *identityRoleBlackBoxTest) TestDeleteForIdentityAndResourceOK() {
 	}
 
 	// Check all expected identity roles are present
-	idRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID())
+	idRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID(), false)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), idRoles, 4)
 
@@ -158,7 +158,7 @@ func (s *identityRoleBlackBoxTest) TestDeleteForIdentityAndResourceOK() {
 	assert.Len(s.T(), idRoles, 2)
 
 	// Check the identity roles for the other space are still preset
-	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID())
+	idRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, spaceX.SpaceID(), false)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), idRoles, 10)
 }
@@ -294,7 +294,7 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleName() 
 	_, err = testsupport.CreateTestIdentityRole(s.Ctx, s.DB, identityRole.Resource, *otherRole)
 	require.NoError(s.T(), err)
 
-	identityRoles, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, identityRole.ResourceID, identityRole.Role.Name)
+	identityRoles, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, identityRole.ResourceID, identityRole.Role.Name, false)
 	require.NoError(s.T(), err)
 
 	require.Len(s.T(), identityRoles, 1)
@@ -305,7 +305,7 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
 	identityRole := createAndLoadIdentityRole(s)
 	createAndLoadIdentityRole(s)
 
-	identityRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, identityRole.ResourceID)
+	identityRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, identityRole.ResourceID, false)
 	require.NoError(s.T(), err)
 
 	require.Len(s.T(), identityRoles, 1)

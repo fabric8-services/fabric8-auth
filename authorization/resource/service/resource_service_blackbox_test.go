@@ -203,7 +203,7 @@ func (s *resourceServiceBlackBoxTest) checkRoleMapping(shouldExist bool, roleMap
 }
 
 func (s *resourceServiceBlackBoxTest) checkIdentityRole(expectedLen int, resourceID string) {
-	roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResource(s.Ctx, resourceID)
+	roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResource(s.Ctx, resourceID, false)
 	require.NoError(s.T(), err)
 	assert.Len(s.T(), roles, expectedLen)
 }

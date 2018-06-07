@@ -33,7 +33,7 @@ func (s *roleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Contex
 		return nil, err
 	}
 
-	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
+	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName, false)
 }
 
 // ListByResource lists all identity roles for the resource if the current user has permissions to view the roles
@@ -43,7 +43,7 @@ func (s *roleManagementServiceImpl) ListByResource(ctx context.Context, currentI
 		return nil, err
 	}
 
-	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
+	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID, false)
 }
 
 func (s *roleManagementServiceImpl) requireViewRolesScope(ctx context.Context, currentIdentity uuid.UUID, resourceID string) error {
