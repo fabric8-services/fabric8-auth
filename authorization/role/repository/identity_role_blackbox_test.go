@@ -1,10 +1,12 @@
 package repository_test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/authorization"
+	"context"
+	"fmt"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -13,8 +15,6 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	errs "github.com/pkg/errors"
 
-	"context"
-	"fmt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -281,35 +281,66 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesForIdentity() {
 }
 
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleName() {
-	identityRole := createAndLoadIdentityRole(s)
+	orgAdmin := s.Graph.CreateUser()
+	org := s.Graph.CreateOrganization(orgAdmin)
 
-	// Create one random identity role
-	createAndLoadIdentityRole(s)
+	spaceViewer := s.Graph.CreateUser()
+	spaceContributor := s.Graph.CreateUser()
+	spaceAdmin := s.Graph.CreateUser()
+	space := s.Graph.CreateSpace(org).AddViewer(spaceViewer).AddContributor(spaceContributor).AddAdmin(spaceAdmin)
 
-	// Create another identity role with the same resource as the first one, but a different role
-	roleName := uuid.NewV4().String()
-	otherRole, err := testsupport.CreateTestRole(s.Ctx, s.DB, identityRole.Resource.ResourceType, roleName)
+	childResource := s.Graph.CreateResource(space)
+
+	// noise
+	s.Graph.CreateSpace().AddAdmin(s.Graph.CreateUser())
+
+	// Without parent resources
+	identityRoles, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, childResource.ResourceID(), "admin", false)
 	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 0)
 
-	_, err = testsupport.CreateTestIdentityRole(s.Ctx, s.DB, identityRole.Resource, *otherRole)
+	identityRoles, err = s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, space.SpaceID(), "viewer", false)
 	require.NoError(s.T(), err)
-
-	identityRoles, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, identityRole.ResourceID, identityRole.Role.Name, false)
-	require.NoError(s.T(), err)
-
 	require.Len(s.T(), identityRoles, 1)
-	require.Equal(s.T(), identityRole.IdentityRoleID, identityRoles[0].IdentityRoleID)
+	validateAssignee(s.T(), []uuid.UUID{spaceViewer.IdentityID()}, space.SpaceID(), identityRoles)
+
+	// With parent resources
+	identityRoles, err = s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, childResource.ResourceID(), "admin", true)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 2)
+	validateAssignee(s.T(), []uuid.UUID{orgAdmin.IdentityID()}, org.ResourceID(), identityRoles)
+	validateAssignee(s.T(), []uuid.UUID{spaceAdmin.IdentityID()}, space.SpaceID(), identityRoles)
 }
 
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
-	identityRole := createAndLoadIdentityRole(s)
-	createAndLoadIdentityRole(s)
+	orgAdmin := s.Graph.CreateUser()
+	org := s.Graph.CreateOrganization(orgAdmin)
 
-	identityRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, identityRole.ResourceID, false)
+	spaceViewer := s.Graph.CreateUser()
+	spaceContributor := s.Graph.CreateUser()
+	space := s.Graph.CreateSpace(org).AddViewer(spaceViewer).AddContributor(spaceContributor)
+
+	childResource := s.Graph.CreateResource(space)
+
+	// noise
+	s.Graph.CreateSpace().AddAdmin(s.Graph.CreateUser())
+
+	// Without parent resources
+	identityRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, childResource.ResourceID(), false)
 	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 0)
 
-	require.Len(s.T(), identityRoles, 1)
-	require.Equal(s.T(), identityRole.IdentityRoleID, identityRoles[0].IdentityRoleID)
+	identityRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID(), false)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 2)
+	validateAssignee(s.T(), []uuid.UUID{spaceViewer.IdentityID(), spaceContributor.IdentityID()}, space.SpaceID(), identityRoles)
+
+	// With parent resources
+	identityRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, childResource.ResourceID(), true)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 3)
+	validateAssignee(s.T(), []uuid.UUID{spaceViewer.IdentityID(), spaceContributor.IdentityID()}, space.SpaceID(), identityRoles)
+	validateAssignee(s.T(), []uuid.UUID{orgAdmin.IdentityID()}, org.ResourceID(), identityRoles)
 }
 
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() {
@@ -421,4 +452,19 @@ func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	ir, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(s.T(), err)
 	return ir
+}
+
+func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []role.IdentityRole) {
+	for _, returnedAssignment := range returnedAssignedRoles {
+		assert.NotEmpty(t, returnedAssignment.Resource)
+		assert.NotEmpty(t, returnedAssignment.Identity)
+		assert.NotEmpty(t, returnedAssignment.Role)
+		for _, i := range amongUsers {
+			if i == returnedAssignment.IdentityID {
+				assert.Equal(t, resourceID, returnedAssignment.ResourceID)
+				return
+			}
+		}
+	}
+	assert.Fail(t, "user not found")
 }
