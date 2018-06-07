@@ -42,53 +42,56 @@ func (s *roleManagementServiceBlackboxTest) SetupTest() {
 
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 	t := s.T()
-	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
-	require.NoError(t, err)
-	require.NotNil(t, identityRole)
+	admin := s.Graph.CreateUser()
+	viewer := s.Graph.CreateUser()
+	space := s.Graph.CreateSpace().AddAdmin(admin).AddViewer(viewer)
 
-	// something that we dont want to be returned
-	identityRoleUnrelated, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
-	require.NoError(t, err)
-	require.NotNil(t, identityRoleUnrelated)
+	// noise
+	s.Graph.CreateSpace().AddViewer(s.Graph.CreateUser())
 
-	identityRoles, err := s.repo.ListByResource(s.Ctx, identityRole.Resource.ResourceID)
+	// User should have view scope to list roles
+	idnt := s.Graph.CreateUser().IdentityID()
+	identityRoles, err := s.repo.ListByResource(s.Ctx, idnt, space.SpaceID())
+	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope view for resource %s", idnt.String(), space.SpaceID())
+
+	// Check available roles
+	identityRoles, err = s.repo.ListByResource(s.Ctx, viewer.IdentityID(), space.SpaceID())
 	require.NoError(t, err)
-	require.Len(t, identityRoles, 1)
-	require.Equal(t, identityRole.Resource.ResourceID, identityRoles[0].Resource.ResourceID)
-	require.Equal(t, identityRole.Identity.ID, identityRoles[0].Identity.ID)
-	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
+	require.Len(t, identityRoles, 2)
+	validateAssignee(t, []uuid.UUID{admin.IdentityID(), viewer.IdentityID()}, space.SpaceID(), identityRoles)
+
+	// Fail if resource is unknown
+	id := uuid.NewV4().String()
+	identityRoles, err = s.repo.ListByResource(s.Ctx, viewer.IdentityID(), id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
 func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleName() {
 	t := s.T()
-	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
-	require.NoError(t, err)
-	require.NotNil(t, identityRole)
 
-	// something that we don't want to be returned
-	for i := 0; i < 10; i++ {
-		identityRoleUnrelated, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
-		require.NoError(t, err)
-		require.NotNil(t, identityRoleUnrelated)
-	}
+	admin := s.Graph.CreateUser()
+	viewer := s.Graph.CreateUser()
+	space := s.Graph.CreateSpace().AddAdmin(admin).AddViewer(viewer)
 
-	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, identityRole.Resource.ResourceID, identityRole.Role.Name)
+	// noise
+	s.Graph.CreateSpace().AddAdmin(s.Graph.CreateUser())
+
+	// User should have view scope to list roles
+	idnt := s.Graph.CreateUser().IdentityID()
+	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, idnt, space.SpaceID(), authorization.ManageRoleAssignmentsInSpaceScope)
+	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope view for resource %s", idnt.String(), space.SpaceID())
+
+	// Check available roles
+	identityRoles, err = s.repo.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), space.SpaceID(), authorization.SpaceAdminRole)
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 1)
-	require.Equal(t, identityRole.Resource.ResourceID, identityRoles[0].Resource.ResourceID)
-	require.Equal(t, identityRole.Identity.ID, identityRoles[0].Identity.ID)
-	require.Equal(t, identityRole.Role.RoleID, identityRoles[0].Role.RoleID)
-}
+	assert.Equal(t, authorization.SpaceAdminRole, identityRoles[0].Role.Name)
+	validateAssignee(t, []uuid.UUID{admin.IdentityID()}, space.SpaceID(), identityRoles)
 
-func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceNotFound() {
-	t := s.T()
-	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
-	require.NoError(t, err)
-	require.NotNil(t, identityRole)
-
-	identityRoles, err := s.repo.ListByResource(s.Ctx, uuid.NewV4().String())
-	require.NoError(t, err)
-	require.Equal(t, 0, len(identityRoles))
+	// Fail if resource is unknown
+	id := uuid.NewV4().String()
+	identityRoles, err = s.repo.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), id, authorization.ManageRoleAssignmentsInSpaceScope)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
 func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
@@ -190,17 +193,6 @@ func (s *roleManagementServiceBlackboxTest) checkScopeBelongsToResourceType(db *
 	require.NoError(s.T(), err)
 }
 
-func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRoleNameNotFound() {
-	t := s.T()
-	identityRole, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
-	require.NoError(t, err)
-	require.NotNil(t, identityRole)
-
-	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
-	require.NoError(t, err)
-	require.Equal(t, 0, len(identityRoles))
-}
-
 func (s *roleManagementServiceBlackboxTest) TestAssertRolesWithAppendingToExistingOK() {
 	s.checkAssignRoleOK(true)
 }
@@ -256,7 +248,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 	s.checkRoleAssignments(usersToBeAssignedAsContributor, authorization.SpaceContributorRole, newSpace.SpaceID())
 
 	// Check the old roles were deleted or still present depending on appendToExistingRoles param
-	oldAssignedViewerRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.SpaceViewerRole)
+	oldAssignedViewerRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(context.Background(), newSpace.SpaceID(), authorization.SpaceViewerRole)
 	require.NoError(s.T(), err)
 	if !appendToExistingRoles {
 		// Check that the old view roles are now deleted from the the users for the resource
@@ -269,7 +261,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 }
 
 func (s *roleManagementServiceBlackboxTest) checkRoleAssignments(identities []uuid.UUID, roleName, resourceID string) {
-	newAssignedRoles, err := s.repo.ListByResourceAndRoleName(context.Background(), resourceID, roleName)
+	newAssignedRoles, err := s.Application.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(context.Background(), resourceID, roleName)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), newAssignedRoles, len(identities))
 

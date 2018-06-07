@@ -118,9 +118,13 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 	})
 }
 
+func (c *CollaboratorsController) ListCollaborators(ctx context.Context) ([]account.Identity, error) {
+	return nil, nil
+}
+
 // Add user's identity to the list of space collaborators.
 func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
-	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -132,7 +136,7 @@ func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 	}
 
 	// Now assign contributor role to the collaborator
-	err = c.addContributors(ctx, currentUser.ID, identityIDs, ctx.SpaceID.String())
+	err = c.addContributors(ctx, currentIdentity.ID, identityIDs, ctx.SpaceID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -146,7 +150,7 @@ func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 
 // AddMany adds user's identities to the list of space collaborators.
 func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) error {
-	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -159,7 +163,7 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 	}
 
 	// Now assign contributor role to the collaborators
-	err = c.addContributors(ctx, currentUser.ID, ctx.Payload.Data, ctx.SpaceID.String())
+	err = c.addContributors(ctx, currentIdentity.ID, ctx.Payload.Data, ctx.SpaceID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -209,7 +213,7 @@ func (c *CollaboratorsController) addContributors(ctx context.Context, currentId
 
 // Remove user from the list of space collaborators.
 func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) error {
-	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -221,7 +225,7 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 	}
 
 	// Now delete the contributor role from the collaborator
-	err = c.removeContributors(ctx, currentUser.ID, identityIDs, ctx.SpaceID.String())
+	err = c.removeContributors(ctx, currentIdentity.ID, identityIDs, ctx.SpaceID.String())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -231,7 +235,7 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 
 // RemoveMany removes users from the list of space collaborators.
 func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsContext) error {
-	currentUser, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -243,7 +247,7 @@ func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsCon
 		}
 
 		// Now delete the contributor role from the collaborators
-		err = c.removeContributors(ctx, currentUser.ID, ctx.Payload.Data, ctx.SpaceID.String())
+		err = c.removeContributors(ctx, currentIdentity.ID, ctx.Payload.Data, ctx.SpaceID.String())
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}

@@ -123,7 +123,7 @@ func (rest *TestSpaceREST) TestCreateSpaceWithServiceAccountOK() {
 	assert.Equal(rest.T(), authorization.ResourceTypeSpace, *resource.Type)
 
 	// Check the admin role has been assigned to the space creator
-	assignedRoles, err := rest.Application.RoleManagementService().ListByResource(context.Background(), spaceID.String())
+	assignedRoles, err := rest.Application.RoleManagementService().ListByResource(context.Background(), creator.ID, spaceID.String())
 	require.NoError(rest.T(), err)
 	require.Len(rest.T(), assignedRoles, 1)
 	assert.Equal(rest.T(), creator.ID, assignedRoles[0].Identity.ID)
@@ -147,7 +147,7 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 	assert.Equal(rest.T(), authorization.ResourceTypeSpace, *resource.Type)
 
 	// Check the admin role has been assigned to the space creator
-	assignedRoles, err := rest.Application.RoleManagementService().ListByResource(context.Background(), spaceID.String())
+	assignedRoles, err := rest.Application.RoleManagementService().ListByResource(context.Background(), creator.ID, spaceID.String())
 	require.NoError(rest.T(), err)
 	require.Len(rest.T(), assignedRoles, 1)
 	assert.Equal(rest.T(), creator.ID, assignedRoles[0].Identity.ID)

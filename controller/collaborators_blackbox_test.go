@@ -569,6 +569,8 @@ func (rest *TestCollaboratorsREST) TestRemoveCollaboratorsOk() {
 	_, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID}, actualUsers)
 
+	//rest.Application.
+
 	test.RemoveCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity2.ID.String())
 
 	updatedResource, err := rest.Application.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)

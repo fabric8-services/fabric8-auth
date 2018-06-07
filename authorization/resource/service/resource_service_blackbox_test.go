@@ -123,7 +123,7 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 	spaceRoleMappingToDelete := g.CreateRoleMapping(spaceToDelete)
 	grandchildRoleMappingToDelete := g.CreateRoleMapping(spaceToDelete)
 
-	spaceToStay := g.CreateSpace(org)
+	spaceToStay := g.CreateSpace(org).AddAdmin(g.CreateUser())
 	teamToStay := g.CreateTeam(spaceToStay)
 	spaceRoleMappingToStay := g.CreateRoleMapping(spaceToStay)
 
@@ -138,9 +138,7 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 	s.checkResource(true, childResourceToDelete.ResourceID())
 	s.checkResource(true, grandchildResourceToDelete.ResourceID())
 
-	s.checkIdentityRole(2, spaceToDelete.SpaceID())
-	s.checkIdentityRole(2, teamToDeleteA.ResourceID())
-	s.checkIdentityRole(2, teamToDeleteB.ResourceID())
+	s.checkIdentityRole(1, spaceToDelete.SpaceID())
 
 	s.checkRoleMapping(true, spaceRoleMappingToDelete.RoleMapping().RoleMappingID)
 	s.checkRoleMapping(true, grandchildRoleMappingToDelete.RoleMapping().RoleMappingID)
@@ -178,7 +176,6 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 	s.checkIdentity(true, teamToStay.TeamID().String())
 
 	s.checkIdentityRole(1, spaceToStay.SpaceID())
-	s.checkIdentityRole(1, teamToStay.ResourceID())
 
 	s.checkRoleMapping(true, spaceRoleMappingToStay.RoleMapping().RoleMappingID)
 }

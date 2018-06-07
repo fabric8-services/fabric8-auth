@@ -26,14 +26,35 @@ type roleManagementServiceImpl struct {
 	base.BaseService
 }
 
-// ListByResourceAndRoleName lists role assignments of a specific resource.
-func (s *roleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
+// ListByResourceAndRoleName lists specific roles for the resource if the current user has permissions to view the roles
+func (s *roleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, currentIdentity uuid.UUID, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
+	err := s.requireViewRolesScope(ctx, currentIdentity, resourceID)
+	if err != nil {
+		return nil, err
+	}
+
 	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
 }
 
-// ListByResource lists role assignments of a specific resource.
-func (s *roleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
+// ListByResource lists all identity roles for the resource if the current user has permissions to view the roles
+func (s *roleManagementServiceImpl) ListByResource(ctx context.Context, currentIdentity uuid.UUID, resourceID string) ([]rolerepo.IdentityRole, error) {
+	err := s.requireViewRolesScope(ctx, currentIdentity, resourceID)
+	if err != nil {
+		return nil, err
+	}
+
 	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
+}
+
+func (s *roleManagementServiceImpl) requireViewRolesScope(ctx context.Context, currentIdentity uuid.UUID, resourceID string) error {
+	// Lookup the resourceID and ensure the resource is valid
+	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	// Check if the current user has the necessary privileges for viewing roles
+	return s.Services().PermissionService().RequireScope(ctx, currentIdentity, resourceID, authorization.ScopeForViewingRolesInResourceType(rt.Name))
 }
 
 // ListAvailableRolesByResourceType lists role assignments of a specific resource.
@@ -153,36 +174,6 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	return err
 }
 
-// RevokeResourceRoles revokes all roles for the resource for the specified identities
-// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *roleManagementServiceImpl) RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error {
-	// Lookup the resourceID and ensure the resource is valid
-	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
-	if err != nil {
-		return err
-	}
-
-	// check if the current user token belongs to a user who has the necessary privileges
-	// for managing roles.
-	permissionService := s.Services().PermissionService()
-	err = permissionService.RequireScope(ctx, currentIdentity, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
-	if err != nil {
-		return err
-	}
-
-	err = s.ExecuteInTransaction(func() error {
-		for _, identityID := range identities {
-			err := s.Repositories().IdentityRoleRepository().DeleteForIdentityAndResource(ctx, resourceID, identityID)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	return err
-}
-
 // ForceAssign assigns an identity (users, organizations, teams or groups) with a role for a specific resource.
 // This method doesn't check any permissions and assumes that the caller does all needed permissions checks.
 // As an example: this method is to be used when creating a resource (space) to assign initial admin role to the resource creator.
@@ -202,6 +193,35 @@ func (s *roleManagementServiceImpl) ForceAssign(ctx context.Context, assignedTo 
 		}
 
 		return s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
+	})
+
+	return err
+}
+
+// RevokeResourceRoles revokes all roles for the resource for the specified identities
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
+func (s *roleManagementServiceImpl) RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error {
+	// Lookup the resourceID and ensure the resource is valid
+	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	// check if the current user token belongs to a user who has the necessary privileges
+	// for managing roles.
+	err = s.Services().PermissionService().RequireScope(ctx, currentIdentity, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
+	if err != nil {
+		return err
+	}
+
+	err = s.ExecuteInTransaction(func() error {
+		for _, identityID := range identities {
+			err := s.Repositories().IdentityRoleRepository().DeleteForIdentityAndResource(ctx, resourceID, identityID)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 
 	return err

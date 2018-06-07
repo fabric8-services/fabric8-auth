@@ -386,17 +386,10 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx 
 	var identityRoles []IdentityRole
 
 	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
-		Where(`resource_id in (WITH RECURSIVE r AS (
-      SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
-      UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
-	    SELECT r.resource_id FROM r)`, resourceID).
+		Where(`resource_id = ?`, resourceID).
 		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Find(&identityRoles).Error
 
-	if err != nil {
-		return nil, err
-	}
-
-	return identityRoles, nil
+	return identityRoles, err
 }
 
 // FindIdentityRolesByResource returns an array of IdentityRole for the specified resource
@@ -406,17 +399,9 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Con
 	var identityRoles []IdentityRole
 
 	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
-		Where(`resource_id in (WITH RECURSIVE r AS (
-      SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
-      UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
-	    SELECT r.resource_id FROM r)`, resourceID).
-		Find(&identityRoles).Error
+		Where(`resource_id = ?`, resourceID).Find(&identityRoles).Error
 
-	if err != nil {
-		return nil, err
-	}
-
-	return identityRoles, nil
+	return identityRoles, err
 }
 
 // DeleteForResource deletes all identity roles for the given resource ID
