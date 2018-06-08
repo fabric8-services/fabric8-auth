@@ -126,11 +126,12 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 			}
 		}
 	}
+
+	// Temporary: During migration, if the service account token is used to call this API,
+	// then the 'contributor' role can be added to existing space collaborators.
+	// Without this, the Assign() service method will not allow a role to be assigned since the user does not have a prior
+	// associattion with this space
 	if isMigration {
-		// Temporary: During migration, if the service account token to call this API,
-		// then the 'contributor' role can be added to existing space collaborators.
-		// without this, the Assign() service will not allow a role to be assigned since the user does not have a prior
-		// associattion with this space
 		res := resource.Resource{
 			ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace},
 			ResourceID:   ctx.ResourceID,
