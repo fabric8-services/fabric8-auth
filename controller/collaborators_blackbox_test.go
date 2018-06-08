@@ -602,7 +602,7 @@ func (rest *TestCollaboratorsREST) createSpace() uuid.UUID {
 	require.NotNil(rest.T(), spaceCtrl)
 
 	id := uuid.NewV4()
-	test.CreateSpaceOK(rest.T(), svc.Context, svc, spaceCtrl, id, nil)
+	test.CreateSpaceOK(rest.T(), svc.Context, svc, spaceCtrl, id)
 	return id
 }
 
@@ -640,7 +640,6 @@ type DummyResourceManager struct {
 }
 
 func (m *DummyResourceManager) CreateResource(ctx context.Context, request *goa.RequestData, name string, rType string, uri *string, scopes *[]string, userID string) (*auth.Resource, error) {
-
 	if m.ResourceID == nil {
 		return &auth.Resource{ResourceID: uuid.NewV4().String(), PermissionID: uuid.NewV4().String(), PolicyID: uuid.NewV4().String()}, nil
 	}
