@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -154,7 +155,7 @@ func (s *resourceBlackBoxTest) TestCannotCreateDuplicateOrganizationNames() {
 
 func (s *resourceBlackBoxTest) TestCreateResourceDataConflict() {
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
-	require.Nil(s.T(), err, "Could not find resource type")
+	require.NoError(s.T(), err, "Could not find resource type")
 
 	resource := &resource.Resource{
 		ResourceID:     uuid.NewV4().String(),
@@ -163,11 +164,11 @@ func (s *resourceBlackBoxTest) TestCreateResourceDataConflict() {
 	}
 
 	err = s.repo.Create(s.Ctx, resource)
-	require.Nil(s.T(), err, "Could not create resource")
+	require.NoError(s.T(), err, "Could not create resource")
 
 	err = s.repo.Create(s.Ctx, resource)
-	require.Error(s.T(), err)
-	require.IsType(s.T(), errors.DataConflictError{}, err)
+	testsupport.AssertError(s.T(), err, errors.DataConflictError{}, "resource with ID %s already exists", resource.ResourceID)
+	//require.IsType(s.T(), errors.DataConflictError{}, err)
 }
 
 func createAndLoadResource(s *resourceBlackBoxTest, parentResourceID *string) *resource.Resource {

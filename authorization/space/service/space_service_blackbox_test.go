@@ -1,7 +1,6 @@
 package service_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -52,7 +51,7 @@ func (s *spaceServiceBlackBoxTest) TestCreateOK() {
 
 	// If we try to create another space with the same ID it should fail
 	err = s.Application.SpaceService().CreateSpace(s.Ctx, creator.Identity().ID, spaceID)
-	test.AssertError(s.T(), err, errors.DataConflictError{}, fmt.Sprintf("resource with ID %s already exists", spaceID))
+	test.AssertError(s.T(), err, errors.DataConflictError{}, "resource with ID %s already exists", spaceID)
 }
 
 func (s *spaceServiceBlackBoxTest) TestDeleteUnknownSpaceFails() {
