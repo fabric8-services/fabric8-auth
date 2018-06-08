@@ -128,6 +128,9 @@ func (rest *TestSpaceREST) TestCreateSpaceWithServiceAccountOK() {
 	require.Len(rest.T(), assignedRoles, 1)
 	assert.Equal(rest.T(), creator.ID, assignedRoles[0].Identity.ID)
 	assert.Equal(rest.T(), authorization.SpaceAdminRole, assignedRoles[0].Role.Name)
+
+	// Now try to create a space with the same ID
+	test.CreateSpaceConflict(rest.T(), svc.Context, svc, ctrl, spaceID, &creator.ID)
 }
 
 func (rest *TestSpaceREST) TestCreateSpaceOK() {
@@ -164,7 +167,7 @@ func (rest *TestSpaceREST) TestKeycloakResourceCreationRollBack() {
 	require.NoError(rest.T(), err)
 
 	// Should fail because the space already exists.
-	test.CreateSpaceInternalServerError(rest.T(), svc.Context, svc, ctrl, spaceID, nil)
+	test.CreateSpaceConflict(rest.T(), svc.Context, svc, ctrl, spaceID, nil)
 
 	// Check that no keycloak resource exist for this space ID
 	_, err = rest.Application.SpaceResources().LoadBySpace(svc.Context, &spaceID)

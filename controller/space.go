@@ -121,7 +121,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 			}
 		}
 
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	if resource != nil { // for migration = true, resource is nil
