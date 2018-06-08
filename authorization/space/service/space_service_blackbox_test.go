@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/lib/pq"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,7 +51,7 @@ func (s *spaceServiceBlackBoxTest) TestCreateOK() {
 
 	// If we try to create another space with the same ID it should fail
 	err = s.Application.SpaceService().CreateSpace(s.Ctx, creator.Identity().ID, spaceID)
-	test.AssertError(s.T(), err, &pq.Error{}, "pq: duplicate key value violates unique constraint \"resource_pkey\"")
+	test.AssertError(s.T(), err, errors.DataConflictError{}, "resource with ID %s already exists", spaceID)
 }
 
 func (s *spaceServiceBlackBoxTest) TestDeleteUnknownSpaceFails() {
