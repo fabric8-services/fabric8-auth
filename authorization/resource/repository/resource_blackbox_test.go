@@ -152,6 +152,24 @@ func (s *resourceBlackBoxTest) TestCannotCreateDuplicateOrganizationNames() {
 	require.IsType(s.T(), errors.DataConflictError{}, err)
 }
 
+func (s *resourceBlackBoxTest) TestCreateResourceDataConflict() {
+	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
+	require.Nil(s.T(), err, "Could not find resource type")
+
+	resource := &resource.Resource{
+		ResourceID:     uuid.NewV4().String(),
+		ResourceType:   *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
+	}
+
+	err = s.repo.Create(s.Ctx, resource)
+	require.Nil(s.T(), err, "Could not create resource")
+
+	err = s.repo.Create(s.Ctx, resource)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.DataConflictError{}, err)
+}
+
 func createAndLoadResource(s *resourceBlackBoxTest, parentResourceID *string) *resource.Resource {
 	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
 	require.Nil(s.T(), err, "Could not find resource type")
