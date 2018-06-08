@@ -41,14 +41,6 @@ func (rest *TestResourceRolesRest) UnSecuredController() (*goa.Service, *Resourc
 	return svc, NewResourceRolesController(svc, rest.Application)
 }
 
-func (rest *TestResourceRolesRest) SecuredControllerWithServiceAccount(serviceAccountName string) (*goa.Service, *ResourceRolesController) {
-	identity, err := testsupport.CreateTestIdentityAndUser(rest.DB, serviceAccountName, "KC")
-	require.NoError(rest.T(), err)
-
-	svc := testsupport.ServiceAsServiceAccountUser(serviceAccountName, identity)
-	return svc, NewResourceRolesController(svc, rest.Application)
-}
-
 func TestRunResourceRolesRest(t *testing.T) {
 	suite.Run(t, &TestResourceRolesRest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
@@ -314,26 +306,6 @@ func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
 	}
 
 	test.AssignRoleResourceRolesBadRequest(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
-}
-
-func (rest *TestResourceRolesRest) TestAssignRoleUserNotInSpaceOK() {
-	g := rest.DBTestSuite.NewTestGraph()
-	res := g.CreateSpace()
-
-	var identitiesToBeAssigned []*app.AssignRoleData
-
-	// don't have any role assigned.
-	for i := 0; i <= 2; i++ {
-		testUser := g.CreateUser()
-		identitiesToBeAssigned = append(identitiesToBeAssigned, &app.AssignRoleData{Role: authorization.SpaceContributorRole, Ids: []string{testUser.Identity().ID.String()}})
-	}
-
-	svc, ctrl := rest.SecuredControllerWithServiceAccount("space-migration")
-	payload := &app.AssignRoleResourceRolesPayload{
-		Data: identitiesToBeAssigned,
-	}
-
-	test.AssignRoleResourceRolesNoContent(rest.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRoles() {
