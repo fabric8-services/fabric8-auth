@@ -15,7 +15,7 @@ type resourceWrapper struct {
 	resource *resource.Resource
 }
 
-func newResourceWrapper(g *TestGraph, params []interface{}) resourceWrapper {
+func newResourceWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := resourceWrapper{baseWrapper: baseWrapper{g}}
 
 	var resourceName *string
@@ -74,7 +74,7 @@ func newResourceWrapper(g *TestGraph, params []interface{}) resourceWrapper {
 
 	w.resource.ParentResource = parentResource
 	w.resource.ResourceType = *resourceType
-	return w
+	return &w
 }
 
 func loadResourceWrapper(g *TestGraph, resourceID string) resourceWrapper {

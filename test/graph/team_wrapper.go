@@ -30,7 +30,7 @@ func loadTeamWrapper(g *TestGraph, teamID uuid.UUID) teamWrapper {
 	return w
 }
 
-func newTeamWrapper(g *TestGraph, params []interface{}) teamWrapper {
+func newTeamWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := teamWrapper{baseWrapper: baseWrapper{g}}
 
 	var teamName *string
@@ -79,7 +79,7 @@ func newTeamWrapper(g *TestGraph, params []interface{}) teamWrapper {
 	err = g.app.Identities().Create(g.ctx, w.identity)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
 func (w *teamWrapper) TeamID() uuid.UUID {

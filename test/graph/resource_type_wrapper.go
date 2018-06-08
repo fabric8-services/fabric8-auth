@@ -27,11 +27,10 @@ func loadResourceTypeWrapper(g *TestGraph, resourceTypeID *uuid.UUID, resourceTy
 	require.NoError(w.graph.t, err)
 
 	w.resourceType = &native
-
 	return w
 }
 
-func newResourceTypeWrapper(g *TestGraph, params []interface{}) resourceTypeWrapper {
+func newResourceTypeWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := resourceTypeWrapper{baseWrapper: baseWrapper{g}}
 
 	var resourceTypeName *string
@@ -54,7 +53,7 @@ func newResourceTypeWrapper(g *TestGraph, params []interface{}) resourceTypeWrap
 	err := g.app.ResourceTypeRepository().Create(g.ctx, w.resourceType)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
 func (w *resourceTypeWrapper) ResourceType() *resourcetype.ResourceType {

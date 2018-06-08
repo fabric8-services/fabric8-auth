@@ -157,6 +157,20 @@ func (s *invitationBlackBoxTest) TestAddRoleFailsForInvalidRoleID() {
 	require.Equal(s.T(), 0, len(roles))
 }
 
+func (s *invitationBlackBoxTest) TestFindByToken() {
+	g := s.NewTestGraph()
+	i := g.CreateInvitation()
+
+	// Create a couple more invitations for some noise
+	g.CreateInvitation()
+	g.CreateInvitation()
+
+	invitation, err := s.repo.FindByToken(s.Ctx, i.Invitation().IdentityID, i.Invitation().AcceptToken)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), i.Invitation().InvitationID, invitation.InvitationID)
+}
+
 func (s *invitationBlackBoxTest) CreateTestInvitation() (invitationRepo.Invitation, error) {
 	var invitation invitationRepo.Invitation
 

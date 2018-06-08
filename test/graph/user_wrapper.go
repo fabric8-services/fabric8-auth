@@ -26,7 +26,7 @@ func loadUserWrapper(g *TestGraph, identityID uuid.UUID) userWrapper {
 	return w
 }
 
-func newUserWrapper(g *TestGraph, params []interface{}) userWrapper {
+func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := userWrapper{baseWrapper: baseWrapper{g}}
 
 	w.user = &account.User{
@@ -49,7 +49,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) userWrapper {
 	err = g.app.Identities().Create(g.ctx, w.identity)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
 func (w *userWrapper) User() *account.User {

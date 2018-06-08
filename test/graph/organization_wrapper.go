@@ -28,7 +28,7 @@ func loadOrganizationWrapper(g *TestGraph, organizationID uuid.UUID) organizatio
 	return w
 }
 
-func newOrganizationWrapper(g *TestGraph, params []interface{}) organizationWrapper {
+func newOrganizationWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := organizationWrapper{baseWrapper: baseWrapper{g}}
 
 	var organizationName *string
@@ -60,7 +60,7 @@ func newOrganizationWrapper(g *TestGraph, params []interface{}) organizationWrap
 	organizationResource := g.LoadResource(w.identity.IdentityResourceID.String)
 	w.resource = organizationResource.Resource()
 
-	return w
+	return &w
 }
 
 func (w *organizationWrapper) OrganizationID() uuid.UUID {

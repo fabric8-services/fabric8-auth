@@ -13,7 +13,7 @@ type roleWrapper struct {
 	role *role.Role
 }
 
-func newRoleWrapper(g *TestGraph, params []interface{}) roleWrapper {
+func newRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := roleWrapper{baseWrapper: baseWrapper{g}}
 
 	var roleName *string
@@ -51,7 +51,7 @@ func newRoleWrapper(g *TestGraph, params []interface{}) roleWrapper {
 	err := g.app.RoleRepository().Create(g.ctx, w.role)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
 func (g *roleWrapper) Role() *role.Role {
