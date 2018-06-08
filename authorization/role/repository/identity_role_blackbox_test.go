@@ -312,6 +312,65 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleName() 
 	validateAssignee(s.T(), []uuid.UUID{spaceAdmin.IdentityID()}, space.SpaceID(), identityRoles)
 }
 
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleNameOrder() {
+	org := s.Graph.CreateOrganization(s.Graph.CreateUser())
+	space := s.Graph.CreateSpace(org)
+	for i := 0; i < 10; i++ {
+		space.AddViewer(s.Graph.CreateUser()).AddContributor(s.Graph.CreateUser()).AddAdmin(s.Graph.CreateUser())
+	}
+	childResource := s.Graph.CreateResource(space)
+
+	// Without parent resources
+	identityRoles, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, space.SpaceID(), "viewer", false)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 10)
+
+	for i := 0; i < 10; i++ {
+		ir, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, space.SpaceID(), "viewer", false)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), identityRoles, ir) // Order should be the same every time
+	}
+
+	// With parent resources
+	identityRoles, err = s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, childResource.ResourceID(), "admin", true)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 11)
+	for i := 0; i < 10; i++ {
+		ir, err := s.repo.FindIdentityRolesByResourceAndRoleName(s.Ctx, space.SpaceID(), "admin", true)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), identityRoles, ir) // Order should be the same every time
+	}
+}
+
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceOrder() {
+	org := s.Graph.CreateOrganization(s.Graph.CreateUser())
+	space := s.Graph.CreateSpace(org)
+	for i := 0; i < 10; i++ {
+		space.AddViewer(s.Graph.CreateUser()).AddContributor(s.Graph.CreateUser()).AddAdmin(s.Graph.CreateUser())
+	}
+	childResource := s.Graph.CreateResource(space)
+
+	// Without parent resources
+	identityRoles, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID(), false)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 30)
+	for i := 0; i < 10; i++ {
+		ir, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID(), false)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), identityRoles, ir) // Order should be the same every time
+	}
+
+	// With parent resources
+	identityRoles, err = s.repo.FindIdentityRolesByResource(s.Ctx, childResource.ResourceID(), true)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), identityRoles, 31)
+	for i := 0; i < 10; i++ {
+		ir, err := s.repo.FindIdentityRolesByResource(s.Ctx, space.SpaceID(), true)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), identityRoles, ir) // Order should be the same every time
+	}
+}
+
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
 	orgAdmin := s.Graph.CreateUser()
 	org := s.Graph.CreateOrganization(orgAdmin)

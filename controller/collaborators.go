@@ -13,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -45,6 +46,14 @@ func NewCollaboratorsController(service *goa.Service, app application.Applicatio
 // List collaborators for the given space ID.
 func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error {
 	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification)
+
+	found, err := c.checkSpaceExist(ctx, ctx.SpaceID.String())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	if found {
+		return c.listCollaborators(ctx, isServiceAccount)
+	}
 
 	policy, _, err := c.getPolicy(ctx, ctx.RequestData, ctx.SpaceID)
 	if err != nil {
@@ -118,8 +127,97 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 	})
 }
 
-func (c *CollaboratorsController) ListCollaborators(ctx context.Context) ([]account.Identity, error) {
-	return nil, nil
+func (c *CollaboratorsController) listRoles(ctx *app.ListCollaboratorsContext, currentIdentity *account.Identity, roleName string, isServiceAccount bool) ([]rolerepo.IdentityRole, error) {
+	if isServiceAccount {
+		return c.app.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, ctx.SpaceID.String(), roleName, false)
+	}
+	return c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.SpaceID.String(), roleName)
+}
+
+func (c *CollaboratorsController) listCollaborators(ctx *app.ListCollaboratorsContext, isServiceAccount bool) error {
+	var currentIdentity *account.Identity
+	var err error
+	if !isServiceAccount {
+		currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+	}
+
+	cm := make(map[uuid.UUID]account.Identity) // Use map to check duplications
+	var collaborators []account.Identity
+	// Collect all contributors and admins of the space
+	contributors, err := c.listRoles(ctx, currentIdentity, authorization.SpaceContributorRole, isServiceAccount)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	for _, c := range contributors {
+		cm[c.IdentityID] = c.Identity
+		collaborators = append(collaborators, c.Identity)
+	}
+	admins, err := c.listRoles(ctx, currentIdentity, authorization.SpaceAdminRole, isServiceAccount)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	for _, a := range admins {
+		if _, found := cm[a.IdentityID]; !found { // Add admins only if they are not already added as contributors
+			collaborators = append(collaborators, a.Identity)
+		}
+	}
+
+	count := len(collaborators)
+	offset, limit := computePagingLimits(ctx.PageOffset, ctx.PageLimit)
+	pageOffset := offset
+	pageLimit := offset + limit
+	if offset > count {
+		pageOffset = count
+	}
+	if offset+limit > count {
+		pageLimit = count
+	}
+	page := collaborators[pageOffset:pageLimit]
+	resultIdentities := make([]account.Identity, len(page))
+	resultUsers := make([]account.User, len(page))
+	for i, idn := range page {
+		user, err := c.app.Users().Load(ctx, idn.UserID.UUID)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+		}
+		idn.User = *user
+		resultUsers[i] = idn.User
+		resultIdentities[i] = idn
+	}
+
+	return ctx.ConditionalEntities(resultUsers, c.config.GetCacheControlCollaborators, func() error {
+		data := make([]*app.UserData, len(page))
+		for i := range resultUsers {
+			appUser := ConvertToAppUser(ctx.RequestData, &resultUsers[i], &resultIdentities[i], isServiceAccount)
+			data[i] = appUser.Data
+		}
+		response := app.UserList{
+			Links: &app.PagingLinks{},
+			Meta:  &app.UserListMeta{TotalCount: count},
+			Data:  data,
+		}
+		setPagingLinks(response.Links, buildAbsoluteURL(ctx.RequestData), len(page), offset, limit, count)
+		return ctx.OK(&response)
+	})
+}
+
+func (c *CollaboratorsController) checkSpaceExist(ctx context.Context, spaceID string) (bool, error) {
+	err := c.app.ResourceRepository().CheckExists(ctx, spaceID)
+	if err != nil {
+		if notFound, _ := autherrors.IsNotFoundError(err); notFound {
+			log.Warn(ctx, map[string]interface{}{
+				"err":      err,
+				"space_id": spaceID,
+			}, "unable to manage contributors of space resource: resource not found; that's OK for old spaces")
+			// Just log the warning. Old spaces doesn't have any registered resources.
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // Add user's identity to the list of space collaborators.
@@ -176,16 +274,8 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 }
 
 func (c *CollaboratorsController) addContributors(ctx context.Context, currentIdentity uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
-	err := c.app.ResourceRepository().CheckExists(ctx, spaceID)
-	if err != nil {
-		if notFound, _ := autherrors.IsNotFoundError(err); notFound {
-			log.Warn(ctx, map[string]interface{}{
-				"err":      err,
-				"space_id": spaceID,
-			}, "unable to add contributors to space resource: resource not found; that's OK for old spaces")
-			// Just log the warning. Old spaces doesn't have any registered resources.
-			return nil
-		}
+	found, err := c.checkSpaceExist(ctx, spaceID)
+	if !found {
 		return err
 	}
 
@@ -257,16 +347,8 @@ func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsCon
 }
 
 func (c *CollaboratorsController) removeContributors(ctx context.Context, byIdentityID uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
-	err := c.app.ResourceRepository().CheckExists(ctx, spaceID)
-	if err != nil {
-		if notFound, _ := autherrors.IsNotFoundError(err); notFound {
-			log.Warn(ctx, map[string]interface{}{
-				"err":      err,
-				"space_id": spaceID,
-			}, "unable to add contributors to space resource: resource not found; that's OK for old spaces")
-			// Just log the warning. Old spaces doesn't have any registered resources.
-			return nil
-		}
+	found, err := c.checkSpaceExist(ctx, spaceID)
+	if !found {
 		return err
 	}
 
@@ -350,7 +432,7 @@ func (c *CollaboratorsController) updatePolicy(ctx jsonapi.InternalServerError, 
 		return goa.ErrInternal(err.Error())
 	}
 
-	// We need to update the resource to triger RPT token refreshing when users try to access this space
+	// We need to update the resource to trigger RPT token refreshing when users try to access this space
 	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		resource, err := tr.SpaceResources().LoadBySpace(ctx, &spaceID)
 		_, err = tr.SpaceResources().Save(ctx, resource)

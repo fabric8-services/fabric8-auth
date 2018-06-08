@@ -24,6 +24,8 @@ var _ = a.Resource("collaborators", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 	})
 
 	a.Action("add-many", func() {
@@ -41,6 +43,7 @@ var _ = a.Resource("collaborators", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 	})
 
 	a.Action("add", func() {
@@ -57,6 +60,7 @@ var _ = a.Resource("collaborators", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 	})
 
 	a.Action("remove-many", func() {
@@ -74,6 +78,7 @@ var _ = a.Resource("collaborators", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 	})
 
 	a.Action("remove", func() {
@@ -90,6 +95,7 @@ var _ = a.Resource("collaborators", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 	})
 })
 

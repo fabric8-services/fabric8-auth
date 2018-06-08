@@ -394,7 +394,7 @@ func (m *GormIdentityRoleRepository) findIdentityRolesByResourceAndRoleName(ctx 
 
 	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
 		Where(`resource_id = ?`, resourceID).
-		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Find(&identityRoles).Error
+		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Order("created_at").Find(&identityRoles).Error
 
 	return identityRoles, err
 }
@@ -409,7 +409,7 @@ func (m *GormIdentityRoleRepository) findIdentityRolesByResourceAndRoleNameWithP
       SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
       UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
 	    SELECT r.resource_id FROM r)`, resourceID).
-		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Find(&identityRoles).Error
+		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Order("created_at").Find(&identityRoles).Error
 
 	return identityRoles, err
 }
@@ -428,7 +428,7 @@ func (m *GormIdentityRoleRepository) findIdentityRolesByResource(ctx context.Con
 	var identityRoles []IdentityRole
 
 	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
-		Where(`resource_id = ?`, resourceID).Find(&identityRoles).Error
+		Where(`resource_id = ?`, resourceID).Order("created_at").Find(&identityRoles).Error
 
 	return identityRoles, err
 }
@@ -442,7 +442,7 @@ func (m *GormIdentityRoleRepository) findIdentityRolesByResourceWithParents(ctx 
 		Where(`resource_id in (WITH RECURSIVE r AS (
       SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
       UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
-	    SELECT r.resource_id FROM r)`, resourceID).
+	    SELECT r.resource_id FROM r)`, resourceID).Order("created_at").
 		Find(&identityRoles).Error
 
 	return identityRoles, err
