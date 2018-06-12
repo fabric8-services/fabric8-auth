@@ -47,6 +47,7 @@ const (
 	JenkinsProxy       = "fabric8-jenkins-proxy"
 	OnlineRegistration = "online-registration"
 	RhChe              = "rh-che"
+	GeminiServer       = "fabric8-gemini-server"
 )
 
 // configuration represents configuration needed to construct a token manager
