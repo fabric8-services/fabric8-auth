@@ -47,14 +47,6 @@ func NewCollaboratorsController(service *goa.Service, app application.Applicatio
 func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error {
 	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification)
 
-	found, err := c.checkSpaceExist(ctx, ctx.SpaceID.String())
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	if found {
-		return c.listCollaborators(ctx, isServiceAccount)
-	}
-
 	policy, _, err := c.getPolicy(ctx, ctx.RequestData, ctx.SpaceID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)

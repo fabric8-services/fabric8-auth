@@ -146,18 +146,16 @@ func (rest *TestCollaboratorsREST) TestListCollaboratorsWithRandomSpaceIDNotFoun
 }
 
 func (rest *TestCollaboratorsREST) TestListCollaboratorsOK() {
-	admin := rest.Graph.CreateUser()
-	contr := rest.Graph.CreateUser()
-	space := rest.Graph.CreateSpace().AddAdmin(admin).AddContributor(contr)
+	// given
+	svc, ctrl := rest.SecuredControllerForIdentity(&testsupport.TestIdentity)
+	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
+	rest.policy.AddUserToPolicy(rest.testIdentity2.ID.String())
 
-	// noise
-	rest.Graph.CreateSpace().AddAdmin(rest.Graph.CreateUser()).AddContributor(rest.Graph.CreateUser())
-
-	svc, ctrl := rest.SecuredControllerForIdentity(admin.Identity())
-	spaceID, err := uuid.FromString(space.SpaceID())
-	require.NoError(rest.T(), err)
-	_, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
-	rest.checkCollaborators([]uuid.UUID{admin.IdentityID(), contr.IdentityID()}, actualUsers)
+	// when
+	res, actualUsers := test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
+	// then
+	assertResponseHeaders(rest.T(), res)
+	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID}, actualUsers)
 }
 
 func (rest *TestCollaboratorsREST) TestListCollaboratorsPrivateEmailsOK() {
