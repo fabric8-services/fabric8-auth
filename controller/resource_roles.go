@@ -1,7 +1,6 @@
 package controller
 
 import (
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -34,20 +33,14 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	var roles []role.IdentityRole
-	var err error
-	var currentIdentity *account.Identity
 
-	if !token.IsSpecificServiceAccount(ctx, "space-migration") {
-		currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-		roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
-	} else {
-		roles, err = c.app.IdentityRoleRepository().FindIdentityRolesByResource(ctx, ctx.ResourceID, false)
-	}
+	roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
