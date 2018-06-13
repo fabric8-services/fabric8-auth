@@ -35,6 +35,7 @@ type DBTestSuite struct {
 	cleanTest     func()
 	cleanSuite    func()
 	Ctx           context.Context
+	Graph         *graph.TestGraph
 }
 
 // SetupSuite implements suite.SetupAllSuite
@@ -66,11 +67,14 @@ func (s *DBTestSuite) SetupSuite() {
 // SetupTest implements suite.SetupTest
 func (s *DBTestSuite) SetupTest() {
 	s.cleanTest = cleaner.DeleteCreatedEntities(s.DB)
+	g := s.NewTestGraph()
+	s.Graph = &g
 }
 
 // TearDownTest implements suite.TearDownTest
 func (s *DBTestSuite) TearDownTest() {
 	s.cleanTest()
+	s.Graph = nil
 }
 
 // PopulateDBTestSuite populates the DB with common values

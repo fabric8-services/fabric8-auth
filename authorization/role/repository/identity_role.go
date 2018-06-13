@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -65,10 +66,11 @@ type IdentityRoleRepository interface {
 	List(ctx context.Context) ([]IdentityRole, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 	DeleteForResource(ctx context.Context, resourceID string) error
+	DeleteForIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) error
 	FindPermissions(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) ([]IdentityRole, error)
 	FindIdentityRolesForIdentity(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
-	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error)
-	FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error)
+	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string, includeParenResources bool) ([]IdentityRole, error)
+	FindIdentityRolesByResource(ctx context.Context, resourceID string, includeParenResources bool) ([]IdentityRole, error)
 	FindIdentityRolesByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]IdentityRole, error)
 }
 
@@ -378,8 +380,27 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesForIdentity(ctx context.Co
 }
 
 // FindIdentityRolesByResourceAndRoleName returns an array of IdentityRole objects that match the specified resource and role name
-func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResourceAndRoleName"}, time.Now())
+func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string, includeParenResources bool) ([]IdentityRole, error) {
+	if includeParenResources {
+		return m.findIdentityRolesByResourceAndRoleNameWithParents(ctx, resourceID, roleName)
+	}
+	return m.findIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
+}
+
+func (m *GormIdentityRoleRepository) findIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResourceAndRoleName"}, time.Now())
+
+	var identityRoles []IdentityRole
+
+	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+		Where(`resource_id = ?`, resourceID).
+		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Order("created_at").Find(&identityRoles).Error
+
+	return identityRoles, err
+}
+
+func (m *GormIdentityRoleRepository) findIdentityRolesByResourceAndRoleNameWithParents(ctx context.Context, resourceID string, roleName string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResourceAndRoleNameWithParents"}, time.Now())
 
 	var identityRoles []IdentityRole
 
@@ -388,18 +409,32 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResourceAndRoleName(ctx 
       SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
       UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
 	    SELECT r.resource_id FROM r)`, resourceID).
-		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Find(&identityRoles).Error
+		Joins("JOIN role ON identity_role.role_id = role.role_id AND role.name = ?", roleName).Order("created_at").Find(&identityRoles).Error
 
-	if err != nil {
-		return nil, err
-	}
-
-	return identityRoles, nil
+	return identityRoles, err
 }
 
 // FindIdentityRolesByResource returns an array of IdentityRole for the specified resource
-func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FindIdentityRolesByResource"}, time.Now())
+func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Context, resourceID string, includeParenResources bool) ([]IdentityRole, error) {
+	if includeParenResources {
+		return m.findIdentityRolesByResourceWithParents(ctx, resourceID)
+	}
+	return m.findIdentityRolesByResource(ctx, resourceID)
+}
+
+func (m *GormIdentityRoleRepository) findIdentityRolesByResource(ctx context.Context, resourceID string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResource"}, time.Now())
+
+	var identityRoles []IdentityRole
+
+	err := m.db.Table(m.TableName()).Preload("Role").Preload("Resource").Preload("Identity").
+		Where(`resource_id = ?`, resourceID).Order("created_at").Find(&identityRoles).Error
+
+	return identityRoles, err
+}
+
+func (m *GormIdentityRoleRepository) findIdentityRolesByResourceWithParents(ctx context.Context, resourceID string) ([]IdentityRole, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "findIdentityRolesByResourceWithParents"}, time.Now())
 
 	var identityRoles []IdentityRole
 
@@ -407,14 +442,10 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByResource(ctx context.Con
 		Where(`resource_id in (WITH RECURSIVE r AS (
       SELECT resource_id, parent_resource_id FROM resource WHERE resource_id = ? AND deleted_at IS NULL
       UNION SELECT p.resource_id, p.parent_resource_id FROM resource p INNER JOIN r ON r.parent_resource_id = p.resource_id)
-	    SELECT r.resource_id FROM r)`, resourceID).
+	    SELECT r.resource_id FROM r)`, resourceID).Order("created_at").
 		Find(&identityRoles).Error
 
-	if err != nil {
-		return nil, err
-	}
-
-	return identityRoles, nil
+	return identityRoles, err
 }
 
 // DeleteForResource deletes all identity roles for the given resource ID
@@ -425,6 +456,25 @@ func (m *GormIdentityRoleRepository) DeleteForResource(ctx context.Context, reso
 	err := m.db.Table(m.TableName()).Where("resource_id = ?", resourceID).Delete(nil).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return errs.WithStack(err)
+	}
+	return nil
+}
+
+// DeleteForIdentityAndResource deletes all IdentityRoles for the specified identity and resource
+// NotFoundError returned if no identity roles found to delete
+func (m *GormIdentityRoleRepository) DeleteForIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "deleteForIdentityAndResource"}, time.Now())
+	result := m.db.Scopes(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID)).Table(m.TableName()).Delete(nil)
+	if result.Error != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         result.Error,
+			"resource_id": resourceID,
+			"identity_id": identityID,
+		}, "unable to delete identity role")
+		return errs.WithStack(result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.NewNotFoundErrorFromString(fmt.Sprintf("identity_role with resource_id '%s' and identity_id '%s' not found", resourceID, identityID))
 	}
 	return nil
 }

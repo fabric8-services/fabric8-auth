@@ -3,16 +3,16 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/application/repository/base"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"strings"
-
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -44,7 +44,7 @@ func NewRoleRepository(db *gorm.DB) RoleRepository {
 
 // RoleRepository represents the storage interface.
 type RoleRepository interface {
-	CheckExists(ctx context.Context, id string) (bool, error)
+	CheckExists(ctx context.Context, id string) error
 	Load(ctx context.Context, ID uuid.UUID) (*Role, error)
 	Create(ctx context.Context, u *Role) error
 	Save(ctx context.Context, u *Role) error
@@ -71,26 +71,9 @@ func (m Role) TableName() string {
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormRoleRepository) CheckExists(ctx context.Context, id string) (bool, error) {
+func (m *GormRoleRepository) CheckExists(ctx context.Context, id string) error {
 	defer goa.MeasureSince([]string{"goa", "db", "role", "exists"}, time.Now())
-
-	var exists bool
-	query := fmt.Sprintf(`
-		SELECT EXISTS (
-			SELECT 1 FROM %[1]s
-			WHERE
-				role_id=$1
-				AND deleted_at IS NULL
-		)`, m.TableName())
-
-	err := m.db.CommonDB().QueryRow(query, id).Scan(&exists)
-	if err == nil && !exists {
-		return exists, errors.NewNotFoundError(m.TableName(), id)
-	}
-	if err != nil {
-		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
-	}
-	return exists, nil
+	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "role_id", id)
 }
 
 // CRUD Functions

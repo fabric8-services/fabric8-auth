@@ -3,8 +3,6 @@ package graph
 import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,34 +47,37 @@ func newSpaceWrapper(g *TestGraph, params []interface{}) spaceWrapper {
 	return w
 }
 
-func (w *spaceWrapper) addUserRole(identityID uuid.UUID, roleName string) *spaceWrapper {
-	r, err := w.graph.app.RoleRepository().Lookup(w.graph.ctx, roleName, authorization.ResourceTypeSpace)
+func loadSpaceWrapper(g *TestGraph, resourceID string) spaceWrapper {
+	w := spaceWrapper{baseWrapper: baseWrapper{g}}
+
+	var native resource.Resource
+	err := w.graph.db.Table("resource").Preload("ParentResource").Where("resource_id = ?", resourceID).Find(&native).Error
 	require.NoError(w.graph.t, err)
 
-	identityRole := &role.IdentityRole{
-		ResourceID: w.resource.ResourceID,
-		IdentityID: identityID,
-		RoleID:     r.RoleID,
+	w.resource = &native
+	if w.resource.ParentResource != nil {
+		w.parentResource = w.resource.ParentResource
 	}
 
-	err = w.graph.app.IdentityRoleRepository().Create(w.graph.ctx, identityRole)
-	require.NoError(w.graph.t, err)
 	return w
 }
 
 // AddAdmin assigns the admin role to a user for the space
 func (w *spaceWrapper) AddAdmin(wrapper interface{}) *spaceWrapper {
-	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.SpaceAdminRole)
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceAdminRole)
+	return w
 }
 
 // AddContributor assigns the admin role to a user for the space
 func (w *spaceWrapper) AddContributor(wrapper interface{}) *spaceWrapper {
-	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.SpaceContributorRole)
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceContributorRole)
+	return w
 }
 
 // AddViewer assigns the admin role to a user for the space
 func (w *spaceWrapper) AddViewer(wrapper interface{}) *spaceWrapper {
-	return w.addUserRole(w.identityIDFromWrapper(wrapper), authorization.SpaceViewerRole)
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceViewerRole)
+	return w
 }
 
 func (w *spaceWrapper) Resource() *resource.Resource {
