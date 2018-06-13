@@ -43,7 +43,7 @@ func (s *spaceServiceBlackBoxTest) TestCreateOK() {
 	assert.Equal(s.T(), authorization.ResourceTypeSpace, *resource.Type)
 
 	// Check the admin role has been assigned to the space creator
-	assignedRoles, err := s.Application.RoleManagementService().ListByResource(s.Ctx, spaceID)
+	assignedRoles, err := s.Application.RoleManagementService().ListByResource(s.Ctx, creator.IdentityID(), spaceID)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), assignedRoles, 1)
 	assert.Equal(s.T(), creator.Identity().ID, assignedRoles[0].Identity.ID)

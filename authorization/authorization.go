@@ -22,6 +22,17 @@ const (
 
 	// adminRole is the internal constant used to denote the administrator role for various resources
 	adminRole = "admin"
+	// contributorRole is the internal constant used to denote the contributor role for various resources
+	contributorRole = "contributor"
+	// viewerRole is the internal constant used to denote the viewer role for various resources
+	viewerRole = "viewer"
+
+	// manageScope is the scope required for to manage aspects of a grouped identity
+	manageScope = "manage"
+	// viewScope is the scope required for to view aspects of a grouped identity
+	viewScope = "view"
+	// viewScope is the scope required for to contribute aspects of a grouped identity
+	contributeScope = "contribute"
 
 	// OrganizationAdminRole is the constant used to denote the name of the organization resource's administrator role
 	OrganizationAdminRole = adminRole
@@ -30,22 +41,28 @@ const (
 	SpaceAdminRole = adminRole
 
 	// SpaceContributorRole is the constant used to denote the name of the space's contributor role
-	SpaceContributorRole = "contributor"
+	SpaceContributorRole = contributorRole
 
 	// SpaceViewerRole is the constant used to denote the name of the space's viewer role
-	SpaceViewerRole = "viewer"
-
-	// manageScope is the scope required for to manage aspects of a grouped identity
-	manageScope = "manage"
+	SpaceViewerRole = viewerRole
 
 	// viewSpaceScope is a general scope required to perform many space-related operations
-	viewSpaceScope = "view"
+	viewSpaceScope = viewScope
+
+	// viewOrganizationScope is a general scope required to perform many org-related operations
+	viewOrganizationScope = viewScope
+
+	// viewTeamScope is a general scope required to perform many team-related operations
+	viewTeamScope = viewScope
+
+	// viewSecurityGroupScope is a general scope required to perform many group-related operations
+	viewSecurityGroupScope = viewScope
 
 	// manageSpaceScope is a general scope required to perform operations for managing a space
 	manageSpaceScope = manageScope
 
 	// contributeSpaceScope is a general scope required to perform many space-related operations
-	contributeSpaceScope = "contribute"
+	contributeSpaceScope = contributeScope
 
 	// ManageTeamsInSpaceScope is the scope required for users wishing to manage teams for a space
 	ManageTeamsInSpaceScope = manageScope
@@ -67,6 +84,18 @@ const (
 
 	// DeleteSpaceScope is the scope required for deleting a space. It's a space level scope.
 	DeleteSpaceScope = manageSpaceScope
+
+	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing role assignments in a space
+	ViewRoleAssignmentsInSpaceScope = viewSpaceScope
+
+	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing organization members
+	ViewOrganizationMembersScope = viewOrganizationScope
+
+	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing team members
+	ViewTeamMembersScope = viewTeamScope
+
+	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing security group members
+	ViewSecurityGroupMembersScope = viewSecurityGroupScope
 )
 
 // CanHaveMembers returns a boolean indicating whether the specified resource type may have member Identities
@@ -90,6 +119,22 @@ func ScopeForManagingRolesInResourceType(resourceType string) string {
 	}
 	// a default which we can choose to change later
 	return ManageRoleAssignmentsInSpaceScope
+}
+
+// ScopeForViewingRolesInResourceType returns the name of the scope that gives a user privileges to view roles in a resource
+func ScopeForViewingRolesInResourceType(resourceType string) string {
+	switch resourceType {
+	case ResourceTypeSpace:
+		return ViewRoleAssignmentsInSpaceScope
+	case IdentityResourceTypeOrganization:
+		return ViewOrganizationMembersScope
+	case IdentityResourceTypeTeam:
+		return ViewTeamMembersScope
+	case IdentityResourceTypeGroup:
+		return ViewSecurityGroupMembersScope
+	}
+	// a default which we can choose to change later
+	return ViewRoleAssignmentsInSpaceScope
 }
 
 // IdentityAssociation represents an association between an Identity and either another Identity or a Resource, whether by
