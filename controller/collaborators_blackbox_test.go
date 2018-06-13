@@ -1,7 +1,6 @@
 package controller_test
 
 import (
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"net/http"
 )
 
 const (
@@ -437,7 +437,11 @@ func (rest *TestCollaboratorsREST) TestManageCollaboratorsFailsIfCurrentUserLack
 	test.RemoveCollaboratorsUnauthorized(rest.T(), svc.Context, svc, ctrl, spaceID, toRemoveIdentity.ID.String())
 
 	// 403 from Auth
-	test.ListCollaboratorsForbidden(rest.T(), svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+
+	// We have to allow any OSIO user to list collaborators. See https://github.com/fabric8-services/fabric8-auth/pull/521 for details
+	//test.ListCollaboratorsForbidden(rest.T(), svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+	test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+
 	rest.policy.AddUserToPolicy(currentIdentity.ID.String()) // Add to KC policy to bypass KC authZ
 	test.AddCollaboratorsForbidden(rest.T(), svc.Context, svc, ctrl, spaceID, rest.Graph.CreateUser().IdentityID().String())
 	test.AddManyCollaboratorsForbidden(rest.T(), svc.Context, svc, ctrl, spaceID, payload)
