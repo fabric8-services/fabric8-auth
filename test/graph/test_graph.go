@@ -75,6 +75,7 @@ func (g *TestGraph) CreateUser(params ...interface{}) *userWrapper {
 }
 
 func (g *TestGraph) UserByID(id string) *userWrapper {
+	require.Contains(g.t, g.graphObjects, id, "user with such ID is not registered")
 	return g.graphObjects[id].(*userWrapper)
 }
 
@@ -86,6 +87,7 @@ func (g *TestGraph) CreateSpace(params ...interface{}) *spaceWrapper {
 }
 
 func (g *TestGraph) SpaceByID(id string) *spaceWrapper {
+	require.Contains(g.t, g.graphObjects, id, "space with such ID is not registered")
 	return g.graphObjects[id].(*spaceWrapper)
 }
 
@@ -96,6 +98,7 @@ func (g *TestGraph) CreateResourceType(params ...interface{}) *resourceTypeWrapp
 }
 
 func (g *TestGraph) ResourceTypeByID(id string) *resourceTypeWrapper {
+	require.Contains(g.t, g.graphObjects, id, "resource type with such ID is not registered")
 	return g.graphObjects[id].(*resourceTypeWrapper)
 }
 
@@ -115,7 +118,7 @@ func (g *TestGraph) LoadResourceType(params ...interface{}) *resourceTypeWrapper
 		}
 	}
 
-	require.True(g.t, resourceTypeID != nil || resourceTypeName != nil, "must specified either resource_type_id or name parameter for the resource type to load")
+	require.True(g.t, resourceTypeID != nil || resourceTypeName != nil, "must specify either resource_type_id or name parameter for the resource type to load")
 
 	w := loadResourceTypeWrapper(g, resourceTypeID, resourceTypeName)
 	g.register(g.generateIdentifier(params), &w)
@@ -129,6 +132,7 @@ func (g *TestGraph) CreateResource(params ...interface{}) *resourceWrapper {
 }
 
 func (g *TestGraph) ResourceByID(id string) *resourceWrapper {
+	require.Contains(g.t, g.graphObjects, id, "resource with such ID is not registered")
 	return g.graphObjects[id].(*resourceWrapper)
 }
 
@@ -150,7 +154,7 @@ func (g *TestGraph) LoadTeam(params ...interface{}) *teamWrapper {
 			teamID = t
 		}
 	}
-	require.NotNil(g.t, teamID, "Must specified a uuid parameter for the team ID")
+	require.NotNil(g.t, teamID, "Must specify a uuid parameter for the team ID")
 	w := loadTeamWrapper(g, *teamID)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
@@ -170,13 +174,14 @@ func (g *TestGraph) LoadOrganization(params ...interface{}) *organizationWrapper
 			organizationID = t
 		}
 	}
-	require.NotNil(g.t, organizationID, "Must specified a uuid parameter for the organization ID")
+	require.NotNil(g.t, organizationID, "Must specify a uuid parameter for the organization ID")
 	w := loadOrganizationWrapper(g, *organizationID)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
 }
 
 func (g *TestGraph) OrganizationByID(id string) *organizationWrapper {
+	require.Contains(g.t, g.graphObjects, id, "organization with such ID is not registered")
 	return g.graphObjects[id].(*organizationWrapper)
 }
 
@@ -187,6 +192,7 @@ func (g *TestGraph) CreateIdentity(params ...interface{}) *identityWrapper {
 }
 
 func (g *TestGraph) IdentityByID(id string) *identityWrapper {
+	require.Contains(g.t, g.graphObjects, id, "identity with such ID is not registered")
 	return g.graphObjects[id].(*identityWrapper)
 }
 
@@ -200,7 +206,7 @@ func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
 			identityID = &t
 		}
 	}
-	require.NotNil(g.t, identityID, "Must specified a uuid parameter for the identity ID")
+	require.NotNil(g.t, identityID, "Must specify a uuid parameter for the identity ID")
 	w := loadIdentityWrapper(g, *identityID)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
@@ -216,8 +222,30 @@ func (g *TestGraph) LoadResource(params ...interface{}) *resourceWrapper {
 			resourceID = &t
 		}
 	}
-	require.NotNil(g.t, resourceID, "Must specified a string parameter for the resource ID")
+	require.NotNil(g.t, resourceID, "Must specify a string parameter for the resource ID")
 	w := loadResourceWrapper(g, *resourceID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
+func (g *TestGraph) LoadSpace(params ...interface{}) *spaceWrapper {
+	var resourceID *string
+	for i := range params {
+		switch t := params[i].(type) {
+		case *string:
+			resourceID = t
+		case string:
+			resourceID = &t
+		case *uuid.UUID:
+			id := t.String()
+			resourceID = &id
+		case uuid.UUID:
+			id := t.String()
+			resourceID = &id
+		}
+	}
+	require.NotNil(g.t, resourceID, "Must specify a string parameter for the space ID")
+	w := loadSpaceWrapper(g, *resourceID)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
 }
@@ -229,6 +257,7 @@ func (g *TestGraph) CreateRole(params ...interface{}) *roleWrapper {
 }
 
 func (g *TestGraph) RoleByID(id string) *roleWrapper {
+	require.Contains(g.t, g.graphObjects, id, "role with such ID is not registered")
 	return g.graphObjects[id].(*roleWrapper)
 }
 
@@ -249,5 +278,6 @@ func (g *TestGraph) CreateRoleMapping(params ...interface{}) *roleMappingWrapper
 }
 
 func (g *TestGraph) RoleMappingByID(id string) *roleMappingWrapper {
+	require.Contains(g.t, g.graphObjects, id, "role mapping with such ID is not registered")
 	return g.graphObjects[id].(*roleMappingWrapper)
 }

@@ -33,19 +33,14 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	var roles []role.IdentityRole
 
-	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"err":         err,
-		}, "does not exist")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
-	}
-
-	roles, err = c.app.RoleManagementService().ListByResource(ctx, ctx.ResourceID)
+	roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -62,19 +57,14 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 
 // ListAssignedByRoleName runs the list action.
 func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedByRoleNameResourceRolesContext) error {
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	var roles []role.IdentityRole
 
-	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"err":         err,
-		}, "does not exist")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
-	}
-
-	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
+	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.ResourceID, ctx.RoleName)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
