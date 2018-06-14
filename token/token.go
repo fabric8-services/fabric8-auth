@@ -16,14 +16,15 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/repository"
+	authclient "github.com/fabric8-services/fabric8-auth/client"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -110,6 +111,8 @@ type Manager interface {
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
+	AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter)
+	AddLoginRequiredHeader(rw http.ResponseWriter)
 }
 
 type tokenManager struct {
@@ -798,6 +801,21 @@ func extractServiceAccountName(ctx context.Context) (string, bool) {
 // AuthServiceAccountSigner returns a new JWT signer which uses the Auth Service Account token
 func (mgm *tokenManager) AuthServiceAccountSigner() client.Signer {
 	return &goasupport.JWTSigner{Token: mgm.AuthServiceAccountToken()}
+}
+
+// AddLoginRequiredHeaderToUnauthorizedError adds "WWW-Authenticate: LOGIN" header to the response
+// if the error is UnauthorizedError
+func (mgm *tokenManager) AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter) {
+	if unth, _ := autherrors.IsUnauthorizedError(err); unth {
+		mgm.AddLoginRequiredHeader(rw)
+	}
+}
+
+// AddLoginRequiredHeader adds "WWW-Authenticate: LOGIN" header to the response
+func (mgm *tokenManager) AddLoginRequiredHeader(rw http.ResponseWriter) {
+	rw.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
+	loginURL := mgm.config.GetAuthServiceURL() + authclient.LoginLoginPath()
+	rw.Header().Set("WWW-Authenticate", fmt.Sprintf("LOGIN url=%s, description=\"re-login is required\"", loginURL))
 }
 
 // AuthServiceAccountSigner returns a new JWT signer which uses the Auth Service Account token

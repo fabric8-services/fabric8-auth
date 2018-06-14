@@ -91,7 +91,7 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 		if tenantSA && identity.User.Deprovisioned {
 			// Don't return deprovisioned users for calls made by Tenant SA
 			// TODO we should disable notifications for such users too but if we just return 401 for notification service request we may break it
-			ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+			ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 			ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
 			return errors.NewUnauthorizedError("Account has been deprovisioned")
 		}

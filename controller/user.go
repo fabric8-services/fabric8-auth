@@ -47,7 +47,7 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	if user.Deprovisioned {
-		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has been deprovisioned"))
 	}
