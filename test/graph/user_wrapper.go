@@ -13,6 +13,19 @@ type userWrapper struct {
 	identity *account.Identity
 }
 
+func loadUserWrapper(g *TestGraph, identityID uuid.UUID) userWrapper {
+	w := userWrapper{baseWrapper: baseWrapper{g}}
+
+	var native account.Identity
+	err := w.graph.db.Table("identities").Where("ID = ?", identityID).Preload("User").Find(&native).Error
+	require.NoError(w.graph.t, err)
+
+	w.identity = &native
+	w.user = &w.identity.User
+
+	return w
+}
+
 func newUserWrapper(g *TestGraph, params []interface{}) userWrapper {
 	w := userWrapper{baseWrapper: baseWrapper{g}}
 
