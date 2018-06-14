@@ -14,6 +14,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/satori/go.uuid"
 )
 
@@ -114,6 +115,8 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			}
 		}
 
+		notifications := []invitationNotification{}
+
 		// Create the invitation records
 		for _, invitation := range invitations {
 			inv := new(invitationrepo.Invitation)
@@ -151,7 +154,16 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 					return errors.NewInternalError(ctx, error)
 				}
 			}
+
+			notifications = append(notifications, invitationNotification{
+				invitation: inv,
+				roles:      invitation.Roles,
+			})
+
 		}
+
+		// Use the notification service to send invitation e-mails to the invited users, in a separate thread
+		go s.processNotifications(ctx, notifications)
 
 		return nil
 	})
@@ -161,4 +173,25 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	}
 
 	return nil
+}
+
+type invitationNotification struct {
+	invitation *invitationrepo.Invitation
+	roles      []string
+}
+
+func (s *invitationServiceImpl) processNotifications(ctx context.Context, notifications []invitationNotification) {
+	for _, n := range notifications {
+		var inviteTo *string
+		if n.invitation.InviteTo != nil {
+			val := n.invitation.InviteTo.String()
+			inviteTo = &val
+		}
+
+		invitationEmailMessage := notification.NewInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+			inviteTo,
+			n.invitation.ResourceID,
+			n.invitation.Identity.IdentityResource.ResourceType.Name, n.invitation.Member, n.roles, n.invitation.AcceptToken.String())
+		s.NotificationChannel().Send(ctx, invitationEmailMessage)
+	}
 }

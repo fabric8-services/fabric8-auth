@@ -35,3 +35,32 @@ func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
 		Custom:      custom,
 	}
 }
+
+func NewInvitationEmail(userID string, inviteTo *string, resourceID *string, resourceType string, member bool, roles []string, acceptToken string) Message {
+
+	// Either inviteTo or resourceID will have a value, but not both
+	inviteToValue := ""
+	if inviteTo != nil {
+		inviteToValue = *inviteTo
+	}
+
+	resourceIDValue := ""
+	if resourceID != nil {
+		resourceIDValue = *resourceID
+	}
+
+	return Message{
+		MessageID:   uuid.NewV4(),
+		MessageType: "user.invitation",
+		TargetID:    "",
+		UserID:      &userID,
+		Custom: map[string]interface{}{
+			"inviteTo":     inviteToValue,
+			"resourceID":   resourceIDValue,
+			"resourceType": resourceType,
+			"member":       member,
+			"roles":        roles,
+			"acceptToken":  acceptToken,
+		},
+	}
+}

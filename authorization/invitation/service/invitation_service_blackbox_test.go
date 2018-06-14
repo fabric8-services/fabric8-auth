@@ -40,7 +40,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will invite this one to join the organization
@@ -236,7 +236,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonOwner() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will attempt to have this user invite themselves to the organization
@@ -260,7 +260,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForUnknownUser()
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
 	require.Nil(s.T(), err, "Could not create organization")
 
 	invalidIdentityID := uuid.NewV4()
@@ -283,7 +283,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonUser() {
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization, we're going to do something crazy and invite the organization to join itself
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
 	require.Nil(s.T(), err, "Could not create organization")
 
 	invitations := []invitation.Invitation{
@@ -325,7 +325,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	require.NoError(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
 	require.NoError(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will invite this one to join the organization
@@ -398,7 +398,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 	require.Nil(s.T(), err, "Could not create identity")
 
 	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization ZZZZZZ")
+	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
 	require.Nil(s.T(), err, "Could not create organization")
 
 	// Create another test user - we will invite this one to accept the owner role for the organization
