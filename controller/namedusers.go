@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
@@ -56,6 +57,7 @@ func (c *NamedusersController) Deprovision(ctx *app.DeprovisionNamedusersContext
 				"identity_id": identity.ID,
 				"username":    ctx.Username,
 			}, "unable to delete tenant when deprovisioning user")
+			sentry.Sentry().CaptureError(ctx, err)
 			// Just log the error and proceed
 		}
 	}
