@@ -166,6 +166,10 @@ func (g *GormDB) SpaceService() service.SpaceService {
 	return g.serviceFactory.SpaceService()
 }
 
+func (g *GormDB) UserService() service.UserService {
+	return g.serviceFactory.UserService()
+}
+
 func (g *GormBase) DB() *gorm.DB {
 	return g.db
 }

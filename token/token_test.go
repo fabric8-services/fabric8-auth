@@ -2,6 +2,9 @@ package token_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/textproto"
 	"testing"
 	"time"
 
@@ -13,13 +16,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
-	"net/http"
 )
 
 func TestToken(t *testing.T) {
@@ -112,6 +115,44 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	}
 	s.assertIntClaim(refreshToken, "auth_time", 0)
 	s.assertClaim(refreshToken, "sub", identity.ID.String())
+}
+
+func (s *TestTokenSuite) TestAddLoginRequiredHeader() {
+	rw := httptest.NewRecorder()
+	testtoken.TokenManager.AddLoginRequiredHeader(rw)
+
+	s.checkLoginRequiredHeader(rw)
+
+	rw = httptest.NewRecorder()
+	rw.Header().Set("Access-Control-Expose-Headers", "somecustomvalue")
+	testtoken.TokenManager.AddLoginRequiredHeader(rw)
+	s.checkLoginRequiredHeader(rw)
+}
+
+func (s *TestTokenSuite) TestAddLoginRequiredHeaderToUnauthorizedError() {
+	rw := httptest.NewRecorder()
+	err := errors.NewInternalErrorFromString(context.Background(), "oopsie woopsie")
+
+	testtoken.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, rw)
+	header := textproto.MIMEHeader(rw.Header())
+	assert.NotContains(s.T(), header, "WWW-Authenticate")
+	assert.NotContains(s.T(), header, "Access-Control-Expose-Headers")
+
+	unthErr := errors.NewUnauthorizedError("oopsie woopsie")
+	rw = httptest.NewRecorder()
+	testtoken.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(unthErr, rw)
+	s.checkLoginRequiredHeader(rw)
+
+	rw = httptest.NewRecorder()
+	rw.Header().Set("Access-Control-Expose-Headers", "somecustomvalue")
+	testtoken.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(unthErr, rw)
+	s.checkLoginRequiredHeader(rw)
+}
+
+func (s *TestTokenSuite) checkLoginRequiredHeader(rw http.ResponseWriter) {
+	assert.Equal(s.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
+	header := textproto.MIMEHeader(rw.Header())
+	assert.Contains(s.T(), header["Access-Control-Expose-Headers"], "WWW-Authenticate")
 }
 
 func (s *TestTokenSuite) assertHeaders(tokenString string) {

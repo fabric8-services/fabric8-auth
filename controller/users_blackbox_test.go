@@ -53,7 +53,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
 	s.linkAPIService = &dummyKeycloakLinkService{}
-	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
+	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
 	s.controller.RemoteWITService = &dummyRemoteWITService{}
@@ -62,7 +62,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 
 func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersController) {
 	svc := testsupport.UnsecuredService("Users-Service")
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -73,7 +73,7 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 	require.Nil(s.T(), err)
 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -81,7 +81,7 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 
 func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -89,7 +89,7 @@ func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identi
 
 func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identity accountrepo.Identity, emailSuccess bool) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, nil)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = &DummyEmailVerificationService{success: emailSuccess}
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
@@ -97,7 +97,7 @@ func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identi
 
 func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService, s.tenantService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -853,70 +853,6 @@ func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expect
 	identity, err := identityRepository.LoadWithUser(context.Background(), id)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), expected, identity.User.Deprovisioned)
-}
-
-func (s *UsersControllerTestSuite) TestDeprovisionUser() {
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-
-	deprovisioned := true
-	updateUsersPayload := &app.UpdateByServiceAccountUsersPayload{
-		Data: &app.UpdateUserData{
-			Attributes: &app.UpdateIdentityDataAttributes{Deprovisioned: &deprovisioned},
-			Type:       "identities",
-		},
-	}
-
-	// Reg app can update
-	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-	s.checkIfUserDeprovisioned(identity.ID, false)
-	s.tenantService.identityID = uuid.NewV4()
-	s.tenantService.error = nil
-	_, result := test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
-	require.NotNil(s.T(), result)
-	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
-	s.checkIfUserDeprovisioned(identity.ID, true)
-
-	// Check if tenant service was called
-	assert.Equal(s.T(), identity.ID, s.tenantService.identityID)
-
-	// User is deprovisioned even if tenant service failed
-	s.tenantService.error = errors.NewInternalErrorFromString(nil, "tenant service failed")
-	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-	s.checkIfUserDeprovisioned(identity.ID, false)
-	_, result = test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
-	require.NotNil(s.T(), result)
-	assert.Equal(s.T(), identity.ID.String(), *result.Data.ID)
-	s.checkIfUserDeprovisioned(identity.ID, true)
-
-	// deprovisoned = false , and check that tenant service was NOT called.
-	deprovisioned = false
-	updateUsersPayload.Data.Attributes.Deprovisioned = &deprovisioned
-	s.tenantService.identityID = uuid.NewV4()
-	s.tenantService.error = nil
-	test.UpdateByServiceAccountUsersOK(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
-	s.checkIfUserDeprovisioned(identity.ID, false)
-	assert.NotEqual(s.T(), identity.ID, s.tenantService.identityID)
-
-	// Fails if unknown identity
-	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, uuid.NewV4().String(), updateUsersPayload)
-
-	// Fails if identity is not associated with any user
-	lonelyIdentity, err := testsupport.CreateLonelyTestIdentity(s.DB, "TestDeprovisionUser"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-	test.UpdateByServiceAccountUsersNotFound(s.T(), secureService.Context, secureService, secureController, lonelyIdentity.ID.String(), updateUsersPayload)
-
-	// Another service account can't update
-	secureService, secureController = s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
-	test.UpdateByServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
-
-	// Regular user can't update either
-	secureService, secureController = s.SecuredController(identity)
-	test.UpdateByServiceAccountUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), updateUsersPayload)
-
-	// If no token present in the context then fails too
-	test.UpdateByServiceAccountUsersUnauthorized(s.T(), nil, nil, s.controller, identity.ID.String(), updateUsersPayload)
 }
 
 func (s *UsersControllerTestSuite) TestSendEmailVerificationCode() {

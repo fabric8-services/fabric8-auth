@@ -66,6 +66,10 @@ type SpaceService interface {
 	DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error
 }
 
+type UserService interface {
+	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
+}
+
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
@@ -75,4 +79,5 @@ type Services interface {
 	RoleManagementService() RoleManagementService
 	TeamService() TeamService
 	SpaceService() SpaceService
+	UserService() UserService
 }

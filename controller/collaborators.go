@@ -47,14 +47,6 @@ func NewCollaboratorsController(service *goa.Service, app application.Applicatio
 func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error {
 	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification)
 
-	found, err := c.checkSpaceExist(ctx, ctx.SpaceID.String())
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	if found {
-		return c.listCollaborators(ctx, isServiceAccount)
-	}
-
 	policy, _, err := c.getPolicy(ctx, ctx.RequestData, ctx.SpaceID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -128,10 +120,12 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 }
 
 func (c *CollaboratorsController) listRoles(ctx *app.ListCollaboratorsContext, currentIdentity *account.Identity, roleName string, isServiceAccount bool) ([]rolerepo.IdentityRole, error) {
-	if isServiceAccount {
-		return c.app.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, ctx.SpaceID.String(), roleName, false)
-	}
-	return c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.SpaceID.String(), roleName)
+	//if isServiceAccount {
+	// We can't check if the current identity has permissions to list collaborators because it breaks the existing collaborators API
+	// So, using the repo which doesn't check permissions instead of the service even if the current identity is not a service account
+	return c.app.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, ctx.SpaceID.String(), roleName, false)
+	//}
+	//return c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.SpaceID.String(), roleName)
 }
 
 func (c *CollaboratorsController) listCollaborators(ctx *app.ListCollaboratorsContext, isServiceAccount bool) error {
