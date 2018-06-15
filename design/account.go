@@ -226,24 +226,6 @@ var _ = a.Resource("users", func() {
 		a.Response(d.Conflict, JSONAPIErrors)
 	})
 
-	a.Action("updateByServiceAccount", func() {
-		a.Security("jwt")
-		a.Routing(
-			a.PATCH(":id"),
-		)
-		a.Description("update the user")
-		a.Params(func() {
-			a.Param("id", d.String, "Identity ID")
-		})
-		a.Payload(updateUser)
-		a.Response(d.OK, func() {
-			a.Media(user)
-		})
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.NotFound, JSONAPIErrors)
-		a.Response(d.Unauthorized, JSONAPIErrors)
-	})
-
 	a.Action("list", func() {
 		a.Routing(
 			a.GET(""),
@@ -259,6 +241,27 @@ var _ = a.Resource("users", func() {
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
+	})
+})
+
+var _ = a.Resource("namedusers", func() {
+	a.BasePath("/namedusers")
+	a.Action("deprovision", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PATCH("/:username/deprovision"),
+		)
+		a.Description("deprovision the user")
+		a.Params(func() {
+			a.Param("username", d.String, "Username")
+		})
+		a.Response(d.OK, func() {
+			a.Media(user)
+		})
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
 	})
 })
 

@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-
 	"database/sql"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -12,8 +11,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
 	"github.com/fabric8-services/fabric8-auth/test/token"
+
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestUser only creates in memory obj for testing purposes
@@ -277,4 +279,31 @@ func CreateTestIdentityAndUserInDB(db *gorm.DB, identity *account.Identity) erro
 		return err
 	})
 	return transactionError
+}
+
+func AssertIdentityEqual(t require.TestingT, expected, actual *account.Identity) {
+	require.NotNil(t, expected)
+	require.NotNil(t, actual)
+	require.NotEmpty(t, expected.User)
+	require.NotEmpty(t, actual.User)
+
+	assert.Equal(t, expected.ID, actual.ID)
+	assert.Equal(t, expected.Username, actual.Username)
+	assert.Equal(t, expected.UserID, actual.UserID)
+	assert.Equal(t, expected.ProfileURL, actual.ProfileURL)
+	assert.Equal(t, expected.ProviderType, actual.ProviderType)
+	assert.Equal(t, expected.RegistrationCompleted, actual.RegistrationCompleted)
+	assert.Equal(t, expected.User.ID, actual.User.ID)
+	assert.Equal(t, expected.User.Deprovisioned, actual.User.Deprovisioned)
+	assert.Equal(t, expected.User.Bio, actual.User.Bio)
+	assert.Equal(t, expected.User.Cluster, actual.User.Cluster)
+	assert.Equal(t, expected.User.Company, actual.User.Company)
+	assert.Equal(t, expected.User.ContextInformation, actual.User.ContextInformation)
+	assert.Equal(t, expected.User.Email, actual.User.Email)
+	assert.Equal(t, expected.User.EmailPrivate, actual.User.EmailPrivate)
+	assert.Equal(t, expected.User.EmailVerified, actual.User.EmailVerified)
+	assert.Equal(t, expected.User.FeatureLevel, actual.User.FeatureLevel)
+	assert.Equal(t, expected.User.FullName, actual.User.FullName)
+	assert.Equal(t, expected.User.ImageURL, actual.User.ImageURL)
+	assert.Equal(t, expected.User.URL, actual.User.URL)
 }
