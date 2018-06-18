@@ -212,6 +212,22 @@ func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
 	return &w
 }
 
+func (g *TestGraph) LoadUser(params ...interface{}) *userWrapper {
+	var identityID *uuid.UUID
+	for i := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			identityID = t
+		case uuid.UUID:
+			identityID = &t
+		}
+	}
+	require.NotNil(g.t, identityID, "Must specify a uuid parameter for the identity ID")
+	w := loadUserWrapper(g, *identityID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
 func (g *TestGraph) LoadResource(params ...interface{}) *resourceWrapper {
 	var resourceID *string
 	for i := range params {
