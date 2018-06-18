@@ -15,6 +15,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/wit"
+	"github.com/fabric8-services/fabric8-auth/wit/witservice"
+	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
 	"strings"
 )
@@ -32,7 +35,7 @@ func NewInvitationService(context servicecontext.ServiceContext) service.Invitat
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
+func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation, witURL string) error {
 	var inviteToIdentity *account.Identity
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
@@ -175,9 +178,9 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// 2) Invite user to space, roles only, no organization
 		//
 		if inviteToIdentity != nil && inviteToIdentity.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
-			go s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications)
+			go s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
 		} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
-			go s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications)
+			go s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
 		}
 
 		return nil
@@ -196,10 +199,11 @@ type invitationNotification struct {
 }
 
 // processTeamInviteNotifications sends an e-mail notification to a user.
-func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Context, team *account.Identity, inviterName string, notifications []invitationNotification) {
+func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Context, team *account.Identity, inviterName string,
+	notifications []invitationNotification, witURL string) {
 	teamName := team.IdentityResource.Name
 
-	spaceName, err := lookupSpaceName(*team.IdentityResource.ParentResourceID)
+	spaceName, err := lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
 	if err != nil {
 		// What to do here?? just log an error and die?
 	}
@@ -215,9 +219,10 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 }
 
 // processSpaceInviteNotifications sends an e-mail notification to a user.
-func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource, inviterName string, notifications []invitationNotification) {
+func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
+	inviterName string, notifications []invitationNotification, witURL string) {
 
-	spaceName, err := lookupSpaceName(space.ResourceID)
+	spaceName, err := lookupSpaceName(ctx, witURL, space.ResourceID)
 	if err != nil {
 		// What to do here?? just log an error and die?
 	}
@@ -232,19 +237,29 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	}
 }
 
-func lookupSpaceName(spaceID string) (string, error) {
+// lookupSpaceName talks to the WIT service to retrieve a space record for the specified spaceID, then
+// returns the name of the space
+func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string, error) {
 
-	// TODO implement this method
-	/*
-		response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath("123"), nil, nil)
-		if err != nil {
-			return err
-		}
+	remoteWITService, err := wit.CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
+	if err != nil {
+		return "", err
+	}
 
-		spaceSingle := remoteWITService.DecodeSpaceSingle(response)
-		space := spaceSingle.Data
+	spaceIDUUID, err := goauuid.FromString(spaceID)
+	if err != nil {
+		return "", err
+	}
 
-	*/
+	response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath(spaceIDUUID), nil, nil)
+	if err != nil {
+		return "", err
+	}
 
-	return "", nil
+	spaceSingle, err := remoteWITService.DecodeSpaceSingle(response)
+	if err != nil {
+		return "", err
+	}
+
+	return *spaceSingle.Data.Attributes.Name, nil
 }

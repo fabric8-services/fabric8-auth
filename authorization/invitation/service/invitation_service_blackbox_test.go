@@ -21,6 +21,7 @@ type invitationServiceBlackBoxTest struct {
 	invitationRepo invitationrepo.InvitationRepository
 	identityRepo   account.IdentityRepository
 	orgService     service.OrganizationService
+	witURL         string
 }
 
 func TestRunInvitationServiceBlackBoxTest(t *testing.T) {
@@ -54,7 +55,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, s.witURL)
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
@@ -80,10 +81,10 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForInvalidID() {
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, uuid.NewV4().String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, uuid.NewV4().String(), invitations, s.witURL)
 	require.Error(s.T(), err)
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, "foo", invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, "foo", invitations, s.witURL)
 	require.Error(s.T(), err)
 }
 
@@ -129,7 +130,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 	}
 
 	// Issue the invitation
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations, s.witURL)
 	require.NoError(s.T(), err)
 
 	// List the invitations for our resource
@@ -192,7 +193,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueMemberInvitationFailsForResourc
 	}
 
 	// Issue the invitation, which should fail because the new resource can't have members
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations, s.witURL)
 	require.Error(s.T(), err)
 }
 
@@ -226,7 +227,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueUnprivilegedInvitationFailsForR
 	}
 
 	// Issue the invitation, which should fail because the inviter has insufficient privileges to issue an invitation
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations, s.witURL)
 	require.Error(s.T(), err)
 }
 
@@ -250,7 +251,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonOwner() {
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, otherIdentity.ID, orgId.String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, otherIdentity.ID, orgId.String(), invitations, s.witURL)
 	require.Error(s.T(), err)
 }
 
@@ -273,7 +274,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForUnknownUser()
 	}
 
 	// This should fail because we specified an unknown identity ID
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, s.witURL)
 	require.Error(s.T(), err)
 }
 
@@ -294,7 +295,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonUser() {
 	}
 
 	// This should fail because we specified a non-user identity in the invitation
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, s.witURL)
 	require.Error(s.T(), err)
 }
 
@@ -315,7 +316,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonMembership
 	}
 
 	// Invite the user to "join" the other user as a member, this should fail
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, identity.ID.String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, identity.ID.String(), invitations, s.witURL)
 	require.Error(s.T(), err)
 }
 
@@ -361,7 +362,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, s.witURL)
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
@@ -415,7 +416,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, "")
 	require.NoError(s.T(), err, "Error creating invitations")
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)

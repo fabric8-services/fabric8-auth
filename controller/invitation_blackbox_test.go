@@ -42,12 +42,12 @@ func (s *TestInvitationREST) SetupSuite() {
 
 func (s *TestInvitationREST) SecuredController(identity account.Identity) (*goa.Service, *InvitationController) {
 	svc := testsupport.ServiceAsUser("Invitation-Service", identity)
-	return svc, NewInvitationController(svc, s.Application)
+	return svc, NewInvitationController(svc, s.Application, s.Configuration)
 }
 
 func (s *TestInvitationREST) UnsecuredController() (*goa.Service, *InvitationController) {
 	svc := goa.New("Invitation-Service")
-	controller := NewInvitationController(svc, s.Application)
+	controller := NewInvitationController(svc, s.Application, s.Configuration)
 	return svc, controller
 }
 
