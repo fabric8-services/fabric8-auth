@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/satori/go.uuid"
+	"strings"
 )
 
 type invitationServiceImpl struct {
@@ -162,8 +163,22 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 		}
 
+		inviter, err := s.Repositories().Identities().Load(ctx, issuingUserId)
+		if err != nil {
+			return err
+		}
+
 		// Use the notification service to send invitation e-mails to the invited users, in a separate thread
-		go s.processNotifications(ctx, notifications)
+		// Currently we only support two types of invitations;
+		//
+		// 1) Invite user to team, membership only, no organization
+		// 2) Invite user to space, roles only, no organization
+		//
+		if inviteToIdentity != nil && inviteToIdentity.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
+			go s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications)
+		} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
+			go s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications)
+		}
 
 		return nil
 	})
@@ -180,18 +195,56 @@ type invitationNotification struct {
 	roles      []string
 }
 
-func (s *invitationServiceImpl) processNotifications(ctx context.Context, notifications []invitationNotification) {
-	for _, n := range notifications {
-		var inviteTo *string
-		if n.invitation.InviteTo != nil {
-			val := n.invitation.InviteTo.String()
-			inviteTo = &val
-		}
+// processTeamInviteNotifications sends an e-mail notification to a user.
+func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Context, team *account.Identity, inviterName string, notifications []invitationNotification) {
+	teamName := team.IdentityResource.Name
 
-		invitationEmailMessage := notification.NewInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
-			inviteTo,
-			n.invitation.ResourceID,
-			n.invitation.Identity.IdentityResource.ResourceType.Name, n.invitation.Member, n.roles, n.invitation.AcceptToken.String())
+	spaceName, err := lookupSpaceName(*team.IdentityResource.ParentResourceID)
+	if err != nil {
+		// What to do here?? just log an error and die?
+	}
+
+	for _, n := range notifications {
+		invitationEmailMessage := notification.NewTeamInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+			teamName,
+			inviterName,
+			spaceName,
+			n.invitation.AcceptToken.String())
 		s.NotificationChannel().Send(ctx, invitationEmailMessage)
 	}
+}
+
+// processSpaceInviteNotifications sends an e-mail notification to a user.
+func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource, inviterName string, notifications []invitationNotification) {
+
+	spaceName, err := lookupSpaceName(space.ResourceID)
+	if err != nil {
+		// What to do here?? just log an error and die?
+	}
+
+	for _, n := range notifications {
+		invitationEmailMessage := notification.NewSpaceInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+			spaceName,
+			inviterName,
+			strings.Join(n.roles, ","),
+			n.invitation.AcceptToken.String())
+		s.NotificationChannel().Send(ctx, invitationEmailMessage)
+	}
+}
+
+func lookupSpaceName(spaceID string) (string, error) {
+
+	// TODO implement this method
+	/*
+		response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath("123"), nil, nil)
+		if err != nil {
+			return err
+		}
+
+		spaceSingle := remoteWITService.DecodeSpaceSingle(response)
+		space := spaceSingle.Data
+
+	*/
+
+	return "", nil
 }
