@@ -2,6 +2,8 @@ package controller_test
 
 import (
 	"context"
+	"net/http"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -18,8 +20,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/wit"
-
-	"path/filepath"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -163,7 +163,13 @@ func (rest *TestTokenREST) TestRefreshTokenUsingWrongRefreshTokenFails() {
 	payload := &app.RefreshToken{
 		RefreshToken: &refreshToken,
 	}
-	test.RefreshTokenUnauthorized(t, service.Context, service, controller, payload)
+	rw, _ := test.RefreshTokenUnauthorized(t, service.Context, service, controller, payload)
+	rest.checkLoginRequiredHeader(rw)
+}
+
+func (rest *TestTokenREST) checkLoginRequiredHeader(rw http.ResponseWriter) {
+	assert.Equal(rest.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Contains(rest.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
 
 func (rest *TestTokenREST) TestRefreshTokenUsingCorrectRefreshTokenOK() {
@@ -278,7 +284,8 @@ func (rest *TestTokenREST) TestExchangeFailsWithWrongRefreshToken() {
 	clientID := controller.Configuration.GetPublicOauthClientID()
 	refreshToken := "INVALID_REFRESH_TOKEN"
 
-	test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
+	rw, _ := test.ExchangeTokenUnauthorized(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
+	rest.checkLoginRequiredHeader(rw)
 }
 
 func (rest *TestTokenREST) TestExchangeWithCorrectCodeOK() {

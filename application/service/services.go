@@ -47,11 +47,12 @@ type ResourceService interface {
 }
 
 type RoleManagementService interface {
-	ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error)
+	ListByResource(ctx context.Context, currentIdentity uuid.UUID, resourceID string) ([]rolerepo.IdentityRole, error)
 	ListAvailableRolesByResourceType(ctx context.Context, resourceType string) ([]role.RoleDescriptor, error)
-	ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
+	ListByResourceAndRoleName(ctx context.Context, currentIdentity uuid.UUID, resourceID string, roleName string) ([]rolerepo.IdentityRole, error)
 	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 	ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error
+	RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error
 }
 
 type TeamService interface {
@@ -65,6 +66,10 @@ type SpaceService interface {
 	DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error
 }
 
+type UserService interface {
+	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
+}
+
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
@@ -74,4 +79,5 @@ type Services interface {
 	RoleManagementService() RoleManagementService
 	TeamService() TeamService
 	SpaceService() SpaceService
+	UserService() UserService
 }

@@ -92,7 +92,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 			}, "unable to roll back space resource creation")
 		}
 
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	log.Debug(ctx, map[string]interface{}{

@@ -202,12 +202,16 @@ type ConversionError struct {
 
 // NotFoundError means the object specified for the operation does not exist
 type NotFoundError struct {
-	entity string
-	key    string
-	value  string
+	entity       string
+	key          string
+	value        string
+	errorMessage *string
 }
 
 func (err NotFoundError) Error() string {
+	if err.errorMessage != nil {
+		return *err.errorMessage
+	}
 	return fmt.Sprintf(stNotFoundErrorMsg, err.entity, err.key, err.value)
 }
 
@@ -219,6 +223,11 @@ func NewNotFoundError(entity string, value string) NotFoundError {
 // NewNotFoundErrorWithKey returns the custom defined error of type NewNotFoundError and custom key name (instead of the default 'ID")
 func NewNotFoundErrorWithKey(entity string, key, value string) NotFoundError {
 	return NotFoundError{entity: entity, key: key, value: value}
+}
+
+// NewNotFoundErrorFromString returns the custom defined error of type NewNotFoundError.
+func NewNotFoundErrorFromString(errorMessage string) NotFoundError {
+	return NotFoundError{errorMessage: &errorMessage}
 }
 
 // IsNotFoundError returns true if the cause of the given error can be

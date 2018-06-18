@@ -233,9 +233,7 @@ coverage information for all tests.
 
 ==== Development
 
-Only files `+./*.go+`, `+./design/*.go+`, `+./models/*.go+` and `+./tool/wit-cli/main.go+` should be edited.
-
-These files and directory are generated:
+These files and directories are generated and should not be edited:
 
  * `./app/`
  * `./client/`

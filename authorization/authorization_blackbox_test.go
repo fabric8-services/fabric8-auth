@@ -147,11 +147,21 @@ func (s *authorizationBlackBoxTest) TestMergeAssociations() {
 }
 
 func (s *authorizationBlackBoxTest) TestScopeForManagingResourceType() {
-	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.ResourceTypeSpace), authorization.ManageRoleAssignmentsInSpaceScope)
-	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeOrganization), authorization.ManageOrganizationMembersScope)
-	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeTeam), authorization.ManageTeamMembersScope)
-	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeGroup), authorization.ManageSecurityGroupMembersScope)
+	assert.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.ResourceTypeSpace), authorization.ManageRoleAssignmentsInSpaceScope)
+	assert.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeOrganization), authorization.ManageOrganizationMembersScope)
+	assert.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeTeam), authorization.ManageTeamMembersScope)
+	assert.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeGroup), authorization.ManageSecurityGroupMembersScope)
 
 	// test the default
-	require.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeUser), authorization.ManageRoleAssignmentsInSpaceScope)
+	assert.Equal(s.T(), authorization.ScopeForManagingRolesInResourceType(authorization.IdentityResourceTypeUser), authorization.ManageRoleAssignmentsInSpaceScope)
+}
+
+func (s *authorizationBlackBoxTest) TestScopeForViewingResourceType() {
+	assert.Equal(s.T(), authorization.ScopeForViewingRolesInResourceType(authorization.ResourceTypeSpace), authorization.ViewRoleAssignmentsInSpaceScope)
+	assert.Equal(s.T(), authorization.ScopeForViewingRolesInResourceType(authorization.IdentityResourceTypeOrganization), authorization.ViewOrganizationMembersScope)
+	assert.Equal(s.T(), authorization.ScopeForViewingRolesInResourceType(authorization.IdentityResourceTypeTeam), authorization.ViewTeamMembersScope)
+	assert.Equal(s.T(), authorization.ScopeForViewingRolesInResourceType(authorization.IdentityResourceTypeGroup), authorization.ViewSecurityGroupMembersScope)
+
+	// test the default
+	assert.Equal(s.T(), authorization.ScopeForViewingRolesInResourceType(authorization.IdentityResourceTypeUser), authorization.ViewRoleAssignmentsInSpaceScope)
 }

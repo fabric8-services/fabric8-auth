@@ -3,6 +3,7 @@ package graph
 import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -72,6 +73,7 @@ func newResourceWrapper(g *TestGraph, params []interface{}) resourceWrapper {
 	require.NoError(g.t, err)
 
 	w.resource.ParentResource = parentResource
+	w.resource.ResourceType = *resourceType
 	return w
 }
 
@@ -93,4 +95,18 @@ func (w *resourceWrapper) Resource() *resource.Resource {
 
 func (w *resourceWrapper) ResourceID() string {
 	return w.resource.ResourceID
+}
+
+func addRole(w baseWrapper, resource *resource.Resource, resourceTypeName string, identityID uuid.UUID, roleName string) {
+	r, err := w.graph.app.RoleRepository().Lookup(w.graph.ctx, roleName, resourceTypeName)
+	require.NoError(w.graph.t, err)
+
+	identityRole := &role.IdentityRole{
+		ResourceID: resource.ResourceID,
+		IdentityID: identityID,
+		RoleID:     r.RoleID,
+	}
+
+	err = w.graph.app.IdentityRoleRepository().Create(w.graph.ctx, identityRole)
+	require.NoError(w.graph.t, err)
 }

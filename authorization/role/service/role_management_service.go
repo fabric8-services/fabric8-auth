@@ -26,14 +26,35 @@ type roleManagementServiceImpl struct {
 	base.BaseService
 }
 
-// ListByResourceAndRoleName lists role assignments of a specific resource.
-func (s *roleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
-	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName)
+// ListByResourceAndRoleName lists specific roles for the resource if the current user has permissions to view the roles
+func (s *roleManagementServiceImpl) ListByResourceAndRoleName(ctx context.Context, currentIdentity uuid.UUID, resourceID string, roleName string) ([]rolerepo.IdentityRole, error) {
+	err := s.requireViewRolesScope(ctx, currentIdentity, resourceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, resourceID, roleName, false)
 }
 
-// ListByResource lists role assignments of a specific resource.
-func (s *roleManagementServiceImpl) ListByResource(ctx context.Context, resourceID string) ([]rolerepo.IdentityRole, error) {
-	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID)
+// ListByResource lists all identity roles for the resource if the current user has permissions to view the roles
+func (s *roleManagementServiceImpl) ListByResource(ctx context.Context, currentIdentity uuid.UUID, resourceID string) ([]rolerepo.IdentityRole, error) {
+	err := s.requireViewRolesScope(ctx, currentIdentity, resourceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID, false)
+}
+
+func (s *roleManagementServiceImpl) requireViewRolesScope(ctx context.Context, currentIdentity uuid.UUID, resourceID string) error {
+	// Lookup the resourceID and ensure the resource is valid
+	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	// Check if the current user has the necessary privileges for viewing roles
+	return s.Services().PermissionService().RequireScope(ctx, currentIdentity, resourceID, authorization.ScopeForViewingRolesInResourceType(rt.Name))
 }
 
 // ListAvailableRolesByResourceType lists role assignments of a specific resource.
@@ -69,6 +90,7 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	var existingRoleIDs []uuid.UUID
 
 	roleIDByNameCache := make(map[string]uuid.UUID)
+	checkedIdentityIDs := make(map[uuid.UUID]bool)
 	for roleName, identityIDs := range roleAssignments {
 		roleID, found := roleIDByNameCache[roleName] // Use local cache instead of looking up for every role used in the assignments
 		if !found {
@@ -81,29 +103,32 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 		}
 
 		for _, identityIDAsUUID := range identityIDs {
-			assignedRoles, err := s.Repositories().IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, resourceID, identityIDAsUUID)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"resource_id": resourceID,
-					"identity_id": assignedBy,
-				}, "error looking up existing assignments")
-				return err
-			}
-			if len(assignedRoles) == 0 {
-				log.Error(ctx, map[string]interface{}{
-					"resource_id": resourceID,
-					"identity_id": identityIDAsUUID,
-				}, "identity not previously assigned a resource role cannot be assigned another role")
-				return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
+			if found, _ := checkedIdentityIDs[identityIDAsUUID]; !found { // Don't check the same identity multiple times
+				assignedRoles, err := s.Repositories().IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(ctx, resourceID, identityIDAsUUID)
+				if err != nil {
+					log.Error(ctx, map[string]interface{}{
+						"resource_id": resourceID,
+						"identity_id": assignedBy,
+					}, "error looking up existing assignments")
+					return err
+				}
+				if len(assignedRoles) == 0 {
+					log.Error(ctx, map[string]interface{}{
+						"resource_id": resourceID,
+						"identity_id": identityIDAsUUID,
+					}, "identity not previously assigned a resource role cannot be assigned another role")
+					return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
+				}
+				for _, role := range assignedRoles {
+					existingRoleIDs = append(existingRoleIDs, role.IdentityRoleID)
+				}
+				checkedIdentityIDs[identityIDAsUUID] = true
 			}
 
 			if ids, found := assignments[roleID]; found {
 				assignments[roleID] = append(ids, identityIDAsUUID)
 			} else {
 				assignments[roleID] = []uuid.UUID{identityIDAsUUID}
-			}
-			for _, role := range assignedRoles {
-				existingRoleIDs = append(existingRoleIDs, role.IdentityRoleID)
 			}
 		}
 	}
@@ -114,14 +139,10 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 
 		if !appendToExistingRoles {
 			// Delete all existing roles before creating the new ones
-			deletedRoles := make(map[uuid.UUID]bool)
 			for _, roleID := range existingRoleIDs {
-				if _, found := deletedRoles[roleID]; !found { // Skip duplicated roles
-					err = s.Repositories().IdentityRoleRepository().Delete(ctx, roleID)
-					if err != nil {
-						return err
-					}
-					deletedRoles[roleID] = true
+				err = s.Repositories().IdentityRoleRepository().Delete(ctx, roleID)
+				if err != nil {
+					return err
 				}
 			}
 		}
@@ -172,6 +193,35 @@ func (s *roleManagementServiceImpl) ForceAssign(ctx context.Context, assignedTo 
 		}
 
 		return s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
+	})
+
+	return err
+}
+
+// RevokeResourceRoles revokes all roles for the resource for the specified identities
+// IMPORTANT: This is a transactional method, which manages its own transaction/s internally
+func (s *roleManagementServiceImpl) RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error {
+	// Lookup the resourceID and ensure the resource is valid
+	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
+	if err != nil {
+		return err
+	}
+
+	// check if the current user token belongs to a user who has the necessary privileges
+	// for managing roles.
+	err = s.Services().PermissionService().RequireScope(ctx, currentIdentity, resourceID, authorization.ScopeForManagingRolesInResourceType(rt.Name))
+	if err != nil {
+		return err
+	}
+
+	err = s.ExecuteInTransaction(func() error {
+		for _, identityID := range identities {
+			err := s.Repositories().IdentityRoleRepository().DeleteForIdentityAndResource(ctx, resourceID, identityID)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 
 	return err

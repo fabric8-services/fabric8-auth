@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	userservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -157,4 +158,8 @@ func (f *ServiceFactory) TeamService() service.TeamService {
 
 func (f *ServiceFactory) SpaceService() service.SpaceService {
 	return spaceservice.NewSpaceService(f.getContext())
+}
+
+func (f *ServiceFactory) UserService() service.UserService {
+	return userservice.NewUserService(f.getContext())
 }

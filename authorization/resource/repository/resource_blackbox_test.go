@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,6 +54,12 @@ func (s *resourceBlackBoxTest) TestOKToDelete() {
 
 func (s *resourceBlackBoxTest) TestOKToLoad() {
 	createAndLoadResource(s, nil)
+}
+
+func (s *resourceBlackBoxTest) TestLoadUnknownFails() {
+	id := uuid.NewV4().String()
+	_, err := s.repo.Load(s.Ctx, id)
+	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
 func (s *resourceBlackBoxTest) TestOKToLoadChildren() {
@@ -150,6 +157,24 @@ func (s *resourceBlackBoxTest) TestCannotCreateDuplicateOrganizationNames() {
 	err = s.repo.Create(s.Ctx, res)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.DataConflictError{}, err)
+}
+
+func (s *resourceBlackBoxTest) TestCreateResourceDataConflict() {
+	resourceType, err := s.resourceTypeRepo.Lookup(s.Ctx, "openshift.io/resource/area")
+	require.NoError(s.T(), err, "Could not find resource type")
+
+	resource := &resource.Resource{
+		ResourceID:     uuid.NewV4().String(),
+		ResourceType:   *resourceType,
+		ResourceTypeID: resourceType.ResourceTypeID,
+	}
+
+	err = s.repo.Create(s.Ctx, resource)
+	require.NoError(s.T(), err, "Could not create resource")
+
+	err = s.repo.Create(s.Ctx, resource)
+	testsupport.AssertError(s.T(), err, errors.DataConflictError{}, "resource with ID %s already exists", resource.ResourceID)
+	//require.IsType(s.T(), errors.DataConflictError{}, err)
 }
 
 func createAndLoadResource(s *resourceBlackBoxTest, parentResourceID *string) *resource.Resource {

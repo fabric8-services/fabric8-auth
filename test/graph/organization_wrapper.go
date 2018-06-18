@@ -4,8 +4,6 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -85,17 +83,8 @@ func (w *organizationWrapper) ResourceID() string {
 	return w.resource.ResourceID
 }
 
-func (w *organizationWrapper) addUserRole(identityID uuid.UUID, roleName string) *organizationWrapper {
-	r, err := w.graph.app.RoleRepository().Lookup(w.graph.ctx, roleName, authorization.IdentityResourceTypeOrganization)
-	require.NoError(w.graph.t, err)
-
-	identityRole := &role.IdentityRole{
-		ResourceID: w.identity.IdentityResourceID.String,
-		IdentityID: identityID,
-		RoleID:     r.RoleID,
-	}
-
-	err = w.graph.app.IdentityRoleRepository().Create(w.graph.ctx, identityRole)
-	require.NoError(w.graph.t, err)
+// AddAdmin assigns the admin role to a user for the org
+func (w *organizationWrapper) AddAdmin(wrapper interface{}) *organizationWrapper {
+	addRole(w.baseWrapper, w.resource, authorization.IdentityResourceTypeOrganization, w.identityIDFromWrapper(wrapper), authorization.OrganizationAdminRole)
 	return w
 }
