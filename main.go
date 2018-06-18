@@ -11,6 +11,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
@@ -28,7 +29,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
@@ -255,9 +255,13 @@ func main() {
 	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
 
 	emailVerificationService := accountservice.NewEmailVerificationClient(appDB, notificationChannel)
-	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService, tenantService)
+	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
+
+	// Mount "namedusers" controlller
+	namedusersCtrl := controller.NewNamedusersController(service, appDB, config, tenantService)
+	app.MountNamedusersController(service, namedusersCtrl)
 
 	//Mount "userinfo" controller
 	userInfoCtrl := controller.NewUserinfoController(service, userInfoProvider, appDB, tokenManager)

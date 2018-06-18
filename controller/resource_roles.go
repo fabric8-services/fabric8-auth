@@ -1,6 +1,7 @@
 package controller
 
 import (
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -31,17 +32,18 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 
 	var roles []role.IdentityRole
+	var err error
+	var currentIdentity *account.Identity
 
-	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"err":         err,
-		}, "does not exist")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
+	if !token.IsSpecificServiceAccount(ctx, "space-migration") {
+		currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+		roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
+	} else {
+		roles, err = c.app.IdentityRoleRepository().FindIdentityRolesByResource(ctx, ctx.ResourceID, false)
 	}
-
-	roles, err = c.app.RoleManagementService().ListByResource(ctx, ctx.ResourceID)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -58,19 +60,14 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 
 // ListAssignedByRoleName runs the list action.
 func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedByRoleNameResourceRolesContext) error {
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	var roles []role.IdentityRole
 
-	err := c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"resource_id": ctx.ResourceID,
-			"err":         err,
-		}, "does not exist")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("resource_id", ctx.ResourceID))
-	}
-
-	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, ctx.ResourceID, ctx.RoleName)
+	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.ResourceID, ctx.RoleName)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

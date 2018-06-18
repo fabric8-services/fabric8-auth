@@ -85,6 +85,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 
 	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
+		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
@@ -183,7 +184,7 @@ func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, prov
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 	appToken, errorResponse, err := c.retrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
 	if errorResponse != nil {
-		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
 	}
 	if err != nil {
@@ -196,7 +197,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 	appToken, errorResponse, err := c.retrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
 	if errorResponse != nil {
-		ctx.ResponseData.Header().Set("Access-Control-Expose-Headers", "WWW-Authenticate")
+		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
 	}
 	if err != nil {
@@ -408,6 +409,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 
 	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
+		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err
 	}
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
