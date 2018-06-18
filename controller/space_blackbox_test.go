@@ -129,7 +129,7 @@ func (rest *TestSpaceREST) TestKeycloakResourceCreationRollBack() {
 	require.NoError(rest.T(), err)
 
 	// Should fail because the space already exists.
-	test.CreateSpaceInternalServerError(rest.T(), svc.Context, svc, ctrl, spaceID)
+	test.CreateSpaceConflict(rest.T(), svc.Context, svc, ctrl, spaceID)
 
 	// Check that no keycloak resource exist for this space ID
 	_, err = rest.Application.SpaceResources().LoadBySpace(svc.Context, &spaceID)
