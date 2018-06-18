@@ -1,7 +1,6 @@
 package controller
 
 import (
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -32,10 +31,7 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
 
 	var roles []role.IdentityRole
-	var err error
-	var currentIdentity *account.Identity
-
-	currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -85,7 +81,7 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 // AssignRole assigns a specific role for a resource, to one or more identities.
 func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
 
-	currentUser, err := login.ContextIdentity(ctx)
+	currentIdentity, err := login.ContextIdentity(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
@@ -113,7 +109,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 			}
 		}
 	}
-	err = c.app.RoleManagementService().Assign(ctx, *currentUser, roleAssignments, ctx.ResourceID, false)
+	err = c.app.RoleManagementService().Assign(ctx, *currentIdentity, roleAssignments, ctx.ResourceID, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
