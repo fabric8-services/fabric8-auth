@@ -60,21 +60,6 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesOK() {
 	rest.checkExists([]uuid.UUID{admin.IdentityID(), viewer.IdentityID()}, []string{"admin", "viewer"}, returnedIdentityRoles)
 }
 
-func (rest *TestResourceRolesRest) TestListAssignedRolesUsingServiceAccountOK() {
-	admin := rest.Graph.CreateUser()
-	viewer := rest.Graph.CreateUser()
-	space := rest.Graph.CreateSpace().AddAdmin(admin).AddViewer(viewer)
-
-	// noise
-	rest.Graph.CreateSpace().AddViewer(rest.Graph.CreateUser())
-
-	// Check available roles
-	svc, ctrl := rest.SecuredControllerWithServiceAccount("space-migration")
-	_, returnedIdentityRoles := test.ListAssignedResourceRolesOK(rest.T(), svc.Context, svc, ctrl, space.SpaceID())
-	require.Len(rest.T(), returnedIdentityRoles.Data, 2)
-	rest.checkExists([]uuid.UUID{admin.IdentityID(), viewer.IdentityID()}, []string{"admin", "viewer"}, returnedIdentityRoles)
-}
-
 func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameOK() {
 	admin := rest.Graph.CreateUser()
 	viewer := rest.Graph.CreateUser()
