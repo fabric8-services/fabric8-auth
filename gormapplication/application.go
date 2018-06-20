@@ -54,9 +54,8 @@ func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData) *GormDB {
 	val := new(GormDB)
 	val.db = db.Set("gorm:save_associations", false)
 	val.txIsoLevel = ""
-	val.serviceFactory = factory.NewServiceFactory(func() *context.ServiceContext {
-		ctx := factory.NewServiceContext(val, val, config)
-		return &ctx
+	val.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
+		return factory.NewServiceContext(val, val, config)
 	}, config)
 	return val
 }

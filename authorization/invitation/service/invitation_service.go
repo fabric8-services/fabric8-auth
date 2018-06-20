@@ -21,7 +21,7 @@ type invitationServiceImpl struct {
 	base.BaseService
 }
 
-func NewInvitationService(context *servicecontext.ServiceContext) service.InvitationService {
+func NewInvitationService(context servicecontext.ServiceContext) service.InvitationService {
 	return &invitationServiceImpl{base.NewBaseService(context)}
 }
 

@@ -39,7 +39,7 @@ func NewServiceContext(repos repository.Repositories, tm transaction.Transaction
 
 	var sc context.ServiceContext
 	sc = ctx
-	ctx.services = NewServiceFactory(func() *context.ServiceContext { return &sc }, config)
+	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config)
 	return ctx
 }
 
@@ -120,7 +120,7 @@ func (s *serviceContextImpl) endTransaction() {
 	s.inTransaction = false
 }
 
-type ServiceContextProducer func() *context.ServiceContext
+type ServiceContextProducer func() context.ServiceContext
 
 type ServiceFactory struct {
 	contextProducer ServiceContextProducer
@@ -131,7 +131,7 @@ func NewServiceFactory(producer ServiceContextProducer, config *configuration.Co
 	return &ServiceFactory{contextProducer: producer, config: config}
 }
 
-func (f *ServiceFactory) getContext() *context.ServiceContext {
+func (f *ServiceFactory) getContext() context.ServiceContext {
 	return f.contextProducer()
 }
 

@@ -36,7 +36,7 @@ type notificationServiceImpl struct {
 }
 
 // NewNotificationService creates a new service.
-func NewNotificationService(context *servicecontext.ServiceContext, config notification.Configuration) service.NotificationService {
+func NewNotificationService(context servicecontext.ServiceContext, config notification.Configuration) service.NotificationService {
 	if config.GetNotificationServiceURL() == "" {
 		return &devNullNotificationService{}
 	}

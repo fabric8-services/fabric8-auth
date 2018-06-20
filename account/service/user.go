@@ -10,7 +10,7 @@ import (
 )
 
 // NewUserService creates a new service to manage users
-func NewUserService(context *servicecontext.ServiceContext) *userServiceImpl {
+func NewUserService(context servicecontext.ServiceContext) *userServiceImpl {
 	return &userServiceImpl{base.NewBaseService(context)}
 }
 
