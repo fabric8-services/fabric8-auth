@@ -51,10 +51,10 @@ func NewTeamInvitationEmail(userID string, teamName string, inviterName string, 
 		TargetID:    "",
 		UserID:      &userID,
 		Custom: map[string]interface{}{
-			"teamName":    teamName,
-			"inviter":     inviterName,
-			"spaceName":   spaceName,
-			"acceptToken": acceptToken,
+			"teamName":  teamName,
+			"inviter":   inviterName,
+			"spaceName": spaceName,
+			"acceptURL": invitationAcceptURL(acceptToken),
 		},
 	}
 }
@@ -74,10 +74,14 @@ func NewSpaceInvitationEmail(userID string, spaceName string, inviterName string
 		TargetID:    "",
 		UserID:      &userID,
 		Custom: map[string]interface{}{
-			"spaceName":   spaceName,
-			"inviter":     inviterName,
-			"roleNames":   roleNames,
-			"acceptToken": acceptToken,
+			"spaceName": spaceName,
+			"inviter":   inviterName,
+			"roleNames": roleNames,
+			"acceptURL": invitationAcceptURL(acceptToken),
 		},
 	}
+}
+
+func invitationAcceptURL(acceptToken string) string {
+	return fmt.Sprintf("https://auth.openshift.io/api/invitations/accept?code=%s", acceptToken)
 }
