@@ -18,7 +18,7 @@ import (
 	"github.com/goadesign/goa/uuid"
 )
 
-// DevNullChannel is the default configured channel. It does nothing.
+// devNullNotificationService is the default dev service implementation. It does nothing.
 type devNullNotificationService struct{}
 
 func (s *devNullNotificationService) SendAsync(ctx context.Context, msg notification.Message) error {
