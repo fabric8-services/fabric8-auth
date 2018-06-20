@@ -174,7 +174,7 @@ func main() {
 		notificationChannel = channel
 	}
 
-	appDB := gormapplication.NewGormDB(db)
+	appDB := gormapplication.NewGormDB(db, config)
 
 	tokenManager, err := token.NewManager(config)
 	if err != nil {

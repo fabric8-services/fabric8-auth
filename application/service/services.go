@@ -70,6 +70,10 @@ type UserService interface {
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
 }
 
+type NotificationService interface {
+	Send(ctx context.Context) error
+}
+
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
@@ -80,4 +84,5 @@ type Services interface {
 	TeamService() TeamService
 	SpaceService() SpaceService
 	UserService() UserService
+	NotificationService() NotificationService
 }

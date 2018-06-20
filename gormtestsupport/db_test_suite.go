@@ -58,7 +58,7 @@ func (s *DBTestSuite) SetupSuite() {
 		}
 	}
 	s.DB = s.DB.Debug()
-	s.Application = gormapplication.NewGormDB(s.DB)
+	s.Application = gormapplication.NewGormDB(s.DB, configuration)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
 	s.cleanSuite = cleaner.DeleteCreatedEntities(s.DB)
