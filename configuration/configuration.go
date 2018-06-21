@@ -261,18 +261,14 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetValidRedirectURLs() == ".*" {
 		c.appendDefaultConfigErrorMessage("no restrictions for valid redirect URLs")
 	}
-	if c.GetNotificationServiceURL() == "" {
-		c.appendDefaultConfigErrorMessage("notification service url is empty")
-	}
+	c.validateURL(c.GetNotificationServiceURL(), "notification service")
 	if c.GetAccessTokenExpiresIn() < 3*60 {
 		c.appendDefaultConfigErrorMessage("too short lifespan of access tokens")
 	}
 	if c.GetRefreshTokenExpiresIn() < 3*60 {
 		c.appendDefaultConfigErrorMessage("too short lifespan of refresh tokens")
 	}
-	if c.GetOSORegistrationAppURL() == "" {
-		c.appendDefaultConfigErrorMessage("OSO Reg App url is empty")
-	}
+	c.validateURL(c.GetOSORegistrationAppURL(), "OSO Reg App")
 	if c.GetOSORegistrationAppAdminUsername() == "" {
 		c.appendDefaultConfigErrorMessage("OSO Reg App admin username is empty")
 	}
@@ -292,6 +288,17 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 
 	return c, nil
+}
+
+func (c *ConfigurationData) validateURL(serviceURL, serviceName string) {
+	if serviceURL == "" {
+		c.appendDefaultConfigErrorMessage(fmt.Sprintf("%s url is empty", serviceName))
+	} else {
+		_, err := url.Parse(serviceURL)
+		if err != nil {
+			c.appendDefaultConfigErrorMessage(fmt.Sprintf("invalid %s url: %s", serviceName, err.Error()))
+		}
+	}
 }
 
 func (c *ConfigurationData) initClusterConfig(osoClusterConfigFile, defaultClusterConfigFile string) (string, error) {

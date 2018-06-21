@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -11,15 +15,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/client"
 	jwtgoa "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
 
@@ -190,6 +192,16 @@ func ContextWithRequest(ctx context.Context) context.Context {
 		panic("invalid test " + err.Error()) // bug
 	}
 	return goa.NewContext(goa.WithAction(ctx, "Test"), rw, req, url.Values{})
+}
+
+func ContextWithTokenAndRequestID(t *testing.T) (context.Context, string, string) {
+	ctx, ctxToken, err := EmbedTokenInContext(uuid.NewV4().String(), uuid.NewV4().String())
+	require.NoError(t, err)
+
+	reqID := uuid.NewV4().String()
+	ctx = client.SetContextRequestID(ctx, reqID)
+
+	return ctx, ctxToken, reqID
 }
 
 func ContextWithTokenManager() context.Context {

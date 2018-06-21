@@ -10,6 +10,7 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/notification"
 
 	"github.com/satori/go.uuid"
 )
@@ -70,6 +71,11 @@ type UserService interface {
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
 }
 
+type NotificationService interface {
+	SendAsync(ctx context.Context, msg notification.Message) error
+	SendMessagesAsync(ctx context.Context, messages []notification.Message) error
+}
+
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
@@ -80,4 +86,5 @@ type Services interface {
 	TeamService() TeamService
 	SpaceService() SpaceService
 	UserService() UserService
+	NotificationService() NotificationService
 }
