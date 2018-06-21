@@ -10,8 +10,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-
 	"github.com/fabric8-services/fabric8-auth/token"
+
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
 )

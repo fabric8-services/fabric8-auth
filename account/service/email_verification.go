@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	authclient "github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -23,18 +24,14 @@ type EmailVerificationService interface {
 
 type EmailVerificationClient struct {
 	app          application.Application
-	notification notification.Channel
+	notification service.NotificationService
 }
 
 // NewEmailVerificationClient creates a new client for managing email verification.
-func NewEmailVerificationClient(app application.Application, notificationChannel notification.Channel) *EmailVerificationClient {
-	n := notificationChannel
-	if n == nil {
-		n = &notification.DevNullChannel{}
-	}
+func NewEmailVerificationClient(app application.Application) *EmailVerificationClient {
 	return &EmailVerificationClient{
 		app:          app,
-		notification: n,
+		notification: app.NotificationService(),
 	}
 }
 
@@ -64,7 +61,7 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req 
 	}
 
 	emailMessage := notification.NewUserEmailUpdated(identity.ID.String(), notificationCustomAttributes)
-	c.notification.Send(ctx, emailMessage)
+	c.notification.SendAsync(ctx, emailMessage)
 
 	return &newVerificationCode, err
 }

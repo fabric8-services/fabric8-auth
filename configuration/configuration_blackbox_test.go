@@ -296,6 +296,42 @@ func TestGetEnvironmentOK(t *testing.T) {
 	assert.NotContains(t, saConfig.DefaultConfigurationError().Error(), "environment is expected to be set to 'production' or 'prod-preview'")
 }
 
+func TestNotificationServiceURL(t *testing.T) {
+	checkURLValidation(t, "AUTH_NOTIFICATION_SERVICEURL", "notification service")
+}
+
+func TestOSORegistrationAppURL(t *testing.T) {
+	checkURLValidation(t, "AUTH_OSO_REGAPP_SERVICEURL", "OSO Reg App")
+}
+
+func checkURLValidation(t *testing.T, envName, serviceName string) {
+	resource.Require(t, resource.UnitTest)
+
+	existingEnvironment := os.Getenv(envName)
+	defer func() {
+		os.Setenv(envName, existingEnvironment)
+		resetConfiguration()
+	}()
+
+	// URL not set
+	os.Unsetenv(envName)
+	saConfig, err := configuration.GetConfigurationData()
+	require.NoError(t, err)
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), fmt.Sprintf("%s url is empty", serviceName))
+
+	// URL is invalid
+	os.Setenv(envName, "%")
+	saConfig, err = configuration.GetConfigurationData()
+	require.NoError(t, err)
+	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), fmt.Sprintf("invalid %s url: %s", serviceName, "parse %: invalid URL escape \"%\""))
+
+	// URL is valid
+	os.Setenv(envName, "https://openshift.io")
+	saConfig, err = configuration.GetConfigurationData()
+	require.NoError(t, err)
+	assert.NotContains(t, saConfig.DefaultConfigurationError().Error(), "serviceName")
+}
+
 func TestGetSentryDSNOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	constSentryDSN := "AUTH_SENTRY_DSN"

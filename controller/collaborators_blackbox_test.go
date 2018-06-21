@@ -15,7 +15,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/space/authz"
@@ -335,8 +334,7 @@ func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsWithWrongUserIDFormat
 }
 
 func (rest *TestCollaboratorsREST) TestAddCollaboratorsOk() {
-	appl := gormapplication.NewGormDB(rest.DB)
-	resource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
+	resource, err := rest.Application.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
 	require.Nil(rest.T(), err)
 
 	svc, ctrl := rest.SecuredController()
@@ -354,15 +352,14 @@ func (rest *TestCollaboratorsREST) TestAddCollaboratorsOk() {
 	// then
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID}, actualUsers)
 
-	updatedResource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
+	updatedResource, err := rest.Application.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
 	require.Nil(rest.T(), err)
 	require.True(rest.T(), resource.UpdatedAt.Before(updatedResource.UpdatedAt))
 }
 
 func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsOk() {
 	//given
-	appl := gormapplication.NewGormDB(rest.DB)
-	resource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
+	resource, err := rest.Application.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
 	require.Nil(rest.T(), err)
 	svc, ctrl := rest.SecuredController()
 	rest.policy.AddUserToPolicy(rest.testIdentity1.ID.String())
@@ -380,7 +377,7 @@ func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsOk() {
 	_, actualUsers = test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	// then
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID, rest.testIdentity3.ID}, actualUsers)
-	updatedResource, err := appl.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
+	updatedResource, err := rest.Application.SpaceResources().LoadBySpace(context.Background(), &rest.spaceID)
 	require.Nil(rest.T(), err)
 	require.True(rest.T(), resource.UpdatedAt.Before(updatedResource.UpdatedAt))
 }
