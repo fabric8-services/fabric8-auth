@@ -14,6 +14,7 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -49,14 +50,13 @@ const (
 
 //var y application.Application = &GormTransaction{}
 
-func NewGormDB(db *gorm.DB) *GormDB {
+func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData) *GormDB {
 	val := new(GormDB)
 	val.db = db.Set("gorm:save_associations", false)
 	val.txIsoLevel = ""
-	val.serviceFactory = factory.NewServiceFactory(func() *context.ServiceContext {
-		ctx := factory.NewServiceContext(val, val)
-		return &ctx
-	})
+	val.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
+		return factory.NewServiceContext(val, val, config)
+	}, config)
 	return val
 }
 
@@ -168,6 +168,10 @@ func (g *GormDB) SpaceService() service.SpaceService {
 
 func (g *GormDB) UserService() service.UserService {
 	return g.serviceFactory.UserService()
+}
+
+func (g *GormDB) NotificationService() service.NotificationService {
+	return g.serviceFactory.NotificationService()
 }
 
 func (g *GormBase) DB() *gorm.DB {

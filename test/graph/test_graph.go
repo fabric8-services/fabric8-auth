@@ -2,11 +2,12 @@ package graph
 
 import (
 	"context"
+	"testing"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 // TestGraph manages an object graph of domain objects for the purposes of testing

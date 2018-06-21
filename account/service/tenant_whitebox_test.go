@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
-	"github.com/goadesign/goa/client"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,7 +52,7 @@ func (s *TestTenantSuite) TestDefaultDoer() {
 }
 
 func (s *TestTenantSuite) TestInit() {
-	ctx, token, reqID := s.newContext()
+	ctx, token, reqID := token.ContextWithTokenAndRequestID(s.T())
 
 	s.doer.Client.Error = nil
 	body := ioutil.NopCloser(bytes.NewReader([]byte{}))
@@ -92,7 +90,7 @@ func (s *TestTenantSuite) TestInit() {
 }
 
 func (s *TestTenantSuite) TestDelete() {
-	ctx, _, reqID := s.newContext()
+	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
 	ctx = tokencontext.ContextWithTokenManager(ctx, testtoken.TokenManager)
 
 	token := testtoken.TokenManager.AuthServiceAccountToken()
@@ -123,16 +121,6 @@ func (s *TestTenantSuite) TestDelete() {
 	err = s.ts.Delete(ctx, identityID)
 	require.Error(s.T(), err)
 	assert.Equal(s.T(), "something went wrong", err.Error())
-}
-
-func (s *TestTenantSuite) newContext() (context.Context, string, string) {
-	ctx, ctxToken, err := token.EmbedTokenInContext(uuid.NewV4().String(), uuid.NewV4().String())
-	require.NoError(s.T(), err)
-
-	reqID := uuid.NewV4().String()
-	ctx = client.SetContextRequestID(ctx, reqID)
-
-	return ctx, ctxToken, reqID
 }
 
 type tenantURLConfig struct {
