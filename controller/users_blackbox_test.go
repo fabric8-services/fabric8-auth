@@ -63,7 +63,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersController) {
 	svc := testsupport.UnsecuredService("Users-Service")
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -74,7 +74,7 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }
@@ -82,7 +82,7 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application, testsupport.NotificationChannel{})
+	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
 	controller.RemoteWITService = &dummyRemoteWITService{}
 	return svc, controller
 }

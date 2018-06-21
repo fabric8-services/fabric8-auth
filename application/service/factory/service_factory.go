@@ -16,7 +16,9 @@ import (
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	spaceservice "github.com/fabric8-services/fabric8-auth/authorization/space/service"
 	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
+	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
 
 	"github.com/pkg/errors"
 )
@@ -29,7 +31,7 @@ type serviceContextImpl struct {
 	services                  service.Services
 }
 
-func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager) context.ServiceContext {
+func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData) context.ServiceContext {
 	ctx := new(serviceContextImpl)
 	ctx.repositories = repos
 	ctx.transactionManager = tm
@@ -37,7 +39,7 @@ func NewServiceContext(repos repository.Repositories, tm transaction.Transaction
 
 	var sc context.ServiceContext
 	sc = ctx
-	ctx.services = NewServiceFactory(func() *context.ServiceContext { return &sc })
+	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config)
 	return ctx
 }
 
@@ -118,17 +120,18 @@ func (s *serviceContextImpl) endTransaction() {
 	s.inTransaction = false
 }
 
-type ServiceContextProducer func() *context.ServiceContext
+type ServiceContextProducer func() context.ServiceContext
 
 type ServiceFactory struct {
 	contextProducer ServiceContextProducer
+	config          *configuration.ConfigurationData
 }
 
-func NewServiceFactory(producer ServiceContextProducer) *ServiceFactory {
-	return &ServiceFactory{contextProducer: producer}
+func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData) *ServiceFactory {
+	return &ServiceFactory{contextProducer: producer, config: config}
 }
 
-func (f *ServiceFactory) getContext() *context.ServiceContext {
+func (f *ServiceFactory) getContext() context.ServiceContext {
 	return f.contextProducer()
 }
 
@@ -162,4 +165,8 @@ func (f *ServiceFactory) SpaceService() service.SpaceService {
 
 func (f *ServiceFactory) UserService() service.UserService {
 	return userservice.NewUserService(f.getContext())
+}
+
+func (f *ServiceFactory) NotificationService() service.NotificationService {
+	return notificationservice.NewNotificationService(f.getContext(), f.config)
 }
