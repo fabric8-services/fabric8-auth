@@ -29,12 +29,13 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
-
-	var roles []role.IdentityRole
 	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	var roles []role.IdentityRole
+
 	roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
 
 	if err != nil {

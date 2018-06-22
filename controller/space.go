@@ -11,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/space"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -48,55 +47,31 @@ func NewSpaceController(service *goa.Service, app application.Application, confi
 
 // Create runs the create action.
 func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
-
-	isMigration := false
-	if token.IsSpecificServiceAccount(ctx, "space-migration") {
-		isMigration = true
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	var currentIdentity *account.Identity
-	var err error
-	var spaceResource *space.Resource
-	var resource *auth.Resource
-
-	if isMigration {
-		currentIdentity = &account.Identity{ID: *ctx.Creator}
-	} else {
-		currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
+	// Create keycloak resource for this space
+	resource, err := c.resourceManager.CreateResource(ctx, ctx.RequestData, ctx.SpaceID.String(), spaceResourceType, nil, &scopes, currentIdentity.ID.String())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	spaceResource := &space.Resource{
+		ResourceID:   resource.ResourceID,
+		PolicyID:     resource.PolicyID,
+		PermissionID: resource.PermissionID,
+		SpaceID:      ctx.SpaceID,
+		OwnerID:      currentIdentity.ID,
 	}
 
-	if !isMigration {
-
-		// Create keycloak resource for this space
-		resource, err = c.resourceManager.CreateResource(ctx, ctx.RequestData, ctx.SpaceID.String(), spaceResourceType, nil, &scopes, currentIdentity.ID.String())
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-		spaceResource = &space.Resource{
-			ResourceID:   resource.ResourceID,
-			PolicyID:     resource.PolicyID,
-			PermissionID: resource.PermissionID,
-			SpaceID:      ctx.SpaceID,
-			OwnerID:      currentIdentity.ID,
-		}
-
-		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
-			// Create space resource which will represent the keycloak resource associated with this space
-			_, err = tr.SpaceResources().Create(ctx, spaceResource)
-			return err
-		})
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-		log.Debug(ctx, map[string]interface{}{
-			"space_id":      ctx.SpaceID,
-			"resource_id":   resource.ResourceID,
-			"permission_id": resource.PermissionID,
-			"policy_id":     resource.PolicyID,
-		}, "space resource created")
+	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+		// Create space resource which will represent the keycloak resource associated with this space
+		_, err = tr.SpaceResources().Create(ctx, spaceResource)
+		return err
+	})
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	// Create AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
@@ -106,35 +81,31 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 			"err":      err,
 			"space_id": ctx.SpaceID,
 		}, "unable to register resource for space or assign space admin role to space creator")
-
-		if !isMigration {
-
-			// Roll back Keycloak resource creation
-			rolBackErr := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
-				return tr.SpaceResources().Delete(ctx, spaceResource.ID)
-			})
-			if rolBackErr != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":      rolBackErr,
-					"space_id": ctx.SpaceID,
-				}, "unable to roll back space resource creation")
-			}
+		// Roll back Keycloak resource creation
+		rolBackErr := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			return tr.SpaceResources().Delete(ctx, spaceResource.ID)
+		})
+		if rolBackErr != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      rolBackErr,
+				"space_id": ctx.SpaceID,
+			}, "unable to roll back space resource creation")
 		}
 
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	if resource != nil { // for migration = true, resource is nil
-		return ctx.OK(&app.SpaceResource{Data: &app.SpaceResourceData{
-			ResourceID:   resource.ResourceID,
-			PermissionID: resource.PermissionID,
-			PolicyID:     resource.PolicyID,
-		}})
-	}
+	log.Debug(ctx, map[string]interface{}{
+		"space_id":      ctx.SpaceID,
+		"resource_id":   resource.ResourceID,
+		"permission_id": resource.PermissionID,
+		"policy_id":     resource.PolicyID,
+	}, "space resource created")
+
 	return ctx.OK(&app.SpaceResource{Data: &app.SpaceResourceData{
-		ResourceID:   ctx.SpaceID.String(),
-		PermissionID: uuid.Nil.String(),
-		PolicyID:     uuid.Nil.String(),
+		ResourceID:   resource.ResourceID,
+		PermissionID: resource.PermissionID,
+		PolicyID:     resource.PolicyID,
 	}})
 }
 
