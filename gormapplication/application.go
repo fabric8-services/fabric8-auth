@@ -18,7 +18,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
-	"github.com/fabric8-services/fabric8-wit/notification"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 )
@@ -215,10 +214,6 @@ func (g *GormDB) BeginTransaction() (transaction.Transaction, error) {
 		return &GormTransaction{GormBase{tx}}, nil
 	}
 	return &GormTransaction{GormBase{tx}}, nil
-}
-
-func (g *GormDB) NotificationChannel() notification.Channel {
-	return g.notificationChannel
 }
 
 // Commit commits the current transaction

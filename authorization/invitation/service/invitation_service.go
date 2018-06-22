@@ -22,12 +22,19 @@ import (
 	"strings"
 )
 
-type invitationServiceImpl struct {
-	base.BaseService
+type InvitationConfiguration interface {
+	GetAuthServiceURL() string
 }
 
-func NewInvitationService(context servicecontext.ServiceContext) service.InvitationService {
-	return &invitationServiceImpl{base.NewBaseService(context)}
+type invitationServiceImpl struct {
+	base.BaseService
+	config InvitationConfiguration
+}
+
+func NewInvitationService(context servicecontext.ServiceContext, config InvitationConfiguration) service.InvitationService {
+	return &invitationServiceImpl{
+		BaseService: base.NewBaseService(context),
+		config:      config}
 }
 
 // Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group or resource for
@@ -208,14 +215,19 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 		// What to do here?? just log an error and die?
 	}
 
+	var messages []notification.Message
+
 	for _, n := range notifications {
-		invitationEmailMessage := notification.NewTeamInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptToken.String())
+
+		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
 			teamName,
 			inviterName,
 			spaceName,
-			n.invitation.AcceptToken.String())
-		s.NotificationChannel().Send(ctx, invitationEmailMessage)
+			acceptURL))
 	}
+
+	s.Services().NotificationService().SendMessagesAsync(ctx, messages)
 }
 
 // processSpaceInviteNotifications sends an e-mail notification to a user.
@@ -227,14 +239,19 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 		// What to do here?? just log an error and die?
 	}
 
+	var messages []notification.Message
+
 	for _, n := range notifications {
-		invitationEmailMessage := notification.NewSpaceInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptToken.String())
+
+		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
 			spaceName,
 			inviterName,
 			strings.Join(n.roles, ","),
-			n.invitation.AcceptToken.String())
-		s.NotificationChannel().Send(ctx, invitationEmailMessage)
+			acceptURL))
 	}
+
+	s.Services().NotificationService().SendMessagesAsync(ctx, messages)
 }
 
 // lookupSpaceName talks to the WIT service to retrieve a space record for the specified spaceID, then

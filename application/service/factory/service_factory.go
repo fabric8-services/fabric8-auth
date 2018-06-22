@@ -139,7 +139,7 @@ func (f *ServiceFactory) OrganizationService() service.OrganizationService {
 }
 
 func (f *ServiceFactory) InvitationService() service.InvitationService {
-	return invitationservice.NewInvitationService(f.getContext())
+	return invitationservice.NewInvitationService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) PermissionService() service.PermissionService {

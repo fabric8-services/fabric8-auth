@@ -44,7 +44,7 @@ func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
 // inviter - the name of the user sending the invitation
 // spaceName - the name of the space to which the team belongs
 // acceptToken - the unique acceptance token value
-func NewTeamInvitationEmail(userID string, teamName string, inviterName string, spaceName string, acceptToken string) Message {
+func NewTeamInvitationEmail(userID string, teamName string, inviterName string, spaceName string, acceptURL string) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
 		MessageType: "invitation.team.noorg",
@@ -54,7 +54,7 @@ func NewTeamInvitationEmail(userID string, teamName string, inviterName string, 
 			"teamName":  teamName,
 			"inviter":   inviterName,
 			"spaceName": spaceName,
-			"acceptURL": invitationAcceptURL(acceptToken),
+			"acceptURL": acceptURL,
 		},
 	}
 }
@@ -67,7 +67,7 @@ func NewTeamInvitationEmail(userID string, teamName string, inviterName string, 
 // inviter - the name of the user sending the invitation
 // roleNames - a comma-separated list of role names
 // acceptToken - the unique acceptance token value
-func NewSpaceInvitationEmail(userID string, spaceName string, inviterName string, roleNames string, acceptToken string) Message {
+func NewSpaceInvitationEmail(userID string, spaceName string, inviterName string, roleNames string, acceptURL string) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
 		MessageType: "invitation.space.noorg",
@@ -77,11 +77,7 @@ func NewSpaceInvitationEmail(userID string, spaceName string, inviterName string
 			"spaceName": spaceName,
 			"inviter":   inviterName,
 			"roleNames": roleNames,
-			"acceptURL": invitationAcceptURL(acceptToken),
+			"acceptURL": acceptURL,
 		},
 	}
-}
-
-func invitationAcceptURL(acceptToken string) string {
-	return fmt.Sprintf("https://auth.openshift.io/api/invitations/accept?code=%s", acceptToken)
 }
