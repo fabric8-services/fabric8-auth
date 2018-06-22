@@ -45,7 +45,6 @@ var _ = a.Resource("space", func() {
 		a.Description("Create a space resource for the giving space")
 		a.Params(func() {
 			a.Param("spaceID", d.UUID, "ID of the space")
-			a.Param("creator", d.UUID, "identity ID of the space creator")
 		})
 		a.Response(d.OK, spaceResource)
 		a.Response(d.BadRequest, JSONAPIErrors)
