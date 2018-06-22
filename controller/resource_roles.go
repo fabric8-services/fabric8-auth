@@ -1,18 +1,13 @@
 package controller
 
 import (
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/authorization"
-	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
@@ -34,20 +29,14 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
 	var roles []role.IdentityRole
-	var err error
-	var currentIdentity *account.Identity
 
-	if !token.IsSpecificServiceAccount(ctx, "space-migration") {
-		currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-		roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
-	} else {
-		roles, err = c.app.IdentityRoleRepository().FindIdentityRolesByResource(ctx, ctx.ResourceID, false)
-	}
+	roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -93,9 +82,7 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 // AssignRole assigns a specific role for a resource, to one or more identities.
 func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
 
-	isMigration := token.IsSpecificServiceAccount(ctx, "space-migration")
-
-	currentUser, err := login.ContextIdentity(ctx)
+	currentIdentity, err := login.ContextIdentity(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
@@ -123,27 +110,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 			}
 		}
 	}
-
-	// Temporary: During migration, if the service account token is used to call this API,
-	// then the 'contributor' role can be added to existing space collaborators.
-	// Without this, the Assign() service method will not allow a role to be assigned since the user does not have a prior
-	// associattion with this space
-	if isMigration {
-		res := resource.Resource{
-			ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace},
-			ResourceID:   ctx.ResourceID,
-		}
-		for rolename, assignedTo := range roleAssignments {
-			for _, assignee := range assignedTo {
-				err = c.app.RoleManagementService().ForceAssign(ctx, assignee, rolename, res)
-				if err != nil {
-					return jsonapi.JSONErrorResponse(ctx, err)
-				}
-			}
-		}
-	} else {
-		err = c.app.RoleManagementService().Assign(ctx, *currentUser, roleAssignments, ctx.ResourceID, false)
-	}
+	err = c.app.RoleManagementService().Assign(ctx, *currentIdentity, roleAssignments, ctx.ResourceID, false)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
