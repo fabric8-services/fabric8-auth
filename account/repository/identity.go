@@ -130,13 +130,22 @@ type IdentityRepository interface {
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 	FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error)
+	AddMember(ctx context.Context, identityID uuid.UUID, memberID uuid.UUID) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
 // in the database.
 func (m *GormIdentityRepository) TableName() string {
 	return "identities"
+}
 
+type Membership struct {
+	MemberID uuid.UUID `sql:"type:uuid" gorm:"primary_key"`
+	MemberOf uuid.UUID `sql:"type:uuid" gorm:"primary_key"`
+}
+
+func (m *GormIdentityRepository) MembershipTableName() string {
+	return "membership"
 }
 
 // CRUD Functions
@@ -522,4 +531,49 @@ func (m *GormIdentityRepository) FindIdentitiesByResourceTypeWithParentResource(
 	}
 
 	return identities, nil
+}
+
+func (m *GormIdentityRepository) AddMember(ctx context.Context, identityID uuid.UUID, memberID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "AddMember"}, time.Now())
+
+	var identity Identity
+	err := m.db.Table(m.TableName()).Preload("IdentityResource").Where("id = ?", identityID).Find(&identity).Error
+	if err == gorm.ErrRecordNotFound {
+		return errs.WithStack(errors.NewNotFoundError("identity", identityID.String()))
+	}
+
+	if !identity.IdentityResourceID.Valid {
+		return errs.WithStack(errors.NewBadParameterErrorFromString("identityID", identityID.String(), "Specified identity has no corresponding resource"))
+	}
+
+	if !authorization.CanHaveMembers(identity.IdentityResource.ResourceType.Name) {
+		return errs.WithStack(errors.NewBadParameterErrorFromString("identityID", identityID.String(), "Specified identity may not have members"))
+	}
+
+	var member Identity
+	err = m.db.Table(m.TableName()).Where("id = ?", memberID).Find(&member).Error
+	if err == gorm.ErrRecordNotFound {
+		return errs.WithStack(errors.NewNotFoundError("identity", memberID.String()))
+	}
+
+	membership := &Membership{
+		MemberOf: identityID,
+		MemberID: memberID,
+	}
+
+	err = m.db.Create(membership).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"member_of": identityID,
+			"member_id": memberID,
+			"err":       err,
+		}, "unable to create the membership")
+		return errs.WithStack(err)
+	}
+	log.Info(ctx, map[string]interface{}{
+		"member_of": identityID,
+		"member_id": memberID,
+	}, "Membership created!")
+
+	return nil
 }

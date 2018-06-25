@@ -331,3 +331,30 @@ func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string
 
 	return *spaceSingle.Data.Attributes.Name, nil
 }
+
+// Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
+func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uuid.UUID, token uuid.UUID) (string, error) {
+	var resourceID string
+
+	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, currentIdentityID, token)
+	if err != nil {
+		return resourceID, err
+	}
+
+	// If this invitation is for an identity
+	if inv.InviteTo != nil {
+		inviteToIdentity, err := s.Repositories().Identities().Load(ctx, *inv.InviteTo)
+		if err != nil {
+			return resourceID, err
+		}
+
+		if inv.Member {
+			s.Repositories().Identities().AddMember(ctx, inviteToIdentity.ID, currentIdentityID)
+		}
+
+	} else if inv.ResourceID != nil {
+
+	}
+
+	return "", nil
+}
