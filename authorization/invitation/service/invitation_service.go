@@ -185,9 +185,9 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// 2) Invite user to space, roles only, no organization
 		//
 		if inviteToIdentity != nil && inviteToIdentity.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
-			go s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
+			s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
 		} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
-			go s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
+			s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
 		}
 
 		return nil
