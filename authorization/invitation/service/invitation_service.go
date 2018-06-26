@@ -185,8 +185,15 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// 1) Invite user to team, membership only, no organization
 		// 2) Invite user to space, roles only, no organization
 		//
-		if inviteToIdentity != nil && inviteToIdentity.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
-			err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
+		if inviteToIdentity != nil {
+			identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+			if err != nil {
+				return err
+			}
+
+			if identityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
+				err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
+			}
 		} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
 			err = s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
 		}
