@@ -144,7 +144,7 @@ type Membership struct {
 	MemberOf uuid.UUID `sql:"type:uuid" gorm:"primary_key"`
 }
 
-func (m *GormIdentityRepository) MembershipTableName() string {
+func (m Membership) TableName() string {
 	return "membership"
 }
 
@@ -537,7 +537,7 @@ func (m *GormIdentityRepository) AddMember(ctx context.Context, identityID uuid.
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "AddMember"}, time.Now())
 
 	var identity Identity
-	err := m.db.Table(m.TableName()).Preload("IdentityResource").Where("id = ?", identityID).Find(&identity).Error
+	err := m.db.Table(m.TableName()).Preload("IdentityResource").Preload("IdentityResource.ResourceType").Where("id = ?", identityID).Find(&identity).Error
 	if err == gorm.ErrRecordNotFound {
 		return errs.WithStack(errors.NewNotFoundError("identity", identityID.String()))
 	}
