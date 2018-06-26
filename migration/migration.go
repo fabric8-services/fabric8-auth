@@ -204,7 +204,7 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("031-clean-up-roles-scopes.sql")})
 
 	// Version 32
-	m = append(m, steps{ExecuteSQLFile("032-invitation-token.sql")})
+	m = append(m, steps{ExecuteSQLFile("032-invitation-code.sql")})
 
 	// Version N
 	//

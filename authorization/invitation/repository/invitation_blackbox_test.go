@@ -165,7 +165,7 @@ func (s *invitationBlackBoxTest) TestFindByToken() {
 	g.CreateInvitation()
 	g.CreateInvitation()
 
-	invitation, err := s.repo.FindByToken(s.Ctx, i.Invitation().IdentityID, i.Invitation().AcceptToken)
+	invitation, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().IdentityID, i.Invitation().AcceptCode)
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), i.Invitation().InvitationID, invitation.InvitationID)

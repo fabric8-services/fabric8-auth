@@ -185,9 +185,13 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// 2) Invite user to space, roles only, no organization
 		//
 		if inviteToIdentity != nil && inviteToIdentity.IdentityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
-			s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
+			err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
 		} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
-			s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
+			err = s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
+		}
+
+		if err != nil {
+			return err
 		}
 
 		return nil
@@ -207,18 +211,18 @@ type invitationNotification struct {
 
 // processTeamInviteNotifications sends an e-mail notification to a user.
 func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Context, team *account.Identity, inviterName string,
-	notifications []invitationNotification, witURL string) {
+	notifications []invitationNotification, witURL string) error {
 	teamName := team.IdentityResource.Name
 
 	spaceName, err := lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
 	if err != nil {
-		// What to do here?? just log an error and die?
+		return err
 	}
 
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptToken.String())
+		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
 
 		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
 			teamName,
@@ -228,21 +232,23 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	}
 
 	s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+
+	return nil
 }
 
 // processSpaceInviteNotifications sends an e-mail notification to a user.
 func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
-	inviterName string, notifications []invitationNotification, witURL string) {
+	inviterName string, notifications []invitationNotification, witURL string) error {
 
 	spaceName, err := lookupSpaceName(ctx, witURL, space.ResourceID)
 	if err != nil {
-		// What to do here?? just log an error and die?
+		return err
 	}
 
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptToken.String())
+		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
 
 		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
 			spaceName,
@@ -252,6 +258,8 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	}
 
 	s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+
+	return nil
 }
 
 // lookupSpaceName talks to the WIT service to retrieve a space record for the specified spaceID, then

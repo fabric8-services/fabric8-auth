@@ -60,7 +60,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "failed to create invitations")
+		}, "failed to get WIT URL")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
