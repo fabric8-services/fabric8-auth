@@ -6,6 +6,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -108,4 +109,15 @@ func (w *teamWrapper) AddMember(wrapper interface{}) *teamWrapper {
 	err := w.graph.db.Exec("INSERT INTO membership (member_id, member_of) VALUES (?, ?)", identityID, w.identity.ID).Error
 	require.NoError(w.graph.t, err)
 	return w
+}
+
+func (w *teamWrapper) AssignRole(identity *account.Identity, role *rolerepo.Role) {
+	ir := &rolerepo.IdentityRole{
+		IdentityID: identity.ID,
+		ResourceID: w.resource.ResourceID,
+		RoleID:     role.RoleID,
+	}
+
+	err := w.graph.app.IdentityRoleRepository().Create(w.graph.ctx, ir)
+	require.NoError(w.graph.t, err)
 }

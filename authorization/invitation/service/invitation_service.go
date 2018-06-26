@@ -37,8 +37,9 @@ func NewInvitationService(context servicecontext.ServiceContext, config Invitati
 		config:      config}
 }
 
-// Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group or resource for
-// which the invitations will be issued, and the invitations parameter contains the users and state for each individual user invitation.
+// Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group
+// (the Identity ID) or resource (Resource ID) for which the invitations will be issued, and the invitations parameter
+// contains the users and state for each individual user invitation.
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
@@ -214,9 +215,14 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	notifications []invitationNotification, witURL string) error {
 	teamName := team.IdentityResource.Name
 
-	spaceName, err := lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
-	if err != nil {
-		return err
+	var spaceName string
+	var err error
+
+	if witURL != "" {
+		spaceName, err = lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
+		if err != nil {
+			return err
+		}
 	}
 
 	var messages []notification.Message
@@ -240,9 +246,14 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
 	inviterName string, notifications []invitationNotification, witURL string) error {
 
-	spaceName, err := lookupSpaceName(ctx, witURL, space.ResourceID)
-	if err != nil {
-		return err
+	var spaceName string
+	var err error
+
+	if witURL != "" {
+		spaceName, err = lookupSpaceName(ctx, witURL, space.ResourceID)
+		if err != nil {
+			return err
+		}
 	}
 
 	var messages []notification.Message

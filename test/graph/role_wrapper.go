@@ -54,6 +54,23 @@ func newRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 	return &w
 }
 
-func (g *roleWrapper) Role() *role.Role {
-	return g.role
+func (w *roleWrapper) Role() *role.Role {
+	return w.role
+}
+
+func (w *roleWrapper) AddScope(scopeName string) {
+	scope, err := w.graph.app.ResourceTypeScopeRepository().LookupByResourceTypeAndScope(w.graph.ctx, w.role.ResourceTypeID, scopeName)
+	require.NoError(w.graph.t, err)
+	if scope == nil {
+		scope = &resourcetype.ResourceTypeScope{
+			ResourceTypeID: w.role.ResourceTypeID,
+			Name:           scopeName,
+		}
+
+		err = w.graph.app.ResourceTypeScopeRepository().Create(w.graph.ctx, scope)
+		require.NoError(w.graph.t, err)
+	}
+
+	err = w.graph.app.RoleRepository().AddScope(w.graph.ctx, w.role, scope)
+	require.NoError(w.graph.t, err)
 }

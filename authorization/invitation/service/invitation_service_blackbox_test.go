@@ -422,12 +422,72 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
 	require.NoError(s.T(), err, "Error listing invitations")
 
-	require.Equal(s.T(), 1, len(invs))
+	require.Len(s.T(), invs, 1)
 	require.False(s.T(), invs[0].Member)
 
 	roles, err := s.invitationRepo.ListRoles(s.Ctx, invs[0].InvitationID)
 	require.NoError(s.T(), err, "could not list roles")
 
-	require.Equal(s.T(), 1, len(roles))
+	require.Len(s.T(), roles, 1)
 	require.Equal(s.T(), "admin", roles[0].Name)
+}
+
+func (s *invitationServiceBlackBoxTest) TestIssueTeamMemberInvite() {
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	teamAdmin := g.CreateUser()
+	user := g.CreateUser()
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+
+	team.AssignRole(teamAdmin.Identity(), r.Role())
+
+	id := user.IdentityID()
+
+	invitations := []invitation.Invitation{
+		{
+			IdentityID: &id,
+			Roles:      nil,
+			Member:     true,
+		},
+	}
+
+	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations, "")
+	require.NoError(s.T(), err)
+
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), invs, 1)
+	require.Equal(s.T(), user.IdentityID(), invs[0].IdentityID)
+	require.True(s.T(), invs[0].Member)
+}
+
+func (s *invitationServiceBlackBoxTest) TestIssueSpaceInvite() {
+	g := s.NewTestGraph()
+	space := g.CreateSpace()
+	spaceAdmin := g.CreateUser()
+	space.AddAdmin(spaceAdmin)
+
+	invitee := g.CreateUser()
+	id := invitee.IdentityID()
+
+	r := g.CreateRole("foo", g.LoadResourceType(authorization.ResourceTypeSpace))
+
+	invitations := []invitation.Invitation{
+		{
+			IdentityID: &id,
+			Roles:      []string{r.Role().Name},
+		},
+	}
+
+	err := s.Application.InvitationService().Issue(s.Ctx, spaceAdmin.IdentityID(), space.SpaceID(), invitations, "")
+	require.NoError(s.T(), err)
+
+	invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), invs, 1)
+	require.Equal(s.T(), invitee.IdentityID(), invs[0].IdentityID)
+	require.False(s.T(), invs[0].Member)
 }
