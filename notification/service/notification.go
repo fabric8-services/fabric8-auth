@@ -79,7 +79,7 @@ func (s *notificationServiceImpl) send(ctx context.Context, c *client.Client, ms
 	msgID := uuid.UUID(msg.MessageID)
 
 	resp, err := c.SendNotify(
-		ctx,
+		goasupport.ForwardContextRequestID(ctx),
 		client.SendNotifyPath(),
 		&client.SendNotifyPayload{
 			Data: &client.Notification{
