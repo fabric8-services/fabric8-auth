@@ -117,6 +117,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration29", testMigration29)
 	t.Run("TestMigration30", testMigration30)
 	t.Run("TestMigration31", testMigration31)
+	t.Run("TestMigration32", testMigration32)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -437,6 +438,11 @@ func testMigration31(t *testing.T) {
 
 	countRows(t, "SELECT count(role_id) FROM role WHERE role_id = '4e03c5df-d3f6-4665-9ffa-4bef05355744'", 0)
 	countRows(t, "SELECT count(resource_type_scope_id) FROM resource_type_scope WHERE name = 'manage' AND resource_type_id = (SELECT resource_type_id FROM resource_type WHERE name = 'identity/team')", 0)
+}
+
+func testMigration32(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(33)], (33))
+	assert.False(t, dialect.HasTable("space_resources"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

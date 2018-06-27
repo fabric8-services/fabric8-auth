@@ -203,6 +203,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 31
 	m = append(m, steps{ExecuteSQLFile("031-clean-up-roles-scopes.sql")})
 
+	// Version 32
+	m = append(m, steps{ExecuteSQLFile("032-drop-space-resources.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
