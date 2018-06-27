@@ -28,7 +28,6 @@ type CollaboratorsController struct {
 }
 
 type collaboratorsConfiguration interface {
-	GetKeycloakEndpointEntitlement(*goa.RequestData) (string, error)
 	GetCacheControlCollaborators() string
 }
 
