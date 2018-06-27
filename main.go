@@ -12,7 +12,6 @@ import (
 	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -23,7 +22,6 @@ import (
 	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
-	"github.com/fabric8-services/fabric8-auth/space/authz"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
@@ -176,9 +174,6 @@ func main() {
 	service.Use(log.LogRequest(config.IsPostgresDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 
-	spaceAuthzService := authz.NewAuthzService(config)
-	service.Use(authz.InjectAuthzService(spaceAuthzService))
-
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
@@ -215,7 +210,7 @@ func main() {
 	app.MountStatusController(service, statusCtrl)
 
 	// Mount "space" controller
-	spaceCtrl := controller.NewSpaceController(service, appDB, config, auth.NewKeycloakResourceManager(config))
+	spaceCtrl := controller.NewSpaceController(service, appDB)
 	app.MountSpaceController(service, spaceCtrl)
 
 	// Mount "open-configuration" controller
@@ -254,7 +249,7 @@ func main() {
 	app.MountUserinfoController(service, userInfoCtrl)
 
 	// Mount "collaborators" controller
-	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, config, auth.NewKeycloakPolicyManager(config))
+	collaboratorsCtrl := controller.NewCollaboratorsController(service, appDB, config)
 	app.MountCollaboratorsController(service, collaboratorsCtrl)
 
 	// Mount "clusters" controller
