@@ -25,7 +25,7 @@ var spaceResourceData = a.Type("SpaceResourceData", func() {
 	a.Attribute("resourceID", d.String, "Keycloak Resource ID associated with this Space")
 	a.Attribute("permissionID", d.String, "Keycloak Permission ID associated with this Space")
 	a.Attribute("policyID", d.String, "Keycloak Policy ID associated with this Space")
-	a.Required("resourceID", "permissionID", "policyID")
+	a.Required("resourceID")
 })
 
 var space = a.Type("Space", func() {

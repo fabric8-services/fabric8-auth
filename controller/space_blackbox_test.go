@@ -82,7 +82,7 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 
 	_, created := test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, spaceID)
 	require.NotNil(rest.T(), created.Data)
-	assert.Equal(rest.T(), spaceID, created.Data.ResourceID)
+	assert.Equal(rest.T(), spaceID.String(), created.Data.ResourceID)
 
 	// Check if the corresponding authZ resource has been created
 	resource, err := rest.resourceService.Read(context.Background(), spaceID.String())
@@ -132,20 +132,9 @@ func (rest *TestSpaceREST) TestDeleteSpaceOK() {
 	require.EqualError(rest.T(), err, fmt.Sprintf("resource with id '%s' not found", id.String()))
 }
 
-func (rest *TestSpaceREST) TestDeleteOldSpaceOK() {
-
-	// Create a space
+func (rest *TestSpaceREST) TestDeleteUnknownSpace() {
 	svc, ctrl, _ := rest.SecuredController()
-	id := uuid.NewV4()
-	test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
-
-	// Now let's emulate an old space which was created before we started to register resources for new spaces
-	// Delete the corresponding resource for the created space
-	err := rest.resourceService.Delete(context.Background(), id.String())
-	require.NoError(rest.T(), err)
-
-	// Try to delete the space. It should not fail even if the corresponding resource is not found
-	test.DeleteSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
+	test.DeleteSpaceNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }
 
 func (rest *TestSpaceREST) TestDeleteSpaceIfUserIsNotSpaceOwnerForbidden() {

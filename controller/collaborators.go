@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -38,22 +39,14 @@ func NewCollaboratorsController(service *goa.Service, app application.Applicatio
 
 // List collaborators for the given space ID.
 func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error {
+	err := c.checkSpaceExist(ctx, ctx.SpaceID.String())
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	isServiceAccount := token.IsSpecificServiceAccount(ctx, token.Notification)
-	return c.listCollaborators(ctx, isServiceAccount)
-}
 
-func (c *CollaboratorsController) listRoles(ctx *app.ListCollaboratorsContext, currentIdentity *account.Identity, roleName string, isServiceAccount bool) ([]rolerepo.IdentityRole, error) {
-	//if isServiceAccount {
-	// We can't check if the current identity has permissions to list collaborators because it breaks the existing collaborators API
-	// So, using the repo which doesn't check permissions instead of the service even if the current identity is not a service account
-	return c.app.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, ctx.SpaceID.String(), roleName, false)
-	//}
-	//return c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.SpaceID.String(), roleName)
-}
-
-func (c *CollaboratorsController) listCollaborators(ctx *app.ListCollaboratorsContext, isServiceAccount bool) error {
 	var currentIdentity *account.Identity
-	var err error
 	if !isServiceAccount {
 		currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 		if err != nil {
@@ -121,6 +114,27 @@ func (c *CollaboratorsController) listCollaborators(ctx *app.ListCollaboratorsCo
 	})
 }
 
+func (c *CollaboratorsController) listRoles(ctx *app.ListCollaboratorsContext, currentIdentity *account.Identity, roleName string, isServiceAccount bool) ([]rolerepo.IdentityRole, error) {
+	//if isServiceAccount {
+	// We can't check if the current identity has permissions to list collaborators because it breaks the existing collaborators API
+	// So, using the repo which doesn't check permissions instead of the service even if the current identity is not a service account
+	return c.app.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, ctx.SpaceID.String(), roleName, false)
+	//}
+	//return c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.SpaceID.String(), roleName)
+}
+
+func (c *CollaboratorsController) checkSpaceExist(ctx context.Context, spaceID string) error {
+	err := c.app.ResourceRepository().CheckExists(ctx, spaceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"space_id": spaceID,
+		}, "space not found")
+		return err
+	}
+	return nil
+}
+
 // Add user's identity to the list of space collaborators.
 func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
@@ -165,7 +179,12 @@ func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) 
 }
 
 func (c *CollaboratorsController) addContributors(ctx context.Context, currentIdentity uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
-	err := c.app.PermissionService().RequireScope(ctx, currentIdentity, spaceID, authorization.ManageRoleAssignmentsInSpaceScope)
+	err := c.checkSpaceExist(ctx, spaceID)
+	if err != nil {
+		return err
+	}
+
+	err = c.app.PermissionService().RequireScope(ctx, currentIdentity, spaceID, authorization.ManageRoleAssignmentsInSpaceScope)
 	if err != nil {
 		return err
 	}
@@ -223,6 +242,17 @@ func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsCon
 }
 
 func (c *CollaboratorsController) removeContributors(ctx context.Context, byIdentityID uuid.UUID, contributors []*app.UpdateUserID, spaceID string) error {
+	err := c.checkSpaceExist(ctx, spaceID)
+	if err != nil {
+		return err
+	}
+
+	// Get the list of all admins to make sure we don't remove the last one
+	admins, err := c.app.IdentityRoleRepository().FindIdentityRolesByResourceAndRoleName(ctx, spaceID, authorization.SpaceAdminRole, false)
+	if err != nil {
+		return err
+	}
+
 	toDelete := []uuid.UUID{}
 	for _, contributor := range contributors {
 		identityID, err := uuid.FromString(contributor.ID)
@@ -230,6 +260,14 @@ func (c *CollaboratorsController) removeContributors(ctx context.Context, byIden
 			return autherrors.NewBadParameterError("ids", contributor.ID).Expected("uuid")
 		}
 		toDelete = append(toDelete, identityID)
+		for i, admin := range admins {
+			if identityID == admin.IdentityID {
+				admins = append(admins[:i], admins[i+1:]...)
+			}
+		}
+	}
+	if len(admins) == 0 {
+		return autherrors.NewBadParameterErrorFromString("ids", fmt.Sprintf("%v", contributors), "space should have at least one admin")
 	}
 	return c.app.RoleManagementService().RevokeResourceRoles(ctx, byIdentityID, toDelete, spaceID)
 }
