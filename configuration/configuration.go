@@ -70,25 +70,22 @@ const (
 	varPublicOauthClientID = "public.oauth.client.id"
 
 	// Keycloak
-	varKeycloakSecret                   = "keycloak.secret"
-	varKeycloakClientID                 = "keycloak.client.id"
-	varKeycloakDomainPrefix             = "keycloak.domain.prefix"
-	varKeycloakRealm                    = "keycloak.realm"
-	varKeycloakTesUserName              = "keycloak.testuser.name"
-	varKeycloakTesUserSecret            = "keycloak.testuser.secret"
-	varKeycloakTesUser2Name             = "keycloak.testuser2.name"
-	varKeycloakTesUser2Secret           = "keycloak.testuser2.secret"
-	varKeycloakURL                      = "keycloak.url"
-	varKeycloakEndpointAdmin            = "keycloak.endpoint.admin"
-	varKeycloakEndpointAuth             = "keycloak.endpoint.auth"
-	varKeycloakEndpointToken            = "keycloak.endpoint.token"
-	varKeycloakEndpointUserinfo         = "keycloak.endpoint.userinfo"
-	varKeycloakEndpointAuthzResourceset = "keycloak.endpoint.authz.resourceset"
-	varKeycloakEndpointClients          = "keycloak.endpoint.clients"
-	varKeycloakEndpointEntitlement      = "keycloak.endpoint.entitlement"
-	varKeycloakEndpointBroker           = "keycloak.endpoint.broker"
-	varKeycloakEndpointAccount          = "keycloak.endpoint.account"
-	varKeycloakEndpointLogout           = "keycloak.endpoint.logout"
+	varKeycloakSecret           = "keycloak.secret"
+	varKeycloakClientID         = "keycloak.client.id"
+	varKeycloakDomainPrefix     = "keycloak.domain.prefix"
+	varKeycloakRealm            = "keycloak.realm"
+	varKeycloakTesUserName      = "keycloak.testuser.name"
+	varKeycloakTesUserSecret    = "keycloak.testuser.secret"
+	varKeycloakTesUser2Name     = "keycloak.testuser2.name"
+	varKeycloakTesUser2Secret   = "keycloak.testuser2.secret"
+	varKeycloakURL              = "keycloak.url"
+	varKeycloakEndpointAdmin    = "keycloak.endpoint.admin"
+	varKeycloakEndpointAuth     = "keycloak.endpoint.auth"
+	varKeycloakEndpointToken    = "keycloak.endpoint.token"
+	varKeycloakEndpointUserinfo = "keycloak.endpoint.userinfo"
+	varKeycloakEndpointBroker   = "keycloak.endpoint.broker"
+	varKeycloakEndpointAccount  = "keycloak.endpoint.account"
+	varKeycloakEndpointLogout   = "keycloak.endpoint.logout"
 
 	// Private keys for signing OSIO Serivice Account tokens
 	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.deprecated"
@@ -1068,36 +1065,6 @@ func (c *ConfigurationData) GetKeycloakEndpointUsers(req *goa.RequestData) (stri
 // or api.domain.org -> sso.domain.org
 func (c *ConfigurationData) GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error) {
 	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm()+"/users/"+id+"/federated-identity/"+idp)
-}
-
-// GetKeycloakEndpointAuthzResourceset returns the <keycloak>/realms/<realm>/authz/protection/resource_set endpoint
-// set via config file or environment variable.
-// If nothing set then in Dev environment the default endpoint will be returned.
-// In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
-// Example: api.service.domain.org -> sso.service.domain.org
-// or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointAuthzResourceset(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAuthzResourceset, "auth/realms/"+c.GetKeycloakRealm()+"/authz/protection/resource_set")
-}
-
-// GetKeycloakEndpointClients returns the <keycloak>/admin/realms/<realm>/clients endpoint
-// set via config file or environment variable.
-// If nothing set then in Dev environment the default endpoint will be returned.
-// In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
-// Example: api.service.domain.org -> sso.service.domain.org
-// or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointClients(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointClients, "auth/admin/realms/"+c.GetKeycloakRealm()+"/clients")
-}
-
-// GetKeycloakEndpointEntitlement returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
-// set via config file or environment variable.
-// If nothing set then in Dev environment the default endpoint will be returned.
-// In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
-// Example: api.service.domain.org -> sso.service.domain.org
-// or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointEntitlement(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointEntitlement, "auth/realms/"+c.GetKeycloakRealm()+"/authz/entitlement/"+c.GetKeycloakClientID())
 }
 
 // GetKeycloakEndpointBroker returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
