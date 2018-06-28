@@ -256,7 +256,7 @@ func (m *GormInvitationRepository) AddRole(ctx context.Context, invitationId uui
 
 // FindByAcceptCode returns the Invitation record for the specified identity, with the specified accept code
 func (m *GormInvitationRepository) FindByAcceptCode(ctx context.Context, identityID uuid.UUID, acceptCode uuid.UUID) (*Invitation, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "invitation", "FindByToken"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "invitation", "FindByAcceptCode"}, time.Now())
 
 	var native Invitation
 	err := m.db.Table(m.TableName()).Where("identity_id = ? AND accept_code = ?", identityID, acceptCode).Find(&native).Error
@@ -264,5 +264,4 @@ func (m *GormInvitationRepository) FindByAcceptCode(ctx context.Context, identit
 		return nil, errors.NewNotFoundErrorWithKey("invitation", "identity:accept_code", identityID.String()+":"+acceptCode.String())
 	}
 	return &native, errs.WithStack(err)
-	return nil, nil
 }

@@ -48,6 +48,8 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
 
+	notifications := []invitationNotification{}
+
 	err := s.ExecuteInTransaction(func() error {
 
 		// First try to convert inviteTo to a uuid
@@ -127,8 +129,6 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			}
 		}
 
-		notifications := []invitationNotification{}
-
 		// Create the invitation records
 		for _, invitation := range invitations {
 			inv := new(invitationrepo.Invitation)
@@ -171,39 +171,39 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 				invitation: inv,
 				roles:      invitation.Roles,
 			})
-
-		}
-
-		inviter, err := s.Repositories().Identities().Load(ctx, issuingUserId)
-		if err != nil {
-			return err
-		}
-
-		// Use the notification service to send invitation e-mails to the invited users, in a separate thread
-		// Currently we only support two types of invitations;
-		//
-		// 1) Invite user to team, membership only, no organization
-		// 2) Invite user to space, roles only, no organization
-		//
-		if inviteToIdentity != nil {
-			identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
-			if err != nil {
-				return err
-			}
-
-			if identityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
-				err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
-			}
-		} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
-			err = s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
-		}
-
-		if err != nil {
-			return err
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	// Lookup the identity record of the user doing the inviting
+	inviter, err := s.Repositories().Identities().Load(ctx, issuingUserId)
+	if err != nil {
+		return err
+	}
+
+	// Use the notification service to send invitation e-mails to the invited users, in a separate thread
+	// Currently we only support sending notifications for two types of invitations;
+	//
+	// 1) Invite user to team, membership only, no organization
+	// 2) Invite user to space, roles only, no organization
+	//
+	if inviteToIdentity != nil {
+		identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+		if err != nil {
+			return err
+		}
+
+		if identityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
+			err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
+		}
+	} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
+		err = s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
+	}
 
 	if err != nil {
 		return err
@@ -244,9 +244,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 			acceptURL))
 	}
 
-	s.Services().NotificationService().SendMessagesAsync(ctx, messages)
-
-	return nil
+	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
 }
 
 // processSpaceInviteNotifications sends an e-mail notification to a user.
@@ -275,9 +273,7 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 			acceptURL))
 	}
 
-	s.Services().NotificationService().SendMessagesAsync(ctx, messages)
-
-	return nil
+	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
 }
 
 // lookupSpaceName talks to the WIT service to retrieve a space record for the specified spaceID, then
