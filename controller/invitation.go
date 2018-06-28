@@ -73,3 +73,8 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 
 	return ctx.Created()
 }
+
+func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
+
+	return nil
+}

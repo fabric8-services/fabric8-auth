@@ -24,6 +24,20 @@ var _ = a.Resource("invitation", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
+
+	a.Action("acceptInvite", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/accept/:acceptCode"),
+		)
+		a.Params(func() {
+			a.Param("acceptCode", d.String, "Unique acceptance code for a user to accept a previously extended invitation")
+		})
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
 })
 
 var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitation_request+json", func() {
