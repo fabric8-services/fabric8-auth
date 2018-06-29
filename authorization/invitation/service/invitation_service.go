@@ -76,6 +76,22 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			}
 		}
 
+		// We currently only support:
+		// 1) Invitation to a space
+		// 2) Invitation to a team
+		if inviteToIdentity != nil {
+			identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+			if err != nil {
+				return err
+			}
+
+			if identityResource.ResourceType.Name != authorization.IdentityResourceTypeTeam {
+				return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "Invitation is not for a team identity")
+			}
+		} else if inviteToResource != nil && inviteToResource.ResourceType.Name != authorization.ResourceTypeSpace {
+			return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "Invitation is not for a space")
+		}
+
 		// Create the permission service
 		permService := s.Services().PermissionService()
 
@@ -225,7 +241,8 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	var spaceName string
 	var err error
 
-	if witURL != "" {
+	// Every team *should* have a parent space, but we'll put this check here just in case
+	if witURL != "" && team.IdentityResource.ParentResourceID != nil {
 		spaceName, err = lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
 		if err != nil {
 			return err

@@ -36,29 +36,35 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
-	// Create a test user - this will be the organization owner
-	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser")
-	require.Nil(s.T(), err, "Could not create identity")
+	g := s.NewTestGraph()
 
-	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
-	require.Nil(s.T(), err, "Could not create organization")
+	// Create a test user - this will be the team admin
+	teamAdmin := g.CreateUser()
 
-	// Create another test user - we will invite this one to join the organization
-	otherIdentity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestInviteeUser")
-	require.Nil(s.T(), err, "Could not create other identity")
+	// Create a team
+	team := g.CreateTeam()
+
+	// Create an admin role and assign it to the team admin
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+
+	team.AssignRole(teamAdmin.Identity(), r.Role())
+
+	// Create another test user - we will invite this one to join the team
+	invitee := g.CreateUser()
+	id := invitee.IdentityID()
 
 	invitations := []invitation.Invitation{
 		{
-			IdentityID: &otherIdentity.ID,
+			IdentityID: &id,
 			Member:     true,
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, s.witURL)
+	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations, s.witURL)
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 1, len(invs))
@@ -89,58 +95,38 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForInvalidID() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
+	g := s.NewTestGraph()
+
 	// Create a test user - this will be the inviter
-	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser")
-	require.NoError(s.T(), err)
+	inviter := g.CreateUser()
 
 	// Create another test user - we will invite this one to accept a role for the resource
-	otherIdentity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestInviteeUser")
-	require.NoError(s.T(), err)
+	invitee := g.CreateUser()
+	inviteeID := invitee.IdentityID()
 
-	// Create a new resource type
-	resourceType, err := test.CreateTestResourceType(s.Ctx, s.DB, "invitation.test/space")
-	require.NoError(s.T(), err)
-
-	// Create the manage members scope for the new resource type (we will use the same scope as for organizations)
-	scope, err := test.CreateTestScope(s.Ctx, s.DB, *resourceType, authorization.ManageOrganizationMembersScope)
-	require.NoError(s.T(), err)
-
-	// Create an admin role for the resource type
-	role, err := test.CreateTestRole(s.Ctx, s.DB, *resourceType, "admin")
-	require.NoError(s.T(), err)
-
-	// Assign the scope to our role
-	_, err = test.CreateTestRoleScope(s.Ctx, s.DB, *scope, *role)
-	require.NoError(s.T(), err)
-
-	// Create a resource
-	resource, err := test.CreateTestResource(s.Ctx, s.DB, *resourceType, "InvitationTestResource", nil)
-	require.NoError(s.T(), err)
-
-	// Assign the owner role to our user for the resource
-	test.CreateTestIdentityRoleForIdentity(s.Ctx, s.DB, identity, *resource, *role)
-	require.NoError(s.T(), err)
+	space := g.CreateSpace()
+	space.AddAdmin(inviter)
 
 	// Create an invitation
 	invitations := []invitation.Invitation{
 		{
-			IdentityID: &otherIdentity.ID,
+			IdentityID: &inviteeID,
 			Roles:      []string{"admin"},
 		},
 	}
 
 	// Issue the invitation
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations, s.witURL)
+	err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), invitations, s.witURL)
 	require.NoError(s.T(), err)
 
 	// List the invitations for our resource
-	invs, err := s.invitationRepo.ListForResource(s.Ctx, resource.ResourceID)
+	invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	// There should be 1 invitation only
 	require.Equal(s.T(), 1, len(invs))
 	require.False(s.T(), invs[0].Member)
-	require.Equal(s.T(), otherIdentity.ID, invs[0].IdentityID)
+	require.Equal(s.T(), invitee.IdentityID(), invs[0].IdentityID)
 
 	// List the roles for our invitation
 	roles, err := s.invitationRepo.ListRoles(s.Ctx, invs[0].InvitationID)
@@ -321,51 +307,36 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonMembership
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
-	// Create a test user - this will be the organization owner
-	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser")
-	require.NoError(s.T(), err, "Could not create identity")
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	teamAdmin := g.CreateUser()
 
-	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
-	require.NoError(s.T(), err, "Could not create organization")
+	r := g.CreateRole("admin", g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
 
-	// Create another test user - we will invite this one to join the organization
-	invitee, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestInviteeUser-"+uuid.NewV4().String())
-	require.NoError(s.T(), err, "Could not create identity")
+	team.AssignRole(teamAdmin.Identity(), r.Role())
 
-	// Create another test user - we will invite this one to join the organization
-	invitee2User := account.User{
-		ID:       uuid.NewV4(),
-		Email:    "jsmith-invitationtest" + uuid.NewV4().String() + "@acmecorp.com",
-		FullName: "John Smith - Invitation Test",
-		Cluster:  "https://api.starter-us-east-2.openshift.com",
-	}
+	invitee1 := g.CreateUser()
+	invitee1ID := invitee1.IdentityID()
 
-	invitee2 := account.Identity{
-		ID:           uuid.NewV4(),
-		Username:     "TestInvitee" + uuid.NewV4().String(),
-		User:         invitee2User,
-		ProviderType: account.KeycloakIDP,
-	}
-
-	err = test.CreateTestIdentityAndUserInDB(s.DB, &invitee2)
-	require.NoError(s.T(), err, "Error creating invitee2 user")
+	invitee2 := g.CreateUser()
+	invitee2ID := invitee2.IdentityID()
 
 	invitations := []invitation.Invitation{
 		{
-			IdentityID: &invitee.ID,
+			IdentityID: &invitee1ID,
 			Member:     true,
 		},
 		{
-			IdentityID: &invitee2.ID,
+			IdentityID: &invitee2ID,
 			Member:     true,
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, s.witURL)
+	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations, s.witURL)
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Equal(s.T(), 2, len(invs))
@@ -373,11 +344,11 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	found := false
 
 	for _, inv := range invs {
-		if inv.IdentityID == invitee.ID {
+		if inv.IdentityID == invitee1.IdentityID() {
 			found = true
 			require.True(s.T(), inv.Member)
-			require.Equal(s.T(), invitee.ID, inv.IdentityID)
-			require.Equal(s.T(), orgId, inv.InviteTo)
+			require.Equal(s.T(), invitee1.IdentityID(), inv.IdentityID)
+			require.Equal(s.T(), team.TeamID(), *inv.InviteTo)
 		}
 	}
 
@@ -385,7 +356,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 
 	found = false
 	for _, inv := range invs {
-		if inv.IdentityID == invitee2.ID {
+		if inv.IdentityID == invitee2.IdentityID() {
 			found = true
 			require.True(s.T(), inv.Member)
 		}
@@ -394,32 +365,31 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole() {
-	// Create a test user - this will be the organization owner
-	identity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestIssuingUser"+uuid.NewV4().String())
-	require.Nil(s.T(), err, "Could not create identity")
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	teamAdmin := g.CreateUser()
+	user := g.CreateUser()
+	r := g.CreateRole("admin", g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
 
-	// Create an organization
-	orgId, err := s.orgService.CreateOrganization(s.Ctx, identity.ID, "Test Organization "+uuid.NewV4().String())
-	require.Nil(s.T(), err, "Could not create organization")
+	team.AssignRole(teamAdmin.Identity(), r.Role())
 
-	// Create another test user - we will invite this one to accept the owner role for the organization
-	otherIdentity, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "invitationServiceBlackBoxTest-TestRoleUser")
-	require.Nil(s.T(), err, "Could not create other identity")
+	id := user.IdentityID()
 
 	adminRole := "admin"
 
 	invitations := []invitation.Invitation{
 		{
-			IdentityID: &otherIdentity.ID,
+			IdentityID: &id,
 			Roles:      []string{adminRole},
 			Member:     false,
 		},
 	}
 
-	err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations, "")
+	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations, "")
 	require.NoError(s.T(), err, "Error creating invitations")
 
-	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, *orgId)
+	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "Error listing invitations")
 
 	require.Len(s.T(), invs, 1)
