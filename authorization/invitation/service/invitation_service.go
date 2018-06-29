@@ -24,6 +24,7 @@ import (
 
 type InvitationConfiguration interface {
 	GetAuthServiceURL() string
+	GetWITURL() (string, error)
 }
 
 type invitationServiceImpl struct {
@@ -43,7 +44,7 @@ func NewInvitationService(context servicecontext.ServiceContext, config Invitati
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation, witURL string) error {
+func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 	var inviteToIdentity *account.Identity
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
@@ -215,10 +216,10 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		}
 
 		if identityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
-			err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications, witURL)
+			err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications)
 		}
 	} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
-		err = s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications, witURL)
+		err = s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications)
 	}
 
 	if err != nil {
@@ -235,11 +236,16 @@ type invitationNotification struct {
 
 // processTeamInviteNotifications sends an e-mail notification to a user.
 func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Context, team *account.Identity, inviterName string,
-	notifications []invitationNotification, witURL string) error {
+	notifications []invitationNotification) error {
 	teamName := team.IdentityResource.Name
 
 	var spaceName string
 	var err error
+
+	witURL, err := s.config.GetWITURL()
+	if err != nil {
+		return err
+	}
 
 	// Every team *should* have a parent space, but we'll put this check here just in case
 	if witURL != "" && team.IdentityResource.ParentResourceID != nil {
@@ -266,10 +272,15 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 
 // processSpaceInviteNotifications sends an e-mail notification to a user.
 func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
-	inviterName string, notifications []invitationNotification, witURL string) error {
+	inviterName string, notifications []invitationNotification) error {
 
 	var spaceName string
 	var err error
+
+	witURL, err := s.config.GetWITURL()
+	if err != nil {
+		return err
+	}
 
 	if witURL != "" {
 		spaceName, err = lookupSpaceName(ctx, witURL, space.ResourceID)

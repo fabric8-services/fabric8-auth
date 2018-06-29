@@ -56,15 +56,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		})
 	}
 
-	witURL, err := c.Configuration.GetWITURL(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to get WIT URL")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations, witURL)
+	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

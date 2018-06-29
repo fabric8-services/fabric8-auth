@@ -28,9 +28,8 @@ Steps for adding a new Service:
 */
 
 type InvitationService interface {
-	// Issue creates a new invitation for a user.  The witURL parameter is required as the invitation service
-	// must do a lookup of the space name (for team and space invitations) for the user's e-mail notification
-	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation, witURL string) error
+	// Issue creates a new invitation for a user.
+	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
 }
 
 type OrganizationService interface {
