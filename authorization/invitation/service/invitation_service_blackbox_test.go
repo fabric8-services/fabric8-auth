@@ -311,7 +311,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	team := g.CreateTeam()
 	teamAdmin := g.CreateUser()
 
-	r := g.CreateRole("admin", g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 
 	team.AssignRole(teamAdmin.Identity(), r.Role())
@@ -369,19 +369,17 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 	team := g.CreateTeam()
 	teamAdmin := g.CreateUser()
 	user := g.CreateUser()
-	r := g.CreateRole("admin", g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 
 	team.AssignRole(teamAdmin.Identity(), r.Role())
 
 	id := user.IdentityID()
 
-	adminRole := "admin"
-
 	invitations := []invitation.Invitation{
 		{
 			IdentityID: &id,
-			Roles:      []string{adminRole},
+			Roles:      []string{r.Role().Name},
 			Member:     false,
 		},
 	}
@@ -399,7 +397,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 	require.NoError(s.T(), err, "could not list roles")
 
 	require.Len(s.T(), roles, 1)
-	require.Equal(s.T(), "admin", roles[0].Name)
+	require.Equal(s.T(), r.Role().Name, roles[0].Name)
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueTeamMemberInvite() {

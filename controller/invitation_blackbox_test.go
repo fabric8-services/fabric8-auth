@@ -65,7 +65,7 @@ func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 	g := s.NewTestGraph()
 	team := g.CreateTeam()
 
-	r := g.CreateRole("admin", g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 	team.AssignRole(&s.testIdentity, r.Role())
 
@@ -104,7 +104,7 @@ func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
 	g := s.NewTestGraph()
 	team := g.CreateTeam()
 
-	r := g.CreateRole("admin", g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 	team.AssignRole(&s.testIdentity, r.Role())
 
@@ -140,7 +140,7 @@ func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
 	// We should have 1 role
 	require.Equal(s.T(), 1, len(roles))
 	// And it should be the owner role
-	require.Equal(s.T(), "admin", roles[0].Name)
+	require.Equal(s.T(), r.Role().Name, roles[0].Name)
 }
 
 /*

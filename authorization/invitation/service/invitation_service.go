@@ -25,6 +25,7 @@ import (
 type InvitationConfiguration interface {
 	GetAuthServiceURL() string
 	GetWITURL() (string, error)
+	IsPostgresDeveloperModeEnabled() bool
 }
 
 type invitationServiceImpl struct {
@@ -248,7 +249,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	}
 
 	// Every team *should* have a parent space, but we'll put this check here just in case
-	if witURL != "" && team.IdentityResource.ParentResourceID != nil {
+	if !s.config.IsPostgresDeveloperModeEnabled() && team.IdentityResource.ParentResourceID != nil {
 		spaceName, err = lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
 		if err != nil {
 			return err
@@ -282,7 +283,7 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 		return err
 	}
 
-	if witURL != "" {
+	if !s.config.IsPostgresDeveloperModeEnabled() {
 		spaceName, err = lookupSpaceName(ctx, witURL, space.ResourceID)
 		if err != nil {
 			return err
