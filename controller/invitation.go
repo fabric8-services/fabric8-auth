@@ -15,12 +15,16 @@ import (
 // InvitationController implements the invitation resource.
 type InvitationController struct {
 	*goa.Controller
-	app application.Application
+	app           application.Application
+	Configuration LoginConfiguration
 }
 
 // NewInvitationController creates a invitation controller.
-func NewInvitationController(service *goa.Service, app application.Application) *InvitationController {
-	return &InvitationController{Controller: service.NewController("InvitationController"), app: app}
+func NewInvitationController(service *goa.Service, app application.Application, configuration LoginConfiguration) *InvitationController {
+	return &InvitationController{
+		Controller:    service.NewController("InvitationController"),
+		app:           app,
+		Configuration: configuration}
 }
 
 // Create runs the create action.

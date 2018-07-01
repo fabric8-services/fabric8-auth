@@ -14,19 +14,34 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/wit"
+	"github.com/fabric8-services/fabric8-auth/wit/witservice"
+	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
+	"strings"
 )
+
+type InvitationConfiguration interface {
+	GetAuthServiceURL() string
+	GetWITURL() (string, error)
+	IsPostgresDeveloperModeEnabled() bool
+}
 
 type invitationServiceImpl struct {
 	base.BaseService
+	config InvitationConfiguration
 }
 
-func NewInvitationService(context servicecontext.ServiceContext) service.InvitationService {
-	return &invitationServiceImpl{base.NewBaseService(context)}
+func NewInvitationService(context servicecontext.ServiceContext, config InvitationConfiguration) service.InvitationService {
+	return &invitationServiceImpl{
+		BaseService: base.NewBaseService(context),
+		config:      config}
 }
 
-// Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group or resource for
-// which the invitations will be issued, and the invitations parameter contains the users and state for each individual user invitation.
+// Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group
+// (the Identity ID) or resource (Resource ID) for which the invitations will be issued, and the invitations parameter
+// contains the users and state for each individual user invitation.
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
@@ -34,6 +49,8 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	var inviteToIdentity *account.Identity
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
+
+	notifications := []invitationNotification{}
 
 	err := s.ExecuteInTransaction(func() error {
 
@@ -59,6 +76,22 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 					return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team, security group or resource", inviteTo), inviteTo)
 				}
 			}
+		}
+
+		// We currently only support:
+		// 1) Invitation to a space
+		// 2) Invitation to a team
+		if inviteToIdentity != nil {
+			identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+			if err != nil {
+				return err
+			}
+
+			if identityResource.ResourceType.Name != authorization.IdentityResourceTypeTeam {
+				return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "Invitation is not for a team identity")
+			}
+		} else if inviteToResource != nil && inviteToResource.ResourceType.Name != authorization.ResourceTypeSpace {
+			return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "Invitation is not for a space")
 		}
 
 		// Create the permission service
@@ -151,6 +184,11 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 					return errors.NewInternalError(ctx, error)
 				}
 			}
+
+			notifications = append(notifications, invitationNotification{
+				invitation: inv,
+				roles:      invitation.Roles,
+			})
 		}
 
 		return nil
@@ -160,5 +198,136 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		return err
 	}
 
+	// Lookup the identity record of the user doing the inviting
+	inviter, err := s.Repositories().Identities().Load(ctx, issuingUserId)
+	if err != nil {
+		return err
+	}
+
+	// Use the notification service to send invitation e-mails to the invited users, in a separate thread
+	// Currently we only support sending notifications for two types of invitations;
+	//
+	// 1) Invite user to team, membership only, no organization
+	// 2) Invite user to space, roles only, no organization
+	//
+	if inviteToIdentity != nil {
+		identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+		if err != nil {
+			return err
+		}
+
+		if identityResource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
+			err = s.processTeamInviteNotifications(ctx, inviteToIdentity, inviter.User.FullName, notifications)
+		}
+	} else if inviteToResource != nil && inviteToResource.ResourceType.Name == authorization.ResourceTypeSpace {
+		err = s.processSpaceInviteNotifications(ctx, inviteToResource, inviter.User.FullName, notifications)
+	}
+
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+type invitationNotification struct {
+	invitation *invitationrepo.Invitation
+	roles      []string
+}
+
+// processTeamInviteNotifications sends an e-mail notification to a user.
+func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Context, team *account.Identity, inviterName string,
+	notifications []invitationNotification) error {
+	teamName := team.IdentityResource.Name
+
+	var spaceName string
+	var err error
+
+	witURL, err := s.config.GetWITURL()
+	if err != nil {
+		return err
+	}
+
+	// Every team *should* have a parent space, but we'll put this check here just in case
+	if !s.config.IsPostgresDeveloperModeEnabled() && team.IdentityResource.ParentResourceID != nil {
+		spaceName, err = lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
+		if err != nil {
+			return err
+		}
+	}
+
+	var messages []notification.Message
+
+	for _, n := range notifications {
+		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+
+		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+			teamName,
+			inviterName,
+			spaceName,
+			acceptURL))
+	}
+
+	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+}
+
+// processSpaceInviteNotifications sends an e-mail notification to a user.
+func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
+	inviterName string, notifications []invitationNotification) error {
+
+	var spaceName string
+	var err error
+
+	witURL, err := s.config.GetWITURL()
+	if err != nil {
+		return err
+	}
+
+	if !s.config.IsPostgresDeveloperModeEnabled() {
+		spaceName, err = lookupSpaceName(ctx, witURL, space.ResourceID)
+		if err != nil {
+			return err
+		}
+	}
+
+	var messages []notification.Message
+
+	for _, n := range notifications {
+		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+
+		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+			spaceName,
+			inviterName,
+			strings.Join(n.roles, ","),
+			acceptURL))
+	}
+
+	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+}
+
+// lookupSpaceName talks to the WIT service to retrieve a space record for the specified spaceID, then
+// returns the name of the space
+func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string, error) {
+
+	remoteWITService, err := wit.CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
+	if err != nil {
+		return "", err
+	}
+
+	spaceIDUUID, err := goauuid.FromString(spaceID)
+	if err != nil {
+		return "", err
+	}
+
+	response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath(spaceIDUUID), nil, nil)
+	if err != nil {
+		return "", err
+	}
+
+	spaceSingle, err := remoteWITService.DecodeSpaceSingle(response)
+	if err != nil {
+		return "", err
+	}
+
+	return *spaceSingle.Data.Attributes.Name, nil
 }

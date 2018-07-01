@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
+
 	"github.com/fabric8-services/fabric8-auth/test/graph"
 
 	"github.com/jinzhu/gorm"

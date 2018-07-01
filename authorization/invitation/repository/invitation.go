@@ -32,6 +32,9 @@ type Invitation struct {
 	Identity   account.Identity `gorm:"ForeignKey:IdentityID;AssociationForeignKey:ID"`
 	IdentityID uuid.UUID
 
+	// AcceptCode is the code sent in the invitation e-mail to the user, used to accept the invitation
+	AcceptCode uuid.UUID `sql:"type:uuid" gorm:"column:accept_code"`
+
 	Member bool
 }
 
@@ -78,6 +81,8 @@ type InvitationRepository interface {
 
 	ListRoles(ctx context.Context, id uuid.UUID) ([]rolerepo.Role, error)
 	AddRole(ctx context.Context, invitationId uuid.UUID, roleId uuid.UUID) error
+
+	FindByAcceptCode(ctx context.Context, identityID uuid.UUID, acceptCode uuid.UUID) (*Invitation, error)
 }
 
 func (m *GormInvitationRepository) TableName() string {
@@ -120,6 +125,9 @@ func (m *GormInvitationRepository) Create(ctx context.Context, i *Invitation) er
 	defer goa.MeasureSince([]string{"goa", "db", "invitation", "create"}, time.Now())
 	if i.InvitationID == uuid.Nil {
 		i.InvitationID = uuid.NewV4()
+	}
+	if i.AcceptCode == uuid.Nil {
+		i.AcceptCode = uuid.NewV4()
 	}
 	err := m.db.Create(i).Error
 	if err != nil {
@@ -244,4 +252,16 @@ func (m *GormInvitationRepository) AddRole(ctx context.Context, invitationId uui
 		"role_id":       roleId,
 	}, "Invitation role created!")
 	return nil
+}
+
+// FindByAcceptCode returns the Invitation record for the specified identity, with the specified accept code
+func (m *GormInvitationRepository) FindByAcceptCode(ctx context.Context, identityID uuid.UUID, acceptCode uuid.UUID) (*Invitation, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "invitation", "FindByAcceptCode"}, time.Now())
+
+	var native Invitation
+	err := m.db.Table(m.TableName()).Where("identity_id = ? AND accept_code = ?", identityID, acceptCode).Find(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, errors.NewNotFoundErrorWithKey("invitation", "identity:accept_code", identityID.String()+":"+acceptCode.String())
+	}
+	return &native, errs.WithStack(err)
 }

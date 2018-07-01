@@ -12,11 +12,11 @@ import (
 
 // TestGraph manages an object graph of domain objects for the purposes of testing
 type TestGraph struct {
-	t            *testing.T
-	app          application.Application
-	ctx          context.Context
-	graphObjects map[string]interface{}
-	db           *gorm.DB
+	t          *testing.T
+	app        application.Application
+	ctx        context.Context
+	references map[string]interface{}
+	db         *gorm.DB
 }
 
 // baseWrapper is the base struct for other Wrapper structs
@@ -42,15 +42,15 @@ type Identifier struct {
 
 // NewTestGraph creates a new test graph
 func NewTestGraph(t *testing.T, app application.Application, ctx context.Context, db *gorm.DB) TestGraph {
-	return TestGraph{t: t, app: app, ctx: ctx, graphObjects: make(map[string]interface{}), db: db}
+	return TestGraph{t: t, app: app, ctx: ctx, references: make(map[string]interface{}), db: db}
 }
 
 // register registers a new wrapper object with the test graph's internal list of objects
 func (g *TestGraph) register(id string, wrapper interface{}) {
-	if _, found := g.graphObjects[id]; found {
+	if _, found := g.references[id]; found {
 		require.True(g.t, false, "object identifier '%s' already registered", id)
 	} else {
-		g.graphObjects[id] = wrapper
+		g.references[id] = wrapper
 	}
 }
 
@@ -64,43 +64,46 @@ func (g *TestGraph) generateIdentifier(params []interface{}) string {
 	return uuid.NewV4().String()
 }
 
+type wrapperConstructor = func(g *TestGraph, params []interface{}) interface{}
+
+func (g *TestGraph) createAndRegister(constructor wrapperConstructor, params []interface{}) interface{} {
+	wrapper := constructor(g, params)
+	g.register(g.generateIdentifier(params), wrapper)
+	return wrapper
+}
+
 func (g *TestGraph) ID(value string) Identifier {
 	return Identifier{value}
 }
 
 // CreateUser creates a new user wrapper object
 func (g *TestGraph) CreateUser(params ...interface{}) *userWrapper {
-	obj := newUserWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newUserWrapper, params).(*userWrapper)
+
 }
 
 func (g *TestGraph) UserByID(id string) *userWrapper {
-	require.Contains(g.t, g.graphObjects, id, "user with such ID is not registered")
-	return g.graphObjects[id].(*userWrapper)
+	require.Contains(g.t, g.references, id, "user with such ID is not registered")
+	return g.references[id].(*userWrapper)
 }
 
 // CreateSpace creates a new space wrapper object
 func (g *TestGraph) CreateSpace(params ...interface{}) *spaceWrapper {
-	obj := newSpaceWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newSpaceWrapper, params).(*spaceWrapper)
 }
 
 func (g *TestGraph) SpaceByID(id string) *spaceWrapper {
-	require.Contains(g.t, g.graphObjects, id, "space with such ID is not registered")
-	return g.graphObjects[id].(*spaceWrapper)
+	require.Contains(g.t, g.references, id, "space with such ID is not registered")
+	return g.references[id].(*spaceWrapper)
 }
 
 func (g *TestGraph) CreateResourceType(params ...interface{}) *resourceTypeWrapper {
-	obj := newResourceTypeWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newResourceTypeWrapper, params).(*resourceTypeWrapper)
 }
 
 func (g *TestGraph) ResourceTypeByID(id string) *resourceTypeWrapper {
-	require.Contains(g.t, g.graphObjects, id, "resource type with such ID is not registered")
-	return g.graphObjects[id].(*resourceTypeWrapper)
+	require.Contains(g.t, g.references, id, "resource type with such ID is not registered")
+	return g.references[id].(*resourceTypeWrapper)
 }
 
 func (g *TestGraph) LoadResourceType(params ...interface{}) *resourceTypeWrapper {
@@ -127,24 +130,20 @@ func (g *TestGraph) LoadResourceType(params ...interface{}) *resourceTypeWrapper
 }
 
 func (g *TestGraph) CreateResource(params ...interface{}) *resourceWrapper {
-	obj := newResourceWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newResourceWrapper, params).(*resourceWrapper)
 }
 
 func (g *TestGraph) ResourceByID(id string) *resourceWrapper {
-	require.Contains(g.t, g.graphObjects, id, "resource with such ID is not registered")
-	return g.graphObjects[id].(*resourceWrapper)
+	require.Contains(g.t, g.references, id, "resource with such ID is not registered")
+	return g.references[id].(*resourceWrapper)
 }
 
 func (g *TestGraph) CreateTeam(params ...interface{}) *teamWrapper {
-	obj := newTeamWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newTeamWrapper, params).(*teamWrapper)
 }
 
 func (g *TestGraph) TeamByID(id string) *teamWrapper {
-	return g.graphObjects[id].(*teamWrapper)
+	return g.references[id].(*teamWrapper)
 }
 
 func (g *TestGraph) LoadTeam(params ...interface{}) *teamWrapper {
@@ -162,9 +161,7 @@ func (g *TestGraph) LoadTeam(params ...interface{}) *teamWrapper {
 }
 
 func (g *TestGraph) CreateOrganization(params ...interface{}) *organizationWrapper {
-	obj := newOrganizationWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newOrganizationWrapper, params).(*organizationWrapper)
 }
 
 func (g *TestGraph) LoadOrganization(params ...interface{}) *organizationWrapper {
@@ -182,19 +179,17 @@ func (g *TestGraph) LoadOrganization(params ...interface{}) *organizationWrapper
 }
 
 func (g *TestGraph) OrganizationByID(id string) *organizationWrapper {
-	require.Contains(g.t, g.graphObjects, id, "organization with such ID is not registered")
-	return g.graphObjects[id].(*organizationWrapper)
+	require.Contains(g.t, g.references, id, "organization with such ID is not registered")
+	return g.references[id].(*organizationWrapper)
 }
 
 func (g *TestGraph) CreateIdentity(params ...interface{}) *identityWrapper {
-	obj := newIdentityWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newIdentityWrapper, params).(*identityWrapper)
 }
 
 func (g *TestGraph) IdentityByID(id string) *identityWrapper {
-	require.Contains(g.t, g.graphObjects, id, "identity with such ID is not registered")
-	return g.graphObjects[id].(*identityWrapper)
+	require.Contains(g.t, g.references, id, "identity with such ID is not registered")
+	return g.references[id].(*identityWrapper)
 }
 
 func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
@@ -268,33 +263,31 @@ func (g *TestGraph) LoadSpace(params ...interface{}) *spaceWrapper {
 }
 
 func (g *TestGraph) CreateRole(params ...interface{}) *roleWrapper {
-	obj := newRoleWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newRoleWrapper, params).(*roleWrapper)
 }
 
 func (g *TestGraph) RoleByID(id string) *roleWrapper {
-	require.Contains(g.t, g.graphObjects, id, "role with such ID is not registered")
-	return g.graphObjects[id].(*roleWrapper)
+	require.Contains(g.t, g.references, id, "role with such ID is not registered")
+	return g.references[id].(*roleWrapper)
 }
 
 func (g *TestGraph) CreateDefaultRoleMapping(params ...interface{}) *defaultRoleMappingWrapper {
-	obj := newDefaultRoleMappingWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newDefaultRoleMappingWrapper, params).(*defaultRoleMappingWrapper)
 }
 
 func (g *TestGraph) DefaultRoleMappingByID(id string) *defaultRoleMappingWrapper {
-	return g.graphObjects[id].(*defaultRoleMappingWrapper)
+	return g.references[id].(*defaultRoleMappingWrapper)
 }
 
 func (g *TestGraph) CreateRoleMapping(params ...interface{}) *roleMappingWrapper {
-	obj := newRoleMappingWrapper(g, params)
-	g.register(g.generateIdentifier(params), &obj)
-	return &obj
+	return g.createAndRegister(newRoleMappingWrapper, params).(*roleMappingWrapper)
 }
 
 func (g *TestGraph) RoleMappingByID(id string) *roleMappingWrapper {
-	require.Contains(g.t, g.graphObjects, id, "role mapping with such ID is not registered")
-	return g.graphObjects[id].(*roleMappingWrapper)
+	require.Contains(g.t, g.references, id, "role mapping with such ID is not registered")
+	return g.references[id].(*roleMappingWrapper)
+}
+
+func (g *TestGraph) CreateInvitation(params ...interface{}) *invitationWrapper {
+	return g.createAndRegister(newInvitationWrapper, params).(*invitationWrapper)
 }

@@ -13,7 +13,7 @@ type spaceWrapper struct {
 	parentResource *resource.Resource
 }
 
-func newSpaceWrapper(g *TestGraph, params []interface{}) spaceWrapper {
+func newSpaceWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := spaceWrapper{baseWrapper: baseWrapper{g}}
 
 	resourceType, err := g.app.ResourceTypeRepository().Lookup(g.ctx, authorization.ResourceTypeSpace)
@@ -44,7 +44,7 @@ func newSpaceWrapper(g *TestGraph, params []interface{}) spaceWrapper {
 	w.resource, err = g.app.ResourceService().Register(g.ctx, resourceType.Name, resourceID, parentResourceID)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
 func loadSpaceWrapper(g *TestGraph, resourceID string) spaceWrapper {

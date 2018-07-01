@@ -11,7 +11,7 @@ type defaultRoleMappingWrapper struct {
 	mapping *role.DefaultRoleMapping
 }
 
-func newDefaultRoleMappingWrapper(g *TestGraph, params []interface{}) defaultRoleMappingWrapper {
+func newDefaultRoleMappingWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := defaultRoleMappingWrapper{baseWrapper: baseWrapper{g}}
 
 	var resourceType *resourceTypeWrapper
@@ -54,7 +54,7 @@ func newDefaultRoleMappingWrapper(g *TestGraph, params []interface{}) defaultRol
 	err := g.app.DefaultRoleMappingRepository().Create(g.ctx, w.mapping)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
 func (g *defaultRoleMappingWrapper) DefaultRoleMapping() *role.DefaultRoleMapping {

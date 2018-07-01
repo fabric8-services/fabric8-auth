@@ -13,7 +13,7 @@ type roleMappingWrapper struct {
 	mapping *role.RoleMapping
 }
 
-func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrapper {
+func newRoleMappingWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := roleMappingWrapper{baseWrapper: baseWrapper{g}}
 
 	var resrc *resource.Resource
@@ -65,7 +65,7 @@ func newRoleMappingWrapper(g *TestGraph, params []interface{}) roleMappingWrappe
 	err := g.app.RoleMappingRepository().Create(g.ctx, w.mapping)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
 func (g *roleMappingWrapper) RoleMapping() *role.RoleMapping {

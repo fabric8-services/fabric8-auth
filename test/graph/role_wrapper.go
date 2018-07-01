@@ -13,7 +13,7 @@ type roleWrapper struct {
 	role *role.Role
 }
 
-func newRoleWrapper(g *TestGraph, params []interface{}) roleWrapper {
+func newRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := roleWrapper{baseWrapper: baseWrapper{g}}
 
 	var roleName *string
@@ -51,9 +51,26 @@ func newRoleWrapper(g *TestGraph, params []interface{}) roleWrapper {
 	err := g.app.RoleRepository().Create(g.ctx, w.role)
 	require.NoError(g.t, err)
 
-	return w
+	return &w
 }
 
-func (g *roleWrapper) Role() *role.Role {
-	return g.role
+func (w *roleWrapper) Role() *role.Role {
+	return w.role
+}
+
+func (w *roleWrapper) AddScope(scopeName string) {
+	scope, err := w.graph.app.ResourceTypeScopeRepository().LookupByResourceTypeAndScope(w.graph.ctx, w.role.ResourceTypeID, scopeName)
+	require.NoError(w.graph.t, err)
+	if scope == nil {
+		scope = &resourcetype.ResourceTypeScope{
+			ResourceTypeID: w.role.ResourceTypeID,
+			Name:           scopeName,
+		}
+
+		err = w.graph.app.ResourceTypeScopeRepository().Create(w.graph.ctx, scope)
+		require.NoError(w.graph.t, err)
+	}
+
+	err = w.graph.app.RoleRepository().AddScope(w.graph.ctx, w.role, scope)
+	require.NoError(w.graph.t, err)
 }

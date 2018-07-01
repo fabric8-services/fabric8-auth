@@ -274,7 +274,7 @@ func main() {
 	app.MountTeamController(service, teamCtrl)
 
 	// Mount "invitations" controller
-	invitationCtrl := controller.NewInvitationController(service, appDB)
+	invitationCtrl := controller.NewInvitationController(service, appDB, config)
 	app.MountInvitationController(service, invitationCtrl)
 
 	log.Logger().Infoln("Git Commit SHA: ", controller.Commit)

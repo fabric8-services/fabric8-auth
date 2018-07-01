@@ -178,7 +178,6 @@ func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
 
 	token := uuid.NewV4().String()
 	linkServiceWithDummyProviderFactory := NewLinkServiceWithFactory(s.Configuration, s.Application, &test.DummyProviderFactory{Token: token, Config: s.Configuration, LoadProfileFail: true, App: s.Application})
-
 	code := uuid.NewV4().String()
 	_, err = linkServiceWithDummyProviderFactory.Callback(context.Background(), s.requestData, state, code)
 	require.NotNil(s.T(), err)
