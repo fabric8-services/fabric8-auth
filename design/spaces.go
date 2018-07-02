@@ -23,8 +23,6 @@ var spaceResource = a.MediaType("application/vnd.spaceresource+json", func() {
 // spaceResourceData represents a Keycloak Resource Data associated with the Space
 var spaceResourceData = a.Type("SpaceResourceData", func() {
 	a.Attribute("resourceID", d.String, "Keycloak Resource ID associated with this Space")
-	a.Attribute("permissionID", d.String, "Keycloak Permission ID associated with this Space")
-	a.Attribute("policyID", d.String, "Keycloak Policy ID associated with this Space")
 	a.Required("resourceID")
 })
 
