@@ -459,3 +459,20 @@ func (s *invitationServiceBlackBoxTest) TestIssueSpaceInvite() {
 	require.Equal(s.T(), invitee.IdentityID(), invs[0].IdentityID)
 	require.False(s.T(), invs[0].Member)
 }
+
+func (s *invitationServiceBlackBoxTest) TestAcceptTeamMembershipInvitation() {
+	team := s.Graph.CreateTeam()
+	user := s.Graph.CreateUser()
+	inv := s.Graph.CreateInvitation(team, user, true)
+
+	s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+
+	assocs, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), assocs, 1)
+
+	require.Equal(s.T(), team.TeamID(), *assocs[0].IdentityID)
+	require.True(s.T(), assocs[0].Member)
+	require.Empty(s.T(), assocs[0].Roles)
+}
