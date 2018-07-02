@@ -28,6 +28,7 @@ Steps for adding a new Service:
 */
 
 type InvitationService interface {
+	// Issue creates a new invitation for a user.
 	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
 }
 

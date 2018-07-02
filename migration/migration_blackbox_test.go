@@ -440,8 +440,8 @@ func testMigration31(t *testing.T) {
 	countRows(t, "SELECT count(resource_type_scope_id) FROM resource_type_scope WHERE name = 'manage' AND resource_type_id = (SELECT resource_type_id FROM resource_type WHERE name = 'identity/team')", 0)
 }
 
-func testMigration32(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(33)], (33))
+func testMigration33(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(34)], (34))
 	assert.False(t, dialect.HasTable("space_resources"))
 }
 

@@ -182,23 +182,38 @@ func TestGetWITURLNotDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
 	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
+	existingWITURL := os.Getenv("AUTH_WIT_URL")
+	existingAuthURL := os.Getenv("AUTH_AUTH_URL")
 	defer func() {
 		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITprefix)
 		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
+		os.Setenv("AUTH_WIT_URL", existingWITURL)
+		os.Setenv("AUTH_AUTH_URL", existingAuthURL)
 		resetConfiguration()
 	}()
 
+	// Default in dev mode
+	os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", "true")
+	os.Unsetenv("AUTH_WIT_URL")
+	resetConfiguration()
+	computedWITURL, err := config.GetWITURL()
+	assert.Nil(t, err)
+	assert.Equal(t, "http://localhost:8080", computedWITURL)
+
+	// Constructed from Auth URL
 	os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", "false")
-
-	// Ensure that what we set as env variable is actually what we get
-	computedWITURL, err := config.GetWITURL(reqShort)
+	os.Setenv("AUTH_AUTH_URL", "https://auth.forwiturltest.io")
+	resetConfiguration()
+	computedWITURL, err = config.GetWITURL()
 	assert.Nil(t, err)
-	assert.Equal(t, "http://api.domain.org", computedWITURL)
+	assert.Equal(t, "https://api.forwiturltest.io", computedWITURL)
 
-	os.Setenv("AUTH_WIT_DOMAIN_PREFIX", "myauthsubdomain")
-	computedWITURL, err = config.GetWITURL(reqLong)
+	// Explicitly set via AUTH_WIT_URL env var
+	os.Setenv("AUTH_WIT_URL", "https://api.some.wit.io")
+	resetConfiguration()
+	computedWITURL, err = config.GetWITURL()
 	assert.Nil(t, err)
-	assert.Equal(t, "http://myauthsubdomain.service.domain.org", computedWITURL)
+	assert.Equal(t, "https://api.some.wit.io", computedWITURL)
 }
 
 func TestGetEnvironmentOK(t *testing.T) {
@@ -301,44 +316,6 @@ func TestGetSentryDSNOK(t *testing.T) {
 
 	os.Setenv(constSentryDSN, "something")
 	assert.Equal(t, "something", config.GetSentryDSN())
-}
-
-func TestGetWITURLDevModeOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
-	existingDevMode := os.Getenv("AUTH_DEVELOPER_MODE_ENABLED")
-	defer func() {
-		os.Setenv("AUTH_WIT_DOMAIN_PREFIX", existingWITprefix)
-		os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", existingDevMode)
-		resetConfiguration()
-	}()
-
-	os.Setenv("AUTH_DEVELOPER_MODE_ENABLED", "true")
-
-	// Ensure that what we set as env variable is actually what we get
-	computedWITURL, err := config.GetWITURL(reqShort)
-	assert.Nil(t, err)
-	assert.Equal(t, "http://localhost:8080", computedWITURL)
-}
-
-func TestGetWITURLSetViaEnvVarOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	existingWITURL := os.Getenv("AUTH_WIT_URL")
-	defer func() {
-		if existingWITURL != "" {
-			os.Setenv("AUTH_WIT_URL", existingWITURL)
-		} else {
-			os.Unsetenv("AUTH_WIT_URL")
-		}
-		resetConfiguration()
-	}()
-
-	os.Setenv("AUTH_WIT_URL", "https://new.wit.url")
-
-	// Ensure that what we set as env variable is actually what we get
-	computedWITURL, err := config.GetWITURL(reqShort)
-	assert.Nil(t, err)
-	assert.Equal(t, "https://new.wit.url", computedWITURL)
 }
 
 func checkGetKeycloakEndpointOK(t *testing.T, expectedEndpoint string, getEndpoint func(req *goa.RequestData) (string, error)) {

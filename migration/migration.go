@@ -204,7 +204,10 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("031-clean-up-roles-scopes.sql")})
 
 	// Version 32
-	m = append(m, steps{ExecuteSQLFile("032-drop-space-resources.sql")})
+	m = append(m, steps{ExecuteSQLFile("032-invitation-code.sql")})
+
+	// Version 33
+	m = append(m, steps{ExecuteSQLFile("033-drop-space-resources.sql")})
 
 	// Version N
 	//

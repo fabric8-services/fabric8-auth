@@ -43,7 +43,7 @@ type Configuration interface {
 	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
 	GetValidRedirectURLs() string
 	GetNotApprovedRedirect() string
-	GetWITURL(*goa.RequestData) (string, error)
+	GetWITURL() (string, error)
 	GetOpenShiftClientApiUrl() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
 	IsPostgresDeveloperModeEnabled() bool
@@ -276,7 +276,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config Configuration) (*string, *oauth2.Token, error) {
 
-	witURL, err := config.GetWITURL(request)
+	witURL, err := config.GetWITURL()
 	if err != nil {
 		return nil, nil, autherrors.NewInternalError(ctx, err)
 	}

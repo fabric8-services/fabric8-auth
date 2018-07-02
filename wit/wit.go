@@ -47,9 +47,11 @@ func (r *RemoteWITServiceCaller) UpdateWITUser(ctx context.Context, updatePayloa
 	}
 
 	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
+
 	if err != nil {
 		return err
 	}
+
 	remoteUpdateUserAPIPath := witservice.UpdateUserAsServiceAccountUsersPath(identityID)
 	res, err := remoteWITService.UpdateUserAsServiceAccountUsers(goasupport.ForwardContextRequestID(ctx), remoteUpdateUserAPIPath, updateUserPayload)
 	if err != nil {

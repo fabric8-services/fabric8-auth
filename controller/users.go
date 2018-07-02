@@ -47,7 +47,7 @@ type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetCacheControlUser() string
 	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
-	GetWITURL(*goa.RequestData) (string, error)
+	GetWITURL() (string, error)
 	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
 	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
 	GetKeycloakClientID() string
@@ -177,7 +177,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 
 	// finally, if all works, we create a user in WIT too.
-	witURL, err := c.config.GetWITURL(ctx.RequestData)
+	witURL, err := c.config.GetWITURL()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":              err,
@@ -765,7 +765,7 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, identityID 
 			Type: ctx.Payload.Data.Type,
 		},
 	}
-	witURL, err := c.config.GetWITURL(ctx.RequestData)
+	witURL, err := c.config.GetWITURL()
 	if err != nil {
 		return err
 	}

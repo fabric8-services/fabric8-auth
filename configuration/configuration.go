@@ -124,6 +124,7 @@ const (
 	varTenantServiceURL       = "tenant.serviceurl"
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
+	varAuthURL                = "auth.url"
 
 	// sentry
 	varEnvironment = "environment"
@@ -272,6 +273,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetOSORegistrationAppAdminToken() == "" {
 		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
 	}
+	c.validateURL(c.GetAuthServiceURL(), "Auth service")
 	if c.GetAuthServiceURL() == "http://localhost" {
 		c.appendDefaultConfigErrorMessage("environment is expected to be set to 'production' or 'prod-preview'")
 	}
@@ -591,6 +593,9 @@ func (c *ConfigurationData) DefaultConfigurationError() error {
 
 // GetAuthServiceUrl returns Auth Service URL
 func (c *ConfigurationData) GetAuthServiceURL() string {
+	if c.v.IsSet(varAuthURL) {
+		return c.v.GetString(varAuthURL)
+	}
 	switch c.GetEnvironment() {
 	case prodEnvironment:
 		return "https://auth.openshift.io"
@@ -1107,15 +1112,15 @@ func (c *ConfigurationData) GetWITDomainPrefix() string {
 }
 
 // GetWITURL returns the WIT URL where WIT is running
-// If AUTH_WIT_URL is not set and Auth in not in Dev Mode then we calculate the URL from the domain
-func (c *ConfigurationData) GetWITURL(req *goa.RequestData) (string, error) {
+// If AUTH_WIT_URL is not set and Auth in not in Dev Mode then we calculate the URL from the Auth Service URL domain
+func (c *ConfigurationData) GetWITURL() (string, error) {
 	if c.v.IsSet(varWITURL) {
 		return c.v.GetString(varWITURL), nil
 	}
 	if c.IsPostgresDeveloperModeEnabled() {
 		return devModeWITURL, nil
 	}
-	return c.calculateWITURL(req)
+	return c.calculateWITURL()
 }
 
 // GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
@@ -1192,23 +1197,18 @@ func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (s
 	return newURL, nil
 }
 
-func (c *ConfigurationData) calculateWITURL(req *goa.RequestData) (string, error) {
-	scheme := "http"
-	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
-		scheme = "https"
-	}
-	xForwardProto := req.Header.Get("X-Forwarded-Proto")
-	if xForwardProto != "" {
-		scheme = xForwardProto
-	}
-
-	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetWITDomainPrefix())
+func (c *ConfigurationData) calculateWITURL() (string, error) {
+	authURL := c.GetAuthServiceURL()
+	u, err := url.Parse(authURL)
 	if err != nil {
 		return "", err
 	}
-	newURL := fmt.Sprintf("%s://%s", scheme, newHost)
-
-	return newURL, nil
+	host, err := rest.ReplaceDomainPrefix(u.Host, c.GetWITDomainPrefix())
+	if err != nil {
+		return "", err
+	}
+	u.Host = host
+	return u.String(), nil
 }
 
 // GetLogLevel returns the logging level (as set via config file or environment variable)

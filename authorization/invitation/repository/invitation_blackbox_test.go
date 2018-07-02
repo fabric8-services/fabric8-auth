@@ -157,6 +157,33 @@ func (s *invitationBlackBoxTest) TestAddRoleFailsForInvalidRoleID() {
 	require.Equal(s.T(), 0, len(roles))
 }
 
+func (s *invitationBlackBoxTest) TestFindByAcceptCode() {
+	g := s.NewTestGraph()
+	i := g.CreateInvitation()
+
+	// Create a couple more invitations for some noise
+	g.CreateInvitation()
+	g.CreateInvitation()
+
+	invitation, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().IdentityID, i.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), i.Invitation().InvitationID, invitation.InvitationID)
+}
+
+func (s *invitationBlackBoxTest) TestFindByAcceptCodeNotFound() {
+	g := s.NewTestGraph()
+	i := g.CreateInvitation()
+
+	// Create a couple more invitations for some noise
+	g.CreateInvitation()
+	g.CreateInvitation()
+
+	_, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().IdentityID, uuid.NewV4())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
 func (s *invitationBlackBoxTest) CreateTestInvitation() (invitationRepo.Invitation, error) {
 	var invitation invitationRepo.Invitation
 

@@ -14,6 +14,7 @@ import (
 	"github.com/goadesign/goa"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -42,12 +43,12 @@ func (s *TestInvitationREST) SetupSuite() {
 
 func (s *TestInvitationREST) SecuredController(identity account.Identity) (*goa.Service, *InvitationController) {
 	svc := testsupport.ServiceAsUser("Invitation-Service", identity)
-	return svc, NewInvitationController(svc, s.Application)
+	return svc, NewInvitationController(svc, s.Application, s.Configuration)
 }
 
 func (s *TestInvitationREST) UnsecuredController() (*goa.Service, *InvitationController) {
 	svc := goa.New("Invitation-Service")
-	controller := NewInvitationController(svc, s.Application)
+	controller := NewInvitationController(svc, s.Application, s.Configuration)
 	return svc, controller
 }
 
@@ -58,18 +59,20 @@ func TestRunInvitationREST(t *testing.T) {
 /*
 * This test will attempt to create a new invitation for a user to become a member of an organization
  */
-func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
+func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 	var err error
 
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
-	require.NoError(s.T(), err, "could not create organization")
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	testUsername := "jsmith" + uuid.NewV4().String()
-	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
-	require.NoError(s.T(), err, "could not create invitee user")
-	inviteeID := invitee.ID.String()
+	invitee := g.CreateUser()
+	inviteeID := invitee.IdentityID().String()
 
 	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
@@ -80,53 +83,55 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationSuccess() {
 		},
 	}
 
-	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, team.TeamID().String(), payload)
 
-	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
+	invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have 1 invitation
 	require.Equal(s.T(), 1, len(invitations))
 
-	require.Equal(s.T(), invitee.ID, invitations[0].IdentityID)
+	require.Equal(s.T(), invitee.IdentityID(), invitations[0].IdentityID)
 	require.True(s.T(), invitations[0].Member)
 }
 
 /*
 * This test will attempt to create a new invitation for a user to accept a role in an organization
  */
-func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
+func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
 	var err error
 
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
-	require.NoError(s.T(), err, "could not create organization")
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+
+	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	testUsername := "jsmith" + uuid.NewV4().String()
-	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
-	require.NoError(s.T(), err, "could not create invitee user")
-	inviteeID := invitee.ID.String()
+	invitee := g.CreateUser()
+	inviteeID := invitee.IdentityID().String()
 
 	payload := &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
 				IdentityID: &inviteeID,
 				Member:     boolPointer(false),
-				Roles:      []string{"admin"},
+				Roles:      []string{r.Role().Name},
 			},
 		},
 	}
 
-	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
+	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, team.TeamID().String(), payload)
 
-	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
+	invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "could not list invitations")
 
 	// We should have 1 invitation
 	require.Equal(s.T(), 1, len(invitations))
 
-	require.Equal(s.T(), invitee.ID, invitations[0].IdentityID)
+	require.Equal(s.T(), invitee.IdentityID(), invitations[0].IdentityID)
 	require.False(s.T(), invitations[0].Member)
 
 	roles, err := s.invRepo.ListRoles(s.Ctx, invitations[0].InvitationID)
@@ -135,7 +140,7 @@ func (s *TestInvitationREST) TestCreateOrganizationRoleInvitationSuccess() {
 	// We should have 1 role
 	require.Equal(s.T(), 1, len(roles))
 	// And it should be the owner role
-	require.Equal(s.T(), "admin", roles[0].Name)
+	require.Equal(s.T(), r.Role().Name, roles[0].Name)
 }
 
 /*

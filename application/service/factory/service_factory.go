@@ -19,7 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
-
 	"github.com/pkg/errors"
 )
 
@@ -140,7 +139,7 @@ func (f *ServiceFactory) OrganizationService() service.OrganizationService {
 }
 
 func (f *ServiceFactory) InvitationService() service.InvitationService {
-	return invitationservice.NewInvitationService(f.getContext())
+	return invitationservice.NewInvitationService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) PermissionService() service.PermissionService {
