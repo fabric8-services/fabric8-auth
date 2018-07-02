@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -243,6 +244,22 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 
 	// We should have no invitations
 	require.Equal(s.T(), 0, len(invitations))
+}
+
+func (s *TestInvitationREST) TestAcceptInvitation() {
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	invitee := g.CreateUser()
+	inv := g.CreateInvitation(team, invitee)
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, inv.Invitation().AcceptCode.String())
+
+	// The invitation should no longer be there after acceptance
+	_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, s.testIdentity.ID, inv.Invitation().AcceptCode)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
 
 func boolPointer(value bool) *bool {

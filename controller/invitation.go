@@ -75,6 +75,26 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 }
 
 func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
 
-	return nil
+	acceptCode, err := uuid.FromString(ctx.AcceptCode)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to accept invitation, invalid code")
+
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)
+
+	log.Debug(ctx, map[string]interface{}{
+		"accepting-user-id": *currentIdentity,
+		"accept-code":       ctx.AcceptCode,
+	}, "invitation accepted")
+
+	return ctx.TemporaryRedirect()
 }
