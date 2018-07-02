@@ -334,7 +334,7 @@ func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string
 
 // Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
 func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uuid.UUID, token uuid.UUID) (string, error) {
-	/*var resourceID string
+	var resourceID string
 
 	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, currentIdentityID, token)
 
@@ -356,6 +356,6 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uu
 	} else if inv.ResourceID != nil {
 
 	}
-	*/
+
 	return "", nil
 }
