@@ -14,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -24,9 +23,6 @@ import (
 
 type TestSpaceREST struct {
 	gormtestsupport.DBTestSuite
-	resourceID      string
-	permissionID    string
-	policyID        string
 	resourceService service.ResourceService
 }
 
@@ -37,9 +33,6 @@ func TestRunSpaceREST(t *testing.T) {
 
 func (rest *TestSpaceREST) SetupTest() {
 	rest.DBTestSuite.SetupTest()
-	rest.resourceID = uuid.NewV4().String()
-	rest.permissionID = uuid.NewV4().String()
-	rest.policyID = uuid.NewV4().String()
 	rest.resourceService = rest.Application.ResourceService()
 }
 
@@ -48,25 +41,17 @@ func (rest *TestSpaceREST) SecuredController() (*goa.Service, *SpaceController, 
 	require.NoError(rest.T(), err)
 
 	svc := testsupport.ServiceAsUser("Space-Service", identity)
-	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
-		ResourceID:   &rest.resourceID,
-		PermissionID: &rest.permissionID,
-		PolicyID:     &rest.policyID,
-	}), identity
+	return svc, NewSpaceController(svc, rest.Application), identity
 }
 
 func (rest *TestSpaceREST) SecuredControllerForIdentity(identity account.Identity) (*goa.Service, *SpaceController) {
 	svc := testsupport.ServiceAsUser("Space-Service", identity)
-	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, nil)
+	return svc, NewSpaceController(svc, rest.Application)
 }
 
 func (rest *TestSpaceREST) UnSecuredController() (*goa.Service, *SpaceController) {
 	svc := goa.New("Space-Service")
-	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
-		ResourceID:   &rest.resourceID,
-		PermissionID: &rest.permissionID,
-		PolicyID:     &rest.policyID,
-	})
+	return svc, NewSpaceController(svc, rest.Application)
 }
 
 func (rest *TestSpaceREST) UnSecuredControllerWithDeprovisionedIdentity() (*goa.Service, *SpaceController) {
@@ -74,11 +59,7 @@ func (rest *TestSpaceREST) UnSecuredControllerWithDeprovisionedIdentity() (*goa.
 	require.NoError(rest.T(), err)
 
 	svc := testsupport.ServiceAsUser("Space-Service", identity)
-	return svc, NewSpaceController(svc, rest.Application, rest.Configuration, &DummyResourceManager{
-		ResourceID:   &rest.resourceID,
-		PermissionID: &rest.permissionID,
-		PolicyID:     &rest.policyID,
-	})
+	return svc, NewSpaceController(svc, rest.Application)
 }
 
 func (rest *TestSpaceREST) TestFailCreateSpaceUnauthorized() {
@@ -101,9 +82,7 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 
 	_, created := test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, spaceID)
 	require.NotNil(rest.T(), created.Data)
-	assert.Equal(rest.T(), rest.resourceID, created.Data.ResourceID)
-	assert.Equal(rest.T(), rest.permissionID, created.Data.PermissionID)
-	assert.Equal(rest.T(), rest.policyID, created.Data.PolicyID)
+	assert.Equal(rest.T(), spaceID.String(), created.Data.ResourceID)
 
 	// Check if the corresponding authZ resource has been created
 	resource, err := rest.resourceService.Read(context.Background(), spaceID.String())
@@ -117,23 +96,6 @@ func (rest *TestSpaceREST) TestCreateSpaceOK() {
 	require.Len(rest.T(), assignedRoles, 1)
 	assert.Equal(rest.T(), creator.ID, assignedRoles[0].Identity.ID)
 	assert.Equal(rest.T(), authorization.SpaceAdminRole, assignedRoles[0].Role.Name)
-}
-
-func (rest *TestSpaceREST) TestKeycloakResourceCreationRollBack() {
-	svc, ctrl, _ := rest.SecuredController()
-
-	g := rest.DBTestSuite.NewTestGraph()
-	space := g.CreateSpace()
-
-	spaceID, err := uuid.FromString(space.SpaceID())
-	require.NoError(rest.T(), err)
-
-	// Should fail because the space already exists.
-	test.CreateSpaceConflict(rest.T(), svc.Context, svc, ctrl, spaceID)
-
-	// Check that no keycloak resource exist for this space ID
-	_, err = rest.Application.SpaceResources().LoadBySpace(svc.Context, &spaceID)
-	testsupport.AssertError(rest.T(), err, errors.NotFoundError{}, "space resource with space_id '%s' not found", spaceID.String())
 }
 
 func (rest *TestSpaceREST) TestFailDeleteSpaceUnauthorized() {
@@ -170,20 +132,9 @@ func (rest *TestSpaceREST) TestDeleteSpaceOK() {
 	require.EqualError(rest.T(), err, fmt.Sprintf("resource with id '%s' not found", id.String()))
 }
 
-func (rest *TestSpaceREST) TestDeleteOldSpaceOK() {
-
-	// Create a space
+func (rest *TestSpaceREST) TestDeleteUnknownSpace() {
 	svc, ctrl, _ := rest.SecuredController()
-	id := uuid.NewV4()
-	test.CreateSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
-
-	// Now let's emulate an old space which was created before we started to register resources for new spaces
-	// Delete the corresponding resource for the created space
-	err := rest.resourceService.Delete(context.Background(), id.String())
-	require.NoError(rest.T(), err)
-
-	// Try to delete the space. It should not fail even if the corresponding resource is not found
-	test.DeleteSpaceOK(rest.T(), svc.Context, svc, ctrl, id)
+	test.DeleteSpaceNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }
 
 func (rest *TestSpaceREST) TestDeleteSpaceIfUserIsNotSpaceOwnerForbidden() {

@@ -14,7 +14,6 @@ import (
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -409,12 +408,6 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenValidOnForcePullInte
 	rest.dummyProviderConfigFactory.LoadProfileFail = false
 	service, controller = rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, for_, &forcePull)
-}
-
-func (rest *TestTokenStorageREST) assertTokenStatusAndTokenResponse(expectedTokenResponse *keycloak.KeycloakExternalTokenResponse, expectedURL string, actualStatus *app.ExternalTokenStatus) {
-	require.NotNil(rest.T(), actualStatus)
-	assert.Equal(rest.T(), expectedTokenResponse.AccessToken+"testuser", actualStatus.Username)
-	assert.Equal(rest.T(), expectedURL, actualStatus.ProviderAPIURL)
 }
 
 func (rest *TestTokenStorageREST) assertTokenStatus(expectedUsername, expectedURL string, actualStatus *app.ExternalTokenStatus) {

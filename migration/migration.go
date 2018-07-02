@@ -206,6 +206,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 32
 	m = append(m, steps{ExecuteSQLFile("032-invitation-code.sql")})
 
+	// Version 33
+	m = append(m, steps{ExecuteSQLFile("033-drop-space-resources.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

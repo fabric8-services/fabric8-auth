@@ -15,7 +15,6 @@ import (
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/space"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/jinzhu/gorm"
@@ -75,10 +74,6 @@ type GormDB struct {
 	GormBase
 	txIsoLevel     string
 	serviceFactory *factory.ServiceFactory
-}
-
-func (g *GormBase) SpaceResources() space.ResourceRepository {
-	return space.NewResourceRepository(g.db)
 }
 
 // Identities creates new Identity repository
