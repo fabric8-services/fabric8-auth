@@ -536,3 +536,13 @@ func (s *invitationServiceBlackBoxTest) TestAcceptFailsForIncorrectIdentity() {
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
+
+func (s *invitationServiceBlackBoxTest) TestAcceptFailsForUnknownAcceptCode() {
+	space := s.Graph.CreateSpace()
+	user := s.Graph.CreateUser()
+	spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
+	s.Graph.CreateInvitation(space, user, spaceRole)
+
+	_, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), uuid.NewV4())
+	require.Error(s.T(), err)
+}

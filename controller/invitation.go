@@ -86,7 +86,7 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 			"err": err,
 		}, "failed to accept invitation, invalid code")
 
-		return jsonapi.JSONErrorResponse(ctx, err)
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("AcceptCode", ctx.AcceptCode, "accept code is not a valid uuid"))
 	}
 
 	c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)

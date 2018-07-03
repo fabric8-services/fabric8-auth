@@ -284,6 +284,37 @@ func (s *identityBlackBoxTest) TestAddMember() {
 	require.True(s.T(), memberships[0].Member)
 }
 
+func (s *identityBlackBoxTest) TestAddMemberFailsForInvalidIdentities() {
+	team := s.Graph.CreateTeam()
+	user := s.Graph.CreateUser()
+
+	err := s.Application.Identities().AddMember(s.Ctx, uuid.NewV4(), user.IdentityID())
+	require.Error(s.T(), err)
+
+	err = s.Application.Identities().AddMember(s.Ctx, team.TeamID(), uuid.NewV4())
+	require.Error(s.T(), err)
+}
+
+func (s *identityBlackBoxTest) TestAddMemberFailsForNonMemberIdentity() {
+	user := s.Graph.CreateUser()
+	member := s.Graph.CreateUser()
+
+	err := s.Application.Identities().AddMember(s.Ctx, user.IdentityID(), member.IdentityID())
+	require.Error(s.T(), err)
+}
+
+func (s *identityBlackBoxTest) TestAddMemberFailsForDuplicateMembership() {
+	g := s.DBTestSuite.NewTestGraph()
+	team := g.CreateTeam()
+	user := g.CreateUser()
+
+	err := s.Application.Identities().AddMember(s.Ctx, team.TeamID(), user.IdentityID())
+	require.NoError(s.T(), err)
+
+	err = s.Application.Identities().AddMember(s.Ctx, team.TeamID(), user.IdentityID())
+	require.Error(s.T(), err)
+}
+
 func createAndLoad(s *identityBlackBoxTest) *repository.Identity {
 	identity := &repository.Identity{
 		ID:           uuid.NewV4(),

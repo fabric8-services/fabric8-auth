@@ -262,6 +262,17 @@ func (s *TestInvitationREST) TestAcceptInvitation() {
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
 
+func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	invitee := g.CreateUser()
+	g.CreateInvitation(team, invitee)
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	test.AcceptInviteInvitationBadRequest(s.T(), service.Context, service, controller, "foo")
+}
+
 func boolPointer(value bool) *bool {
 	return &value
 }
