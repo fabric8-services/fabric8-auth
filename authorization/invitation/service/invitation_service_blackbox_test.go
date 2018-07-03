@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -465,7 +466,10 @@ func (s *invitationServiceBlackBoxTest) TestAcceptTeamMembershipInvitation() {
 	user := s.Graph.CreateUser()
 	inv := s.Graph.CreateInvitation(team, user, true)
 
-	s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+	resourceID, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), team.ResourceID(), resourceID)
 
 	assocs, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
 	require.NoError(s.T(), err)
@@ -475,4 +479,60 @@ func (s *invitationServiceBlackBoxTest) TestAcceptTeamMembershipInvitation() {
 	require.Equal(s.T(), team.TeamID(), *assocs[0].IdentityID)
 	require.True(s.T(), assocs[0].Member)
 	require.Empty(s.T(), assocs[0].Roles)
+}
+
+func (s *invitationServiceBlackBoxTest) TestAcceptTeamRoleInvitation() {
+	team := s.Graph.CreateTeam()
+	user := s.Graph.CreateUser()
+	teamRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	inv := s.Graph.CreateInvitation(team, user, false, teamRole)
+
+	resourceID, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), team.ResourceID(), resourceID)
+
+	assocs, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), assocs, 1)
+
+	require.Equal(s.T(), team.TeamID(), *assocs[0].IdentityID)
+	require.False(s.T(), assocs[0].Member)
+	require.Len(s.T(), assocs[0].Roles, 1)
+	require.Equal(s.T(), teamRole.Role().Name, assocs[0].Roles[0])
+}
+
+func (s *invitationServiceBlackBoxTest) TestAcceptSpaceInvitation() {
+	space := s.Graph.CreateSpace()
+	user := s.Graph.CreateUser()
+	spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
+	inv := s.Graph.CreateInvitation(space, user, spaceRole)
+
+	resourceID, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), space.SpaceID(), resourceID)
+
+	roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), roles, 1)
+	require.Equal(s.T(), space.SpaceID(), roles[0].ResourceID)
+	require.False(s.T(), roles[0].Member)
+	require.Len(s.T(), roles[0].Roles, 1)
+	require.Equal(s.T(), spaceRole.Role().Name, roles[0].Roles[0])
+}
+
+func (s *invitationServiceBlackBoxTest) TestAcceptFailsForIncorrectIdentity() {
+	space := s.Graph.CreateSpace()
+	user := s.Graph.CreateUser()
+	spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
+	inv := s.Graph.CreateInvitation(space, user, spaceRole)
+
+	otherUser := s.Graph.CreateUser()
+
+	_, err := s.Application.InvitationService().Accept(s.Ctx, otherUser.IdentityID(), inv.Invitation().AcceptCode)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
 }

@@ -366,7 +366,7 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uu
 			ir := &repository.IdentityRole{
 				IdentityID: currentIdentityID,
 				RoleID:     role.RoleID,
-				ResourceID: inviteToIdentity.IdentityResource.ResourceID,
+				ResourceID: inviteToIdentity.IdentityResourceID.String,
 			}
 
 			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
@@ -379,10 +379,10 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uu
 		s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
 
 		// Return the identity ID
-		return inviteToIdentity.ID.String(), nil
+		return inviteToIdentity.IdentityResourceID.String, nil
 
 	} else if inv.ResourceID != nil {
-		inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, inv.InviteTo.String())
+		inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, *inv.ResourceID)
 		if err != nil {
 			return resourceID, err
 		}
