@@ -192,6 +192,26 @@ func (m *GormInvitationRepository) Delete(ctx context.Context, id uuid.UUID) err
 
 	obj := Invitation{InvitationID: id}
 
+	var invitationRoles []InvitationRole
+
+	err := m.db.Where("invitation_id = ?", id).Find(&invitationRoles).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return errs.WithStack(err)
+	}
+
+	for _, r := range invitationRoles {
+		result := m.db.Delete(&r)
+
+		if result.Error != nil {
+			log.Error(ctx, map[string]interface{}{
+				"invitation_id": id,
+				"role_id":       r.RoleID.String(),
+				"err":           result.Error,
+			}, "unable to delete invitation role ")
+			return errs.WithStack(result.Error)
+		}
+	}
+
 	result := m.db.Delete(&obj)
 
 	if result.Error != nil {
