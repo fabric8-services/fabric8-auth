@@ -89,18 +89,21 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
+
 	acceptCode, err := uuid.FromString(ctx.AcceptCode)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "failed to accept invitation, invalid code")
 
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("AcceptCode", ctx.AcceptCode, "accept code is not a valid uuid"))
+		errResponse := err.Error()
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		ctx.ResponseData.Header().Set("Location", redirectURL)
+		return ctx.TemporaryRedirect()
 	}
 
 	_, err = c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)
-
-	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
 
 	if err != nil {
 		errResponse := err.Error()

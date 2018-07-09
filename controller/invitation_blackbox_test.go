@@ -286,7 +286,11 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	test.AcceptInviteInvitationBadRequest(s.T(), service.Context, service, controller, "foo")
+	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, "foo")
+	parsedURL, err := url.Parse(response.Header().Get("Location"))
+	require.NoError(s.T(), err)
+	parameters := parsedURL.Query()
+	require.NotNil(s.T(), parameters.Get("error"))
 }
 
 func boolPointer(value bool) *bool {
