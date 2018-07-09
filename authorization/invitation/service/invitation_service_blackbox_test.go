@@ -522,6 +522,11 @@ func (s *invitationServiceBlackBoxTest) TestAcceptSpaceInvitation() {
 	require.False(s.T(), roles[0].Member)
 	require.Len(s.T(), roles[0].Roles, 1)
 	require.Equal(s.T(), spaceRole.Role().Name, roles[0].Roles[0])
+
+	// Test that the accept code cannot be used again
+	resourceID, err = s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
 
 func (s *invitationServiceBlackBoxTest) TestAcceptFailsForIncorrectIdentity() {
