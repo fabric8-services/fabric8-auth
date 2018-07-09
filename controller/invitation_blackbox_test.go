@@ -20,6 +20,7 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"net/url"
 )
 
 type TestInvitationREST struct {
@@ -265,6 +266,19 @@ func (s *TestInvitationREST) TestAcceptInvitation() {
 }
 
 func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
+	service, controller := s.SecuredController(s.testIdentity)
+
+	// This should still work, however there should now be an error param in the redirect URL
+	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, uuid.NewV4().String())
+	require.NotNil(s.T(), response.Header().Get("Location"))
+
+	parsedURL, err := url.Parse(response.Header().Get("Location"))
+	require.NoError(s.T(), err)
+	parameters := parsedURL.Query()
+	require.NotNil(s.T(), parameters.Get("error"))
+}
+
+func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
 	g := s.NewTestGraph()
 	team := g.CreateTeam()
 	invitee := g.CreateUser()
