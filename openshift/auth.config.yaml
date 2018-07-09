@@ -51,5 +51,6 @@ objects:
     keycloak.url: https://sso.openshift.io
     notification.serviceurl: ""
     email.verify.url: https://prod-preview.openshift.io/_home
+    invitation.accepted.url: https://prod-preview.openshift.io/_home
     environment: prod-preview
   
