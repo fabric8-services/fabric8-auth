@@ -12,19 +12,27 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// InvitationControllerConfiguration the Configuration for the InvitationController
+type InvitationControllerConfiguration interface {
+	GetInvitationAcceptedRedirectURL() string
+}
+
 // InvitationController implements the invitation resource.
 type InvitationController struct {
 	*goa.Controller
-	app           application.Application
-	Configuration LoginConfiguration
+	app application.Application
+	//Configuration LoginConfiguration
+	config InvitationControllerConfiguration
 }
 
 // NewInvitationController creates a invitation controller.
-func NewInvitationController(service *goa.Service, app application.Application, configuration LoginConfiguration) *InvitationController {
+func NewInvitationController(service *goa.Service, app application.Application, configuration InvitationControllerConfiguration) *InvitationController {
 	return &InvitationController{
-		Controller:    service.NewController("InvitationController"),
-		app:           app,
-		Configuration: configuration}
+		Controller: service.NewController("InvitationController"),
+		app:        app,
+		config:     configuration,
+	}
+	//	Configuration: configuration}
 }
 
 // Create runs the create action.
@@ -96,5 +104,6 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		"accept-code":       ctx.AcceptCode,
 	}, "invitation accepted")
 
+	ctx.ResponseData.Header().Set("Location", c.config.GetInvitationAcceptedRedirectURL())
 	return ctx.TemporaryRedirect()
 }
