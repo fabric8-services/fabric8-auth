@@ -159,6 +159,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: email.verify.url
+          - name: AUTH_INVITATION_ACCEPTED_URL
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: invitation.accepted.url
           - name: AUTH_ENVIRONMENT
             valueFrom:
               configMapKeyRef:
