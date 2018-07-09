@@ -254,7 +254,9 @@ func (s *TestInvitationREST) TestAcceptInvitation() {
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, inv.Invitation().AcceptCode.String())
+	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, inv.Invitation().AcceptCode.String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
 
 	// The invitation should no longer be there after acceptance
 	_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, s.testIdentity.ID, inv.Invitation().AcceptCode)

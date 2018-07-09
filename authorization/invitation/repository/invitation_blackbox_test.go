@@ -46,6 +46,12 @@ func (s *invitationBlackBoxTest) TestOKToDelete() {
 	require.Equal(s.T(), 0, len(invitations))
 }
 
+func (s *invitationBlackBoxTest) TestDeleteFailsForInvalidInvitation() {
+	err := s.repo.Delete(s.Ctx, uuid.NewV4())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
 func (s *invitationBlackBoxTest) TestDeleteUnknownFails() {
 	id := uuid.NewV4()
 

@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -97,13 +98,23 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("AcceptCode", ctx.AcceptCode, "accept code is not a valid uuid"))
 	}
 
-	c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)
+	_, err = c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)
+
+	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
+
+	if err != nil {
+		errResponse := err.Error()
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		if err != nil {
+			return err
+		}
+	}
 
 	log.Debug(ctx, map[string]interface{}{
 		"accepting-user-id": *currentIdentity,
 		"accept-code":       ctx.AcceptCode,
 	}, "invitation accepted")
 
-	ctx.ResponseData.Header().Set("Location", c.config.GetInvitationAcceptedRedirectURL())
+	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
 }
