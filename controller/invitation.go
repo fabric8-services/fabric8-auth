@@ -21,8 +21,7 @@ type InvitationControllerConfiguration interface {
 // InvitationController implements the invitation resource.
 type InvitationController struct {
 	*goa.Controller
-	app application.Application
-	//Configuration LoginConfiguration
+	app    application.Application
 	config InvitationControllerConfiguration
 }
 
@@ -33,7 +32,6 @@ func NewInvitationController(service *goa.Service, app application.Application, 
 		app:        app,
 		config:     configuration,
 	}
-	//	Configuration: configuration}
 }
 
 // Create runs the create action.
