@@ -84,12 +84,15 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 }
 
 func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
+	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
+
 	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		errResponse := err.Error()
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		ctx.ResponseData.Header().Set("Location", redirectURL)
+		return ctx.TemporaryRedirect()
 	}
-
-	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
 
 	acceptCode, err := uuid.FromString(ctx.AcceptCode)
 	if err != nil {
