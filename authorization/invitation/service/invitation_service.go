@@ -14,6 +14,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
@@ -330,4 +331,86 @@ func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string
 	}
 
 	return *spaceSingle.Data.Attributes.Name, nil
+}
+
+// Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
+func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uuid.UUID, token uuid.UUID) (string, error) {
+	var resourceID string
+
+	// Locate the invitation
+	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, currentIdentityID, token)
+
+	if err != nil {
+		return resourceID, err
+	}
+
+	// If this invitation is for an identity
+	if inv.InviteTo != nil {
+		inviteToIdentity, err := s.Repositories().Identities().Load(ctx, *inv.InviteTo)
+		if err != nil {
+			return resourceID, err
+		}
+
+		// If the invitation is for a membership, add a membership record
+		if inv.Member {
+			s.Repositories().Identities().AddMember(ctx, inviteToIdentity.ID, currentIdentityID)
+		}
+
+		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
+		if err != nil {
+			return resourceID, err
+		}
+
+		// If the invitation includes role assignments, assign them
+		for _, role := range roles {
+			ir := &repository.IdentityRole{
+				IdentityID: currentIdentityID,
+				RoleID:     role.RoleID,
+				ResourceID: inviteToIdentity.IdentityResourceID.String,
+			}
+
+			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+			if err != nil {
+				return resourceID, err
+			}
+		}
+
+		// Delete the invitation
+		s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
+
+		// Return the identity ID
+		return inviteToIdentity.IdentityResourceID.String, nil
+
+	} else if inv.ResourceID != nil {
+		inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, *inv.ResourceID)
+		if err != nil {
+			return resourceID, err
+		}
+
+		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
+		if err != nil {
+			return resourceID, err
+		}
+
+		for _, role := range roles {
+			ir := &repository.IdentityRole{
+				IdentityID: currentIdentityID,
+				RoleID:     role.RoleID,
+				ResourceID: inviteToResource.ResourceID,
+			}
+
+			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+			if err != nil {
+				return resourceID, err
+			}
+		}
+
+		// Delete the invitation
+		s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
+
+		// Return the resource ID
+		return inviteToResource.ResourceID, nil
+	}
+
+	return "", nil
 }

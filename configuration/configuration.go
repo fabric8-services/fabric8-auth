@@ -49,6 +49,7 @@ const (
 	varLogLevel                        = "log.level"
 	varLogJSON                         = "log.json"
 	varEmailVerifiedRedirectURL        = "email.verify.url"
+	varInvitationAcceptedRedirectURL   = "invitation.accepted.url"
 	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
 	varKeycloakTestsDisabled           = "keycloak.tests.disabled"
 	varIgnoreEmailInProd               = "ignore.email.prod"
@@ -756,6 +757,10 @@ func (c *ConfigurationData) setConfigDefaults() {
 // verification url
 func (c *ConfigurationData) GetEmailVerifiedRedirectURL() string {
 	return c.v.GetString(varEmailVerifiedRedirectURL)
+}
+
+func (c *ConfigurationData) GetInvitationAcceptedRedirectURL() string {
+	return c.v.GetString(varInvitationAcceptedRedirectURL)
 }
 
 // GetPostgresHost returns the postgres host as set via default, config file, or environment variable

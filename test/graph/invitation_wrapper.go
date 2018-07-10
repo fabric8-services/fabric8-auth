@@ -3,6 +3,7 @@ package graph
 import (
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -22,10 +23,16 @@ func newInvitationWrapper(g *TestGraph, params []interface{}) interface{} {
 	var resourceID *string
 	var inviteTo *uuid.UUID
 
+	roles := make([]*repository.Role, 0)
+
 	for i := range params {
 		switch t := params[i].(type) {
 		case resource.Resource:
 			resourceID = &t.ResourceID
+		case *spaceWrapper:
+			resourceID = &t.Resource().ResourceID
+		case spaceWrapper:
+			resourceID = &t.Resource().ResourceID
 		case *userWrapper:
 			identityID = &t.Identity().ID
 		case userWrapper:
@@ -42,27 +49,41 @@ func newInvitationWrapper(g *TestGraph, params []interface{}) interface{} {
 		case teamWrapper:
 			teamID := t.TeamID()
 			inviteTo = &teamID
+		case bool:
+			w.invitation.Member = t
+		case *roleWrapper:
+			roles = append(roles, t.Role())
+		case roleWrapper:
+			roles = append(roles, t.Role())
+		case *repository.Role:
+			roles = append(roles, t)
+		case repository.Role:
+			roles = append(roles, &t)
 		}
 	}
 
-	// The invitation is either for an identity (e.g. org, team), or for a resource (e.g. space), but not both
 	if identityID != nil {
 		w.invitation.IdentityID = *identityID
-	} else if resourceID == nil {
+	} else {
 		w.invitation.IdentityID = w.graph.CreateUser().Identity().ID
-	} else if resourceID != nil {
-		w.invitation.ResourceID = resourceID
 	}
 
+	// The invitation is either for an identity (e.g. org, team), or for a resource (e.g. space), but not both
 	if inviteTo != nil {
 		w.invitation.InviteTo = inviteTo
+	} else if resourceID != nil {
+		w.invitation.ResourceID = resourceID
 	} else {
-		orgID := w.graph.CreateOrganization().OrganizationID()
-		w.invitation.InviteTo = &orgID
+		teamID := w.graph.CreateTeam().TeamID()
+		w.invitation.InviteTo = &teamID
 	}
 
 	err := g.app.InvitationRepository().Create(g.ctx, w.invitation)
 	require.NoError(g.t, err)
+
+	for _, role := range roles {
+		g.app.InvitationRepository().AddRole(g.ctx, w.invitation.InvitationID, role.RoleID)
+	}
 
 	return &w
 }
