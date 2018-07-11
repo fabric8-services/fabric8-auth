@@ -26,6 +26,9 @@ DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null
 DOCKER_BIN := $(shell command -v $(DOCKER_BIN_NAME) 2> /dev/null)
 ASCIIDOCTOR_BIN := $(shell command -v $(ASCIIDOCTOR_BIN_NAME) 2> /dev/null)
 
+# Define and get the vakue for UNAME_S variable from shell
+UNAME_S := $(shell uname -s)
+
 # This is a fix for a non-existing user in passwd file when running in a docker
 # container and trying to clone repos of dependencies
 GIT_COMMITTER_NAME ?= "user"
