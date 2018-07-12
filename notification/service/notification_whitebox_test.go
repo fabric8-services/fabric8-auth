@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
-
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -17,7 +16,6 @@ import (
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"github.com/fabric8-services/fabric8-auth/test/token"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
-
 	tokenutil "github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/satori/go.uuid"
