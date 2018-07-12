@@ -9,12 +9,16 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
+
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"github.com/fabric8-services/fabric8-auth/test/token"
+	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
+
+	tokenutil "github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -84,7 +88,13 @@ func (s *TestNotificationSuite) TestSendAsync() {
 }
 
 func (s *TestNotificationSuite) TestSend() {
-	ctx, token, reqID := token.ContextWithTokenAndRequestID(s.T())
+	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
+
+	manager, err := tokenutil.ReadManagerFromContext(ctx)
+	require.Nil(s.T(), err)
+
+	// extract the token
+	saToken := (*manager).AuthServiceAccountToken()
 
 	// Create client
 	cl, err := s.ns.createClientWithContextSigner(ctx)
@@ -103,7 +113,7 @@ func (s *TestNotificationSuite) TestSend() {
 	s.doer.Client.AssertRequest = func(req *http.Request) {
 		assert.Equal(s.T(), "POST", req.Method)
 		assert.Equal(s.T(), "https://some.notification.io/api/notify", req.URL.String())
-		assert.Equal(s.T(), "Bearer "+token, req.Header.Get("Authorization"))
+		assert.Equal(s.T(), "Bearer "+saToken, req.Header.Get("Authorization"))
 		assert.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
 
 		expectedBody := fmt.Sprintf("{\"data\":{\"attributes\":{\"custom\":{\"key\":\"value\"},\"id\":\"someTarget\",\"type\":\"sometype\"},\"id\":\"%s\",\"type\":\"notifications\"}}\n", msg.MessageID.String())
@@ -136,4 +146,53 @@ type notificationURLConfig struct {
 
 func (c *notificationURLConfig) GetNotificationServiceURL() string {
 	return c.notificationURL
+}
+
+func (s *TestNotificationSuite) TestGetServiceAccountSigner() {
+	t := s.T()
+
+	// create a context
+	ctx := tokentestsupport.ContextWithTokenManager()
+	manager, err := tokenutil.ReadManagerFromContext(ctx)
+	require.Nil(t, err)
+
+	// extract the token
+	saToken := (*manager).AuthServiceAccountToken()
+
+	// Generate signer with the context
+	signer, err := getServiceAccountSigner(ctx)
+
+	// Use the signer to add auth headers to a request
+	req, err := http.NewRequest("GET", "http://example.com", nil)
+	r, err := signer.TokenSource.Token()
+	r.SetAuthHeader(req)
+
+	// Verify if the Auth header has the initial token that was extracted.
+	require.NotEmpty(t, req.Header.Get("Authorization"))
+	require.Equal(t, "Bearer "+saToken, req.Header.Get("Authorization"))
+}
+
+func (s *TestNotificationSuite) TestCreateClientWithServiceAccountToken() {
+	// create a context
+	ctx := tokentestsupport.ContextWithTokenManager()
+	manager, err := tokenutil.ReadManagerFromContext(ctx)
+	require.Nil(s.T(), err)
+
+	// extract the token
+	saToken := (*manager).AuthServiceAccountToken()
+
+	// create the client
+	cl, err := s.ns.createClientWithContextSigner(ctx)
+	require.NoError(s.T(), err)
+
+	// create a request
+	req, err := http.NewRequest("GET", "http://example.com", nil)
+
+	// sign the request with that client
+	cl.JWTSigner.Sign(req)
+
+	authHeader := req.Header.Get("Authorization")
+	require.NotEmpty(s.T(), authHeader)
+	require.Equal(s.T(), "Bearer "+saToken, authHeader)
+
 }
