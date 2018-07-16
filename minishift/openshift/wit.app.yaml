@@ -1,0 +1,146 @@
+kind: Template
+apiVersion: v1
+parameters:
+- name: IMAGE
+  value: quay.io/openshiftio/fabric8-services-fabric8-wit
+- name: IMAGE_TAG
+  value: latest
+- name: REPLICAS
+  required: true
+  value: '1'
+- name: SERVICE_NAME
+  required: true
+  value: wit
+- name: ENVIRONMENT
+  value: dev
+metadata:
+  name: ${SERVICE_NAME}
+objects:
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    labels:
+      service: ${SERVICE_NAME}
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+    name: ${SERVICE_NAME}
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      service: ${SERVICE_NAME}
+    strategy:
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          service: ${SERVICE_NAME}
+      spec:
+        containers:
+        - image: ${IMAGE}:${IMAGE_TAG}
+          env:
+          - name: F8_POSTGRES_HOST
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: db.host
+          - name: F8_POSTGRES_PORT
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: db.port
+          - name: F8_DEVELOPER_MODE_ENABLED
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: developer.mode.enabled
+          - name: F8_AUTH_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: auth.serviceurl
+          imagePullPolicy: IfNotPresent
+          name: ${SERVICE_NAME}
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 0.1m
+              memory: 10Mi
+            limits:
+              cpu: 400m
+              memory: 1.5Gi
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+  status:
+    details:
+      causes:
+      - type: ConfigChange
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${SERVICE_NAME}
+    labels:
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+      service: ${SERVICE_NAME}
+  spec:
+    ports:
+      - name: "8080"
+        protocol: TCP
+        port: 80
+        targetPort: 8080
+    selector:
+      service: ${SERVICE_NAME}
+    type: ClusterIP
+    sessionAffinity: null
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      service: ${SERVICE_NAME}
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+    name: ${SERVICE_NAME}
+  spec:
+    host: ''
+    port:
+      targetPort: "8080"
+    to:
+      kind: Service
+      name: ${SERVICE_NAME}
+      weight: 100
+    wildcardPolicy: None
+  status: {}
