@@ -75,6 +75,10 @@ clean-dev-all:
 	oc delete all -l env=dev
 	oc delete project $(OC_PROJECT_NAME)
 
+.PHONY: clean-all-dc
+clean-all-dc:
+	oc delete all -l env=dev
+
 .PHONY: clean-auth
 clean-auth:
 	oc delete all -l belongsTo=auth
@@ -97,7 +101,7 @@ minishift-start:
 	-eval `minishift docker-env` && oc login -u developer -p developer
 
 .PHONY: dev-deploy-all
-dev-deploy-all: prebuild-check deps generate build init-project clean-dev-all deploy-auth deploy-wit deploy-f8ui
+dev-deploy-all: prebuild-check deps generate build init-project clean-all-dc deploy-auth deploy-wit deploy-f8ui
 
 OC_PROJECT_NAME?=fabric8-services
 .PHONY: init-project
