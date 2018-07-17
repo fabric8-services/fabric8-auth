@@ -267,6 +267,54 @@ func (s *identityBlackBoxTest) TestFindIdentitiesByResourceTypeWithParentResourc
 	require.Len(s.T(), identities, 2)
 }
 
+func (s *identityBlackBoxTest) TestAddMember() {
+	g := s.DBTestSuite.NewTestGraph()
+	team := g.CreateTeam()
+	user := g.CreateUser()
+
+	err := s.Application.Identities().AddMember(s.Ctx, team.TeamID(), user.IdentityID())
+	require.NoError(s.T(), err)
+
+	memberships, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
+	require.NoError(s.T(), err)
+
+	// Require that the user we created has 1 membership, and that it is in the team we created
+	require.Len(s.T(), memberships, 1)
+	require.Equal(s.T(), team.TeamID(), *memberships[0].IdentityID)
+	require.True(s.T(), memberships[0].Member)
+}
+
+func (s *identityBlackBoxTest) TestAddMemberFailsForInvalidIdentities() {
+	team := s.Graph.CreateTeam()
+	user := s.Graph.CreateUser()
+
+	err := s.Application.Identities().AddMember(s.Ctx, uuid.NewV4(), user.IdentityID())
+	require.Error(s.T(), err)
+
+	err = s.Application.Identities().AddMember(s.Ctx, team.TeamID(), uuid.NewV4())
+	require.Error(s.T(), err)
+}
+
+func (s *identityBlackBoxTest) TestAddMemberFailsForNonMemberIdentity() {
+	user := s.Graph.CreateUser()
+	member := s.Graph.CreateUser()
+
+	err := s.Application.Identities().AddMember(s.Ctx, user.IdentityID(), member.IdentityID())
+	require.Error(s.T(), err)
+}
+
+func (s *identityBlackBoxTest) TestAddMemberFailsForDuplicateMembership() {
+	g := s.DBTestSuite.NewTestGraph()
+	team := g.CreateTeam()
+	user := g.CreateUser()
+
+	err := s.Application.Identities().AddMember(s.Ctx, team.TeamID(), user.IdentityID())
+	require.NoError(s.T(), err)
+
+	err = s.Application.Identities().AddMember(s.Ctx, team.TeamID(), user.IdentityID())
+	require.Error(s.T(), err)
+}
+
 func createAndLoad(s *identityBlackBoxTest) *repository.Identity {
 	identity := &repository.Identity{
 		ID:           uuid.NewV4(),

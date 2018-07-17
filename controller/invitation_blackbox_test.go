@@ -16,9 +16,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"net/url"
 )
 
 type TestInvitationREST struct {
@@ -243,6 +245,52 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 
 	// We should have no invitations
 	require.Equal(s.T(), 0, len(invitations))
+}
+
+func (s *TestInvitationREST) TestAcceptInvitation() {
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	invitee := g.CreateUser()
+	inv := g.CreateInvitation(team, invitee)
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, inv.Invitation().AcceptCode.String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
+
+	// The invitation should no longer be there after acceptance
+	_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, s.testIdentity.ID, inv.Invitation().AcceptCode)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
+func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
+	service, controller := s.SecuredController(s.testIdentity)
+
+	// This should still work, however there should now be an error param in the redirect URL
+	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, uuid.NewV4().String())
+	require.NotNil(s.T(), response.Header().Get("Location"))
+
+	parsedURL, err := url.Parse(response.Header().Get("Location"))
+	require.NoError(s.T(), err)
+	parameters := parsedURL.Query()
+	require.NotNil(s.T(), parameters.Get("error"))
+}
+
+func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	invitee := g.CreateUser()
+	g.CreateInvitation(team, invitee)
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, "foo")
+	parsedURL, err := url.Parse(response.Header().Get("Location"))
+	require.NoError(s.T(), err)
+	parameters := parsedURL.Query()
+	require.NotNil(s.T(), parameters.Get("error"))
 }
 
 func boolPointer(value bool) *bool {

@@ -46,11 +46,43 @@ func (s *invitationBlackBoxTest) TestOKToDelete() {
 	require.Equal(s.T(), 0, len(invitations))
 }
 
+func (s *invitationBlackBoxTest) TestDeleteFailsForInvalidInvitation() {
+	err := s.repo.Delete(s.Ctx, uuid.NewV4())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
 func (s *invitationBlackBoxTest) TestDeleteUnknownFails() {
 	id := uuid.NewV4()
 
 	err := s.repo.Delete(s.Ctx, id)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "invitation with id '%s' not found", id.String())
+}
+
+func (s *invitationBlackBoxTest) TestDeleteInvitationRolesOK() {
+	space := s.Graph.CreateSpace()
+	resourceType := s.Graph.LoadResourceType(authorization.ResourceTypeSpace)
+	role := s.Graph.CreateRole(resourceType)
+	inv := s.Graph.CreateInvitation(space, role)
+
+	invitations, err := s.repo.ListForResource(s.Ctx, *inv.Invitation().ResourceID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), invitations, 1)
+
+	roles, err := s.repo.ListRoles(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), roles, 1)
+
+	err = s.repo.Delete(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
+
+	invitations, err = s.repo.ListForResource(s.Ctx, *inv.Invitation().ResourceID)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), 0, len(invitations))
+
+	roles, err = s.repo.ListRoles(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), roles, 0)
 }
 
 func (s *invitationBlackBoxTest) TestOKToLoad() {

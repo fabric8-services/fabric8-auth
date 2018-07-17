@@ -30,6 +30,8 @@ Steps for adding a new Service:
 type InvitationService interface {
 	// Issue creates a new invitation for a user.
 	Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
+	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
+	Accept(ctx context.Context, currentIdentityID uuid.UUID, token uuid.UUID) (string, error)
 }
 
 type OrganizationService interface {

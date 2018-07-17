@@ -196,6 +196,7 @@ func ContextWithRequest(ctx context.Context) context.Context {
 
 func ContextWithTokenAndRequestID(t *testing.T) (context.Context, string, string) {
 	ctx, ctxToken, err := EmbedTokenInContext(uuid.NewV4().String(), uuid.NewV4().String())
+	ctx = tokencontext.ContextWithTokenManager(ctx, TokenManager)
 	require.NoError(t, err)
 
 	reqID := uuid.NewV4().String()

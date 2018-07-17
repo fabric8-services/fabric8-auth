@@ -8,23 +8,30 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
 
+// InvitationControllerConfiguration the Configuration for the InvitationController
+type InvitationControllerConfiguration interface {
+	GetInvitationAcceptedRedirectURL() string
+}
+
 // InvitationController implements the invitation resource.
 type InvitationController struct {
 	*goa.Controller
-	app           application.Application
-	Configuration LoginConfiguration
+	app    application.Application
+	config InvitationControllerConfiguration
 }
 
 // NewInvitationController creates a invitation controller.
-func NewInvitationController(service *goa.Service, app application.Application, configuration LoginConfiguration) *InvitationController {
+func NewInvitationController(service *goa.Service, app application.Application, configuration InvitationControllerConfiguration) *InvitationController {
 	return &InvitationController{
-		Controller:    service.NewController("InvitationController"),
-		app:           app,
-		Configuration: configuration}
+		Controller: service.NewController("InvitationController"),
+		app:        app,
+		config:     configuration,
+	}
 }
 
 // Create runs the create action.
@@ -72,4 +79,46 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 	}, "invitations created")
 
 	return ctx.Created()
+}
+
+func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
+	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
+
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		errResponse := err.Error()
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		ctx.ResponseData.Header().Set("Location", redirectURL)
+		return ctx.TemporaryRedirect()
+	}
+
+	acceptCode, err := uuid.FromString(ctx.AcceptCode)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to accept invitation, invalid code")
+
+		errResponse := err.Error()
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		ctx.ResponseData.Header().Set("Location", redirectURL)
+		return ctx.TemporaryRedirect()
+	}
+
+	_, err = c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)
+
+	if err != nil {
+		errResponse := err.Error()
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"accepting-user-id": *currentIdentity,
+		"accept-code":       ctx.AcceptCode,
+	}, "invitation accepted")
+
+	ctx.ResponseData.Header().Set("Location", redirectURL)
+	return ctx.TemporaryRedirect()
 }
