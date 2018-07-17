@@ -33,7 +33,7 @@ oc version
 Here, we are going to deploy `auth`, `wit`, `fabric8-ui` services on minishift.
 
 #### Start Minishift
-We have make target defined to start minishift with reqquired cpu's and configuration.
+We have make target defined to start minishift with required cpu's and configuration.
 ```bash
 make minishift-start
 ```
@@ -143,7 +143,7 @@ make clean-dev-all
 ```
 
 #### Redeploying Auth service
-However if you are working on auth service and wants to redeploy latest code change by building container with latest bniary. We have
+However if you are working on auth service and wants to redeploy latest code change by building container with latest binary. We have
 special target for it which will do that for you.
 
 It won't deploy required secrets and postgres db again. It'll re-deploy auth service only.
