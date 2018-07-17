@@ -62,6 +62,11 @@ objects:
               secretKeyRef:
                 name: ${SERVICE_NAME}
                 key: developer.mode.enabled
+          - name: AUTH_WIT_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: wit.url
           name: ${SERVICE_NAME}
           ports:
           - containerPort: 8089

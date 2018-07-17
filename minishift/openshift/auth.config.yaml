@@ -22,3 +22,13 @@ objects:
     db.port: NTQzMg==
     developer.mode.enabled: dHJ1ZQ==
     db.admin.password: bXlzZWNyZXRwYXNzd29yZA==
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ${SERVICE_NAME}
+    labels:
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+  type: Opaque
+  data:
+    wit.url: http://wit
