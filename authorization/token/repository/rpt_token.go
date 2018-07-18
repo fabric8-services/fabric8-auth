@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/application/repository/base"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -50,7 +49,7 @@ func (m *GormRPTTokenRepository) TableName() string {
 
 // RPTTokenRepository represents the storage interface.
 type RPTTokenRepository interface {
-	base.Exister
+	CheckExists(ctx context.Context, id uuid.UUID) (bool, error)
 	Load(ctx context.Context, id uuid.UUID) (*RPTToken, error)
 	Create(ctx context.Context, token *RPTToken) error
 	Save(ctx context.Context, token *RPTToken) error
@@ -73,10 +72,26 @@ func (m *GormRPTTokenRepository) Load(ctx context.Context, id uuid.UUID) (*RPTTo
 	return &native, errs.WithStack(err)
 }
 
-// CheckExists returns nil if the given ID exists otherwise returns an error
-func (m *GormRPTTokenRepository) CheckExists(ctx context.Context, id string) error {
+// CheckExists returns true if the given ID exists otherwise returns an error
+func (m *GormRPTTokenRepository) CheckExists(ctx context.Context, id uuid.UUID) (bool, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "rpt_token", "exists"}, time.Now())
-	return base.CheckExistsWithCustomIDColumn(ctx, m.db, m.TableName(), "token_id", id)
+
+	var exists bool
+	query := fmt.Sprintf(`
+		SELECT EXISTS (
+			SELECT 1 FROM %[1]s
+			WHERE
+				token_id=$1
+		)`, m.TableName())
+
+	err := m.db.CommonDB().QueryRow(query, id).Scan(&exists)
+	if err == nil && !exists {
+		return exists, errors.NewNotFoundError(m.TableName(), id.String())
+	}
+	if err != nil {
+		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
+	}
+	return exists, nil
 }
 
 // Create creates a new record.
