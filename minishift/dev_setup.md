@@ -113,7 +113,7 @@ Also make sure to whitelist the domain which you are using for auth to work it a
 #### Deploying Auth, WIT, UI together
 To deploy `auth`, `wit`, `fabric8-ui` together we have following target:
 ```bash
-make deploy-dev-all
+make deploy-all
 ```
 
 #### Cleaning Up
@@ -139,7 +139,7 @@ make clean-f8ui
 ##### Cleaning Auth, WIT, Fabric8-UI
 This removes `auth`, `wit`, `fabric8-ui` services from minishift and deletes the `fabric8-services` project.
 ```bash
-make clean-dev-all
+make clean-all
 ```
 
 #### Redeploying Auth service

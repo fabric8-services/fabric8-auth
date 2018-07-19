@@ -70,7 +70,7 @@ deploy-auth-secrets:
 deploy-wit-secrets:
 	oc process -f $(TEMPLATE_DIR)/wit.config.yaml -o yaml | oc apply -f -
 
-.PHONY: clean-dev-all
+.PHONY: clean-all
 clean-dev-all:
 	oc delete all -l env=dev
 	oc delete project $(OC_PROJECT_NAME)
@@ -100,8 +100,8 @@ minishift-start:
 	./minishift/check_hosts.sh
 	-eval `minishift docker-env` && oc login -u developer -p developer
 
-.PHONY: dev-deploy-all
-dev-deploy-all: prebuild-check deps generate build init-project clean-all-dc deploy-auth deploy-wit deploy-f8ui
+.PHONY: deploy-all
+deploy-all: prebuild-check deps generate build init-project clean-all-resources deploy-auth deploy-wit deploy-f8ui
 
 OC_PROJECT_NAME?=fabric8-services
 .PHONY: init-project
