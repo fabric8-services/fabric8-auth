@@ -13,6 +13,8 @@ import (
 
 	"github.com/goadesign/goa"
 
+	"net/url"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
@@ -20,7 +22,6 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"net/url"
 )
 
 type TestInvitationREST struct {
@@ -291,6 +292,24 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
 	require.NoError(s.T(), err)
 	parameters := parsedURL.Query()
 	require.NotNil(s.T(), parameters.Get("error"))
+}
+
+func (s *TestInvitationREST) TestRescindInvitation() {
+	g := s.NewTestGraph()
+	team := g.CreateTeam()
+	invitee := g.CreateUser()
+	inv := g.CreateInvitation(team, invitee)
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response := test.RescindInviteInvitationOK(s.T(), service.Context, service, controller, inv.Invitation().InvitationID.String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
+
+	// The invitation should no longer be there after rescinding
+	_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
 
 func boolPointer(value bool) *bool {

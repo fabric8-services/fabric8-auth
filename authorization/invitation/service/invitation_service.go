@@ -12,6 +12,8 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 
+	"strings"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -20,7 +22,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
-	"strings"
 )
 
 type InvitationConfiguration interface {
@@ -331,6 +332,25 @@ func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string
 	}
 
 	return *spaceSingle.Data.Attributes.Name, nil
+}
+
+// Rescind revokes an invitation request
+func (s *invitationServiceImpl) Rescind(ctx context.Context, issuingUserID, invitationID uuid.UUID) error {
+
+	err := s.ExecuteInTransaction(func() error {
+		// Locate the invitation
+		exists, err := s.Repositories().InvitationRepository().CheckExists(ctx, invitationID)
+		if err != nil {
+			return err
+		}
+
+		// Delete the invitation
+		if exists {
+			return s.Repositories().InvitationRepository().Delete(ctx, invitationID)
+		}
+		return nil
+	})
+	return err
 }
 
 // Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for

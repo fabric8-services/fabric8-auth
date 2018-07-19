@@ -38,6 +38,20 @@ var _ = a.Resource("invitation", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
+
+	a.Action("rescindInvite", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.DELETE("/rescind/:invitationID"),
+		)
+		a.Params(func() {
+			a.Param("invitationID", d.String, "Unique identifier for the invitation to the organization, team, security group or resource")
+		})
+		a.Response(d.OK)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
 })
 
 var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitation_request+json", func() {

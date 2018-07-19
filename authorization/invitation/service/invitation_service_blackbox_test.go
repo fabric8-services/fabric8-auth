@@ -551,3 +551,21 @@ func (s *invitationServiceBlackBoxTest) TestAcceptFailsForUnknownAcceptCode() {
 	_, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), uuid.NewV4())
 	require.Error(s.T(), err)
 }
+
+func (s *invitationServiceBlackBoxTest) TestRescindInvitationByInvitationID() {
+	g := s.NewTestGraph()
+
+	// Create a test user - this will be the team admin
+	teamAdmin := g.CreateUser()
+
+	// Create a team
+	team := g.CreateTeam()
+
+	// Create another test user - we will invite this one to join the team
+	invitee := g.CreateUser()
+
+	inv := s.Graph.CreateInvitation(team, invitee, true)
+
+	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), inv.Invitation().InvitationID)
+	require.NoError(s.T(), err, "Error rescinding invitation")
+}
