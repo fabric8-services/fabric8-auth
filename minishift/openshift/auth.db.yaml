@@ -73,6 +73,10 @@ objects:
           resources:
             limits:
               memory: ${MEMORY_LIMIT}
+            resources:
+              requests:
+                cpu: 0.1m
+                memory: 10Mi
           securityContext:
             capabilities: {}
             privileged: false

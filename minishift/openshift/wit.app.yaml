@@ -13,6 +13,9 @@ parameters:
   value: wit
 - name: ENVIRONMENT
   value: dev
+- name: MEMORY_LIMIT
+  required: true
+  value: 1.5Gi
 metadata:
   name: ${SERVICE_NAME}
 objects:
@@ -95,7 +98,7 @@ objects:
               memory: 10Mi
             limits:
               cpu: 400m
-              memory: 1.5Gi
+              memory: ${MEMORY_LIMIT}
           terminationMessagePath: /dev/termination-log
         dnsPolicy: ClusterFirst
         restartPolicy: Always

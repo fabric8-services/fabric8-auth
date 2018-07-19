@@ -20,6 +20,9 @@ parameters:
   value: f8ui
 - name: ENVIRONMENT
   value: dev
+- name: MEMORY_LIMIT
+  required: true
+  value: 1.5Gi
 metadata:
   name: ${SERVICE_NAME}
 objects:
@@ -79,6 +82,13 @@ objects:
               port: 8080
             initialDelaySeconds: 120
             timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: 0.1m
+              memory: 10Mi
+            limits:
+              cpu: 400m
+              memory: ${MEMORY_LIMIT}
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}

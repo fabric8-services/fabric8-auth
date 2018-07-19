@@ -15,6 +15,9 @@ parameters:
 - name: SERVICE_NAME
   required: true
   value: auth
+- name: MEMORY_LIMIT
+  required: true
+  value: 1.5Gi
 metadata:
   name: ${SERVICE_NAME}
 objects:
@@ -97,21 +100,8 @@ objects:
               memory: 10Mi
             limits:
               cpu: 400m
-              memory: 1.5Gi
+              memory: ${MEMORY_LIMIT}
           terminationMessagePath: /dev/termination-log
-#          volumeMounts:
-#          - mountPath: /etc/fabric8/
-#            name: auth-configs
-#            readOnly: true
-#        volumes:
-#        - name: auth-configs
-#          secret:
-#            secretName: auth-config-files
-#            items:
-#            - key: service.account.secrets
-#              path: service-account-secrets.conf
-#            - key: oso.clusters
-#              path: oso-clusters.conf
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
