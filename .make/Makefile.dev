@@ -71,7 +71,7 @@ deploy-wit-secrets:
 	oc process -f $(TEMPLATE_DIR)/wit.config.yaml -o yaml | oc apply -f -
 
 .PHONY: clean-all
-clean-dev-all:
+clean-all:
 	oc delete all -l env=dev
 	oc delete project $(OC_PROJECT_NAME)
 

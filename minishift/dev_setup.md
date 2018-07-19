@@ -151,3 +151,14 @@ It won't deploy required secrets and postgres db again. It'll re-deploy auth ser
 ```bash
 make redeploy-auth
 ```
+
+#### Checking services logs
+
+List out all running services in MiniShift using
+```
+oc get pods
+```
+Wait until all pods are in running state and then copy pod name and use following command to see logs
+```
+oc logs <<pod name>> -f
+```
