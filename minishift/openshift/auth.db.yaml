@@ -1,0 +1,107 @@
+kind: Template
+apiVersion: v1
+parameters:
+- name: MEMORY_LIMIT
+  required: true
+  value: 512Mi
+- name: DATABASE_SERVICE_NAME
+  required: true
+  value: db-auth
+- name: POSTGRESQL_VERSION
+  required: true
+  value: "9.6"
+- name: REPLICAS
+  required: true
+  value: '1'
+- name: ENVIRONMENT
+  value: dev  
+metadata:
+  name: ${DATABASE_SERVICE_NAME}
+objects:
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    labels:
+      belongsTo: auth
+      env: ${ENVIRONMENT}
+      service: ${DATABASE_SERVICE_NAME}
+      version: ${POSTGRESQL_VERSION}
+    name: ${DATABASE_SERVICE_NAME}
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      service: ${DATABASE_SERVICE_NAME}
+    template:
+      metadata:
+        labels:
+          service: ${DATABASE_SERVICE_NAME}
+      spec:
+        containers:
+        - image: registry.centos.org/postgresql/postgresql:${POSTGRESQL_VERSION}
+          env:
+          - name: POSTGRESQL_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: auth
+                key: db.admin.password
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 1
+          name: ${DATABASE_SERVICE_NAME}
+          ports:
+          - containerPort: 5432
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - psql -h 127.0.0.1 -U postgres -q -d postgres -c
+                'SELECT 1'
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: ${MEMORY_LIMIT}
+            resources:
+              requests:
+                cpu: 0.1m
+                memory: 10Mi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${DATABASE_SERVICE_NAME}
+    labels:
+      belongsTo: auth
+      env: ${ENVIRONMENT}
+      service: ${DATABASE_SERVICE_NAME}
+  spec:
+    ports:
+      - name: "5432"
+        nodePort: 31001
+        port: 5432
+        targetPort: 5432
+    selector:
+      service: ${DATABASE_SERVICE_NAME}
+    type: NodePort

@@ -1,0 +1,111 @@
+DOCKER_REPO?=fabric8-services
+IMAGE_NAME?=fabric8-auth
+MINISHIFT_IP?=$(shell minishift ip)
+SHORT_COMMIT=$(shell git rev-parse --short HEAD)
+ifneq ($(GITUNTRACKEDCHANGES),)
+SHORT_COMMIT := $(SHORT_COMMIT)-dirty
+endif
+
+TIMESTAMP:=$(shell date +%s)
+TAG?=$(SHORT_COMMIT)-$(TIMESTAMP)
+
+TEMPLATE_DIR:=minishift/openshift
+POSTGRESQL_VERSION:=9.6
+
+.PHONY: deploy-auth
+deploy-auth: deploy-auth-secrets deploy-auth-db deploy-auth-only
+
+.PHONY: deploy-auth-only
+deploy-auth-only: build build-image
+	@echo "Deploys auth service ${TAG}"
+	@oc process -f $(TEMPLATE_DIR)/auth.app.yaml \
+		-p DOCKER_REPO=$(DOCKER_REPO) \
+		-p IMAGE_TAG=$(TAG) \
+		-p IMAGE_NAME=$(IMAGE_NAME) \
+		-o yaml | oc apply -f -
+
+.PHONY: deploy-auth-db
+deploy-auth-db:
+	@echo "Deploying auth-db service using postgresql:${POSTGRESQL_VERSION}"
+	@oc process -f $(TEMPLATE_DIR)/auth.db.yaml \
+		-p POSTGRESQL_VERSION=$(POSTGRESQL_VERSION) \
+		-o yaml | oc apply -f -
+
+.PHONY: deploy-wit
+deploy-wit: deploy-wit-secrets deploy-wit-db
+	@echo "Deploying wit service"
+	@oc process -f $(TEMPLATE_DIR)/wit.app.yaml -o yaml | oc apply -f -
+
+.PHONY: deploy-f8ui
+deploy-f8ui:
+	@echo "Deploying fabric8-ui service"
+	@oc process -f $(TEMPLATE_DIR)/fabric8-ui.app.yaml \
+	    -p FABRIC8_WIT_API_URL=http://wit-fabric8-services.${MINISHIFT_IP}.nip.io/api/ \
+	    -p FABRIC8_AUTH_API_URL=http://auth-fabric8-services.${MINISHIFT_IP}.nip.io/api/ \
+	    -p FABRIC8_REALM=fabric8-test \
+	    -p FABRIC8_FORGE_URL=https://forge.api.prod-preview.openshift.io/ \
+	    -p PROXY_PASS_URL="http://minishift.local:8443" \
+	    -o yaml | oc apply -f -
+
+.PHONY: deploy-wit-db
+deploy-wit-db:
+	@echo "Deploying wit-db service using postgresql:${POSTGRESQL_VERSION}"
+	@oc process -f $(TEMPLATE_DIR)/wit.db.yaml \
+		-p POSTGRESQL_VERSION=$(POSTGRESQL_VERSION) \
+		-o yaml | oc apply -f -
+
+.PHONY: build-image
+build-image: expose-minishift-docker-env
+	docker build -t $(DOCKER_REPO)/$(IMAGE_NAME):dev -f Dockerfile.dev .
+
+.PHONY: expose-minishift-docker-env
+expose-minishift-docker-env:
+	-eval `minishift docker-env`
+
+.PHONY: deploy-auth-secrets
+deploy-auth-secrets:
+	oc process -f $(TEMPLATE_DIR)/auth.config.yaml -o yaml | oc apply -f -
+
+.PHONY: deploy-wit-secrets
+deploy-wit-secrets:
+	oc process -f $(TEMPLATE_DIR)/wit.config.yaml -o yaml | oc apply -f -
+
+.PHONY: clean-all
+clean-all:
+	oc delete all -l env=dev
+	oc delete project $(OC_PROJECT_NAME)
+
+.PHONY: clean-all-resources
+clean-all-resources:
+	oc delete all -l env=dev
+
+.PHONY: clean-auth
+clean-auth:
+	oc delete all -l belongsTo=auth
+
+.PHONY: clean-wit
+clean-wit:
+	oc delete all -l belongsTo=wit
+
+.PHONY: clean-f8ui
+clean-f8ui:
+	oc delete all -l belongsTo=f8ui
+
+.PHONY: redeploy-auth
+redeploy-auth: build build-image deploy-auth-only
+
+.PHONY: minishift-start
+minishift-start:
+	minishift start --cpus 4 --memory 8GB
+	./minishift/check_hosts.sh
+	-eval `minishift docker-env` && oc login -u developer -p developer
+
+.PHONY: deploy-all
+deploy-all: prebuild-check deps generate build init-project clean-all-resources deploy-auth deploy-wit deploy-f8ui
+
+OC_PROJECT_NAME?=fabric8-services
+.PHONY: init-project
+init-project: ## Initializes new project with secrets
+	@echo "Setting up project '$(OC_PROJECT_NAME)' in the cluster (ignoring potential errors if entries already exist)"
+	@oc new-project $(OC_PROJECT_NAME) || true \
+    @oc project $(OC_PROJECT_NAME)
