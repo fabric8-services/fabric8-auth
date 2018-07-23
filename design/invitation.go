@@ -42,10 +42,10 @@ var _ = a.Resource("invitation", func() {
 	a.Action("rescindInvite", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.DELETE("/rescind/:invitationID"),
+			a.DELETE("/:inviteTo"),
 		)
 		a.Params(func() {
-			a.Param("invitationID", d.String, "Unique identifier for the invitation to the organization, team, security group or resource")
+			a.Param("inviteTo", d.String, "Unique identifier for the invitation to the organization, team, security group or resource")
 		})
 		a.Response(d.OK)
 		a.Response(d.Unauthorized, JSONAPIErrors)

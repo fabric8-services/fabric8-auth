@@ -335,20 +335,53 @@ func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string
 }
 
 // Rescind revokes an invitation request
-func (s *invitationServiceImpl) Rescind(ctx context.Context, issuingUserID, invitationID uuid.UUID) error {
-
+func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error {
 	err := s.ExecuteInTransaction(func() error {
 		// Locate the invitation
-		exists, err := s.Repositories().InvitationRepository().CheckExists(ctx, invitationID)
+		inv, err := s.Repositories().InvitationRepository().Load(ctx, invitationID)
 		if err != nil {
-			return err
+			return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for invitation", invitationID.String()), invitationID.String())
 		}
 
-		// Delete the invitation
-		if exists {
-			return s.Repositories().InvitationRepository().Delete(ctx, invitationID)
+		// Create the permission service
+		permService := s.Services().PermissionService()
+
+		if inv.InviteTo != nil {
+			// Lookup identity with InviteTo ID
+			inviteToIdentity, err := s.Repositories().Identities().Load(ctx, *inv.InviteTo)
+			if err != nil {
+				return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for organization, team or security group", inv.InviteTo.String()), inv.InviteTo.String())
+			}
+
+			if !inviteToIdentity.IdentityResourceID.Valid {
+				return errors.NewNotFoundError(fmt.Sprintf("specified identity '%s' has no resource", inv.InviteTo.String()), inv.InviteTo.String())
+			}
+
+			identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
+			}
+
+			// Confirm that the rescinding user has the necessary scope to manage members for the organization, team or security group
+			err = permService.RequireScope(ctx, rescindingUserID, inviteToIdentity.IdentityResourceID.String, authorization.ScopeForManagingRolesInResourceType(identityResource.ResourceType.Name))
+			if err != nil {
+				return err
+			}
+		} else if inv.ResourceID != nil {
+			// Lookup a resource with the ResourceID value
+			inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, *inv.ResourceID)
+			if err != nil {
+				return errors.NewNotFoundError(fmt.Sprintf("invalid identifier '%s' provided for resource", *inv.ResourceID), *inv.ResourceID)
+			}
+
+			// Confirm that the rescinding user has the manage members scope for the resource
+			err = permService.RequireScope(ctx, rescindingUserID, inviteToResource.ResourceID, authorization.ScopeForManagingRolesInResourceType(inviteToResource.ResourceType.Name))
+			if err != nil {
+				return err
+			}
 		}
-		return nil
+		// Delete the invitation
+		return s.Repositories().InvitationRepository().Delete(ctx, invitationID)
 	})
 	return err
 }

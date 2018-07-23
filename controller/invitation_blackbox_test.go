@@ -295,10 +295,13 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
 }
 
 func (s *TestInvitationREST) TestRescindInvitation() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	invitee := g.CreateUser()
-	inv := g.CreateInvitation(team, invitee)
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	inv := s.Graph.CreateInvitation(team, invitee)
+
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
 
 	service, controller := s.SecuredController(s.testIdentity)
 
@@ -310,6 +313,53 @@ func (s *TestInvitationREST) TestRescindInvitation() {
 	_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
+func (s *TestInvitationREST) TestRescindInvitationFailsForUnauthorized() {
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	inv := s.Graph.CreateInvitation(team, invitee)
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response, _ := test.RescindInviteInvitationInternalServerError(s.T(), service.Context, service, controller, inv.Invitation().InvitationID.String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
+
+	_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
+}
+
+func (s *TestInvitationREST) TestRescindInvitationFailsForInvalidID() {
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	s.Graph.CreateInvitation(team, invitee)
+
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response, _ := test.RescindInviteInvitationInternalServerError(s.T(), service.Context, service, controller, uuid.NewV4().String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
+}
+
+func (s *TestInvitationREST) TestRescindInvitationFailsForNonUUIDValue() {
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	s.Graph.CreateInvitation(team, invitee)
+
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response, _ := test.RescindInviteInvitationInternalServerError(s.T(), service.Context, service, controller, "foo")
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
 }
 
 func boolPointer(value bool) *bool {

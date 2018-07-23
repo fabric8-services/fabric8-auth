@@ -552,20 +552,64 @@ func (s *invitationServiceBlackBoxTest) TestAcceptFailsForUnknownAcceptCode() {
 	require.Error(s.T(), err)
 }
 
-func (s *invitationServiceBlackBoxTest) TestRescindInvitationByInvitationID() {
-	g := s.NewTestGraph()
-
+func (s *invitationServiceBlackBoxTest) TestRescindInvitationOKForInvitationID() {
 	// Create a test user - this will be the team admin
-	teamAdmin := g.CreateUser()
+	teamAdmin := s.Graph.CreateUser()
 
 	// Create a team
-	team := g.CreateTeam()
+	team := s.Graph.CreateTeam()
 
 	// Create another test user - we will invite this one to join the team
-	invitee := g.CreateUser()
+	invitee := s.Graph.CreateUser()
+
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(teamAdmin.Identity(), r.Role())
 
 	inv := s.Graph.CreateInvitation(team, invitee, true)
 
 	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), inv.Invitation().InvitationID)
 	require.NoError(s.T(), err, "Error rescinding invitation")
+
+	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
+func (s *invitationServiceBlackBoxTest) TestRescindUnprivilegedInvitationFailsForInvitationID() {
+	// Create a test user - this will be the team admin
+	teamAdmin := s.Graph.CreateUser()
+
+	// Create a team
+	team := s.Graph.CreateTeam()
+
+	// Create another test user - we will invite this one to join the team
+	invitee := s.Graph.CreateUser()
+
+	inv := s.Graph.CreateInvitation(team, invitee, true)
+
+	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), inv.Invitation().InvitationID)
+	require.Error(s.T(), err, "Error rescinding invitation")
+
+	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
+}
+
+func (s *invitationServiceBlackBoxTest) TestRescindInvitationFailsForInvalidInvitationID() {
+	// Create a test user - this will be the team admin
+	teamAdmin := s.Graph.CreateUser()
+
+	// Create a team
+	team := s.Graph.CreateTeam()
+
+	// Create another test user - we will invite this one to join the team
+	invitee := s.Graph.CreateUser()
+
+	inv := s.Graph.CreateInvitation(team, invitee, true)
+
+	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), uuid.NewV4())
+	require.Error(s.T(), err, "Error rescinding invitation")
+
+	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
 }

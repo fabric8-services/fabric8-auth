@@ -88,7 +88,7 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	invitationID, err := uuid.FromString(ctx.InvitationID)
+	invitationID, err := uuid.FromString(ctx.InviteTo)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -106,8 +106,8 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"issuing-user-id": *currentIdentity,
-		"invitation-id":   ctx.InvitationID,
+		"rescinding-user-id": *currentIdentity,
+		"invitation-id":      ctx.InviteTo,
 	}, "invitation rescind")
 
 	return ctx.OK([]byte{})
