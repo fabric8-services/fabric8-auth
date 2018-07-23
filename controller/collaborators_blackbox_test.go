@@ -278,6 +278,10 @@ func (rest *TestCollaboratorsREST) TestAddCollaboratorsOk() {
 	_, actualUsers = test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	// then
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID}, actualUsers)
+
+	// try adding again, should still return OK
+	test.AddCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, rest.testIdentity2.ID.String())
+
 }
 
 func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsOk() {
@@ -294,6 +298,19 @@ func (rest *TestCollaboratorsREST) TestAddManyCollaboratorsOk() {
 	_, actualUsers = test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
 	// then
 	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID, rest.testIdentity3.ID}, actualUsers)
+
+	// If an identity is already a contibutor, do not bother.
+
+	// given
+	identity4 := rest.Graph.CreateUser().Identity()
+	payload = &app.AddManyCollaboratorsPayload{Data: []*app.UpdateUserID{{ID: rest.testIdentity1.ID.String(), Type: idnType}, {ID: rest.testIdentity2.ID.String(), Type: idnType}, {ID: identity4.ID.String(), Type: idnType}}}
+	test.AddManyCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, payload)
+
+	// when
+	_, actualUsers = test.ListCollaboratorsOK(rest.T(), svc.Context, svc, ctrl, rest.spaceID, nil, nil, nil, nil)
+	// then
+	rest.checkCollaborators([]uuid.UUID{rest.testIdentity1.ID, rest.testIdentity2.ID, rest.testIdentity3.ID, identity4.ID}, actualUsers)
+
 }
 
 func (rest *TestCollaboratorsREST) TestAddCollaboratorsUnauthorizedIfNoToken() {
