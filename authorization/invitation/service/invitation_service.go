@@ -27,7 +27,7 @@ type InvitationConfiguration interface {
 
 type invitationServiceImpl struct {
 	base.BaseService
-	config InvitationConfiguration
+	config     InvitationConfiguration
 	witService service.WITService
 }
 
@@ -35,7 +35,7 @@ func NewInvitationService(context servicecontext.ServiceContext, config Invitati
 	return &invitationServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,
-		witService:  witService,}
+		witService:  witService}
 }
 
 // Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group

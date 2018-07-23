@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
@@ -19,7 +20,6 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"

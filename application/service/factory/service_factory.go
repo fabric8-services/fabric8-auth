@@ -19,8 +19,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
-	"github.com/pkg/errors"
 	witservice "github.com/fabric8-services/fabric8-auth/wit/service"
+	"github.com/pkg/errors"
 )
 
 type serviceContextImpl struct {

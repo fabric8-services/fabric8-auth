@@ -13,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
+	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -27,8 +28,6 @@ import (
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	svc "github.com/fabric8-services/fabric8-auth/application/service"
-
 )
 
 // UsersController implements the users resource.
@@ -727,7 +726,7 @@ func (c *UsersController) updateFeatureLevel(ctx context.Context, user *accountr
 		} else {
 			// if the level is 'internal', we need to check against the email address to verify that the user is a Red Hat employee
 			if *updatedFeatureLevel == "internal" &&
-			// do not allow if email is not verified or if email belongs to another domain
+				// do not allow if email is not verified or if email belongs to another domain
 				(!user.EmailVerified || !strings.HasSuffix(user.Email, c.config.GetInternalUsersEmailAddressSuffix())) {
 				log.Error(ctx, map[string]interface{}{"user_id": user.ID, "user_email": user.Email}, "user is not an employee")
 				return errors.NewForbiddenError("User is not allowed to opt-in for the 'internal' level of features.")
@@ -749,8 +748,8 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, identityID 
 				FullName:              ctx.Payload.Data.Attributes.FullName,
 				ImageURL:              ctx.Payload.Data.Attributes.ImageURL,
 				RegistrationCompleted: ctx.Payload.Data.Attributes.RegistrationCompleted,
-				URL:                   ctx.Payload.Data.Attributes.URL,
-				Username:              ctx.Payload.Data.Attributes.Username,
+				URL:      ctx.Payload.Data.Attributes.URL,
+				Username: ctx.Payload.Data.Attributes.Username,
 			},
 			Type: ctx.Payload.Data.Type,
 		},

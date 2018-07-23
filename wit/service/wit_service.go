@@ -6,20 +6,20 @@ import (
 	"net/url"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/app"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit/witservice"
 
-	goaclient "github.com/goadesign/goa/client"
-	"github.com/pkg/errors"
-	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/goadesign/goa/uuid"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/wit"
+	goaclient "github.com/goadesign/goa/client"
+	"github.com/goadesign/goa/uuid"
+	"github.com/pkg/errors"
 )
 
 // witServiceImpl is the default implementation of WITService.
@@ -51,8 +51,8 @@ func (r *witServiceImpl) UpdateWITUser(ctx context.Context, updatePayload *app.U
 				FullName:              updatePayload.Data.Attributes.FullName,
 				ImageURL:              updatePayload.Data.Attributes.ImageURL,
 				RegistrationCompleted: updatePayload.Data.Attributes.RegistrationCompleted,
-				URL:                   updatePayload.Data.Attributes.URL,
-				Username:              updatePayload.Data.Attributes.Username,
+				URL:      updatePayload.Data.Attributes.URL,
+				Username: updatePayload.Data.Attributes.Username,
 			},
 			Type: updatePayload.Data.Type,
 		},

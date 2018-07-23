@@ -16,6 +16,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -31,7 +32,6 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"github.com/fabric8-services/fabric8-auth/application/service"
 )
 
 type Configuration interface {
@@ -677,7 +677,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_identity_id": keycloakIdentityID,
-			"err":                  err,
+			"err": err,
 		}, "unable to  query for an identity by ID")
 		return nil, false, errors.New("Error during querying for an identity by ID " + err.Error())
 	}
@@ -698,7 +698,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,
-				"err":                  err,
+				"err": err,
 			}, "unable to create user/identity")
 			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
 		}
