@@ -96,16 +96,14 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForInvalidID() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
-	g := s.NewTestGraph()
-
 	// Create a test user - this will be the inviter
-	inviter := g.CreateUser()
+	inviter := s.Graph.CreateUser()
 
 	// Create another test user - we will invite this one to accept a role for the resource
-	invitee := g.CreateUser()
+	invitee := s.Graph.CreateUser()
 	inviteeID := invitee.IdentityID()
 
-	space := g.CreateSpace()
+	space := s.Graph.CreateSpace()
 	space.AddAdmin(inviter)
 
 	// Create an invitation
@@ -308,19 +306,18 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationFailsForNonMembership
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	teamAdmin := g.CreateUser()
+	team := s.Graph.CreateTeam()
+	teamAdmin := s.Graph.CreateUser()
 
-	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 
 	team.AssignRole(teamAdmin.Identity(), r.Role())
 
-	invitee1 := g.CreateUser()
+	invitee1 := s.Graph.CreateUser()
 	invitee1ID := invitee1.IdentityID()
 
-	invitee2 := g.CreateUser()
+	invitee2 := s.Graph.CreateUser()
 	invitee2ID := invitee2.IdentityID()
 
 	invitations := []invitation.Invitation{
@@ -366,11 +363,10 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	teamAdmin := g.CreateUser()
-	user := g.CreateUser()
-	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	team := s.Graph.CreateTeam()
+	teamAdmin := s.Graph.CreateUser()
+	user := s.Graph.CreateUser()
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 
 	team.AssignRole(teamAdmin.Identity(), r.Role())
@@ -402,11 +398,10 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueTeamMemberInvite() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	teamAdmin := g.CreateUser()
-	user := g.CreateUser()
-	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	team := s.Graph.CreateTeam()
+	teamAdmin := s.Graph.CreateUser()
+	user := s.Graph.CreateUser()
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 
 	team.AssignRole(teamAdmin.Identity(), r.Role())
@@ -433,15 +428,14 @@ func (s *invitationServiceBlackBoxTest) TestIssueTeamMemberInvite() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueSpaceInvite() {
-	g := s.NewTestGraph()
-	space := g.CreateSpace()
-	spaceAdmin := g.CreateUser()
+	space := s.Graph.CreateSpace()
+	spaceAdmin := s.Graph.CreateUser()
 	space.AddAdmin(spaceAdmin)
 
-	invitee := g.CreateUser()
+	invitee := s.Graph.CreateUser()
 	id := invitee.IdentityID()
 
-	r := g.CreateRole("foo", g.LoadResourceType(authorization.ResourceTypeSpace))
+	r := s.Graph.CreateRole("foo", s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
 
 	invitations := []invitation.Invitation{
 		{

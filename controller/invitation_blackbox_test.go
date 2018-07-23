@@ -65,16 +65,15 @@ func TestRunInvitationREST(t *testing.T) {
 func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 	var err error
 
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
+	team := s.Graph.CreateTeam()
 
-	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 	team.AssignRole(&s.testIdentity, r.Role())
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	invitee := g.CreateUser()
+	invitee := s.Graph.CreateUser()
 	inviteeID := invitee.IdentityID().String()
 
 	payload := &app.CreateInviteInvitationPayload{
@@ -104,16 +103,15 @@ func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
 	var err error
 
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
+	team := s.Graph.CreateTeam()
 
-	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 	team.AssignRole(&s.testIdentity, r.Role())
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	invitee := g.CreateUser()
+	invitee := s.Graph.CreateUser()
 	inviteeID := invitee.IdentityID().String()
 
 	payload := &app.CreateInviteInvitationPayload{
@@ -249,10 +247,9 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 }
 
 func (s *TestInvitationREST) TestAcceptInvitation() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	invitee := g.CreateUser()
-	inv := g.CreateInvitation(team, invitee)
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	inv := s.Graph.CreateInvitation(team, invitee)
 
 	service, controller := s.SecuredController(s.testIdentity)
 
@@ -280,10 +277,9 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
 }
 
 func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	invitee := g.CreateUser()
-	g.CreateInvitation(team, invitee)
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	s.Graph.CreateInvitation(team, invitee)
 
 	service, controller := s.SecuredController(s.testIdentity)
 
