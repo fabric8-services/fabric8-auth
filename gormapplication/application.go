@@ -169,6 +169,10 @@ func (g *GormDB) NotificationService() service.NotificationService {
 	return g.serviceFactory.NotificationService()
 }
 
+func (g *GormDB) WITService() service.WITService {
+	return g.serviceFactory.WITService()
+}
+
 func (g *GormBase) DB() *gorm.DB {
 	return g.db
 }

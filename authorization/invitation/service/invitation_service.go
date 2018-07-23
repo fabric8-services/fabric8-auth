@@ -16,28 +16,26 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
-	"github.com/fabric8-services/fabric8-auth/wit"
-	"github.com/fabric8-services/fabric8-auth/wit/witservice"
-	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
 	"strings"
 )
 
 type InvitationConfiguration interface {
 	GetAuthServiceURL() string
-	GetWITURL() (string, error)
 	IsPostgresDeveloperModeEnabled() bool
 }
 
 type invitationServiceImpl struct {
 	base.BaseService
 	config InvitationConfiguration
+	witService service.WITService
 }
 
-func NewInvitationService(context servicecontext.ServiceContext, config InvitationConfiguration) service.InvitationService {
+func NewInvitationService(context servicecontext.ServiceContext, config InvitationConfiguration, witService service.WITService) service.InvitationService {
 	return &invitationServiceImpl{
 		BaseService: base.NewBaseService(context),
-		config:      config}
+		config:      config,
+		witService:  witService,}
 }
 
 // Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group
@@ -244,14 +242,9 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	var spaceName string
 	var err error
 
-	witURL, err := s.config.GetWITURL()
-	if err != nil {
-		return err
-	}
-
 	// Every team *should* have a parent space, but we'll put this check here just in case
 	if !s.config.IsPostgresDeveloperModeEnabled() && team.IdentityResource.ParentResourceID != nil {
-		spaceName, err = lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
+		spaceName, _, err = s.witService.GetSpaceNameAndOwnedBy(ctx, *team.IdentityResource.ParentResourceID)
 		if err != nil {
 			return err
 		}
@@ -279,13 +272,8 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	var spaceName string
 	var err error
 
-	witURL, err := s.config.GetWITURL()
-	if err != nil {
-		return err
-	}
-
 	if !s.config.IsPostgresDeveloperModeEnabled() {
-		spaceName, err = lookupSpaceName(ctx, witURL, space.ResourceID)
+		spaceName, _, err = s.witService.GetSpaceNameAndOwnedBy(ctx, space.ResourceID)
 		if err != nil {
 			return err
 		}
@@ -304,33 +292,6 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	}
 
 	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
-}
-
-// lookupSpaceName talks to the WIT service to retrieve a space record for the specified spaceID, then
-// returns the name of the space
-func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string, error) {
-
-	remoteWITService, err := wit.CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
-	if err != nil {
-		return "", err
-	}
-
-	spaceIDUUID, err := goauuid.FromString(spaceID)
-	if err != nil {
-		return "", err
-	}
-
-	response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath(spaceIDUUID), nil, nil)
-	if err != nil {
-		return "", err
-	}
-
-	spaceSingle, err := remoteWITService.DecodeSpaceSingle(response)
-	if err != nil {
-		return "", err
-	}
-
-	return *spaceSingle.Data.Attributes.Name, nil
 }
 
 // Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for

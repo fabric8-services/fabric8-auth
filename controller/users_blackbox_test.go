@@ -56,7 +56,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
-	s.controller.RemoteWITService = &dummyRemoteWITService{}
+	s.controller.WITService = &dummyRemoteWITService{}
 	s.tenantService = &dummyTenantService{}
 }
 
@@ -64,7 +64,7 @@ func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersCo
 	svc := testsupport.UnsecuredService("Users-Service")
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
-	controller.RemoteWITService = &dummyRemoteWITService{}
+	controller.WITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
@@ -75,7 +75,7 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
-	controller.RemoteWITService = &dummyRemoteWITService{}
+	controller.WITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
@@ -83,7 +83,7 @@ func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identi
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
-	controller.RemoteWITService = &dummyRemoteWITService{}
+	controller.WITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
@@ -91,14 +91,14 @@ func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identi
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = &DummyEmailVerificationService{success: emailSuccess}
-	controller.RemoteWITService = &dummyRemoteWITService{}
+	controller.WITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
 func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.RemoteWITService = &dummyRemoteWITService{}
+	controller.WITService = &dummyRemoteWITService{}
 	return svc, controller
 }
 
@@ -1403,12 +1403,16 @@ func (s *UsersControllerTestSuite) generateUsersTag(allUsers app.UserArray) stri
 
 type dummyRemoteWITService struct{}
 
-func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
 	return nil
 }
 
-func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, identity *accountrepo.Identity, witURL string, identityID string) error {
+func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, identity *accountrepo.Identity, identityID string) error {
 	return nil
+}
+
+func (r *dummyRemoteWITService) GetSpaceNameAndOwnedBy(ctx context.Context, spaceID string) (name, ownedBy string, e error) {
+	return "", "", nil
 }
 
 type dummyKeycloakLinkService struct{}

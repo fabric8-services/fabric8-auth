@@ -22,7 +22,6 @@ type invitationServiceBlackBoxTest struct {
 	invitationRepo invitationrepo.InvitationRepository
 	identityRepo   account.IdentityRepository
 	orgService     service.OrganizationService
-	witURL         string
 }
 
 func TestRunInvitationServiceBlackBoxTest(t *testing.T) {

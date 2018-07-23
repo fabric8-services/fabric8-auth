@@ -20,6 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
 	"github.com/pkg/errors"
+	witservice "github.com/fabric8-services/fabric8-auth/wit/service"
 )
 
 type serviceContextImpl struct {
@@ -139,7 +140,7 @@ func (f *ServiceFactory) OrganizationService() service.OrganizationService {
 }
 
 func (f *ServiceFactory) InvitationService() service.InvitationService {
-	return invitationservice.NewInvitationService(f.getContext(), f.config)
+	return invitationservice.NewInvitationService(f.getContext(), f.config, f.getContext().Services().WITService())
 }
 
 func (f *ServiceFactory) PermissionService() service.PermissionService {
@@ -168,4 +169,8 @@ func (f *ServiceFactory) UserService() service.UserService {
 
 func (f *ServiceFactory) NotificationService() service.NotificationService {
 	return notificationservice.NewNotificationService(f.getContext(), f.config)
+}
+
+func (f *ServiceFactory) WITService() service.WITService {
+	return witservice.NewWITService(f.getContext(), f.config)
 }

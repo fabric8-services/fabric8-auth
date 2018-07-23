@@ -27,12 +27,11 @@ import (
 	keycloaktoken "github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
-	"github.com/fabric8-services/fabric8-auth/wit"
-
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 )
 
 type Configuration interface {
@@ -60,7 +59,7 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		Users:                  users,
 		TokenManager:           tokenManager,
 		App:                    app,
-		RemoteWITService:       &wit.RemoteWITServiceCaller{},
+		WITService:             app.WITService(),
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
@@ -73,7 +72,7 @@ type KeycloakOAuthProvider struct {
 	Users                  account.UserRepository
 	TokenManager           token.Manager
 	App                    application.Application
-	RemoteWITService       wit.RemoteWITService
+	WITService             service.WITService
 	keycloakProfileService UserProfileService
 	keycloakTokenService   keycloaktoken.TokenService
 	osoSubscriptionManager OSOSubscriptionManager
@@ -275,7 +274,6 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config Configuration) (*string, *oauth2.Token, error) {
-
 	witURL, err := config.GetWITURL()
 	if err != nil {
 		return nil, nil, autherrors.NewInternalError(ctx, err)
@@ -366,7 +364,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	// new user for WIT
 	if newUser {
-		err = keycloak.RemoteWITService.CreateWITUser(ctx, identity, witURL, identity.ID.String())
+		err = keycloak.WITService.CreateWITUser(ctx, identity, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
@@ -679,7 +677,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_identity_id": keycloakIdentityID,
-			"err": err,
+			"err":                  err,
 		}, "unable to  query for an identity by ID")
 		return nil, false, errors.New("Error during querying for an identity by ID " + err.Error())
 	}
@@ -700,7 +698,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,
-				"err": err,
+				"err":                  err,
 			}, "unable to create user/identity")
 			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
 		}
@@ -759,7 +757,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, identi
 			},
 		},
 	}
-	return keycloak.RemoteWITService.UpdateWITUser(ctx, updateUserPayload, witURL, identityID)
+	return keycloak.WITService.UpdateWITUser(ctx, updateUserPayload, identityID)
 }
 
 func generateGravatarURL(email string) (string, error) {

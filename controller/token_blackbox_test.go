@@ -19,8 +19,6 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
-	"github.com/fabric8-services/fabric8-auth/wit"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -77,7 +75,7 @@ func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = manager
 	loginService.App = rest.Application
-	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
+	loginService.WITService = rest.Application.WITService()
 
 	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, rest.Configuration)
 }
@@ -101,7 +99,7 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = testtoken.TokenManager
 	loginService.App = rest.Application
-	loginService.RemoteWITService = &wit.RemoteWITServiceCaller{}
+	loginService.WITService = rest.Application.WITService()
 	loginService.exchangeStrategy = rest.exchangeStrategy
 
 	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
