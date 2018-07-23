@@ -33,7 +33,7 @@ func (m RPTToken) TableName() string {
 	return "rpt_token"
 }
 
-// GormResourceRepository is the implementation of the storage interface for Resource.
+// GormRPTTokenRepository is the implementation of the storage interface for RPTToken.
 type GormRPTTokenRepository struct {
 	db *gorm.DB
 }
@@ -59,19 +59,6 @@ type RPTTokenRepository interface {
 
 // CRUD Functions
 
-// Load returns a single RPTToken as a Database Model
-func (m *GormRPTTokenRepository) Load(ctx context.Context, id uuid.UUID) (*RPTToken, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "rpt_token", "load"}, time.Now())
-
-	var native RPTToken
-	err := m.db.Table(m.TableName()).Where("token_id = ?", id).Find(&native).Error
-	if err == gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(errors.NewNotFoundError("rpt_token", id.String()))
-	}
-
-	return &native, errs.WithStack(err)
-}
-
 // CheckExists returns true if the given ID exists otherwise returns an error
 func (m *GormRPTTokenRepository) CheckExists(ctx context.Context, id uuid.UUID) (bool, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "rpt_token", "exists"}, time.Now())
@@ -92,6 +79,19 @@ func (m *GormRPTTokenRepository) CheckExists(ctx context.Context, id uuid.UUID) 
 		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
 	}
 	return exists, nil
+}
+
+// Load returns a single RPTToken as a Database Model
+func (m *GormRPTTokenRepository) Load(ctx context.Context, id uuid.UUID) (*RPTToken, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "rpt_token", "load"}, time.Now())
+
+	var native RPTToken
+	err := m.db.Table(m.TableName()).Where("token_id = ?", id).Find(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(errors.NewNotFoundError("rpt_token", id.String()))
+	}
+
+	return &native, errs.WithStack(err)
 }
 
 // Create creates a new record.
@@ -126,13 +126,22 @@ func (m *GormRPTTokenRepository) Create(ctx context.Context, token *RPTToken) er
 func (m *GormRPTTokenRepository) Save(ctx context.Context, token *RPTToken) error {
 	defer goa.MeasureSince([]string{"goa", "db", "rpt_token", "save"}, time.Now())
 
-	err := m.db.Save(token).Error
+	obj, err := m.Load(ctx, token.TokenID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"token_id": token.TokenID,
+			"err":      err,
+		}, "unable to update token")
+		return errs.WithStack(err)
+	}
 
+	err = m.db.Model(obj).Updates(token).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"token_id": token.TokenID,
 			"err":      err,
 		}, "unable to update the token")
+
 		return errs.WithStack(err)
 	}
 

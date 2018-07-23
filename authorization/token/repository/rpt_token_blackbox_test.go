@@ -98,3 +98,13 @@ func (s *tokenBlackBoxTest) TestCreateFailsForDuplicateKey() {
 	err := s.repo.Create(s.Ctx, token.Token())
 	require.Error(s.T(), err, "create token should fail for token with duplicate key")
 }
+
+func (s *tokenBlackBoxTest) TestSaveFailsForDeletedToken() {
+	token := s.Graph.CreateRPTToken()
+
+	err := s.repo.Delete(s.Ctx, token.TokenID())
+	require.NoError(s.T(), err)
+
+	err = s.repo.Save(s.Ctx, token.Token())
+	require.Error(s.T(), err, "save token should fail for deleted token")
+}
