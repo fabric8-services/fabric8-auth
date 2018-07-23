@@ -290,6 +290,7 @@ dev: prebuild-check deps generate $(FRESH_BIN)
 	AUTH_DEVELOPER_MODE_ENABLED=true $(FRESH_BIN)
 
 include ./.make/test.mk
+include ./.make/Makefile.dev
 
 ifneq ($(OS),Windows_NT)
 ifdef DOCKER_BIN

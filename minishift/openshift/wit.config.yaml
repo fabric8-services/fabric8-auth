@@ -1,0 +1,34 @@
+kind: Template
+apiVersion: v1
+parameters:
+- name: SERVICE_NAME
+  required: true
+  value: wit
+- name: ENVIRONMENT
+  value: dev
+metadata:
+  name: ${SERVICE_NAME}
+objects:
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: ${SERVICE_NAME}
+    labels:
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+  type: Opaque
+  data:
+    db.host: ZGItd2l0
+    db.port: NTQzMg==
+    developer.mode.enabled: dHJ1ZQ==
+    db.admin.password: bXlzZWNyZXRwYXNzd29yZA==
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: ${SERVICE_NAME}
+    labels:
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+  type: Opaque
+  data:
+    auth.serviceurl: http://auth
