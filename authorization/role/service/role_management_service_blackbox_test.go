@@ -357,9 +357,8 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminOK() {
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminFailsExistingAssignment() {
-	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace()
-	spaceCreator := g.CreateUser()
+	newSpace := s.Graph.CreateSpace()
+	spaceCreator := s.Graph.CreateUser()
 	s.addNoisyAssignments()
 
 	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
