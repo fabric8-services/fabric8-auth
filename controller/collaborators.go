@@ -16,6 +16,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	errs "github.com/pkg/errors"
+
 	"fmt"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -199,7 +201,18 @@ func (c *CollaboratorsController) addContributors(ctx context.Context, currentId
 		// Have to use ForceAssign() because Assign() requires assignees to already have any role in the space
 		err = c.app.RoleManagementService().ForceAssign(ctx, identityID, authorization.SpaceContributorRole, res)
 		if err != nil {
-			return err
+
+			if _, ok := errs.Cause(err).(autherrors.DataConflictError); ok {
+				// If the error occured because the user is already a contributor
+				// we log the error, and proceed - instead of returning a non-200 response.
+				log.Warn(ctx, map[string]interface{}{
+					"err":      err,
+					"identity": contributor.ID,
+					"resource": res.ResourceID,
+				}, "identity already has the contributor role(s) associated with the resource")
+			} else {
+				return err
+			}
 		}
 	}
 
