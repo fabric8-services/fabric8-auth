@@ -91,7 +91,8 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 	invitationID, err := uuid.FromString(ctx.InviteTo)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"err": err,
+			"err":          err,
+			"invitationID": invitationID,
 		}, "failed to rescind invitation, invalid invitation id")
 	}
 
@@ -99,7 +100,8 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"err": err,
+			"err":          err,
+			"invitationID": invitationID,
 		}, "failed to rescind invitation")
 
 		return jsonapi.JSONErrorResponse(ctx, err)

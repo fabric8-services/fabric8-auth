@@ -337,7 +337,7 @@ func (s *TestInvitationREST) TestRescindInvitationFailsForInvalidID() {
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	response, _ := test.RescindInviteInvitationInternalServerError(s.T(), service.Context, service, controller, uuid.NewV4().String())
+	response, _ := test.RescindInviteInvitationNotFound(s.T(), service.Context, service, controller, uuid.NewV4().String())
 
 	require.NotNil(s.T(), response.Header().Get("Location"))
 }
@@ -353,7 +353,7 @@ func (s *TestInvitationREST) TestRescindInvitationFailsForNonUUIDValue() {
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	response, _ := test.RescindInviteInvitationInternalServerError(s.T(), service.Context, service, controller, "foo")
+	response, _ := test.RescindInviteInvitationNotFound(s.T(), service.Context, service, controller, "foo")
 
 	require.NotNil(s.T(), response.Header().Get("Location"))
 }

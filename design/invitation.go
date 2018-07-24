@@ -49,6 +49,7 @@ var _ = a.Resource("invitation", func() {
 		})
 		a.Response(d.OK)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})

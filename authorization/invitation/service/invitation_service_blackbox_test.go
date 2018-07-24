@@ -584,6 +584,7 @@ func (s *invitationServiceBlackBoxTest) TestRescindUnprivilegedInvitationFailsFo
 
 	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), inv.Invitation().InvitationID)
 	require.Error(s.T(), err, "Error rescinding invitation")
+	require.IsType(s.T(), errors.ForbiddenError{}, err)
 
 	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
 	require.NoError(s.T(), err)
@@ -603,6 +604,7 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitationFailsForInvalidInvi
 
 	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), uuid.NewV4())
 	require.Error(s.T(), err, "Error rescinding invitation")
+	require.IsType(s.T(), errors.NotFoundError{}, err)
 
 	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
 	require.NoError(s.T(), err)
