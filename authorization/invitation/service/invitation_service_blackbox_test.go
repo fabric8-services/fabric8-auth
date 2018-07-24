@@ -609,3 +609,44 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitationFailsForInvalidInvi
 	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
 	require.NoError(s.T(), err)
 }
+
+func (s *invitationServiceBlackBoxTest) TestRescindInvitationOKForResource() {
+	// Create a test user - this will be the team admin
+	teamAdmin := s.Graph.CreateUser()
+
+	// Create resource space
+	space := s.Graph.CreateSpace()
+	space.AddAdmin(teamAdmin)
+
+	// Create another test user - we will invite this one to join space
+	invitee := s.Graph.CreateUser()
+
+	inv := s.Graph.CreateInvitation(space, invitee, true)
+
+	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), inv.Invitation().InvitationID)
+	require.NoError(s.T(), err, "Error rescinding invitation")
+
+	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
+func (s *invitationServiceBlackBoxTest) TestRescindUnauthorisedInvitationFailsForResource() {
+	// Create a test user - this will be the team admin
+	teamAdmin := s.Graph.CreateUser()
+
+	// Create resource space
+	space := s.Graph.CreateSpace()
+
+	// Create another test user - we will invite this one to join space
+	invitee := s.Graph.CreateUser()
+
+	inv := s.Graph.CreateInvitation(space, invitee, true)
+
+	err := s.Application.InvitationService().Rescind(s.Ctx, teamAdmin.IdentityID(), inv.Invitation().InvitationID)
+	require.Error(s.T(), err, "Error rescinding invitation")
+	require.IsType(s.T(), errors.ForbiddenError{}, err)
+
+	_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
+}
