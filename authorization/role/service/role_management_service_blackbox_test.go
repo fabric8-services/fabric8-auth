@@ -356,6 +356,23 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminOK() {
 	s.checkRoleAssignments([]uuid.UUID{spaceCreator.Identity().ID}, "admin", newSpace.SpaceID())
 }
 
+func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminFailsExistingAssignment() {
+	newSpace := s.Graph.CreateSpace()
+	spaceCreator := s.Graph.CreateUser()
+	s.addNoisyAssignments()
+
+	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
+	require.NoError(s.T(), err)
+
+	// Check the role was assigned
+	s.checkRoleAssignments([]uuid.UUID{spaceCreator.Identity().ID}, "admin", newSpace.SpaceID())
+
+	err = s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
+
+}
+
 func (s *roleManagementServiceBlackboxTest) TestAssignUnknownRoleAsAdminFails() {
 	g := s.DBTestSuite.NewTestGraph()
 	newSpace := g.CreateSpace()
