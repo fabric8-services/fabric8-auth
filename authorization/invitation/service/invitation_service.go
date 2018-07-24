@@ -27,15 +27,13 @@ type InvitationConfiguration interface {
 
 type invitationServiceImpl struct {
 	base.BaseService
-	config     InvitationConfiguration
-	witService service.WITService
+	config InvitationConfiguration
 }
 
-func NewInvitationService(context servicecontext.ServiceContext, config InvitationConfiguration, witService service.WITService) service.InvitationService {
+func NewInvitationService(context servicecontext.ServiceContext, config InvitationConfiguration) service.InvitationService {
 	return &invitationServiceImpl{
 		BaseService: base.NewBaseService(context),
-		config:      config,
-		witService:  witService}
+		config:      config}
 }
 
 // Issue creates new invitations. The inviteTo parameter is the unique id of the organization, team, security group
@@ -240,14 +238,14 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	teamName := team.IdentityResource.Name
 
 	var spaceName string
-	var err error
 
 	// Every team *should* have a parent space, but we'll put this check here just in case
 	if !s.config.IsPostgresDeveloperModeEnabled() && team.IdentityResource.ParentResourceID != nil {
-		spaceName, _, err = s.witService.GetSpaceNameAndOwnedBy(ctx, *team.IdentityResource.ParentResourceID)
+		sp, err := s.Services().WITService().GetSpace(ctx, *team.IdentityResource.ParentResourceID)
 		if err != nil {
 			return err
 		}
+		spaceName = sp.Name
 	}
 
 	var messages []notification.Message
@@ -270,13 +268,13 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	inviterName string, notifications []invitationNotification) error {
 
 	var spaceName string
-	var err error
 
 	if !s.config.IsPostgresDeveloperModeEnabled() {
-		spaceName, _, err = s.witService.GetSpaceNameAndOwnedBy(ctx, space.ResourceID)
+		sp, err := s.Services().WITService().GetSpace(ctx, space.ResourceID)
 		if err != nil {
 			return err
 		}
+		spaceName = sp.Name
 	}
 
 	var messages []notification.Message

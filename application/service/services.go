@@ -12,6 +12,7 @@ import (
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
 
+	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
 )
 
@@ -82,7 +83,7 @@ type NotificationService interface {
 type WITService interface {
 	UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
 	CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error
-	GetSpaceNameAndOwnedBy(ctx context.Context, spaceID string) (name, ownedBy string, e error)
+	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
 }
 
 //Services creates instances of service layer objects

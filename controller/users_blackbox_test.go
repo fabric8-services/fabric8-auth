@@ -22,6 +22,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -1411,8 +1412,8 @@ func (r *dummyRemoteWITService) CreateWITUser(ctx context.Context, identity *acc
 	return nil
 }
 
-func (r *dummyRemoteWITService) GetSpaceNameAndOwnedBy(ctx context.Context, spaceID string) (name, ownedBy string, e error) {
-	return "", "", nil
+func (r *dummyRemoteWITService) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
+	return nil, nil
 }
 
 type dummyKeycloakLinkService struct{}

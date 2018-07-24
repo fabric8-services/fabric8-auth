@@ -131,34 +131,37 @@ func (r *witServiceImpl) CreateWITUser(ctx context.Context, identity *account.Id
 
 }
 
-// GetSpaceNameAndOwnedBy talks to the WIT service to retrieve a space record for the specified spaceID, then
-// returns the name of the space and owner
-func (r *witServiceImpl) GetSpaceNameAndOwnedBy(ctx context.Context, spaceID string) (name, ownedBy string, e error) {
+// GetSpace talks to the WIT service to retrieve a space record for the specified spaceID, then returns space
+func (r *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
 	witURL, err := r.config.GetWITURL()
-	if e != nil {
-		return "", "", err
+	if err != nil {
+		return nil, err
 	}
 	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	spaceIDUUID, err := uuid.FromString(spaceID)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath(spaceIDUUID), nil, nil)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
 	spaceSingle, err := remoteWITService.DecodeSpaceSingle(response)
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	return *spaceSingle.Data.Attributes.Name, spaceSingle.Data.Relationships.OwnedBy.Data.ID.String(), nil
+	return &wit.Space{
+		ID:          *spaceSingle.Data.ID,
+		Name:        *spaceSingle.Data.Attributes.Name,
+		Description: *spaceSingle.Data.Attributes.Description,
+		OwnerID:     *spaceSingle.Data.Relationships.OwnedBy.Data.ID}, nil
 }
 
 // CreateSecureRemoteClientAsServiceAccount creates a client that would communicate with WIT service using a service account token.
