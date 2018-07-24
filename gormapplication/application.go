@@ -138,6 +138,10 @@ func (g *GormBase) TokenRepository() token.TokenRepository {
 	return token.NewTokenRepository(g.db)
 }
 
+func (g *GormBase) TokenResourceRepository() token.TokenResourceRepository {
+	return token.NewTokenResourceRepository(g.db)
+}
+
 func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
 }

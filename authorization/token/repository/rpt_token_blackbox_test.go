@@ -16,7 +16,7 @@ type tokenBlackBoxTest struct {
 	repo tokenRepo.RPTTokenRepository
 }
 
-func TestRunInvitationBlackBoxTest(t *testing.T) {
+func TestRunTokenBlackBoxTest(t *testing.T) {
 	suite.Run(t, &tokenBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 

@@ -330,3 +330,7 @@ func (g *TestGraph) CreateInvitation(params ...interface{}) *invitationWrapper {
 func (g *TestGraph) CreateToken(params ...interface{}) *tokenWrapper {
 	return g.createAndRegister(newTokenWrapper, params).(*tokenWrapper)
 }
+
+func (g *TestGraph) CreateTokenResource(params ...interface{}) *tokenResourceWrapper {
+	return g.createAndRegister(newTokenResourceWrapper, params).(*tokenResourceWrapper)
+}
