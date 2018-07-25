@@ -71,6 +71,9 @@ type TeamService interface {
 	ListTeamsForIdentity(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
 }
 
+type TokenService interface {
+}
+
 type SpaceService interface {
 	CreateSpace(ctx context.Context, spaceCreatorIdentityID uuid.UUID, spaceID string) error
 	DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error
