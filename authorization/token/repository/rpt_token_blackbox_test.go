@@ -62,7 +62,7 @@ func (s *tokenBlackBoxTest) TestOKToLoad() {
 	require.NoError(s.T(), err)
 }
 
-func (s *tokenBlackBoxTest) TestExistsInvitation() {
+func (s *tokenBlackBoxTest) TestExistsToken() {
 	token := s.Graph.CreateRPTToken()
 
 	exists, err := s.repo.CheckExists(s.Ctx, token.TokenID())
