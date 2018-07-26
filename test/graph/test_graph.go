@@ -64,7 +64,7 @@ func (g *TestGraph) generateIdentifier(params []interface{}) string {
 	return uuid.NewV4().String()
 }
 
-type wrapperConstructor = func(g *TestGraph, params []interface{}) interface{}
+type wrapperConstructor func(g *TestGraph, params []interface{}) interface{}
 
 func (g *TestGraph) createAndRegister(constructor wrapperConstructor, params []interface{}) interface{} {
 	wrapper := constructor(g, params)
