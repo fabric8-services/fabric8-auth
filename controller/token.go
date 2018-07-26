@@ -384,7 +384,8 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	if notApprovedRedirect != nil {
+	if notApprovedRedirect != nil && token == nil {
+		// If there is a valid token returned, we shall not redirect.
 		ctx.ResponseData.Header().Set("Location", *notApprovedRedirect)
 		ctx.TemporaryRedirect()
 	}

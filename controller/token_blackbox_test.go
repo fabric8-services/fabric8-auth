@@ -366,11 +366,21 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
 	tokenManager, err := token.NewManager(rest.Configuration)
 	require.Nil(rest.T(), err)
-	controller := NewTokenController(svc, rest.Application, &NotApprovedOAuthService{}, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
+	oauthService := &NotApprovedOAuthService{}
+	controller := NewTokenController(svc, rest.Application, oauthService, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
 
 	code := "XYZ"
 	response := test.ExchangeTokenTemporaryRedirect(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
 	require.Equal(rest.T(), response.Header().Get("Location"), "http://not-approved")
+
+	oauthService = &NotApprovedOAuthService{}
+	oauthService.Scenario = "approved"
+	controller = NewTokenController(svc, rest.Application, oauthService, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
+
+	code = "XYZ"
+	response, returnedToken := test.ExchangeTokenOK(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
+	require.NotEqual(rest.T(), response.Header().Get("Location"), "http://approved")
+	require.NotNil(rest.T(), returnedToken.AccessToken)
 }
 
 type DummyLinkService struct {
@@ -453,10 +463,7 @@ func (s *DummyKeycloakOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Co
 
 type NotApprovedOAuthService struct {
 	login.KeycloakOAuthProvider
-	sampleAccessToken  string
-	sampleRefreshToken string
-	exchangeStrategy   string
-	testDir            string
+	Scenario string
 }
 
 func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
@@ -473,6 +480,21 @@ func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context
 	return nil, false, errors.NewUnauthorizedError("user is absent")
 }
 func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
-	redirURL := "http://not-approved"
-	return &redirURL, nil, nil
+
+	/* This mocked method simulates the contract
+	where redir url is always returned, but token is returned when there is not error
+	*/
+
+	redirURLNotApproved := "http://not-approved"
+	redirURLApproved := "http://approved"
+	bearer := "Bearer"
+	token := &oauth2.Token{
+		TokenType:    bearer,
+		AccessToken:  "sometoken",
+		RefreshToken: "sometoken",
+	}
+	if s.Scenario == "approved" {
+		return &redirURLApproved, token, nil
+	}
+	return &redirURLNotApproved, nil, nil
 }
