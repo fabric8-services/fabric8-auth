@@ -111,6 +111,7 @@ var _ = a.Resource("token", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
 	})
 
 	a.Action("keys", func() {
