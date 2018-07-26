@@ -13,6 +13,8 @@ import (
 
 	"github.com/goadesign/goa"
 
+	"net/url"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
@@ -20,7 +22,6 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"net/url"
 )
 
 type TestInvitationREST struct {
@@ -64,16 +65,15 @@ func TestRunInvitationREST(t *testing.T) {
 func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 	var err error
 
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
+	team := s.Graph.CreateTeam()
 
-	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 	team.AssignRole(&s.testIdentity, r.Role())
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	invitee := g.CreateUser()
+	invitee := s.Graph.CreateUser()
 	inviteeID := invitee.IdentityID().String()
 
 	payload := &app.CreateInviteInvitationPayload{
@@ -103,16 +103,15 @@ func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
 	var err error
 
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
+	team := s.Graph.CreateTeam()
 
-	r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
 	r.AddScope(authorization.ManageTeamMembersScope)
 	team.AssignRole(&s.testIdentity, r.Role())
 
 	service, controller := s.SecuredController(s.testIdentity)
 
-	invitee := g.CreateUser()
+	invitee := s.Graph.CreateUser()
 	inviteeID := invitee.IdentityID().String()
 
 	payload := &app.CreateInviteInvitationPayload{
@@ -248,10 +247,9 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 }
 
 func (s *TestInvitationREST) TestAcceptInvitation() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	invitee := g.CreateUser()
-	inv := g.CreateInvitation(team, invitee)
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	inv := s.Graph.CreateInvitation(team, invitee)
 
 	service, controller := s.SecuredController(s.testIdentity)
 
@@ -279,10 +277,9 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
 }
 
 func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
-	g := s.NewTestGraph()
-	team := g.CreateTeam()
-	invitee := g.CreateUser()
-	g.CreateInvitation(team, invitee)
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	s.Graph.CreateInvitation(team, invitee)
 
 	service, controller := s.SecuredController(s.testIdentity)
 
@@ -291,6 +288,74 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
 	require.NoError(s.T(), err)
 	parameters := parsedURL.Query()
 	require.NotNil(s.T(), parameters.Get("error"))
+}
+
+func (s *TestInvitationREST) TestRescindInvitation() {
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	inv := s.Graph.CreateInvitation(team, invitee)
+
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response := test.RescindInviteInvitationOK(s.T(), service.Context, service, controller, inv.Invitation().InvitationID.String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
+
+	// The invitation should no longer be there after rescinding
+	_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+}
+
+func (s *TestInvitationREST) TestRescindInvitationFailsForUnauthorized() {
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	inv := s.Graph.CreateInvitation(team, invitee)
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response, _ := test.RescindInviteInvitationInternalServerError(s.T(), service.Context, service, controller, inv.Invitation().InvitationID.String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
+
+	_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+	require.NoError(s.T(), err)
+}
+
+func (s *TestInvitationREST) TestRescindInvitationFailsForInvalidID() {
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	s.Graph.CreateInvitation(team, invitee)
+
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response, _ := test.RescindInviteInvitationNotFound(s.T(), service.Context, service, controller, uuid.NewV4().String())
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
+}
+
+func (s *TestInvitationREST) TestRescindInvitationFailsForNonUUIDValue() {
+	team := s.Graph.CreateTeam()
+	invitee := s.Graph.CreateUser()
+	s.Graph.CreateInvitation(team, invitee)
+
+	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
+	r.AddScope(authorization.ManageTeamMembersScope)
+	team.AssignRole(&s.testIdentity, r.Role())
+
+	service, controller := s.SecuredController(s.testIdentity)
+
+	response, _ := test.RescindInviteInvitationNotFound(s.T(), service.Context, service, controller, "foo")
+
+	require.NotNil(s.T(), response.Header().Get("Location"))
 }
 
 func boolPointer(value bool) *bool {
