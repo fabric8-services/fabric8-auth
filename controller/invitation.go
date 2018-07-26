@@ -94,6 +94,8 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 			"err":          err,
 			"invitationID": invitationID,
 		}, "failed to rescind invitation, invalid invitation id")
+
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("invitationID", invitationID.String()))
 	}
 
 	err = c.app.InvitationService().Rescind(ctx, currentIdentity.ID, invitationID)
@@ -103,7 +105,6 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 			"err":          err,
 			"invitationID": invitationID,
 		}, "failed to rescind invitation")
-
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
