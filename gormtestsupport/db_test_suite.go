@@ -37,6 +37,7 @@ type DBTestSuite struct {
 	cleanSuite    func()
 	Ctx           context.Context
 	Graph         *graph.TestGraph
+	GormDB        *gormapplication.GormDB
 }
 
 // SetupSuite implements suite.SetupAllSuite
@@ -59,7 +60,9 @@ func (s *DBTestSuite) SetupSuite() {
 		}
 	}
 	s.DB = s.DB.Debug()
-	s.Application = gormapplication.NewGormDB(s.DB, configuration)
+	gormDB := gormapplication.NewGormDB(s.DB, configuration)
+	s.GormDB = gormDB
+	s.Application = gormDB
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
 	s.cleanSuite = cleaner.DeleteCreatedEntities(s.DB)

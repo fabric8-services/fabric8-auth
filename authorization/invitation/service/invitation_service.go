@@ -240,7 +240,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	var spaceName string
 
 	// Every team *should* have a parent space, but we'll put this check here just in case
-	if !s.config.IsPostgresDeveloperModeEnabled() && team.IdentityResource.ParentResourceID != nil {
+	if team.IdentityResource.ParentResourceID != nil {
 		sp, err := s.Services().WITService().GetSpace(ctx, *team.IdentityResource.ParentResourceID)
 		if err != nil {
 			return err
@@ -267,15 +267,11 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
 	inviterName string, notifications []invitationNotification) error {
 
-	var spaceName string
-
-	if !s.config.IsPostgresDeveloperModeEnabled() {
-		sp, err := s.Services().WITService().GetSpace(ctx, space.ResourceID)
-		if err != nil {
-			return err
-		}
-		spaceName = sp.Name
+	sp, err := s.Services().WITService().GetSpace(ctx, space.ResourceID)
+	if err != nil {
+		return err
 	}
+	spaceName := sp.Name
 
 	var messages []notification.Message
 

@@ -22,14 +22,46 @@ import (
 	"github.com/pkg/errors"
 )
 
+//type devNullWITService struct {
+//	SpaceID string
+//	OwnerID string
+//}
+//
+//func (s *devNullWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
+//	return nil
+//}
+//
+//// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
+//func (s *devNullWITService) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
+//	return nil
+//}
+//
+//func (s *devNullWITService) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
+//	return &wit.Space{}, nil
+//}
+
 // witServiceImpl is the default implementation of WITService.
 type witServiceImpl struct {
 	base.BaseService
 	config wit.Configuration
 }
 
+//type SetDevNullWitService func(*devNullWITService)
+//
+//func WithSpaceID(spaceID string) SetDevNullWitService {
+//	return func(w *devNullWITService) {
+//		w.SpaceID = spaceID
+//	}
+//}
+//
+
 // NewWITService creates a new WIT service.
 func NewWITService(context servicecontext.ServiceContext, config wit.Configuration) service.WITService {
+	//witurl, _ := config.GetWITURL()
+	//if witurl == "http://localhost:8080" {
+	//	return &devNullWITService{}
+	//}
+
 	return &witServiceImpl{base.NewBaseService(context), config}
 }
 
@@ -51,8 +83,8 @@ func (r *witServiceImpl) UpdateWITUser(ctx context.Context, updatePayload *app.U
 				FullName:              updatePayload.Data.Attributes.FullName,
 				ImageURL:              updatePayload.Data.Attributes.ImageURL,
 				RegistrationCompleted: updatePayload.Data.Attributes.RegistrationCompleted,
-				URL:      updatePayload.Data.Attributes.URL,
-				Username: updatePayload.Data.Attributes.Username,
+				URL:                   updatePayload.Data.Attributes.URL,
+				Username:              updatePayload.Data.Attributes.Username,
 			},
 			Type: updatePayload.Data.Type,
 		},

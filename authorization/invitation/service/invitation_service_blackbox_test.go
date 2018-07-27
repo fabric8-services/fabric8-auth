@@ -15,6 +15,10 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/wit"
+	"context"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 )
 
 type invitationServiceBlackBoxTest struct {
@@ -33,6 +37,33 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.invitationRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgService = s.Application.OrganizationService()
+	//gormDB := *s.Application.(*gormapplication.GormDB)
+	s.Application = &TestGormDB{*s.GormDB}
+}
+
+type TestGormDB struct {
+	gormapplication.GormDB
+}
+
+func (t *TestGormDB) WITService() service.WITService {
+	return &devWITService{}
+}
+
+type devWITService struct {
+	SpaceID string
+	OwnerID string
+}
+
+func (s *devWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
+	return nil
+}
+
+func (s *devWITService) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
+	return nil
+}
+
+func (s *devWITService) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
+	return &wit.Space{}, nil
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
@@ -546,7 +577,6 @@ func (s *invitationServiceBlackBoxTest) TestAcceptFailsForUnknownAcceptCode() {
 	user := s.Graph.CreateUser()
 	spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
 	s.Graph.CreateInvitation(space, user, spaceRole)
-
 	_, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), uuid.NewV4())
 	require.Error(s.T(), err)
 }
