@@ -370,7 +370,7 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
 	controller := NewTokenController(svc, rest.Application, oauthService, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
 
 	code := "XYZ"
-	_, errResp := test.ExchangeTokenUnauthorized(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
+	_, errResp := test.ExchangeTokenForbidden(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
 	require.Equal(rest.T(), "user is not authorized to access OpenShift", errResp.Errors[0].Detail)
 
 	oauthService = &NotApprovedOAuthService{}
