@@ -385,9 +385,8 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	}
 
 	if notApprovedRedirect != nil && token == nil {
-		// If there is a valid token returned, we shall not redirect.
-		ctx.ResponseData.Header().Set("Location", *notApprovedRedirect)
-		ctx.TemporaryRedirect()
+		// the code enters this block only if the user is not provisioned on OSO.
+		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to access OpenShift"))
 	}
 
 	return ctx.OK(token)

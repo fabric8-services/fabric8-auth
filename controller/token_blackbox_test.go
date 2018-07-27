@@ -370,16 +370,15 @@ func (rest *TestTokenREST) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
 	controller := NewTokenController(svc, rest.Application, oauthService, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
 
 	code := "XYZ"
-	response := test.ExchangeTokenTemporaryRedirect(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
-	require.Equal(rest.T(), response.Header().Get("Location"), "http://not-approved")
+	_, errResp := test.ExchangeTokenForbidden(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
+	require.Equal(rest.T(), "user is not authorized to access OpenShift", errResp.Errors[0].Detail)
 
 	oauthService = &NotApprovedOAuthService{}
 	oauthService.Scenario = "approved"
 	controller = NewTokenController(svc, rest.Application, oauthService, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
 
 	code = "XYZ"
-	response, returnedToken := test.ExchangeTokenOK(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
-	require.NotEqual(rest.T(), response.Header().Get("Location"), "http://approved")
+	_, returnedToken := test.ExchangeTokenOK(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
 	require.NotNil(rest.T(), returnedToken.AccessToken)
 }
 
