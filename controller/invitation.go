@@ -81,6 +81,41 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 	return ctx.Created()
 }
 
+// RescindInvite runs the revoke action.
+func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationContext) error {
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	invitationID, err := uuid.FromString(ctx.InviteTo)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":          err,
+			"invitationID": invitationID,
+		}, "failed to rescind invitation, invalid invitation id")
+
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("invitationID", invitationID.String()))
+	}
+
+	err = c.app.InvitationService().Rescind(ctx, currentIdentity.ID, invitationID)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":          err,
+			"invitationID": invitationID,
+		}, "failed to rescind invitation")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"rescinding-user-id": *currentIdentity,
+		"invitation-id":      ctx.InviteTo,
+	}, "invitation rescind")
+
+	return ctx.OK([]byte{})
+}
+
 func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
 	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
 
