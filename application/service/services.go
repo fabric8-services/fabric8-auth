@@ -14,6 +14,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/wit"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/satori/go.uuid"
 )
 
@@ -72,6 +73,9 @@ type TeamService interface {
 }
 
 type TokenService interface {
+	Initialize(ctx context.Context, resourceID string) (token.RPTTokenState, error)
+	ValidateToken(ctx context.Context, tokenID uuid.UUID) (bool, error)
+	Refresh(ctx context.Context, tokenID uuid.UUID, resourceID string) (token.RPTTokenState, error)
 }
 
 type SpaceService interface {
@@ -98,13 +102,14 @@ type WITService interface {
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
-	OrganizationService() OrganizationService
-	ResourceService() ResourceService
-	PermissionService() PermissionService
-	RoleManagementService() RoleManagementService
-	TeamService() TeamService
-	SpaceService() SpaceService
-	UserService() UserService
 	NotificationService() NotificationService
+	OrganizationService() OrganizationService
+	PermissionService() PermissionService
+	ResourceService() ResourceService
+	RoleManagementService() RoleManagementService
+	SpaceService() SpaceService
+	TeamService() TeamService
+	TokenService() TokenService
+	UserService() UserService
 	WITService() WITService
 }

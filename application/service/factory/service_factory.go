@@ -16,6 +16,7 @@ import (
 	roleservice "github.com/fabric8-services/fabric8-auth/authorization/role/service"
 	spaceservice "github.com/fabric8-services/fabric8-auth/authorization/space/service"
 	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
+	tokenservice "github.com/fabric8-services/fabric8-auth/authorization/token/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
@@ -170,12 +171,12 @@ func (f *ServiceFactory) getContext() context.ServiceContext {
 	return f.contextProducer()
 }
 
-func (f *ServiceFactory) OrganizationService() service.OrganizationService {
-	return organizationservice.NewOrganizationService(f.getContext())
-}
-
 func (f *ServiceFactory) InvitationService() service.InvitationService {
 	return invitationservice.NewInvitationService(f.getContext(), f.config)
+}
+
+func (f *ServiceFactory) OrganizationService() service.OrganizationService {
+	return organizationservice.NewOrganizationService(f.getContext())
 }
 
 func (f *ServiceFactory) PermissionService() service.PermissionService {
@@ -190,12 +191,16 @@ func (f *ServiceFactory) RoleManagementService() service.RoleManagementService {
 	return roleservice.NewRoleManagementService(f.getContext())
 }
 
-func (f *ServiceFactory) SpaceService() service.SpaceService {
-	return spaceservice.NewSpaceService(f.getContext())
-}
-
 func (f *ServiceFactory) TeamService() service.TeamService {
 	return teamservice.NewTeamService(f.getContext())
+}
+
+func (f *ServiceFactory) TokenService() service.TokenService {
+	return tokenservice.NewTokenService(f.getContext())
+}
+
+func (f *ServiceFactory) SpaceService() service.SpaceService {
+	return spaceservice.NewSpaceService(f.getContext())
 }
 
 func (f *ServiceFactory) UserService() service.UserService {
