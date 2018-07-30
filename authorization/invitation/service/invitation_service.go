@@ -267,7 +267,6 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 // processSpaceInviteNotifications sends an e-mail notification to a user.
 func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
 	inviterName string, notifications []invitationNotification) error {
-
 	sp, err := s.Services().WITService().GetSpace(ctx, space.ResourceID)
 	if err != nil {
 		return err
