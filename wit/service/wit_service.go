@@ -22,23 +22,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-//type devNullWITService struct {
-//	SpaceID string
-//	OwnerID string
-//}
-//
-//func (s *devNullWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
-//	return nil
-//}
-//
-//// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
-//func (s *devNullWITService) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
-//	return nil
-//}
-//
-//func (s *devNullWITService) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
-//	return &wit.Space{}, nil
-//}
+// DevWITService is the default dev service implementation for WIT.
+type DevWITService struct {
+	SpaceID     uuid.UUID
+	OwnerID     uuid.UUID
+	Name        string
+	Description string
+}
+
+func (s *DevWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
+	return nil
+}
+
+func (s *DevWITService) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
+	return nil
+}
+
+func (s *DevWITService) GetSpace(ctx context.Context, spaceID string) (space wit.Space, e error) {
+	return wit.Space{s.SpaceID, s.OwnerID, s.Name, s.Description}, nil
+}
 
 // witServiceImpl is the default implementation of WITService.
 type witServiceImpl struct {
@@ -46,22 +48,8 @@ type witServiceImpl struct {
 	config wit.Configuration
 }
 
-//type SetDevNullWitService func(*devNullWITService)
-//
-//func WithSpaceID(spaceID string) SetDevNullWitService {
-//	return func(w *devNullWITService) {
-//		w.SpaceID = spaceID
-//	}
-//}
-//
-
 // NewWITService creates a new WIT service.
 func NewWITService(context servicecontext.ServiceContext, config wit.Configuration) service.WITService {
-	//witurl, _ := config.GetWITURL()
-	//if witurl == "http://localhost:8080" {
-	//	return &devNullWITService{}
-	//}
-
 	return &witServiceImpl{base.NewBaseService(context), config}
 }
 
@@ -83,8 +71,8 @@ func (r *witServiceImpl) UpdateWITUser(ctx context.Context, updatePayload *app.U
 				FullName:              updatePayload.Data.Attributes.FullName,
 				ImageURL:              updatePayload.Data.Attributes.ImageURL,
 				RegistrationCompleted: updatePayload.Data.Attributes.RegistrationCompleted,
-				URL:                   updatePayload.Data.Attributes.URL,
-				Username:              updatePayload.Data.Attributes.Username,
+				URL:      updatePayload.Data.Attributes.URL,
+				Username: updatePayload.Data.Attributes.Username,
 			},
 			Type: updatePayload.Data.Type,
 		},
@@ -164,32 +152,33 @@ func (r *witServiceImpl) CreateWITUser(ctx context.Context, identity *account.Id
 }
 
 // GetSpace talks to the WIT service to retrieve a space record for the specified spaceID, then returns space
-func (r *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
+func (r *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space wit.Space, e error) {
 	witURL, err := r.config.GetWITURL()
+	var s wit.Space
 	if err != nil {
-		return nil, err
+		return s, err
 	}
 	remoteWITService, err := CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
 	if err != nil {
-		return nil, err
+		return s, err
 	}
 
 	spaceIDUUID, err := uuid.FromString(spaceID)
 	if err != nil {
-		return nil, err
+		return s, err
 	}
 
 	response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath(spaceIDUUID), nil, nil)
 	if err != nil {
-		return nil, err
+		return s, err
 	}
 
 	spaceSingle, err := remoteWITService.DecodeSpaceSingle(response)
 	if err != nil {
-		return nil, err
+		return s, err
 	}
 
-	return &wit.Space{
+	return wit.Space{
 		ID:          *spaceSingle.Data.ID,
 		Name:        *spaceSingle.Data.Attributes.Name,
 		Description: *spaceSingle.Data.Attributes.Description,

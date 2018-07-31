@@ -8,7 +8,7 @@ type Configuration interface {
 
 type Space struct {
 	ID          uuid.UUID
+	OwnerID     uuid.UUID
 	Name        string
 	Description string
-	OwnerID     uuid.UUID
 }

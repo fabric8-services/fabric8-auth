@@ -125,15 +125,15 @@ type ServiceContextProducer func() context.ServiceContext
 type ServiceFactory struct {
 	contextProducer ServiceContextProducer
 	config          *configuration.ConfigurationData
-	witserviceFunc  func() service.WITService // the function to call when `WITService()` is called on this factory
+	witServiceFunc  func() service.WITService // the function to call when `WITService()` is called on this factory
 }
 
 // Option an option to configure the Service Factory
-type Option func(*ServiceFactory)
+type Option func(f *ServiceFactory)
 
 func WithWITService(s service.WITService) Option {
 	return func(f *ServiceFactory) {
-		f.witserviceFunc = func() service.WITService {
+		f.witServiceFunc = func() service.WITService {
 			return s
 		}
 	}
@@ -141,7 +141,7 @@ func WithWITService(s service.WITService) Option {
 func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
-	f.witserviceFunc = func() service.WITService {
+	f.witServiceFunc = func() service.WITService {
 		return witservice.NewWITService(f.getContext(), f.config)
 	}
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
@@ -193,5 +193,5 @@ func (f *ServiceFactory) NotificationService() service.NotificationService {
 }
 
 func (f *ServiceFactory) WITService() service.WITService {
-	return f.witserviceFunc()
+	return f.witServiceFunc()
 }

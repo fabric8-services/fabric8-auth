@@ -37,7 +37,6 @@ type DBTestSuite struct {
 	cleanSuite    func()
 	Ctx           context.Context
 	Graph         *graph.TestGraph
-	GormDB        *gormapplication.GormDB
 }
 
 // SetupSuite implements suite.SetupAllSuite
@@ -61,9 +60,7 @@ func (s *DBTestSuite) SetupSuite() {
 	}
 	// TODO(xcoulon): use an env variable to avoid systematic logging of all SQL requests?
 	s.DB = s.DB.Debug()
-	gormDB := gormapplication.NewGormDB(s.DB, configuration)
-	s.GormDB = gormDB
-	s.Application = gormDB
+	s.Application = gormapplication.NewGormDB(s.DB, configuration)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
 	s.cleanSuite = cleaner.DeleteCreatedEntities(s.DB)
