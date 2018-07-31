@@ -31,7 +31,7 @@ type serviceContextImpl struct {
 	services                  service.Services
 }
 
-func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData) context.ServiceContext {
+func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData, options ...Option) context.ServiceContext {
 	ctx := new(serviceContextImpl)
 	ctx.repositories = repos
 	ctx.transactionManager = tm
@@ -39,7 +39,7 @@ func NewServiceContext(repos repository.Repositories, tm transaction.Transaction
 
 	var sc context.ServiceContext
 	sc = ctx
-	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config)
+	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config, options...)
 	return ctx
 }
 
@@ -125,10 +125,31 @@ type ServiceContextProducer func() context.ServiceContext
 type ServiceFactory struct {
 	contextProducer ServiceContextProducer
 	config          *configuration.ConfigurationData
+	witserviceFunc  func() service.WITService // the function to call when `WITService()` is called on this factory
 }
 
-func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData) *ServiceFactory {
-	return &ServiceFactory{contextProducer: producer, config: config}
+// Option an option to configure the Service Factory
+type Option func(*ServiceFactory)
+
+func WithWITService(s service.WITService) Option {
+	return func(f *ServiceFactory) {
+		f.witserviceFunc = func() service.WITService {
+			return s
+		}
+	}
+}
+func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
+	f := &ServiceFactory{contextProducer: producer, config: config}
+	// default function to return an instance of WIT Service
+	f.witserviceFunc = func() service.WITService {
+		return witservice.NewWITService(f.getContext(), f.config)
+	}
+	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
+	// and options
+	for _, opt := range options {
+		opt(f)
+	}
+	return f
 }
 
 func (f *ServiceFactory) getContext() context.ServiceContext {
@@ -172,5 +193,5 @@ func (f *ServiceFactory) NotificationService() service.NotificationService {
 }
 
 func (f *ServiceFactory) WITService() service.WITService {
-	return witservice.NewWITService(f.getContext(), f.config)
+	return f.witserviceFunc()
 }

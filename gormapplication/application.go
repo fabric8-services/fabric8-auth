@@ -49,14 +49,14 @@ const (
 
 //var y application.Application = &GormTransaction{}
 
-func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData) *GormDB {
-	val := new(GormDB)
-	val.db = db.Set("gorm:save_associations", false)
-	val.txIsoLevel = ""
-	val.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
-		return factory.NewServiceContext(val, val, config)
-	}, config)
-	return val
+func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, options ...factory.Option) *GormDB {
+	g := new(GormDB)
+	g.db = db.Set("gorm:save_associations", false)
+	g.txIsoLevel = ""
+	g.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
+		return factory.NewServiceContext(g, g, config, options...)
+	}, config, options...)
+	return g
 }
 
 // GormBase is a base struct for gorm implementations of db & transaction

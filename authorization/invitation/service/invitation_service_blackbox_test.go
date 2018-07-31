@@ -1,24 +1,25 @@
 package service_test
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
-
-	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/wit"
-	"context"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 )
 
 type invitationServiceBlackBoxTest struct {
@@ -38,15 +39,11 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgService = s.Application.OrganizationService()
 	//gormDB := *s.Application.(*gormapplication.GormDB)
-	s.Application = &TestGormDB{*s.GormDB}
-}
-
-type TestGormDB struct {
-	gormapplication.GormDB
-}
-
-func (t *TestGormDB) WITService() service.WITService {
-	return &devWITService{}
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&devWITService{}))
+	// s.GormDB.WITServiceFunc = func() service.WITService {
+	// 	fmt.Printf("returning the fake WIT Service...")
+	// 	return &devWITService{}
+	// }
 }
 
 type devWITService struct {
@@ -143,7 +140,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 			Roles:      []string{"admin"},
 		},
 	}
-
+	fmt.Printf("application: %T\n", s.Application)
 	// Issue the invitation
 	err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), invitations)
 	require.NoError(s.T(), err)
