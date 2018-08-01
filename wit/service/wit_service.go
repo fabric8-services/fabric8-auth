@@ -127,7 +127,7 @@ func (r *witServiceImpl) CreateWITUser(ctx context.Context, identity *account.Id
 		}, "unable to create user in WIT")
 		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, bodyString)
 	}
-	return err
+	return nil
 
 }
 
