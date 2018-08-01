@@ -14,7 +14,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
-	witservice "github.com/fabric8-services/fabric8-auth/wit/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -25,7 +24,6 @@ type invitationServiceBlackBoxTest struct {
 	invitationRepo invitationrepo.InvitationRepository
 	identityRepo   account.IdentityRepository
 	orgService     service.OrganizationService
-	devWITService  *witservice.DevWITService
 }
 
 func TestRunInvitationServiceBlackBoxTest(t *testing.T) {
@@ -37,8 +35,7 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.invitationRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgService = s.Application.OrganizationService()
-	s.devWITService = &witservice.DevWITService{}
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(s.devWITService))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&test.DevWITService{}))
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
