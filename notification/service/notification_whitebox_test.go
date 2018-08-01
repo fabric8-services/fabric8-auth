@@ -146,30 +146,6 @@ func (c *notificationURLConfig) GetNotificationServiceURL() string {
 	return c.notificationURL
 }
 
-func (s *TestNotificationSuite) TestGetServiceAccountSigner() {
-	t := s.T()
-
-	// create a context
-	ctx := tokentestsupport.ContextWithTokenManager()
-	manager, err := tokenutil.ReadManagerFromContext(ctx)
-	require.Nil(t, err)
-
-	// extract the token
-	saToken := (*manager).AuthServiceAccountToken()
-
-	// Generate signer with the context
-	signer, err := getServiceAccountSigner(ctx)
-
-	// Use the signer to add auth headers to a request
-	req, err := http.NewRequest("GET", "http://example.com", nil)
-	r, err := signer.TokenSource.Token()
-	r.SetAuthHeader(req)
-
-	// Verify if the Auth header has the initial token that was extracted.
-	require.NotEmpty(t, req.Header.Get("Authorization"))
-	require.Equal(t, "Bearer "+saToken, req.Header.Get("Authorization"))
-}
-
 func (s *TestNotificationSuite) TestCreateClientWithServiceAccountToken() {
 	// create a context
 	ctx := tokentestsupport.ContextWithTokenManager()

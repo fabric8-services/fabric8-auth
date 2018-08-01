@@ -22,6 +22,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -53,6 +56,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
 	s.linkAPIService = &dummyKeycloakLinkService{}
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&testsupport.DevWITService{}))
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()

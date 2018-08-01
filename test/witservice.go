@@ -24,6 +24,6 @@ func (s *DevWITService) CreateWITUser(ctx context.Context, identity *account.Ide
 	return nil
 }
 
-func (s *DevWITService) GetSpace(ctx context.Context, spaceID string) (space wit.Space, e error) {
-	return wit.Space{s.SpaceID, s.OwnerID, s.Name, s.Description}, nil
+func (s *DevWITService) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
+	return &wit.Space{s.SpaceID, s.OwnerID, s.Name, s.Description}, nil
 }

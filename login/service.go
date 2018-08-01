@@ -16,7 +16,6 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -55,11 +54,10 @@ type Configuration interface {
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
 func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:             identities,
-		Users:                  users,
-		TokenManager:           tokenManager,
-		App:                    app,
-		WITService:             app.WITService(),
+		Identities:   identities,
+		Users:        users,
+		TokenManager: tokenManager,
+		App:          app,
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
@@ -72,7 +70,6 @@ type KeycloakOAuthProvider struct {
 	Users                  account.UserRepository
 	TokenManager           token.Manager
 	App                    application.Application
-	WITService             service.WITService
 	keycloakProfileService UserProfileService
 	keycloakTokenService   keycloaktoken.TokenService
 	osoSubscriptionManager OSOSubscriptionManager
@@ -364,7 +361,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	// new user for WIT
 	if newUser {
-		err = keycloak.WITService.CreateWITUser(ctx, identity, identity.ID.String())
+		err = keycloak.App.WITService().CreateWITUser(ctx, identity, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
@@ -757,7 +754,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, identi
 			},
 		},
 	}
-	return keycloak.WITService.UpdateWITUser(ctx, updateUserPayload, identityID)
+	return keycloak.App.WITService().UpdateWITUser(ctx, updateUserPayload, identityID)
 }
 
 func generateGravatarURL(email string) (string, error) {

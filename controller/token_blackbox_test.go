@@ -76,7 +76,6 @@ func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = manager
 	loginService.App = rest.Application
-	loginService.WITService = rest.Application.WITService()
 
 	return svc, NewTokenController(svc, rest.Application, loginService, nil, nil, manager, rest.Configuration)
 }
@@ -100,7 +99,6 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = testtoken.TokenManager
 	loginService.App = rest.Application
-	loginService.WITService = rest.Application.WITService()
 	loginService.exchangeStrategy = rest.exchangeStrategy
 
 	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)

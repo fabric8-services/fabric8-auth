@@ -25,6 +25,8 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
@@ -107,7 +109,7 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
 	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
-
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&testsupport.DevWITService{}))
 	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
 }
 
