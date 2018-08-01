@@ -21,7 +21,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	witservice "github.com/fabric8-services/fabric8-auth/wit/service"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -57,7 +56,6 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
-	s.controller.WITService = &witservice.DevWITService{}
 	s.tenantService = &dummyTenantService{}
 }
 
@@ -65,7 +63,6 @@ func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersCo
 	svc := testsupport.UnsecuredService("Users-Service")
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
-	controller.WITService = &witservice.DevWITService{}
 	return svc, controller
 }
 
@@ -76,7 +73,6 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
-	controller.WITService = &witservice.DevWITService{}
 	return svc, controller
 }
 
@@ -84,7 +80,6 @@ func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identi
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
-	controller.WITService = &witservice.DevWITService{}
 	return svc, controller
 }
 
@@ -92,14 +87,12 @@ func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identi
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	controller.EmailVerificationService = &DummyEmailVerificationService{success: emailSuccess}
-	controller.WITService = &witservice.DevWITService{}
 	return svc, controller
 }
 
 func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
 	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
-	controller.WITService = &witservice.DevWITService{}
 	return svc, controller
 }
 

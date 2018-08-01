@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
-	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -36,7 +35,6 @@ type UsersController struct {
 	app                      application.Application
 	config                   UsersControllerConfiguration
 	userProfileService       login.UserProfileService
-	WITService               svc.WITService
 	EmailVerificationService service.EmailVerificationService
 	keycloakLinkService      link.KeycloakIDPService
 }
@@ -64,7 +62,6 @@ func NewUsersController(service *goa.Service, app application.Application, confi
 		app:                 app,
 		config:              config,
 		userProfileService:  userProfileService,
-		WITService:          app.WITService(),
 		keycloakLinkService: linkService,
 	}
 }
@@ -176,7 +173,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 
 	// finally, if all works, we create a user in WIT too.
-	err = c.WITService.CreateWITUser(ctx.Context, identity, identityID.String())
+	err = c.app.WITService().CreateWITUser(ctx.Context, identity, identityID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":              err,
@@ -755,7 +752,7 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, identityID 
 		},
 	}
 
-	return c.WITService.UpdateWITUser(ctx, updateUserPayload, identityID)
+	return c.app.WITService().UpdateWITUser(ctx, updateUserPayload, identityID)
 }
 
 func isEmailValid(email string) bool {

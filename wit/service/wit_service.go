@@ -22,26 +22,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// DevWITService is the default dev service implementation for WIT.
-type DevWITService struct {
-	SpaceID     uuid.UUID
-	OwnerID     uuid.UUID
-	Name        string
-	Description string
-}
-
-func (s *DevWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
-	return nil
-}
-
-func (s *DevWITService) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
-	return nil
-}
-
-func (s *DevWITService) GetSpace(ctx context.Context, spaceID string) (space wit.Space, e error) {
-	return wit.Space{s.SpaceID, s.OwnerID, s.Name, s.Description}, nil
-}
-
 // witServiceImpl is the default implementation of WITService.
 type witServiceImpl struct {
 	base.BaseService
@@ -147,7 +127,7 @@ func (r *witServiceImpl) CreateWITUser(ctx context.Context, identity *account.Id
 		}, "unable to create user in WIT")
 		return errors.Errorf("unable to update user in WIT. Response status: %s. Response body: %s", res.Status, bodyString)
 	}
-	return nil
+	return err
 
 }
 
