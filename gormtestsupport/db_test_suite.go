@@ -58,6 +58,7 @@ func (s *DBTestSuite) SetupSuite() {
 			}, "failed to connect to the database")
 		}
 	}
+	// TODO(xcoulon): use an env variable to avoid systematic logging of all SQL requests?
 	s.DB = s.DB.Debug()
 	s.Application = gormapplication.NewGormDB(s.DB, configuration)
 	s.Ctx = migration.NewMigrationContext(context.Background())

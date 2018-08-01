@@ -1,17 +1,20 @@
 package service_test
 
 import (
+	"fmt"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
-
-	"github.com/fabric8-services/fabric8-auth/errors"
+	witservice "github.com/fabric8-services/fabric8-auth/wit/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -22,7 +25,7 @@ type invitationServiceBlackBoxTest struct {
 	invitationRepo invitationrepo.InvitationRepository
 	identityRepo   account.IdentityRepository
 	orgService     service.OrganizationService
-	witURL         string
+	devWITService  *witservice.DevWITService
 }
 
 func TestRunInvitationServiceBlackBoxTest(t *testing.T) {
@@ -34,6 +37,8 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.invitationRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgService = s.Application.OrganizationService()
+	s.devWITService = &witservice.DevWITService{}
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(s.devWITService))
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
@@ -113,7 +118,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 			Roles:      []string{"admin"},
 		},
 	}
-
+	fmt.Printf("application: %T\n", s.Application)
 	// Issue the invitation
 	err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), invitations)
 	require.NoError(s.T(), err)
@@ -541,7 +546,6 @@ func (s *invitationServiceBlackBoxTest) TestAcceptFailsForUnknownAcceptCode() {
 	user := s.Graph.CreateUser()
 	spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
 	s.Graph.CreateInvitation(space, user, spaceRole)
-
 	_, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), uuid.NewV4())
 	require.Error(s.T(), err)
 }
