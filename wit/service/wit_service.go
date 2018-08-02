@@ -139,8 +139,8 @@ func (r *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space *w
 	}
 
 	defer rest.CloseResponse(res)
-	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusOK {
+		bodyString := rest.ReadBody(res.Body)
 		log.Error(ctx, map[string]interface{}{
 			"spaceId":         spaceID,
 			"response_status": res.Status,

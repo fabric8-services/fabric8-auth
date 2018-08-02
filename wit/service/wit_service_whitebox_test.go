@@ -197,8 +197,8 @@ func (s *TestWITSuite) TestGetSpace() {
 
 	// OK
 	space, err := s.ws.GetSpace(ctx, spaceId)
-	require.Error(s.T(), err)
-	require.NotEqual(s.T(), space, testSpace)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), space, testSpace)
 
 	// Fail if client returned an error
 	s.doer.Client.Response = nil
@@ -274,17 +274,16 @@ func createUpdateUsersPayload(email, fullName, bio, imageURL, profileURL, compan
 	}
 }
 
-func getSpace(spaceId, ownerId, name, desc string) (wit.Space, error) {
-	var s wit.Space
+func getSpace(spaceId, ownerId, name, desc string) (*wit.Space, error) {
 	sId, e := goauuid.FromString(spaceId)
 	if e != nil {
-		return s, e
+		return nil, e
 	}
 
 	oId, e := goauuid.FromString(ownerId)
 	if e != nil {
-		return s, e
+		return nil, e
 	}
 
-	return wit.Space{sId, oId, name, desc}, nil
+	return &wit.Space{sId, oId, name, desc}, nil
 }

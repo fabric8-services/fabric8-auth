@@ -24,7 +24,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
