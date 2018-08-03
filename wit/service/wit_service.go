@@ -33,7 +33,7 @@ func NewWITService(context servicecontext.ServiceContext, config wit.Configurati
 	return &witServiceImpl{base.NewBaseService(context), config, rest.DefaultHttpDoer()}
 }
 
-// UpdateWITUser updates user in WIT
+// UpdateUser updates user in WIT
 func (r *witServiceImpl) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
@@ -78,7 +78,7 @@ func (r *witServiceImpl) UpdateWITUser(ctx context.Context, updatePayload *app.U
 	return nil
 }
 
-// CreateWITUser creates a new user in WIT
+// CreateUser creates a new user in WIT
 func (r *witServiceImpl) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{

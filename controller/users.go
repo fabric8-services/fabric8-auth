@@ -173,7 +173,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 
 	// finally, if all works, we create a user in WIT too.
-	err = c.app.WITService().CreateWITUser(ctx.Context, identity, identityID.String())
+	err = c.app.WITService().CreateUser(ctx.Context, identity, identityID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":              err,
@@ -752,7 +752,7 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, identityID 
 		},
 	}
 
-	return c.app.WITService().UpdateWITUser(ctx, updateUserPayload, identityID)
+	return c.app.WITService().UpdateUser(ctx, updateUserPayload, identityID)
 }
 
 func isEmailValid(email string) bool {

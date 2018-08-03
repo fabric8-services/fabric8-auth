@@ -361,7 +361,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	// new user for WIT
 	if newUser {
-		err = keycloak.App.WITService().CreateWITUser(ctx, identity, identity.ID.String())
+		err = keycloak.App.WITService().CreateUser(ctx, identity, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
@@ -754,7 +754,7 @@ func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, identi
 			},
 		},
 	}
-	return keycloak.App.WITService().UpdateWITUser(ctx, updateUserPayload, identityID)
+	return keycloak.App.WITService().UpdateUser(ctx, updateUserPayload, identityID)
 }
 
 func generateGravatarURL(email string) (string, error) {

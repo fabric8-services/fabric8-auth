@@ -83,8 +83,8 @@ type NotificationService interface {
 }
 
 type WITService interface {
-	UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
-	CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error
+	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
+	CreateUser(ctx context.Context, identity *account.Identity, identityID string) error
 	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
 }
 

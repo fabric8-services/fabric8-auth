@@ -152,7 +152,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	}
 	tokens := app.AuthTokenCollection{convertToken(*tokenSet)}
 
-	err = c.app.WITService().CreateWITUser(ctx, &devIdentity, devIdentity.ID.String())
+	err = c.app.WITService().CreateUser(ctx, &devIdentity, devIdentity.ID.String())
 	if err != nil {
 		log.Warn(ctx, map[string]interface{}{
 			"err":         err,
