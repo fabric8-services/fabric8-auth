@@ -50,8 +50,8 @@ func (s *TestWITSuite) SetupSuite() {
 
 func (s *TestWITSuite) TestDevNullWITService() {
 	ws := &testsupport.DevWITService{}
-	assert.Nil(s.T(), ws.CreateWITUser(nil, nil, ""))
-	assert.Nil(s.T(), ws.UpdateWITUser(nil, nil, ""))
+	assert.Nil(s.T(), ws.CreateUser(nil, nil, ""))
+	assert.Nil(s.T(), ws.UpdateUser(nil, nil, ""))
 
 	space, e := ws.GetSpace(nil, "")
 	assert.Nil(s.T(), e)
@@ -98,23 +98,26 @@ func (s *TestWITSuite) TestCreateWITUser() {
 		assert.Equal(s.T(), expectedBody, rest.ReadBody(req.Body))
 	}
 
-	// OK
-	err := s.ws.CreateWITUser(ctx, &testIdentity, identityId)
-	require.NoError(s.T(), err)
+	s.T().Run("should return space if client ok", func(t *testing.T) {
+		err := s.ws.CreateUser(ctx, &testIdentity, identityId)
+		require.NoError(s.T(), err)
+	})
 
-	// Fail if client returned an error
-	s.doer.Client.Response = nil
-	s.doer.Client.Error = errors.New("failed to create user in wit")
-	err = s.ws.CreateWITUser(ctx, &testIdentity, identityId)
-	require.Error(s.T(), err)
-	assert.Equal(s.T(), "failed to create user in wit", err.Error())
+	s.T().Run("should fail to create user if client returned an error", func(t *testing.T) {
+		s.doer.Client.Response = nil
+		s.doer.Client.Error = errors.New("failed to create user in wit")
+		err := s.ws.CreateUser(ctx, &testIdentity, identityId)
+		require.Error(s.T(), err)
+		assert.Equal(s.T(), "failed to create user in wit", err.Error())
+	})
 
-	// Fail if client returned unexpected status
-	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError, Status: "500"}
-	s.doer.Client.Error = nil
-	err = s.ws.CreateWITUser(ctx, &testIdentity, identityId)
-	require.Error(s.T(), err)
-	testsupport.AssertError(s.T(), err, errors.New(""), "unable to create user in WIT. Response status: 500. Response body: ")
+	s.T().Run("should fail to create user if client returned unexpected status", func(t *testing.T) {
+		s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError, Status: "500"}
+		s.doer.Client.Error = nil
+		err := s.ws.CreateUser(ctx, &testIdentity, identityId)
+		require.Error(s.T(), err)
+		testsupport.AssertError(s.T(), err, errors.New(""), "unable to create user in WIT. Response status: 500. Response body: ")
+	})
 }
 
 func (s *TestWITSuite) TestUpdateWITUser() {
@@ -154,24 +157,30 @@ func (s *TestWITSuite) TestUpdateWITUser() {
 		assert.Equal(s.T(), expectedBody, rest.ReadBody(req.Body))
 	}
 
-	// OK
 	updateUsersPayload := createUpdateUsersPayload(&newEmail, &newFullName, &newBio, &newImageURL, &newProfileURL, &newCompany, nil, nil, contextInformation)
-	err := s.ws.UpdateWITUser(ctx, &updateUsersPayload, identityId)
-	require.NoError(s.T(), err)
 
-	// Fail if client returned an error
-	s.doer.Client.Response = nil
-	s.doer.Client.Error = errors.New("failed to update user in wit")
-	err = s.ws.UpdateWITUser(ctx, &updateUsersPayload, identityId)
-	require.Error(s.T(), err)
-	assert.Equal(s.T(), "failed to update user in wit", err.Error())
+	s.T().Run("should update user if client ok", func(t *testing.T) {
+		err := s.ws.UpdateUser(ctx, &updateUsersPayload, identityId)
+		require.NoError(s.T(), err)
+	})
 
-	// Fail if client returned unexpected status
-	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError, Status: "500"}
-	s.doer.Client.Error = nil
-	err = s.ws.UpdateWITUser(ctx, &updateUsersPayload, identityId)
-	require.Error(s.T(), err)
-	testsupport.AssertError(s.T(), err, errors.New(""), "unable to update user in WIT. Response status: 500. Response body: ")
+	s.T().Run("should fail to update user if client returned an error", func(t *testing.T) {
+		s.doer.Client.Response = nil
+		s.doer.Client.Error = errors.New("failed to update user in wit")
+		err := s.ws.UpdateUser(ctx, &updateUsersPayload, identityId)
+		require.Error(s.T(), err)
+		assert.Equal(s.T(), "failed to update user in wit", err.Error())
+
+	})
+
+	s.T().Run("should fail to update user if client returned unexpected status", func(t *testing.T) {
+		s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError, Status: "500"}
+		s.doer.Client.Error = nil
+		err := s.ws.UpdateUser(ctx, &updateUsersPayload, identityId)
+		require.Error(s.T(), err)
+		testsupport.AssertError(s.T(), err, errors.New(""), "unable to update user in WIT. Response status: 500. Response body: ")
+
+	})
 }
 
 func (s *TestWITSuite) TestGetSpace() {
@@ -195,24 +204,27 @@ func (s *TestWITSuite) TestGetSpace() {
 		assert.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
 	}
 
-	// OK
-	space, err := s.ws.GetSpace(ctx, spaceId)
-	require.NoError(s.T(), err)
-	require.Equal(s.T(), space, testSpace)
+	s.T().Run("should return space if client ok", func(t *testing.T) {
+		space, err := s.ws.GetSpace(ctx, spaceId)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), space, testSpace)
+	})
 
-	// Fail if client returned an error
-	s.doer.Client.Response = nil
-	s.doer.Client.Error = errors.New("failed to get space from wit")
-	space, err = s.ws.GetSpace(ctx, spaceId)
-	require.Error(s.T(), err)
-	assert.Equal(s.T(), "failed to get space from wit", err.Error())
+	s.T().Run("should fail to get space if client returned an error", func(t *testing.T) {
+		s.doer.Client.Response = nil
+		s.doer.Client.Error = errors.New("failed to get space from wit")
+		_, err := s.ws.GetSpace(ctx, spaceId)
+		require.Error(s.T(), err)
+		assert.Equal(s.T(), "failed to get space from wit", err.Error())
+	})
 
-	// Fail if client returned unexpected status
-	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError, Status: "500"}
-	s.doer.Client.Error = nil
-	space, err = s.ws.GetSpace(ctx, spaceId)
-	require.Error(s.T(), err)
-	testsupport.AssertError(s.T(), err, errors.New(""), "unable to get space from WIT. Response status: 500. Response body: ")
+	s.T().Run("should fail to get space if client returned unexpected status", func(t *testing.T) {
+		s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError, Status: "500"}
+		s.doer.Client.Error = nil
+		_, err := s.ws.GetSpace(ctx, spaceId)
+		require.Error(s.T(), err)
+		testsupport.AssertError(s.T(), err, errors.New(""), "unable to get space from WIT. Response status: 500. Response body: ")
+	})
 }
 
 func (s *TestWITSuite) TestDefaultDoer() {

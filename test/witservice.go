@@ -16,11 +16,11 @@ type DevWITService struct {
 	Description string
 }
 
-func (s *DevWITService) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
+func (s *DevWITService) UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
 	return nil
 }
 
-func (s *DevWITService) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
+func (s *DevWITService) CreateUser(ctx context.Context, identity *account.Identity, identityID string) error {
 	return nil
 }
 

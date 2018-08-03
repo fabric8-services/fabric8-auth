@@ -34,7 +34,7 @@ func NewWITService(context servicecontext.ServiceContext, config wit.Configurati
 }
 
 // UpdateUser updates user in WIT
-func (r *witServiceImpl) UpdateWITUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
+func (r *witServiceImpl) UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
 		Data: &witservice.UpdateUserData{
@@ -79,7 +79,7 @@ func (r *witServiceImpl) UpdateWITUser(ctx context.Context, updatePayload *app.U
 }
 
 // CreateUser creates a new user in WIT
-func (r *witServiceImpl) CreateWITUser(ctx context.Context, identity *account.Identity, identityID string) error {
+func (r *witServiceImpl) CreateUser(ctx context.Context, identity *account.Identity, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
