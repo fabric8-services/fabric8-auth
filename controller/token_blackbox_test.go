@@ -3,6 +3,7 @@ package controller_test
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -334,6 +335,7 @@ func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string
 func (rest *TestTokenREST) checkAuthorizationCode(service *goa.Service, controller *TokenController, name string, code string) {
 	_, token := test.ExchangeTokenOK(rest.T(), service.Context, service, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
 
+	require.NotNil(rest.T(), token)
 	require.NotNil(rest.T(), token.TokenType)
 	require.Equal(rest.T(), "bearer", *token.TokenType)
 	require.NotNil(rest.T(), token.AccessToken)
@@ -357,6 +359,27 @@ func (rest *TestTokenREST) checkExchangeWithRefreshToken(service *goa.Service, c
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(rest.T(), err)
 	require.True(rest.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+}
+
+func (rest *TestTokenREST) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
+	// setup the service and controller for this specific usecase
+	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
+	tokenManager, err := token.NewManager(rest.Configuration)
+	require.Nil(rest.T(), err)
+	oauthService := &NotApprovedOAuthService{}
+	controller := NewTokenController(svc, rest.Application, oauthService, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
+
+	code := "XYZ"
+	_, errResp := test.ExchangeTokenForbidden(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
+	require.Equal(rest.T(), "user is not authorized to access OpenShift", errResp.Errors[0].Detail)
+
+	oauthService = &NotApprovedOAuthService{}
+	oauthService.Scenario = "approved"
+	controller = NewTokenController(svc, rest.Application, oauthService, &DummyLinkService{}, nil, tokenManager, rest.Configuration)
+
+	code = "XYZ"
+	_, returnedToken := test.ExchangeTokenOK(rest.T(), svc.Context, svc, controller, &app.TokenExchange{GrantType: "authorization_code", ClientID: rest.Configuration.GetPublicOauthClientID(), Code: &code})
+	require.NotNil(rest.T(), returnedToken.AccessToken)
 }
 
 type DummyLinkService struct {
@@ -412,4 +435,65 @@ func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, re
 		ExpiresIn:    &thirtyDays,
 	}
 	return token, nil
+}
+
+// CreateOrUpdateIdentityAndUser is a mocked service contract which returns a token but not a redirect url.
+
+func (s *DummyKeycloakOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+	var thirtyDays, nbf int64
+	thirtyDays = 60 * 60 * 24 * 30
+	token := &oauth2.Token{
+		TokenType:    "bearer",
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+		AccessToken:  keycloakToken.AccessToken,
+		RefreshToken: keycloakToken.RefreshToken,
+	}
+
+	extra := make(map[string]interface{})
+	extra["expires_in"] = thirtyDays
+	extra["refresh_expires_in"] = thirtyDays
+	extra["not_before_policy"] = nbf
+	token = token.WithExtra(extra)
+
+	return nil, token, nil
+}
+
+/* Custom oauth service for user-not-approved scenario */
+
+type NotApprovedOAuthService struct {
+	login.KeycloakOAuthProvider
+	Scenario string
+}
+
+func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+	bearer := "Bearer"
+	token := &oauth2.Token{
+		TokenType:    bearer,
+		AccessToken:  "sometoken",
+		RefreshToken: "sometoken",
+	}
+	return token, nil
+}
+
+func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration login.Configuration) (*account.Identity, bool, error) {
+	return nil, false, errors.NewUnauthorizedError("user is absent")
+}
+func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+
+	/* This mocked method simulates the contract
+	where redir url is always returned, but token is returned when there is not error
+	*/
+
+	redirURLNotApproved := "http://not-approved"
+	redirURLApproved := "http://approved"
+	bearer := "Bearer"
+	token := &oauth2.Token{
+		TokenType:    bearer,
+		AccessToken:  "sometoken",
+		RefreshToken: "sometoken",
+	}
+	if s.Scenario == "approved" {
+		return &redirURLApproved, token, nil
+	}
+	return &redirURLNotApproved, nil, nil
 }

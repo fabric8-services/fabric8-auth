@@ -367,12 +367,13 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 	var err error
 	var token *app.OauthToken
+	var notApprovedRedirect *string
 
 	switch payload.GrantType {
 	case "client_credentials":
 		token, err = c.exchangeWithGrantTypeClientCredentials(ctx)
 	case "authorization_code":
-		token, err = c.exchangeWithGrantTypeAuthorizationCode(ctx)
+		notApprovedRedirect, token, err = c.exchangeWithGrantTypeAuthorizationCode(ctx)
 	case "refresh_token":
 		token, err = c.exchangeWithGrantTypeRefreshToken(ctx)
 	default:
@@ -381,6 +382,11 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	if notApprovedRedirect != nil && token == nil {
+		// the code enters this block only if the user is not provisioned on OSO.
+		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to access OpenShift"))
 	}
 
 	return ctx.OK(token)
@@ -432,24 +438,24 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 	return token, nil
 }
 
-func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
+func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.ExchangeTokenContext) (*string, *app.OauthToken, error) {
 	payload := ctx.Payload
 	if payload.Code == nil {
-		return nil, errors.NewBadParameterError("code", "nil").Expected("authorization code")
+		return nil, nil, errors.NewBadParameterError("code", "nil").Expected("authorization code")
 	}
 	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	if payload.ClientID != c.Configuration.GetPublicOauthClientID() {
 		log.Error(ctx, map[string]interface{}{
 			"client_id": payload.ClientID,
 		}, "unknown oauth client id")
-		return nil, errors.NewUnauthorizedError("invalid oauth client id")
+		return nil, nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to get keycloak auth endpoint url")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak auth endpoint url")
+		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak auth endpoint url")
 	}
 
 	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
@@ -457,7 +463,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to get keycloak token endpoint url")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak token endpoint url")
+		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak token endpoint url")
 	}
 
 	oauth := &oauth2.Config{
@@ -472,7 +478,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 	keycloakToken, err := c.Auth.Exchange(ctx, *payload.Code, oauth)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	redirectURL, err := url.Parse(oauth.RedirectURL)
@@ -481,34 +487,38 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 			"redirectURL": oauth.RedirectURL,
 			"err":         err,
 		}, "failed to parse referrer")
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, nil, errors.NewInternalError(ctx, err)
 	}
 
-	_, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
+	notApprovedRedirectURL, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Convert expiry to expire_in
-	expiry := userToken.Expiry
-	var expireIn *string
-	if expiry != *new(time.Time) {
-		exp := expiry.Sub(time.Now())
-		if exp > 0 {
-			seconds := strconv.FormatInt(int64(exp/time.Second), 10)
-			expireIn = &seconds
+	var token *app.OauthToken
+
+	if userToken != nil {
+		// Convert expiry to expire_in
+		expiry := userToken.Expiry
+		var expireIn *string
+		if expiry != *new(time.Time) {
+			exp := expiry.Sub(time.Now())
+			if exp > 0 {
+				seconds := strconv.FormatInt(int64(exp/time.Second), 10)
+				expireIn = &seconds
+			}
+		}
+
+		token = &app.OauthToken{
+			AccessToken:  &userToken.AccessToken,
+			ExpiresIn:    expireIn,
+			RefreshToken: &userToken.RefreshToken,
+			TokenType:    &userToken.TokenType,
 		}
 	}
 
-	token := &app.OauthToken{
-		AccessToken:  &userToken.AccessToken,
-		ExpiresIn:    expireIn,
-		RefreshToken: &userToken.RefreshToken,
-		TokenType:    &userToken.TokenType,
-	}
-
-	return token, nil
+	return notApprovedRedirectURL, token, nil
 }
 
 func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
