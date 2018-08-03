@@ -686,8 +686,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			switch err.(type) {
 			default:
 				return ctx.BadRequest(jerrors)
-				// case errors.BadParameterError:
-				// 	return ctx.Conflict(jerrors)
 			case errors.UnauthorizedError:
 				return ctx.Unauthorized(jerrors)
 			}
