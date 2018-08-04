@@ -114,7 +114,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 			Roles:      []string{"admin"},
 		},
 	}
-	
+
 	// Issue the invitation
 	err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), invitations)
 	require.NoError(s.T(), err)
