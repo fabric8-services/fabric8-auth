@@ -12,14 +12,15 @@ import (
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
 
+	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
 )
 
 /*
 Steps for adding a new Service:
-1. Add a new service interface to application/service/service.go
+1. Add a new service interface to application/service/services.go
 2. Create an implementation of the service interface
-3. Add a new method to service.Service interface in application/service/service.go for accessing the service interface
+3. Add a new method to service.Services interface in application/service/services.go for accessing the service interface
    defined in step 1
 4. Add a new method to application/service/factory/service_factory.go which implements the service access method
    from step #3 and uses the service constructor from step 2
@@ -81,6 +82,12 @@ type NotificationService interface {
 	SendMessagesAsync(ctx context.Context, messages []notification.Message) error
 }
 
+type WITService interface {
+	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
+	CreateUser(ctx context.Context, identity *account.Identity, identityID string) error
+	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
+}
+
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
@@ -92,4 +99,5 @@ type Services interface {
 	SpaceService() SpaceService
 	UserService() UserService
 	NotificationService() NotificationService
+	WITService() WITService
 }

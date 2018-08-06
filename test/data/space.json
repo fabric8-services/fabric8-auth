@@ -1,0 +1,18 @@
+{
+  "data": {
+    "attributes": {
+      "description": "My space description",
+      "name": "My Test Space"
+    },
+    "id": "00000000-0000-0000-0000-000000000002",
+    "relationships": {
+      "owned-by": {
+        "data": {
+          "id": "00000000-0000-0000-0000-000000000004",
+          "type": "identities"
+        }
+      }
+    },
+    "type": "spaces"
+  }
+}

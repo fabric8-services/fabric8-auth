@@ -22,8 +22,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
-	remotewitservice "github.com/fabric8-services/fabric8-auth/wit"
-
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -154,18 +152,12 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	}
 	tokens := app.AuthTokenCollection{convertToken(*tokenSet)}
 
-	var remotewitserviceCaller remotewitservice.RemoteWITServiceCaller
-	witURL, err := c.Configuration.GetWITURL()
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	err = remotewitserviceCaller.CreateWITUser(ctx, &devIdentity, witURL, devIdentity.ID.String())
+	err = c.app.WITService().CreateUser(ctx, &devIdentity, devIdentity.ID.String())
 	if err != nil {
 		log.Warn(ctx, map[string]interface{}{
 			"err":         err,
 			"identity_id": devIdentity.ID,
 			"username":    devIdentity.Username,
-			"wit_url":     witURL,
 		}, "unable to create user in WIT ")
 	}
 

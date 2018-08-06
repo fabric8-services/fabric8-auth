@@ -22,8 +22,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/wit"
-
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
@@ -37,7 +35,6 @@ type UsersController struct {
 	app                      application.Application
 	config                   UsersControllerConfiguration
 	userProfileService       login.UserProfileService
-	RemoteWITService         wit.RemoteWITService
 	EmailVerificationService service.EmailVerificationService
 	keycloakLinkService      link.KeycloakIDPService
 }
@@ -65,7 +62,6 @@ func NewUsersController(service *goa.Service, app application.Application, confi
 		app:                 app,
 		config:              config,
 		userProfileService:  userProfileService,
-		RemoteWITService:    &wit.RemoteWITServiceCaller{},
 		keycloakLinkService: linkService,
 	}
 }
@@ -177,17 +173,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 
 	// finally, if all works, we create a user in WIT too.
-	witURL, err := c.config.GetWITURL()
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":              err,
-			"keycloak_user_id": *keycloakUserID,
-		}, "failed to create user in WIT")
-
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
-	err = c.RemoteWITService.CreateWITUser(ctx.Context, identity, witURL, identityID.String())
+	err = c.app.WITService().CreateUser(ctx.Context, identity, identityID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":              err,
@@ -700,8 +686,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			switch err.(type) {
 			default:
 				return ctx.BadRequest(jerrors)
-			// case errors.BadParameterError:
-			// 	return ctx.Conflict(jerrors)
 			case errors.UnauthorizedError:
 				return ctx.Unauthorized(jerrors)
 			}
@@ -765,11 +749,8 @@ func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, identityID 
 			Type: ctx.Payload.Data.Type,
 		},
 	}
-	witURL, err := c.config.GetWITURL()
-	if err != nil {
-		return err
-	}
-	return c.RemoteWITService.UpdateWITUser(ctx, updateUserPayload, witURL, identityID)
+
+	return c.app.WITService().UpdateUser(ctx, updateUserPayload, identityID)
 }
 
 func isEmailValid(email string) bool {
