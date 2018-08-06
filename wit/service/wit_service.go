@@ -34,7 +34,7 @@ func NewWITService(context servicecontext.ServiceContext, config wit.Configurati
 }
 
 // UpdateUser updates user in WIT
-func (r *witServiceImpl) UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
+func (s *witServiceImpl) UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
 	// Using the UpdateUserPayload because it also describes which attribtues are being updated and which are not.
 	updateUserPayload := &witservice.UpdateUserAsServiceAccountUsersPayload{
 		Data: &witservice.UpdateUserData{
@@ -53,7 +53,7 @@ func (r *witServiceImpl) UpdateUser(ctx context.Context, updatePayload *app.Upda
 		},
 	}
 
-	remoteWITService, err := r.createClientWithContextSigner(ctx)
+	remoteWITService, err := s.createClientWithContextSigner(ctx)
 
 	if err != nil {
 		return err
@@ -79,7 +79,7 @@ func (r *witServiceImpl) UpdateUser(ctx context.Context, updatePayload *app.Upda
 }
 
 // CreateUser creates a new user in WIT
-func (r *witServiceImpl) CreateUser(ctx context.Context, identity *account.Identity, identityID string) error {
+func (s *witServiceImpl) CreateUser(ctx context.Context, identity *account.Identity, identityID string) error {
 	createUserPayload := &witservice.CreateUserAsServiceAccountUsersPayload{
 		Data: &witservice.CreateUserData{
 			Attributes: &witservice.CreateIdentityDataAttributes{
@@ -97,7 +97,7 @@ func (r *witServiceImpl) CreateUser(ctx context.Context, identity *account.Ident
 		},
 	}
 
-	remoteWITService, err := r.createClientWithContextSigner(ctx)
+	remoteWITService, err := s.createClientWithContextSigner(ctx)
 	if err != nil {
 		return err
 	}
@@ -122,8 +122,8 @@ func (r *witServiceImpl) CreateUser(ctx context.Context, identity *account.Ident
 }
 
 // GetSpace talks to the WIT service to retrieve a space record for the specified spaceID, then returns space
-func (r *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
-	remoteWITService, err := r.createClientWithContextSigner(ctx)
+func (s *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
+	remoteWITService, err := s.createClientWithContextSigner(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -162,13 +162,13 @@ func (r *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space *w
 }
 
 // createClientWithContextSigner creates with a signer based on current context
-func (t *witServiceImpl) createClientWithContextSigner(ctx context.Context) (*witservice.Client, error) {
-	c, err := t.createClient()
+func (s *witServiceImpl) createClientWithContextSigner(ctx context.Context) (*witservice.Client, error) {
+	c, err := s.createClient()
 	if err != nil {
 		return nil, err
 	}
-	s := signer.NewSATokenSigner(ctx)
-	saTokenSigner, err := s.Signer()
+	sgn := signer.NewSATokenSigner(ctx)
+	saTokenSigner, err := sgn.Signer()
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +176,8 @@ func (t *witServiceImpl) createClientWithContextSigner(ctx context.Context) (*wi
 	return c, nil
 }
 
-func (t *witServiceImpl) createClient() (*witservice.Client, error) {
-	witURL, e := t.config.GetWITURL()
+func (s *witServiceImpl) createClient() (*witservice.Client, error) {
+	witURL, e := s.config.GetWITURL()
 	if e != nil {
 		return nil, e
 	}
@@ -186,7 +186,7 @@ func (t *witServiceImpl) createClient() (*witservice.Client, error) {
 		return nil, err
 	}
 
-	c := witservice.New(t.doer)
+	c := witservice.New(s.doer)
 	c.Host = u.Host
 	c.Scheme = u.Scheme
 	return c, nil

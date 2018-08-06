@@ -122,13 +122,13 @@ func (s *notificationServiceImpl) send(ctx context.Context, c *client.Client, ms
 }
 
 // createClientWithContextSigner creates with a signer based on current context
-func (t *notificationServiceImpl) createClientWithContextSigner(ctx context.Context) (*client.Client, error) {
-	c, err := t.createClient()
+func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Context) (*client.Client, error) {
+	c, err := s.createClient()
 	if err != nil {
 		return nil, err
 	}
-	s := signer.NewSATokenSigner(ctx)
-	saTokenSigner, err := s.Signer()
+	sgn := signer.NewSATokenSigner(ctx)
+	saTokenSigner, err := sgn.Signer()
 	if err != nil {
 		return nil, err
 	}
@@ -136,13 +136,13 @@ func (t *notificationServiceImpl) createClientWithContextSigner(ctx context.Cont
 	return c, nil
 }
 
-func (t *notificationServiceImpl) createClient() (*client.Client, error) {
-	u, err := url.Parse(t.config.GetNotificationServiceURL())
+func (s *notificationServiceImpl) createClient() (*client.Client, error) {
+	u, err := url.Parse(s.config.GetNotificationServiceURL())
 	if err != nil {
 		return nil, err
 	}
 
-	c := client.New(t.doer)
+	c := client.New(s.doer)
 	c.Host = u.Host
 	c.Scheme = u.Scheme
 	return c, nil
