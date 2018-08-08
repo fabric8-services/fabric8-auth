@@ -14,8 +14,8 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/wit"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/satori/go.uuid"
+	"github.com/dgrijalva/jwt-go"
 )
 
 /*
@@ -73,9 +73,7 @@ type TeamService interface {
 }
 
 type TokenService interface {
-	Initialize(ctx context.Context, resourceID string) (token.RPTTokenState, error)
-	ValidateToken(ctx context.Context, tokenID uuid.UUID) (bool, error)
-	Refresh(ctx context.Context, tokenID uuid.UUID, resourceID string) (token.RPTTokenState, error)
+	Audit(ctx context.Context, token *jwt.Token, resourceID string) (*jwt.Token, error)
 }
 
 type SpaceService interface {

@@ -33,6 +33,10 @@ func (m RPTToken) TableName() string {
 	return "rpt_token"
 }
 
+func (m *RPTToken) Valid() bool {
+	return m.Status == 0
+}
+
 // GormRPTTokenRepository is the implementation of the storage interface for RPTToken.
 type GormRPTTokenRepository struct {
 	db *gorm.DB
@@ -102,6 +106,9 @@ func (m *GormRPTTokenRepository) Create(ctx context.Context, token *RPTToken) er
 	if token.TokenID == uuid.Nil {
 		token.TokenID = uuid.NewV4()
 	}
+
+	// TODO read token expiry duration from configuration
+	token.ExpiryTime = time.Now().Add(12 * time.Hour)
 
 	err := m.db.Create(token).Error
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/repository"
+	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	authclient "github.com/fabric8-services/fabric8-auth/client"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
@@ -438,6 +439,18 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	}
 
 	return token, nil
+}
+
+func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, rptToken tokenrepo.RPTToken) (*oauth2.Token, error) {
+	unsignedAccessToken, err := mgm.GenerateUnsignedRPTTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+
+
+
+
 }
 
 // GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
