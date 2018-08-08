@@ -209,6 +209,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 33
 	m = append(m, steps{ExecuteSQLFile("033-drop-space-resources.sql")})
 
+	// Version 34
+	m = append(m, steps{ExecuteSQLFile("034-rename-token-table.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

@@ -7,6 +7,7 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 )
 
@@ -25,4 +26,5 @@ type Repositories interface {
 	RoleRepository() role.RoleRepository
 	DefaultRoleMappingRepository() role.DefaultRoleMappingRepository
 	RoleMappingRepository() role.RoleMappingRepository
+	TokenRepository() token.TokenRepository
 }
