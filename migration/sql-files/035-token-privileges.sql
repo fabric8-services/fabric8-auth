@@ -1,9 +1,7 @@
-DROP TABLE token_resource;
-
 CREATE TABLE privilege_cache (
   privilege_cache_id uuid NOT NULL PRIMARY KEY,
-  identity_id uuid NOT NULL FOREIGN KEY REFERENCES identities (id),
-  resource_id uuid NOT NULL FOREIGN KEY REFERENCES resource (resource_id),
+  identity_id uuid NOT NULL REFERENCES identities (id),
+  resource_id varchar NOT NULL REFERENCES resource (resource_id),
   scopes varchar,
   stale boolean,
   expiry_time timestamp with time zone,
@@ -13,6 +11,7 @@ CREATE TABLE privilege_cache (
 );
 
 CREATE TABLE token_privilege (
-  token_id uuid NOT NULL PRIMARY KEY,
-  privilege_cache_id NOT NULL PRIMARY KEY
+  token_id uuid NOT NULL,
+  privilege_cache_id uuid NOT NULL,
+  PRIMARY KEY (token_id, privilege_cache_id)
 );

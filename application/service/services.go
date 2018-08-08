@@ -15,8 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
-	"github.com/dgrijalva/jwt-go"
-)
+	)
 
 /*
 Steps for adding a new Service:
@@ -73,7 +72,7 @@ type TeamService interface {
 }
 
 type TokenService interface {
-	Audit(ctx context.Context, token *jwt.Token, resourceID string) (*jwt.Token, error)
+	Audit(ctx context.Context, tokenString string, resourceID string) (bool, string, error)
 }
 
 type SpaceService interface {

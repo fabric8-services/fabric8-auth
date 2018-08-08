@@ -331,6 +331,6 @@ func (g *TestGraph) CreateToken(params ...interface{}) *tokenWrapper {
 	return g.createAndRegister(newTokenWrapper, params).(*tokenWrapper)
 }
 
-func (g *TestGraph) CreateTokenResource(params ...interface{}) *tokenResourceWrapper {
-	return g.createAndRegister(newTokenResourceWrapper, params).(*tokenResourceWrapper)
+func (g *TestGraph) CreatePrivilegeCache(params ...interface{}) *privilegeCacheWrapper {
+	return g.createAndRegister(newPrivilegeCacheWrapper, params).(*privilegeCacheWrapper)
 }

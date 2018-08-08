@@ -441,13 +441,14 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	return token, nil
 }
 
-func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, rptToken tokenrepo.RPTToken) (*oauth2.Token, error) {
-	unsignedAccessToken, err := mgm.GenerateUnsignedRPTTokenForIdentity(ctx, identity)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
+func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, rptToken tokenrepo.Token) (*oauth2.Token, error) {
+	//unsignedAccessToken, err := mgm.GenerateUnsignedRPTTokenForIdentity(ctx, identity)
 
+//	if err != nil {
+//		return nil, errors.WithStack(err)
+//	}
 
+return nil, nil
 
 
 

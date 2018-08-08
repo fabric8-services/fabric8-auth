@@ -5,19 +5,31 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/token"
+
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 			"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 )
 
 type tokenServiceImpl struct {
 	base.BaseService
+	TokenManager token.Manager
 }
 
-func NewTokenService(context servicecontext.ServiceContext) service.TokenService {
+func NewTokenService(context servicecontext.ServiceContext, config *configuration.ConfigurationData) service.TokenService {
+	tokenManager, err := token.NewManager(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create token manager")
+	}
+
 	return &tokenServiceImpl{
 		BaseService: base.NewBaseService(context),
+		TokenManager: tokenManager,
 	}
 }
 
@@ -27,17 +39,28 @@ func NewTokenService(context servicecontext.ServiceContext) service.TokenService
 // then a new token is generated and returned.
 func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resourceID string) (bool, string, error) {
 
+	jwtToken, err := s.TokenManager.Parse(ctx, tokenString)
+	if err != nil {
 
+	}
 
 	// First let's load the identity
 	identity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, s.Repositories())
+	if err != nil {
+
+	}
+
+	if identity != nil {
+
+	}
+
 
 
 	// The first thing this function does is validate the token that was passed in
 	var tokenID uuid.UUID
-	var err error
 
-	if claims, ok := token.Claims.(jwt.StandardClaims); ok  {
+
+	if claims, ok := jwtToken.Claims.(jwt.StandardClaims); ok  {
 		tokenID, err = uuid.FromString(claims.Id)
 		if err != nil {
 			// Ignore? or perhaps log
@@ -46,7 +69,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		// If we can't succeed in
 	}
 
-	rptToken, err := s.Repositories().RPTTokenRepository().Load(ctx, tokenID)
+	token, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
 	if err != nil {
 		// This is not an error per se, so we'll just log an informational message
 		log.Info(ctx, map[string]interface{}{
@@ -54,8 +77,8 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		}, "token with specified id not found")
 	} else {
 		// If the token exists and its status is valid, return it
-		if rptToken.Valid() {
-			return token, nil
+		if token.Valid() {
+			return true, "", nil
 		} else {
 			// If the status is invalid, we need to generate a new token.
 		}
@@ -66,9 +89,10 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 
 
 
-	return nil, nil
+	return false, "", nil
 }
 
 func (s *tokenServiceImpl) generateNewToken(ctx context.Context, identityID uuid.UUID, resourceID string) (*jwt.Token, error) {
+	return nil, nil
 
 }

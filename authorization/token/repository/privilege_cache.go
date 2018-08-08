@@ -76,7 +76,7 @@ func (m *GormPrivilegeCacheRepository) CheckExists(ctx context.Context, privileg
 
 	err := m.db.CommonDB().QueryRow(query, privilegeCacheID).Scan(&exists)
 	if err == nil && !exists {
-		return exists, errors.NewNotFoundError(m.TableName(), fmt.Sprintf("%s:%s", privilegeCacheID.String()))
+		return exists, errors.NewNotFoundError(m.TableName(), fmt.Sprintf("%s", privilegeCacheID.String()))
 	}
 	if err != nil {
 		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
@@ -100,6 +100,10 @@ func (m *GormPrivilegeCacheRepository) Load(ctx context.Context, privilegeCacheI
 // Create creates a new record.
 func (m *GormPrivilegeCacheRepository) Create(ctx context.Context, privilegeCache *PrivilegeCache) error {
 	defer goa.MeasureSince([]string{"goa", "db", "privilege_cache", "create"}, time.Now())
+
+	if privilegeCache.PrivilegeCacheID == uuid.Nil {
+		privilegeCache.PrivilegeCacheID = uuid.NewV4()
+	}
 
 	err := m.db.Create(privilegeCache).Error
 	if err != nil {
@@ -180,7 +184,7 @@ func (m *GormPrivilegeCacheRepository) ListForToken(ctx context.Context, tokenID
 	defer goa.MeasureSince([]string{"goa", "db", "privilege_cache", "ListForToken"}, time.Now())
 	var rows []PrivilegeCache
 
-	err := m.db.Table(m.TableName()).Where("deleted_at IS NULL AND privilege_cache_id IN (SELECT tp.privilege_cache_id FROM token_privilege tp WHERE tp.token_id = ?",
+	err := m.db.Table(m.TableName()).Where("deleted_at IS NULL AND privilege_cache_id IN (SELECT tp.privilege_cache_id FROM token_privilege tp WHERE tp.token_id = ?)",
 		tokenID).Scan(&rows).Error
 
 	if err != nil && err != gorm.ErrRecordNotFound {

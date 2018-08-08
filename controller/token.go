@@ -683,3 +683,8 @@ func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
 	ctx.ResponseData.Header().Set("Location", redirectLocation)
 	return ctx.TemporaryRedirect()
 }
+
+func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
+	// TODO implement
+	return nil
+}

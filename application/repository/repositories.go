@@ -27,5 +27,5 @@ type Repositories interface {
 	DefaultRoleMappingRepository() role.DefaultRoleMappingRepository
 	RoleMappingRepository() role.RoleMappingRepository
 	TokenRepository() token.TokenRepository
-	TokenResourceRepository() token.TokenResourceRepository
+	PrivilegeCacheRepository() token.PrivilegeCacheRepository
 }

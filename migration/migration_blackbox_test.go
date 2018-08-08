@@ -118,7 +118,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration30", testMigration30)
 	t.Run("TestMigration31", testMigration31)
 	t.Run("TestMigration33", testMigration33)
-	t.Run("TestMigration34", testMigration34)
+	t.Run("TestMigration35", testMigration35)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -446,10 +446,10 @@ func testMigration33(t *testing.T) {
 	assert.False(t, dialect.HasTable("space_resources"))
 }
 
-func testMigration34(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(35)], (35))
-	assert.True(t, dialect.HasColumn("token_resource", "scopes"))
-	assert.True(t, dialect.HasColumn("token_resource", "status"))
+func testMigration35(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(36)], (36))
+	assert.True(t, dialect.HasColumn("privilege_cache", "scopes"))
+	assert.True(t, dialect.HasColumn("privilege_cache", "stale"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
