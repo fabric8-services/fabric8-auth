@@ -291,3 +291,7 @@ func (g *TestGraph) RoleMappingByID(id string) *roleMappingWrapper {
 func (g *TestGraph) CreateInvitation(params ...interface{}) *invitationWrapper {
 	return g.createAndRegister(newInvitationWrapper, params).(*invitationWrapper)
 }
+
+func (g *TestGraph) CreateToken(params ...interface{}) *tokenWrapper {
+	return g.createAndRegister(newTokenWrapper, params).(*tokenWrapper)
+}

@@ -16,6 +16,8 @@ import (
 )
 
 type Token struct {
+	gormsupport.Lifecycle
+
 	// This is the primary key value
 	TokenID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:token_id"`
 
@@ -39,7 +41,7 @@ func (m *Token) Valid() bool {
 	return m.Status == 0
 }
 
-// GormTokenRepository is the implementation of the storage interface for RPTToken.
+// GormTokenRepository is the implementation of the storage interface for Token.
 type GormTokenRepository struct {
 	db *gorm.DB
 }
@@ -133,7 +135,7 @@ func (m *GormTokenRepository) Create(ctx context.Context, token *Token) error {
 
 // Save modifies a single record.
 func (m *GormTokenRepository) Save(ctx context.Context, token *Token) error {
-	defer goa.MeasureSince([]string{"goa", "db", "rpt_token", "save"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "token", "save"}, time.Now())
 
 	obj, err := m.Load(ctx, token.TokenID)
 	if err != nil {
@@ -176,7 +178,7 @@ func (m *GormTokenRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return errs.WithStack(result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return errors.NewNotFoundError("rpt_token", id.String())
+		return errors.NewNotFoundError("token", id.String())
 	}
 
 	log.Debug(ctx, map[string]interface{}{

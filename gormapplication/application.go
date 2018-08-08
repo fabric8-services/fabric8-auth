@@ -14,6 +14,7 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -131,6 +132,10 @@ func (g *GormBase) DefaultRoleMappingRepository() role.DefaultRoleMappingReposit
 
 func (g *GormBase) RoleMappingRepository() role.RoleMappingRepository {
 	return role.NewRoleMappingRepository(g.db)
+}
+
+func (g *GormBase) TokenRepository() token.TokenRepository {
+	return token.NewTokenRepository(g.db)
 }
 
 func (g *GormDB) InvitationService() service.InvitationService {

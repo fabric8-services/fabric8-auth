@@ -210,7 +210,7 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("033-drop-space-resources.sql")})
 
 	// Version 34
-	m = append(m, steps{ExecuteSQLFile("033-rename-token-table.sql")})
+	m = append(m, steps{ExecuteSQLFile("034-rename-token-table.sql")})
 
 	// Version N
 	//
