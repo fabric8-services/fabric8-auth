@@ -36,6 +36,11 @@ deploy-wit: deploy-wit-secrets deploy-wit-db
 	@echo "Deploying wit service"
 	@oc process -f $(TEMPLATE_DIR)/wit.app.yaml -o yaml | oc apply -f -
 
+.PHONY: deploy-notification
+deploy-notification: deploy-notification-secrets
+	@echo "Deploying notification service"
+	@oc process -f $(TEMPLATE_DIR)/f8notification.app.yaml -o yaml | oc apply -f -
+
 .PHONY: deploy-f8ui
 deploy-f8ui:
 	@echo "Deploying fabric8-ui service"
@@ -70,6 +75,10 @@ deploy-auth-secrets:
 deploy-wit-secrets:
 	oc process -f $(TEMPLATE_DIR)/wit.config.yaml -o yaml | oc apply -f -
 
+.PHONY: deploy-notification-secrets
+deploy-notification-secrets:
+	oc process -f $(TEMPLATE_DIR)/f8notification.config.yaml -o yaml | oc apply -f -
+
 .PHONY: clean-all
 clean-all:
 	oc delete all -l env=dev
@@ -86,6 +95,10 @@ clean-auth:
 .PHONY: clean-wit
 clean-wit:
 	oc delete all -l belongsTo=wit
+
+.PHONY: clean-notification
+clean-notification:
+	oc delete all -l belongsTo=f8notification
 
 .PHONY: clean-f8ui
 clean-f8ui:

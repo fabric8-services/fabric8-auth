@@ -1,38 +1,32 @@
-kind: Template
 apiVersion: v1
+kind: Template
 parameters:
-- name: DOCKER_REPO
-  required: true
-- name: IMAGE_NAME
-  required: true
+- name: IMAGE
+  value: quay.io/openshiftio/fabric8-services-fabric8-notification
 - name: IMAGE_TAG
-  required: true
-- name: REPLICAS
-  required: true
-  value: '1'
-- name: ENVIRONMENT
-  value: dev
+  value: latest
 - name: SERVICE_NAME
   required: true
-  value: auth
+  value: f8notification
 - name: MEMORY_LIMIT
   required: true
-  value: 1.5Gi
+  value: 1.0Gi
 metadata:
-  name: ${SERVICE_NAME}
+  name: fabric8-notification-service
 objects:
-- kind: DeploymentConfig
-  apiVersion: v1
+- apiVersion: v1
+  kind: DeploymentConfig
   metadata:
     labels:
+      service: ${SERVICE_NAME}
       belongsTo: ${SERVICE_NAME}
       env: ${ENVIRONMENT}
-      service: ${SERVICE_NAME}
     name: ${SERVICE_NAME}
   spec:
-    replicas: ${{REPLICAS}}
+    replicas: 1
     selector:
-      service: ${SERVICE_NAME}
+      app: ${SERVICE_NAME}
+      deploymentconfig: ${SERVICE_NAME}
     strategy:
       rollingParams:
         intervalSeconds: 1
@@ -45,45 +39,46 @@ objects:
       metadata:
         labels:
           service: ${SERVICE_NAME}
-          version: ${IMAGE_TAG}
+          deploymentconfig: ${SERVICE_NAME}
       spec:
         containers:
-        - image: ${DOCKER_REPO}/${IMAGE_NAME}:dev
-          env:
-          - name: AUTH_POSTGRES_HOST
+        - env:
+          - name: F8_MANDRILL_APIKEY
             valueFrom:
               secretKeyRef:
                 name: ${SERVICE_NAME}
-                key: db.host
-          - name: AUTH_POSTGRES_PORT
-            valueFrom:
-              secretKeyRef:
-                name: ${SERVICE_NAME}
-                key: db.port
-          - name: AUTH_DEVELOPER_MODE_ENABLED
-            valueFrom:
-              secretKeyRef:
-                name: ${SERVICE_NAME}
-                key: developer.mode.enabled
-          - name: AUTH_WIT_URL
+                key: madrill.api
+          - name: F8_WIT_URL
             valueFrom:
               configMapKeyRef:
                 name: ${SERVICE_NAME}
                 key: wit.url
-          - name: AUTH_NOTIFICATION_SERVICEURL
+          - name: F8_AUTH_URL
             valueFrom:
               configMapKeyRef:
                 name: ${SERVICE_NAME}
-                key: notification.serviceurl
+                key: auth.url
+          - name: F8_SERVICE_ACCOUNT_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: service.account.id
+          - name: F8_SERVICE_ACCOUNT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: service.account.secret
+          image: ${IMAGE}:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
           name: ${SERVICE_NAME}
           ports:
-          - containerPort: 8089
+          - containerPort: 8080
             protocol: TCP
           livenessProbe:
             failureThreshold: 3
             httpGet:
               path: /api/status
-              port: 8089
+              port: 8080
               scheme: HTTP
             initialDelaySeconds: 1
             periodSeconds: 10
@@ -93,7 +88,7 @@ objects:
             failureThreshold: 3
             httpGet:
               path: /api/status
-              port: 8089
+              port: 8080
               scheme: HTTP
             initialDelaySeconds: 1
             periodSeconds: 10
@@ -106,51 +101,21 @@ objects:
             limits:
               cpu: 400m
               memory: ${MEMORY_LIMIT}
-          terminationMessagePath: /dev/termination-log
-        dnsPolicy: ClusterFirst
-        restartPolicy: Always
-        securityContext: {}
-        terminationGracePeriodSeconds: 30
-    test: false
     triggers:
     - type: ConfigChange
-  status:
-    details:
-      causes:
-      - type: ConfigChange
-- kind: Service
-  apiVersion: v1
+- apiVersion: v1
+  kind: Service
   metadata:
     name: ${SERVICE_NAME}
     labels:
+      service: ${SERVICE_NAME}
       belongsTo: ${SERVICE_NAME}
       env: ${ENVIRONMENT}
-      service: ${SERVICE_NAME}
   spec:
     ports:
-      - name: "8089"
-        protocol: TCP
+      - protocol: TCP
         port: 80
-        targetPort: 8089
+        targetPort: 8080
     selector:
-      service: ${SERVICE_NAME}
-    type: ClusterIP
-    sessionAffinity: null
-- apiVersion: v1
-  kind: Route
-  metadata:
-    labels:
-      service: ${SERVICE_NAME}
-      belongsTo: ${SERVICE_NAME}
-      env: ${ENVIRONMENT}
-    name: ${SERVICE_NAME}
-  spec:
-    host: ''
-    port:
-      targetPort: "8089"
-    to:
-      kind: Service
-      name: ${SERVICE_NAME}
-      weight: 100
-    wildcardPolicy: None
-  status: {}
+      deploymentconfig: ${SERVICE_NAME}
+

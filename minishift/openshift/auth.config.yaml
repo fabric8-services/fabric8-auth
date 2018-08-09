@@ -32,3 +32,4 @@ objects:
   type: Opaque
   data:
     wit.url: http://wit
+    notification.serviceurl: http://f8notification

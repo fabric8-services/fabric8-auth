@@ -110,6 +110,23 @@ You can try logging by hitting this in browser `http://f8ui-fabric8-services.${m
 Note: However if you are trying this first time you should approve your username from keycloak, so that you will be authenticated user.
 Also make sure to whitelist the domain which you are using for auth to work it as per expectation.
 
+#### Notification Service
+##### Deploying Notification Service
+
+To deploy Notification service, we have following make target which will deploy service.
+```bash
+make deploy-notification
+```
+
+Look for running pods using `oc get pods`. You should be able to see two pods(f8notification-*). First time it will take some time as it has download required container images.
+
+##### Mandrill API key
+If you have mandrill api key. Make sure you updated secrets data by key `madrill.api` from `f8notification.config.yaml` with base64 encoded value of your key.
+You can encode your mandrill api key using following command
+```bash
+echo -n 'your_api_key' | base64
+```
+
 #### Deploying Auth, WIT, UI together
 To deploy `auth`, `wit`, `fabric8-ui` together we have following target:
 ```bash
@@ -128,6 +145,11 @@ make clean-auth
 This removes both the `wit` and `db-wit` services from minishift.
 ```bash
 make clean-wit
+```
+##### Cleaning Notification
+This removes both the `notification` services from minishift.
+```bash
+make clean-notification
 ```
 
 ##### Cleaning Fabric8-ui
