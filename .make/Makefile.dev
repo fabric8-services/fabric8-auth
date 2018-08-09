@@ -77,7 +77,10 @@ deploy-wit-secrets:
 
 .PHONY: deploy-notification-secrets
 deploy-notification-secrets:
-	oc process -f $(TEMPLATE_DIR)/f8notification.config.yaml -o yaml | oc apply -f -
+	@echo "Hint: set F8_MANDRILL_API_KEY env variable with your base64 encoded mandrill api key"
+	@oc process -f $(TEMPLATE_DIR)/f8notification.config.yaml \
+		-p F8_MANDRILL_API_KEY=$(F8_MANDRILL_API_KEY) \
+		-o yaml | oc apply -f -
 
 .PHONY: clean-all
 clean-all:

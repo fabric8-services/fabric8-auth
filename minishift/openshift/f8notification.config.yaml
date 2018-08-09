@@ -1,5 +1,8 @@
 apiVersion: v1
 kind: Template
+parameters:
+- name: F8_MANDRILL_API_KEY
+  required: true
 metadata:
   name: f8notification
 objects:
@@ -9,7 +12,7 @@ objects:
     name: f8notification
   type: Opaque
   data:
-    madrill.api: eHh4eHh4
+    madrill.api: ${F8_MANDRILL_API_KEY}
     service.account.id: NGM4M2NhMmQtNmRjYy00MWM5LWFjN2QtYjA2OGFkNGQxN2M1
     service.account.secret: bm90aWZpY2F0aW9uc2VjcmV0
 - apiVersion: v1

@@ -121,7 +121,7 @@ make deploy-notification
 Look for running pods using `oc get pods`. You should be able to see two pods(f8notification-*). First time it will take some time as it has download required container images.
 
 ##### Mandrill API key
-If you have mandrill api key. Make sure you updated secrets data by key `madrill.api` from `f8notification.config.yaml` with base64 encoded value of your key.
+If you have mandrill api key. Make sure that you set env variable by name `F8_MANDRILL_API_KEY` with base64 encoded value of your key.
 You can encode your mandrill api key using following command
 ```bash
 echo -n 'your_api_key' | base64
