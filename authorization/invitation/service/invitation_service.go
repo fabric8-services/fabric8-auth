@@ -48,7 +48,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
 
-	notifications := []invitationNotification{}
+	var notifications []invitationNotification
 
 	err := s.ExecuteInTransaction(func() error {
 
@@ -128,6 +128,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// 1) a valid user has been specified via its Identity ID
 		// 2) any roles specified are valid roles for the organization, team or security group
 		// For each invitation, ensure that the IdentityID value can be found and set it
+		// 3) create invitation records
 		for _, invitation := range invitations {
 			// Load the identity
 			identity, err := s.Repositories().Identities().Load(ctx, *invitation.IdentityID)
@@ -143,12 +144,11 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 				// We cannot invite members to a resource, only certain identity types
 				return errors.NewBadParameterErrorFromString("Member", invitation.IdentityID, "can not invite members to a resource")
 			}
-		}
 
-		// Create the invitation records
-		for _, invitation := range invitations {
+			// Create the invitation records
 			inv := new(invitationrepo.Invitation)
 			inv.IdentityID = *invitation.IdentityID
+			inv.Identity = *identity
 
 			if inviteToIdentity != nil {
 				inv.InviteTo = &inviteToIdentity.ID
@@ -157,9 +157,9 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 				inv.ResourceID = &inviteToResource.ResourceID
 			}
 
-			error := s.Repositories().InvitationRepository().Create(ctx, inv)
-			if error != nil {
-				return errors.NewInternalError(ctx, error)
+			err = s.Repositories().InvitationRepository().Create(ctx, inv)
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
 			}
 
 			// For each role in the invitation, lookup the role and add it to the invitation
@@ -171,15 +171,15 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 					resourceTypeName = inviteToResource.ResourceType.Name
 				}
 
-				role, error := s.Repositories().RoleRepository().Lookup(ctx, roleName, resourceTypeName)
+				role, err := s.Repositories().RoleRepository().Lookup(ctx, roleName, resourceTypeName)
 
-				if error != nil {
+				if err != nil {
 					return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", resourceTypeName))
 				}
 
-				error = s.Repositories().InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
-				if error != nil {
-					return errors.NewInternalError(ctx, error)
+				err = s.Repositories().InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
+				if err != nil {
+					return errors.NewInternalError(ctx, err)
 				}
 			}
 
@@ -197,7 +197,8 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	}
 
 	// Lookup the identity record of the user doing the inviting
-	inviter, err := s.Repositories().Identities().Load(ctx, issuingUserId)
+	inviter, err := s.Repositories().Identities().LoadWithUser(ctx, issuingUserId)
+
 	if err != nil {
 		return err
 	}
@@ -254,7 +255,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	for _, n := range notifications {
 		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
 
-		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.ID.String(),
 			teamName,
 			inviterName,
 			spaceName,
@@ -278,7 +279,7 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	for _, n := range notifications {
 		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
 
-		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.ID.String(),
 			spaceName,
 			inviterName,
 			strings.Join(n.roles, ","),
