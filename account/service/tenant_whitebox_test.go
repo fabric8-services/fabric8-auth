@@ -21,37 +21,37 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestTenant(t *testing.T) {
-	suite.Run(t, &TestTenantSuite{})
+func TestTenantService(t *testing.T) {
+	suite.Run(t, &TestTenantServiceSuite{})
 }
 
-type TestTenantSuite struct {
+type TestTenantServiceSuite struct {
 	testsuite.UnitTestSuite
-	ts           *tenantService
 	doer         *authtest.DummyHttpDoer
+	ts           *tenantServiceImpl
 	tenantConfig *tenantURLConfig
 }
 
-func (s *TestTenantSuite) SetupSuite() {
+func (s *TestTenantServiceSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
 	s.tenantConfig = &tenantURLConfig{ConfigurationData: *s.Config, tenantURL: "https://some.tenant.io"}
-	s.ts = NewTenant(s.tenantConfig).(*tenantService)
+	s.ts = NewTenantService(s.tenantConfig).(*tenantServiceImpl)
 	doer := authtest.NewDummyHttpDoer()
 	s.ts.doer = doer
 	s.doer = doer
 }
 
-func (s *TestTenantSuite) TestNewInitTenantOK() {
-	require.NotNil(s.T(), NewTenant(s.Config))
+func (s *TestTenantServiceSuite) TestNewInitTenantOK() {
+	require.NotNil(s.T(), NewTenantService(s.Config))
 }
 
-func (s *TestTenantSuite) TestDefaultDoer() {
-	ts := NewTenant(s.tenantConfig).(*tenantService)
+func (s *TestTenantServiceSuite) TestDefaultDoer() {
+	ts := NewTenantService(s.tenantConfig).(*tenantServiceImpl)
 	assert.Equal(s.T(), ts.config, s.tenantConfig)
 	assert.Equal(s.T(), ts.doer, rest.DefaultHttpDoer())
 }
 
-func (s *TestTenantSuite) TestInit() {
+func (s *TestTenantServiceSuite) TestInit() {
 	ctx, token, reqID := token.ContextWithTokenAndRequestID(s.T())
 
 	s.doer.Client.Error = nil
@@ -77,8 +77,8 @@ func (s *TestTenantSuite) TestInit() {
 	assert.Equal(s.T(), "something went wrong", err.Error())
 
 	// Fail if tenant service URL is invalid
-	tenant := NewTenant(&tenantURLConfig{ConfigurationData: *s.Config, tenantURL: "::::"})
-	ts := tenant.(*tenantService)
+	tenant := NewTenantService(&tenantURLConfig{ConfigurationData: *s.Config, tenantURL: "::::"})
+	ts := tenant.(*tenantServiceImpl)
 	doer := authtest.NewDummyHttpDoer()
 	ts.doer = doer
 	doer.Client.Error = nil
@@ -89,7 +89,7 @@ func (s *TestTenantSuite) TestInit() {
 	require.Error(s.T(), err)
 }
 
-func (s *TestTenantSuite) TestDelete() {
+func (s *TestTenantServiceSuite) TestDelete() {
 	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
 	ctx = tokencontext.ContextWithTokenManager(ctx, testtoken.TokenManager)
 

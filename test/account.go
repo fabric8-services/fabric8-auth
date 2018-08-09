@@ -222,6 +222,7 @@ func CreateTestUser(db *gorm.DB, user *account.User) (account.Identity, error) {
 		identity.UserID.UUID = user.ID
 		return identityRepository.Create(context.Background(), &identity)
 	})
+	log.Debug(nil, map[string]interface{}{"identity_id": identity.ID}, "test user identity created")
 	return identity, err
 }
 

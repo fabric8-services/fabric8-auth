@@ -1,11 +1,13 @@
 package service_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	errs "github.com/pkg/errors"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -17,32 +19,73 @@ type userServiceBlackboxTestSuite struct {
 	gormtestsupport.DBTestSuite
 }
 
-func TestRunUserServiceBlackboxTestSuite(t *testing.T) {
+func TestUserService(t *testing.T) {
 	suite.Run(t, &userServiceBlackboxTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *userServiceBlackboxTestSuite) TestDeprovisionUnknownUserFails() {
-	username := uuid.NewV4().String()
-	_, err := s.Application.UserService().DeprovisionUser(s.Ctx, username)
-	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "user identity with username '%s' not found", username)
 }
 
-func (s *userServiceBlackboxTestSuite) TestDeprovisionOK() {
-	userToDeprovision := s.Graph.CreateUser()
-	userToStayIntact := s.Graph.CreateUser()
+func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 
-	identity, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToDeprovision.Identity().Username)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), true, identity.User.Deprovisioned)
-	assert.Equal(s.T(), userToDeprovision.User().ID, identity.User.ID)
-	assert.Equal(s.T(), userToDeprovision.IdentityID(), identity.ID)
+	s.T().Run("ok", func(t *testing.T) {
+		userToDeprovision := s.Graph.CreateUser()
+		userToStayIntact := s.Graph.CreateUser()
 
-	loadedUser := s.Graph.LoadUser(userToDeprovision.IdentityID())
-	assert.Equal(s.T(), true, loadedUser.User().Deprovisioned)
-	userToDeprovision.Identity().User.Deprovisioned = true
-	testsupport.AssertIdentityEqual(s.T(), userToDeprovision.Identity(), loadedUser.Identity())
+		identity, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToDeprovision.Identity().Username)
+		require.NoError(t, err)
+		assert.Equal(t, true, identity.User.Deprovisioned)
+		assert.Equal(t, userToDeprovision.User().ID, identity.User.ID)
+		assert.Equal(t, userToDeprovision.IdentityID(), identity.ID)
 
-	loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
-	assert.Equal(s.T(), false, loadedUser.User().Deprovisioned)
-	testsupport.AssertIdentityEqual(s.T(), userToStayIntact.Identity(), loadedUser.Identity())
+		loadedUser := s.Graph.LoadUser(userToDeprovision.IdentityID())
+		assert.Equal(t, true, loadedUser.User().Deprovisioned)
+		userToDeprovision.Identity().User.Deprovisioned = true
+		testsupport.AssertIdentityEqual(t, userToDeprovision.Identity(), loadedUser.Identity())
+
+		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
+		assert.Equal(t, false, loadedUser.User().Deprovisioned)
+		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
+	})
+
+	s.T().Run("fail", func(t *testing.T) {
+
+		s.T().Run("unknown user", func(t *testing.T) {
+			// given
+			username := uuid.NewV4().String()
+			// when
+			_, err := s.Application.UserService().DeprovisionUser(s.Ctx, username)
+			// then
+			testsupport.AssertError(t, err, errors.NotFoundError{}, "user identity with username '%s' not found", username)
+
+		})
+	})
+}
+
+func (s *userServiceBlackboxTestSuite) TestShowUserInfoOK() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given a sample user and identity
+		identity, ctx, err := testsupport.EmbedTestIdentityTokenInContext(s.DB, "UserServiceBlackBoxTest-User")
+		require.Nil(t, err)
+		// when
+		retrievedUser, retrievedIdentity, err := s.Application.UserService().UserInfo(ctx, identity.ID)
+		require.Nil(t, err)
+		// then
+		assert.Equal(t, retrievedUser.Email, identity.User.Email)
+		assert.Equal(t, retrievedUser.FullName, identity.User.FullName)
+		assert.Equal(t, retrievedIdentity.Username, identity.Username)
+		assert.Equal(t, retrievedIdentity.ID, identity.ID)
+	})
+
+	s.T().Run("not found", func(t *testing.T) {
+		// given a random ID
+		id := uuid.NewV4()
+		// when
+		_, _, err := s.Application.UserService().UserInfo(context.Background(), id)
+		// then
+		require.Error(t, err)
+		assert.IsType(t, errors.UnauthorizedError{}, errs.Cause(err))
+	})
+
 }

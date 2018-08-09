@@ -176,12 +176,12 @@ func (f *ServiceFactory) RoleManagementService() service.RoleManagementService {
 	return roleservice.NewRoleManagementService(f.getContext())
 }
 
-func (f *ServiceFactory) TeamService() service.TeamService {
-	return teamservice.NewTeamService(f.getContext())
-}
-
 func (f *ServiceFactory) SpaceService() service.SpaceService {
 	return spaceservice.NewSpaceService(f.getContext())
+}
+
+func (f *ServiceFactory) TeamService() service.TeamService {
+	return teamservice.NewTeamService(f.getContext())
 }
 
 func (f *ServiceFactory) UserService() service.UserService {

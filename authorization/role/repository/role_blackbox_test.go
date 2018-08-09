@@ -34,7 +34,6 @@ func TestRunRoleBlackBoxTest(t *testing.T) {
 
 func (s *roleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = role.NewRoleRepository(s.DB)
 }
 
