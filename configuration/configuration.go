@@ -41,6 +41,8 @@ const (
 	varHTTPAddress                     = "http.address"
 	varMetricsHTTPAddress              = "metrics.http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
+	varCleanTestDataEnabled            = "clean.test.data"
+	varDBLogsEnabled                   = "enable.db.logs"
 	varNotApprovedRedirect             = "notapproved.redirect"
 	varHeaderMaxLength                 = "header.maxlength"
 	varUsersListLimit                  = "users.listlimit"
@@ -700,6 +702,11 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
+	// By default, test data should be cleaned from DB, unless explicitely said otherwise.
+	c.v.SetDefault(varCleanTestDataEnabled, true)
+	// By default, DB logs are not output in the console
+	c.v.SetDefault(varDBLogsEnabled, false)
+
 	// WIT related defaults
 	c.v.SetDefault(varWITDomainPrefix, defaultWITDomainPrefix)
 
@@ -856,6 +863,16 @@ func (c *ConfigurationData) GetHeaderMaxLength() int64 {
 // e.g. token generation endpoint are enabled
 func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
+}
+
+// IsCleanTestDataEnabled returns `true` if the test data should be cleaned after each test. (default: true)
+func (c *ConfigurationData) IsCleanTestDataEnabled() bool {
+	return c.v.GetBool(varCleanTestDataEnabled)
+}
+
+// IsDBLogsEnabled returns `true` if the DB logs (ie, SQL queries) should be output in the console. (default: false)
+func (c *ConfigurationData) IsDBLogsEnabled() bool {
+	return c.v.GetBool(varDBLogsEnabled)
 }
 
 // GetMaxUsersListLimit returns the max number of users returned when searching users
