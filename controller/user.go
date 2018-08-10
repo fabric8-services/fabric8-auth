@@ -6,6 +6,7 @@ import (
 	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -67,4 +68,21 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 		}
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 	})
+}
+
+// ListSpaces returns a list of spaces in which the current user has a role
+func (c *UserController) ListSpaces(ctx *app.ListSpacesUserContext) error {
+	identityID, err := c.tokenManager.Locate(ctx)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Bad Token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("bad or missing token"))
+	}
+	roles, err := c.app.RoleManagementService().ListAvailableRolesByResourceTypeAndIdentity(ctx, authorization.ResourceTypeSpace, identityID)
+	log.Info(ctx, map[string]interface{}{"roles": len(roles), "identity_id": identityID.String()}, "retrieve resources with a role for the current user")
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.OK(convertToUserSpaces(roles))
 }

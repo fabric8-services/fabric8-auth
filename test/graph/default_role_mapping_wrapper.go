@@ -2,6 +2,7 @@ package graph
 
 import (
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,6 +31,12 @@ func newDefaultRoleMappingWrapper(g *TestGraph, params []interface{}) interface{
 			} else if toRole == nil {
 				toRole = t.role
 			}
+		case *roleWrapper:
+			if fromRole == nil {
+				fromRole = t.role
+			} else if toRole == nil {
+				toRole = t.role
+			}
 		}
 	}
 
@@ -50,10 +57,15 @@ func newDefaultRoleMappingWrapper(g *TestGraph, params []interface{}) interface{
 		FromRoleID:     fromRole.RoleID,
 		ToRoleID:       toRole.RoleID,
 	}
-
-	err := g.app.DefaultRoleMappingRepository().Create(g.ctx, w.mapping)
-	require.NoError(g.t, err)
-
+	// check if the same default role mapping already exists to avoid duplicate entries (forbidden by unique constraint in the db)
+	existingDRM, err := g.app.DefaultRoleMappingRepository().FindForResourceTypeAndRoles(g.ctx, w.mapping.ResourceTypeID, w.mapping.FromRoleID, w.mapping.ToRoleID)
+	if ok, _ := errors.IsNotFoundError(err); ok {
+		err := g.app.DefaultRoleMappingRepository().Create(g.ctx, w.mapping)
+		require.NoError(g.t, err)
+	} else {
+		require.NoError(g.t, err)
+		w.mapping = existingDRM
+	}
 	return &w
 }
 

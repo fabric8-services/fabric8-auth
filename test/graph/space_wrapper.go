@@ -64,19 +64,19 @@ func loadSpaceWrapper(g *TestGraph, resourceID string) spaceWrapper {
 
 // AddAdmin assigns the admin role to a user for the space
 func (w *spaceWrapper) AddAdmin(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceAdminRole)
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceAdminRole)
 	return w
 }
 
 // AddContributor assigns the admin role to a user for the space
 func (w *spaceWrapper) AddContributor(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceContributorRole)
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceContributorRole)
 	return w
 }
 
 // AddViewer assigns the admin role to a user for the space
 func (w *spaceWrapper) AddViewer(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceViewerRole)
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceViewerRole)
 	return w
 }
 

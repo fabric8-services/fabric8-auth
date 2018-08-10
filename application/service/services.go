@@ -60,6 +60,7 @@ type RoleManagementService interface {
 	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 	ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error
 	RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error
+	ListAvailableRolesByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]role.ResourceRoleDescriptor, error)
 }
 
 type TeamService interface {

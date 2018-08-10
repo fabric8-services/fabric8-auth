@@ -37,6 +37,9 @@ const (
 	// OrganizationAdminRole is the constant used to denote the name of the organization resource's administrator role
 	OrganizationAdminRole = adminRole
 
+	// OrganizationContributorRole is the constant used to denote the name of the organization resource's contributor role
+	OrganizationContributorRole = contributorRole
+
 	// SpaceAdminRole is the constant used to denote the name of a space resource's administrator role
 	SpaceAdminRole = adminRole
 
@@ -46,8 +49,8 @@ const (
 	// SpaceViewerRole is the constant used to denote the name of the space's viewer role
 	SpaceViewerRole = viewerRole
 
-	// viewSpaceScope is a general scope required to perform many space-related operations
-	viewSpaceScope = viewScope
+	// ViewSpaceScope is a general scope required to perform many space-related operations
+	ViewSpaceScope = viewScope
 
 	// viewOrganizationScope is a general scope required to perform many org-related operations
 	viewOrganizationScope = viewScope
@@ -58,11 +61,11 @@ const (
 	// viewSecurityGroupScope is a general scope required to perform many group-related operations
 	viewSecurityGroupScope = viewScope
 
-	// manageSpaceScope is a general scope required to perform operations for managing a space
-	manageSpaceScope = manageScope
+	// ManageSpaceScope is a general scope required to perform operations for managing a space
+	ManageSpaceScope = manageScope
 
-	// contributeSpaceScope is a general scope required to perform many space-related operations
-	contributeSpaceScope = contributeScope
+	// ContributeSpaceScope is a general scope required to perform many space-related operations
+	ContributeSpaceScope = contributeScope
 
 	// ManageTeamsInSpaceScope is the scope required for users wishing to manage teams for a space
 	ManageTeamsInSpaceScope = manageScope
@@ -77,16 +80,16 @@ const (
 	ManageSecurityGroupMembersScope = manageScope
 
 	// ViewTeamsInSpaceScope is the scope required for users wishing to view the teams in a space
-	ViewTeamsInSpaceScope = viewSpaceScope
+	ViewTeamsInSpaceScope = ViewSpaceScope
 
 	// ManageRoleAssignmentsInSpaceScope is the scope required for managing role assignments in a space
 	ManageRoleAssignmentsInSpaceScope = manageScope
 
 	// DeleteSpaceScope is the scope required for deleting a space. It's a space level scope.
-	DeleteSpaceScope = manageSpaceScope
+	DeleteSpaceScope = ManageSpaceScope
 
 	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing role assignments in a space
-	ViewRoleAssignmentsInSpaceScope = viewSpaceScope
+	ViewRoleAssignmentsInSpaceScope = ViewSpaceScope
 
 	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing organization members
 	ViewOrganizationMembersScope = viewOrganizationScope

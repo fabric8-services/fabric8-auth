@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"fmt"
+
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
@@ -58,8 +60,10 @@ func newOrganizationWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.identity = g.LoadIdentity(organizationIdentityID).Identity()
 	organizationResource := g.LoadResource(w.identity.IdentityResourceID.String)
+	resourceType := g.LoadResourceType(organizationResource.resource.ResourceTypeID).resourceType
+	organizationResource.resource.ResourceType = *resourceType
 	w.resource = organizationResource.Resource()
-
+	fmt.Printf("loaded organization with resource=%v\n", w.resource)
 	return &w
 }
 
@@ -85,6 +89,6 @@ func (w *organizationWrapper) ResourceID() string {
 
 // AddAdmin assigns the admin role to a user for the org
 func (w *organizationWrapper) AddAdmin(wrapper interface{}) *organizationWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.IdentityResourceTypeOrganization, w.identityIDFromWrapper(wrapper), authorization.OrganizationAdminRole)
+	addRole(w.baseWrapper, w.resource, authorization.IdentityResourceTypeOrganization, identityIDFromWrapper(w.graph.t, wrapper), authorization.OrganizationAdminRole)
 	return w
 }

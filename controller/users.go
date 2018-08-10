@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
+
 	"github.com/fabric8-services/fabric8-auth/account"
 	accountrepo "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/account/service"
@@ -1156,6 +1158,27 @@ func ConvertUserSimple(request *goa.RequestData, identityID interface{}) *app.Ge
 		Type:  &t,
 		ID:    &i,
 		Links: createUserLinks(request, identityID),
+	}
+}
+
+// convertToUserSpaces converts a list of spaces to which the user has access
+func convertToUserSpaces(roles []role.ResourceRoleDescriptor) *app.UserSpacesList {
+	result := app.UserSpacesList{}
+	result.Data = make([]*app.UserSpaceData, len(roles))
+	for i, r := range roles {
+		result.Data[i] = convertToUserSpacesData(r)
+	}
+	return &result
+}
+
+func convertToUserSpacesData(r role.ResourceRoleDescriptor) *app.UserSpaceData {
+	return &app.UserSpaceData{
+		Type: "spaces", // could be compared to r.ResourceType for a more generic response
+		ID:   r.ResourceID,
+		Attributes: &app.UserSpacesDataAttributes{
+			Role:   r.RoleName,
+			Scopes: r.Scopes,
+		},
 	}
 }
 

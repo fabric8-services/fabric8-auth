@@ -212,6 +212,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 34
 	m = append(m, steps{ExecuteSQLFile("034-rename-token-table.sql")})
 
+	// Version 35
+	m = append(m, steps{ExecuteSQLFile("035-unique_constraint_default_role_mapping.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
