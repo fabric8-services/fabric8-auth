@@ -3,6 +3,8 @@ package controller
 import (
 	"context"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/role"
+
 	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -42,6 +44,7 @@ func NewUserController(service *goa.Service, app application.Application, config
 
 // Show returns the authorized user based on the provided Token
 func (c *UserController) Show(ctx *app.ShowUserContext) error {
+	// retrieve the user's identity ID from the token
 	identityID, err := c.tokenManager.Locate(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -70,8 +73,9 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 	})
 }
 
-// ListSpaces returns a list of spaces in which the current user has a role
-func (c *UserController) ListSpaces(ctx *app.ListSpacesUserContext) error {
+// ListResources returns a list of resources in which the current user has a role
+func (c *UserController) ListResources(ctx *app.ListResourcesUserContext) error {
+	// retrieve the user's identity ID from the token
 	identityID, err := c.tokenManager.Locate(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -79,10 +83,44 @@ func (c *UserController) ListSpaces(ctx *app.ListSpacesUserContext) error {
 		}, "Bad Token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("bad or missing token"))
 	}
-	roles, err := c.app.RoleManagementService().ListAvailableRolesByResourceTypeAndIdentity(ctx, authorization.ResourceTypeSpace, identityID)
+	// check the requested resource type
+	if ctx.Type == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("type", "", "missing 'type' query parameter in the request"))
+	}
+	var resourceType string
+	switch *ctx.Type {
+	case "spaces":
+		resourceType = authorization.ResourceTypeSpace
+	}
+	if resourceType == "" {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("type", *ctx.Type))
+	}
+
+	roles, err := c.app.RoleManagementService().ListAvailableRolesByResourceTypeAndIdentity(ctx, resourceType, identityID)
 	log.Info(ctx, map[string]interface{}{"roles": len(roles), "identity_id": identityID.String()}, "retrieve resources with a role for the current user")
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	return ctx.OK(convertToUserSpaces(roles))
+	return ctx.OK(convertToUserResources(roles))
+}
+
+// convertToUserResources converts a list of resources to which the user has a role
+func convertToUserResources(roles []role.ResourceRoleDescriptor) *app.UserResourcesList {
+	result := app.UserResourcesList{}
+	result.Data = make([]*app.UserResourceData, len(roles))
+	for i, r := range roles {
+		result.Data[i] = convertToUserResourcesData(r)
+	}
+	return &result
+}
+
+func convertToUserResourcesData(r role.ResourceRoleDescriptor) *app.UserResourceData {
+	return &app.UserResourceData{
+		Type: "spaces", // could be compared to r.ResourceType for a more generic response
+		ID:   r.ResourceID,
+		Attributes: &app.UserResourceDataAttributes{
+			Role:   r.RoleName,
+			Scopes: r.Scopes,
+		},
+	}
 }

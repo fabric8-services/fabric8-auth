@@ -187,9 +187,25 @@ func (s *UserControllerTestSuite) TestShowUser() {
 
 func (s *UserControllerTestSuite) TestListUserSpaces() {
 
+	spacesResourceType := "spaces"
+
 	s.T().Run("ok", func(t *testing.T) {
 
-		t.Run("single role on space", func(t *testing.T) {
+		t.Run("role on no space", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph()
+			user := g.CreateUser()
+			g.CreateSpace() // space exists, but the user has no role
+			require.NotNil(t, user.Identity())
+			identity := user.Identity()
+			// when
+			svc, userCtrl := s.SecuredController(*identity)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, &spacesResourceType)
+			// then
+			require.Len(t, spaces.Data, 0)
+		})
+
+		t.Run("role on 1 space", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph()
 			user := g.CreateUser()
@@ -198,16 +214,90 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			identity := user.Identity()
 			// when
 			svc, userCtrl := s.SecuredController(*identity)
-			_, spaces := test.ListSpacesUserOK(t, svc.Context, svc, userCtrl)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, &spacesResourceType)
 			// then
 			require.Len(t, spaces.Data, 1)
-			require.Equal(t, space.SpaceID(), spaces.Data[0].ID, 1)
-			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role, 1)
-			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role, 1)
+			require.Equal(t, space.SpaceID(), spaces.Data[0].ID)
+			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role)
+			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role)
 			assert.ElementsMatch(t, spaces.Data[0].Attributes.Scopes, []string{
 				authorization.ManageSpaceScope,
 				authorization.ContributeSpaceScope,
 				authorization.ViewSpaceScope})
+		})
+
+		t.Run("role on 2 spaces", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph()
+			user := g.CreateUser()
+			space1 := g.CreateSpace().AddAdmin(user)
+			space2 := g.CreateSpace().AddContributor(user)
+			require.NotNil(t, user.Identity())
+			identity := user.Identity()
+			// when
+			svc, userCtrl := s.SecuredController(*identity)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, &spacesResourceType)
+			// then
+			require.Len(t, spaces.Data, 2)
+			require.ElementsMatch(t,
+				[]string{space1.SpaceID(), space2.SpaceID()},
+				[]string{spaces.Data[0].ID, spaces.Data[1].ID})
+			for _, spaceData := range spaces.Data {
+				switch spaceData.ID {
+				case space1.SpaceID():
+					assert.Equal(t, authorization.SpaceAdminRole, spaceData.Attributes.Role)
+					assert.ElementsMatch(t, spaceData.Attributes.Scopes, []string{
+						authorization.ManageSpaceScope,
+						authorization.ContributeSpaceScope,
+						authorization.ViewSpaceScope})
+				case space2.SpaceID():
+					assert.Equal(t, authorization.SpaceContributorRole, spaceData.Attributes.Role)
+					assert.ElementsMatch(t, spaceData.Attributes.Scopes, []string{
+						authorization.ContributeSpaceScope,
+						authorization.ViewSpaceScope})
+				}
+			}
+		})
+	})
+
+	s.T().Run("unauthorized", func(t *testing.T) {
+		t.Run("missing resource type", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph()
+			user := g.CreateUser()
+			g.CreateSpace().AddAdmin(user)
+			// when
+			svc, userCtrl := s.UnsecuredController()
+			// when/then
+			test.ListResourcesUserUnauthorized(t, svc.Context, svc, userCtrl, nil)
+		})
+	})
+
+	s.T().Run("bad request", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph()
+		user := g.CreateUser()
+		require.NotNil(t, user.Identity())
+		identity := user.Identity()
+		svc, userCtrl := s.SecuredController(*identity)
+
+		t.Run("missing resource type", func(t *testing.T) {
+			// when/then
+			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, nil)
+		})
+
+		t.Run("empty resource type", func(t *testing.T) {
+			// given
+			missingResourceType := ""
+			// when/then
+			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, &missingResourceType)
+		})
+
+		t.Run("invalid resource type", func(t *testing.T) {
+			// given
+			unsupportedResourceType := "foo"
+			// when/then
+			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, &unsupportedResourceType)
 		})
 	})
 

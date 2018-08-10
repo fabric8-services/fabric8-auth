@@ -38,14 +38,20 @@ var _ = a.Resource("user", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 
-	a.Action("listSpaces", func() {
+	a.Action("listResources", func() {
 		a.Security("jwt")
 		a.Routing(
-			a.GET("/spaces"),
+			a.GET("/resources"),
 		)
-		a.Description("List spaces with a role for the current user")
+		a.Params(func() {
+			// requirement and value will be handled by the controller method,
+			// in order to be able to return a proper JSON-API response to the client in case
+			// of a bad request
+			a.Param("type", d.String, "the type of resource to list")
+		})
+		a.Description("List resources of a given type with a role for the current user")
 		// a.UseTrait("conditional")
-		a.Response(d.OK, showUserSpaces)
+		a.Response(d.OK, showUserResources)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
@@ -316,26 +322,26 @@ var userDataAttributes = a.Type("UserDataAttributes", func() {
 	})
 })
 
-// showUserSpaces a list of spaces in which the user has a role
-var showUserSpaces = JSONList(
-	"UserSpaces", "Holds the paginated response to a user spaces request",
-	userSpaceData,
+// showUserResources a list of resources in which the user has a role
+var showUserResources = JSONList(
+	"UserResources", "Holds the paginated response to a user spaces request",
+	userResourceData,
 	pagingLinks,
 	userListMeta)
 
-// userSpaceData represents a space for which a user has a role
-var userSpaceData = a.Type("UserSpaceData", func() {
-	a.Attribute("id", d.String, "id of the space that in which the user has a role")
-	a.Attribute("type", d.String, "type of the user spaces")
-	a.Attribute("attributes", userSpacesDataAttributes, "Attributes of the space in which the user has a role")
+// userResourceData represents a resource for which a user has a role
+var userResourceData = a.Type("UserResourceData", func() {
+	a.Attribute("id", d.String, "id of the resource that in which the user has a role")
+	a.Attribute("type", d.String, "type of the resource")
+	a.Attribute("attributes", userResourceDataAttributes, "Info about the role and scopes that the user has in the resource")
 	a.Attribute("links", genericLinks)
 	a.Required("id", "type", "attributes")
 })
 
-// userSpacesDataAttributes represents the attributes of the space in which the user has a role
-var userSpacesDataAttributes = a.Type("UserSpacesDataAttributes", func() {
-	a.Attribute("role", d.String, "The role of the user in the corresponding space")
-	a.Attribute("scopes", a.ArrayOf(d.String), "The scopes associated with the role of the user in the corresponding space")
+// userResourceDataAttributes contains info about the role and scopes that the user has in the resource
+var userResourceDataAttributes = a.Type("UserResourceDataAttributes", func() {
+	a.Attribute("role", d.String, "The role of the user in the corresponding resource")
+	a.Attribute("scopes", a.ArrayOf(d.String), "The scopes associated with the role of the user in the corresponding resource")
 	a.Required("role", "scopes")
 })
 
