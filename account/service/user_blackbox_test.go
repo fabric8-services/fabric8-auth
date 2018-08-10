@@ -72,10 +72,12 @@ func (s *userServiceBlackboxTestSuite) TestShowUserInfoOK() {
 		retrievedUser, retrievedIdentity, err := s.Application.UserService().UserInfo(ctx, identity.ID)
 		require.Nil(t, err)
 		// then
-		assert.Equal(t, retrievedUser.Email, identity.User.Email)
-		assert.Equal(t, retrievedUser.FullName, identity.User.FullName)
-		assert.Equal(t, retrievedIdentity.Username, identity.Username)
-		assert.Equal(t, retrievedIdentity.ID, identity.ID)
+		assert.Equal(t, identity.User.Email, retrievedUser.Email)
+		assert.Equal(t, identity.User.FullName, retrievedUser.FullName)
+		assert.Equal(t, identity.Username, retrievedIdentity.Username)
+		assert.Equal(t, identity.ID, retrievedIdentity.ID)
+		assert.Equal(t, identity.ID, retrievedIdentity.ID)
+
 	})
 
 	s.T().Run("not found", func(t *testing.T) {
