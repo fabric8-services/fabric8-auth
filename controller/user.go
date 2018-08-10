@@ -3,11 +3,12 @@ package controller
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-auth/account/service"
+	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
@@ -16,11 +17,10 @@ import (
 // UserController implements the user resource.
 type UserController struct {
 	*goa.Controller
-	userInfoService service.UserInfoService
-	app             application.Application
-	tokenManager    token.Manager
-	config          UserControllerConfiguration
-	tenantService   service.Tenant
+	app           application.Application
+	config        UserControllerConfiguration
+	tokenManager  token.Manager
+	tenantService accountservice.TenantService
 }
 
 // UserControllerConfiguration the Configuration for the UserController
@@ -29,20 +29,26 @@ type UserControllerConfiguration interface {
 }
 
 // NewUserController creates a user controller.
-func NewUserController(service *goa.Service, userInfoService service.UserInfoService, app application.Application, tokenManager token.Manager, config UserControllerConfiguration, tenantService service.Tenant) *UserController {
+func NewUserController(service *goa.Service, app application.Application, config UserControllerConfiguration, tokenManager token.Manager, tenantService accountservice.TenantService) *UserController {
 	return &UserController{
-		Controller:      service.NewController("UserController"),
-		userInfoService: userInfoService,
-		app:             app,
-		tokenManager:    tokenManager,
-		config:          config,
-		tenantService:   tenantService,
+		Controller:    service.NewController("UserController"),
+		app:           app,
+		config:        config,
+		tokenManager:  tokenManager,
+		tenantService: tenantService,
 	}
 }
 
 // Show returns the authorized user based on the provided Token
 func (c *UserController) Show(ctx *app.ShowUserContext) error {
-	user, identity, err := c.userInfoService.UserInfo(ctx)
+	identityID, err := c.tokenManager.Locate(ctx)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Bad Token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("bad or missing token"))
+	}
+	user, identity, err := c.app.UserService().UserInfo(ctx, identityID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -53,6 +59,7 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 	}
 
 	return ctx.ConditionalRequest(*user, c.config.GetCacheControlUser, func() error {
+		// Init tenant (if access to tenant service is configured/enabled)
 		if c.tenantService != nil {
 			go func(ctx context.Context) {
 				c.tenantService.Init(ctx)

@@ -174,6 +174,14 @@ func main() {
 	service.Use(log.LogRequest(config.IsPostgresDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 
+	var tenantService accountservice.TenantService
+	if config.GetTenantServiceURL() != "" {
+		log.Logger().Infof("Enabling Tenant service %v", config.GetTenantServiceURL())
+		tenantService = accountservice.NewTenantService(config)
+	} else {
+		log.Logger().Warn("Tenant service is not enabled")
+	}
+
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
@@ -217,15 +225,8 @@ func main() {
 	openidConfigurationCtrl := controller.NewOpenidConfigurationController(service)
 	app.MountOpenidConfigurationController(service, openidConfigurationCtrl)
 
-	var tenantService accountservice.Tenant
-	if config.GetTenantServiceURL() != "" {
-		log.Logger().Infof("Enabling Tenant service %v", config.GetTenantServiceURL())
-		tenantService = accountservice.NewTenant(config)
-	}
-
 	// Mount "user" controller
-	userInfoProvider := accountservice.NewUserInfoProvider(identityRepository, userRepository, tokenManager, appDB)
-	userCtrl := controller.NewUserController(service, userInfoProvider, appDB, tokenManager, config, tenantService)
+	userCtrl := controller.NewUserController(service, appDB, config, tokenManager, tenantService)
 	app.MountUserController(service, userCtrl)
 
 	// Mount "search" controller
@@ -245,7 +246,7 @@ func main() {
 	app.MountNamedusersController(service, namedusersCtrl)
 
 	//Mount "userinfo" controller
-	userInfoCtrl := controller.NewUserinfoController(service, userInfoProvider, appDB, tokenManager)
+	userInfoCtrl := controller.NewUserinfoController(service, appDB, tokenManager)
 	app.MountUserinfoController(service, userInfoCtrl)
 
 	// Mount "collaborators" controller

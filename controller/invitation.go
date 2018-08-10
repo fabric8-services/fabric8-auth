@@ -34,7 +34,7 @@ func NewInvitationController(service *goa.Service, app application.Application, 
 	}
 }
 
-// Create runs the create action.
+// CreateInvite runs the create action.
 func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
 	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
