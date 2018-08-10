@@ -178,6 +178,10 @@ $ cd $GOPATH/src/github.com/fabric8-services/fabric8-auth
 $ make test-all
 ----
 
+By default, test data is removed from the database after each test, unless the `AUTH_CLEAN_TEST_DATA` environment variable is set to `false`. This can be particularily useful to run queries on the test data after a test failure, in order to understand why the result did not match the expectations.
+
+Also, all SQL queries can be displayed in the output if the `AUTH_ENABLE_DB_LOGS` environment variable is set to `true. Beware that this can be very verbose, though ;)
+
 ===== Coverage [[coverage]]
 
 To visualize the coverage of unit, integration, or all tests you can run these

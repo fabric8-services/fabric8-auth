@@ -26,7 +26,6 @@ func TestRunInvitationBlackBoxTest(t *testing.T) {
 
 func (s *invitationBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = invitationRepo.NewInvitationRepository(s.DB)
 }
 

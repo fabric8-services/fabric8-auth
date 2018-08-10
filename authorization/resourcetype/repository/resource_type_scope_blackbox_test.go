@@ -25,7 +25,6 @@ func TestRunResourceTypeScopeBlackBoxTest(t *testing.T) {
 
 func (s *resourceTypeScopeBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = resourcetype.NewResourceTypeScopeRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
 }
