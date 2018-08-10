@@ -58,7 +58,8 @@ func (s *DBTestSuite) SetupSuite() {
 			}, "failed to connect to the database")
 		}
 	}
-	// TODO(xcoulon): use an env variable to avoid systematic logging of all SQL requests?
+	// configures the log mode for the SQL queries (by default, disabled)
+	s.DB.LogMode(s.Configuration.IsDBLogsEnabled())
 	s.Application = gormapplication.NewGormDB(s.DB, configuration)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
@@ -74,7 +75,12 @@ func (s *DBTestSuite) SetupTest() {
 
 // TearDownTest implements suite.TearDownTest
 func (s *DBTestSuite) TearDownTest() {
-	s.cleanTest()
+	// in some cases, we might need to keep the test data in the DB for inspecting/reproducing
+	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
+	// By default, test data will be removed from the DB after each test
+	if s.Configuration.IsCleanTestDataEnabled() {
+		s.cleanTest()
+	}
 	s.Graph = nil
 }
 
@@ -84,7 +90,12 @@ func (s *DBTestSuite) PopulateDBTestSuite(ctx context.Context) {
 
 // TearDownSuite implements suite.TearDownAllSuite
 func (s *DBTestSuite) TearDownSuite() {
-	s.cleanSuite()
+	// in some cases, we might need to keep the test data in the DB for inspecting/reproducing
+	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
+	// By default, test data will be removed from the DB after each test
+	if s.Configuration.IsCleanTestDataEnabled() {
+		s.cleanSuite()
+	}
 	s.DB.Close()
 }
 
