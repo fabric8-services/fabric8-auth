@@ -72,7 +72,7 @@ type TeamService interface {
 }
 
 type TokenService interface {
-	Audit(ctx context.Context, tokenString string, resourceID string) (bool, string, error)
+	Audit(ctx context.Context, tokenString string, resourceID string) (string, error)
 }
 
 type SpaceService interface {

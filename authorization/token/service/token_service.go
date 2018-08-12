@@ -4,32 +4,26 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
-	"github.com/fabric8-services/fabric8-auth/login"
+	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-			"github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/errors"
+
+	"github.com/fabric8-services/fabric8-auth/login"
 )
 
 type tokenServiceImpl struct {
 	base.BaseService
-	TokenManager token.Manager
 }
 
-func NewTokenService(context servicecontext.ServiceContext, config *configuration.ConfigurationData) service.TokenService {
-	tokenManager, err := token.NewManager(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to create token manager")
-	}
-
+func NewTokenService(context servicecontext.ServiceContext) service.TokenService {
 	return &tokenServiceImpl{
 		BaseService: base.NewBaseService(context),
-		TokenManager: tokenManager,
 	}
 }
 
@@ -37,36 +31,42 @@ func NewTokenService(context servicecontext.ServiceContext, config *configuratio
 // the status of the token passed in the request, and if that token is currently valid and contains the specified
 // resource, returns the same token.  If the token is invalid or outdated, or doesn't contain the specified resource,
 // then a new token is generated and returned.
-func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resourceID string) (bool, string, error) {
+// Returns an empty string if no new token has been issued, otherwise returns the new token string
+func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resourceID string) (string, error) {
 
-	jwtToken, err := s.TokenManager.Parse(ctx, tokenString)
-	if err != nil {
-
-	}
-
-	// First let's load the identity
+	// First let's make sure we can load the identity from the context
 	identity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, s.Repositories())
 	if err != nil {
-
+		return "", err
 	}
 
-	if identity != nil {
+	// Get the token manager from the context
+	tm := tokencontext.ReadTokenManagerFromContext(ctx)
+	if tm == nil {
+		log.Error(ctx, map[string]interface{}{
+			"token": tm,
+		}, "missing token manager")
 
+		return "", errors.NewInternalErrorFromString(ctx, "Missing token manager")
+	}
+	manager := tm.(token.Manager)
+
+	// Now parse the token string that was passed in
+	jwtToken, err := manager.Parse(ctx, tokenString)
+	if err != nil {
+		return "", errors.NewBadParameterErrorFromString("tokenString", tokenString, "invalid token string could not be parsed")
 	}
 
-
-
-	// The first thing this function does is validate the token that was passed in
+	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
 	var tokenID uuid.UUID
-
 
 	if claims, ok := jwtToken.Claims.(jwt.StandardClaims); ok  {
 		tokenID, err = uuid.FromString(claims.Id)
 		if err != nil {
-			// Ignore? or perhaps log
+			// TODO Ignore? or perhaps log
 		}
 	} else {
-		// If we can't succeed in
+		// TODO work out what to do here
 	}
 
 	token, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
@@ -75,21 +75,44 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		log.Info(ctx, map[string]interface{}{
 			"token_id":        tokenID,
 		}, "token with specified id not found")
-	} else {
+	}
+
+	if token != nil {
+		// Confirm that the token belongs to the current identity
+		if token.IdentityID != identity.ID {
+			return "", errors.NewUnauthorizedError("invalid token for identity")
+		}
+
 		// If the token exists and its status is valid, return it
 		if token.Valid() {
-			return true, "", nil
-		} else {
-			// If the status is invalid, we need to generate a new token.
+			return "", nil
+		}
+
+		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
+		if token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED) {
+			// return a WWW-Authenticate: DEPROVISIONED response
+			// TODO adjust this error return code
+			return "", errors.NewInternalError(ctx, nil)
+		}
+
+		// If the token has been revoked or the user is logged out, we respond in the same way
+		if token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED) || token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT) {
+			// return a WWW-Authenticate: LOGIN response
+			// TODO adjust this error return code
+			return "", errors.NewInternalError(ctx, nil)
 		}
 	}
 
-	// If we've gotten this far, it means we must generate a new token
+	// If we've gotten this far, it means that either no existing token was found, or the token that was found
+	// has been marked with status STALE, in either case we must generate a new token
+	
+
+	// TODO new token generation
 
 
 
 
-	return false, "", nil
+	return "", nil
 }
 
 func (s *tokenServiceImpl) generateNewToken(ctx context.Context, identityID uuid.UUID, resourceID string) (*jwt.Token, error) {

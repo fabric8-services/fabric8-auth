@@ -41,6 +41,18 @@ func (m *Token) Valid() bool {
 	return m.Status == 0
 }
 
+func (m *Token) HasStatus(status int) bool {
+	return m.Status&status == status
+}
+
+func (m *Token) SetStatus(status int, value bool) {
+	if value {
+		m.Status |= status
+	} else {
+		m.Status &^= status
+	}
+}
+
 // GormTokenRepository is the implementation of the storage interface for Token.
 type GormTokenRepository struct {
 	db *gorm.DB

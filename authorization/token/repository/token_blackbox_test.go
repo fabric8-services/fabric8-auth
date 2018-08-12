@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
-	"github.com/fabric8-services/fabric8-auth/errors"
+	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
+		"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -106,4 +107,55 @@ func (s *tokenBlackBoxTest) TestSaveFailsForDeletedToken() {
 
 	err = s.repo.Save(s.Ctx, token.Token())
 	require.Error(s.T(), err, "save token should fail for deleted token")
+}
+
+func (s *tokenBlackBoxTest) TestStatusUpdates() {
+	token := s.Graph.CreateToken().Token()
+
+	// A newly created token should be valid by default
+	require.True(s.T(), token.Valid())
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+	require.False(s.T(), token.Valid())
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, false)
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+	require.True(s.T(), token.Valid())
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.False(s.T(), token.Valid())
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_STALE, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.False(s.T(), token.Valid())
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+	require.False(s.T(), token.Valid())
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT, false)
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+	require.False(s.T(), token.Valid())
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, false)
+	token.SetStatus(tokenPkg.TOKEN_STATUS_STALE, false)
+
+	require.True(s.T(), token.Valid())
 }

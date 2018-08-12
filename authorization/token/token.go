@@ -1,15 +1,8 @@
 package token
 
-import "github.com/satori/go.uuid"
-
-// RPTTokenState is a DTO used to pass token state between the service and controller layer
-type RPTTokenState struct {
-	TokenID   uuid.UUID
-	Resources []RPTTokenResource
-}
-
-// RPTTokenResource represents a single resource (plus its scopes) inside an RPT token
-type RPTTokenResource struct {
-	ResourceID string
-	Scopes     []string
-}
+const (
+	TOKEN_STATUS_DEPROVISIONED = 1
+ 	TOKEN_STATUS_REVOKED = 2
+	TOKEN_STATUS_LOGGED_OUT = 4
+	TOKEN_STATUS_STALE = 8
+)
