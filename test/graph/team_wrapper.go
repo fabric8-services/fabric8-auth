@@ -104,7 +104,7 @@ func (w *teamWrapper) ResourceID() string {
 }
 
 func (w *teamWrapper) AddMember(wrapper interface{}) *teamWrapper {
-	identityID := w.identityIDFromWrapper(wrapper)
+	identityID := identityIDFromWrapper(w.graph.t, wrapper)
 
 	err := w.graph.db.Exec("INSERT INTO membership (member_id, member_of) VALUES (?, ?)", identityID, w.identity.ID).Error
 	require.NoError(w.graph.t, err)

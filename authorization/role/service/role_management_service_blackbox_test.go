@@ -202,7 +202,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssertRolesWithReplacingExisting
 }
 
 func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRoles bool) {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 	adminUser := g.CreateUser("adminuser-who-adds-the-others")
 	newSpace.AddAdmin(adminUser)
@@ -269,7 +269,7 @@ func (s *roleManagementServiceBlackboxTest) checkRoleAssignments(identities []uu
 }
 
 func (s *roleManagementServiceBlackboxTest) addNoisyAssignments() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	for i := 0; i < 10; i++ {
 		randomAssignee := g.CreateUser()
 		g.CreateSpace().AddContributor(randomAssignee)
@@ -277,7 +277,7 @@ func (s *roleManagementServiceBlackboxTest) addNoisyAssignments() {
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithLackOfPermissionsFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 	viewer := g.CreateUser("viewer-who-tries-to-assign-roles")
 	newSpace.AddViewer(viewer)
@@ -293,7 +293,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithLackOfPermissionsF
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	spaceAdmin := g.CreateUser("adminuser")
 	newSpace := g.CreateSpace().AddAdmin(spaceAdmin)
 
@@ -309,7 +309,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	identityID := g.CreateUser().Identity().ID
 	userToBeAdded := []uuid.UUID{g.CreateUser("randomuser").Identity().ID}
 	roleAssignments := make(map[string][]uuid.UUID)
@@ -320,7 +320,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	adminUser := g.CreateUser()
 	newSpace := g.CreateSpace().AddAdmin(adminUser)
 	userToBeAdded := []uuid.UUID{g.CreateUser("randomuser").Identity().ID}
@@ -332,7 +332,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	adminUser := g.CreateUser()
 	newSpace := g.CreateSpace().AddAdmin(adminUser)
 	userToBeAdded := []uuid.UUID{uuid.NewV4()}
@@ -344,7 +344,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound()
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminOK() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 	spaceCreator := g.CreateUser()
 	s.addNoisyAssignments()
@@ -374,7 +374,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminFailsExistingAs
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignUnknownRoleAsAdminFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 	spaceCreator := g.CreateUser()
 
@@ -383,7 +383,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignUnknownRoleAsAdminFails() 
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminToUnknownIdentityFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 	id := uuid.NewV4()
 
@@ -392,7 +392,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminToUnknownIdenti
 }
 
 func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminForUnknownResourceFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	spaceCreator := g.CreateUser()
 	id := uuid.NewV4().String()
 

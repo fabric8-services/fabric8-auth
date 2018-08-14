@@ -50,6 +50,7 @@ type PermissionService interface {
 type ResourceService interface {
 	Delete(ctx context.Context, resourceID string) error
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
+	CheckExists(ctx context.Context, resourceID string) error
 	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
 }
 
@@ -60,6 +61,7 @@ type RoleManagementService interface {
 	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 	ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error
 	RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error
+	ListByIdentityAndResource(ctx context.Context, currentIdentity uuid.UUID, resourceID string) ([]role.RoleDescriptor, error)
 }
 
 type TeamService interface {

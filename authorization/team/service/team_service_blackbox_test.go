@@ -20,7 +20,7 @@ func TestRunTeamServiceBlackBoxTest(t *testing.T) {
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	g.CreateSpace(g.ID("myspace")).AddAdmin(g.CreateUser(g.ID("foo")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
@@ -61,7 +61,7 @@ func (s *teamServiceBlackBoxTest) TestCreateAndListTeamsSuccessful() {
 }
 
 func (s *teamServiceBlackBoxTest) TestListTeamsInSpaceForDifferentRoles() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	g.CreateSpace(g.ID("spc")).
 		AddAdmin(g.CreateUser(g.ID("admin"))).
 		AddContributor(g.CreateUser(g.ID("contributor"))).
@@ -94,7 +94,7 @@ func (s *teamServiceBlackBoxTest) TestListTeamsInSpaceForDifferentRoles() {
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceUser() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	space := g.CreateSpace()
 	user := g.CreateUser()
 
@@ -104,7 +104,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceUser() {
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForContributor() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	space := g.CreateSpace().AddContributor(g.CreateUser(g.ID("user")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
@@ -113,7 +113,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForContributor() {
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForViewer() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	space := g.CreateSpace().AddViewer(g.CreateUser(g.ID("user")))
 
 	teamName := "TestTeam" + uuid.NewV4().String()
@@ -122,7 +122,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForViewer() {
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForUnknownUser() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	userIdentityID := uuid.NewV4()
 	space := g.CreateSpace()
 
@@ -132,7 +132,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForUnknownUser() {
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForUnknownSpace() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	user := g.CreateUser()
 	spaceID := uuid.NewV4().String()
 
@@ -142,7 +142,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForUnknownSpace() {
 }
 
 func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceResource() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	user := g.CreateUser()
 	resource := g.CreateResource()
 
@@ -152,7 +152,7 @@ func (s *teamServiceBlackBoxTest) TestCreateTeamFailsForNonSpaceResource() {
 }
 
 func (s *teamServiceBlackBoxTest) TestListTeamsForIdentity() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	g.CreateSpace(g.ID("spc")).AddAdmin(g.CreateUser(g.ID("u1")))
 	g.CreateSpace(g.ID("spc2")).AddAdmin(g.UserByID("u1"))
 

@@ -58,7 +58,7 @@ func (s *identityBlackBoxTest) TestOKToDelete() {
 
 func (s *identityBlackBoxTest) TestOKToDeleteForResource() {
 
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	team := g.CreateTeam()
 	err := s.Application.Identities().CheckExists(s.Ctx, team.TeamID().String())
 	require.NoError(s.T(), err)
@@ -210,7 +210,7 @@ func (s *identityBlackBoxTest) TestFindIdentityMemberships() {
 }
 
 func (s *identityBlackBoxTest) TestFindIdentityTeamMemberships() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	g.CreateTeam(g.ID("tm"), g.CreateSpace(g.ID("spc"))).AddMember(g.CreateUser(g.ID("m")))
 
 	// Find the member's memberships
@@ -227,7 +227,7 @@ func (s *identityBlackBoxTest) TestFindIdentityTeamMemberships() {
 
 // TestFindIdentitiesByResourceTypeWithParentResource creates a combination of spaces/teams and then uses the finder method to find them
 func (s *identityBlackBoxTest) TestFindIdentitiesByResourceTypeWithParentResource() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	spc := g.CreateSpace(g.ID("spc"))
 	t1 := g.CreateTeam(g.ID("t1"), spc)
 	t2 := g.CreateTeam(g.ID("t2"), spc)
@@ -268,7 +268,7 @@ func (s *identityBlackBoxTest) TestFindIdentitiesByResourceTypeWithParentResourc
 }
 
 func (s *identityBlackBoxTest) TestAddMember() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	team := g.CreateTeam()
 	user := g.CreateUser()
 
@@ -304,7 +304,7 @@ func (s *identityBlackBoxTest) TestAddMemberFailsForNonMemberIdentity() {
 }
 
 func (s *identityBlackBoxTest) TestAddMemberFailsForDuplicateMembership() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	team := g.CreateTeam()
 	user := g.CreateUser()
 

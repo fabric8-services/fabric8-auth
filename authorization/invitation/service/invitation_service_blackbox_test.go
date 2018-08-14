@@ -38,7 +38,7 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 
 	// Create a test user - this will be the team admin
 	teamAdmin := g.CreateUser()
