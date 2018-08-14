@@ -5,6 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
+	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
@@ -94,19 +95,41 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			// TODO adjust this error return code
 			return "", errors.NewInternalError(ctx, nil)
 		}
-
+		
 		// If the token has been revoked or the user is logged out, we respond in the same way
 		if token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED) || token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT) {
 			// return a WWW-Authenticate: LOGIN response
 			// TODO adjust this error return code
 			return "", errors.NewInternalError(ctx, nil)
 		}
+
+		// If the token is stale, we can re-evaluate its privileges to determine whether they have changed
+		if token.HasStatus(tokenPkg.TOKEN_STATUS_STALE) {
+			// Query for all of the token's privileges
+			privileges, err := s.Repositories().PrivilegeCacheRepository().ListForToken(ctx, tokenID)
+			if err != nil {
+				return "", errors.NewInternalError(ctx, err)
+			}
+
+			// First we recalculate any stale privileges
+			for i, priv := range(privileges) {
+				if priv.Stale {
+					p, err := s.recalculatePrivileges(ctx, priv)
+					if err != nil {
+						return "", errors.NewInternalError(ctx, err)
+					}
+					privileges[i] = *p
+				}
+			}
+
+			// Now we compare all privileges to those contained in the current token
+		}
 	}
-
-	// If we've gotten this far, it means that either no existing token was found, or the token that was found
-	// has been marked with status STALE, in either case we must generate a new token
 	
-
+	// If we've gotten this far, it means that either no existing token was found, or the token that was found
+	// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
+	
+	
 	// TODO new token generation
 
 
@@ -118,4 +141,8 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 func (s *tokenServiceImpl) generateNewToken(ctx context.Context, identityID uuid.UUID, resourceID string) (*jwt.Token, error) {
 	return nil, nil
 
+}
+
+func (s *tokenServiceImpl) recalculatePrivileges(ctx context.Context, privilege tokenRepo.PrivilegeCache) (*tokenRepo.PrivilegeCache, error) {
+	return nil, nil
 }

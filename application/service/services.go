@@ -46,6 +46,7 @@ type OrganizationService interface {
 type PermissionService interface {
 	HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error)
 	RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error
+	ScopesForResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error)
 }
 
 type ResourceService interface {

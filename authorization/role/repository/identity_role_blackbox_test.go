@@ -526,3 +526,14 @@ func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, r
 	}
 	assert.Fail(t, "user not found")
 }
+
+
+func (s *identityRoleBlackBoxTest) TestFindScopesByIdentityAndResource() {
+	user := s.Graph.CreateUser()
+
+	rt := s.Graph.CreateResourceType()
+	resource := s.Graph.CreateResource(rt)
+	role := s.Graph.CreateRole()
+
+	s.Graph.CreateIdentityRole(user, resource, role)
+}

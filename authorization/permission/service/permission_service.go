@@ -52,3 +52,8 @@ func (s *permissionServiceImpl) RequireScope(ctx context.Context, identityID uui
 
 	return nil
 }
+
+func (s *permissionServiceImpl) ScopesForResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error) {
+
+	return nil, nil
+}

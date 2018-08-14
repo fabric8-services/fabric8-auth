@@ -484,6 +484,144 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByIdentityAndResource(ctx 
 	return m.query(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID))
 }
 
+func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error) {
+	var results []string
+
+	err := m.db.Raw(`SELECT rts.name FROM resource_type_scope rts
+    INNER JOIN role_scope rs ON resource_type_scope.resource_type_scope_id = rs.role_id 
+    INNER JOIN identity_role ir ON rs.role_id = ir.role_id
+    WHERE rts.deleted_at IS NULL AND rs.deleted_at IS NULL AND ir.deleted_at IS NULL
+    AND ir.identity_id IN (
+	SELECT
+	rts.name as "scope"
+	FROM
+	identity_role ir INNER JOIN role_scope rs ON ir.role_id = rs.role_id INNER JOIN resource_type_scope rts ON rs.scope_id = rts.resource_type_scope_id
+	WHERE
+	ir.deleted_at IS NULL
+	AND rs.deleted_at IS NULL
+	AND rts.deleted_at IS NULL
+	AND ir.identity_id IN (
+		SELECT
+	id
+	FROM
+	identities i
+	WHERE
+	id = ? /* IDENTITY_ID */
+	OR id IN (
+		WITH RECURSIVE m AS (
+		SELECT
+	member_of
+	FROM
+	membership
+	WHERE
+	member_id = ? /* IDENTITY_ID */
+	UNION SELECT
+	p.member_of
+	FROM
+	membership p INNER JOIN m ON m.member_of = p.member_id
+	)
+	SELECT member_of FROM m
+	)
+)
+	AND ir.resource_id IN (
+		WITH RECURSIVE m AS (
+		SELECT
+	resource_id, parent_resource_id
+	FROM
+	resource
+	WHERE
+	deleted_at IS NULL
+	AND resource_id = ? /* RESOURCE_ID */
+	UNION SELECT
+	p.resource_id, p.parent_resource_id
+	FROM
+	resource p INNER JOIN m ON m.parent_resource_id = p.resource_id
+	)
+	SELECT
+	m.resource_id
+	FROM
+	m
+	)
+	AND (role_id IN (
+		SELECT
+	r.role_id
+	FROM
+	resource res
+	WHERE
+	res.resource_id = ? /* RESOURCE_ID */
+	AND res.deleted_at IS NULL
+	) OR role_id IN (
+		SELECT DISTINCT
+	rl.role_id
+	FROM
+	(
+		WITH RECURSIVE prm AS (
+		SELECT
+	rm.from_role_id,
+		rm.to_role_id
+	FROM
+	role_mapping rm
+	WHERE
+	rm.deleted_at IS NULL
+	AND rm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in the ancestor hierarchy */
+		SELECT
+	resource_id, parent_resource_id
+	FROM
+	resource
+	WHERE
+	resource_id = ? /* RESOURCE_ID */
+	AND deleted_at IS NULL
+	UNION SELECT
+	p.resource_id, p.parent_resource_id
+	FROM
+	resource p INNER JOIN m ON m.parent_resource_id = p.resource_id
+	)
+	SELECT
+	m.resource_id
+	FROM
+	m)
+	UNION SELECT
+	trm.from_role_id,
+		trm.to_role_id
+	FROM
+	role_mapping trm INNER JOIN prm ON prm.from_role_id = trm.to_role_id
+	WHERE
+	trm.deleted_at IS NULL
+	AND trm.resource_id IN (WITH RECURSIVE m AS ( /* only resources that are in this role mapping's ancestor hierarchy */
+		SELECT
+	resource_id, parent_resource_id
+	FROM
+	resource
+	WHERE
+	resource_id = trm.resource_id
+	AND deleted_at IS NULL
+	UNION SELECT
+	p.resource_id, p.parent_resource_id
+	FROM
+	resource p INNER JOIN m ON m.parent_resource_id = p.resource_id
+	)
+	SELECT
+	m.resource_id
+	FROM
+	m)
+)
+	SELECT
+	prm.from_role_id,
+		prm.to_role_id
+	FROM
+	prm) AS mappings
+	CROSS JOIN LATERAL (
+		VALUES (from_role_id), (to_role_id)
+	) AS rl (role_id))
+)`, identityID, identityID, resourceID, resourceID, resourceID).Scan(&results).Error
+
+	if err != nil {
+		return nil, errs.WithStack(err)
+	}
+
+	return results, nil
+}
+
 // Query exposes an open ended Query model
 func (m *GormIdentityRoleRepository) query(funcs ...func(*gorm.DB) *gorm.DB) ([]IdentityRole, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "list"}, time.Now())

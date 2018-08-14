@@ -334,3 +334,7 @@ func (g *TestGraph) CreateToken(params ...interface{}) *tokenWrapper {
 func (g *TestGraph) CreatePrivilegeCache(params ...interface{}) *privilegeCacheWrapper {
 	return g.createAndRegister(newPrivilegeCacheWrapper, params).(*privilegeCacheWrapper)
 }
+
+func (g *TestGraph) CreateIdentityRole(params ...interface{}) *identityRoleWrapper {
+	return g.createAndRegister(newIdentityRoleWrapper, params).(*identityRoleWrapper)
+}
