@@ -34,8 +34,8 @@ func init() {
 }
 
 func TestAuth(t *testing.T) {
-	if configuration.IsKeycloakTestsDisabled() {
-		t.Skip("Skipping Keycloak AuthZ tests")
+	if configuration.IsOAuthServiceTestsDisabled() {
+		t.Skip("Skipping OAuth Service AuthZ tests")
 	}
 	resource.Require(t, resource.Remote)
 	suite.Run(t, new(TestAuthSuite))
@@ -69,9 +69,9 @@ func getProtectedAPITokenOK(t *testing.T) string {
 		Request: &http.Request{Host: "demo.api.openshift.io"},
 	}
 
-	endpoint, err := configuration.GetKeycloakEndpointToken(r)
+	endpoint, err := configuration.GetOAuthServiceEndpointToken(r)
 	require.Nil(t, err)
-	token, err := auth.GetProtectedAPIToken(context.Background(), endpoint, configuration.GetKeycloakClientID(), configuration.GetKeycloakSecret())
+	token, err := auth.GetProtectedAPIToken(context.Background(), endpoint, configuration.GetOAuthServiceClientID(), configuration.GetOAuthServiceSecret())
 	require.Nil(t, err)
 	return token
 }

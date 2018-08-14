@@ -116,6 +116,6 @@ type DummyOSORegistrationApp struct {
 	Err    error
 }
 
-func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config login.Configuration, keycloakToken oauth2.Token) (string, error) {
+func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config login.Configuration, OAuth2Token oauth2.Token) (string, error) {
 	return regApp.Status, regApp.Err
 }

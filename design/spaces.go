@@ -5,7 +5,7 @@ import (
 	a "github.com/goadesign/goa/design/apidsl"
 )
 
-// spaceResource represents a Keycloak Resource associated with the Space
+// spaceResource represents a OAuth Service Resource associated with the Space
 var spaceResource = a.MediaType("application/vnd.spaceresource+json", func() {
 	a.UseTrait("jsonapi-media-type")
 	a.TypeName("SpaceResource")
@@ -20,9 +20,9 @@ var spaceResource = a.MediaType("application/vnd.spaceresource+json", func() {
 	})
 })
 
-// spaceResourceData represents a Keycloak Resource Data associated with the Space
+// spaceResourceData represents a OAuth Service Resource Data associated with the Space
 var spaceResourceData = a.Type("SpaceResourceData", func() {
-	a.Attribute("resourceID", d.String, "Keycloak Resource ID associated with this Space")
+	a.Attribute("resourceID", d.String, "OAuth Service Resource ID associated with this Space")
 	a.Required("resourceID")
 })
 

@@ -33,7 +33,7 @@ import (
 type TokenController struct {
 	*goa.Controller
 	app           application.Application
-	Auth          login.KeycloakOAuthService
+	Auth          login.OAuthService
 	LinkService   link.LinkOAuthService
 	TokenManager  token.Manager
 	Configuration LoginConfiguration
@@ -42,7 +42,7 @@ type TokenController struct {
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, app application.Application, auth login.KeycloakOAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
+func NewTokenController(service *goa.Service, app application.Application, auth login.OAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
 	return &TokenController{
 		Controller:            service.NewController("token"),
 		Auth:                  auth,
@@ -73,12 +73,12 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
 	}
 
-	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
+	endpoint, err := c.Configuration.GetOAuthServiceEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
+		}, "Unable to get oauth service token endpoint URL")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get oauth service token endpoint URL")))
 	}
 
 	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
@@ -101,7 +101,7 @@ func convertToken(t token.TokenSet) *app.AuthToken {
 	}}
 }
 
-// Generate obtain the access token from Keycloak for the test user
+// Generate obtain the access token from oauth service for the test user
 func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	if !c.Configuration.IsPostgresDeveloperModeEnabled() {
 		log.Error(ctx, map[string]interface{}{}, "developer mode not enabled")
@@ -112,7 +112,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	var identities []account.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.OAuthServiceIDP))
 		return err
 	})
 	if err != nil {
@@ -130,7 +130,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devIdentity = account.Identity{
 			User:                  devUser,
 			Username:              devUsername,
-			ProviderType:          account.KeycloakIDP,
+			ProviderType:          account.OAuthServiceIDP,
 			RegistrationCompleted: true,
 		}
 	} else {
@@ -165,14 +165,14 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	return ctx.OK(tokens)
 }
 
-func (c *TokenController) getKeycloakExternalTokenURL(providerName string) string {
+func (c *TokenController) getOAuthServiceExternalTokenURL(providerName string) string {
 	// not moving this to config because this is temporary.
-	return fmt.Sprintf("%s/auth/realms/%s/broker/%s/token", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), providerName)
+	return fmt.Sprintf("%s/auth/realms/%s/broker/%s/token", c.Configuration.GetOAuthServiceURL(), c.Configuration.GetOAuthServiceRealm(), providerName)
 }
 
-func (c *TokenController) getKeycloakIdentityProviderURL(identityID string, providerName string) string {
+func (c *TokenController) getOAuthServiceIdentityProviderURL(identityID string, providerName string) string {
 	// not moving this to config because this is temporary.
-	return fmt.Sprintf("%s/auth/admin/realms/%s/users/%s/federated-identity/%s", c.Configuration.GetKeycloakURL(), c.Configuration.GetKeycloakRealm(), identityID, providerName)
+	return fmt.Sprintf("%s/auth/admin/realms/%s/users/%s/federated-identity/%s", c.Configuration.GetOAuthServiceURL(), c.Configuration.GetOAuthServiceRealm(), identityID, providerName)
 }
 
 // Retrieve fetches the stored external provider token.
@@ -400,12 +400,12 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 
-	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
+	endpoint, err := c.Configuration.GetOAuthServiceEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get Keycloak token endpoint URL")
+		}, "Unable to get oauth service token endpoint URL")
+		return nil, errors.NewInternalErrorFromString(ctx, "unable to get oauth service token endpoint URL")
 	}
 
 	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
@@ -442,32 +442,32 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		}, "unknown oauth client id")
 		return nil, nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
-	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
+	authEndpoint, err := c.Configuration.GetOAuthServiceEndpointAuth(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "unable to get keycloak auth endpoint url")
-		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak auth endpoint url")
+		}, "unable to get oauth service auth endpoint url")
+		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get oauth service auth endpoint url")
 	}
 
-	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
+	tokenEndpoint, err := c.Configuration.GetOAuthServiceEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "unable to get keycloak token endpoint url")
-		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak token endpoint url")
+		}, "unable to get oauth service token endpoint url")
+		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get oauth service token endpoint url")
 	}
 
 	oauth := &oauth2.Config{
-		ClientID:     c.Configuration.GetKeycloakClientID(),
-		ClientSecret: c.Configuration.GetKeycloakSecret(),
+		ClientID:     c.Configuration.GetOAuthServiceClientID(),
+		ClientSecret: c.Configuration.GetOAuthServiceSecret(),
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 
-	keycloakToken, err := c.Auth.Exchange(ctx, *payload.Code, oauth)
+	oauthServiceToken, err := c.Auth.Exchange(ctx, *payload.Code, oauth)
 
 	if err != nil {
 		return nil, nil, err
@@ -482,7 +482,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		return nil, nil, errors.NewInternalError(ctx, err)
 	}
 
-	notApprovedRedirectURL, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
+	notApprovedRedirectURL, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, oauthServiceToken, ctx.RequestData, c.Configuration)
 
 	if err != nil {
 		return nil, nil, err
@@ -603,8 +603,8 @@ func modelToAppExternalToken(externalToken provider.ExternalToken, providerAPIUR
 	}
 }
 
-// ObtainKeycloakUserToken obtains the access token from Keycloak for the user
-func ObtainKeycloakUserToken(ctx context.Context, tokenEndpoint string, configuration LoginConfiguration, username string, userSecret string) (*app.AuthToken, error) {
+// ObtainOAuthServiceUserToken obtains the access token from oauth service for the user
+func ObtainOAuthServiceUserToken(ctx context.Context, tokenEndpoint string, configuration LoginConfiguration, username string, userSecret string) (*app.AuthToken, error) {
 	if !configuration.IsPostgresDeveloperModeEnabled() {
 		log.Error(ctx, map[string]interface{}{
 			"method": "Generate",
@@ -615,8 +615,8 @@ func ObtainKeycloakUserToken(ctx context.Context, tokenEndpoint string, configur
 	client := &http.Client{Timeout: 10 * time.Second}
 
 	res, err := client.PostForm(tokenEndpoint, url.Values{
-		"client_id":     {configuration.GetKeycloakClientID()},
-		"client_secret": {configuration.GetKeycloakSecret()},
+		"client_id":     {configuration.GetOAuthServiceClientID()},
+		"client_secret": {configuration.GetOAuthServiceSecret()},
 		"username":      {username},
 		"password":      {userSecret},
 		"grant_type":    {"password"},

@@ -50,132 +50,132 @@ func resetConfiguration() {
 	}
 }
 
-func TestGetKeycloakEndpointSetByUrlEnvVariableOK(t *testing.T) {
+func TestGetOAuthServiceEndpointSetByUrlEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	env := os.Getenv("AUTH_KEYCLOAK_URL")
+	env := os.Getenv("AUTH_SERVICE_URL")
 	defer func() {
-		os.Setenv("AUTH_KEYCLOAK_URL", env)
+		os.Setenv("AUTH_SERVICE_URL", env)
 		resetConfiguration()
 	}()
 
-	os.Setenv("AUTH_KEYCLOAK_URL", "http://xyz.io")
+	os.Setenv("AUTH_SERVICE_URL", "http://xyz.io")
 	resetConfiguration()
 
-	url, err := config.GetKeycloakEndpointAuth(reqLong)
+	url, err := config.GetOAuthServiceEndpointAuth(reqLong)
 	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/auth", url)
+	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/auth", url)
 
-	url, err = config.GetKeycloakEndpointLogout(reqLong)
+	url, err = config.GetOAuthServiceEndpointLogout(reqLong)
 	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/logout", url)
+	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/logout", url)
 
-	url, err = config.GetKeycloakEndpointToken(reqLong)
+	url, err = config.GetOAuthServiceEndpointToken(reqLong)
 	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/token", url)
+	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/token", url)
 
-	url, err = config.GetKeycloakEndpointUserInfo(reqLong)
+	url, err = config.GetOAuthServiceEndpointUserInfo(reqLong)
 	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", url)
+	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/userinfo", url)
 }
 
-func TestGetKeycloakEndpointAdminDevModeOK(t *testing.T) {
+func TestGetOAuthServiceEndpointAdminDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm(), config.GetKeycloakEndpointAdmin)
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/admin/realms/"+config.GetOAuthServiceRealm(), config.GetOAuthServiceEndpointAdmin)
 }
 
-func TestGetKeycloakEndpointAdminSetByEnvVariableOK(t *testing.T) {
+func TestGetOAuthServiceEndpointAdminSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ADMIN", config.GetKeycloakEndpointAdmin)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_SERVICE_ENDPOINT_ADMIN", config.GetOAuthServiceEndpointAdmin)
 }
 
-func TestGetKeycloakEndpointAuthDevModeOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/auth", config.GetKeycloakEndpointAuth)
-}
-
-func TestGetKeycloakEndpointAuthSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_AUTH", config.GetKeycloakEndpointAuth)
-}
-
-func TestGetKeycloakEndpointLogoutDevModeOK(t *testing.T) {
+func TestGetOAuthServiceEndpointAuthDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/logout", config.GetKeycloakEndpointLogout)
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/auth", config.GetOAuthServiceEndpointAuth)
 }
 
-func TestGetKeycloakEndpointLogoutSetByEnvVariableOK(t *testing.T) {
+func TestGetOAuthServiceEndpointAuthSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_LOGOUT", config.GetKeycloakEndpointLogout)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_SERVICE_ENDPOINT_AUTH", config.GetOAuthServiceEndpointAuth)
 }
 
-func TestGetKeycloakEndpointTokenOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/token", config.GetKeycloakEndpointToken)
-}
-
-func TestGetKeycloakEndpointTokenSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_TOKEN", config.GetKeycloakEndpointToken)
-}
-
-func TestGetKeycloakEndpointUserInfoOK(t *testing.T) {
+func TestGetOAuthServiceEndpointLogoutDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/logout", config.GetOAuthServiceEndpointLogout)
 }
 
-func TestGetKeycloakEndpointLinkIDPOK(t *testing.T) {
+func TestGetOAuthServiceEndpointLogoutSetByEnvVariableOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_SERVICE_ENDPOINT_LOGOUT", config.GetOAuthServiceEndpointLogout)
+}
+
+func TestGetOAuthServiceEndpointTokenOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/token", config.GetOAuthServiceEndpointToken)
+}
+
+func TestGetOAuthServiceEndpointTokenSetByEnvVariableOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_SERVICE_ENDPOINT_TOKEN", config.GetOAuthServiceEndpointToken)
+}
+
+func TestGetOAuthServiceEndpointUserInfoOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/userinfo", config.GetOAuthServiceEndpointUserInfo)
+}
+
+func TestGetOAuthServiceEndpointLinkIDPOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 	sampleID := "1234"
 	idp := "openshift-v3"
-	expectedEndpoint := config.GetKeycloakDevModeURL() + "/auth/admin/realms/" + config.GetKeycloakRealm() + "/users/" + sampleID + "/federated-identity/" + idp
-	url, err := config.GetKeycloakEndpointLinkIDP(reqLong, sampleID, idp)
+	expectedEndpoint := config.GetOAuthServiceDevModeURL() + "/auth/admin/realms/" + config.GetOAuthServiceRealm() + "/users/" + sampleID + "/federated-identity/" + idp
+	url, err := config.GetOAuthServiceEndpointLinkIDP(reqLong, sampleID, idp)
 	assert.Nil(t, err)
 	// In dev mode it's always the default value regardless of the request
 	assert.Equal(t, expectedEndpoint, url)
 
-	url, err = config.GetKeycloakEndpointLinkIDP(reqShort, sampleID, idp)
+	url, err = config.GetOAuthServiceEndpointLinkIDP(reqShort, sampleID, idp)
 	assert.Nil(t, err)
 	// In dev mode it's always the default value regardless of the request
 	assert.Equal(t, expectedEndpoint, url)
 }
 
-func TestGetKeycloakEndpointUsersOK(t *testing.T) {
+func TestGetOAuthServiceEndpointUsersOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/users", config.GetKeycloakEndpointUsers)
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/admin/realms/"+config.GetOAuthServiceRealm()+"/users", config.GetOAuthServiceEndpointUsers)
 }
 
-func TestGetKeycloakEndpointUserInfoSetByEnvVariableOK(t *testing.T) {
+func TestGetOAuthServiceEndpointUserInfoSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_USERINFO", config.GetKeycloakEndpointUserInfo)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_SERVICE_ENDPOINT_USERINFO", config.GetOAuthServiceEndpointUserInfo)
 }
 
-func TestGetKeycloakEndpointBrokerOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/broker", config.GetKeycloakEndpointBroker)
-}
-
-func TestGetKeycloakEndpointBrokerSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_BROKER", config.GetKeycloakEndpointBroker)
-}
-
-func TestGetKeycloakUserInfoEndpointOK(t *testing.T) {
+func TestGetOAuthServiceEndpointBrokerOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/account", config.GetKeycloakAccountEndpoint)
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/realms/"+config.GetOAuthServiceRealm()+"/broker", config.GetOAuthServiceEndpointBroker)
 }
 
-func TestGetKeycloakUserInfoEndpointOKrSetByEnvVariableOK(t *testing.T) {
+func TestGetOAuthServiceEndpointBrokerSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ACCOUNT", config.GetKeycloakAccountEndpoint)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_SERVICE_ENDPOINT_BROKER", config.GetOAuthServiceEndpointBroker)
+}
+
+func TestGetOAuthServiceUserInfoEndpointOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	t.Parallel()
+	checkGetOAuthServiceEndpointOK(t, config.GetOAuthServiceDevModeURL()+"/auth/realms/"+config.GetOAuthServiceRealm()+"/account", config.GetOAuthServiceAccountEndpoint)
+}
+
+func TestGetOAuthServiceUserInfoEndpointOKrSetByEnvVariableOK(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_SERVICE_ENDPOINT_ACCOUNT", config.GetOAuthServiceAccountEndpoint)
 }
 
 func TestGetWITURLNotDevModeOK(t *testing.T) {
@@ -318,7 +318,7 @@ func TestGetSentryDSNOK(t *testing.T) {
 	assert.Equal(t, "something", config.GetSentryDSN())
 }
 
-func checkGetKeycloakEndpointOK(t *testing.T, expectedEndpoint string, getEndpoint func(req *goa.RequestData) (string, error)) {
+func checkGetOAuthServiceEndpointOK(t *testing.T, expectedEndpoint string, getEndpoint func(req *goa.RequestData) (string, error)) {
 	url, err := getEndpoint(reqLong)
 	assert.Nil(t, err)
 	// In dev mode it's always the default value regardless of the request
@@ -686,7 +686,7 @@ func generateEnvKey(yamlKey string) string {
 	return "AUTH_" + strings.ToUpper(strings.Replace(yamlKey, ".", "_", -1))
 }
 
-func checkGetKeycloakEndpointSetByEnvVariableOK(t *testing.T, envName string, getEndpoint func(req *goa.RequestData) (string, error)) {
+func checkGetOAuthServiceEndpointSetByEnvVariableOK(t *testing.T, envName string, getEndpoint func(req *goa.RequestData) (string, error)) {
 	envValue := uuid.NewV4().String()
 	env := os.Getenv(envName)
 	defer func() {

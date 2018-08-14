@@ -11,7 +11,7 @@ import (
 )
 
 type logoutConfiguration interface {
-	GetKeycloakEndpointLogout(*goa.RequestData) (string, error)
+	GetOAuthServiceEndpointLogout(*goa.RequestData) (string, error)
 	GetValidRedirectURLs() string
 }
 
@@ -23,18 +23,18 @@ type LogoutController struct {
 }
 
 // NewLogoutController creates a logout controller.
-func NewLogoutController(service *goa.Service, logoutService *login.KeycloakLogoutService, configuration logoutConfiguration) *LogoutController {
+func NewLogoutController(service *goa.Service, logoutService *login.OAuthLogoutService, configuration logoutConfiguration) *LogoutController {
 	return &LogoutController{Controller: service.NewController("LogoutController"), logoutService: logoutService, configuration: configuration}
 }
 
 // Logout runs the logout action.
 func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
-	logoutEndpoint, err := c.configuration.GetKeycloakEndpointLogout(ctx.RequestData)
+	logoutEndpoint, err := c.configuration.GetOAuthServiceEndpointLogout(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "Unable to get Keycloak logout endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak logout endpoint URL")))
+		}, "Unable to get oauth service logout endpoint URL")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get oauth service logout endpoint URL")))
 	}
 	whitelist := c.configuration.GetValidRedirectURLs()
 

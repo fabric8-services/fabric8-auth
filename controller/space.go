@@ -30,7 +30,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	// Create AuthZ resource for the space as part of soft migration from deprecated Keycloak AuthZ API to new OSIO AuthZ API
+	// Create AuthZ resource for the space as part of soft migration from deprecated OAuth Service AuthZ API to new OSIO AuthZ API
 	err = c.app.SpaceService().CreateSpace(ctx, currentIdentity.ID, ctx.SpaceID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

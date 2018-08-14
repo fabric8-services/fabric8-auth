@@ -58,7 +58,7 @@ var TestIdentity = account.Identity{
 	ID:           uuid.NewV4(),
 	Username:     "TestDeveloper" + uuid.NewV4().String(),
 	User:         TestUser,
-	ProviderType: account.KeycloakIDP,
+	ProviderType: account.OAuthServiceIDP,
 }
 
 // TestObserverIdentity only creates in memory obj for testing purposes
@@ -73,7 +73,7 @@ var TestIdentity2 = account.Identity{
 	ID:           uuid.NewV4(),
 	Username:     "TestDeveloper2" + uuid.NewV4().String(),
 	User:         TestUser2,
-	ProviderType: account.KeycloakIDP,
+	ProviderType: account.OAuthServiceIDP,
 }
 
 var TestOnlineRegistrationAppIdentity = account.Identity{
@@ -178,7 +178,7 @@ func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (accou
 	}
 	testIdentity := account.Identity{
 		Username:     username,
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.OAuthServiceIDP,
 		User:         testUser,
 	}
 	err := CreateTestIdentityAndUserInDB(db, &testIdentity)
@@ -187,7 +187,7 @@ func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (accou
 
 // CreateTestIdentityAndUserWithDefaultProviderType creates an identity & user with the given `username` in the database. For testing purpose only.
 func CreateTestIdentityAndUserWithDefaultProviderType(db *gorm.DB, username string) (account.Identity, error) {
-	return CreateTestIdentityAndUser(db, username, account.KeycloakIDP)
+	return CreateTestIdentityAndUser(db, username, account.OAuthServiceIDP)
 }
 
 // EmbedTestIdentityTokenInContext creates an identity & user with the given `username` in the database.
@@ -211,7 +211,7 @@ func CreateTestUser(db *gorm.DB, user *account.User) (account.Identity, error) {
 	identityRepository := account.NewIdentityRepository(db)
 	identity := account.Identity{
 		Username:     uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.OAuthServiceIDP,
 	}
 	err := models.Transactional(db, func(tx *gorm.DB) error {
 		err := userRepository.Create(context.Background(), user)

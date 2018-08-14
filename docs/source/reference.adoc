@@ -155,9 +155,9 @@ __Response:__
 
 === How it works
 
-. Client sends a generated state. Auth "proxies" it to Keycloak and thereby initiates the first request in oauth2
-. Keycloak redirects to IdP etc. User logs in..
-. Keycloak calls back Auth with a code
+. Client sends a generated state. Auth "proxies" it to OAuth Service and thereby initiates the first request in oauth2
+. OAuth Service redirects to IdP etc. User logs in..
+. OAuth Service calls back Auth with a code
 . Auth passes the code to Client ( UI or another services )
 . Client then calls KC to do the code \<\-> token exchange.
 . Auth works as a smart proxy here between client and KC.

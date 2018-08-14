@@ -18,13 +18,13 @@ import (
 // AuthorizeController implements the authorize resource.
 type AuthorizeController struct {
 	*goa.Controller
-	Auth          login.KeycloakOAuthService
+	Auth          login.OAuthService
 	TokenManager  token.Manager
 	Configuration LoginConfiguration
 }
 
 // NewAuthorizeController returns a new AuthorizeController
-func NewAuthorizeController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration) *AuthorizeController {
+func NewAuthorizeController(service *goa.Service, auth *login.OAuthServiceProvider, tokenManager token.Manager, configuration LoginConfiguration) *AuthorizeController {
 	return &AuthorizeController{Controller: service.NewController("AuthorizeController"), Auth: auth, TokenManager: tokenManager, Configuration: configuration}
 }
 
@@ -47,25 +47,25 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid oauth client id"))
 	}
 
-	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
+	authEndpoint, err := c.Configuration.GetOAuthServiceEndpointAuth(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "unable to get keycloak auth endpoint url")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak auth endpoint url")))
+		}, "unable to get oauth service auth endpoint url")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get oauth service auth endpoint url")))
 	}
 
-	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
+	tokenEndpoint, err := c.Configuration.GetOAuthServiceEndpointToken(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "unable to get keycloak token endpoint url")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak token endpoint url")))
+		}, "unable to get oauth service token endpoint url")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get oauth service token endpoint url")))
 	}
 
 	oauth := &oauth2.Config{
-		ClientID:     c.Configuration.GetKeycloakClientID(),
-		ClientSecret: c.Configuration.GetKeycloakSecret(),
+		ClientID:     c.Configuration.GetOAuthServiceClientID(),
+		ClientSecret: c.Configuration.GetOAuthServiceSecret(),
 		Scopes:       scope,
 		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
 		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),

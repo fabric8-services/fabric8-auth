@@ -33,12 +33,12 @@ func (s *identityBlackBoxTest) TestOKToDelete() {
 	identity := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "someuserTestIdentity",
-		ProviderType: repository.KeycloakIDP}
+		ProviderType: repository.OAuthServiceIDP}
 
 	identity2 := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "onemoreuserTestIdentity",
-		ProviderType: repository.KeycloakIDP}
+		ProviderType: repository.OAuthServiceIDP}
 
 	err := s.Application.Identities().Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")
@@ -141,7 +141,7 @@ func (s *identityBlackBoxTest) TestLoadIdentityAndUserOK() {
 	}
 	testIdentity := &repository.Identity{
 		Username:     "TestLoadIdentityAndUserOK" + uuid.NewV4().String(),
-		ProviderType: repository.KeycloakIDP,
+		ProviderType: repository.OAuthServiceIDP,
 		User:         *testUser,
 	}
 	userRepository := repository.NewUserRepository(s.DB)
@@ -171,7 +171,7 @@ func (s *identityBlackBoxTest) TestUserIdentityIsUser() {
 	}
 	testIdentity := &repository.Identity{
 		Username:     "TestUserIdentityIsUser" + uuid.NewV4().String(),
-		ProviderType: repository.KeycloakIDP,
+		ProviderType: repository.OAuthServiceIDP,
 		User:         *testUser,
 	}
 	userRepository := repository.NewUserRepository(s.DB)
@@ -319,7 +319,7 @@ func createAndLoad(s *identityBlackBoxTest) *repository.Identity {
 	identity := &repository.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "someuserTestIdentity2",
-		ProviderType: repository.KeycloakIDP}
+		ProviderType: repository.OAuthServiceIDP}
 
 	err := s.Application.Identities().Create(s.Ctx, identity)
 	require.Nil(s.T(), err, "Could not create identity")

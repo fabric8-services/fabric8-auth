@@ -36,7 +36,7 @@ func (rest *TestLogoutREST) TearDownTest() {
 
 func (rest *TestLogoutREST) UnSecuredController() (*goa.Service, *LogoutController) {
 	svc := testsupport.ServiceAsUser("Logout-Service", testsupport.TestIdentity)
-	return svc, &LogoutController{Controller: svc.NewController("logout"), logoutService: &login.KeycloakLogoutService{}, configuration: rest.configuration}
+	return svc, &LogoutController{Controller: svc.NewController("logout"), logoutService: &login.OAuthLogoutService{}, configuration: rest.configuration}
 }
 
 func (rest *TestLogoutREST) TestLogoutRedirects() {

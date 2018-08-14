@@ -103,8 +103,8 @@ func TestEqualsTokenClaimsNotEqual(t *testing.T) {
 		},
 	}
 
-	keycloakOAuthProvider := KeycloakOAuthProvider{}
-	assert.Equal(t, false, keycloakOAuthProvider.equalsTokenClaims(context.Background(), &claims, identity))
+	oauthServiceProvider := OAuthServiceProvider{}
+	assert.Equal(t, false, oauthServiceProvider.equalsTokenClaims(context.Background(), &claims, identity))
 }
 
 func TestEqualsTokenClaimsEqual(t *testing.T) {
@@ -127,44 +127,44 @@ func TestEqualsTokenClaimsEqual(t *testing.T) {
 		},
 	}
 
-	keycloakOAuthProvider := KeycloakOAuthProvider{}
-	assert.Equal(t, true, keycloakOAuthProvider.equalsTokenClaims(context.Background(), &claims, identity))
+	oauthServiceProvider := OAuthServiceProvider{}
+	assert.Equal(t, true, oauthServiceProvider.equalsTokenClaims(context.Background(), &claims, identity))
 }
 
-func TestEqualsKeycloakAttributes(t *testing.T) {
+func TestEqualsOAuthServiceAttributes(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
-	keycloakAttributes := KeycloakUserProfileAttributes{
+	oauthServiceAttributes := OAuthServiceUserProfileAttributes{
 		"bio":      []string{"hello", "hi"},
 		"image":    []string{},
 		"approved": []string{"true"},
 	}
 
-	assert.Equal(t, true, equalsKeycloakAttribute(keycloakAttributes, "bio", "hello"))
-	assert.Equal(t, false, equalsKeycloakAttribute(keycloakAttributes, "bio", "hi"))
-	assert.Equal(t, false, equalsKeycloakAttribute(keycloakAttributes, "image", "no image"))
-	assert.Equal(t, true, equalsKeycloakAttribute(keycloakAttributes, "approved", "true"))
+	assert.Equal(t, true, equalsOAuthServiceAttribute(oauthServiceAttributes, "bio", "hello"))
+	assert.Equal(t, false, equalsOAuthServiceAttribute(oauthServiceAttributes, "bio", "hi"))
+	assert.Equal(t, false, equalsOAuthServiceAttribute(oauthServiceAttributes, "image", "no image"))
+	assert.Equal(t, true, equalsOAuthServiceAttribute(oauthServiceAttributes, "approved", "true"))
 }
 
-func TestEqualsKeycloakUserProfileAttributes(t *testing.T) {
+func TestEqualsOAuthServiceUserProfileAttributes(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
-	service := KeycloakOAuthProvider{}
+	service := OAuthServiceProvider{}
 	username := "username"
 	emailVerified := true
 	firstName := "john"
 	lastName := "doe"
 	email := "a@a.com"
 
-	dummyUserProfileResponse := KeycloakUserProfileResponse{
+	dummyUserProfileResponse := OAuthServiceUserProfileResponse{
 		Username:      &username,
 		EmailVerified: &emailVerified,
 		FirstName:     &firstName,
 		LastName:      &lastName,
 		Email:         &email,
-		Attributes: &KeycloakUserProfileAttributes{
+		Attributes: &OAuthServiceUserProfileAttributes{
 			BioAttributeName:      []string{"mybio"},
 			ImageURLAttributeName: []string{"myurl"},
 			CompanyAttributeName:  []string{"redhat"},
@@ -185,57 +185,57 @@ func TestEqualsKeycloakUserProfileAttributes(t *testing.T) {
 		},
 	}
 
-	service.keycloakProfileService = newDummyUserProfileService(&dummyUserProfileResponse)
-	isEqual, err := service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
+	service.oauthProfileService = newDummyUserProfileService(&dummyUserProfileResponse)
+	isEqual, err := service.equalsOAuthServiceUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
 	require.NoError(t, err)
 	assert.Equal(t, true, isEqual)
 
 	identity.User.Bio = ""
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
+	isEqual, err = service.equalsOAuthServiceUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
 	require.NoError(t, err)
 	assert.Equal(t, false, isEqual)
 
 	identity.User.EmailVerified = false
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
+	isEqual, err = service.equalsOAuthServiceUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
 	require.NoError(t, err)
 	assert.Equal(t, false, isEqual)
 
 	identity.User.Email = "some other unverified email"
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
+	isEqual, err = service.equalsOAuthServiceUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
 	require.NoError(t, err)
 	assert.Equal(t, false, isEqual)
 
 	identity.Username = "some other unverified username"
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
+	isEqual, err = service.equalsOAuthServiceUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
 	require.NoError(t, err)
 	assert.Equal(t, false, isEqual)
 }
 
-// a mock keycloak user profile service specific to our use case.
+// a mock oauth service user profile service specific to our use case.
 
 type dummyUserProfileService struct {
-	dummyGetResponse *KeycloakUserProfileResponse
+	dummyGetResponse *OAuthServiceUserProfileResponse
 }
 
-func newDummyUserProfileService(dummyGetResponse *KeycloakUserProfileResponse) *dummyUserProfileService {
+func newDummyUserProfileService(dummyGetResponse *OAuthServiceUserProfileResponse) *dummyUserProfileService {
 	return &dummyUserProfileService{
 		dummyGetResponse: dummyGetResponse,
 	}
 }
 
-func (d *dummyUserProfileService) Update(ctx context.Context, keycloakUserProfile *KeycloakUserProfile, accessToken string, keycloakProfileURL string) error {
+func (d *dummyUserProfileService) Update(ctx context.Context, oauthServiceUserProfile *OAuthServiceUserProfile, accessToken string, oauthServiceProfileURL string) error {
 	return nil
 }
 
-func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*KeycloakUserProfileResponse, error) {
+func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, oauthServiceProfileURL string) (*OAuthServiceUserProfileResponse, error) {
 	return d.dummyGetResponse, nil
 }
 
-func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *KeycloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
-	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
+func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, oauthServiceUserProfile *OAuthServiceUserRequest, accessToken string, oauthServiceProfileURL string) (*string, bool, error) {
+	url := "https://someurl/pathinoauthserviceurl/" + uuid.NewV4().String()
 	return &url, true, nil
 }
 
-func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *KeycloakUserProfileResponse) {
+func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *OAuthServiceUserProfileResponse) {
 	d.dummyGetResponse = dummyGetResponse
 }

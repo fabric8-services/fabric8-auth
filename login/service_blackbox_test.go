@@ -39,10 +39,10 @@ import (
 
 type serviceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	loginService           *KeycloakOAuthProvider
+	loginService           *OAuthServiceProvider
 	oauth                  *oauth2.Config
 	dummyOauth             *dummyOauth2Config
-	keycloakTokenService   *DummyTokenService
+	oauthTokenService      *DummyTokenService
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
@@ -61,17 +61,17 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	req := &goa.RequestData{
 		Request: &http.Request{Host: "api.service.domain.org"},
 	}
-	authEndpoint, err := s.Configuration.GetKeycloakEndpointAuth(req)
+	authEndpoint, err := s.Configuration.GetOAuthServiceEndpointAuth(req)
 	if err != nil {
 		panic(err)
 	}
-	tokenEndpoint, err := s.Configuration.GetKeycloakEndpointToken(req)
+	tokenEndpoint, err := s.Configuration.GetOAuthServiceEndpointToken(req)
 	if err != nil {
 		panic(err)
 	}
 	s.oauth = &oauth2.Config{
-		ClientID:     s.Configuration.GetKeycloakClientID(),
-		ClientSecret: s.Configuration.GetKeycloakSecret(),
+		ClientID:     s.Configuration.GetOAuthServiceClientID(),
+		ClientSecret: s.Configuration.GetOAuthServiceSecret(),
 		Scopes:       []string{"user:email"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  authEndpoint,
@@ -90,8 +90,8 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	}
 	s.dummyOauth = &dummyOauth2Config{
 		Config: oauth2.Config{
-			ClientID:     s.Configuration.GetKeycloakClientID(),
-			ClientSecret: s.Configuration.GetKeycloakSecret(),
+			ClientID:     s.Configuration.GetOAuthServiceClientID(),
+			ClientSecret: s.Configuration.GetOAuthServiceSecret(),
 			Scopes:       []string{"user:email"},
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  authEndpoint,
@@ -104,16 +104,16 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
-	userProfileClient := NewKeycloakUserProfileClient()
+	userProfileClient := NewOAuthServiceUserProfileClient()
 
 	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
-	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
+	s.oauthTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&testsupport.DevWITService{}))
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
+	s.loginService = NewOAuthServiceProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.oauthTokenService, s.osoSubscriptionManager)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
+func (s *serviceBlackBoxTest) TestOAuthServiceAuthorizationRedirect() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -245,7 +245,7 @@ func (s *serviceBlackBoxTest) checkIfTokenMatchesIdentity(tokenString string, id
 	assert.Equal(s.T(), claims.Name, identity.User.FullName)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam() {
+func (s *serviceBlackBoxTest) TestOAuthServiceAuthorizationRedirectsToRedirectParam() {
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
 	u := &url.URL{
@@ -277,7 +277,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam(
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
+func (s *serviceBlackBoxTest) TestOAuthServiceAuthorizationWithNoRefererAndRedirectParamFails() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -300,7 +300,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 	assert.Equal(s.T(), 400, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails() {
+func (s *serviceBlackBoxTest) TestOAuthServiceAuthorizationWithNoValidRefererFails() {
 
 	// since we no longer pass the valid redirect urls as a parameter,
 	existingValidRedirects := os.Getenv("AUTH_REDIRECT_VALID")
@@ -355,7 +355,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 
 }
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
+func (s *serviceBlackBoxTest) TestOAuthServiceAuthorizationDevModePasses() {
 	// Any redirects pass in Dev mode.
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -393,10 +393,10 @@ func (s *serviceBlackBoxTest) TestInvalidState() {
 	}
 
 	// The OAuth 'state' is sent as a query parameter by calling /api/login/authorize?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
+	// The request originates from OAuth Service after a valid authorization by the end user.
 	// This is not where the redirection should happen on failure.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 
 	prms := url.Values{
 		"state": {},
@@ -441,7 +441,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 
 	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 
-	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
+	assert.Equal(s.T(), 307, rw.Code) // redirect to OAuthService login page.
 
 	locationString := rw.HeaderMap["Location"][0]
 	locationUrl, err := url.Parse(locationString)
@@ -465,10 +465,10 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	req, err = http.NewRequest("GET", u.String(), nil)
 
 	// The OAuth code is sent as a query parameter by calling /api/login/authorize?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
+	// The request originates from OAuth Service after a valid authorization by the end user.
 	// This is not where the redirection should happen on failure.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 	require.Nil(s.T(), err)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
@@ -489,7 +489,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 
 	returnedErrorReason := allQueryParameters["error"][0]
 	assert.NotEmpty(s.T(), returnedErrorReason)
-	assert.NotContains(s.T(), locationString, refererKeycloakUrl)
+	assert.NotContains(s.T(), locationString, refererOAuthServiceUrl)
 	assert.Contains(s.T(), locationString, refererUrl)
 }
 
@@ -611,7 +611,7 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	// Fails if invalid format of refresh token
-	s.keycloakTokenService.fail = false
+	s.oauthTokenService.fail = false
 	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
 	require.EqualError(s.T(), err, "token contains an invalid number of segments")
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
@@ -641,7 +641,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	require.NoError(s.T(), err)
 
 	// Fails if KC fails
-	s.keycloakTokenService.fail = true
+	s.oauthTokenService.fail = true
 	_, err = s.loginService.ExchangeRefreshToken(context.Background(), refreshToken, "", s.Configuration)
 	require.EqualError(s.T(), err, "kc refresh failed")
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
@@ -649,7 +649,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	// 1. Fails if identity is deprovisioned
-	s.keycloakTokenService.fail = false
+	s.oauthTokenService.fail = false
 	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
@@ -676,7 +676,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	typ := "bearer"
 	var in30days int64
 	in30days = 30 * 24 * 60 * 60
-	s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
+	s.oauthTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
 
 	// Refresh tokens
 	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
@@ -686,9 +686,9 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	require.NotNil(s.T(), tokenSet)
 
 	// Compare tokens
-	err = testtoken.EqualAccessTokens(ctx, *s.keycloakTokenService.tokenSet.RefreshToken, *tokenSet.RefreshToken)
+	err = testtoken.EqualAccessTokens(ctx, *s.oauthTokenService.tokenSet.RefreshToken, *tokenSet.RefreshToken)
 	require.NoError(s.T(), err)
-	err = testtoken.EqualRefreshTokens(ctx, *s.keycloakTokenService.tokenSet.AccessToken, *tokenSet.AccessToken)
+	err = testtoken.EqualRefreshTokens(ctx, *s.oauthTokenService.tokenSet.AccessToken, *tokenSet.AccessToken)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), typ, *tokenSet.TokenType)
 	assert.Equal(s.T(), in30days, *tokenSet.ExpiresIn)
@@ -720,7 +720,7 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	err = s.loginService.Login(authorizeCtx, s.dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
-	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
+	assert.Equal(s.T(), 307, rw.Code) // redirect to oauth service login page.
 
 	locationString := rw.HeaderMap["Location"][0]
 	locationUrl, err := url.Parse(locationString)
@@ -744,9 +744,9 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	require.Nil(s.T(), err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from oauth service after a valid authorization by the end user.
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
@@ -779,7 +779,7 @@ func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, 
 	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.accessToken, *tokenSet.AccessToken))
 	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.refreshToken, *tokenSet.RefreshToken))
 
-	assert.NotContains(s.T(), locationString, "https://keycloak-url.example.org/path-of-login")
+	assert.NotContains(s.T(), locationString, "https://oauth-service-url.example.org/path-of-login")
 	assert.Contains(s.T(), locationString, "https://openshift.io/somepath")
 }
 
@@ -806,7 +806,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 	return token, nil
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
+func (s *serviceBlackBoxTest) TestOAuthServiceAuthorizationRedirectForAuthorize() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
@@ -857,9 +857,9 @@ func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.Nil(s.T(), err)
 
-	keycloakToken, err := s.loginService.Exchange(callbackCtx, callbackCtx.Code, s.dummyOauth)
+	oauthServiceToken, err := s.loginService.Exchange(callbackCtx, callbackCtx.Code, s.dummyOauth)
 	require.Nil(s.T(), err)
-	require.NotNil(s.T(), keycloakToken)
+	require.NotNil(s.T(), oauthServiceToken)
 }
 
 func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
@@ -879,16 +879,16 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 	prms := url.Values{}
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from oauth service after a valid authorization by the end user.
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "TokenTest"), rw, req, prms)
 	tokenCtx, err := app.NewExchangeTokenContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
-	keycloakToken, err := s.loginService.Exchange(tokenCtx, "INVALID_OAUTH2.0_CODE", s.oauth)
+	oauthServiceToken, err := s.loginService.Exchange(tokenCtx, "INVALID_OAUTH2.0_CODE", s.oauth)
 	require.NotNil(s.T(), err)
-	require.Nil(s.T(), keycloakToken)
+	require.Nil(s.T(), oauthServiceToken)
 	jsonapi.JSONErrorResponse(tokenCtx, err)
 	require.Equal(s.T(), 401, rw.Code)
 
@@ -973,9 +973,9 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.Resp
 	require.Nil(s.T(), err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from oauth service after a valid authorization by the end user.
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizecallbackTest"), rw, req, prms)
 	callbackCtx, err := app.NewCallbackAuthorizeContext(goaCtx, req, goa.New("LoginService"))

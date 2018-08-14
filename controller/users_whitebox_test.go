@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCopyExistingKeycloakUserProfileInfo(t *testing.T) {
+func TestCopyExistingOAuthServiceUserProfileInfo(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
@@ -18,10 +18,10 @@ func TestCopyExistingKeycloakUserProfileInfo(t *testing.T) {
 	Email := "s@s.com"
 	URL := "http://noURL"
 
-	keycloakUserProfile := &login.KeycloakUserProfile{
+	oauthServiceUserProfile := &login.OAuthServiceUserProfile{
 		LastName: &LastName,
 		Email:    &Email,
-		Attributes: &login.KeycloakUserProfileAttributes{
+		Attributes: &login.OAuthServiceUserProfileAttributes{
 			login.URLAttributeName: {URL},
 		},
 	}
@@ -32,18 +32,18 @@ func TestCopyExistingKeycloakUserProfileInfo(t *testing.T) {
 	oldEmail := "old@email"       // will be updated
 	Bio := "No more john doe"     // will  not be updated.
 
-	existingProfile := &login.KeycloakUserProfileResponse{
+	existingProfile := &login.OAuthServiceUserProfileResponse{
 		Username:  &Username,
 		FirstName: &FirstName,
 		LastName:  &oldLastName,
 		Email:     &oldEmail,
-		Attributes: &login.KeycloakUserProfileAttributes{
+		Attributes: &login.OAuthServiceUserProfileAttributes{
 			login.BioAttributeName: {Bio},
 			login.URLAttributeName: {URL},
 		},
 	}
 
-	mergedProfile := mergeKeycloakUserProfileInfo(keycloakUserProfile, existingProfile)
+	mergedProfile := mergeOAuthServiceUserProfileInfo(oauthServiceUserProfile, existingProfile)
 
 	// ensure existing properties stays as is
 	assert.Equal(t, *mergedProfile.Username, Username)

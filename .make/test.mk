@@ -10,7 +10,7 @@
 #
 # While the unit tests can be executed fairly simply be running `go test`, the
 # integration tests have a little bit more setup going on. The remote tests reqire
-# availability of some remote servers such as Keycloak.
+# availability of some remote servers such as oauth service.
 # That's why they are split up in three tests.
 #
 # Usage

@@ -79,7 +79,7 @@ func (s *TestWITSuite) TestCreateWITUser() {
 	testIdentity := account.Identity{
 		User:                  testUser,
 		Username:              "test",
-		ProviderType:          account.KeycloakIDP,
+		ProviderType:          account.OAuthServiceIDP,
 		RegistrationCompleted: true}
 	identityId := uuid.NewV4().String()
 

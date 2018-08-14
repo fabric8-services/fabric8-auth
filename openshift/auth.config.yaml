@@ -13,8 +13,8 @@ objects:
     db.port: NTQzMg==
     db.user: cG9zdGdyZXM=
     db.password: bXlzZWNyZXRwYXNzd29yZA==
-    keycloak.realm: ZmFicmljOAo=
-    keycloak.secret: Cg==
+    oauth.service.realm: ZmFicmljOAo=
+    oauth.service.secret: Cg==
     serviceaccount.privatekey: Cg==
     serviceaccount.privatekeyid: Cg==
     useraccount.privatekey: Cg==
@@ -48,7 +48,7 @@ objects:
     postgres.connection.maxopen: "90"
     redirect.valid: ".*"
     notapproved_redirect: ""
-    keycloak.url: https://sso.openshift.io
+    oauth.service.url: https://sso.openshift.io
     notification.serviceurl: ""
     email.verify.url: https://prod-preview.openshift.io/_home
     invitation.accepted.url: https://prod-preview.openshift.io/_home

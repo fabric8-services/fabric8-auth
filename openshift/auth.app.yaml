@@ -49,16 +49,16 @@ objects:
               secretKeyRef:
                 name: auth
                 key: db.password
-          - name: AUTH_KEYCLOAK_REALM
+          - name: AUTH_SERVICE_REALM
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: keycloak.realm
-          - name: AUTH_KEYCLOAK_SECRET
+                key: oauth.service.realm
+          - name: AUTH_SERVICE_SECRET
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: keycloak.secret
+                key: oauth.service.secret
           - name: AUTH_SERVICEACCOUNT_PRIVATEKEY
             valueFrom:
               secretKeyRef:
@@ -144,11 +144,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: redirect.valid
-          - name: AUTH_KEYCLOAK_URL
+          - name: AUTH_SERVICE_URL
             valueFrom:
               configMapKeyRef:
                 name: auth
-                key: keycloak.url
+                key: oauth.service.url
           - name: AUTH_NOTIFICATION_SERVICEURL
             valueFrom:
               configMapKeyRef:

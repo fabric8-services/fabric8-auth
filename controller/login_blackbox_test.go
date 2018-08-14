@@ -10,7 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
+	testoauthservice "github.com/fabric8-services/fabric8-auth/token/service"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -27,12 +27,12 @@ func TestRunLoginREST(t *testing.T) {
 
 func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController) {
 	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	loginService := newTestOAuthServiceProvider(rest.Application)
 	return svc, &LoginController{Controller: svc.NewController("login"), Auth: loginService, Configuration: rest.Configuration}
 }
 
-func newTestKeycloakOAuthProvider(app application.Application) *login.KeycloakOAuthProvider {
-	return login.NewKeycloakOAuthProvider(app.Identities(), app.Users(), testtoken.TokenManager, app, login.NewKeycloakUserProfileClient(), &keycloak.KeycloakTokenService{}, &testsupport.DummyOSORegistrationApp{})
+func newTestOAuthServiceProvider(app application.Application) *login.OAuthServiceProvider {
+	return login.NewOAuthServiceProvider(app.Identities(), app.Users(), testtoken.TokenManager, app, login.NewOAuthServiceUserProfileClient(), &testoauthservice.OAuthTokenService{}, &testsupport.DummyOSORegistrationApp{})
 }
 
 func (rest *TestLoginREST) TestLoginOK() {

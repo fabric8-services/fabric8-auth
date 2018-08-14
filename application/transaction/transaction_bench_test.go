@@ -49,7 +49,7 @@ func (s *BenchTransactional) SetupBenchmark() {
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "BenchmarkTransactionalTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: account.OAuthServiceIDP}
 
 	err := s.repo.Create(s.ctx, s.identity)
 	if err != nil {
