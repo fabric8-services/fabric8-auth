@@ -193,7 +193,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 
 		t.Run("role on no space", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph(s.T())
+			g := s.NewTestGraph(t)
 			user := g.CreateUser()
 			g.CreateSpace() // space exists, but the user has no role
 			require.NotNil(t, user.Identity())
@@ -207,7 +207,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 
 		t.Run("role on 1 space", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph(s.T())
+			g := s.NewTestGraph(t)
 			user := g.CreateUser()
 			space := g.CreateSpace().AddAdmin(user)
 			require.NotNil(t, user.Identity())
@@ -228,7 +228,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 
 		t.Run("role on 2 spaces", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph(s.T())
+			g := s.NewTestGraph(t)
 			user := g.CreateUser()
 			space1 := g.CreateSpace().AddAdmin(user)
 			space2 := g.CreateSpace().AddContributor(user)
@@ -263,7 +263,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 	s.T().Run("unauthorized", func(t *testing.T) {
 		t.Run("missing resource type", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph(s.T())
+			g := s.NewTestGraph(t)
 			user := g.CreateUser()
 			g.CreateSpace().AddAdmin(user)
 			// when
@@ -275,7 +275,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 
 	s.T().Run("bad request", func(t *testing.T) {
 		// given
-		g := s.NewTestGraph(s.T())
+		g := s.NewTestGraph(t)
 		user := g.CreateUser()
 		require.NotNil(t, user.Identity())
 		identity := user.Identity()

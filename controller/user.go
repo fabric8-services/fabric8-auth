@@ -91,9 +91,8 @@ func (c *UserController) ListResources(ctx *app.ListResourcesUserContext) error 
 	switch *ctx.Type {
 	case "spaces":
 		resourceType = authorization.ResourceTypeSpace
-	}
-	if resourceType == "" {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("type", *ctx.Type))
+	default:
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("type", *ctx.Type, "invalid or unsupported type of resource. Valid value is:'spaces'."))
 	}
 
 	roles, err := c.app.RoleManagementService().ListAvailableRolesByResourceTypeAndIdentity(ctx, resourceType, identityID)

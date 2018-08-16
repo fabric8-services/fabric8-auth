@@ -345,7 +345,7 @@ var userResourceDataAttributes = a.Type("UserResourceDataAttributes", func() {
 	a.Required("role", "scopes")
 })
 
-// updateidentityDataAttributes represents an identified user object attributes used for updating a user.
+// updateUserDataAttributes represents an identified user object attributes used for updating a user.
 var updateUserDataAttributes = a.Type("UpdateIdentityDataAttributes", func() {
 	a.Attribute("fullName", d.String, "The users full name")
 	a.Attribute("imageURL", d.String, "The avatar image for the user")
