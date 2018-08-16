@@ -328,8 +328,9 @@ func (m *GormRoleRepository) FindRolesByResourceTypeAndIdentity(ctx context.Cont
 	db := m.db.Raw(`
 		/* list all resources with their type and their ancestor (whatever level) */
 		WITH RECURSIVE all_resources AS ( 
-			SELECT resource_id, resource_type_id, parent_resource_id as ancestor_resource_id 
-			FROM resource
+			SELECT r.resource_id, r.resource_type_id, r.parent_resource_id as ancestor_resource_id 
+			FROM resource r INNER JOIN resource_type rt on r.resource_type_id = rt.resource_type_id 
+			WHERE rt.name = $2 /* limit to resources of the given type */
 			UNION SELECT r.resource_id, r.resource_type_id, a.ancestor_resource_id  
 			FROM resource r INNER JOIN all_resources a ON r.parent_resource_id = a.resource_id
 			WHERE a.ancestor_resource_id IS NOT NULL
@@ -367,8 +368,8 @@ func (m *GormRoleRepository) FindRolesByResourceTypeAndIdentity(ctx context.Cont
 		SELECT inherited_role.role_id, inherited_role.name role_name, inherited_res.resource_id, array_to_string(array_agg(rts.NAME), ',') scopes
 		FROM identity_role ir
 			INNER JOIN role via_role ON via_role.role_id = ir.role_id
-			INNER JOIN all_resources ar ON ir.resource_id = ar.resource_id
-			INNER JOIN resource inherited_res ON inherited_res.parent_resource_id = ar.resource_id
+			INNER JOIN all_resources ar ON ir.resource_id = ar.ancestor_resource_id
+			INNER JOIN resource inherited_res ON inherited_res.resource_id = ar.resource_id
 			INNER JOIN resource_type inherited_rt ON inherited_rt.resource_type_id = inherited_res.resource_type_id
 			INNER JOIN default_role_mapping drm on (ir.role_id = drm.from_role_id AND drm.resource_type_id = inherited_res.resource_type_id)
 			INNER JOIN role inherited_role on drm.to_role_id = inherited_role.role_id

@@ -29,7 +29,7 @@ var knownRoles = []KnownRole{
 	{ResourceTypeName: "identity/organization", RoleName: "admin"},
 }
 
-func TestRunRoleBlackBoxTest(t *testing.T) {
+func TestRoleRepositoryBlackBox(t *testing.T) {
 	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
