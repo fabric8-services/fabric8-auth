@@ -72,6 +72,7 @@ func (s *TestNotificationSuite) TestCreateClientWithServiceAccountToken() {
 
 	// create a request
 	req, err := http.NewRequest("GET", "http://example.com", nil)
+	require.NoError(s.T(), err)
 
 	// sign the request with that client
 	cl.JWTSigner.Sign(req)
