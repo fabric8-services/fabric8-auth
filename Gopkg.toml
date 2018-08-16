@@ -111,6 +111,10 @@ required = [
   name = "github.com/getsentry/raven-go"
   revision = "563b81fc02b75d664e54da31f787c2cc2186780b"
 
+[[constraint]]
+name = "github.com/dnaeon/go-vcr"
+revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+
 
 [prune]
   go-tests = true

@@ -20,9 +20,10 @@ import (
 
 type invitationServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	invitationRepo invitationrepo.InvitationRepository
-	identityRepo   account.IdentityRepository
-	orgService     service.OrganizationService
+	invitationRepo         invitationrepo.InvitationRepository
+	identityRepo           account.IdentityRepository
+	orgService             service.OrganizationService
+	devNotificationService *test.DevNotificationService
 }
 
 func TestRunInvitationServiceBlackBoxTest(t *testing.T) {
@@ -34,7 +35,8 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.invitationRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgService = s.Application.OrganizationService()
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&test.DevWITService{}))
+	s.devNotificationService = &test.DevNotificationService{}
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&test.DevWITService{}), factory.WithNotificationService(s.devNotificationService))
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
@@ -65,6 +67,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityID() {
 
 	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
+	require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "Error listing invitations")
@@ -118,6 +121,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationOKForResource() {
 	// Issue the invitation
 	err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), invitations)
 	require.NoError(s.T(), err)
+	require.Equal(s.T(), inviteeID.String(), s.devNotificationService.Messages[0].TargetID)
 
 	// List the invitations for our resource
 	invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
@@ -334,6 +338,9 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 
 	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
+	require.Equal(s.T(), invitee1ID.String(), s.devNotificationService.Messages[0].TargetID)
+	require.Equal(s.T(), invitee2ID.String(), s.devNotificationService.Messages[1].TargetID)
+
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "Error listing invitations")
@@ -384,6 +391,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitationByIdentityIDForRole()
 
 	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 	require.NoError(s.T(), err, "Error creating invitations")
+	require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "Error listing invitations")
@@ -419,6 +427,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueTeamMemberInvite() {
 
 	err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 	require.NoError(s.T(), err)
+	require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
 
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err)
@@ -447,6 +456,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueSpaceInvite() {
 
 	err := s.Application.InvitationService().Issue(s.Ctx, spaceAdmin.IdentityID(), space.SpaceID(), invitations)
 	require.NoError(s.T(), err)
+	require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
 
 	invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
 	require.NoError(s.T(), err)

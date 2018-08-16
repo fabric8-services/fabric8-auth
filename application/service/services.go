@@ -14,6 +14,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
+	"github.com/fabric8-services/fabric8-auth/test/configuration"
 )
 
 /*
@@ -78,8 +79,8 @@ type UserService interface {
 }
 
 type NotificationService interface {
-	SendAsync(ctx context.Context, msg notification.Message) error
-	SendMessagesAsync(ctx context.Context, messages []notification.Message) error
+	SendAsync(ctx context.Context, msg notification.Message, options ...configuration.HTTPClientOption) (<-chan struct{}, <-chan error, error)
+	SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...configuration.HTTPClientOption) (<-chan struct{}, <-chan error, error)
 }
 
 type WITService interface {

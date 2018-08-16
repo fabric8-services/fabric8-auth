@@ -47,6 +47,14 @@
   version = "v3.9.0"
 
 [[projects]]
+  name = "github.com/dnaeon/go-vcr"
+  packages = [
+    "cassette",
+    "recorder"
+  ]
+  revision = "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+
+[[projects]]
   name = "github.com/fabric8-services/fabric8-notification"
   packages = ["design"]
   revision = "907d3253a9e8ae42f61ce7c931fd920df20ee0ec"
@@ -449,6 +457,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f9ae70a421ff438b6fba3b3902de326a3e8b79ec5dd098a849fccbb3a4722b9f"
+  inputs-digest = "3bc4f63564f710456d86228707b4f9582222ba5a043a242f26de193f0798c435"
   solver-name = "gps-cdcl"
   solver-version = 1

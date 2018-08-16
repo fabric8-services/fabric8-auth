@@ -16,61 +16,62 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token/signer"
 	"github.com/goadesign/goa/uuid"
+	"github.com/fabric8-services/fabric8-auth/test/configuration"
+	goaclient "github.com/goadesign/goa/client"
+	"net/http"
 )
-
-// devNullNotificationService is the default dev service implementation. It does nothing.
-type devNullNotificationService struct{}
-
-func (s *devNullNotificationService) SendAsync(ctx context.Context, msg notification.Message) error {
-	return nil
-}
-
-func (s *devNullNotificationService) SendMessagesAsync(ctx context.Context, messages []notification.Message) error {
-	return nil
-}
 
 type notificationServiceImpl struct {
 	base.BaseService
 	config notification.Configuration
-	doer   rest.HttpDoer
 }
 
 // NewNotificationService creates a new service.
 func NewNotificationService(context servicecontext.ServiceContext, config notification.Configuration) service.NotificationService {
-
 	return &notificationServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,
-		doer:        rest.DefaultHttpDoer(),
 	}
 }
 
 // SendAsync creates a new goroutine and sends a message to fabric8-notification service
-func (s *notificationServiceImpl) SendAsync(ctx context.Context, msg notification.Message) error {
-	c, err := s.createClientWithContextSigner(ctx)
+func (s *notificationServiceImpl) SendAsync(ctx context.Context, msg notification.Message, options ...configuration.HTTPClientOption) (<-chan struct{}, <-chan error, error) {
+	c, err := s.createClientWithContextSigner(ctx, options...)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
-	go s.send(ctx, c, msg)
-
-	return nil
-}
-
-// SendMessagesAsync creates a new goroutine and sends multiple messages to fabric8-notification service
-func (s *notificationServiceImpl) SendMessagesAsync(ctx context.Context, messages []notification.Message) error {
-	c, err := s.createClientWithContextSigner(ctx)
-	if err != nil {
-		return err
-	}
-
+	errs := make(chan error, 1)
+	done := make(chan struct{})
 	go func() {
-		for _, msg := range messages {
-			s.send(ctx, c, msg)
+		defer close(done)
+		defer close(errs)
+		if e := s.send(ctx, c, msg); e != nil {
+			errs <- e
 		}
 	}()
 
-	return nil
+	return done, errs, nil
+}
+
+// SendMessagesAsync creates a new goroutine and sends multiple messages to fabric8-notification service
+func (s *notificationServiceImpl) SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...configuration.HTTPClientOption) (<-chan struct{}, <-chan error, error) {
+	c, err := s.createClientWithContextSigner(ctx, options...)
+	if err != nil {
+		return nil, nil, err
+	}
+	errs := make(chan error, len(messages))
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer close(errs)
+		for _, msg := range messages {
+			if e := s.send(ctx, c, msg); e != nil {
+				errs <- e
+			}
+		}
+	}()
+
+	return done, errs, nil
 }
 
 func (s *notificationServiceImpl) send(ctx context.Context, c *client.Client, msg notification.Message) error {
@@ -120,8 +121,8 @@ func (s *notificationServiceImpl) send(ctx context.Context, c *client.Client, ms
 }
 
 // createClientWithContextSigner creates with a signer based on current context
-func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Context) (*client.Client, error) {
-	c, err := s.createClient()
+func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Context, options ...configuration.HTTPClientOption) (*client.Client, error) {
+	c, err := s.createClient(options...)
 	if err != nil {
 		return nil, err
 	}
@@ -134,13 +135,20 @@ func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Cont
 	return c, nil
 }
 
-func (s *notificationServiceImpl) createClient() (*client.Client, error) {
+func (s *notificationServiceImpl) createClient(options ...configuration.HTTPClientOption) (*client.Client, error) {
 	u, err := url.Parse(s.config.GetNotificationServiceURL())
 	if err != nil {
 		return nil, err
 	}
 
-	c := client.New(s.doer)
+	httpClient := http.DefaultClient
+
+	// apply options
+	for _, opt := range options {
+		opt(httpClient)
+	}
+	c := client.New(goaclient.HTTPClientDoer(httpClient))
+
 	c.Host = u.Host
 	c.Scheme = u.Scheme
 	return c, nil
