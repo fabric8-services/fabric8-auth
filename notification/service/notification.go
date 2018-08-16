@@ -14,10 +14,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/notification/client"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token/signer"
-	"github.com/goadesign/goa/uuid"
 	"github.com/fabric8-services/fabric8-auth/test/configuration"
+	"github.com/fabric8-services/fabric8-auth/token/signer"
 	goaclient "github.com/goadesign/goa/client"
+	"github.com/goadesign/goa/uuid"
 	"net/http"
 )
 

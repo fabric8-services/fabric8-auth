@@ -341,7 +341,6 @@ func (s *invitationServiceBlackBoxTest) TestIssueMultipleInvitations() {
 	require.Equal(s.T(), invitee1ID.String(), s.devNotificationService.Messages[0].TargetID)
 	require.Equal(s.T(), invitee2ID.String(), s.devNotificationService.Messages[1].TargetID)
 
-
 	invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 	require.NoError(s.T(), err, "Error listing invitations")
 

@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/notification"
 	"context"
+	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/test/configuration"
 )
 

@@ -12,9 +12,9 @@ import (
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
 
+	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
-	"github.com/fabric8-services/fabric8-auth/test/configuration"
 )
 
 /*

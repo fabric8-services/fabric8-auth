@@ -5,19 +5,19 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
-	testconfig "github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testconfig "github.com/fabric8-services/fabric8-auth/test/configuration"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"github.com/fabric8-services/fabric8-auth/test/token"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
 	tokenutil "github.com/fabric8-services/fabric8-auth/token"
 
+	"github.com/fabric8-services/fabric8-auth/test/recorder"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"github.com/stretchr/testify/require"
-	"github.com/fabric8-services/fabric8-auth/test/recorder"
+	"github.com/stretchr/testify/suite"
 	"net/http"
 )
 

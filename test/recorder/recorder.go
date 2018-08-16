@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"os"
 
+	"encoding/json"
 	"github.com/dnaeon/go-vcr/cassette"
 	"github.com/dnaeon/go-vcr/recorder"
-	errs "github.com/pkg/errors"
-	"net/http"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/satori/go.uuid"
-	"encoding/json"
 	"github.com/fabric8-services/fabric8-auth/notification/client"
 	uuid2 "github.com/goadesign/goa/uuid"
+	errs "github.com/pkg/errors"
+	"github.com/satori/go.uuid"
+	"net/http"
 	"strings"
 )
 
