@@ -26,7 +26,6 @@ func TestRunverificationCodeBlackboxTest(t *testing.T) {
 
 func (s *verificationCodeBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB = s.DB.Debug()
 	s.repo = repository.NewVerificationCodeRepository(s.DB)
 }
 

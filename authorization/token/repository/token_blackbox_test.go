@@ -22,7 +22,6 @@ func TestRunTokenBlackBoxTest(t *testing.T) {
 
 func (s *tokenBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = tokenRepo.NewTokenRepository(s.DB)
 }
 

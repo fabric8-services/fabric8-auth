@@ -2,11 +2,11 @@ package controller
 
 import (
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
@@ -15,24 +15,30 @@ import (
 // UserinfoController implements the userinfo resource.
 type UserinfoController struct {
 	*goa.Controller
-	app             application.Application
-	tokenManager    token.Manager
-	userInfoService service.UserInfoService
+	app          application.Application
+	tokenManager token.Manager
 }
 
 // NewUserinfoController creates a userinfo controller.
-func NewUserinfoController(service *goa.Service, userInfoService service.UserInfoService, app application.Application, tokenManager token.Manager) *UserinfoController {
+func NewUserinfoController(service *goa.Service, app application.Application, tokenManager token.Manager) *UserinfoController {
 	return &UserinfoController{
-		Controller:      service.NewController("UserinfoController"),
-		userInfoService: userInfoService,
-		app:             app,
-		tokenManager:    tokenManager,
+		Controller:   service.NewController("UserinfoController"),
+		app:          app,
+		tokenManager: tokenManager,
 	}
 }
 
-// Show runs the show action.
+// Show runs the show action, used in the OAuth/OpenID connect authentication flow
 func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
-	user, identity, err := c.userInfoService.UserInfo(ctx)
+	identityID, err := c.tokenManager.Locate(ctx)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Bad Token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("bad or missing token"))
+	}
+	log.Debug(ctx, map[string]interface{}{"identity_id": identityID}, "showing user info...")
+	user, identity, err := c.app.UserService().UserInfo(ctx, identityID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

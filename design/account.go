@@ -123,7 +123,7 @@ var _ = a.Resource("userinfo", func() {
 		a.Routing(
 			a.GET(""),
 		)
-		a.Description("Get the authenticated user")
+		a.Description("Get the authenticated user - part of the OAuth/OpenID connect authentication flow")
 		a.Response(d.OK, userInfo)
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
@@ -139,7 +139,7 @@ var _ = a.Resource("user", func() {
 		a.Routing(
 			a.GET(""),
 		)
-		a.Description("Get the authenticated user")
+		a.Description("Get the authenticated user in JSON-API format")
 		a.UseTrait("conditional")
 		a.Response(d.OK, user)
 		a.Response(d.NotModified)

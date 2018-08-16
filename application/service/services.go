@@ -76,6 +76,7 @@ type SpaceService interface {
 
 type UserService interface {
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
+	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
 }
 
 type NotificationService interface {

@@ -37,7 +37,6 @@ func TestRunIdentityRoleBlackBoxTest(t *testing.T) {
 
 func (s *identityRoleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = role.NewIdentityRoleRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
