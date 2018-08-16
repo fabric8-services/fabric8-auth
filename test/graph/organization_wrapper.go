@@ -89,6 +89,12 @@ func (w *organizationWrapper) ResourceID() string {
 
 // AddAdmin assigns the admin role to a user for the org
 func (w *organizationWrapper) AddAdmin(wrapper interface{}) *organizationWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.IdentityResourceTypeOrganization, identityIDFromWrapper(w.graph.t, wrapper), authorization.OrganizationAdminRole)
+	addRoleByName(w.baseWrapper, w.resource, authorization.IdentityResourceTypeOrganization, identityIDFromWrapper(w.graph.t, wrapper), authorization.OrganizationAdminRole)
+	return w
+}
+
+// AddRole assigns the given role to a user for the org
+func (w *organizationWrapper) AddRole(wrapper interface{}, roleWrapper *roleWrapper) *organizationWrapper {
+	addRole(w.baseWrapper, w.resource, authorization.IdentityResourceTypeOrganization, identityIDFromWrapper(w.graph.t, wrapper), roleWrapper.Role())
 	return w
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -25,15 +27,15 @@ type baseWrapper struct {
 }
 
 func identityIDFromWrapper(t *testing.T, wrapper interface{}) uuid.UUID {
-	switch t := wrapper.(type) {
+	switch w := wrapper.(type) {
 	case *userWrapper:
-		return t.identity.ID
+		return w.identity.ID
 	case *identityWrapper:
-		return t.identity.ID
+		return w.identity.ID
 	case *teamWrapper:
-		return t.identity.ID
+		return w.identity.ID
 	}
-	require.True(t, false, "wrapper must be either 'user', 'identity' or 'team' wrapper")
+	assert.FailNowf(t, "invalid type of identity wrapper", "wrapper must be either 'user', 'identity' or 'team' wrapper but it was %T", wrapper)
 	return uuid.UUID{}
 }
 

@@ -30,7 +30,7 @@ func (s *spaceServiceBlackBoxTest) TestCreateByUnknownUserFails() {
 
 func (s *spaceServiceBlackBoxTest) TestCreateOK() {
 	spaceID := uuid.NewV4().String()
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	creator := g.CreateUser()
 
 	err := s.Application.SpaceService().CreateSpace(s.Ctx, creator.Identity().ID, spaceID)
@@ -55,7 +55,7 @@ func (s *spaceServiceBlackBoxTest) TestCreateOK() {
 }
 
 func (s *spaceServiceBlackBoxTest) TestDeleteUnknownSpaceFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	spaceID := uuid.NewV4().String()
 
 	err := s.Application.SpaceService().DeleteSpace(s.Ctx, g.CreateUser().Identity().ID, spaceID)
@@ -63,7 +63,7 @@ func (s *spaceServiceBlackBoxTest) TestDeleteUnknownSpaceFails() {
 }
 
 func (s *spaceServiceBlackBoxTest) TestByUnauthorizedUserFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	space := g.CreateSpace()
 	user := g.CreateUser()
 
@@ -80,7 +80,7 @@ func (s *spaceServiceBlackBoxTest) TestByUnauthorizedUserFails() {
 }
 
 func (s *spaceServiceBlackBoxTest) TestDeleteOK() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	user := g.CreateUser()
 	space := g.CreateSpace().AddAdmin(user)
 

@@ -73,7 +73,7 @@ func (s *identityRoleBlackBoxTest) TestDeleteUnknownFails() {
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 
 	// Test space
 	space := g.CreateSpace()
@@ -168,7 +168,7 @@ func (s *identityRoleBlackBoxTest) TestOKToDeleteForUnknownResource() {
 }
 
 func (s *identityRoleBlackBoxTest) TestDeleteForUnknownIdentityAndResourceFails() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	space := g.CreateSpace()
 	//space.AddViewer(g.CreateUser())
 
@@ -402,7 +402,7 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
 }
 
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 
 	var createdIdentities []uuid.UUID
@@ -429,7 +429,7 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() 
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 
 	knownRoleID := getKnownRoleIDForSpace(s)
@@ -445,7 +445,7 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	newSpace := g.CreateSpace()
 	existingUser := g.CreateUser()
 
@@ -460,7 +460,7 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 
 	existingUser := g.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)
@@ -476,7 +476,7 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityExistingAssignmentFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 
 	existingUser := g.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)

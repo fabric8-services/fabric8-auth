@@ -3,6 +3,7 @@ package gormtestsupport
 import (
 	"context"
 	"os"
+	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/application"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
@@ -69,7 +70,7 @@ func (s *DBTestSuite) SetupSuite() {
 // SetupTest implements suite.SetupTest
 func (s *DBTestSuite) SetupTest() {
 	s.CleanTest = cleaner.DeleteCreatedEntities(s.DB)
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	s.Graph = &g
 }
 
@@ -120,6 +121,6 @@ func (s *DBTestSuite) DisableGormCallbacks() func() {
 	}
 }
 
-func (s *DBTestSuite) NewTestGraph() graph.TestGraph {
-	return graph.NewTestGraph(s.T(), s.Application, s.Ctx, s.DB)
+func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
+	return graph.NewTestGraph(t, s.Application, s.Ctx, s.DB)
 }

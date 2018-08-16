@@ -64,19 +64,25 @@ func loadSpaceWrapper(g *TestGraph, resourceID string) spaceWrapper {
 
 // AddAdmin assigns the admin role to a user for the space
 func (w *spaceWrapper) AddAdmin(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceAdminRole)
+	addRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceAdminRole)
 	return w
 }
 
 // AddContributor assigns the admin role to a user for the space
 func (w *spaceWrapper) AddContributor(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceContributorRole)
+	addRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceContributorRole)
 	return w
 }
 
 // AddViewer assigns the admin role to a user for the space
 func (w *spaceWrapper) AddViewer(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceViewerRole)
+	addRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceViewerRole)
+	return w
+}
+
+// AddAdmin assigns the admin role to a user for the space
+func (w *spaceWrapper) AddRole(userOrTeam interface{}, role *roleWrapper) *spaceWrapper {
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, userOrTeam), role.Role())
 	return w
 }
 

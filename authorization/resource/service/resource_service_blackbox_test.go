@@ -75,7 +75,7 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK
 	resourceID := uuid.NewV4().String()
 
 	// With parent resource
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	g.CreateResource(g.ID("myparentresource"))
 	parent := g.ResourceByID("myparentresource").Resource()
 	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &parent.ResourceID)
@@ -108,7 +108,7 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 
 	// Create test data
 
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	org := g.CreateOrganization()
 
 	spaceToDelete := g.CreateSpace(org)
@@ -181,7 +181,7 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceOK() {
 }
 
 func (s *resourceServiceBlackBoxTest) TestDeleteResourceWithCycleReferencesFails() {
-	g := s.DBTestSuite.NewTestGraph()
+	g := s.DBTestSuite.NewTestGraph(s.T())
 	parent := g.CreateResource()
 	child := g.CreateResource(parent)
 	childResourceID := child.ResourceID()
@@ -231,7 +231,7 @@ func (s *resourceServiceBlackBoxTest) TestReadUnknownResourceFails() {
 }
 
 func (s *resourceServiceBlackBoxTest) TestRoleMappingsCreated() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	// Create a default role mapping for a new resource type
 	id := uuid.NewV4()
 	m := g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID(id.String())))

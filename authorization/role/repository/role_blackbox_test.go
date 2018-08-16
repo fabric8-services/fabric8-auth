@@ -188,11 +188,14 @@ func (s *roleBlackBoxTest) TestKnownRolesExist() {
 
 func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 
+	spaceType := s.Graph.LoadResourceType(authorization.ResourceTypeSpace)
+	organizationType := s.Graph.LoadResourceType(authorization.IdentityResourceTypeOrganization)
+
 	s.T().Run("individual", func(t *testing.T) {
 
 		t.Run("individual is admin on no space", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(s.T())
 			user := g.CreateUser()
 			space := g.CreateSpace()
 			require.Equal(t, authorization.ResourceTypeSpace, space.Resource().ResourceType.Name)
@@ -208,9 +211,10 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 
 		t.Run("individual is admin on 1 space", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(t)
+			role := g.CreateRole(spaceType).AddScope("space-scope1").AddScope("space-scope2").AddScope("space-scope3")
 			user := g.CreateUser()
-			space := g.CreateSpace().AddAdmin(user)
+			space := g.CreateSpace().AddRole(user, role)
 			require.Equal(t, authorization.ResourceTypeSpace, space.Resource().ResourceType.Name)
 			// when
 			roles, err := s.repo.FindRolesByResourceTypeAndIdentity(
@@ -221,21 +225,22 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 			require.NoError(t, err)
 			require.Len(t, roles, 1)
 			assert.Equal(t, space.Resource().ResourceType.Name, roles[0].ResourceType)
-			assert.Equal(t, authorization.SpaceAdminRole, roles[0].RoleName)
+			assert.Equal(t, role.Role().Name, roles[0].RoleName)
 			assert.ElementsMatch(t, roles[0].Scopes, []string{
-				authorization.ViewSpaceScope,
-				authorization.ContributeSpaceScope,
-				authorization.ManageSpaceScope,
+				"space-scope1",
+				"space-scope2",
+				"space-scope3",
 			})
 		})
 
 		t.Run("individual is admin on 2 spaces", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(t)
+			role := g.CreateRole(spaceType).AddScope("space-scope1").AddScope("space-scope2").AddScope("space-scope3")
 			user := g.CreateUser()
-			space1 := g.CreateSpace().AddAdmin(user)
+			space1 := g.CreateSpace().AddRole(user, role)
 			require.Equal(t, authorization.ResourceTypeSpace, space1.Resource().ResourceType.Name)
-			space2 := g.CreateSpace().AddAdmin(user)
+			space2 := g.CreateSpace().AddRole(user, role)
 			require.Equal(t, authorization.ResourceTypeSpace, space2.Resource().ResourceType.Name)
 			g.CreateSpace() // another space on which the user has no role
 			// when
@@ -254,9 +259,9 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 
 		t.Run("individual is admin in the parent organization but no default or custom role mapping", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(t)
 			user := g.CreateUser()
-			org := g.CreateOrganization(user) // user will be creator and admin of the org
+			org := g.CreateOrganization(user) // user will be creator and have a role in the org
 			g.CreateSpace(org)
 			// here we don't map the admin role in the org to a contributor role in the space,
 			// so the user is not considered as a contributor in the created space
@@ -271,20 +276,17 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 		})
 
 		t.Run("individual is contributor in the parent organization with default role mapping", func(t *testing.T) {
-			// make sure that the default role mapping is removed after the sub-test above
-			defer s.CleanTest()
-
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(t)
+			orgRole := g.CreateRole(organizationType).AddScope("org-scope1").AddScope("org-scope2").AddScope("org-scope3")
+			spaceRole := g.CreateRole(spaceType).AddScope("space-scope1").AddScope("space-scope2").AddScope("space-scope3")
 			user := g.CreateUser()
-			org := g.CreateOrganization(user) // user will be creator and admin of the org
+			org := g.CreateOrganization(user).AddRole(user, orgRole) // user will be creator and have a role in the org
 			space := g.CreateSpace(org)
-			// here we map the admin role in the org to a contributor role in the space,
-			// so the user is also considered as a contributor in the created space
-			orgAdminRole := g.RoleByNameAndResourceType(authorization.OrganizationAdminRole, org.Resource().ResourceType.Name)
-			spaceContributorRole := g.RoleByNameAndResourceType(authorization.SpaceContributorRole, space.Resource().ResourceType.Name)
+			// here we map the role in the org to another role in the space,
+			// so the user also inherits a role in the created space
 			spaceType := g.ResourceTypeByID(space.Resource().ResourceType.ResourceTypeID)
-			g.CreateDefaultRoleMapping(spaceType, orgAdminRole, spaceContributorRole)
+			g.CreateDefaultRoleMapping(spaceType, orgRole, spaceRole)
 			// when
 			roles, err := s.repo.FindRolesByResourceTypeAndIdentity(
 				context.Background(),
@@ -294,10 +296,11 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 			require.NoError(t, err)
 			require.Len(t, roles, 1)
 			assert.Equal(t, space.Resource().ResourceType.Name, roles[0].ResourceType)
-			assert.Equal(t, authorization.SpaceContributorRole, roles[0].RoleName)
+			assert.Equal(t, spaceRole.Role().Name, roles[0].RoleName)
 			assert.ElementsMatch(t, roles[0].Scopes, []string{
-				authorization.ContributeSpaceScope,
-				authorization.ViewSpaceScope,
+				"space-scope1",
+				"space-scope2",
+				"space-scope3",
 			})
 		})
 
@@ -311,7 +314,7 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 
 		t.Run("individual belongs to admin team on no space", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(t)
 			user := g.CreateUser()
 			g.CreateTeam("team").AddMember(user)
 			space := g.CreateSpace()
@@ -328,10 +331,11 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 
 		t.Run("individual belongs to admin team on 1 space", func(t *testing.T) {
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(t)
 			user := g.CreateUser()
 			team := g.CreateTeam("team").AddMember(user)
-			space := g.CreateSpace().AddAdmin(team)
+			role := g.CreateRole(spaceType).AddScope("org-scope1").AddScope("org-scope2").AddScope("org-scope3")
+			space := g.CreateSpace().AddRole(team, role)
 			require.Equal(t, authorization.ResourceTypeSpace, space.Resource().ResourceType.Name)
 			// when
 			roles, err := s.repo.FindRolesByResourceTypeAndIdentity(
@@ -342,31 +346,29 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 			require.NoError(t, err)
 			require.Len(t, roles, 1)
 			assert.Equal(t, space.Resource().ResourceType.Name, roles[0].ResourceType)
-			assert.Equal(t, authorization.SpaceAdminRole, roles[0].RoleName)
+			assert.Equal(t, role.Role().Name, roles[0].RoleName)
 			assert.ElementsMatch(t, roles[0].Scopes, []string{
-				authorization.ViewSpaceScope,
-				authorization.ContributeSpaceScope,
-				authorization.ManageSpaceScope,
+				"org-scope1",
+				"org-scope2",
+				"org-scope3",
 			})
 		})
 
 		t.Run("individual is member of admin team in the parent organization with default role mapping", func(t *testing.T) {
-			// make sure that the default role mapping is removed after the sub-test above
-			defer s.CleanTest()
 			// given
-			g := s.NewTestGraph()
+			g := s.NewTestGraph(t)
 			creator := g.CreateUser()
 			org := g.CreateOrganization(creator) // team (hence user) will be creator and admin of the org
 			user := g.CreateUser()
 			team := g.CreateTeam("team").AddMember(user)
-			org.AddAdmin(team)
+			orgRole := g.CreateRole(organizationType).AddScope("org-scope1").AddScope("org-scope2").AddScope("org-scope3")
+			org.AddRole(team, orgRole)
 			space := g.CreateSpace(org)
 			// here we map the admin role in the org to a contributor role in the space,
 			// so the user is also considered as a contributor in the created space
-			orgAdminRole := g.RoleByNameAndResourceType(authorization.OrganizationAdminRole, org.Resource().ResourceType.Name)
-			spaceContributorRole := g.RoleByNameAndResourceType(authorization.SpaceContributorRole, space.Resource().ResourceType.Name)
+			spaceRole := g.CreateRole(organizationType).AddScope("space-scope1").AddScope("space-scope2").AddScope("space-scope3")
 			spaceType := g.ResourceTypeByID(space.Resource().ResourceType.ResourceTypeID)
-			g.CreateDefaultRoleMapping(spaceType, orgAdminRole, spaceContributorRole)
+			g.CreateDefaultRoleMapping(spaceType, orgRole, spaceRole)
 			// when
 			roles, err := s.repo.FindRolesByResourceTypeAndIdentity(
 				context.Background(),
@@ -376,10 +378,11 @@ func (s *roleBlackBoxTest) TestFindRolesByResourceTypeAndIdentity() {
 			require.NoError(t, err)
 			require.Len(t, roles, 1)
 			assert.Equal(t, space.Resource().ResourceType.Name, roles[0].ResourceType)
-			assert.Equal(t, authorization.SpaceContributorRole, roles[0].RoleName)
+			assert.Equal(t, spaceRole.Role().Name, roles[0].RoleName)
 			assert.ElementsMatch(t, roles[0].Scopes, []string{
-				authorization.ContributeSpaceScope,
-				authorization.ViewSpaceScope,
+				"space-scope1",
+				"space-scope2",
+				"space-scope3",
 			})
 		})
 

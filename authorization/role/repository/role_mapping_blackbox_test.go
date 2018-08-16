@@ -59,7 +59,7 @@ func (s *roleMappingBlackBoxTest) TestOKToDelete() {
 }
 
 func (s *roleMappingBlackBoxTest) TestOKToDeleteForResource() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 
 	// Create 5 role mappings
 	r := g.CreateResource()
@@ -184,7 +184,7 @@ func (s *roleMappingBlackBoxTest) TestOKToSave() {
 }
 
 func (s *roleMappingBlackBoxTest) TestFindForResource() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 
 	m := g.CreateRoleMapping(g.CreateResource(g.ID("r")))
 

@@ -99,7 +99,7 @@ func (rest *TestResourceRolesRest) TestListAssignedRolesByRoleNameNotFound() {
 
 func (rest *TestResourceRolesRest) TestAssignRoleOK() {
 
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	res := g.CreateSpace()
 
 	var identitiesToBeAssigned []string
@@ -126,7 +126,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleOK() {
 
 func (rest *TestResourceRolesRest) TestAssignRoleConflict() {
 
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	res := g.CreateSpace()
 
 	testUser := g.CreateUser()
@@ -159,7 +159,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleUnauthorized() {
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	res := g.CreateSpace()
 
 	var identitiesToBeAssigned []*app.AssignRoleData
@@ -190,7 +190,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleBadRequestUserNotInSpace() {
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRoles() {
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	res := g.CreateSpace(g.ID("somespacename"))
 
 	var identitiesToBeAssigned []*app.AssignRoleData
@@ -213,7 +213,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleForbiddenNotAllowedToAssignRole
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleWithInvalidIdentityIDBadRequest() {
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	res := g.CreateSpace(g.ID("somespacename"))
 
 	var identitiesToBeAssigned []*app.AssignRoleData
@@ -234,7 +234,7 @@ func (rest *TestResourceRolesRest) TestAssignRoleWithInvalidIdentityIDBadRequest
 }
 
 func (rest *TestResourceRolesRest) TestAssignRoleWithIncompleteTokenClaims() {
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	res := g.CreateSpace(g.ID("somespacename"))
 
 	var identitiesToBeAssigned []*app.AssignRoleData
