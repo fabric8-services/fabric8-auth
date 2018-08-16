@@ -88,7 +88,7 @@ func TestGetOAuthServiceURLForTooShortHostFails(t *testing.T) {
 func TestOAuthServiceRealmInDevModeCanBeOverridden(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
-	key := "AUTH_SERVICE_REALM"
+	key := "AUTH_OAUTH_SERVICE_REALM"
 	realEnvValue := os.Getenv(key)
 
 	os.Unsetenv(key)

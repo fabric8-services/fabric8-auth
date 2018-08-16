@@ -49,12 +49,12 @@ objects:
               secretKeyRef:
                 name: auth
                 key: db.password
-          - name: AUTH_SERVICE_REALM
+          - name: AUTH_OAUTH_SERVICE_REALM
             valueFrom:
               secretKeyRef:
                 name: auth
                 key: oauth.service.realm
-          - name: AUTH_SERVICE_SECRET
+          - name: AUTH_OAUTH_SERVICE_SECRET
             valueFrom:
               secretKeyRef:
                 name: auth
@@ -144,7 +144,7 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: redirect.valid
-          - name: AUTH_SERVICE_URL
+          - name: AUTH_OAUTH_SERVICE_URL
             valueFrom:
               configMapKeyRef:
                 name: auth
