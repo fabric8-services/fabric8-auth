@@ -159,7 +159,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 			err = s.Repositories().InvitationRepository().Create(ctx, inv)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				return err
 			}
 
 			// For each role in the invitation, lookup the role and add it to the invitation
