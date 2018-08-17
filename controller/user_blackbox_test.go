@@ -187,7 +187,7 @@ func (s *UserControllerTestSuite) TestShowUser() {
 
 func (s *UserControllerTestSuite) TestListUserSpaces() {
 
-	spacesResourceType := "spaces"
+	const spacesResourceType string = "spaces"
 
 	s.T().Run("ok", func(t *testing.T) {
 
@@ -200,7 +200,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			identity := user.Identity()
 			// when
 			svc, userCtrl := s.SecuredController(*identity)
-			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, &spacesResourceType)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, spacesResourceType)
 			// then
 			require.Len(t, spaces.Data, 0)
 		})
@@ -214,7 +214,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			identity := user.Identity()
 			// when
 			svc, userCtrl := s.SecuredController(*identity)
-			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, &spacesResourceType)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, spacesResourceType)
 			// then
 			require.Len(t, spaces.Data, 1)
 			require.Equal(t, space.SpaceID(), spaces.Data[0].ID)
@@ -236,7 +236,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			identity := user.Identity()
 			// when
 			svc, userCtrl := s.SecuredController(*identity)
-			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, &spacesResourceType)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, spacesResourceType)
 			// then
 			require.Len(t, spaces.Data, 2)
 			require.ElementsMatch(t,
@@ -261,6 +261,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 	})
 
 	s.T().Run("unauthorized", func(t *testing.T) {
+
 		t.Run("missing resource type", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
@@ -269,7 +270,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			// when
 			svc, userCtrl := s.UnsecuredController()
 			// when/then
-			test.ListResourcesUserUnauthorized(t, svc.Context, svc, userCtrl, nil)
+			test.ListResourcesUserUnauthorized(t, svc.Context, svc, userCtrl, spacesResourceType)
 		})
 	})
 
@@ -281,23 +282,14 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 		identity := user.Identity()
 		svc, userCtrl := s.SecuredController(*identity)
 
-		t.Run("missing resource type", func(t *testing.T) {
-			// when/then
-			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, nil)
-		})
-
 		t.Run("empty resource type", func(t *testing.T) {
-			// given
-			missingResourceType := ""
 			// when/then
-			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, &missingResourceType)
+			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, "")
 		})
 
 		t.Run("invalid resource type", func(t *testing.T) {
-			// given
-			unsupportedResourceType := "foo"
 			// when/then
-			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, &unsupportedResourceType)
+			test.ListResourcesUserBadRequest(t, svc.Context, svc, userCtrl, "foo")
 		})
 	})
 
