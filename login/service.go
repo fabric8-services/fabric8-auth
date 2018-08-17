@@ -714,7 +714,7 @@ func (oauthService *OAuthServiceProvider) CreateOrUpdateIdentityInDB(ctx context
 			}
 
 			identity.ID = oauthServiceIdentityID
-			identity.ProviderType = account.OAuthServiceIDP
+			identity.ProviderType = account.OSIOIdentityProvider
 			identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
 			identity.User = *user
 			err = tr.Identities().Create(ctx, identity)

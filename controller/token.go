@@ -112,7 +112,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 	var identities []account.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.OAuthServiceIDP))
+		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.OSIOIdentityProvider))
 		return err
 	})
 	if err != nil {
@@ -130,7 +130,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devIdentity = account.Identity{
 			User:                  devUser,
 			Username:              devUsername,
-			ProviderType:          account.OAuthServiceIDP,
+			ProviderType:          account.OSIOIdentityProvider,
 			RegistrationCompleted: true,
 		}
 	} else {

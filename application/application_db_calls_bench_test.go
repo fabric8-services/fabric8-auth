@@ -65,7 +65,7 @@ func (s *BenchDbOperations) SetupBenchmark() {
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "BenchmarkTestIdentity",
-		ProviderType: account.OAuthServiceIDP}
+		ProviderType: account.OSIOIdentityProvider}
 
 	err := s.repo.Create(s.ctx, s.identity)
 	if err != nil {

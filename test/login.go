@@ -2,8 +2,9 @@ package test
 
 import (
 	"context"
-	"golang.org/x/oauth2"
 	"time"
+
+	"golang.org/x/oauth2"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/login"
@@ -116,6 +117,6 @@ type DummyOSORegistrationApp struct {
 	Err    error
 }
 
-func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config login.Configuration, OAuth2Token oauth2.Token) (string, error) {
+func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config login.Configuration, token oauth2.Token) (string, error) {
 	return regApp.Status, regApp.Err
 }

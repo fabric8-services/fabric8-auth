@@ -119,7 +119,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	if preview {
 		log.Info(ctx, map[string]interface{}{"email": ctx.Payload.Data.Attributes.Email}, "ignoring preview user")
 		user := &accountrepo.User{Email: ctx.Payload.Data.Attributes.Email, Cluster: ctx.Payload.Data.Attributes.Cluster}
-		identity := &accountrepo.Identity{Username: ctx.Payload.Data.Attributes.Username, ProviderType: accountrepo.OAuthServiceIDP}
+		identity := &accountrepo.Identity{Username: ctx.Payload.Data.Attributes.Username, ProviderType: accountrepo.OSIOIdentityProvider}
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 	}
 	// -----
@@ -309,7 +309,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	identity = &accountrepo.Identity{
 		ID:           identityID,
 		Username:     ctx.Payload.Data.Attributes.Username,
-		ProviderType: accountrepo.OAuthServiceIDP, // Ignore Provider Type passed in the payload. We should always use "kc".
+		ProviderType: accountrepo.OSIOIdentityProvider, // Ignore Provider Type passed in the payload. We should always use "kc".
 	}
 
 	// associate foreign key
@@ -769,7 +769,7 @@ func isUsernameValid(username string) bool {
 }
 
 func isUsernameUnique(ctx context.Context, repos repository.Repositories, username string, identity accountrepo.Identity) (bool, error) {
-	usersWithSameUserName, err := repos.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.OAuthServiceIDP))
+	usersWithSameUserName, err := repos.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.OSIOIdentityProvider))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"user_name": username,
@@ -814,7 +814,7 @@ func (c *UsersController) userExistsInDB(ctx context.Context, email string, user
 			exists = true
 			return nil
 		}
-		identities, err := tr.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.OAuthServiceIDP))
+		identities, err := tr.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.OSIOIdentityProvider))
 		if err != nil {
 			return err
 		}
@@ -981,7 +981,7 @@ func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]ac
 	}
 	// Add more filters when needed , here. ..
 	if len(identityFilters) != 0 {
-		identityFilters = append(identityFilters, accountrepo.IdentityFilterByProviderType(accountrepo.OAuthServiceIDP))
+		identityFilters = append(identityFilters, accountrepo.IdentityFilterByProviderType(accountrepo.OSIOIdentityProvider))
 		identityFilters = append(identityFilters, accountrepo.IdentityWithUser())
 		// From a data model perspective, we are querying by identity ( and not user )
 		filteredIdentities, err := repos.Identities().Query(identityFilters...)
@@ -1051,7 +1051,7 @@ func loadOAuthServiceIdentity(repos repository.Repositories, user accountrepo.Us
 		return nil, err
 	}
 	for _, identity := range identities {
-		if identity.ProviderType == accountrepo.OAuthServiceIDP {
+		if identity.ProviderType == accountrepo.OSIOIdentityProvider {
 			return &identity, nil
 		}
 	}

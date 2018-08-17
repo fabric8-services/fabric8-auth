@@ -29,7 +29,7 @@ func newIdentityWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.identity = &account.Identity{
 		Username:     "TestUserIdentity-" + uuid.NewV4().String(),
-		ProviderType: account.OAuthServiceIDP,
+		ProviderType: account.OSIOIdentityProvider,
 	}
 
 	err := g.app.Identities().Create(g.ctx, w.identity)

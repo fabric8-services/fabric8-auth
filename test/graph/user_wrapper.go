@@ -41,7 +41,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.identity = &account.Identity{
 		Username:     "TestUserIdentity-" + uuid.NewV4().String(),
-		ProviderType: account.OAuthServiceIDP,
+		ProviderType: account.OSIOIdentityProvider,
 		User:         *w.user,
 		UserID:       account.NullUUID{w.user.ID, true},
 	}

@@ -59,7 +59,7 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 		identities, err := s.Repositories().Identities().Query(
 			repository.IdentityWithUser(),
 			repository.IdentityFilterByUsername(username),
-			repository.IdentityFilterByProviderType(repository.OAuthServiceIDP))
+			repository.IdentityFilterByProviderType(repository.OSIOIdentityProvider))
 		if err != nil {
 			return err
 		}

@@ -1234,7 +1234,7 @@ func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser accountr
 	require.NotNil(t, actual)
 	assert.Equal(t, expectedIdentity.Username, *actual.Attributes.Username)
 	if expectedIdentity.ProviderType == "" {
-		assert.Equal(t, accountrepo.OAuthServiceIDP, *actual.Attributes.ProviderType)
+		assert.Equal(t, accountrepo.OSIOIdentityProvider, *actual.Attributes.ProviderType)
 	} else {
 		assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	}
@@ -1449,7 +1449,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
 	identity.User = user
-	identity.ProviderType = accountrepo.OAuthServiceIDP
+	identity.ProviderType = accountrepo.OSIOIdentityProvider
 	identity.RegistrationCompleted = true
 
 	user.ContextInformation = map[string]interface{}{
