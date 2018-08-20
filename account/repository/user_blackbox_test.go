@@ -78,7 +78,7 @@ func (s *userBlackBoxTest) TestExistsUser() {
 		// Check not existing
 		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
 		// then
-		require.IsType(s.T(), errors.NotFoundError{}, err)
+		require.IsType(t, errors.NotFoundError{}, err)
 	})
 }
 
