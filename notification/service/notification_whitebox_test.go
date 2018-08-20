@@ -193,7 +193,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		err, ok := <-errs
 
 		// then
-		require.Nil(t, e)
+		assert.NoError(t, e)
 		assert.True(t, ok)
 		require.Error(t, err)
 		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: ", err.Error())
@@ -213,7 +213,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		err, ok := <-errs
 
 		//then
-		require.Nil(t, e)
+		assert.NoError(t, e)
 		assert.True(t, ok)
 		require.Error(t, err)
 		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: ")
@@ -233,9 +233,9 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		err, ok := <-errs
 
 		//then
-		assert.Nil(t, e)
+		assert.NoError(t, e)
 		assert.False(t, ok)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 	})
 
 	s.T().Run("should send message async", func(t *testing.T) {
@@ -252,7 +252,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		err, ok := <-errs
 
 		//then
-		assert.Nil(t, e)
+		assert.NoError(t, e)
 		assert.False(t, ok)
 		assert.NoError(t, err)
 	})

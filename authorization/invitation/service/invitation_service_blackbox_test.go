@@ -87,10 +87,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
 
-		// when
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 
-		// then
 		require.NoError(t, err, "Error listing invitations")
 		require.Equal(t, 1, len(invs))
 		require.True(t, invs[0].Member)
@@ -173,21 +171,19 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Len(t, messages, 1)
 		require.Equal(t, inviteeID.String(), messages[0].TargetID)
 
-		//when  - list the invitations for our resource
+		//List the invitations for our resource
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
-
-		// then
 		require.NoError(t, err, "Error listing invitations")
+
 		// There should be 1 invitation only
 		require.Equal(t, 1, len(invs))
 		require.False(t, invs[0].Member)
 		require.Equal(t, invitee.IdentityID(), invs[0].IdentityID)
 
-		// when - list the roles for our invitation
+		//List the roles for our invitation
 		roles, err := s.invitationRepo.ListRoles(s.Ctx, invs[0].InvitationID)
-
-		// then
 		require.NoError(t, err, "Error listing roles")
+
 		// There should be 1 role only
 		require.Equal(t, 1, len(roles))
 		require.Equal(t, "admin", roles[0].Name)
@@ -473,10 +469,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, invitee1ID.String(), messages[0].TargetID)
 		require.Equal(t, invitee2ID.String(), messages[1].TargetID)
 
-		// when
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
-
-		// then
 		require.NoError(t, err, "Error listing invitations")
 		require.Equal(t, 2, len(invs))
 
@@ -539,18 +532,12 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
 
-		// when
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
-
-		// then
 		require.NoError(t, err, "Error listing invitations")
 		require.Len(t, invs, 1)
 		require.False(t, invs[0].Member)
 
-		// when
 		roles, err := s.invitationRepo.ListRoles(s.Ctx, invs[0].InvitationID)
-
-		//then
 		require.NoError(t, err, "could not list roles")
 		require.Len(t, roles, 1)
 		require.Equal(t, r.Role().Name, roles[0].Name)
@@ -592,11 +579,9 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
 
-		// when
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
-
-		// then
 		require.NoError(t, err)
+
 		require.Len(t, invs, 1)
 		require.Equal(t, user.IdentityID(), invs[0].IdentityID)
 		require.True(t, invs[0].Member)
@@ -636,10 +621,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
 
-		// when
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
 
-		// then
 		require.NoError(t, err)
 		require.Len(t, invs, 1)
 		require.Equal(t, invitee.IdentityID(), invs[0].IdentityID)
@@ -661,11 +644,9 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		require.NoError(t, err)
 		require.Equal(t, team.ResourceID(), resourceID)
 
-		// when
 		assocs, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
-
-		// then
 		require.NoError(t, err)
+
 		require.Len(t, assocs, 1)
 		require.Equal(t, team.TeamID(), *assocs[0].IdentityID)
 		require.True(t, assocs[0].Member)
@@ -686,13 +667,10 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		require.NoError(t, err)
 		require.Equal(t, team.ResourceID(), resourceID)
 
-		// when
 		assocs, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
-
-		// then
 		require.NoError(t, err)
-		require.Len(t, assocs, 1)
 
+		require.Len(t, assocs, 1)
 		require.Equal(t, team.TeamID(), *assocs[0].IdentityID)
 		require.False(t, assocs[0].Member)
 		require.Len(t, assocs[0].Roles, 1)
@@ -712,10 +690,8 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		require.NoError(t, err)
 		require.Equal(t, space.SpaceID(), resourceID)
 
-		// when
-		roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
 
-		// then
+		roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
 		require.NoError(t, err)
 
 		require.Len(t, roles, 1)
@@ -789,10 +765,8 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitation() {
 		// then
 		require.NoError(t, err, "Error rescinding invitation")
 
-		// when
 		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
 
-		// then
 		require.Error(t, err)
 		require.IsType(t, errors.NotFoundError{}, err)
 
@@ -817,10 +791,7 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitation() {
 		require.Error(t, err, "Error rescinding invitation")
 		require.IsType(t, errors.ForbiddenError{}, err)
 
-		// when
 		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
-
-		// then
 		require.NoError(t, err)
 	})
 	s.T().Run("should fail to rescind  invitation for invalid invitation id", func(t *testing.T) {
@@ -843,12 +814,10 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitation() {
 		require.Error(t, err, "Error rescinding invitation")
 		require.IsType(t, errors.NotFoundError{}, err)
 
-		// when
 		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
-
-		// then
 		require.NoError(t, err)
 	})
+
 	s.T().Run("should rescind invitation for resource", func(t *testing.T) {
 		// given
 		// Create a test user - this will be the team admin
@@ -869,10 +838,7 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitation() {
 		// then
 		require.NoError(t, err, "Error rescinding invitation")
 
-		// when
 		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
-
-		// then
 		require.Error(t, err)
 		require.IsType(t, errors.NotFoundError{}, err)
 
@@ -898,10 +864,7 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitation() {
 		require.Error(t, err, "Error rescinding invitation")
 		require.IsType(t, errors.ForbiddenError{}, err)
 
-		// when
 		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
-
-		// then
 		require.NoError(t, err)
 	})
 }
