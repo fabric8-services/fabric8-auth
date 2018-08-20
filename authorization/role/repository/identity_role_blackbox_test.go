@@ -532,8 +532,16 @@ func (s *identityRoleBlackBoxTest) TestFindScopesByIdentityAndResource() {
 	user := s.Graph.CreateUser()
 
 	rt := s.Graph.CreateResourceType()
+	rt.AddScope("foo")
 	resource := s.Graph.CreateResource(rt)
-	role := s.Graph.CreateRole()
+	r := s.Graph.CreateRole(rt)
+	r.AddScope("foo")
 
-	s.Graph.CreateIdentityRole(user, resource, role)
+	s.Graph.CreateIdentityRole(user, resource, r)
+
+	scopes, err := s.repo.FindScopesByIdentityAndResource(s.Ctx, user.IdentityID(), resource.ResourceID())
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), scopes, 1)
+	require.Equal(s.T(), "foo", scopes[0])
 }

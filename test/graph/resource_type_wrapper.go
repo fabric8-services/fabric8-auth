@@ -59,3 +59,11 @@ func newResourceTypeWrapper(g *TestGraph, params []interface{}) interface{} {
 func (w *resourceTypeWrapper) ResourceType() *resourcetype.ResourceType {
 	return w.resourceType
 }
+
+func (w *resourceTypeWrapper) AddScope(scope string) {
+	rts := &resourcetype.ResourceTypeScope{
+		ResourceTypeID: w.resourceType.ResourceTypeID,
+		Name: scope,
+	}
+	w.graph.app.ResourceTypeScopeRepository().Create(w.graph.ctx, rts)
+}
