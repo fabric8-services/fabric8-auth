@@ -179,6 +179,46 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		assert.Nil(t, errs)
 	})
 
+	s.T().Run("should report error to channel if client returned an error for sending message async", func(t *testing.T) {
+		//given
+		ns.config = s.notificationConfig
+		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af06")
+		assert.NoError(t, e)
+
+		*messageID = msgID
+		msg.MessageID = msgID
+
+		// when
+		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
+		err, ok := <-errs
+
+		// then
+		require.Nil(t, e)
+		assert.True(t, ok)
+		require.Error(t, err)
+		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: ", err.Error())
+	})
+
+	s.T().Run("should report error to channel if client returned an unexpected status for sending messages async", func(t *testing.T) {
+		//given
+		ns.config = s.notificationConfig
+		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af05")
+		assert.NoError(t, e)
+
+		*messageID = msgID
+		msg.MessageID = msgID
+
+		//when
+		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
+		err, ok := <-errs
+
+		//then
+		require.Nil(t, e)
+		assert.True(t, ok)
+		require.Error(t, err)
+		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: ")
+	})
+
 	s.T().Run("should send messages async", func(t *testing.T) {
 		//given
 		ns.config = s.notificationConfig
@@ -190,11 +230,12 @@ func (s *TestNotificationSuite) TestSendAsync() {
 
 		//when
 		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
-		<-errs
+		err, ok := <-errs
 
 		//then
 		assert.Nil(t, e)
-		assert.Empty(t, errs)
+		assert.False(t, ok)
+		assert.Nil(t, err)
 	})
 
 	s.T().Run("should send message async", func(t *testing.T) {
@@ -208,10 +249,11 @@ func (s *TestNotificationSuite) TestSendAsync() {
 
 		//when
 		errs, e := ns.SendMessageAsync(ctx, msg, testconfig.WithRoundTripper(r.Transport))
-		<-errs
+		err, ok := <-errs
 
 		//then
 		assert.Nil(t, e)
+		assert.False(t, ok)
 		assert.NoError(t, err)
 	})
 }
