@@ -46,11 +46,6 @@ func (s *roleManagementServiceImpl) ListByResource(ctx context.Context, currentI
 	return s.Repositories().IdentityRoleRepository().FindIdentityRolesByResource(ctx, resourceID, false)
 }
 
-// ListByResource lists all identity roles for the resource if the current user has permissions to view the roles
-func (s *roleManagementServiceImpl) ListByIdentityAndResource(ctx context.Context, currentIdentity uuid.UUID, resourceID string) ([]role.RoleDescriptor, error) {
-	return s.ListByIdentityAndResource(ctx, currentIdentity, resourceID)
-}
-
 func (s *roleManagementServiceImpl) requireViewRolesScope(ctx context.Context, currentIdentity uuid.UUID, resourceID string) error {
 	// Lookup the resourceID and ensure the resource is valid
 	rt, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
