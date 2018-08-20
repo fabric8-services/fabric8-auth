@@ -19,7 +19,6 @@ import (
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/goadesign/goa/uuid"
 	"net/http"
-	"sync"
 )
 
 type notificationServiceImpl struct {
@@ -35,76 +34,42 @@ func NewNotificationService(context servicecontext.ServiceContext, config notifi
 	}
 }
 
-// sendMessageAsync creates a new goroutine and sends a message to fabric8-notification service and wait till it responds, mainly used for testing
-func (s *notificationServiceImpl) sendMessageAsync(ctx context.Context, msg notification.Message, options ...configuration.HTTPClientOption) error {
-	c, err := s.createClientWithContextSigner(ctx, options...)
-	if err != nil {
-		return err
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if e := s.send(ctx, c, msg); e != nil {
-			err = e
-		}
-	}()
-	wg.Wait()
-
-	return err
-}
-
-// sendMessagesAsync creates a new goroutine and sends multiple messages to fabric8-notification service and wait till it responds, mainly used for testing
-func (s *notificationServiceImpl) sendMessagesAsync(ctx context.Context, messages []notification.Message, options ...configuration.HTTPClientOption) []error {
-	c, err := s.createClientWithContextSigner(ctx, options...)
-	var errs []error
-	if err != nil {
-		errs = append(errs, err)
-		return errs
-	}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for _, msg := range messages {
-			if e := s.send(ctx, c, msg); e != nil {
-				errs = append(errs, e)
-			}
-		}
-	}()
-	wg.Wait()
-
-	return errs
-}
-
 // SendMessageAsync creates a new goroutine and sends a message to fabric8-notification service
-func (s *notificationServiceImpl) SendMessageAsync(ctx context.Context, msg notification.Message) error {
-	c, err := s.createClientWithContextSigner(ctx)
+func (s *notificationServiceImpl) SendMessageAsync(ctx context.Context, msg notification.Message, options ...configuration.HTTPClientOption) (chan error, error) {
+	c, err := s.createClientWithContextSigner(ctx, options...)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	errs := make(chan error, 1)
 	go func() {
-		s.send(ctx, c, msg)
+		defer close(errs)
+		if e := s.send(ctx, c, msg); e != nil {
+			errs <- e
+		}
 	}()
 
-	return nil
+	return errs, nil
 }
 
 // SendMessagesAsync creates a new goroutine and sends multiple messages to fabric8-notification service
-func (s *notificationServiceImpl) SendMessagesAsync(ctx context.Context, messages []notification.Message) error {
-	c, err := s.createClientWithContextSigner(ctx)
+func (s *notificationServiceImpl) SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...configuration.HTTPClientOption) (chan error, error) {
+	c, err := s.createClientWithContextSigner(ctx, options...)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
+	errs := make(chan error, len(messages))
 	go func() {
+		defer close(errs)
 		for _, msg := range messages {
+			if e := s.send(ctx, c, msg); e != nil {
+				errs <- e
+			}
 			s.send(ctx, c, msg)
 		}
 	}()
 
-	return nil
+	return errs, nil
 }
 
 func (s *notificationServiceImpl) send(ctx context.Context, c *client.Client, msg notification.Message) error {
