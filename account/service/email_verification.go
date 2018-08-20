@@ -61,7 +61,7 @@ func (c *EmailVerificationClient) SendVerificationCode(ctx context.Context, req 
 	}
 
 	emailMessage := notification.NewUserEmailUpdated(identity.ID.String(), notificationCustomAttributes)
-	c.notification.SendAsync(ctx, emailMessage)
+	c.notification.SendMessageAsync(ctx, emailMessage)
 
 	return &newVerificationCode, err
 }

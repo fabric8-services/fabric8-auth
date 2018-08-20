@@ -3,7 +3,7 @@ package service_test
 import (
 	"testing"
 
-	"fmt"
+	"context"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
@@ -13,7 +13,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/test"
+	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -21,10 +23,10 @@ import (
 
 type invitationServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	invitationRepo         invitationrepo.InvitationRepository
-	identityRepo           account.IdentityRepository
-	orgService             service.OrganizationService
-	devNotificationService *test.DevNotificationService
+	invitationRepo          invitationrepo.InvitationRepository
+	identityRepo            account.IdentityRepository
+	orgService              service.OrganizationService
+	notificationServiceMock *testservice.NotificationServiceMock
 }
 
 func TestRunInvitationServiceBlackBoxTest(t *testing.T) {
@@ -36,13 +38,12 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.invitationRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.orgService = s.Application.OrganizationService()
-	s.devNotificationService = &test.DevNotificationService{}
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&test.DevWITService{}), factory.WithNotificationService(s.devNotificationService))
+	s.notificationServiceMock = testservice.NewNotificationServiceMock(s.T())
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&test.DevWITService{}), factory.WithNotificationService(s.notificationServiceMock))
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 	s.T().Run("should issue invitation by identity id", func(t *testing.T) {
-		*s.devNotificationService = test.DevNotificationService{}
 
 		g := s.NewTestGraph()
 
@@ -69,11 +70,18 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
+		var messages []notification.Message
+		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(s.T())
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, p1 []notification.Message) (r2 error) {
+			messages = p1
+			return nil
+		}
+
 		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 		require.NoError(s.T(), err, "Error creating invitations")
-		fmt.Printf("%+v, %+v\n", id.String(), s.devNotificationService.Messages[0].TargetID)
 
-		require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
+		require.Equal(s.T(), uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
+		require.Equal(s.T(), id.String(), messages[0].TargetID)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(s.T(), err, "Error listing invitations")
@@ -106,7 +114,6 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 	})
 
 	s.T().Run("should issue invitation for resource", func(t *testing.T) {
-		*s.devNotificationService = test.DevNotificationService{}
 
 		g := s.NewTestGraph()
 
@@ -128,10 +135,19 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
+		var messages []notification.Message
+		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(s.T())
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, p1 []notification.Message) (r2 error) {
+			messages = p1
+			return nil
+		}
+
 		// Issue the invitation
 		err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), invitations)
 		require.NoError(s.T(), err)
-		require.Equal(s.T(), inviteeID.String(), s.devNotificationService.Messages[0].TargetID)
+
+		require.Equal(s.T(), uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
+		require.Equal(s.T(), inviteeID.String(), messages[0].TargetID)
 
 		// List the invitations for our resource
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
@@ -323,8 +339,6 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 	})
 
 	s.T().Run("should issue multiple invitations", func(t *testing.T) {
-		*s.devNotificationService = test.DevNotificationService{}
-
 		team := s.Graph.CreateTeam()
 		teamAdmin := s.Graph.CreateUser()
 
@@ -350,10 +364,19 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
+		var messages []notification.Message
+		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(s.T())
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, p1 []notification.Message) (r2 error) {
+			messages = p1
+			return nil
+		}
+
 		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 		require.NoError(s.T(), err, "Error creating invitations")
-		require.Equal(s.T(), invitee1ID.String(), s.devNotificationService.Messages[0].TargetID)
-		require.Equal(s.T(), invitee2ID.String(), s.devNotificationService.Messages[1].TargetID)
+
+		require.Equal(s.T(), uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
+		require.Equal(s.T(), invitee1ID.String(), messages[0].TargetID)
+		require.Equal(s.T(), invitee2ID.String(), messages[1].TargetID)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(s.T(), err, "Error listing invitations")
@@ -384,8 +407,6 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 	})
 
 	s.T().Run("should issue TestIssueInvitationByIdentityIDForRole", func(t *testing.T) {
-		*s.devNotificationService = test.DevNotificationService{}
-
 		team := s.Graph.CreateTeam()
 		teamAdmin := s.Graph.CreateUser()
 		user := s.Graph.CreateUser()
@@ -404,9 +425,18 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
+		var messages []notification.Message
+		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(s.T())
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, p1 []notification.Message) (r2 error) {
+			messages = p1
+			return nil
+		}
+
 		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 		require.NoError(s.T(), err, "Error creating invitations")
-		require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
+
+		require.Equal(s.T(), uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
+		require.Equal(s.T(), id.String(), messages[0].TargetID)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(s.T(), err, "Error listing invitations")
@@ -422,8 +452,6 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 	})
 
 	s.T().Run("should issue invitation for team member", func(t *testing.T) {
-		*s.devNotificationService = test.DevNotificationService{}
-
 		team := s.Graph.CreateTeam()
 		teamAdmin := s.Graph.CreateUser()
 		user := s.Graph.CreateUser()
@@ -442,9 +470,18 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
+		var messages []notification.Message
+		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(s.T())
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, p1 []notification.Message) (r2 error) {
+			messages = p1
+			return nil
+		}
+
 		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
 		require.NoError(s.T(), err)
-		require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
+
+		require.Equal(s.T(), uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
+		require.Equal(s.T(), id.String(), messages[0].TargetID)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(s.T(), err)
@@ -455,8 +492,6 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 	})
 
 	s.T().Run("should issue invitation for space", func(t *testing.T) {
-		*s.devNotificationService = test.DevNotificationService{}
-
 		space := s.Graph.CreateSpace()
 		spaceAdmin := s.Graph.CreateUser()
 		space.AddAdmin(spaceAdmin)
@@ -473,9 +508,18 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
+		var messages []notification.Message
+		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(s.T())
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, p1 []notification.Message) (r2 error) {
+			messages = p1
+			return nil
+		}
+
 		err := s.Application.InvitationService().Issue(s.Ctx, spaceAdmin.IdentityID(), space.SpaceID(), invitations)
 		require.NoError(s.T(), err)
-		require.Equal(s.T(), id.String(), s.devNotificationService.Messages[0].TargetID)
+
+		require.Equal(s.T(), uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
+		require.Equal(s.T(), id.String(), messages[0].TargetID)
 
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
 		require.NoError(s.T(), err)

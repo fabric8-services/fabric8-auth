@@ -262,8 +262,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 			acceptURL))
 	}
 
-	_, _, e := s.Services().NotificationService().SendMessagesAsync(ctx, messages)
-	return e
+	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
 }
 
 // processSpaceInviteNotifications sends an e-mail notification to a user.
@@ -287,8 +286,7 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 			acceptURL))
 	}
 
-	_, _, e := s.Services().NotificationService().SendMessagesAsync(ctx, messages)
-	return e
+	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
 }
 
 // Rescind revokes an invitation request

@@ -44,7 +44,8 @@ required = [
   "github.com/jteeuwen/go-bindata/go-bindata",
   "github.com/jstemmer/go-junit-report",
   "github.com/wadey/gocovmerge",
-  "github.com/pilu/fresh"
+  "github.com/pilu/fresh",
+  "github.com/gojuno/minimock/cmd/minimock"
 ]
 
 [[constraint]]
@@ -115,6 +116,9 @@ required = [
 name = "github.com/dnaeon/go-vcr"
 revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
 
+[[constraint]]
+  name = "github.com/gojuno/minimock"
+  branch = "master"
 
 [prune]
   go-tests = true

@@ -163,22 +163,18 @@ func (s *TestNotificationSuite) TestSendAsync() {
 
 	s.T().Run("should fail to send message for invalid notification url", func(t *testing.T) {
 		//when
-		done, errs, err := ns.SendAsync(ctx, msg)
+		err := ns.sendMessageAsync(ctx, msg)
 
 		//then
 		assert.Error(s.T(), err)
-		assert.Nil(s.T(), done)
-		assert.Nil(s.T(), errs)
 	})
 
 	s.T().Run("should fail to send messages for invalid notification url", func(t *testing.T) {
 		//when
-		done, errs, err := ns.SendMessagesAsync(ctx, []notification.Message{msg})
+		errs := ns.sendMessagesAsync(ctx, []notification.Message{msg})
 
 		//then
-		assert.Error(s.T(), err)
-		assert.Nil(s.T(), done)
-		assert.Nil(s.T(), errs)
+		assert.NotEmpty(s.T(), errs)
 	})
 
 	s.T().Run("should send messages async", func(t *testing.T) {
@@ -191,12 +187,10 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msg.MessageID = msgID
 
 		//when
-		done, errs, err := ns.SendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
-		<-done
+		errs := ns.sendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
 
 		//then
-		assert.NoError(s.T(), <-errs)
-		assert.NoError(s.T(), err)
+		assert.Empty(s.T(), errs)
 	})
 
 	s.T().Run("should send message async", func(t *testing.T) {
@@ -209,11 +203,9 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msg.MessageID = msgID
 
 		//when
-		done, errs, err := ns.SendAsync(ctx, msg, testconfig.WithRoundTripper(r.Transport))
-		<-done
+		err := ns.sendMessageAsync(ctx, msg, testconfig.WithRoundTripper(r.Transport))
 
 		//then
-		assert.NoError(s.T(), <-errs)
 		assert.NoError(s.T(), err)
 	})
 }

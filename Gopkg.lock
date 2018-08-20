@@ -119,6 +119,21 @@
   version = "v1.3.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/gojuno/generator"
+  packages = ["."]
+  revision = "487ec858da35ab9b34dea233bb8d91c048645add"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/minimock"
+  packages = [
+    ".",
+    "cmd/minimock"
+  ]
+  revision = "79a6ca66b6ac53161df2dfca6cb70e51fd4be8fc"
+
+[[projects]]
   branch = "travis-1.9"
   name = "github.com/golang/lint"
   packages = [
@@ -421,8 +436,11 @@
   packages = [
     "cover",
     "go/ast/astutil",
+    "go/buildutil",
     "go/gcexportdata",
-    "go/gcimporter15"
+    "go/gcimporter15",
+    "go/loader",
+    "imports"
   ]
   revision = "a888bfdffa4526cc6987572bca9a2c6b7758290f"
 
@@ -457,6 +475,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3bc4f63564f710456d86228707b4f9582222ba5a043a242f26de193f0798c435"
+  inputs-digest = "d72110746ff3b2f10f179264671165d0a23c173ee94cc58e4dd67cf76632afc5"
   solver-name = "gps-cdcl"
   solver-version = 1
