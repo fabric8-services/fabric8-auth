@@ -47,6 +47,14 @@
   version = "v3.9.0"
 
 [[projects]]
+  name = "github.com/dnaeon/go-vcr"
+  packages = [
+    "cassette",
+    "recorder"
+  ]
+  revision = "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+
+[[projects]]
   name = "github.com/fabric8-services/fabric8-notification"
   packages = ["design"]
   revision = "907d3253a9e8ae42f61ce7c931fd920df20ee0ec"
@@ -109,6 +117,21 @@
   ]
   revision = "5646a430cdeb66983d5ace3384e0a667c185abc7"
   version = "v1.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/generator"
+  packages = ["."]
+  revision = "487ec858da35ab9b34dea233bb8d91c048645add"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/minimock"
+  packages = [
+    ".",
+    "cmd/minimock"
+  ]
+  revision = "79a6ca66b6ac53161df2dfca6cb70e51fd4be8fc"
 
 [[projects]]
   branch = "travis-1.9"
@@ -413,8 +436,11 @@
   packages = [
     "cover",
     "go/ast/astutil",
+    "go/buildutil",
     "go/gcexportdata",
-    "go/gcimporter15"
+    "go/gcimporter15",
+    "go/loader",
+    "imports"
   ]
   revision = "a888bfdffa4526cc6987572bca9a2c6b7758290f"
 
@@ -449,6 +475,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f9ae70a421ff438b6fba3b3902de326a3e8b79ec5dd098a849fccbb3a4722b9f"
+  inputs-digest = "d72110746ff3b2f10f179264671165d0a23c173ee94cc58e4dd67cf76632afc5"
   solver-name = "gps-cdcl"
   solver-version = 1
