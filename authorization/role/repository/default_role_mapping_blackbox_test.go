@@ -28,7 +28,7 @@ func (s *defaultRoleMappingBlackBoxTest) SetupTest() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToDelete() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 
 	rt := g.CreateResourceType()
 	rm := rolerepo.DefaultRoleMapping{
@@ -87,7 +87,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestDeleteFailsForNonexistent() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToLoad() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
@@ -113,7 +113,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestLoadFailsForNonexistent() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestExistsDefaultRoleMapping() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
@@ -135,7 +135,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestExistsUnknownDefaultRoleMappingFail
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
@@ -160,7 +160,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := g.CreateDefaultRoleMapping(rt)
 
