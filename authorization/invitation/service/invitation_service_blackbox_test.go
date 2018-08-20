@@ -46,7 +46,7 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 	s.T().Run("should issue invitation by identity id", func(t *testing.T) {
 		// given
-		g := s.NewTestGraph()
+		g := s.NewTestGraph(t)
 
 		// Create a test user - this will be the team admin
 		teamAdmin := g.CreateUser()
@@ -137,7 +137,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 	s.T().Run("should issue invitation for resource", func(t *testing.T) {
 		// given
-		g := s.NewTestGraph()
+		g := s.NewTestGraph(t)
 
 		// Create a test user - this will be the inviter
 		inviter := g.CreateUser()

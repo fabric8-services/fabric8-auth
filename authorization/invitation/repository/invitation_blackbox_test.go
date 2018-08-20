@@ -189,7 +189,7 @@ func (s *invitationBlackBoxTest) TestAddRoleFailsForInvalidRoleID() {
 }
 
 func (s *invitationBlackBoxTest) TestFindByAcceptCode() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	i := g.CreateInvitation()
 
 	// Create a couple more invitations for some noise
@@ -203,7 +203,7 @@ func (s *invitationBlackBoxTest) TestFindByAcceptCode() {
 }
 
 func (s *invitationBlackBoxTest) TestFindByAcceptCodeNotFound() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	i := g.CreateInvitation()
 
 	// Create a couple more invitations for some noise
