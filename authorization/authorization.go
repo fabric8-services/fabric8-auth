@@ -91,13 +91,13 @@ const (
 	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing role assignments in a space
 	ViewRoleAssignmentsInSpaceScope = ViewSpaceScope
 
-	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing organization members
+	// ViewOrganizationMembersScope is the scope required for viewing organization members
 	ViewOrganizationMembersScope = viewOrganizationScope
 
-	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing team members
+	// ViewTeamMembersScope is the scope required for viewing team members
 	ViewTeamMembersScope = viewTeamScope
 
-	// ViewRoleAssignmentsInSpaceScope is the scope required for viewing security group members
+	// ViewSecurityGroupMembersScope is the scope required for viewing security group members
 	ViewSecurityGroupMembersScope = viewSecurityGroupScope
 )
 

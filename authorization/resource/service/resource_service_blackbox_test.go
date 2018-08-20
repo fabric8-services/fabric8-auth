@@ -233,15 +233,15 @@ func (s *resourceServiceBlackBoxTest) TestReadUnknownResourceFails() {
 func (s *resourceServiceBlackBoxTest) TestRoleMappingsCreated() {
 	g := s.NewTestGraph(s.T())
 	// Create a default role mapping for a new resource type
-	id := uuid.NewV4()
-	m := g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID(id.String())))
+	rtID := uuid.NewV4()
+	m := g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID(rtID.String())))
 
+	rtID2 := uuid.NewV4()
 	// Create another default role mapping for a different resource type
-	id2 := uuid.NewV4()
-	g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID(id2.String())))
+	g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID(rtID2.String())))
 
 	// Register a resource with the same resource type as the default role mapping
-	r, err := s.resourceService.Register(s.Ctx, g.ResourceTypeByID(id).ResourceType().Name, nil, nil)
+	r, err := s.resourceService.Register(s.Ctx, g.ResourceTypeByID(rtID).ResourceType().Name, nil, nil)
 	require.NoError(s.T(), err)
 
 	// Find the mappings for the new resource

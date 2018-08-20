@@ -50,6 +50,7 @@ type PermissionService interface {
 type ResourceService interface {
 	Delete(ctx context.Context, resourceID string) error
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
+	CheckExists(ctx context.Context, resourceID string) error
 	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
 }
 

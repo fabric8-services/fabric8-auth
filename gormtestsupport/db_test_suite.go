@@ -35,7 +35,7 @@ type DBTestSuite struct {
 	DB            *gorm.DB
 	Application   application.Application
 	CleanTest     func()
-	cleanSuite    func()
+	CleanSuite    func()
 	Ctx           context.Context
 	Graph         *graph.TestGraph
 }
@@ -64,7 +64,7 @@ func (s *DBTestSuite) SetupSuite() {
 	s.Application = gormapplication.NewGormDB(s.DB, configuration)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
-	s.cleanSuite = cleaner.DeleteCreatedEntities(s.DB)
+	s.CleanSuite = cleaner.DeleteCreatedEntities(s.DB)
 }
 
 // SetupTest implements suite.SetupTest
@@ -95,7 +95,7 @@ func (s *DBTestSuite) TearDownSuite() {
 	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
 	// By default, test data will be removed from the DB after each test
 	if s.Configuration.IsCleanTestDataEnabled() {
-		s.cleanSuite()
+		s.CleanSuite()
 	}
 	s.DB.Close()
 }

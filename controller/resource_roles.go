@@ -3,7 +3,7 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	rolerepository "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -34,7 +34,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	var roles []role.IdentityRole
+	var roles []rolerepository.IdentityRole
 
 	roles, err = c.app.RoleManagementService().ListByResource(ctx, currentIdentity.ID, ctx.ResourceID)
 
@@ -58,7 +58,7 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	var roles []role.IdentityRole
+	var roles []rolerepository.IdentityRole
 
 	roles, err = c.app.RoleManagementService().ListByResourceAndRoleName(ctx, currentIdentity.ID, ctx.ResourceID, ctx.RoleName)
 
@@ -81,7 +81,6 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 
 // AssignRole assigns a specific role for a resource, to one or more identities.
 func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
-
 	currentIdentity, err := login.ContextIdentity(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -117,7 +116,41 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 	return ctx.NoContent()
 }
 
-func convertIdentityRoleToAppRoles(roles []role.IdentityRole) []*app.IdentityRolesData {
+// HasScope checks if the user has the given scope in the requested resource
+func (c *ResourceRolesController) HasScope(ctx *app.HasScopeResourceRolesContext) error {
+	// retrieve the current user's identity from the request token
+	currentIdentity, err := login.ContextIdentity(ctx)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+		}, "error getting identity information from token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
+	}
+	// check that the resource exists
+	if err := c.app.ResourceService().CheckExists(ctx, ctx.ResourceID); err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	//
+	r, err := c.app.PermissionService().HasScope(ctx, *currentIdentity, ctx.ResourceID, ctx.ScopeName)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_id": ctx.ResourceID,
+			"scope_name":  ctx.ScopeName,
+			"err":         err,
+		}, "error checking if the user has the given scope in the requested resource")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+	return ctx.OK(&app.IdentityResourceScope{
+		Data: &app.IdentityResourceScopeData{
+			ScopeName: ctx.ScopeName,
+			HasScope:  r,
+		},
+	})
+}
+
+func convertIdentityRoleToAppRoles(roles []rolerepository.IdentityRole) []*app.IdentityRolesData {
 	var rolesList []*app.IdentityRolesData
 	for _, r := range roles {
 		rolesList = append(rolesList, convertIdentityRoleToAppRole(r))
@@ -125,7 +158,7 @@ func convertIdentityRoleToAppRoles(roles []role.IdentityRole) []*app.IdentityRol
 	return rolesList
 }
 
-func convertIdentityRoleToAppRole(r role.IdentityRole) *app.IdentityRolesData {
+func convertIdentityRoleToAppRole(r rolerepository.IdentityRole) *app.IdentityRolesData {
 	inherited := r.Resource.ParentResourceID != nil
 	rolesData := app.IdentityRolesData{
 		AssigneeID:   r.Identity.ID.String(),

@@ -80,9 +80,9 @@ func (w *spaceWrapper) AddViewer(wrapper interface{}) *spaceWrapper {
 	return w
 }
 
-// AddAdmin assigns the admin role to a user for the space
-func (w *spaceWrapper) AddRole(userOrTeam interface{}, role *roleWrapper) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, userOrTeam), role.Role())
+// AddRole assigns the given role to a user for the space
+func (w *spaceWrapper) AddRole(wrapper interface{}, roleWrapper *roleWrapper) *spaceWrapper {
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), roleWrapper.Role())
 	return w
 }
 
