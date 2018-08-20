@@ -690,7 +690,6 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		require.NoError(t, err)
 		require.Equal(t, space.SpaceID(), resourceID)
 
-
 		roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
 		require.NoError(t, err)
 
