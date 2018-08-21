@@ -404,7 +404,9 @@ Ensure the token hasn't expired by 'inspecting' the JWT and verifying the `exp: 
 This is necessary to verify that the JWT was issued by the Auth service and to ensure that the message wasn't changed along the way. 
 The signature has to be verified against the public key of the corresponding private key used to sign the JWT. 
 
-The list of public keys in use are available at https://auth.openshift.io/api/token/keys?format=pem
+The list of public keys in use are available at https://auth.openshift.io/api/token/keys?format=pem 
+
+https://auth.openshift.io/api/token/keys will return keys in JSON Web Key (JWK) format. There are plenty of libraries which can be used to parse JWK keys
 
 ==== Using the right public key
 
