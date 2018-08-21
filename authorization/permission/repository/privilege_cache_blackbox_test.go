@@ -39,7 +39,7 @@ func (s *privilegeCacheBlackBoxTest) TestOKToDelete() {
 	err = s.repo.Delete(s.Ctx, tr.PrivilegeCache().PrivilegeCacheID)
 	require.NoError(s.T(), err)
 
-	tokens, err = s.repo.ListForToken(s.Ctx, token.TokenID())
+	tokens, err = s.Application.TokenRepository().ListPrivileges(s.Ctx, token.TokenID())
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 0, len(tokens))
 }
