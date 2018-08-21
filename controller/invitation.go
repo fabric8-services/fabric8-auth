@@ -119,14 +119,6 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
 	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
 
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
-	if err != nil {
-		errResponse := err.Error()
-		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
-		ctx.ResponseData.Header().Set("Location", redirectURL)
-		return ctx.TemporaryRedirect()
-	}
-
 	acceptCode, err := uuid.FromString(ctx.AcceptCode)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -139,7 +131,7 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		return ctx.TemporaryRedirect()
 	}
 
-	_, err = c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)
+	_, err = c.app.InvitationService().Accept(ctx, acceptCode)
 
 	if err != nil {
 		errResponse := err.Error()
@@ -150,7 +142,6 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"accepting-user-id": *currentIdentity,
 		"accept-code":       ctx.AcceptCode,
 	}, "invitation accepted")
 

@@ -196,7 +196,7 @@ func (s *invitationBlackBoxTest) TestFindByAcceptCode() {
 	g.CreateInvitation()
 	g.CreateInvitation()
 
-	invitation, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().IdentityID, i.Invitation().AcceptCode)
+	invitation, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().AcceptCode)
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), i.Invitation().InvitationID, invitation.InvitationID)
@@ -204,13 +204,13 @@ func (s *invitationBlackBoxTest) TestFindByAcceptCode() {
 
 func (s *invitationBlackBoxTest) TestFindByAcceptCodeNotFound() {
 	g := s.NewTestGraph(s.T())
-	i := g.CreateInvitation()
+	g.CreateInvitation()
 
 	// Create a couple more invitations for some noise
 	g.CreateInvitation()
 	g.CreateInvitation()
 
-	_, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().IdentityID, uuid.NewV4())
+	_, err := s.repo.FindByAcceptCode(s.Ctx, uuid.NewV4())
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
