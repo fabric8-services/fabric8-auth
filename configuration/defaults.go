@@ -100,7 +100,7 @@ vwIDAQAB
 	defaultOAuthServiceTesUser2Name   = "testuser2"
 	defaultOAuthServiceTesUser2Secret = "testuser2"
 
-	// OAuthService vars to be used in dev mode. Can be overridden by setting up oauth.service.url & oauth.service.realm
+	// OAuthService vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
 	devModeOAuthServiceURL   = "https://sso.prod-preview.openshift.io"
 	devModeOAuthServiceRealm = "fabric8-test"
 	devModeWITURL            = "http://localhost:8080"

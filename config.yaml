@@ -96,14 +96,14 @@ serviceaccount.privatekeyid: 9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs
 # OAuth Service configuration
 # ----------------------------
 
-oauth.service.client.id : fabric8-online-platform
-oauth.service.secret : 7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd
-oauth.service.domain.prefix : sso
-oauth.service.realm : fabric8
-oauth.service.testuser.name : testuser
-oauth.service.testuser.secret : testuser
-oauth.service.testuser2.name : testuser2
-oauth.service.testuser2.secret : testuser2
+keycloak.client.id : fabric8-online-platform
+keycloak.secret : 7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd
+keycloak.domain.prefix : sso
+keycloak.realm : fabric8
+keycloak.testuser.name : testuser
+keycloak.testuser.secret : testuser
+keycloak.testuser2.name : testuser2
+keycloak.testuser2.secret : testuser2
 
-#oauth.service.url : https://sso.prod-preview.openshift.io
+#keycloak.url : https://sso.prod-preview.openshift.io
 #wit.url : https://api.prod-preview.openshift.io

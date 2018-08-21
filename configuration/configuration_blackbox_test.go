@@ -53,13 +53,13 @@ func resetConfiguration() {
 
 func TestGetOAuthServiceEndpointSetByUrlEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	env := os.Getenv("AUTH_OAUTH_SERVICE_URL")
+	env := os.Getenv("AUTH_KEYCLOAK_URL")
 	defer func() {
-		os.Setenv("AUTH_OAUTH_SERVICE_URL", env)
+		os.Setenv("AUTH_KEYCLOAK_URL", env)
 		resetConfiguration()
 	}()
 
-	os.Setenv("AUTH_OAUTH_SERVICE_URL", "http://xyz.io")
+	os.Setenv("AUTH_KEYCLOAK_URL", "http://xyz.io")
 	resetConfiguration()
 
 	url, err := config.GetOAuthServiceEndpointAuth(reqLong)
@@ -87,7 +87,7 @@ func TestGetOAuthServiceEndpointAdminDevModeOK(t *testing.T) {
 
 func TestGetOAuthServiceEndpointAdminSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_OAUTH_SERVICE_ENDPOINT_ADMIN", config.GetOAuthServiceEndpointAdmin)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ADMIN", config.GetOAuthServiceEndpointAdmin)
 }
 
 func TestGetOAuthServiceEndpointAuthDevModeOK(t *testing.T) {
@@ -98,7 +98,7 @@ func TestGetOAuthServiceEndpointAuthDevModeOK(t *testing.T) {
 
 func TestGetOAuthServiceEndpointAuthSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_OAUTH_SERVICE_ENDPOINT_AUTH", config.GetOAuthServiceEndpointAuth)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_AUTH", config.GetOAuthServiceEndpointAuth)
 }
 
 func TestGetOAuthServiceEndpointLogoutDevModeOK(t *testing.T) {
@@ -109,7 +109,7 @@ func TestGetOAuthServiceEndpointLogoutDevModeOK(t *testing.T) {
 
 func TestGetOAuthServiceEndpointLogoutSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_OAUTH_SERVICE_ENDPOINT_LOGOUT", config.GetOAuthServiceEndpointLogout)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_LOGOUT", config.GetOAuthServiceEndpointLogout)
 }
 
 func TestGetOAuthServiceEndpointTokenOK(t *testing.T) {
@@ -120,7 +120,7 @@ func TestGetOAuthServiceEndpointTokenOK(t *testing.T) {
 
 func TestGetOAuthServiceEndpointTokenSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_OAUTH_SERVICE_ENDPOINT_TOKEN", config.GetOAuthServiceEndpointToken)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_TOKEN", config.GetOAuthServiceEndpointToken)
 }
 
 func TestGetOAuthServiceEndpointUserInfoOK(t *testing.T) {
@@ -154,7 +154,7 @@ func TestGetOAuthServiceEndpointUsersOK(t *testing.T) {
 
 func TestGetOAuthServiceEndpointUserInfoSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_OAUTH_SERVICE_ENDPOINT_USERINFO", config.GetOAuthServiceEndpointUserInfo)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_USERINFO", config.GetOAuthServiceEndpointUserInfo)
 }
 
 func TestGetOAuthServiceEndpointBrokerOK(t *testing.T) {
@@ -165,7 +165,7 @@ func TestGetOAuthServiceEndpointBrokerOK(t *testing.T) {
 
 func TestGetOAuthServiceEndpointBrokerSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_OAUTH_SERVICE_ENDPOINT_BROKER", config.GetOAuthServiceEndpointBroker)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_BROKER", config.GetOAuthServiceEndpointBroker)
 }
 
 func TestGetOAuthServiceUserInfoEndpointOK(t *testing.T) {
@@ -176,7 +176,7 @@ func TestGetOAuthServiceUserInfoEndpointOK(t *testing.T) {
 
 func TestGetOAuthServiceUserInfoEndpointOKrSetByEnvVariableOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
-	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_OAUTH_SERVICE_ENDPOINT_ACCOUNT", config.GetOAuthServiceAccountEndpoint)
+	checkGetOAuthServiceEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ACCOUNT", config.GetOAuthServiceAccountEndpoint)
 }
 
 func TestGetWITURLNotDevModeOK(t *testing.T) {
