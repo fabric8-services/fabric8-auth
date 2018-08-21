@@ -65,5 +65,6 @@ func (w *resourceTypeWrapper) AddScope(scope string) {
 		ResourceTypeID: w.resourceType.ResourceTypeID,
 		Name:           scope,
 	}
-	w.graph.app.ResourceTypeScopeRepository().Create(w.graph.ctx, rts)
+	err := w.graph.app.ResourceTypeScopeRepository().Create(w.graph.ctx, rts)
+	require.NoError(w.graph.t, err)
 }

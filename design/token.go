@@ -196,7 +196,7 @@ var _ = a.Resource("token", func() {
 	a.Action("audit", func() {
 		a.Routing(
 			a.POST("/audit"),
-			)
+		)
 		a.Params(func() {
 			a.Param("resource_id", d.String, "Resource ID of a resource on which the user wishes to perform an operation")
 		})
