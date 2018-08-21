@@ -22,6 +22,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+const InvitationAcceptEndPoint = "/api/invitations/accept/"
+
 type InvitationConfiguration interface {
 	GetAuthServiceURL() string
 	IsPostgresDeveloperModeEnabled() bool
@@ -253,7 +255,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept/%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s%s", s.config.GetAuthServiceURL(), InvitationAcceptEndPoint, n.invitation.AcceptCode.String())
 
 		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.ID.String(),
 			teamName,
@@ -278,7 +280,7 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept/%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s%s", s.config.GetAuthServiceURL(), InvitationAcceptEndPoint, n.invitation.AcceptCode.String())
 
 		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.ID.String(),
 			spaceName,
