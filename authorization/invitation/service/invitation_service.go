@@ -3,26 +3,24 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
-
-	"strings"
-
-	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/base"
-	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
+
 	"github.com/satori/go.uuid"
 )
-
-const InvitationAcceptEndPoint = "/api/invitations/accept/"
 
 type InvitationConfiguration interface {
 	GetAuthServiceURL() string
@@ -255,7 +253,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s%s%s", s.config.GetAuthServiceURL(), InvitationAcceptEndPoint, n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s", s.config.GetAuthServiceURL(), client.AcceptInviteInvitationPath(n.invitation.AcceptCode.String()))
 
 		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.ID.String(),
 			teamName,
@@ -280,7 +278,7 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s%s%s", s.config.GetAuthServiceURL(), InvitationAcceptEndPoint, n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s", s.config.GetAuthServiceURL(), client.AcceptInviteInvitationPath(n.invitation.AcceptCode.String()))
 
 		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.ID.String(),
 			spaceName,
