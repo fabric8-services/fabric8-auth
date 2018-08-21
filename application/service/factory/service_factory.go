@@ -123,9 +123,10 @@ func (s *serviceContextImpl) endTransaction() {
 type ServiceContextProducer func() context.ServiceContext
 
 type ServiceFactory struct {
-	contextProducer ServiceContextProducer
-	config          *configuration.ConfigurationData
-	witServiceFunc  func() service.WITService // the function to call when `WITService()` is called on this factory
+	contextProducer         ServiceContextProducer
+	config                  *configuration.ConfigurationData
+	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
+	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
 }
 
 // Option an option to configure the Service Factory
@@ -138,11 +139,24 @@ func WithWITService(s service.WITService) Option {
 		}
 	}
 }
+
+func WithNotificationService(s service.NotificationService) Option {
+	return func(f *ServiceFactory) {
+		f.notificationServiceFunc = func() service.NotificationService {
+			return s
+		}
+	}
+}
+
 func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
 	f.witServiceFunc = func() service.WITService {
 		return witservice.NewWITService(f.getContext(), f.config)
+	}
+	// default function to return an instance of Notification Service
+	f.notificationServiceFunc = func() service.NotificationService {
+		return notificationservice.NewNotificationService(f.getContext(), f.config)
 	}
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
 	// and options
@@ -189,7 +203,7 @@ func (f *ServiceFactory) UserService() service.UserService {
 }
 
 func (f *ServiceFactory) NotificationService() service.NotificationService {
-	return notificationservice.NewNotificationService(f.getContext(), f.config)
+	return f.notificationServiceFunc()
 }
 
 func (f *ServiceFactory) WITService() service.WITService {

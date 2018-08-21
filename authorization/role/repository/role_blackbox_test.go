@@ -84,8 +84,8 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 	t.Run("role exists", func(t *testing.T) {
 		//t.Parallel()
 		role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), role)
+		require.NoError(t, err)
+		require.NotNil(t, role)
 		// when
 		err = s.repo.CheckExists(s.Ctx, role.RoleID.String())
 		// then
@@ -97,7 +97,7 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 		// Check not existing
 		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
 		// then
-		require.IsType(s.T(), errors.NotFoundError{}, err)
+		require.IsType(t, errors.NotFoundError{}, err)
 	})
 }
 
