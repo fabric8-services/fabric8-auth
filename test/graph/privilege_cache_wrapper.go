@@ -1,7 +1,7 @@
 package graph
 
 import (
-	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"strings"
@@ -10,13 +10,13 @@ import (
 // privilegeCacheWrapper represents cached user privileges calculated for a resource
 type privilegeCacheWrapper struct {
 	baseWrapper
-	privilegeCache *tokenRepo.PrivilegeCache
+	privilegeCache *permission.PrivilegeCache
 }
 
 func newPrivilegeCacheWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := privilegeCacheWrapper{baseWrapper: baseWrapper{g}}
 
-	w.privilegeCache = &tokenRepo.PrivilegeCache{}
+	w.privilegeCache = &permission.PrivilegeCache{}
 
 	var identityID uuid.NullUUID = uuid.NullUUID{}
 	var resourceID string
@@ -57,6 +57,6 @@ func newPrivilegeCacheWrapper(g *TestGraph, params []interface{}) interface{} {
 	return &w
 }
 
-func (w *privilegeCacheWrapper) PrivilegeCache() *tokenRepo.PrivilegeCache {
+func (w *privilegeCacheWrapper) PrivilegeCache() *permission.PrivilegeCache {
 	return w.privilegeCache
 }

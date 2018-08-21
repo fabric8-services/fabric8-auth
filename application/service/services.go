@@ -46,6 +46,9 @@ type OrganizationService interface {
 type PermissionService interface {
 	HasScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) (bool, error)
 	RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error
+}
+
+type PrivilegeCacheService interface {
 	ScopesForResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error)
 }
 
@@ -103,6 +106,7 @@ type Services interface {
 	NotificationService() NotificationService
 	OrganizationService() OrganizationService
 	PermissionService() PermissionService
+	PrivilegeCacheService() PrivilegeCacheService
 	ResourceService() ResourceService
 	RoleManagementService() RoleManagementService
 	SpaceService() SpaceService

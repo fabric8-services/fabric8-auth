@@ -183,6 +183,10 @@ func (f *ServiceFactory) PermissionService() service.PermissionService {
 	return permissionservice.NewPermissionService(f.getContext())
 }
 
+func (f *ServiceFactory) PrivilegeCacheService() service.PrivilegeCacheService {
+	return permissionservice.NewPrivilegeCacheService(f.getContext())
+}
+
 func (f *ServiceFactory) ResourceService() service.ResourceService {
 	return resourceservice.NewResourceService(f.getContext())
 }

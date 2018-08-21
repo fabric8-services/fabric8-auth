@@ -59,7 +59,7 @@ type PrivilegeCacheRepository interface {
 	Create(ctx context.Context, cache *PrivilegeCache) error
 	Save(ctx context.Context, cache *PrivilegeCache) error
 	Delete(ctx context.Context, privilegeCacheID uuid.UUID) error
-	ListForToken(ctx context.Context, tokenID uuid.UUID) ([]PrivilegeCache, error)
+	FindForIdentityResource(ctx context.Context, identityID uuid.UUID, resourceID string) (*PrivilegeCache, error)
 }
 
 // CheckExists returns true if the given ID exists otherwise returns an error
@@ -180,15 +180,14 @@ func (m *GormPrivilegeCacheRepository) Delete(ctx context.Context, privilegeCach
 	return nil
 }
 
-func (m *GormPrivilegeCacheRepository) ListForToken(ctx context.Context, tokenID uuid.UUID) ([]PrivilegeCache, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "privilege_cache", "ListForToken"}, time.Now())
-	var rows []PrivilegeCache
+func (m *GormPrivilegeCacheRepository) FindForIdentityResource(ctx context.Context, identityID uuid.UUID, resourceID string) (*PrivilegeCache, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "privilege_cache", "FindForIdentityResource"}, time.Now())
 
-	err := m.db.Table(m.TableName()).Where("deleted_at IS NULL AND privilege_cache_id IN (SELECT tp.privilege_cache_id FROM token_privilege tp WHERE tp.token_id = ?)",
-		tokenID).Scan(&rows).Error
-
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(err)
+	var native PrivilegeCache
+	err := m.db.Table(m.TableName()).Where("identity_id = ? AND resource_id = ?", identityID, resourceID).Find(&native).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(errors.NewNotFoundError(m.TableName(), fmt.Sprintf("identity_id:%s,resource_id:%s", identityID.String(), resourceID)))
 	}
-	return rows, nil
+
+	return &native, errs.WithStack(err)
 }

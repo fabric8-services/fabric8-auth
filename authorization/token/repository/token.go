@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
@@ -75,6 +76,7 @@ type TokenRepository interface {
 	Save(ctx context.Context, token *Token) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	ListForIdentity(ctx context.Context, id uuid.UUID) ([]Token, error)
+	ListPrivileges(ctx context.Context, tokenID uuid.UUID) ([]permission.PrivilegeCache, error)
 }
 
 // CRUD Functions
@@ -205,6 +207,20 @@ func (m *GormTokenRepository) ListForIdentity(ctx context.Context, identityID uu
 	var rows []Token
 
 	err := m.db.Model(&Token{}).Where("identity_id = ?", identityID).Find(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	return rows, nil
+}
+
+
+func (m *GormTokenRepository) ListPrivileges(ctx context.Context, tokenID uuid.UUID) ([]permission.PrivilegeCache, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "token", "ListPrivileges"}, time.Now())
+	var rows []permission.PrivilegeCache
+
+	err := m.db.Table("privilege_cache").Where("deleted_at IS NULL AND privilege_cache_id IN (SELECT tp.privilege_cache_id FROM token_privilege tp WHERE tp.token_id = ?)",
+		tokenID).Scan(&rows).Error
+
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

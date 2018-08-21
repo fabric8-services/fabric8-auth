@@ -21,11 +21,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestIdentityRoleRepository(t *testing.T) {
-	suite.Run(t, &IdentityRoleRepositoryTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
-}
-
-type IdentityRoleRepositoryTestSuite struct {
+type identityRoleBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	repo                  role.IdentityRoleRepository
 	identityRepo          account.IdentityRepository
@@ -35,7 +31,11 @@ type IdentityRoleRepositoryTestSuite struct {
 	roleRepo              role.RoleRepository
 }
 
-func (s *IdentityRoleRepositoryTestSuite) SetupTest() {
+func TestRunIdentityRoleBlackBoxTest(t *testing.T) {
+	suite.Run(t, &identityRoleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+}
+
+func (s *identityRoleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = role.NewIdentityRoleRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
@@ -44,7 +44,7 @@ func (s *IdentityRoleRepositoryTestSuite) SetupTest() {
 	s.roleRepo = role.NewRoleRepository(s.DB)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestOKToDelete() {
+func (s *identityRoleBlackBoxTest) TestOKToDelete() {
 	// create 2 identity roles, where the first one would be deleted.
 	identityRole := createAndLoadIdentityRole(s)
 	createAndLoadIdentityRole(s)
@@ -64,7 +64,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestOKToDelete() {
 	}
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestDeleteUnknownFails() {
+func (s *identityRoleBlackBoxTest) TestDeleteUnknownFails() {
 	identityRoleID := uuid.NewV4()
 
 	err := s.repo.Delete(s.Ctx, identityRoleID)
@@ -72,24 +72,22 @@ func (s *IdentityRoleRepositoryTestSuite) TestDeleteUnknownFails() {
 	assert.Equal(s.T(), fmt.Sprintf("identity_role with id '%s' not found", identityRoleID), err.Error())
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestOKToDeleteForResource() {
-	g := s.NewTestGraph(s.T())
-
+func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
 	// Test space
-	space := g.CreateSpace()
+	space := s.Graph.CreateSpace()
 	// One viewer in the space
-	space.AddViewer(g.CreateUser())
+	space.AddViewer(s.Graph.CreateUser())
 	// And 5 admins&contributors
 	for i := 0; i < 5; i++ {
-		u := g.CreateUser()
+		u := s.Graph.CreateUser()
 		space.AddAdmin(u)
 		space.AddContributor(u)
 	}
 
 	// Another space which we won't delete
-	spaceX := g.CreateSpace()
+	spaceX := s.Graph.CreateSpace()
 	for i := 0; i < 5; i++ {
-		spaceX.AddAdmin(g.CreateUser())
+		spaceX.AddAdmin(s.Graph.CreateUser())
 	}
 
 	// Check all expected identity roles are present
@@ -116,7 +114,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestOKToDeleteForResource() {
 	assert.Len(s.T(), idRoles, 5)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestDeleteForIdentityAndResourceOK() {
+func (s *identityRoleBlackBoxTest) TestDeleteForIdentityAndResourceOK() {
 	// Test space
 	space := s.Graph.CreateSpace()
 	// One viewer/contributor in the space to stay
@@ -162,14 +160,13 @@ func (s *IdentityRoleRepositoryTestSuite) TestDeleteForIdentityAndResourceOK() {
 	assert.Len(s.T(), idRoles, 10)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestOKToDeleteForUnknownResource() {
+func (s *identityRoleBlackBoxTest) TestOKToDeleteForUnknownResource() {
 	err := s.repo.DeleteForResource(s.Ctx, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestDeleteForUnknownIdentityAndResourceFails() {
-	g := s.NewTestGraph(s.T())
-	space := g.CreateSpace()
+func (s *identityRoleBlackBoxTest) TestDeleteForUnknownIdentityAndResourceFails() {
+	space := s.Graph.CreateSpace()
 	//space.AddViewer(g.CreateUser())
 
 	// Unknown user
@@ -179,7 +176,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestDeleteForUnknownIdentityAndResourc
 
 	// Unknown resource
 	unknownResourceID := uuid.NewV4().String()
-	identityID := g.CreateUser().Identity().ID
+	identityID := s.Graph.CreateUser().Identity().ID
 	err = s.repo.DeleteForIdentityAndResource(s.Ctx, unknownResourceID, identityID)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", unknownResourceID, identityID)
 
@@ -188,11 +185,11 @@ func (s *IdentityRoleRepositoryTestSuite) TestDeleteForUnknownIdentityAndResourc
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", space.SpaceID(), identityID)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestOKToLoad() {
+func (s *identityRoleBlackBoxTest) TestOKToLoad() {
 	createAndLoadIdentityRole(s)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestExistsRole() {
+func (s *identityRoleBlackBoxTest) TestExistsRole() {
 	t := s.T()
 
 	t.Run("identity role exists", func(t *testing.T) {
@@ -211,13 +208,13 @@ func (s *IdentityRoleRepositoryTestSuite) TestExistsRole() {
 	})
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestExistsUnknownIdentityRoleFails() {
+func (s *identityRoleBlackBoxTest) TestExistsUnknownIdentityRoleFails() {
 	id := uuid.NewV4().String()
 	err := s.repo.CheckExists(s.Ctx, id)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with id '%s' not found", id)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestFindPermissions() {
+func (s *identityRoleBlackBoxTest) TestFindPermissions() {
 	// Create a new resource type
 	resourceType, err := testsupport.CreateTestResourceType(s.Ctx, s.DB, "identity_role_test/test_resource_type")
 	require.NoError(s.T(), err)
@@ -266,7 +263,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestFindPermissions() {
 	require.Len(s.T(), identityRoles, 0)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesForIdentity() {
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesForIdentity() {
 	identityRole := createAndLoadIdentityRole(s)
 	createAndLoadIdentityRole(s)
 
@@ -279,7 +276,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesForIdentity() {
 	require.Equal(s.T(), identityRole.Role.Name, associations[0].Roles[0])
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResourceAndRoleName() {
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleName() {
 	orgAdmin := s.Graph.CreateUser()
 	org := s.Graph.CreateOrganization(orgAdmin)
 
@@ -311,7 +308,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResourceAndRole
 	validateAssignee(s.T(), []uuid.UUID{spaceAdmin.IdentityID()}, space.SpaceID(), identityRoles)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResourceAndRoleNameOrder() {
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceAndRoleNameOrder() {
 	org := s.Graph.CreateOrganization(s.Graph.CreateUser())
 	space := s.Graph.CreateSpace(org)
 	for i := 0; i < 10; i++ {
@@ -341,7 +338,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResourceAndRole
 	}
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResourceOrder() {
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResourceOrder() {
 	org := s.Graph.CreateOrganization(s.Graph.CreateUser())
 	space := s.Graph.CreateSpace(org)
 	for i := 0; i < 10; i++ {
@@ -370,7 +367,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResourceOrder()
 	}
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResource() {
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
 	orgAdmin := s.Graph.CreateUser()
 	org := s.Graph.CreateOrganization(orgAdmin)
 
@@ -401,22 +398,21 @@ func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByResource() {
 	validateAssignee(s.T(), []uuid.UUID{orgAdmin.IdentityID()}, org.ResourceID(), identityRoles)
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByIdentityAndResource() {
-	g := s.DBTestSuite.NewTestGraph(s.T())
-	newSpace := g.CreateSpace()
+func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() {
+	newSpace := s.Graph.CreateSpace()
 
 	var createdIdentities []uuid.UUID
 
 	for i := 0; i <= 10; i++ {
-		user := g.CreateUser()
+		user := s.Graph.CreateUser()
 		newSpace.AddAdmin(user)
 		createdIdentities = append(createdIdentities, user.Identity().ID)
 	}
 
 	// noise
 	for i := 0; i <= 10; i++ {
-		g.CreateSpace().AddAdmin(g.CreateUser())
-		newSpace.AddContributor(g.CreateUser())
+		s.Graph.CreateSpace().AddAdmin(s.Graph.CreateUser())
+		newSpace.AddContributor(s.Graph.CreateUser())
 	}
 
 	for _, i := range createdIdentities {
@@ -428,9 +424,8 @@ func (s *IdentityRoleRepositoryTestSuite) TestFindIdentityRolesByIdentityAndReso
 	}
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityRolesUnknownIdentity() {
-	g := s.DBTestSuite.NewTestGraph(s.T())
-	newSpace := g.CreateSpace()
+func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
+	newSpace := s.Graph.CreateSpace()
 
 	knownRoleID := getKnownRoleIDForSpace(s)
 
@@ -444,10 +439,9 @@ func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityRolesUnknownIdentity
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityRolesUnknownRole() {
-	g := s.DBTestSuite.NewTestGraph(s.T())
-	newSpace := g.CreateSpace()
-	existingUser := g.CreateUser()
+func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
+	newSpace := s.Graph.CreateSpace()
+	existingUser := s.Graph.CreateUser()
 
 	ir := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
@@ -459,10 +453,8 @@ func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityRolesUnknownRole() {
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityRolesUnknownResource() {
-	g := s.DBTestSuite.NewTestGraph(s.T())
-
-	existingUser := g.CreateUser()
+func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
+	existingUser := s.Graph.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)
 
 	ir := role.IdentityRole{
@@ -475,12 +467,10 @@ func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityRolesUnknownResource
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
-func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityExistingAssignmentFails() {
-	g := s.DBTestSuite.NewTestGraph(s.T())
-
-	existingUser := g.CreateUser()
+func (s *identityRoleBlackBoxTest) TestCreateIdentityExistingAssignmentFails() {
+	existingUser := s.Graph.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)
-	newSpace := g.CreateSpace()
+	newSpace := s.Graph.CreateSpace()
 
 	ir := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
@@ -496,7 +486,7 @@ func (s *IdentityRoleRepositoryTestSuite) TestCreateIdentityExistingAssignmentFa
 	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
 }
 
-func getKnownRoleIDForSpace(s *IdentityRoleRepositoryTestSuite) uuid.UUID {
+func getKnownRoleIDForSpace(s *identityRoleBlackBoxTest) uuid.UUID {
 	roles, err := s.roleRepo.FindRolesByResourceType(context.Background(), authorization.ResourceTypeSpace)
 	require.Nil(s.T(), err)
 	require.Len(s.T(), roles, 3)
@@ -506,7 +496,7 @@ func getKnownRoleIDForSpace(s *IdentityRoleRepositoryTestSuite) uuid.UUID {
 	return knownRoleID
 }
 
-func createAndLoadIdentityRole(s *IdentityRoleRepositoryTestSuite) *role.IdentityRole {
+func createAndLoadIdentityRole(s *identityRoleBlackBoxTest) *role.IdentityRole {
 	ir, err := testsupport.CreateRandomIdentityRole(s.Ctx, s.DB)
 	require.NoError(s.T(), err)
 	return ir

@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -138,8 +139,8 @@ func (g *GormBase) TokenRepository() token.TokenRepository {
 	return token.NewTokenRepository(g.db)
 }
 
-func (g *GormBase) PrivilegeCacheRepository() token.PrivilegeCacheRepository {
-	return token.NewPrivilegeCacheRepository(g.db)
+func (g *GormBase) PrivilegeCacheRepository() permission.PrivilegeCacheRepository {
+	return permission.NewPrivilegeCacheRepository(g.db)
 }
 
 func (g *GormDB) InvitationService() service.InvitationService {
@@ -152,6 +153,10 @@ func (g *GormDB) OrganizationService() service.OrganizationService {
 
 func (g *GormDB) PermissionService() service.PermissionService {
 	return g.serviceFactory.PermissionService()
+}
+
+func (g *GormDB) PrivilegeCacheService() service.PrivilegeCacheService {
+	return g.serviceFactory.PrivilegeCacheService()
 }
 
 func (g *GormDB) RoleManagementService() service.RoleManagementService {

@@ -3,7 +3,7 @@ package repository_test
 import (
 	"testing"
 
-	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/satori/go.uuid"
@@ -13,7 +13,7 @@ import (
 
 type privilegeCacheBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo tokenRepo.PrivilegeCacheRepository
+	repo permission.PrivilegeCacheRepository
 }
 
 func TestRunPrivilegeCacheBlackBoxTest(t *testing.T) {
@@ -23,7 +23,7 @@ func TestRunPrivilegeCacheBlackBoxTest(t *testing.T) {
 func (s *privilegeCacheBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.DB.LogMode(true)
-	s.repo = tokenRepo.NewPrivilegeCacheRepository(s.DB)
+	s.repo = permission.NewPrivilegeCacheRepository(s.DB)
 }
 
 func (s *privilegeCacheBlackBoxTest) TestOKToDelete() {
@@ -32,7 +32,7 @@ func (s *privilegeCacheBlackBoxTest) TestOKToDelete() {
 	tr := s.Graph.CreatePrivilegeCache(token)
 	token.AddPrivilege(tr)
 
-	tokens, err := s.repo.ListForToken(s.Ctx, token.TokenID())
+	tokens, err := s.Application.TokenRepository().ListPrivileges(s.Ctx, token.TokenID())
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 1, len(tokens))
 

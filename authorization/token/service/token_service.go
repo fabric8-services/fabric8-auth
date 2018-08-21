@@ -5,8 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
-	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
-	"github.com/fabric8-services/fabric8-auth/token"
+		"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
@@ -106,19 +105,21 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		// If the token is stale, we can re-evaluate its privileges to determine whether they have changed
 		if token.HasStatus(tokenPkg.TOKEN_STATUS_STALE) {
 			// Query for all of the token's privileges
-			privileges, err := s.Repositories().PrivilegeCacheRepository().ListForToken(ctx, tokenID)
+			privileges, err := s.Repositories().TokenRepository().ListPrivileges(ctx, tokenID)
 			if err != nil {
 				return "", errors.NewInternalError(ctx, err)
 			}
 
 			// First we recalculate any stale privileges
-			for i, priv := range privileges {
+			for _, priv := range privileges {
 				if priv.Stale {
-					p, err := s.recalculatePrivileges(ctx, priv)
+					/*scopes*/_, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, priv.IdentityID, priv.ResourceID)
 					if err != nil {
 						return "", errors.NewInternalError(ctx, err)
 					}
-					privileges[i] = *p
+
+					// Compare the returned scopes with those in the token
+
 				}
 			}
 
@@ -137,8 +138,4 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 func (s *tokenServiceImpl) generateNewToken(ctx context.Context, identityID uuid.UUID, resourceID string) (*jwt.Token, error) {
 	return nil, nil
 
-}
-
-func (s *tokenServiceImpl) recalculatePrivileges(ctx context.Context, privilege tokenRepo.PrivilegeCache) (*tokenRepo.PrivilegeCache, error) {
-	return nil, nil
 }
