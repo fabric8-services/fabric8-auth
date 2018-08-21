@@ -363,17 +363,48 @@ As a result, you will get a JSON with an access token which you can use in your 
 
 == Token validation
 
+=== The JWT contents
+
+The token is likely to contain the following claims.
+
+[source]
+ "acr": "0",
+  "allowed-origins": [
+    "https://auth.openshift.io",
+    "https://openshift.io"
+  ],
+  "approved": true,
+  "aud": "fabric8-online-platform",
+  "auth_time": 1534868165,
+  "azp": "fabric8-online-platform",
+  "email": "myusername@gmail.com",
+  "email_verified": false,
+  "exp": 1537460165,
+  "family_name": "Bose",
+  "given_name": "Shoubhik",
+  "iat": 1534868165,
+  "iss": "https://sso.openshift.io/auth/realms/fabric8",
+  "jti": "4ea61a85-f607-4491-b973-ef6314ae4c23",
+  "name": "Shoubhik Bose",
+  "preferred_username": "myusername",
+  "sub": "3383826c-51e4-401b-9ccd-b898f7e2397d",
+  "typ": "Bearer"
+}
+
+
+`sub` is the identity ID of the user.
+
+`jti` is the unique token identifier.
+
+
 === Expiry
-Ensure the token hasn't expired by 'inspecting' the JWT and verifying the`"exp": 1537460165` claim.
+Ensure the token hasn't expired by 'inspecting' the JWT and verifying the `exp: 1537460165` claim.
 
 === Verify the signature
-This is necessary to verify that the sender of the JWT is who it says it is and to ensure that the message wasn't changed along the way.
+This is necessary to verify that the JWT was issued by the Auth service and to ensure that the message wasn't changed along the way. 
+The signature has to be verified against the public key of the corresponding private key used to sign the JWT. 
 
-===== Public keys endpoint
-The signature has to be verified against the public key of the corresponding private key used to sign the JWT. The list of public keys in use are available at https://auth.openshift.io/api/token/keys?format=pem
-
-====== Golang
-Import `github.com/fabric8-services/fabric8-auth/token/jwk` to make use of `FetchKeys(endpointURL)` from https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go
+The list of public keys in use are available at https://auth.openshift.io/api/token/keys?format=pem
 
 ==== Using the right public key
 
@@ -395,5 +426,7 @@ Alternatively, you could choose the public key which has a "kid" which matches t
   ]
 }
 
+=== Usage
 
-
+==== Golang
+Import `github.com/fabric8-services/fabric8-auth/token/jwk` to make use of `FetchKeys(endpointURL)` from https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go
