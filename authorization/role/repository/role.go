@@ -363,7 +363,7 @@ func (m *GormRoleRepository) FindRolesByResourceTypeAndIdentity(ctx context.Cont
         	AND ir.deleted_at IS NULL
 		GROUP BY 
 		  	role.role_id, role.name, res.resource_id
-		/* list the roles on resources of the given type when the user has a role inherited by an ancestor resource via default role mapping */
+		/* list the roles on resources of the given type when the user has a role inherited from an ancestor resource via default role mapping */
 		UNION
 		SELECT inherited_role.role_id, inherited_role.name role_name, inherited_res.resource_id, array_to_string(array_agg(rts.NAME), ',') scopes
 		FROM identity_role ir

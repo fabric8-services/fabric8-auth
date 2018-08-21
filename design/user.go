@@ -35,7 +35,6 @@ var _ = a.Resource("user", func() {
 			a.Required("type")
 		})
 		a.Description("List resources of a given type with a role for the current user")
-		// a.UseTrait("conditional")
 		a.Response(d.OK, showUserResources)
 		a.Response(d.NotModified)
 		a.Response(d.BadRequest, JSONAPIErrors)
