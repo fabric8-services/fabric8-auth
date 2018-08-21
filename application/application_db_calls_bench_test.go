@@ -58,7 +58,7 @@ func (s *BenchDbOperations) SetupSuite() {
 }
 
 func (s *BenchDbOperations) SetupBenchmark() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
+	s.Clean = cleaner.DeleteCreatedEntities(s.DB)
 	s.repo = account.NewIdentityRepository(s.DB)
 	s.appDB = gormapplication.NewGormDB(s.DB)
 
@@ -74,7 +74,7 @@ func (s *BenchDbOperations) SetupBenchmark() {
 }
 
 func (s *BenchDbOperations) TearDownBenchmark() {
-	s.clean()
+	s.Clean()
 }
 
 func (s *BenchDbOperations) BenchmarkPqSelectOneQuery() {

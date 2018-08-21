@@ -12,6 +12,7 @@ import (
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
 
+	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
 )
@@ -34,7 +35,7 @@ type InvitationService interface {
 	// Rescind revokes an invitation for a user.
 	Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error
 	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
-	Accept(ctx context.Context, currentIdentityID uuid.UUID, token uuid.UUID) (string, error)
+	Accept(ctx context.Context, token uuid.UUID) (string, error)
 }
 
 type OrganizationService interface {
@@ -50,6 +51,7 @@ type PermissionService interface {
 type ResourceService interface {
 	Delete(ctx context.Context, resourceID string) error
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
+	CheckExists(ctx context.Context, resourceID string) error
 	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
 }
 
@@ -60,6 +62,7 @@ type RoleManagementService interface {
 	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 	ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error
 	RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error
+	ListAvailableRolesByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]role.ResourceRoleDescriptor, error)
 }
 
 type TeamService interface {
@@ -79,8 +82,8 @@ type UserService interface {
 }
 
 type NotificationService interface {
-	SendAsync(ctx context.Context, msg notification.Message) error
-	SendMessagesAsync(ctx context.Context, messages []notification.Message) error
+	SendMessageAsync(ctx context.Context, msg notification.Message, options ...configuration.HTTPClientOption) (chan error, error)
+	SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...configuration.HTTPClientOption) (chan error, error)
 }
 
 type WITService interface {

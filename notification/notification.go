@@ -26,12 +26,12 @@ func (m Message) String() string {
 
 // NewUserEmailUpdated is a helper constructor which returns a Message with contents of the notification
 // that would be sent out.
-func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
+func NewUserEmailUpdated(identityID string, custom map[string]interface{}) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
 		MessageType: "user.email.update",
-		TargetID:    userID,
-		UserID:      &userID, // in future if service accounts are allowed to update, this will be handy.
+		TargetID:    identityID,
+		UserID:      &identityID, // in future if service accounts are allowed to update, this will be handy.
 		Custom:      custom,
 	}
 }
@@ -44,12 +44,12 @@ func NewUserEmailUpdated(userID string, custom map[string]interface{}) Message {
 // inviter - the name of the user sending the invitation
 // spaceName - the name of the space to which the team belongs
 // acceptToken - the unique acceptance token value
-func NewTeamInvitationEmail(userID string, teamName string, inviterName string, spaceName string, acceptURL string) Message {
+func NewTeamInvitationEmail(identityID string, teamName string, inviterName string, spaceName string, acceptURL string) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
 		MessageType: "invitation.team.noorg",
-		TargetID:    "",
-		UserID:      &userID,
+		TargetID:    identityID,
+		UserID:      &identityID,
 		Custom: map[string]interface{}{
 			"teamName":  teamName,
 			"inviter":   inviterName,
@@ -67,12 +67,12 @@ func NewTeamInvitationEmail(userID string, teamName string, inviterName string, 
 // inviter - the name of the user sending the invitation
 // roleNames - a comma-separated list of role names
 // acceptToken - the unique acceptance token value
-func NewSpaceInvitationEmail(userID string, spaceName string, inviterName string, roleNames string, acceptURL string) Message {
+func NewSpaceInvitationEmail(identityID string, spaceName string, inviterName string, roleNames string, acceptURL string) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
 		MessageType: "invitation.space.noorg",
-		TargetID:    "",
-		UserID:      &userID,
+		TargetID:    identityID,
+		UserID:      &identityID,
 		Custom: map[string]interface{}{
 			"spaceName": spaceName,
 			"inviter":   inviterName,

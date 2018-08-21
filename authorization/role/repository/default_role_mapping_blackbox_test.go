@@ -9,6 +9,7 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,7 +19,7 @@ type defaultRoleMappingBlackBoxTest struct {
 	repo rolerepo.DefaultRoleMappingRepository
 }
 
-func TestRunDefaultRoleMappingBlackBoxTest(t *testing.T) {
+func TestDefaultRoleMappingRepository(t *testing.T) {
 	suite.Run(t, &defaultRoleMappingBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
@@ -28,7 +29,7 @@ func (s *defaultRoleMappingBlackBoxTest) SetupTest() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToDelete() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 
 	rt := g.CreateResourceType()
 	rm := rolerepo.DefaultRoleMapping{
@@ -87,7 +88,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestDeleteFailsForNonexistent() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToLoad() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
@@ -113,7 +114,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestLoadFailsForNonexistent() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestExistsDefaultRoleMapping() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
@@ -135,7 +136,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestExistsUnknownDefaultRoleMappingFail
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
@@ -160,7 +161,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := g.CreateDefaultRoleMapping(rt)
 
@@ -174,4 +175,35 @@ func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {
 
 	require.Len(s.T(), mappings, 1)
 	require.Equal(s.T(), mappings[0].DefaultRoleMappingID, rm.DefaultRoleMapping().DefaultRoleMappingID)
+}
+
+func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceTypeAndroles() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		rt := g.CreateResourceType()
+		fromRole := g.CreateRole("from")
+		toRole := g.CreateRole("to")
+		rm := g.CreateDefaultRoleMapping(rt, fromRole, toRole)
+		// when
+		result, err := s.repo.FindForResourceTypeAndRoles(s.Ctx, rt.ResourceType().ResourceTypeID, fromRole.Role().RoleID, toRole.Role().RoleID)
+		require.NoError(t, err)
+		assert.Equal(t, rm.DefaultRoleMapping().DefaultRoleMappingID, result.DefaultRoleMappingID)
+	})
+
+	s.T().Run("not found", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		rt := g.CreateResourceType()
+		fromRole := g.CreateRole("from")
+		toRole := g.CreateRole("to")
+		g.CreateDefaultRoleMapping(rt, fromRole, toRole)
+		// when
+		anotherFromRole := g.CreateRole("another_from")
+		anotherToRole := g.CreateRole("another_to")
+		_, err := s.repo.FindForResourceTypeAndRoles(s.Ctx, rt.ResourceType().ResourceTypeID, anotherFromRole.Role().RoleID, anotherToRole.Role().RoleID)
+		require.Error(t, err)
+		assert.IsType(t, errors.NotFoundError{}, err)
+	})
 }

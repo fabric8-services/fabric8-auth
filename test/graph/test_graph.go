@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -24,14 +26,16 @@ type baseWrapper struct {
 	graph *TestGraph
 }
 
-func (w *baseWrapper) identityIDFromWrapper(wrapper interface{}) uuid.UUID {
-	switch t := wrapper.(type) {
+func identityIDFromWrapper(t *testing.T, wrapper interface{}) uuid.UUID {
+	switch w := wrapper.(type) {
 	case *userWrapper:
-		return t.identity.ID
+		return w.identity.ID
 	case *identityWrapper:
-		return t.identity.ID
+		return w.identity.ID
+	case *teamWrapper:
+		return w.identity.ID
 	}
-	require.True(w.graph.t, false, "wrapper must be either user wrapper or identity wrapper")
+	assert.FailNowf(t, "invalid type of identity wrapper", "wrapper must be either 'user', 'identity' or 'team' wrapper but it was %T", wrapper)
 	return uuid.UUID{}
 }
 
@@ -101,9 +105,19 @@ func (g *TestGraph) CreateResourceType(params ...interface{}) *resourceTypeWrapp
 	return g.createAndRegister(newResourceTypeWrapper, params).(*resourceTypeWrapper)
 }
 
-func (g *TestGraph) ResourceTypeByID(id string) *resourceTypeWrapper {
-	require.Contains(g.t, g.references, id, "resource type with such ID is not registered")
-	return g.references[id].(*resourceTypeWrapper)
+func (g *TestGraph) ResourceTypeByID(id uuid.UUID) *resourceTypeWrapper {
+	if rt, found := g.references[id.String()]; found {
+		return rt.(*resourceTypeWrapper)
+	}
+	// if look-up in references failed, then look for the role in the DB
+	rt, err := g.app.ResourceTypeRepository().Load(g.ctx, id)
+	require.NoErrorf(g.t, err, "failed to look-up resource type with id '%s'", id)
+	rtw := &resourceTypeWrapper{
+		baseWrapper:  baseWrapper{g},
+		resourceType: rt,
+	}
+	g.references[id.String()] = rtw
+	return rtw
 }
 
 func (g *TestGraph) LoadResourceType(params ...interface{}) *resourceTypeWrapper {
@@ -269,6 +283,25 @@ func (g *TestGraph) CreateRole(params ...interface{}) *roleWrapper {
 func (g *TestGraph) RoleByID(id string) *roleWrapper {
 	require.Contains(g.t, g.references, id, "role with such ID is not registered")
 	return g.references[id].(*roleWrapper)
+}
+
+func (g *TestGraph) RoleByNameAndResourceType(name, resourceType string) *roleWrapper {
+	for _, ref := range g.references {
+		if roleWrapper, ok := ref.(*roleWrapper); ok {
+			if roleWrapper.role.Name == name && roleWrapper.role.ResourceType.Name == resourceType {
+				return roleWrapper
+			}
+		}
+	}
+	// if look-up in references failed, then look for the role in the DB
+	r, err := g.app.RoleRepository().Lookup(g.ctx, name, resourceType)
+	require.NoErrorf(g.t, err, "failed to look-up role named '%s' for resource of type '%s'", name, resourceType)
+	rw := &roleWrapper{
+		baseWrapper: baseWrapper{g},
+		role:        r,
+	}
+	g.references[r.RoleID.String()] = rw
+	return rw
 }
 
 func (g *TestGraph) CreateDefaultRoleMapping(params ...interface{}) *defaultRoleMappingWrapper {

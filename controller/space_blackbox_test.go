@@ -156,7 +156,7 @@ func (rest *TestSpaceREST) TestDeleteSpaceIfUserIsNotSpaceOwnerForbidden() {
 * This test will attempt to list teams for a space
  */
 func (rest *TestSpaceREST) TestListTeamOK() {
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	g.CreateTeam(g.ID("t1"), g.CreateSpace(g.ID("space")).
 		AddAdmin(g.CreateUser(g.ID("admin"))).
 		AddContributor(g.CreateUser(g.ID("contributor"))).
@@ -195,7 +195,7 @@ func (rest *TestSpaceREST) TestListTeamOK() {
 }
 
 func (rest *TestSpaceREST) TestListTeamUnauthorized() {
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	g.CreateTeam(g.ID("t1"), g.CreateSpace(g.ID("space")))
 	g.CreateTeam(g.ID("t2"), g.SpaceByID("space"))
 

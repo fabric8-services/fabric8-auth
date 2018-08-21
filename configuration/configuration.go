@@ -700,6 +700,11 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
 
+	// By default, test data should be cleaned from DB, unless explicitely said otherwise.
+	c.v.SetDefault(varCleanTestDataEnabled, true)
+	// By default, DB logs are not output in the console
+	c.v.SetDefault(varDBLogsEnabled, false)
+
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
 
 	// By default, test data should be cleaned from DB, unless explicitely said otherwise.

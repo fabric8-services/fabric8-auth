@@ -42,7 +42,7 @@ func (s *BenchTransactional) SetupSuite() {
 }
 
 func (s *BenchTransactional) SetupBenchmark() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
+	s.Clean = cleaner.DeleteCreatedEntities(s.DB)
 	s.repo = account.NewIdentityRepository(s.DB)
 	s.app = gormapplication.NewGormDB(s.DB)
 
@@ -58,7 +58,7 @@ func (s *BenchTransactional) SetupBenchmark() {
 }
 
 func (s *BenchTransactional) TearDownBenchmark() {
-	s.clean()
+	s.Clean()
 }
 
 func (s *BenchTransactional) transactionLoadSpace() {

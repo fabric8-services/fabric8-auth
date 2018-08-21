@@ -50,7 +50,7 @@ func (rest *TestTeamREST) UnsecuredController() (*goa.Service, *TeamController) 
 func (rest *TestTeamREST) TestCreateTeamSuccess() {
 	service, controller := rest.SecuredController(rest.testIdentity)
 
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	spc := g.CreateSpace().AddAdmin(g.LoadIdentity(rest.testIdentity.ID))
 
 	teamName := "Team-" + uuid.NewV4().String()
@@ -81,7 +81,7 @@ func (rest *TestTeamREST) TestCreateTeamUnauthorized() {
 func (rest *TestTeamREST) TestCreateTeamEmptyNameFail() {
 
 	service, controller := rest.SecuredController(rest.testIdentity)
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	spc := g.CreateSpace().AddAdmin(g.LoadIdentity(rest.testIdentity.ID))
 
 	teamName := ""
@@ -103,7 +103,7 @@ func (rest *TestTeamREST) TestListTeamSuccess() {
 
 	service, controller := rest.SecuredController(rest.testIdentity)
 
-	g := rest.DBTestSuite.NewTestGraph()
+	g := rest.DBTestSuite.NewTestGraph(rest.T())
 	g.CreateTeam(g.ID("t")).AddMember(g.LoadIdentity(&rest.testIdentity.ID))
 
 	_, teams := test.ListTeamOK(rest.T(), service.Context, service, controller)

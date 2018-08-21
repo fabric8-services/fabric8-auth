@@ -26,7 +26,6 @@ var _ = a.Resource("invitation", func() {
 	})
 
 	a.Action("acceptInvite", func() {
-		a.Security("jwt")
 		a.Routing(
 			a.GET("/accept/:acceptCode"),
 		)
