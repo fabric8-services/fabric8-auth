@@ -1,0 +1,2 @@
+-- We must not allow multiple creations of role mapping for a given type of resource with the same 'from' and 'to' roles.
+alter table default_role_mapping add constraint unique_default_role_mapping UNIQUE (resource_type_id, from_role_id, to_role_id);

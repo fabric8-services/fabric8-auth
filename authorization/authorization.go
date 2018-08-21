@@ -37,6 +37,9 @@ const (
 	// OrganizationAdminRole is the constant used to denote the name of the organization resource's administrator role
 	OrganizationAdminRole = adminRole
 
+	// OrganizationContributorRole is the constant used to denote the name of the organization resource's contributor role
+	OrganizationContributorRole = contributorRole
+
 	// SpaceAdminRole is the constant used to denote the name of a space resource's administrator role
 	SpaceAdminRole = adminRole
 

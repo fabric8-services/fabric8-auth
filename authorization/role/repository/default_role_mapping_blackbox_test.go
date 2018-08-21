@@ -9,6 +9,7 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -18,7 +19,7 @@ type defaultRoleMappingBlackBoxTest struct {
 	repo rolerepo.DefaultRoleMappingRepository
 }
 
-func TestRunDefaultRoleMappingBlackBoxTest(t *testing.T) {
+func TestDefaultRoleMappingRepository(t *testing.T) {
 	suite.Run(t, &defaultRoleMappingBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
@@ -174,4 +175,35 @@ func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {
 
 	require.Len(s.T(), mappings, 1)
 	require.Equal(s.T(), mappings[0].DefaultRoleMappingID, rm.DefaultRoleMapping().DefaultRoleMappingID)
+}
+
+func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceTypeAndroles() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		rt := g.CreateResourceType()
+		fromRole := g.CreateRole("from")
+		toRole := g.CreateRole("to")
+		rm := g.CreateDefaultRoleMapping(rt, fromRole, toRole)
+		// when
+		result, err := s.repo.FindForResourceTypeAndRoles(s.Ctx, rt.ResourceType().ResourceTypeID, fromRole.Role().RoleID, toRole.Role().RoleID)
+		require.NoError(t, err)
+		assert.Equal(t, rm.DefaultRoleMapping().DefaultRoleMappingID, result.DefaultRoleMappingID)
+	})
+
+	s.T().Run("not found", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		rt := g.CreateResourceType()
+		fromRole := g.CreateRole("from")
+		toRole := g.CreateRole("to")
+		g.CreateDefaultRoleMapping(rt, fromRole, toRole)
+		// when
+		anotherFromRole := g.CreateRole("another_from")
+		anotherToRole := g.CreateRole("another_to")
+		_, err := s.repo.FindForResourceTypeAndRoles(s.Ctx, rt.ResourceType().ResourceTypeID, anotherFromRole.Role().RoleID, anotherToRole.Role().RoleID)
+		require.Error(t, err)
+		assert.IsType(t, errors.NotFoundError{}, err)
+	})
 }
