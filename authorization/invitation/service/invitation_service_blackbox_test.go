@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	invservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -44,6 +45,7 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
+
 	s.T().Run("should issue invitation by identity id", func(t *testing.T) {
 		// given
 		g := s.NewTestGraph(t)
@@ -86,6 +88,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
+		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 
@@ -170,6 +173,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, inviteeID.String(), messages[0].TargetID)
+		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
 
 		//List the invitations for our resource
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
@@ -467,7 +471,9 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 2)
 		require.Equal(t, invitee1ID.String(), messages[0].TargetID)
+		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
 		require.Equal(t, invitee2ID.String(), messages[1].TargetID)
+		require.Contains(t, messages[1].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(t, err, "Error listing invitations")
@@ -578,6 +584,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
+		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(t, err)
@@ -620,6 +627,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
+		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
 
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
 
@@ -638,7 +646,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		inv := s.Graph.CreateInvitation(team, user, true)
 
 		// when
-		resourceID, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+		resourceID, err := s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
 
 		// then
 		require.NoError(t, err)
@@ -652,6 +660,11 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		require.True(t, assocs[0].Member)
 		require.Empty(t, assocs[0].Roles)
 
+		// verify then invitation is deleted after accepting it
+		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+		require.Error(t, err)
+		require.IsType(t, errors.NotFoundError{}, err)
+
 	})
 	s.T().Run("should accept team role invitation", func(t *testing.T) {
 		// given
@@ -661,7 +674,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		inv := s.Graph.CreateInvitation(team, user, false, teamRole)
 
 		// when
-		resourceID, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+		resourceID, err := s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
 
 		// then
 		require.NoError(t, err)
@@ -675,6 +688,11 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		require.False(t, assocs[0].Member)
 		require.Len(t, assocs[0].Roles, 1)
 		require.Equal(t, teamRole.Role().Name, assocs[0].Roles[0])
+
+		// verify then invitation is deleted after accepting it
+		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+		require.Error(t, err)
+		require.IsType(t, errors.NotFoundError{}, err)
 	})
 	s.T().Run("should accept space invitation", func(t *testing.T) {
 		// given
@@ -684,7 +702,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		inv := s.Graph.CreateInvitation(space, user, spaceRole)
 
 		// when
-		resourceID, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+		resourceID, err := s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
 
 		// then
 		require.NoError(t, err)
@@ -701,30 +719,14 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 
 		// Test that the accept code cannot be used again
 		// when
-		resourceID, err = s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), inv.Invitation().AcceptCode)
+		resourceID, err = s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
 
 		//then
 		require.Error(t, err)
 		require.Empty(t, resourceID)
 		require.IsType(t, errors.NotFoundError{}, err)
 	})
-	s.T().Run("should fail to accept invitation for incorrect identity", func(t *testing.T) {
-		// given
-		space := s.Graph.CreateSpace()
-		user := s.Graph.CreateUser()
-		spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
-		inv := s.Graph.CreateInvitation(space, user, spaceRole)
 
-		otherUser := s.Graph.CreateUser()
-
-		// when
-		_, err := s.Application.InvitationService().Accept(s.Ctx, otherUser.IdentityID(), inv.Invitation().AcceptCode)
-
-		//then
-		require.Error(t, err)
-		require.IsType(t, errors.NotFoundError{}, err)
-
-	})
 	s.T().Run("should fail to accept invitation for unknown accept code", func(t *testing.T) {
 		// given
 		space := s.Graph.CreateSpace()
@@ -733,7 +735,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		s.Graph.CreateInvitation(space, user, spaceRole)
 
 		// when
-		_, err := s.Application.InvitationService().Accept(s.Ctx, user.IdentityID(), uuid.NewV4())
+		_, err := s.Application.InvitationService().Accept(s.Ctx, uuid.NewV4())
 
 		//then
 		require.Error(t, err)

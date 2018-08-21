@@ -11,6 +11,7 @@ import (
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 
 	"strings"
 
@@ -20,6 +21,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/satori/go.uuid"
 )
+
+const InvitationAcceptEndPoint = "/api/invitations/accept/"
 
 type InvitationConfiguration interface {
 	GetAuthServiceURL() string
@@ -149,7 +152,6 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			inv := new(invitationrepo.Invitation)
 			inv.IdentityID = *invitation.IdentityID
 			inv.Identity = *identity
-
 			if inviteToIdentity != nil {
 				inv.InviteTo = &inviteToIdentity.ID
 				inv.Member = invitation.Member
@@ -253,7 +255,7 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s%s", s.config.GetAuthServiceURL(), InvitationAcceptEndPoint, n.invitation.AcceptCode.String())
 
 		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.ID.String(),
 			teamName,
@@ -278,7 +280,7 @@ func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Cont
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s%s", s.config.GetAuthServiceURL(), InvitationAcceptEndPoint, n.invitation.AcceptCode.String())
 
 		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.ID.String(),
 			spaceName,
@@ -344,14 +346,24 @@ func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, i
 }
 
 // Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
-func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uuid.UUID, token uuid.UUID) (string, error) {
+func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (string, error) {
 	var resourceID string
 
 	// Locate the invitation
-	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, currentIdentityID, token)
+	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, token)
 
 	if err != nil {
 		return resourceID, err
+	}
+
+	// get identity for invitation
+	currentIdentityID := inv.IdentityID
+	identity, e := s.Repositories().Identities().LoadWithUser(ctx, inv.IdentityID)
+	if e != nil {
+		return resourceID, err
+	}
+	if identity.User.Deprovisioned {
+		return resourceID, autherrors.NewUnauthorizedError("user deprovisioined")
 	}
 
 	// If this invitation is for an identity

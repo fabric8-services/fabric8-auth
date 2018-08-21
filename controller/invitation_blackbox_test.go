@@ -251,14 +251,14 @@ func (s *TestInvitationREST) TestAcceptInvitation() {
 	invitee := s.Graph.CreateUser()
 	inv := s.Graph.CreateInvitation(team, invitee)
 
-	service, controller := s.SecuredController(s.testIdentity)
+	service, controller := s.UnsecuredController()
 
 	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, inv.Invitation().AcceptCode.String())
 
 	require.NotNil(s.T(), response.Header().Get("Location"))
 
 	// The invitation should no longer be there after acceptance
-	_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, s.testIdentity.ID, inv.Invitation().AcceptCode)
+	_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 }
