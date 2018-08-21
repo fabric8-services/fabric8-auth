@@ -10,7 +10,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
-	invservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -45,6 +44,7 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
+	acceptInvitationEndpoint := "/api/invitations/accept/"
 
 	s.T().Run("should issue invitation by identity id", func(t *testing.T) {
 		// given
@@ -88,7 +88,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
-		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
+		require.Contains(t, messages[0].Custom["acceptURL"], acceptInvitationEndpoint)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 
@@ -173,7 +173,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, inviteeID.String(), messages[0].TargetID)
-		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
+		require.Contains(t, messages[0].Custom["acceptURL"], acceptInvitationEndpoint)
 
 		//List the invitations for our resource
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
@@ -471,9 +471,9 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 2)
 		require.Equal(t, invitee1ID.String(), messages[0].TargetID)
-		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
+		require.Contains(t, messages[0].Custom["acceptURL"], acceptInvitationEndpoint)
 		require.Equal(t, invitee2ID.String(), messages[1].TargetID)
-		require.Contains(t, messages[1].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
+		require.Contains(t, messages[1].Custom["acceptURL"], acceptInvitationEndpoint)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(t, err, "Error listing invitations")
@@ -584,7 +584,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
-		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
+		require.Contains(t, messages[0].Custom["acceptURL"], acceptInvitationEndpoint)
 
 		invs, err := s.invitationRepo.ListForIdentity(s.Ctx, team.TeamID())
 		require.NoError(t, err)
@@ -627,7 +627,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(1), s.notificationServiceMock.SendMessagesAsyncCounter)
 		require.Len(t, messages, 1)
 		require.Equal(t, id.String(), messages[0].TargetID)
-		require.Contains(t, messages[0].Custom["acceptURL"], invservice.InvitationAcceptEndPoint)
+		require.Contains(t, messages[0].Custom["acceptURL"], acceptInvitationEndpoint)
 
 		invs, err := s.invitationRepo.ListForResource(s.Ctx, space.SpaceID())
 
