@@ -619,7 +619,7 @@ FROM
 
 	var scopes []string
 
-	for i := range(results) {
+	for i := range results {
 		scopes = append(scopes, results[i].Scope)
 	}
 

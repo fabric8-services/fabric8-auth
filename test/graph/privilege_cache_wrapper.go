@@ -60,4 +60,3 @@ func newPrivilegeCacheWrapper(g *TestGraph, params []interface{}) interface{} {
 func (w *privilegeCacheWrapper) PrivilegeCache() *tokenRepo.PrivilegeCache {
 	return w.privilegeCache
 }
-

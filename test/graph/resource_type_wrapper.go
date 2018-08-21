@@ -63,7 +63,7 @@ func (w *resourceTypeWrapper) ResourceType() *resourcetype.ResourceType {
 func (w *resourceTypeWrapper) AddScope(scope string) {
 	rts := &resourcetype.ResourceTypeScope{
 		ResourceTypeID: w.resourceType.ResourceTypeID,
-		Name: scope,
+		Name:           scope,
 	}
 	w.graph.app.ResourceTypeScopeRepository().Create(w.graph.ctx, rts)
 }

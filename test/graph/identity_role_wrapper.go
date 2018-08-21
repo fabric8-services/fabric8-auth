@@ -2,9 +2,9 @@ package graph
 
 import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	rolePkg "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	res "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-		"github.com/stretchr/testify/require"
+	rolePkg "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/stretchr/testify/require"
 )
 
 // identityRoleWrapper represents a user domain object
@@ -47,7 +47,7 @@ func newIdentityRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	if resource == nil {
 		if role != nil {
-		    resource = w.graph.CreateResource(w.graph.LoadResourceType(role.ResourceTypeID)).Resource()
+			resource = w.graph.CreateResource(w.graph.LoadResourceType(role.ResourceTypeID)).Resource()
 		} else {
 			resource = w.graph.CreateResource().Resource()
 		}
@@ -60,7 +60,7 @@ func newIdentityRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 	w.identityRole = &rolePkg.IdentityRole{
 		IdentityID: identity.ID,
 		ResourceID: resource.ResourceID,
-		RoleID: role.RoleID,
+		RoleID:     role.RoleID,
 	}
 
 	err := g.app.IdentityRoleRepository().Create(g.ctx, w.identityRole)
@@ -72,4 +72,3 @@ func newIdentityRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 func (w *identityRoleWrapper) IdentityRole() *rolePkg.IdentityRole {
 	return w.identityRole
 }
-

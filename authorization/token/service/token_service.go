@@ -9,11 +9,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
-	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/satori/go.uuid"
-	"github.com/fabric8-services/fabric8-auth/log"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/login"
 )
@@ -61,7 +61,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
 	var tokenID uuid.UUID
 
-	if claims, ok := jwtToken.Claims.(jwt.StandardClaims); ok  {
+	if claims, ok := jwtToken.Claims.(jwt.StandardClaims); ok {
 		tokenID, err = uuid.FromString(claims.Id)
 		if err != nil {
 			// TODO Ignore? or perhaps log
@@ -74,7 +74,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	if err != nil {
 		// This is not an error per se, so we'll just log an informational message
 		log.Info(ctx, map[string]interface{}{
-			"token_id":        tokenID,
+			"token_id": tokenID,
 		}, "token with specified id not found")
 	}
 
@@ -95,7 +95,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			// TODO adjust this error return code
 			return "", errors.NewInternalError(ctx, nil)
 		}
-		
+
 		// If the token has been revoked or the user is logged out, we respond in the same way
 		if token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED) || token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT) {
 			// return a WWW-Authenticate: LOGIN response
@@ -112,7 +112,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			}
 
 			// First we recalculate any stale privileges
-			for i, priv := range(privileges) {
+			for i, priv := range privileges {
 				if priv.Stale {
 					p, err := s.recalculatePrivileges(ctx, priv)
 					if err != nil {
@@ -125,15 +125,11 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			// Now we compare all privileges to those contained in the current token
 		}
 	}
-	
+
 	// If we've gotten this far, it means that either no existing token was found, or the token that was found
 	// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
-	
-	
+
 	// TODO new token generation
-
-
-
 
 	return "", nil
 }

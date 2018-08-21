@@ -16,6 +16,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -31,7 +32,6 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
 )
 
 type Configuration interface {

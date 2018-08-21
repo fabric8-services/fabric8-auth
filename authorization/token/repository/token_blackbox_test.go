@@ -3,9 +3,9 @@ package repository_test
 import (
 	"testing"
 
-	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
-		"github.com/fabric8-services/fabric8-auth/errors"
+	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"

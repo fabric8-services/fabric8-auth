@@ -1,12 +1,12 @@
 package service_test
 
 import (
-		"testing"
-		"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-		"github.com/stretchr/testify/suite"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/stretchr/testify/suite"
+	"testing"
 )
 
-type  tokenServiceBlackboxTest struct {
+type tokenServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 }
 

@@ -444,13 +444,11 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, rptToken tokenrepo.Token) (*oauth2.Token, error) {
 	//unsignedAccessToken, err := mgm.GenerateUnsignedRPTTokenForIdentity(ctx, identity)
 
-//	if err != nil {
-//		return nil, errors.WithStack(err)
-//	}
+	//	if err != nil {
+	//		return nil, errors.WithStack(err)
+	//	}
 
-return nil, nil
-
-
+	return nil, nil
 
 }
 

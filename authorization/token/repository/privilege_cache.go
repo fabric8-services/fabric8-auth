@@ -113,14 +113,14 @@ func (m *GormPrivilegeCacheRepository) Create(ctx context.Context, privilegeCach
 		}
 
 		log.Error(ctx, map[string]interface{}{
-			"privilege_cache_id":    privilegeCache.PrivilegeCacheID,
-			"err":         err,
+			"privilege_cache_id": privilegeCache.PrivilegeCacheID,
+			"err":                err,
 		}, "unable to create the privilege cache")
 		return errs.WithStack(err)
 	}
 
 	log.Info(ctx, map[string]interface{}{
-		"privilege_cache_id":    privilegeCache.PrivilegeCacheID,
+		"privilege_cache_id": privilegeCache.PrivilegeCacheID,
 	}, "Privilege cache created!")
 	return nil
 }
@@ -132,8 +132,8 @@ func (m *GormPrivilegeCacheRepository) Save(ctx context.Context, privilegeCache 
 	obj, err := m.Load(ctx, privilegeCache.PrivilegeCacheID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"privilege_cache_id":    privilegeCache.PrivilegeCacheID,
-			"err":         err,
+			"privilege_cache_id": privilegeCache.PrivilegeCacheID,
+			"err":                err,
 		}, "unable to update privilege cache")
 		return errs.WithStack(err)
 	}
@@ -141,15 +141,15 @@ func (m *GormPrivilegeCacheRepository) Save(ctx context.Context, privilegeCache 
 	err = m.db.Model(obj).Updates(privilegeCache).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"privilege_cache_id":    privilegeCache.PrivilegeCacheID,
-			"err":         err,
+			"privilege_cache_id": privilegeCache.PrivilegeCacheID,
+			"err":                err,
 		}, "unable to update the privilege cache")
 
 		return errs.WithStack(err)
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"privilege_cache_id":    privilegeCache.PrivilegeCacheID,
+		"privilege_cache_id": privilegeCache.PrivilegeCacheID,
 	}, "Privilege cache saved!")
 
 	return nil
@@ -164,8 +164,8 @@ func (m *GormPrivilegeCacheRepository) Delete(ctx context.Context, privilegeCach
 
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
-			"privilege_cache_id":    privilegeCacheID,
-			"err":         result.Error,
+			"privilege_cache_id": privilegeCacheID,
+			"err":                result.Error,
 		}, "unable to delete the privilege cache")
 		return errs.WithStack(result.Error)
 	}
@@ -174,7 +174,7 @@ func (m *GormPrivilegeCacheRepository) Delete(ctx context.Context, privilegeCach
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"privilege_cache_id":    privilegeCacheID,
+		"privilege_cache_id": privilegeCacheID,
 	}, "Privilege cache deleted!")
 
 	return nil

@@ -15,7 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
-	)
+)
 
 /*
 Steps for adding a new Service:
