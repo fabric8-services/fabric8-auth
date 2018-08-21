@@ -142,7 +142,7 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"accept-code":       ctx.AcceptCode,
+		"accept-code": ctx.AcceptCode,
 	}, "invitation accepted")
 
 	ctx.ResponseData.Header().Set("Location", redirectURL)
