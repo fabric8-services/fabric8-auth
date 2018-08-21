@@ -40,6 +40,12 @@ func newRoleMappingWrapper(g *TestGraph, params []interface{}) interface{} {
 			} else if toRole == nil {
 				toRole = t.role
 			}
+		case *roleWrapper:
+			if fromRole == nil {
+				fromRole = t.role
+			} else if toRole == nil {
+				toRole = t.role
+			}
 		}
 	}
 

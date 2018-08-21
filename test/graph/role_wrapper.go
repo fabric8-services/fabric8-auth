@@ -58,7 +58,7 @@ func (w *roleWrapper) Role() *role.Role {
 	return w.role
 }
 
-func (w *roleWrapper) AddScope(scopeName string) {
+func (w *roleWrapper) AddScope(scopeName string) *roleWrapper {
 	scope, err := w.graph.app.ResourceTypeScopeRepository().LookupByResourceTypeAndScope(w.graph.ctx, w.role.ResourceTypeID, scopeName)
 	require.NoError(w.graph.t, err)
 	if scope == nil {
@@ -73,4 +73,5 @@ func (w *roleWrapper) AddScope(scopeName string) {
 
 	err = w.graph.app.RoleRepository().AddScope(w.graph.ctx, w.role, scope)
 	require.NoError(w.graph.t, err)
+	return w
 }
