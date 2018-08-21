@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
@@ -212,7 +212,6 @@ func (m *GormTokenRepository) ListForIdentity(ctx context.Context, identityID uu
 	}
 	return rows, nil
 }
-
 
 func (m *GormTokenRepository) ListPrivileges(ctx context.Context, tokenID uuid.UUID) ([]permission.PrivilegeCache, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "token", "ListPrivileges"}, time.Now())

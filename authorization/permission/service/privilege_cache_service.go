@@ -4,12 +4,12 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
-	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/satori/go.uuid"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/satori/go.uuid"
 	"strings"
-	)
+)
 
 // privilegeCacheServiceImpl is the implementation of the interface for PrivilegeCacheService
 type privilegeCacheServiceImpl struct {
@@ -43,8 +43,8 @@ func (s *privilegeCacheServiceImpl) ScopesForResource(ctx context.Context, ident
 			privilegeCache = &permission.PrivilegeCache{
 				IdentityID: identityID,
 				ResourceID: resourceID,
-				Scopes: scopeList,
-				Stale: false,
+				Scopes:     scopeList,
+				Stale:      false,
 				//ExpiryTime: ??,
 			}
 

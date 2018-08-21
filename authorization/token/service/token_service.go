@@ -5,7 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
-		"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
@@ -113,7 +113,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			// First we recalculate any stale privileges
 			for _, priv := range privileges {
 				if priv.Stale {
-					/*scopes*/_, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, priv.IdentityID, priv.ResourceID)
+					/*scopes*/ _, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, priv.IdentityID, priv.ResourceID)
 					if err != nil {
 						return "", errors.NewInternalError(ctx, err)
 					}
