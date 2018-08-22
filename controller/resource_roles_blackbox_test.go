@@ -161,7 +161,7 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 
 	s.T().Run("unauthorized", func(t *testing.T) {
 
-		t.Run("incompete claims", func(t *testing.T) {
+		t.Run("incomplete claims", func(t *testing.T) {
 			g := s.DBTestSuite.NewTestGraph(s.T())
 			res := g.CreateSpace(g.ID("somespacename"))
 

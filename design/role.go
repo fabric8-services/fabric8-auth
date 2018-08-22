@@ -88,6 +88,7 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.Conflict, JSONAPIErrors)
 	})
 	a.Action("hasScope", func() {
+		a.Security("jwt")
 		a.Routing(
 			a.GET("/:resourceId/scopes/:scopeName"),
 		)
