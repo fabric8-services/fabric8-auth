@@ -408,19 +408,20 @@ The header contains the algorithm and the key ID "kid" used to sign the token.
 
 `jti` is the unique token identifier.
 
-=== Verify the signature
+=== Verifying the signature
 This is necessary to verify that the JWT was issued by the Auth service and to ensure that the message wasn't changed along the way. 
 The signature has to be verified against the public key of the corresponding private key used to sign the JWT. 
 
-The list of public keys in use are available at https://auth.openshift.io/api/token/keys?format=pem 
+The list of public keys in use is available at https://auth.openshift.io/api/token/keys?format=pem 
 
-https://auth.openshift.io/api/token/keys will return keys in JSON Web Key (JWK) format. There are plenty of libraries which can be used to parse JWK keys
+https://auth.openshift.io/api/token/keys will return keys in JSON Web Key (JWK) format. There are plenty of libraries which can be used to parse JWK keys. 
+Example, https://github.com/dgrijalva/jwt-go .
 
 ==== Using the right public key
 
 Preferrably, choose the public key which has a `kid` that matches the `kid` claim in the token header.
 
-Alternatively, you could attempt verification of the signature against all the public keys returned in https://auth.openshift.io/api/token/keys?format=pem . If the verification succeeds for any one of the public keys, you could consider the token to be valid.
+Alternatively, you could attempt verifying the signature against all the public keys returned in https://auth.openshift.io/api/token/keys?format=pem . If the verification succeeds for any one of the public keys, Then the token is valid.
 This, however is less efficient.
 
 ===== The public keys against which the token signature is to be verified
@@ -465,4 +466,5 @@ The "exp" (expiration time) claim identifies the expiration time on or after whi
 === Usage
 
 ==== Golang
-Import `github.com/fabric8-services/fabric8-auth/token/jwk` to make use of `FetchKeys(endpointURL)` from https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go
+- Import `github.com/fabric8-services/fabric8-auth/token/jwk` to make use of `FetchKeys(endpointURL)` from https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go to get the currently in-use public keys.
+- Use the `ParseToken(..)` function of `github.com/fabric8-services/fabric8-common/token` from https://github.com/fabric8-services/fabric8-common/blob/master/token/token.go#L133 to validate & parse the token.

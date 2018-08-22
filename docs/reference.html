@@ -467,7 +467,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_token_validation">Token validation</a>
 <ul class="sectlevel2">
 <li><a href="#_the_jwt_contents">The JWT contents</a></li>
-<li><a href="#_verify_the_signature">Verify the signature</a></li>
+<li><a href="#_verifying_the_signature">Verifying the signature</a></li>
 <li><a href="#_expiry">Expiry</a></li>
 <li><a href="#_usage">Usage</a></li>
 </ul>
@@ -1175,16 +1175,17 @@ because generating a new token is an expensive operation. Get the access token i
 </div>
 </div>
 <div class="sect2">
-<h3 id="_verify_the_signature">Verify the signature</h3>
+<h3 id="_verifying_the_signature">Verifying the signature</h3>
 <div class="paragraph">
 <p>This is necessary to verify that the JWT was issued by the Auth service and to ensure that the message wasn&#8217;t changed along the way.
 The signature has to be verified against the public key of the corresponding private key used to sign the JWT.</p>
 </div>
 <div class="paragraph">
-<p>The list of public keys in use are available at <a href="https://auth.openshift.io/api/token/keys?format=pem" class="bare">https://auth.openshift.io/api/token/keys?format=pem</a></p>
+<p>The list of public keys in use is available at <a href="https://auth.openshift.io/api/token/keys?format=pem" class="bare">https://auth.openshift.io/api/token/keys?format=pem</a></p>
 </div>
 <div class="paragraph">
-<p><a href="https://auth.openshift.io/api/token/keys" class="bare">https://auth.openshift.io/api/token/keys</a> will return keys in JSON Web Key (JWK) format. There are plenty of libraries which can be used to parse JWK keys</p>
+<p><a href="https://auth.openshift.io/api/token/keys" class="bare">https://auth.openshift.io/api/token/keys</a> will return keys in JSON Web Key (JWK) format. There are plenty of libraries which can be used to parse JWK keys.
+Example, <a href="https://github.com/dgrijalva/jwt-go" class="bare">https://github.com/dgrijalva/jwt-go</a> .</p>
 </div>
 <div class="sect3">
 <h4 id="_using_the_right_public_key">Using the right public key</h4>
@@ -1192,7 +1193,7 @@ The signature has to be verified against the public key of the corresponding pri
 <p>Preferrably, choose the public key which has a <code>kid</code> that matches the <code>kid</code> claim in the token header.</p>
 </div>
 <div class="paragraph">
-<p>Alternatively, you could attempt verification of the signature against all the public keys returned in <a href="https://auth.openshift.io/api/token/keys?format=pem" class="bare">https://auth.openshift.io/api/token/keys?format=pem</a> . If the verification succeeds for any one of the public keys, you could consider the token to be valid.
+<p>Alternatively, you could attempt verifying the signature against all the public keys returned in <a href="https://auth.openshift.io/api/token/keys?format=pem" class="bare">https://auth.openshift.io/api/token/keys?format=pem</a> . If the verification succeeds for any one of the public keys, Then the token is valid.
 This, however is less efficient.</p>
 </div>
 <div class="sect4">
@@ -1243,8 +1244,15 @@ This, however is less efficient.</p>
 <h3 id="_usage">Usage</h3>
 <div class="sect3">
 <h4 id="_golang">Golang</h4>
-<div class="paragraph">
+<div class="ulist">
+<ul>
+<li>
 <p>Import <code>github.com/fabric8-services/fabric8-auth/token/jwk</code> to make use of <code>FetchKeys(endpointURL)</code> from <a href="https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go" class="bare">https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go</a></p>
+</li>
+<li>
+<p>Use the <code>ParseToken(..)</code> function of <code>github.com/fabric8-services/fabric8-common/token</code> from <a href="https://github.com/fabric8-services/fabric8-common/blob/master/token/token.go#L133" class="bare">https://github.com/fabric8-services/fabric8-common/blob/master/token/token.go#L133</a> to validate &amp; parse the token.</p>
+</li>
+</ul>
 </div>
 </div>
 </div>
@@ -1253,7 +1261,7 @@ This, however is less efficient.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-08-22 13:17:15 IST
+Last updated 2018-08-23 01:40:40 IST
 </div>
 </div>
 </body>
