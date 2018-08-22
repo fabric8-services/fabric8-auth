@@ -467,8 +467,8 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_token_validation">Token validation</a>
 <ul class="sectlevel2">
 <li><a href="#_the_jwt_contents">The JWT contents</a></li>
-<li><a href="#_expiry">Expiry</a></li>
 <li><a href="#_verify_the_signature">Verify the signature</a></li>
+<li><a href="#_expiry">Expiry</a></li>
 <li><a href="#_usage">Usage</a></li>
 </ul>
 </li>
@@ -1123,6 +1123,23 @@ because generating a new token is an expensive operation. Get the access token i
 <div class="paragraph">
 <p>The token is likely to contain the following claims.</p>
 </div>
+<div class="sect3">
+<h4 id="_header">Header</h4>
+<div class="paragraph">
+<p>The header contains the algorithm and the key ID "kid" used to sign the token.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>{
+  "alg": "RS256",
+  "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU",
+  "typ": "JWT"
+}</code></pre>
+</div>
+</div>
+</div>
+<div class="sect3">
+<h4 id="_payload">Payload</h4>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code> "acr": "0",
@@ -1156,11 +1173,6 @@ because generating a new token is an expensive operation. Get the access token i
 <p><code>jti</code> is the unique token identifier.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_expiry">Expiry</h3>
-<div class="paragraph">
-<p>Ensure the token hasn&#8217;t expired by 'inspecting' the JWT and verifying the <code>exp: 1537460165</code> claim.</p>
-</div>
 </div>
 <div class="sect2">
 <h3 id="_verify_the_signature">Verify the signature</h3>
@@ -1177,11 +1189,14 @@ The signature has to be verified against the public key of the corresponding pri
 <div class="sect3">
 <h4 id="_using_the_right_public_key">Using the right public key</h4>
 <div class="paragraph">
-<p>You could attempt verification of the signature against all the public keys returned in <a href="https://auth.openshift.io/api/token/keys?format=pem" class="bare">https://auth.openshift.io/api/token/keys?format=pem</a> . If the verification succeeds for any one of the public keys, you could consider the token to be valid.</p>
+<p>Preferrably, choose the public key which has a <code>kid</code> that matches the <code>kid</code> claim in the token header.</p>
 </div>
 <div class="paragraph">
-<p>Alternatively, you could choose the public key which has a "kid" which matches the "kid" claim in the token.</p>
+<p>Alternatively, you could attempt verification of the signature against all the public keys returned in <a href="https://auth.openshift.io/api/token/keys?format=pem" class="bare">https://auth.openshift.io/api/token/keys?format=pem</a> . If the verification succeeds for any one of the public keys, you could consider the token to be valid.
+This, however is less efficient.</p>
 </div>
+<div class="sect4">
+<h5 id="_the_public_keys_against_which_the_token_signature_is_to_be_verified">The public keys against which the token signature is to be verified</h5>
 <div class="listingblock">
 <div class="content">
 <pre class="highlight"><code>{
@@ -1199,6 +1214,25 @@ The signature has to be verified against the public key of the corresponding pri
 </div>
 </div>
 </div>
+<div class="sect4">
+<h5 id="_the_header_of_the_token_which_contains_the_code_kid_code">The header of the token which contains the <code>kid</code></h5>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>{
+  "alg": "RS256",
+  "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU",
+  "typ": "JWT"
+}</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_expiry">Expiry</h3>
+<div class="paragraph">
+<p>Ensure the token hasn&#8217;t expired by 'inspecting' the JWT and verifying the <code>exp: 1537460165</code> claim.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_usage">Usage</h3>
@@ -1214,7 +1248,7 @@ The signature has to be verified against the public key of the corresponding pri
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-08-21 22:59:15 IST
+Last updated 2018-08-22 13:14:55 IST
 </div>
 </div>
 </body>

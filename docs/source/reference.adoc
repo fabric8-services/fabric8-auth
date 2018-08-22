@@ -367,6 +367,18 @@ As a result, you will get a JSON with an access token which you can use in your 
 
 The token is likely to contain the following claims.
 
+==== Header
+
+The header contains the algorithm and the key ID "kid" used to sign the token.
+
+[source]
+{
+  "alg": "RS256",
+  "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU",
+  "typ": "JWT"
+}
+
+==== Payload
 [source]
  "acr": "0",
   "allowed-origins": [
@@ -396,10 +408,6 @@ The token is likely to contain the following claims.
 
 `jti` is the unique token identifier.
 
-
-=== Expiry
-Ensure the token hasn't expired by 'inspecting' the JWT and verifying the `exp: 1537460165` claim.
-
 === Verify the signature
 This is necessary to verify that the JWT was issued by the Auth service and to ensure that the message wasn't changed along the way. 
 The signature has to be verified against the public key of the corresponding private key used to sign the JWT. 
@@ -410,11 +418,16 @@ https://auth.openshift.io/api/token/keys will return keys in JSON Web Key (JWK) 
 
 ==== Using the right public key
 
-You could attempt verification of the signature against all the public keys returned in https://auth.openshift.io/api/token/keys?format=pem . If the verification succeeds for any one of the public keys, you could consider the token to be valid.
+Preferrably, choose the public key which has a `kid` that matches the `kid` claim in the token header.
 
-Alternatively, you could choose the public key which has a "kid" which matches the "kid" claim in the token.
+Alternatively, you could attempt verification of the signature against all the public keys returned in https://auth.openshift.io/api/token/keys?format=pem . If the verification succeeds for any one of the public keys, you could consider the token to be valid.
+This, however is less efficient.
+
+===== The public keys against which the token signature is to be verified
 
 [source]
+// Public keys
+
 {
   keys: [
     {
@@ -427,6 +440,22 @@ Alternatively, you could choose the public key which has a "kid" which matches t
     }
   ]
 }
+
+===== The header of the token which contains the `kid`
+
+[source]
+
+{
+  "alg": "RS256",
+  "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU",
+  "typ": "JWT"
+}
+
+
+=== Expiry
+Ensure the token hasn't expired by 'inspecting' the JWT and verifying the `exp: 1537460165` claim.
+
+
 
 === Usage
 
