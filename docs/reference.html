@@ -1233,6 +1233,11 @@ This, however is less efficient.</p>
 <div class="paragraph">
 <p>Ensure the token hasn&#8217;t expired by 'inspecting' the JWT and verifying the <code>exp: 1537460165</code> claim.</p>
 </div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code>The "exp" (expiration time) claim identifies the expiration time on or after which the token MUST NOT be accepted for processing. The processing of the "exp" claim requires that the current date/time MUST be before the expiration date/time listed in the "exp" claim.</code></pre>
+</div>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_usage">Usage</h3>
@@ -1248,7 +1253,7 @@ This, however is less efficient.</p>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2018-08-22 13:14:55 IST
+Last updated 2018-08-22 13:17:15 IST
 </div>
 </div>
 </body>

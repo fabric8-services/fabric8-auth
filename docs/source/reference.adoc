@@ -453,7 +453,12 @@ This, however is less efficient.
 
 
 === Expiry
+
 Ensure the token hasn't expired by 'inspecting' the JWT and verifying the `exp: 1537460165` claim.
+
+```
+The "exp" (expiration time) claim identifies the expiration time on or after which the token MUST NOT be accepted for processing. The processing of the "exp" claim requires that the current date/time MUST be before the expiration date/time listed in the "exp" claim.
+```
 
 
 
