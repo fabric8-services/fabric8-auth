@@ -49,6 +49,7 @@ type Configuration interface {
 	GetOSORegistrationAppAdminUsername() string
 	GetOSORegistrationAppAdminToken() string
 	GetOSOClusterByURL(url string) *configuration.OSOCluster
+	GetOpenIDAccountEndpoint() string
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
@@ -348,16 +349,16 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		return nil, nil, err
 	}
 
-	_, err = keycloak.synchronizeAuthToKeycloak(ctx, request, keycloakToken, config, identity)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"identity_id": identity.ID,
-			"username":    identity.Username,
-		}, "unable to synchronize user from auth to keycloak ")
+	//_, err = keycloak.synchronizeAuthToKeycloak(ctx, request, keycloakToken, config, identity)
+	//if err != nil {
+	//	log.Error(ctx, map[string]interface{}{
+	//		"err":         err,
+	//		"identity_id": identity.ID,
+	//		"username":    identity.Username,
+	//	}, "unable to synchronize user from auth to keycloak ")
 
-		// don't wish to cause a login error if something goes wrong here
-	}
+	// don't wish to cause a login error if something goes wrong here
+	//}
 
 	// new user for WIT
 	if newUser {
@@ -635,28 +636,24 @@ func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Co
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration Configuration) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
-	claims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
+
+	// Maybe initialize this in the controller ?
+	openIDProviderService := NewLoginIdentityProvider(configuration)
+	userProfile, err := openIDProviderService.Profile(ctx, oauth2.Token{AccessToken: accessToken})
+
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"token": accessToken,
 			"err":   err,
-		}, "unable to parse the token")
-		return nil, false, errors.New("unable to parse the token " + err.Error())
+		}, "unable to get user profile")
+		return nil, false, errors.New("unable to get user profile " + err.Error())
 	}
 
-	if err := token.CheckClaims(claims); err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"token": accessToken,
-			"err":   err,
-		}, "invalid keycloak token claims")
-		return nil, false, errors.New("invalid keycloak token claims " + err.Error())
+	if !userProfile.Approved {
+		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
 	}
 
-	if !claims.Approved {
-		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", claims.Username))
-	}
-
-	keycloakIdentityID, _ := uuid.FromString(claims.Subject)
+	keycloakIdentityID, _ := uuid.FromString(userProfile.Subject)
 
 	identity := &account.Identity{}
 	// TODO : Check this only if UUID is not null
@@ -685,7 +682,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		// Now that user/identity objects have been initialized, update it
 		// from the token claims info.
 
-		_, err = fillUser(claims, identity)
+		_, err = fillUserFromResponse(*userProfile, identity)
 		if identity.User.Cluster == "" {
 			identity.User.Cluster = configuration.GetOpenShiftClientApiUrl()
 		}
@@ -717,7 +714,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"keycloak_identity_id": keycloakIdentityID,
-				"username":             claims.Username,
+				"username":             userProfile.Username,
 				"err":                  err,
 			}, "unable to create user/identity")
 			return nil, false, errors.New("failed to create user/identity " + err.Error())
@@ -838,6 +835,29 @@ func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx c
 	}, "is keycloak profile in sync with auth db ?")
 
 	return profileEqual, nil
+}
+
+func fillUserFromResponse(userProfile oauth.UserProfile, identity *account.Identity) (bool, error) {
+	isChanged := false // will go away in future.
+	identity.User.FullName = name.GenerateFullName(&userProfile.GivenName, &userProfile.FamilyName)
+	identity.User.Email = userProfile.Email
+
+	identity.User.Company = userProfile.Company
+	identity.User.EmailVerified = userProfile.EmailVerified
+	identity.Username = userProfile.Username
+	if identity.User.ImageURL == "" {
+		image, err := generateGravatarURL(userProfile.Email)
+		if err != nil {
+			log.Warn(nil, map[string]interface{}{
+				"user_full_name": identity.User.FullName,
+				"err":            err,
+			}, "error when generating gravatar")
+			// if there is an error, we will qualify the identity/user as unchanged.
+			return false, errors.New("Error when generating gravatar " + err.Error())
+		}
+		identity.User.ImageURL = image
+	}
+	return isChanged, nil
 }
 
 func fillUser(claims *token.TokenClaims, identity *account.Identity) (bool, error) {

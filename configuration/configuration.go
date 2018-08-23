@@ -90,6 +90,8 @@ const (
 	varKeycloakEndpointAccount  = "keycloak.endpoint.account"
 	varKeycloakEndpointLogout   = "keycloak.endpoint.logout"
 
+	varUserInfoEndpoint = "endpoint.userinfo"
+
 	// Private keys for signing OSIO Serivice Account tokens
 	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.deprecated"
 	varServiceAccountPrivateKeyIDDeprecated = "serviceaccount.privatekeyid.deprecated"
@@ -1112,6 +1114,14 @@ func (c *ConfigurationData) GetKeycloakEndpointBroker(req *goa.RequestData) (str
 // GetKeycloakAccountEndpoint returns the API URL for Read and Update on Keycloak User Accounts.
 func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error) {
 	return c.getKeycloakEndpoint(req, varKeycloakEndpointAccount, "auth/realms/"+c.GetKeycloakRealm()+"/account")
+}
+
+// GetUserInfoEndpoint returns the API URL for Read User Accounts.
+func (c *ConfigurationData) GetUserInfoEndpoint() string {
+	if c.v.IsSet(varUserInfoEndpoint) {
+		return c.v.GetString(varUserInfoEndpoint)
+	}
+	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("userinfo"))
 }
 
 // GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.
