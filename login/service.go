@@ -50,10 +50,12 @@ type Configuration interface {
 	GetOSORegistrationAppAdminToken() string
 	GetOSOClusterByURL(url string) *configuration.OSOCluster
 	GetUserInfoEndpoint() string
+	GetOAuthEndpointAuth() string
+	GetOAuthEndpointToken() string
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager, identityProvider oauth.IdentityProvider) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
 		Identities:   identities,
 		Users:        users,
@@ -62,7 +64,6 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
-		idpProfileService:      identityProvider,
 	}
 }
 
@@ -73,20 +74,19 @@ type KeycloakOAuthProvider struct {
 	TokenManager           token.Manager
 	App                    application.Application
 	keycloakProfileService UserProfileService // this should go away
-	idpProfileService      oauth.IdentityProvider
 	keycloakTokenService   keycloaktoken.TokenService
 	osoSubscriptionManager OSOSubscriptionManager
 }
 
 // KeycloakOAuthService represents keycloak OAuth service interface
 type KeycloakOAuthService interface {
-	Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig Configuration) error
+	Login(ctx *app.LoginLoginContext, config LoginIdentityProvider, serviceConfig Configuration) error
 	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig Configuration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
 	ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
-	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration Configuration) (*account.Identity, bool, error)
-	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig Configuration) (*string, *oauth2.Token, error)
+	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config LoginIdentityProvider, configuration Configuration) (*account.Identity, bool, error)
+	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config LoginIdentityProvider, serviceConfig Configuration) (*string, *oauth2.Token, error)
 }
 
 const (
@@ -96,7 +96,7 @@ const (
 )
 
 // Login performs authentication
-func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config oauth.OauthConfig, serviceConfig Configuration) error {
+func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config LoginIdentityProvider, serviceConfig Configuration) error {
 
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
@@ -118,7 +118,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
 
-		keycloakToken, err := keycloak.Exchange(ctx, code, config)
+		keycloakToken, err := keycloak.Exchange(ctx, code, &config)
 
 		if err != nil {
 			jsonapi.JSONErrorResponse(ctx, err)
@@ -126,7 +126,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 			return ctx.TemporaryRedirect()
 		}
 
-		redirectTo, _, err := keycloak.CreateOrUpdateIdentityAndUser(ctx, referrerURL, keycloakToken, ctx.RequestData, serviceConfig)
+		redirectTo, _, err := keycloak.CreateOrUpdateIdentityAndUser(ctx, referrerURL, keycloakToken, ctx.RequestData, config, serviceConfig)
 		if err != nil {
 			jsonapi.JSONErrorResponse(ctx, err)
 		}
@@ -142,7 +142,7 @@ func (keycloak *KeycloakOAuthProvider) Login(ctx *app.LoginLoginContext, config 
 
 	// First time access, redirect to oauth provider
 	generatedState := uuid.NewV4().String()
-	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &generatedState, nil, ctx.RequestData, config, serviceConfig)
+	redirectURL, err := keycloak.AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &generatedState, nil, ctx.RequestData, &config, serviceConfig)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -273,7 +273,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config Configuration) (*string, *oauth2.Token, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, idpProvider LoginIdentityProvider, config Configuration) (*string, *oauth2.Token, error) {
 	witURL, err := config.GetWITURL()
 	if err != nil {
 		return nil, nil, autherrors.NewInternalError(ctx, err)
@@ -281,7 +281,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	apiClient := referrerURL.Query().Get(apiClientParam)
 
-	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, config)
+	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, idpProvider, config)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -635,13 +635,10 @@ func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Co
 
 // CreateOrUpdateIdentityInDB creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration Configuration) (*account.Identity, bool, error) {
+func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, idpProvider LoginIdentityProvider, configuration Configuration) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
-
-	// Maybe initialize this in the controller ?
-	//openIDProviderService := NewLoginIdentityProvider(configuration)
-	userProfile, err := keycloak.idpProfileService.Profile(ctx, oauth2.Token{AccessToken: accessToken})
+	userProfile, err := idpProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

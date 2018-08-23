@@ -1,20 +1,13 @@
 package controller
 
 import (
-	"fmt"
-	"golang.org/x/oauth2"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
-	errs "github.com/pkg/errors"
 )
 
 type LoginConfiguration interface {
@@ -41,32 +34,20 @@ func NewLoginController(service *goa.Service, auth *login.KeycloakOAuthProvider,
 
 // Login runs the login action.
 func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
-	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak Auth endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak Auth endpoint URL")))
-	}
 
-	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
-	}
-	if ctx.Scope != nil {
-		authEndpoint = fmt.Sprintf("%s?scope=%s", authEndpoint, *ctx.Scope) // Offline token
-	}
-	oauth := &oauth2.Config{
-		ClientID:     c.Configuration.GetKeycloakClientID(),
-		ClientSecret: c.Configuration.GetKeycloakSecret(),
-		Scopes:       []string{"user:email"},
-		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login", nil),
-	}
+	oauthIdentityProvider := login.NewLoginIdentityProvider(c.Configuration)
+	oauthIdentityProvider.RedirectURL = rest.AbsoluteURL(ctx.RequestData, "/api/login", nil)
+
+	/*
+		oauth := &oauth2.Config{
+			ClientID:     c.Configuration.GetKeycloakClientID(),
+			ClientSecret: c.Configuration.GetKeycloakSecret(),
+			Scopes:       []string{"user:email"},
+			Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
+			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login", nil),
+		}
+	*/
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.Login(ctx, oauth, c.Configuration)
+	return c.Auth.Login(ctx, *oauthIdentityProvider, c.Configuration)
 }

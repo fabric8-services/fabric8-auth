@@ -90,7 +90,9 @@ const (
 	varKeycloakEndpointAccount  = "keycloak.endpoint.account"
 	varKeycloakEndpointLogout   = "keycloak.endpoint.logout"
 
-	varUserInfoEndpoint = "endpoint.userinfo"
+	varUserInfoEndpoint   = "endpoint.userinfo"
+	varOauthEndpointAuth  = "oauth.endpoint.auth"
+	varOauthEndpointToken = "oauth.endpoint.token"
 
 	// Private keys for signing OSIO Serivice Account tokens
 	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.deprecated"
@@ -1116,12 +1118,31 @@ func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (st
 	return c.getKeycloakEndpoint(req, varKeycloakEndpointAccount, "auth/realms/"+c.GetKeycloakRealm()+"/account")
 }
 
-// GetUserInfoEndpoint returns the API URL for Read User Accounts.
+// GetUserInfoEndpoint returns the API URL for reading User Accounts details as per OIDC spec
 func (c *ConfigurationData) GetUserInfoEndpoint() string {
 	if c.v.IsSet(varUserInfoEndpoint) {
 		return c.v.GetString(varUserInfoEndpoint)
 	}
+	// soft migration: keep using the keycloak url if nothing explicitly is defined.
 	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("userinfo"))
+}
+
+// GetOAuthEndpointAuth returns the URL for requesting for the 'code' as per OIDC spec
+func (c *ConfigurationData) GetOAuthEndpointAuth() string {
+	if c.v.IsSet(varOauthEndpointAuth) {
+		return c.v.GetString(varOauthEndpointAuth)
+	}
+	// soft migration: keep using the keycloak url if nothing explicitly is defined.
+	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("auth"))
+}
+
+// GetOAuthEndpointToken returns the URL for reading User Accounts details as per OIDC spec
+func (c *ConfigurationData) GetOAuthEndpointToken() string {
+	if c.v.IsSet(varOauthEndpointToken) {
+		return c.v.GetString(varOauthEndpointToken)
+	}
+	// soft migration: keep using the keycloak url if nothing explicitly is defined.
+	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("token"))
 }
 
 // GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.

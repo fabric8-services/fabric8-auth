@@ -30,8 +30,11 @@ type loginIdentityProviderResponse struct {
 
 func NewLoginIdentityProvider(config Configuration) *LoginIdentityProvider {
 	provider := &LoginIdentityProvider{}
-	// initialize oauth too here ?
 	provider.ProfileURL = config.GetUserInfoEndpoint()
+	provider.ClientID = config.GetKeycloakClientID()
+	provider.ClientSecret = config.GetKeycloakSecret()
+	provider.Scopes = []string{"user:email"}
+	provider.Endpoint = oauth2.Endpoint{AuthURL: config.GetOAuthEndpointAuth(), TokenURL: config.GetOAuthEndpointToken()}
 	return provider
 }
 
