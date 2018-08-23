@@ -3,7 +3,6 @@ package repository_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -27,27 +26,20 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 
 	s.T().Run("ok by identity ID", func(t *testing.T) {
 		// given
-		identity := &repository.Identity{
-			ID:           uuid.NewV4(),
-			Username:     "someuserTestIdentity",
-			ProviderType: repository.KeycloakIDP}
-		identity2 := &repository.Identity{
-			ID:           uuid.NewV4(),
-			Username:     "onemoreuserTestIdentity",
-			ProviderType: repository.KeycloakIDP}
-		err := s.Application.Identities().Create(s.Ctx, identity)
-		require.NoError(t, err, "Could not create identity")
-		err = s.Application.Identities().Create(s.Ctx, identity2)
-		require.NoError(t, err, "Could not create identity")
+		g := s.NewTestGraph(t)
+		identity1 := g.CreateIdentity()
+		// create a second identity
+		g.CreateIdentity()
 		// when
-		err = s.Application.Identities().Delete(s.Ctx, identity.ID)
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID())
 		// then
 		assert.Nil(t, err)
 		identities, err := s.Application.Identities().List(s.Ctx)
 		require.NoError(t, err, "Could not list identities")
-		require.True(t, len(identities) > 0)
-		for _, ident := range identities {
-			require.NotEqual(t, "someuserTestIdentity", ident.Username)
+		require.True(t, len(identities) >= 1)
+		// make sure that the deleted identity is not part of the result
+		for _, identity := range identities {
+			assert.NotEqual(t, identity1.ID(), identity.ID)
 		}
 	})
 
@@ -79,17 +71,13 @@ func (s *IdentityRepositoryTestSuite) TestLoad() {
 
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		identity := &repository.Identity{
-			ID:           uuid.NewV4(),
-			Username:     "user-load-" + uuid.NewV4().String(),
-			ProviderType: repository.KeycloakIDP}
-		err := s.Application.Identities().Create(s.Ctx, identity)
-		require.NoError(t, err, "Could not create identity")
+		g := s.NewTestGraph(t)
+		identity := g.CreateIdentity()
 		// when
-		idnt, err := s.Application.Identities().Load(s.Ctx, identity.ID)
+		result, err := s.Application.Identities().Load(s.Ctx, identity.ID())
 		// then
 		require.NoError(t, err, "Could not load identity")
-		assert.Equal(t, identity.Username, idnt.Username)
+		assert.Equal(t, identity.Identity().Username, result.Username)
 	})
 }
 
@@ -97,14 +85,10 @@ func (s *IdentityRepositoryTestSuite) TestIdentityExists() {
 
 	s.T().Run("identity exists", func(t *testing.T) {
 		// given
-		identity := &repository.Identity{
-			ID:           uuid.NewV4(),
-			Username:     "user-exists-" + uuid.NewV4().String(),
-			ProviderType: repository.KeycloakIDP}
-		err := s.Application.Identities().Create(s.Ctx, identity)
-		require.NoError(t, err, "Could not create identity")
+		g := s.NewTestGraph(t)
+		identity := g.CreateIdentity()
 		// when
-		err = s.Application.Identities().CheckExists(s.Ctx, identity.ID.String())
+		err := s.Application.Identities().CheckExists(s.Ctx, identity.ID().String())
 		// then
 		require.NoError(t, err)
 	})
@@ -120,15 +104,11 @@ func (s *IdentityRepositoryTestSuite) TestSave() {
 
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		identity := &repository.Identity{
-			ID:           uuid.NewV4(),
-			Username:     "user-save" + uuid.NewV4().String(),
-			ProviderType: repository.KeycloakIDP}
-		err := s.Application.Identities().Create(s.Ctx, identity)
-		require.NoError(t, err, "Could not create identity")
+		g := s.NewTestGraph(t)
+		identity := g.CreateIdentity()
 		// when
-		identity.Username = "newusernameTestIdentity"
-		err = s.Application.Identities().Save(s.Ctx, identity)
+		identity.Identity().Username = "newusernameTestIdentity"
+		err := s.Application.Identities().Save(s.Ctx, identity.Identity())
 		// then
 		require.NoError(t, err, "Could not update identity")
 	})
@@ -139,34 +119,23 @@ func (s *IdentityRepositoryTestSuite) TestLoadWithUser() {
 	s.T().Run("ok", func(t *testing.T) {
 		// given
 		// Create test user & identity
-		testUser := &repository.User{
-			ID:       uuid.NewV4(),
-			Email:    uuid.NewV4().String(),
-			FullName: "TestLoadIdentityAndUserOK Developer",
-			Cluster:  "https://api.starter-us-east-2a.openshift.com",
-		}
-		testIdentity := &repository.Identity{
-			Username:     "TestLoadIdentityAndUserOK" + uuid.NewV4().String(),
-			ProviderType: repository.KeycloakIDP,
-			User:         *testUser,
-		}
-		userRepository := repository.NewUserRepository(s.DB)
-		userRepository.Create(s.Ctx, testUser)
-		s.Application.Identities().Create(s.Ctx, testIdentity)
+		g := s.NewTestGraph(t)
+		user := g.CreateUser()
+		identity := user.Identity()
 		// when
 		// Check load
-		identity, err := s.Application.Identities().LoadWithUser(s.Ctx, testIdentity.ID)
+		result, err := s.Application.Identities().LoadWithUser(s.Ctx, identity.ID)
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, identity)
-		testIdentity.CreatedAt = identity.CreatedAt // Align timestamps
-		testIdentity.UpdatedAt = identity.UpdatedAt
-		testIdentity.Lifecycle = identity.Lifecycle
-		testIdentity.User.UpdatedAt = identity.User.UpdatedAt
-		testIdentity.User.CreatedAt = identity.User.CreatedAt
-		testIdentity.User.Lifecycle = identity.User.Lifecycle
-		assert.Equal(t, testIdentity, identity)
-		assert.True(t, identity.IsUser())
+		result.CreatedAt = identity.CreatedAt // Align timestamps
+		result.UpdatedAt = identity.UpdatedAt
+		result.Lifecycle = identity.Lifecycle
+		result.User.UpdatedAt = identity.User.UpdatedAt
+		result.User.CreatedAt = identity.User.CreatedAt
+		result.User.Lifecycle = identity.User.Lifecycle
+		assert.Equal(t, identity, result)
+		assert.True(t, result.IsUser())
 	})
 
 	s.T().Run("failure", func(t *testing.T) {
@@ -184,16 +153,12 @@ func (s *IdentityRepositoryTestSuite) TestLoadWithUser() {
 		s.T().Run("identity without user", func(t *testing.T) {
 			// given
 			// Identity exists but not associated with any user
-			identity := &repository.Identity{
-				ID:           uuid.NewV4(),
-				Username:     "user-load-" + uuid.NewV4().String(),
-				ProviderType: repository.KeycloakIDP}
-			err := s.Application.Identities().Create(s.Ctx, identity)
-			require.NoError(t, err, "Could not create identity")
+			g := s.NewTestGraph(t)
+			identity := g.CreateIdentity()
 			// when
-			_, err = s.Application.Identities().LoadWithUser(s.Ctx, identity.ID)
+			_, err := s.Application.Identities().LoadWithUser(s.Ctx, identity.ID())
 			// then
-			assert.EqualError(t, err, errors.NewNotFoundError("user for identity", identity.ID.String()).Error())
+			assert.EqualError(t, err, errors.NewNotFoundError("user for identity", identity.ID().String()).Error())
 		})
 	})
 
@@ -207,7 +172,7 @@ func (s *IdentityRepositoryTestSuite) TestFindIdentityMemberships() {
 		g.CreateOrganization(g.ID("org")).AddMember(g.CreateUser(g.ID("m")))
 		// when
 		// Find the identity's memberships
-		associations, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, g.UserByID("m").Identity().ID, nil)
+		associations, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, g.UserByID("m").IdentityID(), nil)
 		// then
 		require.NoError(t, err)
 		// There should be 1 entry
@@ -222,7 +187,7 @@ func (s *IdentityRepositoryTestSuite) TestFindIdentityMemberships() {
 		g := s.NewTestGraph(t)
 		g.CreateTeam(g.ID("tm"), g.CreateSpace(g.ID("space"))).AddMember(g.CreateUser(g.ID("m")))
 		// when: find the member's memberships
-		associations, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, g.UserByID("m").Identity().ID, nil)
+		associations, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, g.UserByID("m").IdentityID(), nil)
 		// then: there should be 1 entry
 		require.NoError(t, err)
 		require.Len(t, associations, 1)
@@ -283,16 +248,15 @@ func (s *IdentityRepositoryTestSuite) TestFindIdentitiesByResourceTypeWithParent
 func (s *IdentityRepositoryTestSuite) TestAddMember() {
 
 	s.T().Run("ok", func(t *testing.T) {
+		// given
 		g := s.NewTestGraph(t)
 		team := g.CreateTeam()
 		user := g.CreateUser()
-
-		err := s.Application.Identities().AddMember(s.Ctx, team.TeamID(), user.IdentityID())
-		require.NoError(t, err)
-
+		team.AddMember(user)
+		// when
 		memberships, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
+		// then
 		require.NoError(t, err)
-
 		// Require that the user we created has 1 membership, and that it is in the team we created
 		require.Len(t, memberships, 1)
 		assert.Equal(t, team.TeamID(), *memberships[0].IdentityID)
