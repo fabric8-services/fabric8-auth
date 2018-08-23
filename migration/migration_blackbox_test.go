@@ -118,7 +118,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration30", testMigration30)
 	t.Run("TestMigration31", testMigration31)
 	t.Run("TestMigration33", testMigration33)
-	t.Run("TestMigration35", testMigration35)
+	t.Run("TestMigration36", testMigration36)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -446,8 +446,8 @@ func testMigration33(t *testing.T) {
 	assert.False(t, dialect.HasTable("space_resources"))
 }
 
-func testMigration35(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(36)], (36))
+func testMigration36(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(37)], (37))
 	assert.True(t, dialect.HasColumn("privilege_cache", "scopes"))
 	assert.True(t, dialect.HasColumn("privilege_cache", "stale"))
 }
