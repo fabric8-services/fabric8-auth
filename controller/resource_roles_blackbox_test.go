@@ -109,7 +109,7 @@ func (s *ResourceRolesControllerTestSuite) TestListAssignedRolesByRoleName() {
 func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 
 	s.T().Run("ok", func(t *testing.T) {
-		g := s.DBTestSuite.NewTestGraph(s.T())
+		g := s.DBTestSuite.NewTestGraph(t)
 		res := g.CreateSpace()
 
 		var identitiesToBeAssigned []string
@@ -135,7 +135,7 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 	})
 
 	s.T().Run("conflict", func(t *testing.T) {
-		g := s.DBTestSuite.NewTestGraph(s.T())
+		g := s.DBTestSuite.NewTestGraph(t)
 		res := g.CreateSpace()
 
 		testUser := g.CreateUser()
@@ -162,7 +162,7 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 	s.T().Run("unauthorized", func(t *testing.T) {
 
 		t.Run("incomplete claims", func(t *testing.T) {
-			g := s.DBTestSuite.NewTestGraph(s.T())
+			g := s.DBTestSuite.NewTestGraph(t)
 			res := g.CreateSpace(g.ID("somespacename"))
 
 			var identitiesToBeAssigned []*app.AssignRoleData
@@ -192,7 +192,7 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 	s.T().Run("bad request", func(t *testing.T) {
 
 		t.Run("invalid identity", func(t *testing.T) {
-			g := s.DBTestSuite.NewTestGraph(s.T())
+			g := s.DBTestSuite.NewTestGraph(t)
 			res := g.CreateSpace(g.ID("somespacename"))
 
 			var identitiesToBeAssigned []*app.AssignRoleData
@@ -213,7 +213,7 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 		})
 
 		t.Run("user not in space", func(t *testing.T) {
-			g := s.DBTestSuite.NewTestGraph(s.T())
+			g := s.DBTestSuite.NewTestGraph(t)
 			res := g.CreateSpace()
 
 			var identitiesToBeAssigned []*app.AssignRoleData
@@ -248,7 +248,7 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 	s.T().Run("forbidden", func(t *testing.T) {
 
 		t.Run("not allowed to assign roles", func(t *testing.T) {
-			g := s.DBTestSuite.NewTestGraph(s.T())
+			g := s.DBTestSuite.NewTestGraph(t)
 			res := g.CreateSpace(g.ID("somespacename"))
 
 			var identitiesToBeAssigned []*app.AssignRoleData
@@ -279,7 +279,7 @@ func (s *ResourceRolesControllerTestSuite) TestListScopes() {
 
 		t.Run("user has no role on space", func(t *testing.T) {
 			// given
-			g := s.DBTestSuite.NewTestGraph(s.T())
+			g := s.DBTestSuite.NewTestGraph(t)
 			user := g.CreateUser(g.ID("m"))
 			space := g.CreateSpace(g.ID("space")) // user has no role on this space
 			svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
@@ -294,7 +294,7 @@ func (s *ResourceRolesControllerTestSuite) TestListScopes() {
 
 		t.Run("user is admin on space", func(t *testing.T) {
 			// given
-			g := s.DBTestSuite.NewTestGraph(s.T())
+			g := s.DBTestSuite.NewTestGraph(t)
 			user := g.CreateUser(g.ID("m"))
 			space := g.CreateSpace(g.ID("space")).AddAdmin(user)
 			svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
