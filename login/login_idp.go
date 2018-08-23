@@ -25,7 +25,7 @@ type loginIdentityProviderResponse struct {
 	EmailVerified bool   `json:"email_verified"`
 	Company       string `json:"company"`
 	Approved      bool   `json:"approved"`
-	Subject       string `json:"subject"`
+	Subject       string `json:"sub"`
 }
 
 func NewLoginIdentityProvider(config Configuration) *LoginIdentityProvider {

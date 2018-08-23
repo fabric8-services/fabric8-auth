@@ -53,7 +53,7 @@ type Configuration interface {
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager, identityProvider oauth.IdentityProvider) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
 		Identities:   identities,
 		Users:        users,
@@ -62,6 +62,7 @@ func NewKeycloakOAuthProvider(identities account.IdentityRepository, users accou
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
+		idpProfileService:      identityProvider,
 	}
 }
 
@@ -71,7 +72,8 @@ type KeycloakOAuthProvider struct {
 	Users                  account.UserRepository
 	TokenManager           token.Manager
 	App                    application.Application
-	keycloakProfileService UserProfileService
+	keycloakProfileService UserProfileService // this should go away
+	idpProfileService      oauth.IdentityProvider
 	keycloakTokenService   keycloaktoken.TokenService
 	osoSubscriptionManager OSOSubscriptionManager
 }
@@ -638,8 +640,8 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	newIdentityCreated := false
 
 	// Maybe initialize this in the controller ?
-	openIDProviderService := NewLoginIdentityProvider(configuration)
-	userProfile, err := openIDProviderService.Profile(ctx, oauth2.Token{AccessToken: accessToken})
+	//openIDProviderService := NewLoginIdentityProvider(configuration)
+	userProfile, err := keycloak.idpProfileService.Profile(ctx, oauth2.Token{AccessToken: accessToken})
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -653,7 +655,14 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
 	}
 
-	keycloakIdentityID, _ := uuid.FromString(userProfile.Subject)
+	keycloakIdentityID, err := uuid.FromString(userProfile.Subject)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"token": accessToken,
+			"err":   err,
+		}, "unable to get identity ID")
+		return nil, false, errors.New("unable to get identity ID " + err.Error())
+	}
 
 	identity := &account.Identity{}
 	// TODO : Check this only if UUID is not null
