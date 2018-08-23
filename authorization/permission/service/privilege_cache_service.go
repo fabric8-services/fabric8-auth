@@ -27,7 +27,7 @@ type privilegeCacheServiceImpl struct {
 func NewPrivilegeCacheService(context servicecontext.ServiceContext, config PrivilegeCacheServiceConfiguration) service.PrivilegeCacheService {
 	return &privilegeCacheServiceImpl{
 		BaseService: base.NewBaseService(context),
-		conf: config,
+		conf:        config,
 	}
 }
 

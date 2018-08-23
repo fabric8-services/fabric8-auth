@@ -87,8 +87,10 @@ type AuthorizationPayload struct {
 
 // Permissions represents a "permissions" in the AuthorizationPayload
 type Permissions struct {
-	ResourceSetName *string `json:"resource_set_name"`
-	ResourceSetID   *string `json:"resource_set_id"`
+	ResourceSetName *string  `json:"resource_set_name"`
+	ResourceSetID   *string  `json:"resource_set_id"`
+	Scopes          []string `json:"scopes"`
+	Expiry          int64    `json:"exp"`
 }
 
 // Parser parses a token and exposes the public keys for the Goa JWT middleware.

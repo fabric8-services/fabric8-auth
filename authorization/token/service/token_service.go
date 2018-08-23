@@ -52,7 +52,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	manager := tm.(token.Manager)
 
 	// Now parse the token string that was passed in
-	jwtToken, err := manager.Parse(ctx, tokenString)
+	tokenClaims, err := manager.ParseToken(ctx, tokenString)
 	if err != nil {
 		return "", errors.NewBadParameterErrorFromString("tokenString", tokenString, "invalid token string could not be parsed")
 	}
@@ -60,13 +60,10 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
 	var tokenID uuid.UUID
 
-	if claims, ok := jwtToken.Claims.(jwt.StandardClaims); ok {
-		tokenID, err = uuid.FromString(claims.Id)
-		if err != nil {
-			// TODO Ignore? or perhaps log
-		}
-	} else {
-		// TODO work out what to do here
+	// Extract the kid from the token
+	tokenID, err = uuid.FromString(tokenClaims.Id)
+	if err != nil {
+		// TODO Ignore? or perhaps log
 	}
 
 	token, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
@@ -83,7 +80,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			return "", errors.NewUnauthorizedError("invalid token for identity")
 		}
 
-		// If the token exists and its status is valid, return it
+		// If the token exists and its status is valid, return an empty string
 		if token.Valid() {
 			return "", nil
 		}
@@ -113,17 +110,37 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			// First we recalculate any stale privileges
 			for _, priv := range privileges {
 				if priv.Stale {
-					/*scopes*/ _, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, priv.IdentityID, priv.ResourceID)
+					scopes, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, priv.IdentityID, priv.ResourceID)
 					if err != nil {
 						return "", errors.NewInternalError(ctx, err)
 					}
 
-					// Compare the returned scopes with those in the token
+					scopesChanged := false
 
+					// Compare the scopes to those contained in the current token
+					for _, tokenPermission := range tokenClaims.Authorization.Permissions {
+						// Find the corresponding resource set ID in the token's permissions claim
+						if *tokenPermission.ResourceSetID == priv.ResourceID {
+							if !s.scopesEquivalent(tokenPermission.Scopes, scopes) {
+								scopesChanged = true
+								break
+							}
+
+						}
+					}
+
+					// If the scopes haven't changed then reset the token status to valid and return an empty string
+					if !scopesChanged {
+						token.Status = 0
+						err = s.Repositories().TokenRepository().Save(ctx, token)
+						if err != nil {
+							return "", errors.NewInternalError(ctx, err)
+						}
+
+						return "", nil
+					}
 				}
 			}
-
-			// Now we compare all privileges to those contained in the current token
 		}
 	}
 
@@ -133,6 +150,28 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// TODO new token generation
 
 	return "", nil
+}
+
+func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {
+	if len(value1) != len(value2) {
+		return false
+	}
+
+	for _, val1 := range value1 {
+		found := false
+		for _, val2 := range value2 {
+			if val1 == val2 {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (s *tokenServiceImpl) generateNewToken(ctx context.Context, identityID uuid.UUID, resourceID string) (*jwt.Token, error) {
