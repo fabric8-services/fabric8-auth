@@ -66,7 +66,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		// TODO Ignore? or perhaps log
 	}
 
-	token, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
+	loadedToken, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
 	if err != nil {
 		// This is not an error per se, so we'll just log an informational message
 		log.Info(ctx, map[string]interface{}{
@@ -74,33 +74,45 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		}, "token with specified id not found")
 	}
 
-	if token != nil {
+	// Check whether the resource exists in the token already (only for valid RPT tokens)
+	resourceExistsInToken := false
+	if loadedToken != nil {
+		for _, tokenPermission := range tokenClaims.Authorization.Permissions {
+			if *tokenPermission.ResourceSetID == resourceID {
+				resourceExistsInToken = true
+			}
+		}
+	}
+
+	if loadedToken != nil {
 		// Confirm that the token belongs to the current identity
-		if token.IdentityID != identity.ID {
+		if loadedToken.IdentityID != identity.ID {
 			return "", errors.NewUnauthorizedError("invalid token for identity")
 		}
 
 		// If the token exists and its status is valid, return an empty string
-		if token.Valid() {
+		if loadedToken.Valid() && resourceExistsInToken {
 			return "", nil
 		}
 
 		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
-		if token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED) {
+		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED) {
 			// return a WWW-Authenticate: DEPROVISIONED response
 			// TODO adjust this error return code
 			return "", errors.NewInternalError(ctx, nil)
 		}
 
 		// If the token has been revoked or the user is logged out, we respond in the same way
-		if token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED) || token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT) {
+		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT) {
 			// return a WWW-Authenticate: LOGIN response
 			// TODO adjust this error return code
 			return "", errors.NewInternalError(ctx, nil)
 		}
 
-		// If the token is stale, we can re-evaluate its privileges to determine whether they have changed
-		if token.HasStatus(tokenPkg.TOKEN_STATUS_STALE) {
+		// If the token is stale, yet the resource exists in the token
+		// we can re-evaluate its privileges to determine whether they have changed.
+		// If the privileges are unchanged, then reset the token status
+		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_STALE) && resourceExistsInToken {
 			// Query for all of the token's privileges
 			privileges, err := s.Repositories().TokenRepository().ListPrivileges(ctx, tokenID)
 			if err != nil {
@@ -110,6 +122,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			// First we recalculate any stale privileges
 			for _, priv := range privileges {
 				if priv.Stale {
+					// Retrieve the up to date scopes for the resource
 					scopes, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, priv.IdentityID, priv.ResourceID)
 					if err != nil {
 						return "", errors.NewInternalError(ctx, err)
@@ -125,14 +138,14 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 								scopesChanged = true
 								break
 							}
-
 						}
 					}
 
-					// If the scopes haven't changed then reset the token status to valid and return an empty string
+					// If the scopes haven't changed, and the specified resouce ID is already contained in the current
+					// token, then reset the token status to valid and return an empty string
 					if !scopesChanged {
-						token.Status = 0
-						err = s.Repositories().TokenRepository().Save(ctx, token)
+						loadedToken.Status = 0
+						err = s.Repositories().TokenRepository().Save(ctx, loadedToken)
 						if err != nil {
 							return "", errors.NewInternalError(ctx, err)
 						}
@@ -146,10 +159,18 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 
 	// If we've gotten this far, it means that either no existing token was found, or the token that was found
 	// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
+	perms := []token.Permissions{}
 
-	// TODO new token generation
+	// Populate the permissions
+	// TODO populate permissions array
 
-	return "", nil
+	newToken, err := manager.GenerateRPTTokenForIdentity(ctx, *identity, perms)
+	if err != nil {
+		return "", errors.NewInternalError(ctx, err)
+	}
+
+	// TODO this is probably not right, will discuss with team
+	return newToken.AccessToken, nil
 }
 
 func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {

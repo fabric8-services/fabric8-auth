@@ -16,7 +16,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/repository"
-	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	authclient "github.com/fabric8-services/fabric8-auth/client"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
@@ -77,6 +76,7 @@ type TokenClaims struct {
 	SessionState  string                `json:"session_state"`
 	Approved      bool                  `json:"approved"`
 	Authorization *AuthorizationPayload `json:"authorization"`
+	Permissions   *[]Permissions        `json:"permissions"`
 	jwt.StandardClaims
 }
 
@@ -113,6 +113,7 @@ type Manager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
+	GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, permissions []Permissions) (*oauth2.Token, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 	AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter)
@@ -443,15 +444,46 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	return token, nil
 }
 
-func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, rptToken tokenrepo.Token) (*oauth2.Token, error) {
-	//unsignedAccessToken, err := mgm.GenerateUnsignedRPTTokenForIdentity(ctx, identity)
+// GenerateRPTTokenForIdentity generates an OAuth2 RPT token for the given identity and specified permissions
+func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, permissions []Permissions) (*oauth2.Token, error) {
+	nowTime := time.Now().Unix()
+	unsignedRPTToken, err := mgm.GenerateUnsignedRPTTokenForIdentity(ctx, identity, permissions)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
 
-	//	if err != nil {
-	//		return nil, errors.WithStack(err)
-	//	}
+	rptToken, err := unsignedRPTToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
 
-	return nil, nil
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity, false)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	refreshToken, err := unsignedRefreshToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
 
+	var nbf int64
+
+	token := &oauth2.Token{
+		AccessToken:  rptToken,
+		RefreshToken: refreshToken,
+		Expiry:       time.Unix(nowTime+mgm.config.GetAccessTokenExpiresIn(), 0),
+		TokenType:    "bearer",
+	}
+
+	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
+	extra := make(map[string]interface{})
+	extra["expires_in"] = mgm.config.GetAccessTokenExpiresIn()
+	extra["refresh_expires_in"] = mgm.config.GetRefreshTokenExpiresIn()
+	extra["not_before_policy"] = nbf
+
+	token = token.WithExtra(extra)
+
+	return token, nil
 }
 
 // GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
@@ -610,6 +642,17 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 		authOpenshiftIO,
 		openshiftIO,
 	}
+
+	return token, nil
+}
+
+func (mgm *tokenManager) GenerateUnsignedRPTTokenForIdentity(ctx context.Context, identity repository.Identity, permissions []Permissions) (*jwt.Token, error) {
+	token, err := mgm.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+	claims := token.Claims.(TokenClaims)
+	claims.Permissions = &permissions
 
 	return token, nil
 }
