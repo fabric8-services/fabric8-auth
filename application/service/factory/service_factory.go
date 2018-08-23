@@ -184,7 +184,7 @@ func (f *ServiceFactory) PermissionService() service.PermissionService {
 }
 
 func (f *ServiceFactory) PrivilegeCacheService() service.PrivilegeCacheService {
-	return permissionservice.NewPrivilegeCacheService(f.getContext())
+	return permissionservice.NewPrivilegeCacheService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) ResourceService() service.ResourceService {

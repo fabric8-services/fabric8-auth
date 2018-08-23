@@ -132,6 +132,11 @@ const (
 	// sentry
 	varEnvironment = "environment"
 	varSentryDSN   = "sentry.dsn"
+
+	// Privilege cache
+	varPrivilegeCacheExpirySeconds = "privilege.cache.expiry.seconds"
+
+	secondsInOneDay = 24 * 60 * 60
 )
 
 type serviceAccountConfig struct {
@@ -763,6 +768,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// prod-preview or prod
 	c.v.SetDefault(varEnvironment, "local")
+
+	// Privilege cache expiry
+	c.v.SetDefault(varPrivilegeCacheExpirySeconds, secondsInOneDay)
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -1282,4 +1290,10 @@ func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 // `AUTH_ENVIRONMENT` is set.
 func (c *ConfigurationData) GetEnvironment() string {
 	return c.v.GetString(varEnvironment)
+}
+
+// GetPrivilegeCacheExpirySeconds returns the configured number of seconds after which a create privilege cache entry
+// should expire, should it not be marked as stale before this time
+func (c *ConfigurationData) GetPrivilegeCacheExpirySeconds() int64 {
+	return c.v.GetInt64(varPrivilegeCacheExpirySeconds)
 }
