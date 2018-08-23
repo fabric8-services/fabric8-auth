@@ -848,6 +848,7 @@ func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx c
 
 func fillUserFromResponse(userProfile oauth.UserProfile, identity *account.Identity) (bool, error) {
 	isChanged := false // will go away in future.
+	identity.ID, _ = uuid.FromString(userProfile.Subject)
 	identity.User.FullName = name.GenerateFullName(&userProfile.GivenName, &userProfile.FamilyName)
 	identity.User.Email = userProfile.Email
 
