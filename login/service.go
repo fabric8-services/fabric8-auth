@@ -49,7 +49,7 @@ type Configuration interface {
 	GetOSORegistrationAppAdminUsername() string
 	GetOSORegistrationAppAdminToken() string
 	GetOSOClusterByURL(url string) *configuration.OSOCluster
-	GetOpenIDAccountEndpoint() string
+	GetUserInfoEndpoint() string
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization

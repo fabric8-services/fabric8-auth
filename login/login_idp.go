@@ -31,7 +31,7 @@ type loginIdentityProviderResponse struct {
 func NewLoginIdentityProvider(config Configuration) *LoginIdentityProvider {
 	provider := &LoginIdentityProvider{}
 	// initialize oauth too here ?
-	provider.ProfileURL = config.GetOpenIDAccountEndpoint()
+	provider.ProfileURL = config.GetUserInfoEndpoint()
 	return provider
 }
 
