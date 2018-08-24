@@ -360,3 +360,111 @@ because generating a new token is an expensive operation. Get the access token i
 curl -H "Content-Type: application/json" -X POST -d '{"refresh_token":"<REFRESH_TOKEN>"}' https://auth.openshift.io/api/token/refresh
 
 As a result, you will get a JSON with an access token which you can use in your test.
+
+== Token validation
+
+=== The JWT contents
+
+The token is likely to contain the following claims.
+
+==== Header
+
+The header contains the algorithm and the key ID "kid" used to sign the token.
+
+[source]
+{
+  "alg": "RS256",
+  "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU",
+  "typ": "JWT"
+}
+
+==== Payload
+[source]
+ "acr": "0",
+  "allowed-origins": [
+    "https://auth.openshift.io",
+    "https://openshift.io"
+  ],
+  "approved": true,
+  "aud": "fabric8-online-platform",
+  "auth_time": 1534868165,
+  "azp": "fabric8-online-platform",
+  "email": "myusername@gmail.com",
+  "email_verified": false,
+  "exp": 1537460165,
+  "family_name": "Bose",
+  "given_name": "Shoubhik",
+  "iat": 1534868165,
+  "iss": "https://sso.openshift.io/auth/realms/fabric8",
+  "jti": "4ea61a85-f607-4491-b973-ef6314ae4c23",
+  "name": "Shoubhik Bose",
+  "preferred_username": "myusername",
+  "sub": "3383826c-51e4-401b-9ccd-b898f7e2397d",
+  "typ": "Bearer"
+}
+
+
+`sub` is the identity ID of the user.
+
+`jti` is the unique token identifier.
+
+=== Verifying the signature
+This is necessary to verify that the JWT was issued by the Auth service and to ensure that the message wasn't changed along the way. 
+The signature has to be verified against the public key of the corresponding private key used to sign the JWT. 
+
+The list of public keys in use is available at https://auth.openshift.io/api/token/keys?format=pem 
+
+https://auth.openshift.io/api/token/keys will return keys in JSON Web Key (JWK) format. There are plenty of libraries which can be used to parse JWK keys. 
+Example, https://github.com/dgrijalva/jwt-go .
+
+==== Using the right public key
+
+Preferrably, choose the public key which has a `kid` that matches the `kid` claim in the token header.
+
+Alternatively, you could attempt verifying the signature against all the public keys returned in https://auth.openshift.io/api/token/keys?format=pem . If the verification succeeds for any one of the public keys, Then the token is valid.
+This, however is less efficient.
+
+===== The public keys against which the token signature is to be verified
+
+[source]
+// Public keys
+
+{
+  keys: [
+    {
+      key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjCE4HewT6uAkFk+O01U9jz3nPtQGNTJN9a9DJB3zu0WneUxuwQKYoY3FdgIc7bjwkSEuw8csRUZqoB5fCwdiv10qcoeeAWB07F1E6Etov7YNOrNJcR2rTxhet5IvxWjEBO8fJjexYk5wR2J7VcwOnvAxG0Qt9iymHaAIKoHjrwG0Is+zNtjw6kRq9uqd1r7hddzktaZteaEwSKsl2DHhkjdsY455ZwWlJsjTOtFpL5IK4onmMq2N+4745H8cZlpAo30TrFH5aAV1LyAa/ul2hVdEYtgeBO8dSmYEzu4L5kO5Q9KzsDddqHAXQ2t5ZZh80EgtR36bjCSno5gigB1cpQIDAQAB",
+      kid: "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU"
+    },
+    {
+      key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvmvSDzC7VthnlzP2lpTRSTEamcOoS9/O/6uxkTYmOqcCwcID6RBauewLu2YYWvOB8sNb1eqq1r1SQjX7gtxJ4QZ+ME72lbc8ONpJQG/S32cL2P77JSpYhAHdPzefIgKFrtYaxz5LkqQPuHWRfHLKP7RBbFlvwC5j9mIZUe0QV7KolnCV8Z2G5cUCVzu79PxQNWvm0z8Tq3xcB46TRRiCIA+skeFc98k5H2kYbwEwCdSdeRF0Bzmc4pUNkkHvmtWD0M6uoGo+m+ajM9gP38ZO1z2ILLeHSCQb2FpXMX+GuSH+1dWESD3Y53J8p1rrcjhSvxxNoj5hPLWX2HeYf301QwIDAQAB",
+      kid: "quzUZlR_ollAUoAGgm165tYDTU3xtKon8O1RghJZ4TU"
+    }
+  ]
+}
+
+===== The header of the token which contains the `kid`
+
+[source]
+
+{
+  "alg": "RS256",
+  "kid": "0lL0vXs9YRVqZMowyw8uNLR_yr0iFaozdQk9rzq2OVU",
+  "typ": "JWT"
+}
+
+
+=== Expiry
+
+Ensure the token hasn't expired by 'inspecting' the JWT and verifying the `exp: 1537460165` claim.
+
+```
+The "exp" (expiration time) claim identifies the expiration time on or after which the token MUST NOT be accepted for processing. The processing of the "exp" claim requires that the current date/time MUST be before the expiration date/time listed in the "exp" claim.
+```
+
+
+
+=== Usage
+
+==== Golang
+- Import `github.com/fabric8-services/fabric8-auth/token/jwk` to make use of `FetchKeys(endpointURL)` from https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go to get the currently in-use public keys.
+- Use the `ParseToken(..)` function of `github.com/fabric8-services/fabric8-common/token` from https://github.com/fabric8-services/fabric8-common/blob/master/token/token.go#L133 to validate & parse the token.
