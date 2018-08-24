@@ -53,7 +53,7 @@ const (
 	varEmailVerifiedRedirectURL        = "email.verify.url"
 	varInvitationAcceptedRedirectURL   = "invitation.accepted.url"
 	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
-	varKeycloakTestsDisabled           = "keycloak.tests.disabled"
+	varOAuthServiceTestsDisabled       = "keycloak.tests.disabled"
 	varIgnoreEmailInProd               = "ignore.email.prod"
 
 	// Postgres
@@ -72,23 +72,23 @@ const (
 	// Public Client ID for logging into Auth service via OAuth2
 	varPublicOauthClientID = "public.oauth.client.id"
 
-	// Keycloak
-	varKeycloakSecret           = "keycloak.secret"
-	varKeycloakClientID         = "keycloak.client.id"
-	varKeycloakDomainPrefix     = "keycloak.domain.prefix"
-	varKeycloakRealm            = "keycloak.realm"
-	varKeycloakTesUserName      = "keycloak.testuser.name"
-	varKeycloakTesUserSecret    = "keycloak.testuser.secret"
-	varKeycloakTesUser2Name     = "keycloak.testuser2.name"
-	varKeycloakTesUser2Secret   = "keycloak.testuser2.secret"
-	varKeycloakURL              = "keycloak.url"
-	varKeycloakEndpointAdmin    = "keycloak.endpoint.admin"
-	varKeycloakEndpointAuth     = "keycloak.endpoint.auth"
-	varKeycloakEndpointToken    = "keycloak.endpoint.token"
-	varKeycloakEndpointUserinfo = "keycloak.endpoint.userinfo"
-	varKeycloakEndpointBroker   = "keycloak.endpoint.broker"
-	varKeycloakEndpointAccount  = "keycloak.endpoint.account"
-	varKeycloakEndpointLogout   = "keycloak.endpoint.logout"
+	// OAuthService
+	varOAuthServiceSecret           = "keycloak.secret"
+	varOAuthServiceClientID         = "keycloak.client.id"
+	varOAuthServiceDomainPrefix     = "keycloak.domain.prefix"
+	varOAuthServiceRealm            = "keycloak.realm"
+	varOAuthServiceTesUserName      = "keycloak.testuser.name"
+	varOAuthServiceTesUserSecret    = "keycloak.testuser.secret"
+	varOAuthServiceTesUser2Name     = "keycloak.testuser2.name"
+	varOAuthServiceTesUser2Secret   = "keycloak.testuser2.secret"
+	varOAuthServiceURL              = "keycloak.url"
+	varOAuthServiceEndpointAdmin    = "keycloak.endpoint.admin"
+	varOAuthServiceEndpointAuth     = "keycloak.endpoint.auth"
+	varOAuthServiceEndpointToken    = "keycloak.endpoint.token"
+	varOAuthServiceEndpointUserinfo = "keycloak.endpoint.userinfo"
+	varOAuthServiceEndpointBroker   = "keycloak.endpoint.broker"
+	varOAuthServiceEndpointAccount  = "keycloak.endpoint.account"
+	varOAuthServiceEndpointLogout   = "keycloak.endpoint.logout"
 
 	// Private keys for signing OSIO Serivice Account tokens
 	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.deprecated"
@@ -253,8 +253,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetPostgresPassword() == defaultDBPassword {
 		c.appendDefaultConfigErrorMessage("default DB password is used")
 	}
-	if c.GetKeycloakSecret() == defaultKeycloakSecret {
-		c.appendDefaultConfigErrorMessage("default Keycloak client secret is used")
+	if c.GetOAuthServiceSecret() == defaultOAuthServiceSecret {
+		c.appendDefaultConfigErrorMessage("default OAuth Service client secret is used")
 	}
 	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
 		c.appendDefaultConfigErrorMessage("default GitHub client secret is used")
@@ -716,7 +716,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varWITDomainPrefix, defaultWITDomainPrefix)
 
 	// Auth-related defaults
-	c.v.SetDefault(varKeycloakURL, devModeKeycloakURL)
+	c.v.SetDefault(varOAuthServiceURL, devModeOAuthServiceURL)
 	c.v.SetDefault(varServiceAccountPrivateKey, DefaultServiceAccountPrivateKey)
 	c.v.SetDefault(varServiceAccountPrivateKeyID, defaultServiceAccountPrivateKeyID)
 	c.v.SetDefault(varUserAccountPrivateKey, DefaultUserAccountPrivateKey)
@@ -725,12 +725,12 @@ func (c *ConfigurationData) setConfigDefaults() {
 	in30Days = 30 * 24 * 60 * 60
 	c.v.SetDefault(varAccessTokenExpiresIn, in30Days)
 	c.v.SetDefault(varRefreshTokenExpiresIn, in30Days)
-	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
-	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
+	c.v.SetDefault(varOAuthServiceClientID, defaultOAuthServiceClientID)
+	c.v.SetDefault(varOAuthServiceSecret, defaultOAuthServiceSecret)
 	c.v.SetDefault(varPublicOauthClientID, defaultPublicOauthClientID)
-	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
-	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
-	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
+	c.v.SetDefault(varOAuthServiceDomainPrefix, defaultOAuthServiceDomainPrefix)
+	c.v.SetDefault(varOAuthServiceTesUserName, defaultOAuthServiceTesUserName)
+	c.v.SetDefault(varOAuthServiceTesUserSecret, defaultOAuthServiceTesUserSecret)
 	c.v.SetDefault(varGitHubClientID, "c6a3a6280e9650ba27d8")
 	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org public_repo read:user")
@@ -746,11 +746,11 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// but can only be kept in the client's local cache.
 	c.v.SetDefault(varCacheControlUser, "private,max-age=10")
 
-	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
-	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
+	c.v.SetDefault(varOAuthServiceTesUser2Name, defaultOAuthServiceTesUser2Name)
+	c.v.SetDefault(varOAuthServiceTesUser2Secret, defaultOAuthServiceTesUser2Secret)
 
-	// Keycloak Tests are disabled by default
-	c.v.SetDefault(varKeycloakTestsDisabled, true)
+	// OAuthService Tests are disabled by default
+	c.v.SetDefault(varOAuthServiceTestsDisabled, true)
 
 	// On email successful/failed verification, redirect to this page.
 	c.v.SetDefault(varEmailVerifiedRedirectURL, "https://prod-preview.openshift.io/_home")
@@ -938,7 +938,7 @@ func (c *ConfigurationData) GetRefreshTokenExpiresIn() int64 {
 }
 
 // GetDevModePublicKey returns additional public key and its ID which should be used by the Auth service in Dev Mode
-// For example a public key from Keycloak
+// For example a public key from OAuthService
 // Returns false if in in Dev Mode
 func (c *ConfigurationData) GetDevModePublicKey() (bool, []byte, string) {
 	if c.IsPostgresDeveloperModeEnabled() {
@@ -974,16 +974,16 @@ func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
 }
 
-// GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
-// that is used to make authorized Keycloak API Calls.
-func (c *ConfigurationData) GetKeycloakSecret() string {
-	return c.v.GetString(varKeycloakSecret)
+// GetOAuthServiceSecret returns the OAuth service client secret (as set via config file or environment variable)
+// that is used to make authorized OAuth service API Calls.
+func (c *ConfigurationData) GetOAuthServiceSecret() string {
+	return c.v.GetString(varOAuthServiceSecret)
 }
 
-// GetKeycloakClientID returns the keycloak client ID (as set via config file or environment variable)
-// that is used to make authorized Keycloak API Calls.
-func (c *ConfigurationData) GetKeycloakClientID() string {
-	return c.v.GetString(varKeycloakClientID)
+// GetOAuthServiceClientID returns the OAuth service client ID (as set via config file or environment variable)
+// that is used to make authorized OAuth service API Calls.
+func (c *ConfigurationData) GetOAuthServiceClientID() string {
+	return c.v.GetString(varOAuthServiceClientID)
 }
 
 // GetPublicOauthClientID returns the public clientID
@@ -991,71 +991,71 @@ func (c *ConfigurationData) GetPublicOauthClientID() string {
 	return c.v.GetString(varPublicOauthClientID)
 }
 
-// GetKeycloakDomainPrefix returns the domain prefix which should be used in all Keycloak requests
-func (c *ConfigurationData) GetKeycloakDomainPrefix() string {
-	return c.v.GetString(varKeycloakDomainPrefix)
+// GetOAuthServiceDomainPrefix returns the domain prefix which should be used in all OAuth service requests
+func (c *ConfigurationData) GetOAuthServiceDomainPrefix() string {
+	return c.v.GetString(varOAuthServiceDomainPrefix)
 }
 
-// GetKeycloakRealm returns the keycloak realm name
-func (c *ConfigurationData) GetKeycloakRealm() string {
-	if c.v.IsSet(varKeycloakRealm) {
-		return c.v.GetString(varKeycloakRealm)
+// GetOAuthServiceRealm returns the OAuth service realm name
+func (c *ConfigurationData) GetOAuthServiceRealm() string {
+	if c.v.IsSet(varOAuthServiceRealm) {
+		return c.v.GetString(varOAuthServiceRealm)
 	}
 	if c.IsPostgresDeveloperModeEnabled() {
-		return devModeKeycloakRealm
+		return devModeOAuthServiceRealm
 	}
-	return defaultKeycloakRealm
+	return defaultOAuthServiceRealm
 }
 
-func (c *ConfigurationData) IsKeycloakTestsDisabled() bool {
-	return c.v.GetBool(varKeycloakTestsDisabled)
+func (c *ConfigurationData) IsOAuthServiceTestsDisabled() bool {
+	return c.v.GetBool(varOAuthServiceTestsDisabled)
 }
 
-// GetKeycloakTestUserName returns the keycloak test user name used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUserName() string {
-	return c.v.GetString(varKeycloakTesUserName)
+// GetOAuthServiceTestUserName returns the OAuthService test user name used to obtain a test token (as set via config file or environment variable)
+func (c *ConfigurationData) GetOAuthServiceTestUserName() string {
+	return c.v.GetString(varOAuthServiceTesUserName)
 }
 
-// GetKeycloakTestUserSecret returns the keycloak test user password used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUserSecret() string {
-	return c.v.GetString(varKeycloakTesUserSecret)
+// GetOAuthServiceTestUserSecret returns the OAuthService test user password used to obtain a test token (as set via config file or environment variable)
+func (c *ConfigurationData) GetOAuthServiceTestUserSecret() string {
+	return c.v.GetString(varOAuthServiceTesUserSecret)
 }
 
-// GetKeycloakTestUser2Name returns the keycloak test user name used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUser2Name() string {
-	return c.v.GetString(varKeycloakTesUser2Name)
+// GetOAuthServiceTestUser2Name returns the OAuthService test user name used to obtain a test token (as set via config file or environment variable)
+func (c *ConfigurationData) GetOAuthServiceTestUser2Name() string {
+	return c.v.GetString(varOAuthServiceTesUser2Name)
 }
 
-// GetKeycloakTestUser2Secret returns the keycloak test user password used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUser2Secret() string {
-	return c.v.GetString(varKeycloakTesUser2Secret)
+// GetOAuthServiceTestUser2Secret returns the OAuthService test user password used to obtain a test token (as set via config file or environment variable)
+func (c *ConfigurationData) GetOAuthServiceTestUser2Secret() string {
+	return c.v.GetString(varOAuthServiceTesUser2Secret)
 }
 
-// GetKeycloakEndpointAuth returns the keycloak auth endpoint set via config file or environment variable.
+// GetOAuthServiceEndpointAuth returns the OAuthService auth endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointAuth(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointAuth, "auth")
+func (c *ConfigurationData) GetOAuthServiceEndpointAuth(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceOpenIDConnectEndpoint(req, varOAuthServiceEndpointAuth, "auth")
 }
 
-// GetKeycloakEndpointToken returns the keycloak token endpoint set via config file or environment variable.
+// GetOAuthServiceEndpointToken returns the OAuthService token endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointToken(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointToken, "token")
+func (c *ConfigurationData) GetOAuthServiceEndpointToken(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceOpenIDConnectEndpoint(req, varOAuthServiceEndpointToken, "token")
 }
 
-// GetKeycloakEndpointUserInfo returns the keycloak userinfo endpoint set via config file or environment variable.
+// GetOAuthServiceEndpointUserInfo returns the OAuthService userinfo endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointUserInfo(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointUserinfo, "userinfo")
+func (c *ConfigurationData) GetOAuthServiceEndpointUserInfo(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceOpenIDConnectEndpoint(req, varOAuthServiceEndpointUserinfo, "userinfo")
 }
 
 // GetNotificationServiceURL returns the URL for the Notification service used for event notification
@@ -1068,69 +1068,69 @@ func (c *ConfigurationData) GetSentryDSN() string {
 	return c.v.GetString(varSentryDSN)
 }
 
-// GetKeycloakEndpointAdmin returns the <keycloak>/realms/admin/<realm> endpoint
+// GetOAuthServiceEndpointAdmin returns the <oauth-service>/realms/admin/<realm> endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointAdmin(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm())
+func (c *ConfigurationData) GetOAuthServiceEndpointAdmin(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceEndpoint(req, varOAuthServiceEndpointAdmin, "auth/admin/realms/"+c.GetOAuthServiceRealm())
 }
 
-// GetKeycloakEndpointUsers returns the <keycloak>/realms/admin/<realm>/users endpoint
+// GetOAuthServiceEndpointUsers returns the <oauth-service>/realms/admin/<realm>/users endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointUsers(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm()+"/users")
+func (c *ConfigurationData) GetOAuthServiceEndpointUsers(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceEndpoint(req, varOAuthServiceEndpointAdmin, "auth/admin/realms/"+c.GetOAuthServiceRealm()+"/users")
 
 }
 
-// GetKeycloakEndpointIDP returns the <keycloak>/realms/admin/<realm>/users/USER_ID/federated-identity/rhd endpoint
+// GetOAuthServiceEndpointLinkIDP returns the <oauth-service>/realms/admin/<realm>/users/USER_ID/federated-identity/rhd endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAdmin, "auth/admin/realms/"+c.GetKeycloakRealm()+"/users/"+id+"/federated-identity/"+idp)
+func (c *ConfigurationData) GetOAuthServiceEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error) {
+	return c.getOAuthServiceEndpoint(req, varOAuthServiceEndpointAdmin, "auth/admin/realms/"+c.GetOAuthServiceRealm()+"/users/"+id+"/federated-identity/"+idp)
 }
 
-// GetKeycloakEndpointBroker returns the <keycloak>/realms/<realm>/authz/entitlement/<clientID> endpoint
+// GetOAuthServiceEndpointBroker returns the <oauth-service>/realms/<realm>/authz/entitlement/<clientID> endpoint
 // set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointBroker(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointBroker, "auth/realms/"+c.GetKeycloakRealm()+"/broker")
+func (c *ConfigurationData) GetOAuthServiceEndpointBroker(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceEndpoint(req, varOAuthServiceEndpointBroker, "auth/realms/"+c.GetOAuthServiceRealm()+"/broker")
 }
 
-// GetKeycloakAccountEndpoint returns the API URL for Read and Update on Keycloak User Accounts.
-func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (string, error) {
-	return c.getKeycloakEndpoint(req, varKeycloakEndpointAccount, "auth/realms/"+c.GetKeycloakRealm()+"/account")
+// GetOAuthServiceAccountEndpoint returns the API URL for Read and Update on OAuthService User Accounts.
+func (c *ConfigurationData) GetOAuthServiceAccountEndpoint(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceEndpoint(req, varOAuthServiceEndpointAccount, "auth/realms/"+c.GetOAuthServiceRealm()+"/account")
 }
 
-// GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.
+// GetOAuthServiceEndpointLogout returns the OAuthService logout endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetKeycloakEndpointLogout(req *goa.RequestData) (string, error) {
-	return c.getKeycloakOpenIDConnectEndpoint(req, varKeycloakEndpointLogout, "logout")
+func (c *ConfigurationData) GetOAuthServiceEndpointLogout(req *goa.RequestData) (string, error) {
+	return c.getOAuthServiceOpenIDConnectEndpoint(req, varOAuthServiceEndpointLogout, "logout")
 }
 
-// GetKeycloakDevModeURL returns Keycloak URL used by default in Dev mode
-func (c *ConfigurationData) GetKeycloakDevModeURL() string {
-	return devModeKeycloakURL
+// GetOAuthServiceDevModeURL returns OAuthService URL used by default in Dev mode
+func (c *ConfigurationData) GetOAuthServiceDevModeURL() string {
+	return devModeOAuthServiceURL
 }
 
-// GetKeycloakURL returns Keycloak URL used by default
-func (c *ConfigurationData) GetKeycloakURL() string {
-	return c.v.GetString(varKeycloakURL)
+// GetOAuthServiceURL returns OAuthService URL used by default
+func (c *ConfigurationData) GetOAuthServiceURL() string {
+	return c.v.GetString(varOAuthServiceURL)
 }
 
 // GetWITDomainPrefix returns the domain prefix which should be used in requests to the auth service
@@ -1170,26 +1170,26 @@ func (c *ConfigurationData) GetOSORegistrationAppAdminToken() string {
 	return c.v.GetString(varOSORegistrationAppAdminToken)
 }
 
-func (c *ConfigurationData) getKeycloakOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
-	return c.getKeycloakEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
+func (c *ConfigurationData) getOAuthServiceOpenIDConnectEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
+	return c.getOAuthServiceEndpoint(req, endpointVarName, c.openIDConnectPath(pathSufix))
 }
 
-func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
+func (c *ConfigurationData) getOAuthServiceEndpoint(req *goa.RequestData, endpointVarName string, pathSufix string) (string, error) {
 	if c.v.IsSet(endpointVarName) {
 		return c.v.GetString(endpointVarName), nil
 	}
 	var endpoint string
 	var err error
-	if c.v.IsSet(varKeycloakURL) {
-		// Keycloak URL is set. Calculate the URL endpoint
-		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varKeycloakURL), pathSufix)
+	if c.v.IsSet(varOAuthServiceURL) {
+		// OAuthService URL is set. Calculate the URL endpoint
+		endpoint = fmt.Sprintf("%s/%s", c.v.GetString(varOAuthServiceURL), pathSufix)
 	} else {
 		if c.IsPostgresDeveloperModeEnabled() {
-			// Devmode is enabled. Calculate the URL endpoint using the devmode Keycloak URL
-			endpoint = fmt.Sprintf("%s/%s", devModeKeycloakURL, pathSufix)
+			// Devmode is enabled. Calculate the URL endpoint using the devmode OAuthService URL
+			endpoint = fmt.Sprintf("%s/%s", devModeOAuthServiceURL, pathSufix)
 		} else {
 			// Calculate relative URL based on request
-			endpoint, err = c.getKeycloakURL(req, pathSufix)
+			endpoint, err = c.getOAuthServiceURL(req, pathSufix)
 			if err != nil {
 				return "", err
 			}
@@ -1202,10 +1202,10 @@ func (c *ConfigurationData) getKeycloakEndpoint(req *goa.RequestData, endpointVa
 }
 
 func (c *ConfigurationData) openIDConnectPath(suffix string) string {
-	return "auth/realms/" + c.GetKeycloakRealm() + "/protocol/openid-connect/" + suffix
+	return "auth/realms/" + c.GetOAuthServiceRealm() + "/protocol/openid-connect/" + suffix
 }
 
-func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (string, error) {
+func (c *ConfigurationData) getOAuthServiceURL(req *goa.RequestData, path string) (string, error) {
 	scheme := "http"
 	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
 		scheme = "https"
@@ -1215,7 +1215,7 @@ func (c *ConfigurationData) getKeycloakURL(req *goa.RequestData, path string) (s
 		scheme = xForwardProto
 	}
 
-	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetKeycloakDomainPrefix())
+	newHost, err := rest.ReplaceDomainPrefix(req.Host, c.GetOAuthServiceDomainPrefix())
 	if err != nil {
 		return "", err
 	}

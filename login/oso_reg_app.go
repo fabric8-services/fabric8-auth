@@ -34,7 +34,7 @@ type Service struct {
 }
 
 type OSOSubscriptionManager interface {
-	LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error)
+	LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, oauthToken oauth2.Token) (string, error)
 }
 
 type osoRegistrationApp struct {
@@ -51,14 +51,14 @@ func NewOSORegistrationAppWithClient(client rest.HttpClient) OSOSubscriptionMana
 }
 
 // LoadOSOSubscriptionStatus loads a subscription status from OpenShift Online Registration app
-func (regApp *osoRegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, keycloakToken oauth2.Token) (string, error) {
+func (regApp *osoRegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config Configuration, oauthToken oauth2.Token) (string, error) {
 
 	// Extract username from the token
 	tokenManager, err := token.ReadManagerFromContext(ctx)
 	if err != nil {
 		return "", err
 	}
-	tokenClaims, err := tokenManager.ParseToken(ctx, keycloakToken.AccessToken)
+	tokenClaims, err := tokenManager.ParseToken(ctx, oauthToken.AccessToken)
 	if err != nil {
 		return "", err
 	}

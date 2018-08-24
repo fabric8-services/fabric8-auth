@@ -733,13 +733,13 @@ The secret value must be mounted as <strong>/etc/fabric8/service-account-secrets
 <div class="olist arabic">
 <ol class="arabic">
 <li>
-<p>Client sends a generated state. Auth "proxies" it to Keycloak and thereby initiates the first request in oauth2</p>
+<p>Client sends a generated state. Auth "proxies" it to OAuth Service and thereby initiates the first request in oauth2</p>
 </li>
 <li>
-<p>Keycloak redirects to IdP etc. User logs in..</p>
+<p>OAuth Service redirects to IdP etc. User logs in..</p>
 </li>
 <li>
-<p>Keycloak calls back Auth with a code</p>
+<p>OAuth Service calls back Auth with a code</p>
 </li>
 <li>
 <p>Auth passes the code to Client ( UI or another services )</p>

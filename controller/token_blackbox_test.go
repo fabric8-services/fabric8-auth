@@ -69,9 +69,9 @@ func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController
 	manager, err := token.NewManager(rest.Configuration)
 	require.Nil(rest.T(), err)
 
-	loginService := &DummyKeycloakOAuthService{}
-	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
+	loginService := &DummyOAuthService{}
+	profileService := login.NewOAuthServiceUserProfileClient()
+	loginService.OAuthServiceProvider = *login.NewOAuthServiceProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
 	loginService.Identities = rest.Application.Identities()
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = manager
@@ -91,10 +91,10 @@ func (rest *TestTokenREST) SecuredController() (*goa.Service, *TokenController) 
 }
 
 func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
-	newTestKeycloakOAuthProvider(rest.Application)
-	loginService := &DummyKeycloakOAuthService{}
-	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
+	newTestOAuthServiceProvider(rest.Application)
+	loginService := &DummyOAuthService{}
+	profileService := login.NewOAuthServiceUserProfileClient()
+	loginService.OAuthServiceProvider = *login.NewOAuthServiceProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
 	loginService.Identities = rest.Application.Identities()
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = testtoken.TokenManager
@@ -389,14 +389,14 @@ func (s *DummyLinkService) Callback(ctx context.Context, req *goa.RequestData, s
 	return "originalLocation", nil
 }
 
-type DummyKeycloakOAuthService struct {
-	login.KeycloakOAuthProvider
+type DummyOAuthService struct {
+	login.OAuthServiceProvider
 	accessToken      string
 	refreshToken     string
 	exchangeStrategy string
 }
 
-func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+func (s *DummyOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}
@@ -416,7 +416,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	return token, nil
 }
 
-func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+func (s *DummyOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}
@@ -435,14 +435,14 @@ func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, re
 
 // CreateOrUpdateIdentityAndUser is a mocked service contract which returns a token but not a redirect url.
 
-func (s *DummyKeycloakOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+func (s *DummyOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, oauthServiceToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
 		TokenType:    "bearer",
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
-		AccessToken:  keycloakToken.AccessToken,
-		RefreshToken: keycloakToken.RefreshToken,
+		AccessToken:  oauthServiceToken.AccessToken,
+		RefreshToken: oauthServiceToken.RefreshToken,
 	}
 
 	extra := make(map[string]interface{})
@@ -457,7 +457,7 @@ func (s *DummyKeycloakOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Co
 /* Custom oauth service for user-not-approved scenario */
 
 type NotApprovedOAuthService struct {
-	login.KeycloakOAuthProvider
+	login.OAuthServiceProvider
 	Scenario string
 }
 
@@ -474,7 +474,7 @@ func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string, con
 func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration login.Configuration) (*account.Identity, bool, error) {
 	return nil, false, errors.NewUnauthorizedError("user is absent")
 }
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, oauthServiceToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
 
 	/* This mocked method simulates the contract
 	where redir url is always returned, but token is returned when there is not error

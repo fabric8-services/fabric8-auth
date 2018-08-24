@@ -19,8 +19,8 @@ import (
 
 type ProfileUserWhiteboxTest struct {
 	testsuite.RemoteTestSuite
-	profileService       KeycloakUserProfileClient
-	loginService         *KeycloakOAuthProvider
+	profileService       OAuthServiceUserProfileClient
+	loginService         *OAuthServiceProvider
 	idpLinkService       link.KeycloakIDPService
 	protectedAccessToken string
 	userAPIFOrAdminURL   string
@@ -35,12 +35,12 @@ func TestRunProfileUserWhiteboxTest(t *testing.T) {
 // The SetupSuite method will run before the tests in the suite are run.
 func (s *ProfileUserWhiteboxTest) SetupSuite() {
 	s.RemoteTestSuite.SetupSuite()
-	if s.Config.IsKeycloakTestsDisabled() {
-		s.T().Skip("Skipping Keycloak tests")
+	if s.Config.IsOAuthServiceTestsDisabled() {
+		s.T().Skip("Skipping OAuth Service tests")
 	}
 	var err error
-	keycloakUserProfileService := NewKeycloakUserProfileClient()
-	s.profileService = *keycloakUserProfileService
+	oauthUserProfileService := NewOAuthServiceUserProfileClient()
+	s.profileService = *oauthUserProfileService
 
 	s.idpLinkService = link.NewKeycloakIDPServiceClient()
 
@@ -48,11 +48,11 @@ func (s *ProfileUserWhiteboxTest) SetupSuite() {
 		Request: &http.Request{Host: "api.example.org"},
 	}
 
-	s.tokenEndpoint, err = s.Config.GetKeycloakEndpointToken(r)
+	s.tokenEndpoint, err = s.Config.GetOAuthServiceEndpointToken(r)
 	assert.Nil(s.T(), err)
 
 	// http://sso.prod-preview.openshift.io/auth/admin/realms/fabric8/users"
-	s.userAPIFOrAdminURL, err = s.Config.GetKeycloakEndpointUsers(r)
+	s.userAPIFOrAdminURL, err = s.Config.GetOAuthServiceEndpointUsers(r)
 	assert.Nil(s.T(), err)
 
 	token, err := s.generateProtectedAccessToken()
@@ -62,8 +62,8 @@ func (s *ProfileUserWhiteboxTest) SetupSuite() {
 }
 
 func (s *ProfileUserWhiteboxTest) generateProtectedAccessToken() (*string, error) {
-	clientID := s.Config.GetKeycloakClientID()
-	clientSecret := s.Config.GetKeycloakSecret()
+	clientID := s.Config.GetOAuthServiceClientID()
+	clientSecret := s.Config.GetOAuthServiceSecret()
 	token, err := auth.GetProtectedAPIToken(context.Background(), s.tokenEndpoint, clientID, clientSecret)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), token)
@@ -75,7 +75,7 @@ func (s *ProfileUserWhiteboxTest) TestPATGenerated() {
 	assert.NotEmpty(s.T(), s.protectedAccessToken)
 }
 
-func (s *ProfileUserWhiteboxTest) TestKeycloakLoadUser() {
+func (s *ProfileUserWhiteboxTest) TestOAuthServiceLoadUser() {
 
 	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
 	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
@@ -87,23 +87,23 @@ func (s *ProfileUserWhiteboxTest) TestKeycloakLoadUser() {
 	testEnabled := true
 	testEmailVerified := true
 
-	testKeycloakUserProfileAttributes := &KeycloakUserProfileAttributes{
+	testOAuthServiceUserProfileAttributes := &OAuthServiceUserProfileAttributes{
 		ImageURLAttributeName: []string{testImageURL},
 		BioAttributeName:      []string{testBio},
 		URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := KeycloakUserRequest{
+	testOAuthServiceUserData := OAuthServiceUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
 		FirstName:     &testFirstName,
 		LastName:      &testLastName,
 		Email:         &testEmail,
-		Attributes:    testKeycloakUserProfileAttributes,
+		Attributes:    testOAuthServiceUserProfileAttributes,
 	}
 
-	s.createUser(&testKeycloakUserData)
+	s.createUser(&testOAuthServiceUserData)
 
 	retrievedUserProfile, err := s.profileService.loadUser(context.Background(), testUserName, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.NoError(s.T(), err)
@@ -113,7 +113,7 @@ func (s *ProfileUserWhiteboxTest) TestKeycloakLoadUser() {
 
 }
 
-func (s *ProfileUserWhiteboxTest) createUser(userProfile *KeycloakUserRequest) *string {
+func (s *ProfileUserWhiteboxTest) createUser(userProfile *OAuthServiceUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)

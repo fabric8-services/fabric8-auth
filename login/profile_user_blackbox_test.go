@@ -22,7 +22,7 @@ import (
 type ProfileUserBlackBoxTest struct {
 	testsuite.RemoteTestSuite
 	profileService       login.UserProfileService
-	loginService         *login.KeycloakOAuthProvider
+	loginService         *login.OAuthServiceProvider
 	idpLinkService       link.KeycloakIDPService
 	protectedAccessToken string
 	userAPIFOrAdminURL   string
@@ -37,12 +37,12 @@ func TestRunProfileUserBlackBoxTest(t *testing.T) {
 // The SetupSuite method will run before the tests in the suite are run.
 func (s *ProfileUserBlackBoxTest) SetupSuite() {
 	s.RemoteTestSuite.SetupSuite()
-	if s.Config.IsKeycloakTestsDisabled() {
-		s.T().Skip("Skipping Keycloak tests")
+	if s.Config.IsOAuthServiceTestsDisabled() {
+		s.T().Skip("Skipping OAuth Service tests")
 	}
 	var err error
-	keycloakUserProfileService := login.NewKeycloakUserProfileClient()
-	s.profileService = keycloakUserProfileService
+	oauthUserProfileService := login.NewOAuthServiceUserProfileClient()
+	s.profileService = oauthUserProfileService
 
 	s.idpLinkService = link.NewKeycloakIDPServiceClient()
 
@@ -50,11 +50,11 @@ func (s *ProfileUserBlackBoxTest) SetupSuite() {
 		Request: &http.Request{Host: "api.example.org"},
 	}
 
-	s.tokenEndpoint, err = s.Config.GetKeycloakEndpointToken(r)
+	s.tokenEndpoint, err = s.Config.GetOAuthServiceEndpointToken(r)
 	assert.Nil(s.T(), err)
 
 	// http://sso.prod-preview.openshift.io/auth/admin/realms/fabric8/users"
-	s.userAPIFOrAdminURL, err = s.Config.GetKeycloakEndpointUsers(r)
+	s.userAPIFOrAdminURL, err = s.Config.GetOAuthServiceEndpointUsers(r)
 	assert.Nil(s.T(), err)
 
 	token, err := s.generateProtectedAccessToken()
@@ -64,8 +64,8 @@ func (s *ProfileUserBlackBoxTest) SetupSuite() {
 }
 
 func (s *ProfileUserBlackBoxTest) generateProtectedAccessToken() (*string, error) {
-	clientID := s.Config.GetKeycloakClientID()
-	clientSecret := s.Config.GetKeycloakSecret()
+	clientID := s.Config.GetOAuthServiceClientID()
+	clientSecret := s.Config.GetOAuthServiceSecret()
 	token, err := auth.GetProtectedAPIToken(context.Background(), s.tokenEndpoint, clientID, clientSecret)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), token)
@@ -77,7 +77,7 @@ func (s *ProfileUserBlackBoxTest) TestPATGenerated() {
 	assert.NotEmpty(s.T(), s.protectedAccessToken)
 }
 
-func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
+func (s *ProfileUserBlackBoxTest) TestOAuthServiceAddUser() {
 	// UPDATE the user profile
 
 	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
@@ -90,23 +90,23 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 	testEnabled := true
 	testEmailVerified := true
 
-	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+	testOAuthServiceUserProfileAttributes := &login.OAuthServiceUserProfileAttributes{
 		login.ImageURLAttributeName: []string{testImageURL},
 		login.BioAttributeName:      []string{testBio},
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeycloakUserRequest{
+	testOAuthServiceUserData := login.OAuthServiceUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
 		FirstName:     &testFirstName,
 		LastName:      &testLastName,
 		Email:         &testEmail,
-		Attributes:    testKeycloakUserProfileAttributes,
+		Attributes:    testOAuthServiceUserProfileAttributes,
 	}
 
-	userURL := s.createUser(&testKeycloakUserData)
+	userURL := s.createUser(&testOAuthServiceUserData)
 
 	// TODO: Handle error, check if there was actually a URL returned.
 	userURLComponents := strings.Split(*userURL, "/")
@@ -114,7 +114,7 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 	idpName := "rhd"
 	linkRequest := link.KeycloakLinkIDPRequest{
 		UserID:           &identityID,
-		Username:         testKeycloakUserData.Username,
+		Username:         testOAuthServiceUserData.Username,
 		IdentityProvider: &idpName,
 	}
 
@@ -123,16 +123,16 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakAddUser() {
 	}
 
 	//"https://sso.prod-preview.openshift.io/auth/admin/realms/fabric8/users/" + identityID + "/federated-identity/rhd"
-	linkURL, err := s.Config.GetKeycloakEndpointLinkIDP(r, identityID, idpName)
+	linkURL, err := s.Config.GetOAuthServiceEndpointLinkIDP(r, identityID, idpName)
 	require.Nil(s.T(), err)
 
 	err = s.idpLinkService.Create(context.Background(), &linkRequest, s.protectedAccessToken, linkURL)
 	require.Nil(s.T(), err)
 
-	userURL = s.updateExistingUser(&testKeycloakUserData)
+	s.updateExistingUser(&testOAuthServiceUserData)
 }
 
-func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
+func (s *ProfileUserBlackBoxTest) TestOAuthServiceUpdateExistingUser() {
 	// UPDATE the user profile
 
 	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
@@ -145,28 +145,28 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakUpdateExistingUser() {
 	testEnabled := true
 	testEmailVerified := true
 
-	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+	testOAuthServiceUserProfileAttributes := &login.OAuthServiceUserProfileAttributes{
 		login.ImageURLAttributeName: []string{testImageURL},
 		login.BioAttributeName:      []string{testBio},
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeycloakUserRequest{
+	testOAuthServiceUserData := login.OAuthServiceUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
 		FirstName:     &testFirstName,
 		LastName:      &testLastName,
 		Email:         &testEmail,
-		Attributes:    testKeycloakUserProfileAttributes,
+		Attributes:    testOAuthServiceUserProfileAttributes,
 	}
 
-	s.createUser(&testKeycloakUserData)
-	s.updateExistingUser(&testKeycloakUserData)
+	s.createUser(&testOAuthServiceUserData)
+	s.updateExistingUser(&testOAuthServiceUserData)
 
 }
 
-func (s *ProfileUserBlackBoxTest) TestCreateKeycloakUserWithDefaults() {
+func (s *ProfileUserBlackBoxTest) TestCreateOAuthServiceUserWithDefaults() {
 
 	testFirstName := "updatedFirstNameAgainNew" + uuid.NewV4().String()
 	testLastName := "updatedLastNameNew" + uuid.NewV4().String()
@@ -176,25 +176,25 @@ func (s *ProfileUserBlackBoxTest) TestCreateKeycloakUserWithDefaults() {
 	testImageURL := "updatedBio" + uuid.NewV4().String()
 	testUserName := "sev1testsbosetestusercreate" + uuid.NewV4().String()
 
-	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+	testOAuthServiceUserProfileAttributes := &login.OAuthServiceUserProfileAttributes{
 		login.ImageURLAttributeName: []string{testImageURL},
 		login.BioAttributeName:      []string{testBio},
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeycloakUserRequest{
+	testOAuthServiceUserData := login.OAuthServiceUserRequest{
 		Username:   &testUserName,
 		FirstName:  &testFirstName,
 		LastName:   &testLastName,
 		Email:      &testEmail,
-		Attributes: testKeycloakUserProfileAttributes,
+		Attributes: testOAuthServiceUserProfileAttributes,
 	}
 
-	s.createUser(&testKeycloakUserData)
-	// verified on keycloak
+	s.createUser(&testOAuthServiceUserData)
+	// verified on OAuth Service
 }
 
-func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
+func (s *ProfileUserBlackBoxTest) TestOAuthServiceCreateNewUserWithExistingEmail() {
 	// UPDATE the user profile
 
 	emailToBeUpdatedFor409 := "unitestupdatedmail" + uuid.NewV4().String() + "@email.com"
@@ -208,40 +208,40 @@ func (s *ProfileUserBlackBoxTest) TestKeycloakCreateNewUserWithExistingEmail() {
 	testEnabled := true
 	testEmailVerified := true
 
-	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+	testOAuthServiceUserProfileAttributes := &login.OAuthServiceUserProfileAttributes{
 		login.ImageURLAttributeName: []string{testImageURL},
 		login.BioAttributeName:      []string{testBio},
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserData := login.KeycloakUserRequest{
+	testOAuthServiceUserData := login.OAuthServiceUserRequest{
 		Username:      &testUserName,
 		Enabled:       &testEnabled,
 		EmailVerified: &testEmailVerified,
 		FirstName:     &testFirstName,
 		LastName:      &testLastName,
 		Email:         &testEmail,
-		Attributes:    testKeycloakUserProfileAttributes,
+		Attributes:    testOAuthServiceUserProfileAttributes,
 	}
 
-	s.createUser(&testKeycloakUserData)
+	s.createUser(&testOAuthServiceUserData)
 
 	// Create second user
 
-	*(testKeycloakUserData).Email = "unittestupdatedemail" + uuid.NewV4().String() + "@email.com"
-	*(testKeycloakUserData).Username = "unitestupdatedusername" + uuid.NewV4().String() + "@email.com"
+	*(testOAuthServiceUserData).Email = "unittestupdatedemail" + uuid.NewV4().String() + "@email.com"
+	*(testOAuthServiceUserData).Username = "unitestupdatedusername" + uuid.NewV4().String() + "@email.com"
 
-	s.createUser(&testKeycloakUserData)
+	s.createUser(&testOAuthServiceUserData)
 
 	// Try updating second user with first user's email.
-	*(testKeycloakUserData).Email = emailToBeUpdatedFor409
+	*(testOAuthServiceUserData).Email = emailToBeUpdatedFor409
 
 	// should fail with a 409
-	s.updateExistingUser409(&testKeycloakUserData)
+	s.updateExistingUser409(&testOAuthServiceUserData)
 
 }
 
-func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeycloakUserRequest) *string {
+func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.OAuthServiceUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)
@@ -249,7 +249,7 @@ func (s *ProfileUserBlackBoxTest) createUser(userProfile *login.KeycloakUserRequ
 	return url
 }
 
-func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.KeycloakUserRequest) *string {
+func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.OAuthServiceUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), url)
@@ -257,7 +257,7 @@ func (s *ProfileUserBlackBoxTest) updateExistingUser(userProfile *login.Keycloak
 	return url
 }
 
-func (s *ProfileUserBlackBoxTest) updateExistingUser409(userProfile *login.KeycloakUserRequest) *string {
+func (s *ProfileUserBlackBoxTest) updateExistingUser409(userProfile *login.OAuthServiceUserRequest) *string {
 	url, created, err := s.profileService.CreateOrUpdate(context.Background(), userProfile, s.protectedAccessToken, s.userAPIFOrAdminURL)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.VersionConflictError{}, err)

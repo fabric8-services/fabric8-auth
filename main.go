@@ -19,12 +19,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
-	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
+	oauthServicelink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
+	oauthService "github.com/fabric8-services/fabric8-auth/token/service"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -182,11 +182,11 @@ func main() {
 		log.Logger().Warn("Tenant service is not enabled")
 	}
 
-	keycloakProfileService := login.NewKeycloakUserProfileClient()
-	keycloakTokenService := &keycloak.KeycloakTokenService{}
+	oauthProfileService := login.NewOAuthServiceUserProfileClient()
+	oauthTokenService := &oauthService.OAuthTokenService{}
 
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService, login.NewOSORegistrationApp())
+	loginService := login.NewOAuthServiceProvider(identityRepository, userRepository, tokenManager, appDB, oauthProfileService, oauthTokenService, login.NewOSORegistrationApp())
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 
@@ -203,7 +203,7 @@ func main() {
 	app.MountAuthorizeController(service, authorizeCtrl)
 
 	// Mount "logout" controller
-	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, config)
+	logoutCtrl := controller.NewLogoutController(service, &login.OAuthLogoutService{}, config)
 	app.MountLogoutController(service, logoutCtrl)
 
 	providerFactory := link.NewOauthProviderFactory(config, appDB)
@@ -234,10 +234,10 @@ func main() {
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
-	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
+	oauthLinkAPIService := oauthServicelink.NewKeycloakIDPServiceClient()
 
 	emailVerificationService := accountservice.NewEmailVerificationClient(appDB)
-	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
+	usersCtrl := controller.NewUsersController(service, appDB, config, oauthProfileService, oauthLinkAPIService)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 

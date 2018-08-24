@@ -49,33 +49,33 @@ func (rest *TestTokenStorageREST) SetupTest() {
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	loginService := newTestOAuthServiceProvider(rest.Application)
 	return svc, &TokenController{Controller: svc.NewController("token"), Auth: loginService, Configuration: rest.Configuration}
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	loginService := newTestOAuthServiceProvider(rest.Application)
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithIdentityAndDummyProviderFactory(identity account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	loginService := newTestOAuthServiceProvider(rest.Application)
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.dummyProviderConfigFactory, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	loginService := newTestOAuthServiceProvider(rest.Application)
 
 	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccountAndDummyProviderFactory(serviceAccount account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	loginService := newTestOAuthServiceProvider(rest.Application)
 
 	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
 	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.dummyProviderConfigFactory, loginService.TokenManager, rest.Configuration)

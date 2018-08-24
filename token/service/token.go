@@ -1,4 +1,4 @@
-package keycloak
+package service
 
 import (
 	"context"
@@ -17,11 +17,11 @@ type TokenService interface {
 	RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error)
 }
 
-// KeycloakTokenService implements TokenService
-type KeycloakTokenService struct {
+// OAuthTokenService implements TokenService
+type OAuthTokenService struct {
 }
 
-func (s *KeycloakTokenService) RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
+func (s *OAuthTokenService) RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	res, err := client.PostForm(refreshTokenEndpoint, url.Values{
 		"client_id":     {clientID},

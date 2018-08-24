@@ -15,7 +15,7 @@ import (
 	errs "github.com/pkg/errors"
 )
 
-// UserInfo represents a user info Keycloak payload
+// UserInfo represents a user info oauth service payload
 type UserInfo struct {
 	Sub               string `json:"sub"`
 	Name              string `json:"name"`
@@ -25,7 +25,7 @@ type UserInfo struct {
 	Email             string `json:"email"`
 }
 
-// GetUserInfo gets user info from Keycloak
+// GetUserInfo gets user info from oauth service
 func GetUserInfo(ctx context.Context, userInfoEndpoint string, userAccessToken string) (*UserInfo, error) {
 	req, err := http.NewRequest("GET", userInfoEndpoint, nil)
 	if err != nil {
@@ -39,8 +39,8 @@ func GetUserInfo(ctx context.Context, userInfoEndpoint string, userAccessToken s
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err.Error(),
-		}, "unable to get user info from Keycloak")
-		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get user info from Keycloak"))
+		}, "unable to get user info from oauth service")
+		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get user info from oauth service"))
 	}
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
@@ -48,8 +48,8 @@ func GetUserInfo(ctx context.Context, userInfoEndpoint string, userAccessToken s
 		log.Error(ctx, map[string]interface{}{
 			"response_body":   bodyString,
 			"response_status": res.Status,
-		}, "unable to get user info from Keycloak")
-		return nil, errors.NewInternalError(ctx, errs.New("unable to get user info from Keycloak. Response status: "+res.Status+". Response body: "+bodyString))
+		}, "unable to get user info from oauth service")
+		return nil, errors.NewInternalError(ctx, errs.New("unable to get user info from oauth service. Response status: "+res.Status+". Response body: "+bodyString))
 	}
 
 	var r UserInfo
@@ -61,8 +61,8 @@ func GetUserInfo(ctx context.Context, userInfoEndpoint string, userAccessToken s
 	return &r, nil
 }
 
-// ValidateKeycloakUser returns true if the user exists in Keycloak. Returns false if the user is not found
-func ValidateKeycloakUser(ctx context.Context, adminEndpoint string, userID, protectionAPIToken string) (bool, error) {
+// ValidateOAuthServiceUser returns true if the user exists in oauth service. Returns false if the user is not found
+func ValidateOAuthServiceUser(ctx context.Context, adminEndpoint string, userID, protectionAPIToken string) (bool, error) {
 	req, err := http.NewRequest("GET", adminEndpoint+"/users/"+userID, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -76,8 +76,8 @@ func ValidateKeycloakUser(ctx context.Context, adminEndpoint string, userID, pro
 		log.Error(ctx, map[string]interface{}{
 			"user_id": userID,
 			"err":     err.Error(),
-		}, "unable to get user from Keycloak")
-		return false, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get user from Keycloak"))
+		}, "unable to get user from oauth service")
+		return false, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get user from oauth service"))
 	}
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
@@ -91,12 +91,12 @@ func ValidateKeycloakUser(ctx context.Context, adminEndpoint string, userID, pro
 			"user_id":         userID,
 			"response_body":   bodyString,
 			"response_status": res.Status,
-		}, "unable to get user from Keycloak")
-		return false, errors.NewInternalError(ctx, errs.New("unable to get user from Keycloak. Response status: "+res.Status+". Response body: "+bodyString))
+		}, "unable to get user from oauth service")
+		return false, errors.NewInternalError(ctx, errs.New("unable to get user from oauth service. Response status: "+res.Status+". Response body: "+bodyString))
 	}
 }
 
-// GetProtectedAPIToken obtains a Protected API Token (PAT) from Keycloak
+// GetProtectedAPIToken obtains a Protected API Token (PAT) from oauth service
 func GetProtectedAPIToken(ctx context.Context, openidConnectTokenURL string, clientID string, clientSecret string) (string, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	res, err := client.PostForm(openidConnectTokenURL, url.Values{

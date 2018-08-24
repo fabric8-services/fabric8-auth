@@ -35,7 +35,7 @@ func TestRunAuthorizeREST(t *testing.T) {
 
 func (rest *TestAuthorizeREST) UnSecuredController() (*goa.Service, *AuthorizeController) {
 	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
+	loginService := newTestOAuthServiceProvider(rest.Application)
 	return svc, &AuthorizeController{Controller: svc.NewController("AuthorizeController"), Auth: loginService, Configuration: rest.Configuration}
 }
 
@@ -129,10 +129,10 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	err = ctrl.Authorize(authorizeCtx)
 	require.Nil(t, err)
 
-	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
+	require.Equal(t, 307, rw.Code) // redirect to OAuthService login page.
 
 	locationString := rw.HeaderMap["Location"][0]
-	authEndpoint, _ := rest.Configuration.GetKeycloakEndpointAuth(authorizeCtx.RequestData)
+	authEndpoint, _ := rest.Configuration.GetOAuthServiceEndpointAuth(authorizeCtx.RequestData)
 	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)
@@ -160,9 +160,9 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	require.Nil(t, err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from OAuth Service after a valid authorization by the end user.
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizecallbackTest"), rw, req, prms)
 	callbackCtx, err := app.NewCallbackAuthorizeContext(goaCtx, req, goa.New("LoginService"))
@@ -238,10 +238,10 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	err = ctrl.Authorize(authorizeCtx)
 	require.Nil(t, err)
 
-	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
+	require.Equal(t, 307, rw.Code) // redirect to OAuthService login page.
 
 	locationString := rw.HeaderMap["Location"][0]
-	authEndpoint, _ := rest.Configuration.GetKeycloakEndpointAuth(authorizeCtx.RequestData)
+	authEndpoint, _ := rest.Configuration.GetOAuthServiceEndpointAuth(authorizeCtx.RequestData)
 	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)
@@ -287,9 +287,9 @@ func (rest *TestAuthorizeREST) checkInvalidRequest(testFor string, toBeRemoved s
 	require.Nil(t, err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from OAuth Service after a valid authorization by the end user.
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 
 	valueToAdd := prms.Get(toBeRemoved)
 	prms.Del(toBeRemoved)
@@ -321,9 +321,9 @@ func (rest *TestAuthorizeREST) makeNewRequest(testFor string, u *url.URL, t *tes
 	require.Nil(t, err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from OAuthService after a valid authorization by the end user.
+	refererOAuthServiceUrl := "https://oauth-service-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthServiceUrl)
 
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "AuthorizeTest"), rw, req, prms)
 	if testFor == "authorizeCallback" {

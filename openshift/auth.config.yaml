@@ -48,7 +48,7 @@ objects:
     postgres.connection.maxopen: "90"
     redirect.valid: ".*"
     notapproved_redirect: ""
-    keycloak.url: https://sso.openshift.io
+    keycloak.url: http://localhost:8000
     notification.serviceurl: ""
     email.verify.url: https://prod-preview.openshift.io/_home
     invitation.accepted.url: https://prod-preview.openshift.io/_home

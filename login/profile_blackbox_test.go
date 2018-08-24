@@ -30,7 +30,7 @@ type ProfileBlackBoxTest struct {
 	testsuite.RemoteTestSuite
 	clean          func()
 	profileService login.UserProfileService
-	loginService   *login.KeycloakOAuthProvider
+	loginService   *login.OAuthServiceProvider
 	accessToken    *string
 	profileAPIURL  *string
 }
@@ -49,14 +49,14 @@ func (s *ProfileBlackBoxTest) SetupSuite() {
 		panic(fmt.Errorf("Failed to setup the configuration: %s", err.Error()))
 	}
 
-	keycloakUserProfileService := login.NewKeycloakUserProfileClient()
-	s.profileService = keycloakUserProfileService
+	oauthUserProfileService := login.NewOAuthServiceUserProfileClient()
+	s.profileService = oauthUserProfileService
 
 	// Get the API endpoint - avoid repition in every test.
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	profileAPIURL, err := s.Config.GetKeycloakAccountEndpoint(r)
+	profileAPIURL, err := s.Config.GetOAuthServiceAccountEndpoint(r)
 	s.profileAPIURL = &profileAPIURL
 
 	// Get the access token ONCE which we will use for all profile related tests.
@@ -70,7 +70,7 @@ func (s *ProfileBlackBoxTest) SetupSuite() {
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), profile)
 
-	initialProfileState := &login.KeycloakUserProfile{
+	initialProfileState := &login.OAuthServiceUserProfile{
 		Attributes: profile.Attributes,
 		FirstName:  profile.FirstName,
 		LastName:   profile.LastName,
@@ -78,7 +78,7 @@ func (s *ProfileBlackBoxTest) SetupSuite() {
 		Username:   profile.Username,
 	}
 
-	// Schedule it for restoring of the initial state of the keycloak user after the test
+	// Schedule it for restoring of the initial state of the OAuthService user after the test
 	s.clean = s.updateUserProfile(initialProfileState)
 }
 
@@ -92,13 +92,16 @@ func (s *ProfileBlackBoxTest) generateAccessToken() (*string, error) {
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	tokenEndpoint, err := s.Config.GetKeycloakEndpointToken(r)
+	tokenEndpoint, err := s.Config.GetOAuthServiceEndpointToken(r)
+	if err != nil {
+		return nil, errors.NewInternalError(context.Background(), errs.Wrap(err, "error getting token endpoint"))
+	}
 
 	res, err := client.PostForm(tokenEndpoint, url.Values{
-		"client_id":     {s.Config.GetKeycloakClientID()},
-		"client_secret": {s.Config.GetKeycloakSecret()},
-		"username":      {s.Config.GetKeycloakTestUserName()},
-		"password":      {s.Config.GetKeycloakTestUserSecret()},
+		"client_id":     {s.Config.GetOAuthServiceClientID()},
+		"client_secret": {s.Config.GetOAuthServiceSecret()},
+		"username":      {s.Config.GetOAuthServiceTestUserName()},
+		"password":      {s.Config.GetOAuthServiceTestUserSecret()},
 		"grant_type":    {"password"},
 	})
 	if err != nil {
@@ -110,7 +113,7 @@ func (s *ProfileBlackBoxTest) generateAccessToken() (*string, error) {
 	return t.AccessToken, err
 }
 
-func (s *ProfileBlackBoxTest) TestKeycloakUserProfileUpdate() {
+func (s *ProfileBlackBoxTest) TestOAuthServiceUserProfileUpdate() {
 
 	// UPDATE the user profile
 
@@ -122,38 +125,38 @@ func (s *ProfileBlackBoxTest) TestKeycloakUserProfileUpdate() {
 	testImageURL := "updatedBio" + uuid.NewV4().String()
 	testUserName := "testuserupdated"
 
-	testKeycloakUserProfileAttributes := &login.KeycloakUserProfileAttributes{
+	testOAuthServiceUserProfileAttributes := &login.OAuthServiceUserProfileAttributes{
 		login.ImageURLAttributeName: []string{testImageURL},
 		login.BioAttributeName:      []string{testBio},
 		login.URLAttributeName:      []string{testURL},
 	}
 
-	testKeycloakUserProfileData := login.NewKeycloakUserProfile(&testFirstName, &testLastName, &testEmail, testKeycloakUserProfileAttributes)
-	testKeycloakUserProfileData.Username = &testUserName
+	testOAuthServiceUserProfileData := login.NewOAuthServiceUserProfile(&testFirstName, &testLastName, &testEmail, testOAuthServiceUserProfileAttributes)
+	testOAuthServiceUserProfileData.Username = &testUserName
 
-	updateProfileFunc := s.updateUserProfile(testKeycloakUserProfileData)
+	updateProfileFunc := s.updateUserProfile(testOAuthServiceUserProfileData)
 	updateProfileFunc()
 
 	// Do a GET on the user profile
 	// Use the token to update user profile
-	retrievedkeycloakUserProfileData, err := s.profileService.Get(context.Background(), *s.accessToken, *s.profileAPIURL)
+	retrievedOAuthServiceUserProfileData, err := s.profileService.Get(context.Background(), *s.accessToken, *s.profileAPIURL)
 	require.Nil(s.T(), err)
-	require.NotNil(s.T(), retrievedkeycloakUserProfileData)
+	require.NotNil(s.T(), retrievedOAuthServiceUserProfileData)
 
-	assert.Equal(s.T(), testFirstName, *retrievedkeycloakUserProfileData.FirstName)
-	assert.Equal(s.T(), testLastName, *retrievedkeycloakUserProfileData.LastName)
-	assert.Equal(s.T(), testUserName, *retrievedkeycloakUserProfileData.Username)
+	assert.Equal(s.T(), testFirstName, *retrievedOAuthServiceUserProfileData.FirstName)
+	assert.Equal(s.T(), testLastName, *retrievedOAuthServiceUserProfileData.LastName)
+	assert.Equal(s.T(), testUserName, *retrievedOAuthServiceUserProfileData.Username)
 
 	// email is automatically stored in lower case
-	assert.Equal(s.T(), strings.ToLower(testEmail), *retrievedkeycloakUserProfileData.Email)
+	assert.Equal(s.T(), strings.ToLower(testEmail), *retrievedOAuthServiceUserProfileData.Email)
 
 	// validate Attributes
-	retrievedBio := (*retrievedkeycloakUserProfileData.Attributes)[login.BioAttributeName]
+	retrievedBio := (*retrievedOAuthServiceUserProfileData.Attributes)[login.BioAttributeName]
 	assert.Equal(s.T(), retrievedBio[0], testBio)
 
 }
 
-func (s *ProfileBlackBoxTest) TestKeycloakUserProfileGet() {
+func (s *ProfileBlackBoxTest) TestOAuthServiceUserProfileGet() {
 	profile, err := s.profileService.Get(context.Background(), *s.accessToken, *s.profileAPIURL)
 
 	require.Nil(s.T(), err)
@@ -167,7 +170,7 @@ func (s *ProfileBlackBoxTest) TestKeycloakUserProfileGet() {
 	assert.NotNil(s.T(), *profile.Attributes)
 }
 
-func (s *ProfileBlackBoxTest) updateUserProfile(userProfile *login.KeycloakUserProfile) func() {
+func (s *ProfileBlackBoxTest) updateUserProfile(userProfile *login.OAuthServiceUserProfile) func() {
 	return func() {
 		err := s.profileService.Update(context.Background(), userProfile, *s.accessToken, *s.profileAPIURL)
 		require.Nil(s.T(), err)

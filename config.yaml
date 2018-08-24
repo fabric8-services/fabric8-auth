@@ -93,7 +93,7 @@ serviceaccount.privatekeyid: 9MLnViaRkhVj1GT9kpWUkwHIwUD-wZfUxR-3CpkE-Xs
 #notapproved.redirect : https://manage.openshift.com/openshiftio
 
 # ----------------------------
-# Keycloak configuration
+# OAuth Service configuration
 # ----------------------------
 
 keycloak.client.id : fabric8-online-platform

@@ -43,23 +43,23 @@ func TestOpenIDConnectPathOK(t *testing.T) {
 	t.Parallel()
 
 	path := config.openIDConnectPath("somesufix")
-	assert.Equal(t, "auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/somesufix", path)
+	assert.Equal(t, "auth/realms/"+config.GetOAuthServiceRealm()+"/protocol/openid-connect/somesufix", path)
 }
 
-func TestGetKeycloakURLOK(t *testing.T) {
+func TestGetOAuthServiceURLOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
-	url, err := config.getKeycloakURL(reqLong, "somepath")
+	url, err := config.getOAuthServiceURL(reqLong, "somepath")
 	assert.Nil(t, err)
 	assert.Equal(t, "http://sso.service.domain.org/somepath", url)
 
-	url, err = config.getKeycloakURL(reqShort, "somepath2")
+	url, err = config.getOAuthServiceURL(reqShort, "somepath2")
 	assert.Nil(t, err)
 	assert.Equal(t, "http://sso.domain.org/somepath2", url)
 }
 
-func TestGetKeycloakHttpsURLOK(t *testing.T) {
+func TestGetOAuthServiceHttpsURLOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
@@ -69,23 +69,23 @@ func TestGetKeycloakHttpsURLOK(t *testing.T) {
 		Request: r,
 	}
 
-	url, err := config.getKeycloakURL(req, "somepath")
+	url, err := config.getOAuthServiceURL(req, "somepath")
 	assert.Nil(t, err)
 	assert.Equal(t, "https://sso.domain.org/somepath", url)
 }
 
-func TestGetKeycloakURLForTooShortHostFails(t *testing.T) {
+func TestGetOAuthServiceURLForTooShortHostFails(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
 
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "org"},
 	}
-	_, err := config.getKeycloakURL(r, "somepath")
+	_, err := config.getOAuthServiceURL(r, "somepath")
 	assert.NotNil(t, err)
 }
 
-func TestKeycloakRealmInDevModeCanBeOverridden(t *testing.T) {
+func TestOAuthServiceRealmInDevModeCanBeOverridden(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
 	key := "AUTH_KEYCLOAK_REALM"
@@ -97,12 +97,12 @@ func TestKeycloakRealmInDevModeCanBeOverridden(t *testing.T) {
 		resetConfiguration()
 	}()
 
-	assert.Equal(t, devModeKeycloakRealm, config.GetKeycloakRealm())
+	assert.Equal(t, devModeOAuthServiceRealm, config.GetOAuthServiceRealm())
 
 	os.Setenv(key, "somecustomrealm")
 	resetConfiguration()
 
-	assert.Equal(t, "somecustomrealm", config.GetKeycloakRealm())
+	assert.Equal(t, "somecustomrealm", config.GetOAuthServiceRealm())
 }
 
 func TestGetLogLevelOK(t *testing.T) {

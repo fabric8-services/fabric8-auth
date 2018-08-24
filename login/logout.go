@@ -10,8 +10,8 @@ import (
 	"github.com/goadesign/goa"
 )
 
-// KeycloakLogoutService represents a keycloak logout service
-type KeycloakLogoutService struct {
+// OAuthLogoutService represents a OAuth logout service
+type OAuthLogoutService struct {
 }
 
 // LogoutService represents logout service interface
@@ -20,7 +20,7 @@ type LogoutService interface {
 }
 
 // Logout logs out user
-func (s *KeycloakLogoutService) Logout(ctx *app.LogoutLogoutContext, logoutEndpoint string, validRedirectURL string) error {
+func (s *OAuthLogoutService) Logout(ctx *app.LogoutLogoutContext, logoutEndpoint string, validRedirectURL string) error {
 	redirect := ctx.Redirect
 	referrer := ctx.RequestData.Header.Get("Referer")
 	if redirect == nil {

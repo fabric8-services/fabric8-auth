@@ -108,7 +108,7 @@ type Manager interface {
 	AuthServiceAccountToken() string
 	GenerateServiceAccountToken(saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
-	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
+	GenerateUserToken(ctx context.Context, token oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
@@ -154,7 +154,7 @@ func NewManager(config configuration) (Manager, error) {
 		return nil, err
 	}
 
-	// Load Keycloak public key if run in dev mode.
+	// Load oauth public key if run in dev mode.
 	devMode, key, kid := config.GetDevModePublicKey()
 	if devMode {
 		rsaKey, err := jwt.ParseRSAPublicKeyFromPEM(key)
@@ -394,9 +394,9 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(saID string, saName
 	return token
 }
 
-// GenerateUserToken generates an OAuth2 user token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error) {
-	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, keycloakToken.AccessToken, identity)
+// GenerateUserToken generates an OAuth2 user token for the given identity based on the OAuth2 token
+func (mgm *tokenManager) GenerateUserToken(ctx context.Context, oauthToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error) {
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, oauthToken.AccessToken, identity)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -404,7 +404,7 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, keycloakToken.RefreshToken, identity)
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, oauthToken.RefreshToken, identity)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -415,21 +415,21 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	token := &oauth2.Token{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		Expiry:       keycloakToken.Expiry,
+		Expiry:       oauthToken.Expiry,
 		TokenType:    "bearer",
 	}
 
 	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
 	extra := make(map[string]interface{})
-	expiresIn := keycloakToken.Extra("expires_in")
+	expiresIn := oauthToken.Extra("expires_in")
 	if expiresIn != nil {
 		extra["expires_in"] = expiresIn
 	}
-	refreshExpiresIn := keycloakToken.Extra("refresh_expires_in")
+	refreshExpiresIn := oauthToken.Extra("refresh_expires_in")
 	if refreshExpiresIn != nil {
 		extra["refresh_expires_in"] = refreshExpiresIn
 	}
-	notBeforePolicy := keycloakToken.Extra("not_before_policy")
+	notBeforePolicy := oauthToken.Extra("not_before_policy")
 	if notBeforePolicy != nil {
 		extra["not_before_policy"] = notBeforePolicy
 	}
@@ -480,12 +480,12 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 	return token, nil
 }
 
-// GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *repository.Identity) (*jwt.Token, error) {
+// GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the OAuth2 token
+func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, accessToken string, identity *repository.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
-	kcClaims, err := mgm.ParseToken(ctx, keycloakAccessToken)
+	kcClaims, err := mgm.ParseToken(ctx, accessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -600,12 +600,12 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 	return token, nil
 }
 
-// GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakRefreshToken string, identity *repository.Identity) (*jwt.Token, error) {
+// GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the OAuth2 token
+func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, refreshToken string, identity *repository.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
-	kcClaims, err := mgm.ParseToken(ctx, keycloakRefreshToken)
+	kcClaims, err := mgm.ParseToken(ctx, refreshToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -703,15 +703,15 @@ func (mgm *tokenManager) ConvertTokenSet(tokenSet TokenSet) *oauth2.Token {
 		extra["not_before_policy"] = *tokenSet.NotBeforePolicy
 	}
 
-	oauth2Token := &oauth2.Token{
+	oauthToken := &oauth2.Token{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    tokenType,
 		Expiry:       expire,
 	}
-	oauth2Token = oauth2Token.WithExtra(extra)
+	oauthToken = oauthToken.WithExtra(extra)
 
-	return oauth2Token
+	return oauthToken
 }
 
 // ConvertToken converts the oauth2.Token to a token set

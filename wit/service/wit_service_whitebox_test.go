@@ -20,12 +20,13 @@ import (
 
 	"bytes"
 	"fmt"
+	"io/ioutil"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"io/ioutil"
 )
 
 func TestWIT(t *testing.T) {
@@ -79,7 +80,7 @@ func (s *TestWITSuite) TestCreateWITUser() {
 	testIdentity := account.Identity{
 		User:                  testUser,
 		Username:              "test",
-		ProviderType:          account.KeycloakIDP,
+		ProviderType:          account.OSIOIdentityProvider,
 		RegistrationCompleted: true}
 	identityId := uuid.NewV4().String()
 

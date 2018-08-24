@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	// KeycloakIDP is the name of the main Keycloak Identity Provider
-	KeycloakIDP string = "kc"
+	// OSIOIdentityProvider is the name of the main OSIO Identity Provider
+	OSIOIdentityProvider string = "kc"
 )
 
 // NullUUID can be used with the standard sql package to represent a
@@ -60,17 +60,18 @@ func (u NullUUID) Value() (driver.Value, error) {
 	return u.UUID.Value()
 }
 
-// Identity describes a federated identity provided by Identity Provider (IDP) such as Keycloak, GitHub, OSO, etc.
+// Identity describes a federated identity provided by Identity Provider (IDP) such as GitHub, OSO, etc
+// with the main IDP of type OSIOIdentityProvider.
 // One User account can have many Identities
 type Identity struct {
 	gormsupport.Lifecycle
-	// This is the ID PK field. For identities provided by Keycloak this ID equals to the Keycloak. For other types of IDP (github, oso, etc) this ID is generated automaticaly
+	// This is the ID PK field. For identities provided by the main OSIO provider this ID equals to the OSIOIdentityProvider. For other types of IDP (github, oso, etc) this ID is generated automaticaly
 	ID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key"`
 	// The username of the Identity
 	Username string
 	// Whether username has been updated.
 	RegistrationCompleted bool `gorm:"column:registration_completed"`
-	// ProviderType The type of provider, such as "keycloak", "github", "oso", etc
+	// ProviderType The type of provider, such as "kc", "github", "oso", etc
 	ProviderType string `gorm:"column:provider_type"`
 	// the URL of the profile on the remote work item service
 	ProfileURL *string `gorm:"column:profile_url"`

@@ -52,9 +52,9 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	s.svc = goa.New("test")
 	testAttributeValue := "a"
 	dummyProfileResponse := createDummyUserProfileResponse(&testAttributeValue, &testAttributeValue, &testAttributeValue)
-	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
-	s.profileService = keycloakUserProfileService
-	s.linkAPIService = &dummyKeycloakLinkService{}
+	oauthServiceUserProfileService := newDummyUserProfileService(dummyProfileResponse)
+	s.profileService = oauthServiceUserProfileService
+	s.linkAPIService = &dummyOAuthLinkService{}
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&testsupport.DevWITService{}))
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
@@ -1042,7 +1042,7 @@ func (s *UsersControllerTestSuite) TestListUsersOK() {
 
 // a user should always have a KC identity, but just in case, the server should not fail
 // to respond to the query if data some data is invalid.
-func (s *UsersControllerTestSuite) TestListUsersWithMissingKeycloakIdentityOK() {
+func (s *UsersControllerTestSuite) TestListUsersWithMissingOAuthServiceIdentityOK() {
 	// given user1
 	_, identity1 := s.createRandomUserIdentity(s.T(), "TestListUsersOK1")
 	identity1.ProviderType = ""
@@ -1234,7 +1234,7 @@ func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser accountr
 	require.NotNil(t, actual)
 	assert.Equal(t, expectedIdentity.Username, *actual.Attributes.Username)
 	if expectedIdentity.ProviderType == "" {
-		assert.Equal(t, accountrepo.KeycloakIDP, *actual.Attributes.ProviderType)
+		assert.Equal(t, accountrepo.OSIOIdentityProvider, *actual.Attributes.ProviderType)
 	} else {
 		assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	}
@@ -1398,42 +1398,42 @@ func (s *UsersControllerTestSuite) generateUsersTag(allUsers app.UserArray) stri
 	return app.GenerateEntitiesTag(entities)
 }
 
-type dummyKeycloakLinkService struct{}
+type dummyOAuthLinkService struct{}
 
-func (d *dummyKeycloakLinkService) Create(ctx context.Context, keycloakLinkIDPRequest *link.KeycloakLinkIDPRequest, protectedAccessToken string, keycloakIDPLinkURL string) error {
+func (d *dummyOAuthLinkService) Create(ctx context.Context, oauthServiceLinkIDPRequest *link.KeycloakLinkIDPRequest, protectedAccessToken string, oauthServiceIDPLinkURL string) error {
 	return nil
 }
 
 type dummyUserProfileService struct {
-	dummyGetResponse *login.KeycloakUserProfileResponse
+	dummyGetResponse *login.OAuthServiceUserProfileResponse
 }
 
-func newDummyUserProfileService(dummyGetResponse *login.KeycloakUserProfileResponse) *dummyUserProfileService {
+func newDummyUserProfileService(dummyGetResponse *login.OAuthServiceUserProfileResponse) *dummyUserProfileService {
 	return &dummyUserProfileService{
 		dummyGetResponse: dummyGetResponse,
 	}
 }
 
-func (d *dummyUserProfileService) Update(ctx context.Context, keycloakUserProfile *login.KeycloakUserProfile, accessToken string, keycloakProfileURL string) error {
+func (d *dummyUserProfileService) Update(ctx context.Context, oauthServiceUserProfile *login.OAuthServiceUserProfile, accessToken string, oauthServiceProfileURL string) error {
 	return nil
 }
 
-func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*login.KeycloakUserProfileResponse, error) {
+func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, oauthServiceProfileURL string) (*login.OAuthServiceUserProfileResponse, error) {
 	return d.dummyGetResponse, nil
 }
 
-func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *login.KeycloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
-	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
+func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, oauthServiceUserProfile *login.OAuthServiceUserRequest, accessToken string, oauthServiceProfileURL string) (*string, bool, error) {
+	url := "https://someurl/pathinoauthserviceurl/" + uuid.NewV4().String()
 	return &url, true, nil
 }
 
-func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *login.KeycloakUserProfileResponse) {
+func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *login.OAuthServiceUserProfileResponse) {
 	d.dummyGetResponse = dummyGetResponse
 }
 
-func createDummyUserProfileResponse(updatedBio, updatedImageURL, updatedURL *string) *login.KeycloakUserProfileResponse {
-	profile := &login.KeycloakUserProfileResponse{}
-	profile.Attributes = &login.KeycloakUserProfileAttributes{}
+func createDummyUserProfileResponse(updatedBio, updatedImageURL, updatedURL *string) *login.OAuthServiceUserProfileResponse {
+	profile := &login.OAuthServiceUserProfileResponse{}
+	profile.Attributes = &login.OAuthServiceUserProfileAttributes{}
 
 	(*profile.Attributes)[login.BioAttributeName] = []string{*updatedBio}
 	(*profile.Attributes)[login.ImageURLAttributeName] = []string{*updatedImageURL}
@@ -1449,7 +1449,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
 	identity.User = user
-	identity.ProviderType = accountrepo.KeycloakIDP
+	identity.ProviderType = accountrepo.OSIOIdentityProvider
 	identity.RegistrationCompleted = true
 
 	user.ContextInformation = map[string]interface{}{

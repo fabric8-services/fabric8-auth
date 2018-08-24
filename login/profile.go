@@ -27,23 +27,23 @@ const (
 	RHDUsernameAttribute  = "rhd_username"
 )
 
-// KeycloakUserProfile represents standard Keycloak User profile api request payload
-type KeycloakUserProfile struct {
-	ID            *string                        `json:"id,omitempty"`
-	CreatedAt     int64                          `json:"createdTimestamp,omitempty"`
-	Username      *string                        `json:"username,omitempty"`
-	FirstName     *string                        `json:"firstName,omitempty"`
-	LastName      *string                        `json:"lastName,omitempty"`
-	Email         *string                        `json:"email,omitempty"`
-	EmailVerified *bool                          `json:"emailVerified"`
-	Attributes    *KeycloakUserProfileAttributes `json:"attributes,omitempty"`
+// OAuthServiceUserProfile represents standard OAuthService User profile api request payload
+type OAuthServiceUserProfile struct {
+	ID            *string                            `json:"id,omitempty"`
+	CreatedAt     int64                              `json:"createdTimestamp,omitempty"`
+	Username      *string                            `json:"username,omitempty"`
+	FirstName     *string                            `json:"firstName,omitempty"`
+	LastName      *string                            `json:"lastName,omitempty"`
+	Email         *string                            `json:"email,omitempty"`
+	EmailVerified *bool                              `json:"emailVerified"`
+	Attributes    *OAuthServiceUserProfileAttributes `json:"attributes,omitempty"`
 }
 
-// KeycloakUserProfileAttributes represents standard Keycloak profile payload Attributes
-type KeycloakUserProfileAttributes map[string][]string
+// OAuthServiceUserProfileAttributes represents standard OAuthService profile payload Attributes
+type OAuthServiceUserProfileAttributes map[string][]string
 
-func equalsKeycloakAttribute(keycloakAttributes KeycloakUserProfileAttributes, attribute string, compareTo string) bool {
-	if v, ok := keycloakAttributes[attribute]; ok {
+func equalsOAuthServiceAttribute(oauthServiceAttributes OAuthServiceUserProfileAttributes, attribute string, compareTo string) bool {
+	if v, ok := oauthServiceAttributes[attribute]; ok {
 		if len(v) > 0 {
 			if v[0] == compareTo {
 				return true
@@ -53,20 +53,20 @@ func equalsKeycloakAttribute(keycloakAttributes KeycloakUserProfileAttributes, a
 	return false
 }
 
-//KeycloakUserProfileResponse represents the user profile api response from keycloak
-type KeycloakUserProfileResponse struct {
-	ID                         *string                        `json:"id"`
-	CreatedTimestamp           *int64                         `json:"createdTimestamp"`
-	Username                   *string                        `json:"username"`
-	Enabled                    *bool                          `json:"enabled"`
-	Totp                       *bool                          `json:"totp"`
-	EmailVerified              *bool                          `json:"emailVerified"`
-	FirstName                  *string                        `json:"firstName"`
-	LastName                   *string                        `json:"lastName"`
-	Email                      *string                        `json:"email"`
-	Attributes                 *KeycloakUserProfileAttributes `json:"attributes"`
-	DisableableCredentialTypes []*string                      `json:"disableableCredentialTypes"`
-	RequiredActions            []interface{}                  `json:"requiredActions"`
+//OAuthServiceUserProfileResponse represents the user profile api response from OAuthService
+type OAuthServiceUserProfileResponse struct {
+	ID                         *string                            `json:"id"`
+	CreatedTimestamp           *int64                             `json:"createdTimestamp"`
+	Username                   *string                            `json:"username"`
+	Enabled                    *bool                              `json:"enabled"`
+	Totp                       *bool                              `json:"totp"`
+	EmailVerified              *bool                              `json:"emailVerified"`
+	FirstName                  *string                            `json:"firstName"`
+	LastName                   *string                            `json:"lastName"`
+	Email                      *string                            `json:"email"`
+	Attributes                 *OAuthServiceUserProfileAttributes `json:"attributes"`
+	DisableableCredentialTypes []*string                          `json:"disableableCredentialTypes"`
+	RequiredActions            []interface{}                      `json:"requiredActions"`
 }
 
 /*
@@ -75,19 +75,19 @@ type KeycloakUserProfileResponse struct {
 	"email":"<EMAIL>","attributes":{"approved":["true"],
 		"rhd_username":["<USERNAME>"],"company":["<company claim from RHD token>"]}}
 */
-type KeycloakUserRequest struct {
-	Username      *string                        `json:"username"`
-	Enabled       *bool                          `json:"enabled"`
-	EmailVerified *bool                          `json:"emailVerified"`
-	FirstName     *string                        `json:"firstName"`
-	LastName      *string                        `json:"lastName"`
-	Email         *string                        `json:"email"`
-	Attributes    *KeycloakUserProfileAttributes `json:"attributes"`
+type OAuthServiceUserRequest struct {
+	Username      *string                            `json:"username"`
+	Enabled       *bool                              `json:"enabled"`
+	EmailVerified *bool                              `json:"emailVerified"`
+	FirstName     *string                            `json:"firstName"`
+	LastName      *string                            `json:"lastName"`
+	Email         *string                            `json:"email"`
+	Attributes    *OAuthServiceUserProfileAttributes `json:"attributes"`
 }
 
-// NewKeycloakUserProfile creates a new keycloakUserProfile instance.
-func NewKeycloakUserProfile(firstName *string, lastName *string, email *string, attributes *KeycloakUserProfileAttributes) *KeycloakUserProfile {
-	return &KeycloakUserProfile{
+// NewOAuthServiceUserProfile creates a new OAuthServiceUserProfile instance.
+func NewOAuthServiceUserProfile(firstName *string, lastName *string, email *string, attributes *OAuthServiceUserProfileAttributes) *OAuthServiceUserProfile {
+	return &OAuthServiceUserProfile{
 		FirstName:  firstName,
 		LastName:   lastName,
 		Email:      email,
@@ -97,37 +97,37 @@ func NewKeycloakUserProfile(firstName *string, lastName *string, email *string, 
 
 // UserProfileService describes what the services need to be capable of doing.
 type UserProfileService interface {
-	Update(ctx context.Context, conkeycloakUserProfile *KeycloakUserProfile, accessToken string, keycloakProfileURL string) error
-	Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*KeycloakUserProfileResponse, error)
-	CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeycloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error)
+	Update(ctx context.Context, conOAuthServiceUserProfile *OAuthServiceUserProfile, accessToken string, oauthServiceProfileURL string) error
+	Get(ctx context.Context, accessToken string, oauthServiceProfileURL string) (*OAuthServiceUserProfileResponse, error)
+	CreateOrUpdate(ctx context.Context, oauthServiceUserRequest *OAuthServiceUserRequest, protectedAccessToken string, oauthServiceAdminUserAPIURL string) (*string, bool, error)
 }
 
-// KeycloakUserProfileClient describes the interface between platform and Keycloak User profile service.
-type KeycloakUserProfileClient struct {
+// OAuthServiceUserProfileClient describes the interface between platform and OAuthService User profile service.
+type OAuthServiceUserProfileClient struct {
 	client *http.Client
 }
 
-// NewKeycloakUserProfileClient creates a new KeycloakUserProfileClient
-func NewKeycloakUserProfileClient() *KeycloakUserProfileClient {
-	return &KeycloakUserProfileClient{
+// NewOAuthServiceUserProfileClient creates a new OAuthServiceUserProfileClient
+func NewOAuthServiceUserProfileClient() *OAuthServiceUserProfileClient {
+	return &OAuthServiceUserProfileClient{
 		client: http.DefaultClient,
 	}
 }
 
-// CreateOrUpdate creates the user in Keycloak using the admin REST API
+// CreateOrUpdate creates the user in OAuthService using the admin REST API
 // If the user already exists then the user will be updated
 // Returns true if a new user has been created and false if the existing user has been updated
-func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.Context, keycloakUserRequest *KeycloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, bool, error) {
+func (userProfileClient *OAuthServiceUserProfileClient) CreateOrUpdate(ctx context.Context, oauthServiceUserRequest *OAuthServiceUserRequest, protectedAccessToken string, oauthServiceAdminUserAPIURL string) (*string, bool, error) {
 	defaultState := true
-	keycloakUserRequest.Enabled = &defaultState
-	keycloakUserRequest.EmailVerified = &defaultState
+	oauthServiceUserRequest.Enabled = &defaultState
+	oauthServiceUserRequest.EmailVerified = &defaultState
 
-	body, err := json.Marshal(keycloakUserRequest)
+	body, err := json.Marshal(oauthServiceUserRequest)
 	if err != nil {
 		return nil, false, errors.NewInternalError(ctx, err)
 	}
 
-	req, err := http.NewRequest("POST", keycloakAdminUserAPIURL, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", oauthServiceAdminUserAPIURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, false, errors.NewInternalError(ctx, err)
 	}
@@ -138,9 +138,9 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
+			"oauth_service_user_profile_url": oauthServiceAdminUserAPIURL,
 			"err": err,
-		}, "Unable to create Keycloak user")
+		}, "Unable to create OAuthService user")
 		return nil, false, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
 		defer rest.CloseResponse(resp)
@@ -151,26 +151,26 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 		if resp.StatusCode == 409 {
 			// User exists. Update the user.
 			log.Info(ctx, map[string]interface{}{
-				"response_status":           resp.Status,
-				"response_body":             bodyString,
-				"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-			}, "User already exists in Keycloak. Will try to update")
-			createdUserURLString, err := userProfileClient.updateAsAdmin(ctx, keycloakUserRequest, protectedAccessToken, keycloakAdminUserAPIURL)
+				"response_status":                resp.Status,
+				"response_body":                  bodyString,
+				"oauth_service_user_profile_url": oauthServiceAdminUserAPIURL,
+			}, "User already exists in OAuthService. Will try to update")
+			createdUserURLString, err := userProfileClient.updateAsAdmin(ctx, oauthServiceUserRequest, protectedAccessToken, oauthServiceAdminUserAPIURL)
 			if err != nil {
 				return nil, false, err
 			}
 			log.Info(ctx, map[string]interface{}{
-				"keycloak_user_url": keycloakAdminUserAPIURL,
-				"user_url":          createdUserURLString,
-			}, "Successfully updated Keycloak user user")
+				"oauth_service_user_url": oauthServiceAdminUserAPIURL,
+				"user_url":               createdUserURLString,
+			}, "Successfully updated OAuthService user user")
 			return createdUserURLString, false, nil
 		}
 
 		log.Error(ctx, map[string]interface{}{
-			"response_status":           resp.Status,
-			"response_body":             bodyString,
-			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-		}, "Unable to create Keycloak user")
+			"response_status":                resp.Status,
+			"response_body":                  bodyString,
+			"oauth_service_user_profile_url": oauthServiceAdminUserAPIURL,
+		}, "Unable to create OAuthService user")
 
 		// Observed this error code when trying to create user
 		// with a token belonging to a different realm.
@@ -178,50 +178,50 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 			return nil, false, errors.NewUnauthorizedError(bodyString)
 		}
 
-		return nil, false, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating keycloak user :  %s", resp.Status, keycloakAdminUserAPIURL))
+		return nil, false, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while creating OAuthService user :  %s", resp.Status, oauthServiceAdminUserAPIURL))
 	}
 
 	createdUserURL, err := resp.Location()
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_user_url": keycloakAdminUserAPIURL,
-			"err":               err,
-		}, "Unable to create Keycloak user")
+			"oauth_service_user_url": oauthServiceAdminUserAPIURL,
+			"err": err,
+		}, "Unable to create OAuthService user")
 		return nil, false, errors.NewInternalError(ctx, err)
 	}
 	if createdUserURL == nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_user_url": keycloakAdminUserAPIURL,
-		}, "Unable to create Keycloak user")
-		return nil, false, errors.NewInternalError(ctx, errs.Errorf("user creation in keycloak might have failed."))
+			"oauth_service_user_url": oauthServiceAdminUserAPIURL,
+		}, "Unable to create OAuthService user")
+		return nil, false, errors.NewInternalError(ctx, errs.Errorf("user creation in OAuthService might have failed."))
 	}
 
 	createdUserURLString := createdUserURL.String()
 	log.Info(ctx, map[string]interface{}{
-		"keycloak_user_url": keycloakAdminUserAPIURL,
-		"user_url":          createdUserURLString,
-	}, "Successfully created Keycloak user")
+		"oauth_service_user_url": oauthServiceAdminUserAPIURL,
+		"user_url":               createdUserURLString,
+	}, "Successfully created OAuthService user")
 
 	return &createdUserURLString, true, nil
 }
 
-func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Context, keycloakUserRequest *KeycloakUserRequest, protectedAccessToken string, keycloakAdminUserAPIURL string) (*string, error) {
-	user, err := userProfileClient.loadUser(ctx, *keycloakUserRequest.Username, protectedAccessToken, keycloakAdminUserAPIURL)
+func (userProfileClient *OAuthServiceUserProfileClient) updateAsAdmin(ctx context.Context, oauthServiceUserRequest *OAuthServiceUserRequest, protectedAccessToken string, oauthServiceAdminUserAPIURL string) (*string, error) {
+	user, err := userProfileClient.loadUser(ctx, *oauthServiceUserRequest.Username, protectedAccessToken, oauthServiceAdminUserAPIURL)
 	if err != nil {
 		return nil, err
 	}
 	if user == nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-			"email":                     *keycloakUserRequest.Email,
-		}, "Unable to update Keycloak user because user not found")
-		return nil, errs.New("unable to update Keycloak user because user not found")
+			"oauth_service_user_profile_url": oauthServiceAdminUserAPIURL,
+			"email": *oauthServiceUserRequest.Email,
+		}, "Unable to update OAuthService user because user not found")
+		return nil, errs.New("unable to update OAuthService user because user not found")
 	}
-	body, err := json.Marshal(keycloakUserRequest)
+	body, err := json.Marshal(oauthServiceUserRequest)
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}
-	userURL := keycloakAdminUserAPIURL + "/" + *user.ID
+	userURL := oauthServiceAdminUserAPIURL + "/" + *user.ID
 	req, err := http.NewRequest("PUT", userURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -233,10 +233,10 @@ func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Co
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-			"email":                     *keycloakUserRequest.Email,
-			"err":                       err,
-		}, "Unable to update Keycloak user")
+			"oauth_service_user_profile_url": oauthServiceAdminUserAPIURL,
+			"email": *oauthServiceUserRequest.Email,
+			"err":   err,
+		}, "Unable to update OAuthService user")
 		return nil, err
 	}
 	defer rest.CloseResponse(resp)
@@ -244,31 +244,31 @@ func (userProfileClient *KeycloakUserProfileClient) updateAsAdmin(ctx context.Co
 	bodyString := rest.ReadBody(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		log.Error(ctx, map[string]interface{}{
-			"response_status":           resp.Status,
-			"response_body":             bodyString,
-			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-			"email":                     *keycloakUserRequest.Email,
-		}, "Unable to update Keycloak user")
+			"response_status":                resp.Status,
+			"response_body":                  bodyString,
+			"oauth_service_user_profile_url": oauthServiceAdminUserAPIURL,
+			"email": *oauthServiceUserRequest.Email,
+		}, "Unable to update OAuthService user")
 
 		// new username, but existing email can cause this.
 		if resp.StatusCode == 409 {
-			return nil, errors.NewVersionConflictError(fmt.Sprintf("user with the same email %s already exists", *keycloakUserRequest.Email))
+			return nil, errors.NewVersionConflictError(fmt.Sprintf("user with the same email %s already exists", *oauthServiceUserRequest.Email))
 		}
-		return nil, errs.Errorf("received a non-2xx response %s while creating keycloak user:  %s", resp.Status, keycloakAdminUserAPIURL)
+		return nil, errs.Errorf("received a non-2xx response %s while creating OAuthService user:  %s", resp.Status, oauthServiceAdminUserAPIURL)
 	}
 	log.Info(ctx, map[string]interface{}{
-		"response_status":           resp.Status,
-		"response_body":             bodyString,
-		"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-		"email":                     *keycloakUserRequest.Email,
-	}, "Successfully updated Keycloak user")
+		"response_status":                resp.Status,
+		"response_body":                  bodyString,
+		"oauth_service_user_profile_url": oauthServiceAdminUserAPIURL,
+		"email": *oauthServiceUserRequest.Email,
+	}, "Successfully updated OAuthService user")
 
 	return &userURL, nil
 }
 
 // loadUser search for a user by username. Return nil if no user found.
-func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context, username string, protectedAccessToken string, keycloakAdminUserAPIURL string) (*KeycloakUserProfile, error) {
-	kcURL, err := rest.AddParams(keycloakAdminUserAPIURL, map[string]string{
+func (userProfileClient *OAuthServiceUserProfileClient) loadUser(ctx context.Context, username string, protectedAccessToken string, oauthServiceAdminUserAPIURL string) (*OAuthServiceUserProfile, error) {
+	kcURL, err := rest.AddParams(oauthServiceAdminUserAPIURL, map[string]string{
 		"username": username,
 		"first":    "0",
 		"max":      "500", // TODO we need to handle big user lists better
@@ -289,7 +289,7 @@ func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context
 		log.Error(ctx, map[string]interface{}{
 			"url": kcURL,
 			"err": err,
-		}, "Unable to load Keycloak user")
+		}, "Unable to load OAuthService user")
 		return nil, err
 	}
 	defer rest.CloseResponse(resp)
@@ -304,12 +304,12 @@ func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context
 			"response_status": resp.Status,
 			"response_body":   bodyString,
 			"url":             kcURL,
-		}, "Unable to load Keycloak user")
+		}, "Unable to load OAuthService user")
 
-		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while loading keycloak user :  %s", resp.Status, kcURL))
+		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while loading OAuthService user :  %s", resp.Status, kcURL))
 	}
 
-	var users []KeycloakUserProfile
+	var users []OAuthServiceUserProfile
 	err = json.Unmarshal(body, &users)
 	if err != nil {
 		return nil, err
@@ -326,14 +326,14 @@ func (userProfileClient *KeycloakUserProfileClient) loadUser(ctx context.Context
 	return nil, nil
 }
 
-// Update updates the user profile information in Keycloak
-func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, keycloakUserProfile *KeycloakUserProfile, accessToken string, keycloakProfileURL string) error {
-	body, err := json.Marshal(keycloakUserProfile)
+// Update updates the user profile information in OAuthService
+func (userProfileClient *OAuthServiceUserProfileClient) Update(ctx context.Context, oauthServiceUserProfile *OAuthServiceUserProfile, accessToken string, oauthServiceProfileURL string) error {
+	body, err := json.Marshal(oauthServiceUserProfile)
 	if err != nil {
 		return errors.NewInternalError(ctx, err)
 	}
 
-	req, err := http.NewRequest("POST", keycloakProfileURL, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", oauthServiceProfileURL, bytes.NewReader(body))
 	if err != nil {
 		return errors.NewInternalError(ctx, err)
 	}
@@ -344,9 +344,9 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_user_profile_url": keycloakProfileURL,
+			"oauth_service_user_profile_url": oauthServiceProfileURL,
 			"err": err,
-		}, "Unable to update Keycloak user profile")
+		}, "Unable to update OAuthService user profile")
 		return errors.NewInternalError(ctx, err)
 	} else if resp != nil {
 		defer rest.CloseResponse(resp)
@@ -356,36 +356,36 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 	if resp.StatusCode != http.StatusOK {
 
 		log.Error(ctx, map[string]interface{}{
-			"response_status":           resp.Status,
-			"response_body":             bodyString,
-			"keycloak_user_profile_url": keycloakProfileURL,
-		}, "Unable to update Keycloak user profile")
+			"response_status":                resp.Status,
+			"response_body":                  bodyString,
+			"oauth_service_user_profile_url": oauthServiceProfileURL,
+		}, "Unable to update OAuthService user profile")
 
 		if resp.StatusCode == 500 {
 			// Observed that a 500 is returned whenever username/email is not unique
-			return errors.NewBadParameterError("username or email", fmt.Sprintf("%s , %s", *keycloakUserProfile.Email, *keycloakUserProfile.Username))
+			return errors.NewBadParameterError("username or email", fmt.Sprintf("%s , %s", *oauthServiceUserProfile.Email, *oauthServiceUserProfile.Username))
 		}
 		if resp.StatusCode == 400 {
 			return errors.NewUnauthorizedError(bodyString)
 		}
 
-		return errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while updating keycloak user profile %s", resp.Status, keycloakProfileURL))
+		return errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while updating OAuthService user profile %s", resp.Status, oauthServiceProfileURL))
 	}
 	log.Info(ctx, map[string]interface{}{
-		"response_status":           resp.Status,
-		"response_body":             bodyString,
-		"keycloak_user_profile_url": keycloakProfileURL,
-	}, "Successfully updated Keycloak user profile")
+		"response_status":                resp.Status,
+		"response_body":                  bodyString,
+		"oauth_service_user_profile_url": oauthServiceProfileURL,
+	}, "Successfully updated OAuthService user profile")
 
 	return nil
 }
 
-//Get gets the user profile information from Keycloak
-func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*KeycloakUserProfileResponse, error) {
+//Get gets the user profile information from OAuthService
+func (userProfileClient *OAuthServiceUserProfileClient) Get(ctx context.Context, accessToken string, oauthServiceProfileURL string) (*OAuthServiceUserProfileResponse, error) {
 
-	keycloakUserProfileResponse := KeycloakUserProfileResponse{}
+	oauthServiceUserProfileResponse := OAuthServiceUserProfileResponse{}
 
-	req, err := http.NewRequest("GET", keycloakProfileURL, nil)
+	req, err := http.NewRequest("GET", oauthServiceProfileURL, nil)
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}
@@ -397,9 +397,9 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_user_profile_url": keycloakProfileURL,
+			"oauth_service_user_profile_url": oauthServiceProfileURL,
 			"err": err,
-		}, "Unable to fetch Keycloak user profile")
+		}, "Unable to fetch OAuthService user profile")
 		return nil, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
 		defer rest.CloseResponse(resp)
@@ -408,29 +408,29 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 	if resp.StatusCode != http.StatusOK {
 		bodyString := rest.ReadBody(resp.Body)
 		log.Error(ctx, map[string]interface{}{
-			"response_status":           resp.Status,
-			"response_body":             bodyString,
-			"keycloak_user_profile_url": keycloakProfileURL,
-		}, "Unable to fetch Keycloak user profile")
+			"response_status":                resp.Status,
+			"response_body":                  bodyString,
+			"oauth_service_user_profile_url": oauthServiceProfileURL,
+		}, "Unable to fetch OAuthService user profile")
 		if resp.StatusCode == 400 {
 			return nil, errors.NewUnauthorizedError(bodyString)
 		}
-		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while fetching keycloak user profile %s", resp.Status, keycloakProfileURL))
+		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while fetching OAuthService user profile %s", resp.Status, oauthServiceProfileURL))
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&keycloakUserProfileResponse)
-	return &keycloakUserProfileResponse, err
+	err = json.NewDecoder(resp.Body).Decode(&oauthServiceUserProfileResponse)
+	return &oauthServiceUserProfileResponse, err
 }
 
-func keycloakUserRequestFromIdentity(identity repository.Identity) KeycloakUserRequest {
+func oauthServiceUserRequestFromIdentity(identity repository.Identity) OAuthServiceUserRequest {
 	firstName, lastName := account.SplitFullName(identity.User.FullName)
-	return KeycloakUserRequest{
+	return OAuthServiceUserRequest{
 		Username:      &identity.Username,
 		FirstName:     &firstName,
 		LastName:      &lastName,
 		Email:         &identity.User.Email,
 		EmailVerified: &identity.User.EmailVerified,
-		Attributes: &KeycloakUserProfileAttributes{
+		Attributes: &OAuthServiceUserProfileAttributes{
 			BioAttributeName:      []string{identity.User.Bio},
 			ImageURLAttributeName: []string{identity.User.ImageURL},
 			URLAttributeName:      []string{identity.User.URL},
