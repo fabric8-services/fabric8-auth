@@ -107,7 +107,8 @@ type Manager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
-	GenerateRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (string, error)
+	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
+	SignRPTToken(ctx context.Context, rptToken *jwt.Token) (string, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 	AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter)
@@ -438,14 +439,18 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	return token, nil
 }
 
-// GenerateRPTTokenForIdentity generates an OAuth2 RPT token for the given identity and specified permissions
-func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (string, error) {
+// GenerateUnsignedRPTTokenForIdentity generates a JWT RPT token for the given identity and specified permissions.
+func (mgm *tokenManager) GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error) {
 	unsignedRPTtoken, err := mgm.GenerateUnsignedRPTTokenFromClaims(ctx, tokenClaims, &identity, permissions)
 	if err != nil {
-		return "", errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
-	return unsignedRPTtoken.SignedString(mgm.userAccountPrivateKey.Key)
+	return unsignedRPTtoken, nil
+}
+
+func (mgm *tokenManager) SignRPTToken(ctx context.Context, rptToken *jwt.Token) (string, error) {
+	return rptToken.SignedString(mgm.userAccountPrivateKey.Key)
 }
 
 // GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity

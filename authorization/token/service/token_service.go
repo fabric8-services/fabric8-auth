@@ -5,6 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
+	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
@@ -164,12 +165,37 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// Populate the permissions
 	// TODO populate permissions array
 
-	newToken, err := manager.GenerateRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
+	generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
 	if err != nil {
 		return "", errors.NewInternalError(ctx, err)
 	}
 
-	return newToken, nil
+	// We need to extract the new jti claim from the token
+	claims := generatedToken.Claims.(token.TokenClaims)
+
+	newTokenID, err := uuid.FromString(claims.Id)
+	if err != nil {
+		return "", errors.NewInternalError(ctx, err)
+	}
+
+	// Create a new Token record in the database
+	newTokenRecord := &tokenRepo.Token{
+		TokenID:   newTokenID,
+		Status:    0,
+		TokenType: tokenPkg.TOKEN_TYPE_RPT,
+		// TODO calculate the expiry time
+		/*ExpiryTime: claims.ExpiresAt,*/
+	}
+
+	s.Repositories().TokenRepository().Create(ctx, newTokenRecord)
+
+	// Sign the token and return it
+	signed, err := manager.SignRPTToken(ctx, generatedToken)
+	if err != nil {
+		return "", errors.NewInternalError(ctx, err)
+	}
+
+	return signed, nil
 }
 
 func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {
