@@ -71,7 +71,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// Extract the kid from the token
 	tokenID, err = uuid.FromString(tokenClaims.Id)
 	if err != nil {
-		// TODO Ignore? or perhaps log
+		return "", errors.NewBadParameterErrorFromString("jti", tokenClaims.Id, "invalid jti identifier - not a UUID")
 	}
 
 	loadedToken, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
@@ -131,10 +131,12 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			for _, priv := range privileges {
 				if priv.Stale {
 					// Retrieve the up to date scopes for the resource
-					scopes, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, priv.IdentityID, priv.ResourceID)
+					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, priv.IdentityID, priv.ResourceID)
 					if err != nil {
 						return "", errors.NewInternalError(ctx, err)
 					}
+
+					scopes := privilegeCache.ScopesAsArray()
 
 					scopesChanged := false
 
@@ -169,17 +171,26 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
 	perms := []token.Permissions{}
 
+	tokenPrivs := []tokenRepo.TokenPrivilege{}
+
 	// Populate the permissions
 	// TODO populate permissions array
 
 	// Populate the scopes for the requested resource
-	resourceScopes, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, identity.ID, resourceID)
+	privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, resourceID)
 	perm := &token.Permissions{
 		ResourceSetID: &resourceID,
-		Scopes:        resourceScopes,
+		Scopes:        privilegeCache.ScopesAsArray(),
+		Expiry:        privilegeCache.ExpiryTime.Unix(),
 	}
 
 	perms = append(perms, *perm)
+
+	tokenPriv := &tokenRepo.TokenPrivilege{
+		PrivilegeCacheID: privilegeCache.PrivilegeCacheID,
+	}
+
+	tokenPrivs = append(tokenPrivs, *tokenPriv)
 
 	generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
 	if err != nil {

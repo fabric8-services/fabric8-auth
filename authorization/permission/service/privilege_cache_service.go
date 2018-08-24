@@ -31,8 +31,10 @@ func NewPrivilegeCacheService(context servicecontext.ServiceContext, config Priv
 	}
 }
 
-// ScopesForResource returns an array of the scopes that an identity has for a specified resource
-func (s *privilegeCacheServiceImpl) ScopesForResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error) {
+// CachedPrivileges returns the cached privileges that an identity has for a specified resource.
+// If there are no privileges cached, or the cached value is stale, the privileges will be re-calculated and
+// the cached value updated.
+func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identityID uuid.UUID, resourceID string) (*permission.PrivilegeCache, error) {
 	nowTime := time.Now()
 
 	// Attempt to load the privilege cache record from the database
@@ -80,9 +82,7 @@ func (s *privilegeCacheServiceImpl) ScopesForResource(ctx context.Context, ident
 				return nil, errors.NewInternalError(ctx, err)
 			}
 		}
-
-		return scopes, nil
-	} else {
-		return strings.Split(privilegeCache.Scopes, ","), nil
 	}
+
+	return privilegeCache, nil
 }

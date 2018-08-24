@@ -13,6 +13,7 @@ import (
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
+	"strings"
 )
 
 type PrivilegeCache struct {
@@ -36,6 +37,10 @@ type PrivilegeCache struct {
 // in the database.
 func (m PrivilegeCache) TableName() string {
 	return "privilege_cache"
+}
+
+func (m PrivilegeCache) ScopesAsArray() []string {
+	return strings.Split(m.Scopes, ",")
 }
 
 // GormPrivilegeCacheRepository is the implementation of the storage interface for Resource.

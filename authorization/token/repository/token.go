@@ -16,6 +16,7 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Token represents a single instance of an oauth token
 type Token struct {
 	gormsupport.Lifecycle
 
@@ -54,6 +55,16 @@ func (m *Token) SetStatus(status int, value bool) {
 	}
 }
 
+// TokenPrivilege is a simple many-to-many table used to link privileges to tokens
+type TokenPrivilege struct {
+	TokenID          uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:token_id"`
+	PrivilegeCacheID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:privilege_cache_id"`
+}
+
+func (m TokenPrivilege) TableName() string {
+	return "token_privilege"
+}
+
 // GormTokenRepository is the implementation of the storage interface for Token.
 type GormTokenRepository struct {
 	db *gorm.DB
@@ -68,6 +79,10 @@ func (m *GormTokenRepository) TableName() string {
 	return "token"
 }
 
+func (m *GormTokenRepository) TokenPrivilegeTableName() string {
+	return "token_privilege"
+}
+
 // TokenRepository represents the storage interface.
 type TokenRepository interface {
 	CheckExists(ctx context.Context, id uuid.UUID) (bool, error)
@@ -76,6 +91,7 @@ type TokenRepository interface {
 	Save(ctx context.Context, token *Token) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	ListForIdentity(ctx context.Context, id uuid.UUID) ([]Token, error)
+	CreatePrivilege(ctx context.Context, privilege *TokenPrivilege) error
 	ListPrivileges(ctx context.Context, tokenID uuid.UUID) ([]permission.PrivilegeCache, error)
 }
 
@@ -118,15 +134,12 @@ func (m *GormTokenRepository) Load(ctx context.Context, id uuid.UUID) (*Token, e
 
 // Create creates a new record.
 func (m *GormTokenRepository) Create(ctx context.Context, token *Token) error {
-	defer goa.MeasureSince([]string{"goa", "db", "_token", "create"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "token", "create"}, time.Now())
 
 	// If no identifier has been specified for the new token, then generate one
 	if token.TokenID == uuid.Nil {
 		token.TokenID = uuid.NewV4()
 	}
-
-	// TODO read token expiry duration from configuration
-	token.ExpiryTime = time.Now().Add(12 * time.Hour)
 
 	err := m.db.Create(token).Error
 	if err != nil {
@@ -213,11 +226,33 @@ func (m *GormTokenRepository) ListForIdentity(ctx context.Context, identityID uu
 	return rows, nil
 }
 
+func (m *GormTokenRepository) CreatePrivilege(ctx context.Context, privilege *TokenPrivilege) error {
+	defer goa.MeasureSince([]string{"goa", "db", "token", "CreatePrivilege"}, time.Now())
+
+	err := m.db.Create(privilege).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"token_id":           privilege.TokenID,
+			"privilege_cache_id": privilege.PrivilegeCacheID,
+			"err":                err,
+		}, "unable to create the token privilege")
+		return errs.WithStack(err)
+	}
+
+	log.Info(ctx, map[string]interface{}{
+		"token_id":           privilege.TokenID,
+		"privilege_cache_id": privilege.PrivilegeCacheID,
+	}, "Token privilege created!")
+	return nil
+}
+
 func (m *GormTokenRepository) ListPrivileges(ctx context.Context, tokenID uuid.UUID) ([]permission.PrivilegeCache, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "token", "ListPrivileges"}, time.Now())
 	var rows []permission.PrivilegeCache
 
-	err := m.db.Table("privilege_cache").Where("deleted_at IS NULL AND privilege_cache_id IN (SELECT tp.privilege_cache_id FROM token_privilege tp WHERE tp.token_id = ?)",
+	err := m.db.Table("privilege_cache").Where(fmt.Sprintf(`
+        deleted_at IS NULL AND privilege_cache_id IN (SELECT tp.privilege_cache_id FROM %s tp WHERE tp.token_id = ?)
+        `, m.TokenPrivilegeTableName()),
 		tokenID).Scan(&rows).Error
 
 	if err != nil && err != gorm.ErrRecordNotFound {
