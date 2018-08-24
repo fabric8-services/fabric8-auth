@@ -33,6 +33,8 @@ func NewPrivilegeCacheService(context servicecontext.ServiceContext, config Priv
 
 // ScopesForResource returns an array of the scopes that an identity has for a specified resource
 func (s *privilegeCacheServiceImpl) ScopesForResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error) {
+	nowTime := time.Now()
+
 	// Attempt to load the privilege cache record from the database
 	privilegeCache, err := s.Repositories().PrivilegeCacheRepository().FindForIdentityResource(ctx, identityID, resourceID)
 	notFound := false
@@ -45,7 +47,7 @@ func (s *privilegeCacheServiceImpl) ScopesForResource(ctx context.Context, ident
 
 	// If there was no privilege cache record found, or the record has expired, then recalculate the scopes and either
 	// update the existing record, or create a new one
-	if notFound || privilegeCache.Stale || s.privilegeCacheExpired(privilegeCache) {
+	if notFound || privilegeCache.Stale || privilegeCache.ExpiryTime.Before(nowTime) {
 		scopes, err := s.Repositories().IdentityRoleRepository().FindScopesByIdentityAndResource(ctx, identityID, resourceID)
 		if err != nil {
 			return nil, errors.NewInternalError(ctx, err)
@@ -83,9 +85,4 @@ func (s *privilegeCacheServiceImpl) ScopesForResource(ctx context.Context, ident
 	} else {
 		return strings.Split(privilegeCache.Scopes, ","), nil
 	}
-}
-
-func (s *privilegeCacheServiceImpl) privilegeCacheExpired(privilegeCache *permission.PrivilegeCache) bool {
-	// TODO implement this
-	return false
 }

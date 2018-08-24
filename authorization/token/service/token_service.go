@@ -16,6 +16,7 @@ import (
 	"github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/login"
+	"time"
 )
 
 type TokenServiceConfiguration interface {
@@ -196,11 +197,10 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 
 	// Create a new Token record in the database
 	newTokenRecord := &tokenRepo.Token{
-		TokenID:   newTokenID,
-		Status:    0,
-		TokenType: tokenPkg.TOKEN_TYPE_RPT,
-		// TODO calculate the expiry time
-		/*ExpiryTime: claims.ExpiresAt,*/
+		TokenID:    newTokenID,
+		Status:     0,
+		TokenType:  tokenPkg.TOKEN_TYPE_RPT,
+		ExpiryTime: time.Unix(claims.ExpiresAt, 0),
 	}
 
 	// Persist the record
