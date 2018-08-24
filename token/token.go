@@ -66,23 +66,17 @@ type configuration interface {
 
 // TokenClaims represents access token claims
 type TokenClaims struct {
-	Name          string                `json:"name"`
-	Username      string                `json:"preferred_username"`
-	GivenName     string                `json:"given_name"`
-	FamilyName    string                `json:"family_name"`
-	Email         string                `json:"email"`
-	EmailVerified bool                  `json:"email_verified"`
-	Company       string                `json:"company"`
-	SessionState  string                `json:"session_state"`
-	Approved      bool                  `json:"approved"`
-	Authorization *AuthorizationPayload `json:"authorization"`
-	Permissions   *[]Permissions        `json:"permissions"`
+	Name          string         `json:"name"`
+	Username      string         `json:"preferred_username"`
+	GivenName     string         `json:"given_name"`
+	FamilyName    string         `json:"family_name"`
+	Email         string         `json:"email"`
+	EmailVerified bool           `json:"email_verified"`
+	Company       string         `json:"company"`
+	SessionState  string         `json:"session_state"`
+	Approved      bool           `json:"approved"`
+	Permissions   *[]Permissions `json:"permissions"`
 	jwt.StandardClaims
-}
-
-// AuthorizationPayload represents an authz payload in the rpt token
-type AuthorizationPayload struct {
-	Permissions []Permissions `json:"permissions"`
 }
 
 // Permissions represents a "permissions" in the AuthorizationPayload
@@ -113,7 +107,7 @@ type Manager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
-	GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, permissions []Permissions) (*oauth2.Token, error)
+	GenerateRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (string, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 	AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter)
@@ -445,45 +439,13 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 }
 
 // GenerateRPTTokenForIdentity generates an OAuth2 RPT token for the given identity and specified permissions
-func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, identity repository.Identity, permissions []Permissions) (*oauth2.Token, error) {
-	nowTime := time.Now().Unix()
-	unsignedRPTToken, err := mgm.GenerateUnsignedRPTTokenForIdentity(ctx, identity, permissions)
+func (mgm *tokenManager) GenerateRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (string, error) {
+	unsignedRPTtoken, err := mgm.GenerateUnsignedRPTTokenFromClaims(ctx, tokenClaims, &identity, permissions)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return "", errors.WithStack(err)
 	}
 
-	rptToken, err := unsignedRPTToken.SignedString(mgm.userAccountPrivateKey.Key)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForIdentity(ctx, identity, false)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	refreshToken, err := unsignedRefreshToken.SignedString(mgm.userAccountPrivateKey.Key)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	var nbf int64
-
-	token := &oauth2.Token{
-		AccessToken:  rptToken,
-		RefreshToken: refreshToken,
-		Expiry:       time.Unix(nowTime+mgm.config.GetAccessTokenExpiresIn(), 0),
-		TokenType:    "bearer",
-	}
-
-	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
-	extra := make(map[string]interface{})
-	extra["expires_in"] = mgm.config.GetAccessTokenExpiresIn()
-	extra["refresh_expires_in"] = mgm.config.GetRefreshTokenExpiresIn()
-	extra["not_before_policy"] = nbf
-
-	token = token.WithExtra(extra)
-
-	return token, nil
+	return unsignedRPTtoken.SignedString(mgm.userAccountPrivateKey.Key)
 }
 
 // GenerateUserTokenForIdentity generates an OAuth2 user token for the given identity
@@ -528,12 +490,46 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 
 // GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
 func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *repository.Identity) (*jwt.Token, error) {
-	token := jwt.New(jwt.SigningMethodRS256)
-	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
-
 	kcClaims, err := mgm.ParseToken(ctx, keycloakAccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
+	}
+
+	return mgm.GenerateUnsignedUserAccessTokenFromClaims(ctx, kcClaims, identity)
+}
+
+// GenerateUnsignedUserAccessTokenFromClaims generates a new token based on the specified claims
+func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.Context, tokenClaims *TokenClaims, identity *repository.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	claims["exp"] = tokenClaims.ExpiresAt
+	claims["nbf"] = tokenClaims.NotBefore
+	claims["iat"] = tokenClaims.IssuedAt
+	claims["iss"] = tokenClaims.Issuer
+	claims["aud"] = tokenClaims.Audience
+	claims["typ"] = "Bearer"
+	claims["auth_time"] = tokenClaims.IssuedAt
+	claims["approved"] = identity != nil && !identity.User.Deprovisioned && tokenClaims.Approved
+	if identity != nil {
+		claims["sub"] = identity.ID.String()
+		claims["email_verified"] = identity.User.EmailVerified
+		claims["name"] = identity.User.FullName
+		claims["preferred_username"] = identity.Username
+		firstName, lastName := account.SplitFullName(identity.User.FullName)
+		claims["given_name"] = firstName
+		claims["family_name"] = lastName
+		claims["email"] = identity.User.Email
+	} else {
+		claims["sub"] = tokenClaims.Subject
+		claims["email_verified"] = tokenClaims.EmailVerified
+		claims["name"] = tokenClaims.Name
+		claims["preferred_username"] = tokenClaims.Username
+		claims["given_name"] = tokenClaims.GivenName
+		claims["family_name"] = tokenClaims.FamilyName
+		claims["email"] = tokenClaims.Email
 	}
 
 	req := goa.ContextRequest(ctx)
@@ -547,42 +543,13 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 		return nil, errors.WithStack(err)
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
-	claims["jti"] = uuid.NewV4().String()
-	claims["exp"] = kcClaims.ExpiresAt
-	claims["nbf"] = kcClaims.NotBefore
-	claims["iat"] = kcClaims.IssuedAt
-	claims["iss"] = kcClaims.Issuer
-	claims["aud"] = kcClaims.Audience
-	claims["typ"] = "Bearer"
-	claims["auth_time"] = kcClaims.IssuedAt
-	claims["approved"] = identity != nil && !identity.User.Deprovisioned && kcClaims.Approved
-	if identity != nil {
-		claims["sub"] = identity.ID.String()
-		claims["email_verified"] = identity.User.EmailVerified
-		claims["name"] = identity.User.FullName
-		claims["preferred_username"] = identity.Username
-		firstName, lastName := account.SplitFullName(identity.User.FullName)
-		claims["given_name"] = firstName
-		claims["family_name"] = lastName
-		claims["email"] = identity.User.Email
-	} else {
-		claims["sub"] = kcClaims.Subject
-		claims["email_verified"] = kcClaims.EmailVerified
-		claims["name"] = kcClaims.Name
-		claims["preferred_username"] = kcClaims.Username
-		claims["given_name"] = kcClaims.GivenName
-		claims["family_name"] = kcClaims.FamilyName
-		claims["email"] = kcClaims.Email
-	}
-
 	claims["allowed-origins"] = []string{
 		authOpenshiftIO,
 		openshiftIO,
 	}
 
-	claims["azp"] = kcClaims.Audience
-	claims["session_state"] = kcClaims.SessionState
+	claims["azp"] = tokenClaims.Audience
+	claims["session_state"] = tokenClaims.SessionState
 	claims["acr"] = "0"
 
 	realmAccess := make(map[string]interface{})
@@ -599,6 +566,19 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, ke
 	resourceAccess["account"] = account
 
 	claims["resource_access"] = resourceAccess
+
+	return token, nil
+}
+
+// GenerateUnsignedRPTTokenFromClaims generates a new RPT token based on an existing set of claims, and a specified set of permissions
+func (mgm *tokenManager) GenerateUnsignedRPTTokenFromClaims(ctx context.Context, tokenClaims *TokenClaims, identity *repository.Identity, permissions *[]Permissions) (*jwt.Token, error) {
+	token, err := mgm.GenerateUnsignedUserAccessTokenFromClaims(ctx, tokenClaims, identity)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := token.Claims.(TokenClaims)
+	claims.Permissions = permissions
 
 	return token, nil
 }
@@ -642,17 +622,6 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 		authOpenshiftIO,
 		openshiftIO,
 	}
-
-	return token, nil
-}
-
-func (mgm *tokenManager) GenerateUnsignedRPTTokenForIdentity(ctx context.Context, identity repository.Identity, permissions []Permissions) (*jwt.Token, error) {
-	token, err := mgm.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
-	if err != nil {
-		return nil, err
-	}
-	claims := token.Claims.(TokenClaims)
-	claims.Permissions = &permissions
 
 	return token, nil
 }

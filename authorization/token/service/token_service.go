@@ -77,7 +77,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// Check whether the resource exists in the token already (only for valid RPT tokens)
 	resourceExistsInToken := false
 	if loadedToken != nil {
-		for _, tokenPermission := range tokenClaims.Authorization.Permissions {
+		for _, tokenPermission := range *tokenClaims.Permissions {
 			if *tokenPermission.ResourceSetID == resourceID {
 				resourceExistsInToken = true
 			}
@@ -131,7 +131,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 					scopesChanged := false
 
 					// Compare the scopes to those contained in the current token
-					for _, tokenPermission := range tokenClaims.Authorization.Permissions {
+					for _, tokenPermission := range *tokenClaims.Permissions {
 						// Find the corresponding resource set ID in the token's permissions claim
 						if *tokenPermission.ResourceSetID == priv.ResourceID {
 							if !s.scopesEquivalent(tokenPermission.Scopes, scopes) {
@@ -164,13 +164,12 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// Populate the permissions
 	// TODO populate permissions array
 
-	newToken, err := manager.GenerateRPTTokenForIdentity(ctx, *identity, perms)
+	newToken, err := manager.GenerateRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
 	if err != nil {
 		return "", errors.NewInternalError(ctx, err)
 	}
 
-	// TODO this is probably not right, will discuss with team
-	return newToken.AccessToken, nil
+	return newToken, nil
 }
 
 func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {
