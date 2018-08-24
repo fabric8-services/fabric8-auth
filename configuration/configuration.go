@@ -135,6 +135,7 @@ const (
 
 	// Privilege cache
 	varPrivilegeCacheExpirySeconds = "privilege.cache.expiry.seconds"
+	varRPTTokenMaxPermissions      = "rpt.token.max.permissions"
 
 	secondsInOneDay = 24 * 60 * 60
 )
@@ -771,6 +772,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Privilege cache expiry
 	c.v.SetDefault(varPrivilegeCacheExpirySeconds, secondsInOneDay)
+
+	// RPT Token maximum permissions
+	c.v.SetDefault(varRPTTokenMaxPermissions, 10)
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -1296,4 +1300,9 @@ func (c *ConfigurationData) GetEnvironment() string {
 // should expire, should it not be marked as stale before this time
 func (c *ConfigurationData) GetPrivilegeCacheExpirySeconds() int64 {
 	return c.v.GetInt64(varPrivilegeCacheExpirySeconds)
+}
+
+// GetRPTTokenMaxPermissions returns the maximum number of permissions that may be stored in an RPT token
+func (c *ConfigurationData) GetRPTTokenMaxPermissions() int {
+	return c.v.GetInt(varRPTTokenMaxPermissions)
 }

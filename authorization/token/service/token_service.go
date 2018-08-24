@@ -18,13 +18,19 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 )
 
-type tokenServiceImpl struct {
-	base.BaseService
+type TokenServiceConfiguration interface {
+	GetRPTTokenMaxPermissions() int
 }
 
-func NewTokenService(context servicecontext.ServiceContext) service.TokenService {
+type tokenServiceImpl struct {
+	base.BaseService
+	config TokenServiceConfiguration
+}
+
+func NewTokenService(context servicecontext.ServiceContext, conf TokenServiceConfiguration) service.TokenService {
 	return &tokenServiceImpl{
 		BaseService: base.NewBaseService(context),
+		config:      conf,
 	}
 }
 
@@ -165,14 +171,24 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 	// Populate the permissions
 	// TODO populate permissions array
 
+	// Populate the scopes for the requested resource
+	resourceScopes, err := s.Services().PrivilegeCacheService().ScopesForResource(ctx, identity.ID, resourceID)
+	perm := &token.Permissions{
+		ResourceSetID: &resourceID,
+		Scopes:        resourceScopes,
+	}
+
+	perms = append(perms, *perm)
+
 	generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
 	if err != nil {
 		return "", errors.NewInternalError(ctx, err)
 	}
 
-	// We need to extract the new jti claim from the token
+	// We need to extract the new jti claim (the Token ID) from the token, in order to create a database record for it
 	claims := generatedToken.Claims.(token.TokenClaims)
 
+	// Convert the new Token ID to a UUID value
 	newTokenID, err := uuid.FromString(claims.Id)
 	if err != nil {
 		return "", errors.NewInternalError(ctx, err)
@@ -187,7 +203,14 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		/*ExpiryTime: claims.ExpiresAt,*/
 	}
 
-	s.Repositories().TokenRepository().Create(ctx, newTokenRecord)
+	// Persist the record
+	err = s.Repositories().TokenRepository().Create(ctx, newTokenRecord)
+	if err != nil {
+		return "", errors.NewInternalError(ctx, err)
+	}
+
+	// Assign privileges to the record
+	// TODO map privileges to token
 
 	// Sign the token and return it
 	signed, err := manager.SignRPTToken(ctx, generatedToken)

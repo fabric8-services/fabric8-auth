@@ -200,7 +200,7 @@ func (f *ServiceFactory) TeamService() service.TeamService {
 }
 
 func (f *ServiceFactory) TokenService() service.TokenService {
-	return tokenservice.NewTokenService(f.getContext())
+	return tokenservice.NewTokenService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) SpaceService() service.SpaceService {
