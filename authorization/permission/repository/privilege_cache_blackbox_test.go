@@ -105,3 +105,36 @@ func (s *privilegeCacheBlackBoxTest) TestSaveFailsForDeletedPrivilegeCache() {
 	err = s.repo.Save(s.Ctx, tr.PrivilegeCache())
 	require.Error(s.T(), err, "save privilege cache should fail for deleted privilege cache")
 }
+
+func (s *privilegeCacheBlackBoxTest) TestFindForIdentityResource() {
+	pc := s.Graph.CreatePrivilegeCache("foo", "bar").PrivilegeCache()
+	pc2 := s.Graph.CreatePrivilegeCache().PrivilegeCache()
+
+	found, err := s.repo.FindForIdentityResource(s.Ctx, pc.IdentityID, pc.ResourceID)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), pc.IdentityID, found.IdentityID)
+	require.Equal(s.T(), pc.ResourceID, found.ResourceID)
+	require.Len(s.T(), pc.ScopesAsArray(), 2)
+	scopeFooFound := false
+	scopeBarFound := false
+	for _, scope := range pc.ScopesAsArray() {
+		if scope == "foo" {
+			scopeFooFound = true
+		} else if scope == "bar" {
+			scopeBarFound = true
+		}
+	}
+	require.True(s.T(), scopeFooFound)
+	require.True(s.T(), scopeBarFound)
+
+	_, err = s.repo.FindForIdentityResource(s.Ctx, uuid.NewV4(), uuid.NewV4().String())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, err)
+
+	found, err = s.repo.FindForIdentityResource(s.Ctx, pc2.IdentityID, pc2.ResourceID)
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), pc2.IdentityID, found.IdentityID)
+	require.Equal(s.T(), pc2.ResourceID, found.ResourceID)
+	require.Len(s.T(), pc2.ScopesAsArray(), 0)
+	require.Empty(s.T(), pc2.Scopes)
+}

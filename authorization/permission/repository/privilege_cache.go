@@ -39,8 +39,13 @@ func (m PrivilegeCache) TableName() string {
 	return "privilege_cache"
 }
 
+// Returns the scopes as a string array.  If scopes is empty, returns an empty array
 func (m PrivilegeCache) ScopesAsArray() []string {
-	return strings.Split(m.Scopes, ",")
+	if strings.TrimSpace(m.Scopes) == "" {
+		return []string{}
+	} else {
+		return strings.Split(m.Scopes, ",")
+	}
 }
 
 // GormPrivilegeCacheRepository is the implementation of the storage interface for Resource.
@@ -191,7 +196,7 @@ func (m *GormPrivilegeCacheRepository) FindForIdentityResource(ctx context.Conte
 	var native PrivilegeCache
 	err := m.db.Table(m.TableName()).Where("identity_id = ? AND resource_id = ?", identityID, resourceID).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errs.WithStack(errors.NewNotFoundError(m.TableName(), fmt.Sprintf("identity_id:%s,resource_id:%s", identityID.String(), resourceID)))
+		return nil, errors.NewNotFoundError(m.TableName(), fmt.Sprintf("identity_id:%s,resource_id:%s", identityID.String(), resourceID))
 	}
 
 	return &native, errs.WithStack(err)

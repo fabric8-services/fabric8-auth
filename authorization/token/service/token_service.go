@@ -40,7 +40,7 @@ func NewTokenService(context servicecontext.ServiceContext, conf TokenServiceCon
 // the status of the token passed in the request, and if that token is currently valid and contains the specified
 // resource, returns the same token.  If the token is invalid or outdated, or doesn't contain the specified resource,
 // then a new token is generated and returned.
-// Returns an empty string if no new token has been issued, otherwise returns the new token string
+// Returns nil if no new token has been issued, otherwise returns the new token string
 func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resourceID string) (*string, error) {
 
 	// First let's make sure we can load the identity from the context
