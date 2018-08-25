@@ -685,6 +685,21 @@ func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
 }
 
 func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
-	// TODO implement
-	return nil
+
+	// TODO extract the access token string from the request
+	tokenString := ""
+
+	auditedToken, err := c.app.TokenService().Audit(ctx, tokenString, *ctx.ResourceID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	if auditedToken != nil {
+		rptTokenPayload := &app.RPTToken{
+			RptToken: auditedToken,
+		}
+		return ctx.OK(rptTokenPayload)
+	} else {
+		return ctx.OK(nil)
+	}
 }
