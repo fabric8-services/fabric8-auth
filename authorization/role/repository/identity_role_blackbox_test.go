@@ -651,4 +651,29 @@ func (s *identityRoleBlackBoxTest) TestFindScopesByIdentityAndResource() {
 	require.NoError(s.T(), err)
 	require.Len(s.T(), scopes, 1)
 	require.Contains(s.T(), scopes, "alpha")
+
+	// Create yet another resource type, with scope "bravo"
+	rt3 := s.Graph.CreateResourceType()
+	rt3.AddScope("bravo")
+
+	// Create a role with the bravo scope
+	bravoRole := s.Graph.CreateRole(rt3)
+	bravoRole.AddScope("bravo")
+
+	// Create a grandchild resource of resource3, with the new resource type
+	resource3Grandchild := s.Graph.CreateResource(rt3, resource3Child)
+
+	// user3 should not have any scopes for the new grandchild resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user3.IdentityID(), resource3Grandchild.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), scopes, 0)
+
+	// Map alphaRole to bravoRole for the resource
+	s.Graph.CreateRoleMapping(resource3, alphaRole, bravoRole)
+
+	// Ensure that privileges correctly traverse the role mapping hierarchy for a resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user3.IdentityID(), resource3Grandchild.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), scopes, 1)
+	require.Contains(s.T(), scopes, "bravo")
 }
