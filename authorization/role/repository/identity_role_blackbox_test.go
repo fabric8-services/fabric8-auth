@@ -518,19 +518,137 @@ func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, r
 }
 
 func (s *identityRoleBlackBoxTest) TestFindScopesByIdentityAndResource() {
-	user := s.Graph.CreateUser()
-
+	// Create a new resource type to use for the duration of the test, with two scopes; foo and bar
 	rt := s.Graph.CreateResourceType()
 	rt.AddScope("foo")
+	rt.AddScope("bar")
+
+	// Create a foo role with the foo scope
+	fooRole := s.Graph.CreateRole(rt)
+	fooRole.AddScope("foo")
+
+	// Create a bar role with the bar scope
+	barRole := s.Graph.CreateRole(rt)
+	barRole.AddScope("bar")
+
+	// Create a foobar role with both foo and bar scopes
+	fooBarRole := s.Graph.CreateRole(rt)
+	fooBarRole.AddScope("foo").AddScope("bar")
+
+	// Create a user
+	user := s.Graph.CreateUser()
+
+	// Create a resource with the new resource type
 	resource := s.Graph.CreateResource(rt)
-	r := s.Graph.CreateRole(rt)
-	r.AddScope("foo")
 
-	s.Graph.CreateIdentityRole(user, resource, r)
+	// Assign a role directly to the user
+	s.Graph.CreateIdentityRole(user, resource, fooRole)
 
+	// Lookup all of user's scopes for the resource
 	scopes, err := s.repo.FindScopesByIdentityAndResource(s.Ctx, user.IdentityID(), resource.ResourceID())
 	require.NoError(s.T(), err)
 
+	// There should be one scope, "foo"
 	require.Len(s.T(), scopes, 1)
 	require.Equal(s.T(), "foo", scopes[0])
+
+	// Create a child resource of the first resource, of the same resource type
+	childResource := s.Graph.CreateResource(rt, resource)
+
+	// It should inherit the privileges from its parent resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user.IdentityID(), childResource.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), scopes, 1)
+	require.Equal(s.T(), "foo", scopes[0])
+
+	// Create a great-grandchild resource of the first resource
+	ggcResource := s.Graph.CreateResource(rt, s.Graph.CreateResource(rt, childResource))
+
+	// It shouldn't matter how deep the hierarchy is, resources always inherit privileges their parent resource of the same type
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user.IdentityID(), ggcResource.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), scopes, 1)
+	require.Equal(s.T(), "foo", scopes[0])
+
+	// Confirm that the user doesn't have any scopes for a random other resource of the same resource type
+	otherResource := s.Graph.CreateResource(rt)
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user.IdentityID(), otherResource.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), scopes, 0)
+
+	// Create another user
+	user2 := s.Graph.CreateUser()
+	// Create a team and add the user to the team
+	team := s.Graph.CreateTeam()
+	team.AddMember(user2)
+
+	// Create a resource with the new resource type
+	resource2 := s.Graph.CreateResource(rt)
+
+	// Assign a role directly to the team
+	s.Graph.CreateIdentityRole(team, resource2, barRole)
+
+	// Lookup all of user2's scopes for the resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user2.IdentityID(), resource2.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be one scope, "bar"
+	require.Len(s.T(), scopes, 1)
+	require.Equal(s.T(), "bar", scopes[0])
+
+	// Now lookup all of user's scopes for resource2
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user.IdentityID(), resource2.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be no scopes
+	require.Len(s.T(), scopes, 0)
+
+	// Create another user
+	user3 := s.Graph.CreateUser()
+	// Create a team and add the user to the team
+	team3 := s.Graph.CreateTeam()
+	team3.AddMember(user3)
+	// Create an organization and add the team to the org
+	org3 := s.Graph.CreateOrganization()
+	org3.AddMember(team3)
+
+	// Create a resource with the new resource type
+	resource3 := s.Graph.CreateResource(rt)
+
+	// Assign a role directly to the org
+	s.Graph.CreateIdentityRole(org3, resource3, fooBarRole)
+
+	// Lookup all of user3's scopes for the resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user3.IdentityID(), resource3.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be two scopes, "foo" and "bar"
+	require.Len(s.T(), scopes, 2)
+	require.Contains(s.T(), scopes, "foo")
+	require.Contains(s.T(), scopes, "bar")
+
+	// Create another resource type, with scope "alpha"
+	rt2 := s.Graph.CreateResourceType()
+	rt2.AddScope("alpha")
+
+	// Create an role with the alpha scope
+	alphaRole := s.Graph.CreateRole(rt2)
+	alphaRole.AddScope("alpha")
+
+	// Create a child resource of resource3, but with the new resource type
+	resource3Child := s.Graph.CreateResource(rt2, resource3)
+
+	// user3 should not have any scopes for the new child resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user3.IdentityID(), resource3Child.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), scopes, 0)
+
+	// Map the fooBar role to the alphaRole for resource3
+	s.Graph.CreateRoleMapping(resource3, fooBarRole, alphaRole)
+
+	// Now user3 should have the alpha scope for the new child resource, as the fooBar role is mapped to the alpha role
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user3.IdentityID(), resource3Child.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), scopes, 1)
+	require.Contains(s.T(), scopes, "alpha")
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -685,9 +686,12 @@ func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
 }
 
 func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("no token in request"))
+	}
 
-	// TODO extract the access token string from the request
-	tokenString := ""
+	tokenString := token.Raw
 
 	auditedToken, err := c.app.TokenService().Audit(ctx, tokenString, *ctx.ResourceID)
 	if err != nil {

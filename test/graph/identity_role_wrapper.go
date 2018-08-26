@@ -22,6 +22,14 @@ func newIdentityRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	for i := range params {
 		switch t := params[i].(type) {
+		case organizationWrapper:
+			identity = t.Identity()
+		case *organizationWrapper:
+			identity = t.Identity()
+		case teamWrapper:
+			identity = t.Identity()
+		case *teamWrapper:
+			identity = t.Identity()
 		case userWrapper:
 			identity = t.Identity()
 		case *userWrapper:

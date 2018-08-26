@@ -194,6 +194,7 @@ var _ = a.Resource("token", func() {
 	})
 
 	a.Action("audit", func() {
+		a.Security("jwt")
 		a.Routing(
 			a.POST("/audit"),
 		)
