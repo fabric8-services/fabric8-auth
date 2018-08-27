@@ -195,7 +195,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 				return errors.NewInternalError(ctx, err)
 			}
 
-			// Sort the old token privileges by expiry time
+			// Sort the old token privileges by expiry time, from latest to earliest
 			sort.Slice(oldTokenPrivs, func(i, j int) bool {
 				return oldTokenPrivs[i].ExpiryTime.After(oldTokenPrivs[j].ExpiryTime)
 			})
@@ -208,27 +208,32 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 					break
 				}
 
-				// Retrieve the cached privileges for the resource
-				privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPriv.ResourceID)
-				if err != nil {
-					return errors.NewInternalError(ctx, err)
+				// Don't process the same resource that was already specified for this request
+				if oldPriv.ResourceID != resourceID {
+					// Retrieve the cached privileges for the resource
+					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPriv.ResourceID)
+					if err != nil {
+						return errors.NewInternalError(ctx, err)
+					}
+
+					oldPrivResourceID := oldPriv.ResourceID
+
+					// Create a new permissions object for the RPT token and store it in the array
+					perm := &token.Permissions{
+						ResourceSetID: &oldPrivResourceID,
+						Scopes:        privilegeCache.ScopesAsArray(),
+						Expiry:        privilegeCache.ExpiryTime.Unix(),
+					}
+
+					perms = append(perms, *perm)
+
+					// Create a token privilege object to store in the database
+					tokenPriv := &tokenRepo.TokenPrivilege{
+						PrivilegeCacheID: privilegeCache.PrivilegeCacheID,
+					}
+
+					tokenPrivs = append(tokenPrivs, *tokenPriv)
 				}
-
-				// Create a new permissions object for the RPT token and store it in the array
-				perm := &token.Permissions{
-					ResourceSetID: &oldPriv.ResourceID,
-					Scopes:        privilegeCache.ScopesAsArray(),
-					Expiry:        privilegeCache.ExpiryTime.Unix(),
-				}
-
-				perms = append(perms, *perm)
-
-				// Create a token privilege object to store in the database
-				tokenPriv := &tokenRepo.TokenPrivilege{
-					PrivilegeCacheID: privilegeCache.PrivilegeCacheID,
-				}
-
-				tokenPrivs = append(tokenPrivs, *tokenPriv)
 			}
 		}
 
@@ -309,9 +314,4 @@ func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bo
 	}
 
 	return true
-}
-
-func (s *tokenServiceImpl) generateNewToken(ctx context.Context, identityID uuid.UUID, resourceID string) (*jwt.Token, error) {
-	return nil, nil
-
 }
