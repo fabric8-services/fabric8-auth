@@ -691,9 +691,14 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("no token in request"))
 	}
 
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
 	tokenString := token.Raw
 
-	auditedToken, err := c.app.TokenService().Audit(ctx, tokenString, *ctx.ResourceID)
+	auditedToken, err := c.app.TokenService().Audit(ctx, currentIdentity, tokenString, *ctx.ResourceID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

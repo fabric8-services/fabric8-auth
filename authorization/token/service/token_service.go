@@ -2,20 +2,18 @@ package service
 
 import (
 	"context"
+	"github.com/dgrijalva/jwt-go"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
-
-	"github.com/dgrijalva/jwt-go"
-	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/satori/go.uuid"
 
-	"github.com/fabric8-services/fabric8-auth/login"
 	"sort"
 	"time"
 )
@@ -41,24 +39,13 @@ func NewTokenService(context servicecontext.ServiceContext, conf TokenServiceCon
 // resource, returns the same token.  If the token is invalid or outdated, or doesn't contain the specified resource,
 // then a new token is generated and returned.
 // Returns nil if no new token has been issued, otherwise returns the new token string
-func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resourceID string) (*string, error) {
-
-	// First let's make sure we can load the identity from the context
-	identity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, s.Repositories())
-	if err != nil {
-		return nil, err
-	}
+func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error) {
 
 	// Get the token manager from the context
-	tm := tokencontext.ReadTokenManagerFromContext(ctx)
-	if tm == nil {
-		log.Error(ctx, map[string]interface{}{
-			"token": tm,
-		}, "missing token manager")
-
-		return nil, errors.NewInternalErrorFromString(ctx, "Missing token manager")
+	manager, err := token.ReadManagerFromContext(ctx)
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
 	}
-	manager := tm.(token.Manager)
 
 	// Now parse the token string that was passed in
 	tokenClaims, err := manager.ParseToken(ctx, tokenString)
@@ -251,11 +238,13 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 			return errors.NewInternalError(ctx, err)
 		}
 
-		// Extract the new jti claim (the Token ID) from the token, in order to create a database record for it
-		claims := generatedToken.Claims.(token.TokenClaims)
+		// Extract the new jti claim (the Token ID) from the token, and the expiry time, in order to create a database record for it
+		claims := generatedToken.Claims.(jwt.MapClaims)
+		id := claims["jti"].(string)
+		expiresAt := claims["exp"].(int64)
 
 		// Convert the new Token ID to a UUID value
-		newTokenID, err := uuid.FromString(claims.Id)
+		newTokenID, err := uuid.FromString(id)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -263,9 +252,10 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, tokenString string, resour
 		// Create a new Token record in the database
 		newTokenRecord := &tokenRepo.Token{
 			TokenID:    newTokenID,
+			IdentityID: identity.ID,
 			Status:     0,
 			TokenType:  tokenPkg.TOKEN_TYPE_RPT,
-			ExpiryTime: time.Unix(claims.ExpiresAt, 0),
+			ExpiryTime: time.Unix(expiresAt, 0),
 		}
 
 		// Persist the token record to the database

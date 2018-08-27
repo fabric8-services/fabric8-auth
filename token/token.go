@@ -582,8 +582,8 @@ func (mgm *tokenManager) GenerateUnsignedRPTTokenFromClaims(ctx context.Context,
 		return nil, err
 	}
 
-	claims := token.Claims.(TokenClaims)
-	claims.Permissions = permissions
+	claims := token.Claims.(jwt.MapClaims)
+	claims["permissions"] = permissions
 
 	return token, nil
 }
