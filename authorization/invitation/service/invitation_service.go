@@ -240,10 +240,14 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	teamName := team.IdentityResource.Name
 
 	var spaceName string
+	res, err := s.Repositories().ResourceRepository().Load(ctx, team.IdentityResourceID.String)
+	if err != nil {
+		return err
+	}
 
 	// Every team *should* have a parent space, but we'll put this check here just in case
-	if team.IdentityResource.ParentResourceID != nil {
-		sp, err := s.Services().WITService().GetSpace(ctx, *team.IdentityResource.ParentResourceID)
+	if res.ParentResourceID != nil {
+		sp, err := s.Services().WITService().GetSpace(ctx, *res.ParentResourceID)
 		if err != nil {
 			return err
 		}
@@ -344,31 +348,32 @@ func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, i
 }
 
 // Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
-func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (string, error) {
-	var resourceID string
+func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (string, string, error) {
+	var resourceID, redirectPath string
 
 	// Locate the invitation
 	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, token)
 
 	if err != nil {
-		return resourceID, err
+		return resourceID, redirectPath, err
 	}
 
 	// get identity for invitation
 	currentIdentityID := inv.IdentityID
 	identity, e := s.Repositories().Identities().LoadWithUser(ctx, inv.IdentityID)
 	if e != nil {
-		return resourceID, err
+		return resourceID, redirectPath, err
 	}
+
 	if identity.User.Deprovisioned {
-		return resourceID, autherrors.NewUnauthorizedError("user deprovisioined")
+		return resourceID, redirectPath, autherrors.NewUnauthorizedError("user deprovisioined")
 	}
 
 	// If this invitation is for an identity
 	if inv.InviteTo != nil {
 		inviteToIdentity, err := s.Repositories().Identities().Load(ctx, *inv.InviteTo)
 		if err != nil {
-			return resourceID, err
+			return resourceID, redirectPath, err
 		}
 
 		// If the invitation is for a membership, add a membership record
@@ -378,7 +383,7 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 
 		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
 		if err != nil {
-			return resourceID, err
+			return resourceID, redirectPath, err
 		}
 
 		// If the invitation includes role assignments, assign them
@@ -391,25 +396,39 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 
 			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
 			if err != nil {
-				return resourceID, err
+				return resourceID, redirectPath, err
+			}
+		}
+
+		resource, e := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
+		if e != nil {
+			return resourceID, redirectPath, err
+		}
+
+		if resource.ResourceType.Name == authorization.IdentityResourceTypeTeam {
+			if resource.ParentResourceID != nil {
+				redirectPath, e = s.getRelativeSpacePath(ctx, *resource.ParentResourceID)
+				if e != nil {
+					return resourceID, redirectPath, err
+				}
 			}
 		}
 
 		// Delete the invitation
 		s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
 
-		// Return the identity ID
-		return inviteToIdentity.IdentityResourceID.String, nil
+		// Return the identity ID and redirect Path
+		return inviteToIdentity.IdentityResourceID.String, redirectPath, nil
 
 	} else if inv.ResourceID != nil {
 		inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, *inv.ResourceID)
 		if err != nil {
-			return resourceID, err
+			return resourceID, redirectPath, err
 		}
 
 		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
 		if err != nil {
-			return resourceID, err
+			return resourceID, redirectPath, err
 		}
 
 		for _, role := range roles {
@@ -421,16 +440,45 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 
 			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
 			if err != nil {
-				return resourceID, err
+				return resourceID, redirectPath, err
 			}
+		}
+
+		redirectPath, e := s.getRelativeSpacePath(ctx, inviteToResource.ResourceID)
+		if e != nil {
+			return resourceID, redirectPath, err
 		}
 
 		// Delete the invitation
 		s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
 
-		// Return the resource ID
-		return inviteToResource.ResourceID, nil
+		// Return the resource ID and redirect path
+		return inviteToResource.ResourceID, redirectPath, nil
 	}
 
-	return "", nil
+	return resourceID, redirectPath, nil
+}
+
+func (s *invitationServiceImpl) getRelativeSpacePath(ctx context.Context, spaceID string) (string, error) {
+	var redirectPath string
+	space, err := s.Services().WITService().GetSpace(ctx, spaceID)
+	if err != nil {
+		return redirectPath, err
+	}
+
+	if space == nil {
+		return redirectPath, nil
+	}
+
+	ownerUUID, err := uuid.FromString(space.OwnerID.String())
+	if err != nil {
+		return redirectPath, err
+	}
+
+	user, err := s.Repositories().Identities().LoadWithUser(ctx, ownerUUID)
+	if err != nil {
+		return redirectPath, err
+	}
+
+	return fmt.Sprintf("%s/%s", user.Username, space.Name), nil
 }

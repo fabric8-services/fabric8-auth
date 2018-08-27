@@ -2,28 +2,21 @@ package test
 
 import (
 	"context"
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	"github.com/fabric8-services/fabric8-auth/app"
+	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/fabric8-services/fabric8-auth/wit"
-	"github.com/goadesign/goa/uuid"
+	goauuid "github.com/goadesign/goa/uuid"
+	"github.com/gojuno/minimock"
 )
 
-// DevWITService is the default dev service implementation for WIT.
-type DevWITService struct {
-	SpaceID     uuid.UUID
-	OwnerID     uuid.UUID
-	Name        string
-	Description string
-}
+func NewWITMock(t minimock.Tester, inviteeID, spaceName string) *testservice.WITServiceMock {
+	witServiceMock := testservice.NewWITServiceMock(t)
+	witServiceMock.GetSpaceFunc = func(p context.Context, spaceID string) (r *wit.Space, e error) {
+		ownerID, e := goauuid.FromString(inviteeID)
+		if e != nil {
+			return nil, e
+		}
+		return &wit.Space{OwnerID: ownerID, Name: spaceName}, nil
+	}
 
-func (s *DevWITService) UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error {
-	return nil
-}
-
-func (s *DevWITService) CreateUser(ctx context.Context, identity *account.Identity, identityID string) error {
-	return nil
-}
-
-func (s *DevWITService) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
-	return &wit.Space{ID: s.SpaceID, OwnerID: s.OwnerID, Name: s.Name, Description: s.Description}, nil
+	return witServiceMock
 }

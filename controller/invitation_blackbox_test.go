@@ -10,30 +10,40 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-
+	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/goadesign/goa"
 
 	"net/url"
 
+	"fmt"
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"os"
 )
+
+const acceptInvitationEndPoint = "https://openshift.io/_redirects/_acceptInvitation"
+const testSpaceName = "my-test-space"
 
 type TestInvitationREST struct {
 	gormtestsupport.DBTestSuite
-	testIdentity account.Identity
-	service      *goa.Service
-	invService   service.InvitationService
-	invRepo      invitationrepo.InvitationRepository
+	testIdentity   account.Identity
+	service        *goa.Service
+	invService     service.InvitationService
+	invRepo        invitationrepo.InvitationRepository
+	witServiceMock *testservice.WITServiceMock
 }
 
 func (s *TestInvitationREST) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
+	s.witServiceMock = testservice.NewWITServiceMock(s.T())
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(s.witServiceMock))
 	s.invService = s.Application.InvitationService()
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
 
@@ -85,6 +95,8 @@ func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 		},
 	}
 
+	*s.witServiceMock = *testsupport.NewWITMock(s.T(), inviteeID, testSpaceName)
+
 	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, team.TeamID().String(), payload)
 
 	invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
@@ -95,6 +107,9 @@ func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
 
 	require.Equal(s.T(), invitee.IdentityID(), invitations[0].IdentityID)
 	require.True(s.T(), invitations[0].Member)
+
+	// verify wit service is called once
+	require.Equal(s.T(), uint64(1), s.witServiceMock.GetSpaceCounter)
 }
 
 /*
@@ -124,6 +139,8 @@ func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
 		},
 	}
 
+	*s.witServiceMock = *testsupport.NewWITMock(s.T(), inviteeID, testSpaceName)
+
 	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, team.TeamID().String(), payload)
 
 	invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
@@ -142,6 +159,9 @@ func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
 	require.Equal(s.T(), 1, len(roles))
 	// And it should be the owner role
 	require.Equal(s.T(), r.Role().Name, roles[0].Name)
+
+	// verify wit service is called once
+	require.Equal(s.T(), uint64(1), s.witServiceMock.GetSpaceCounter)
 }
 
 /*
@@ -170,6 +190,8 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized(
 		},
 	}
 
+	*s.witServiceMock = *testsupport.NewWITMock(s.T(), inviteeID, testSpaceName)
+
 	test.CreateInviteInvitationUnauthorized(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
 	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
@@ -177,6 +199,9 @@ func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized(
 
 	// We should have no invitations
 	require.Equal(s.T(), 0, len(invitations))
+
+	// verify wit service is not called
+	require.Equal(s.T(), uint64(0), s.witServiceMock.GetSpaceCounter)
 }
 
 /*
@@ -207,6 +232,8 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
 		},
 	}
 
+	*s.witServiceMock = *testsupport.NewWITMock(s.T(), inviteeID, testSpaceName)
+
 	test.CreateInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
 	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
@@ -214,6 +241,9 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
 
 	// We should have no invitations
 	require.Equal(s.T(), 0, len(invitations))
+
+	// verify wit service is not called
+	require.Equal(s.T(), uint64(0), s.witServiceMock.GetSpaceCounter)
 }
 
 /*
@@ -237,6 +267,8 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 		},
 	}
 
+	*s.witServiceMock = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), testSpaceName)
+
 	test.CreateInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
 
 	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
@@ -244,18 +276,30 @@ func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
 
 	// We should have no invitations
 	require.Equal(s.T(), 0, len(invitations))
+
+	// verify wit service is not called
+	require.Equal(s.T(), uint64(0), s.witServiceMock.GetSpaceCounter)
 }
 
 func (s *TestInvitationREST) TestAcceptInvitation() {
+	existingURL := os.Getenv("AUTH_INVITATION_ACCEPTED_URL")
+	defer func() {
+		os.Setenv("AUTH_INVITATION_ACCEPTED_URL", existingURL)
+	}()
+	os.Setenv("AUTH_INVITATION_ACCEPTED_URL", acceptInvitationEndPoint)
+
 	team := s.Graph.CreateTeam()
 	invitee := s.Graph.CreateUser()
 	inv := s.Graph.CreateInvitation(team, invitee)
+
+	*s.witServiceMock = *testsupport.NewWITMock(s.T(), invitee.IdentityID().String(), testSpaceName)
 
 	service, controller := s.UnsecuredController()
 
 	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, inv.Invitation().AcceptCode.String())
 
-	require.NotNil(s.T(), response.Header().Get("Location"))
+	require.Equal(s.T(), fmt.Sprintf("https://openshift.io/%s/%s", invitee.Identity().Username, testSpaceName), response.Header().Get("Location"))
+	require.Equal(s.T(), uint64(1), s.witServiceMock.GetSpaceCounter)
 
 	// The invitation should no longer be there after acceptance
 	_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
@@ -264,6 +308,14 @@ func (s *TestInvitationREST) TestAcceptInvitation() {
 }
 
 func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
+	existingURL := os.Getenv("AUTH_INVITATION_ACCEPTED_URL")
+	defer func() {
+		os.Setenv("AUTH_INVITATION_ACCEPTED_URL", existingURL)
+	}()
+	os.Setenv("AUTH_INVITATION_ACCEPTED_URL", acceptInvitationEndPoint)
+
+	*s.witServiceMock = *testservice.NewWITServiceMock(s.T())
+
 	service, controller := s.SecuredController(s.testIdentity)
 
 	// This should still work, however there should now be an error param in the redirect URL
@@ -272,11 +324,22 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
 
 	parsedURL, err := url.Parse(response.Header().Get("Location"))
 	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), acceptInvitationEndPoint, fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, parsedURL.Path))
 	parameters := parsedURL.Query()
 	require.NotNil(s.T(), parameters.Get("error"))
+
+	require.Equal(s.T(), uint64(0), s.witServiceMock.GetSpaceCounter)
 }
 
 func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
+	existingURL := os.Getenv("AUTH_INVITATION_ACCEPTED_URL")
+	defer func() {
+		os.Setenv("AUTH_INVITATION_ACCEPTED_URL", existingURL)
+	}()
+	os.Setenv("AUTH_INVITATION_ACCEPTED_URL", acceptInvitationEndPoint)
+	*s.witServiceMock = *testservice.NewWITServiceMock(s.T())
+
 	team := s.Graph.CreateTeam()
 	invitee := s.Graph.CreateUser()
 	s.Graph.CreateInvitation(team, invitee)
@@ -286,8 +349,11 @@ func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
 	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, "foo")
 	parsedURL, err := url.Parse(response.Header().Get("Location"))
 	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), acceptInvitationEndPoint, fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, parsedURL.Path))
 	parameters := parsedURL.Query()
 	require.NotNil(s.T(), parameters.Get("error"))
+	require.Equal(s.T(), uint64(0), s.witServiceMock.GetSpaceCounter)
 }
 
 func (s *TestInvitationREST) TestRescindInvitation() {

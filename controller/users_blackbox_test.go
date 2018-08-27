@@ -21,6 +21,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
@@ -55,7 +56,14 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
 	s.linkAPIService = &dummyKeycloakLinkService{}
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&testsupport.DevWITService{}))
+	witServiceMock := testservice.NewWITServiceMock(s.T())
+	witServiceMock.CreateUserFunc = func(p context.Context, p1 *accountrepo.Identity, p2 string) (r error) {
+		return nil
+	}
+	witServiceMock.UpdateUserFunc = func(p context.Context, p1 *app.UpdateUsersPayload, p2 string) (r error) {
+		return nil
+	}
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
