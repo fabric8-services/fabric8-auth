@@ -57,9 +57,9 @@ func (s *tokenServiceBlackboxTest) TestSimpleAuditAccessToken() {
 	require.NoError(s.T(), err)
 
 	// There should be one permission in the token, and it should be for the resource
-	require.Len(s.T(), tokenClaims.Permissions, 1)
 	perms := *tokenClaims.Permissions
-	require.Equal(s.T(), perms[0].ResourceSetID, r.ResourceID())
+	require.Len(s.T(), perms, 1)
+	require.Equal(s.T(), *perms[0].ResourceSetID, r.ResourceID())
 	// There should be one scope, "echo"
 	require.Len(s.T(), perms[0].Scopes, 1)
 	require.Contains(s.T(), perms[0].Scopes, "echo")
