@@ -72,7 +72,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 
 	// Check whether the resource exists in the token already (only for valid RPT tokens)
 	resourceExistsInToken := false
-	if loadedToken != nil {
+	if loadedToken != nil && tokenClaims.Permissions != nil {
 		for _, tokenPermission := range *tokenClaims.Permissions {
 			if *tokenPermission.ResourceSetID == resourceID {
 				resourceExistsInToken = true
@@ -115,42 +115,55 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 				return nil, errors.NewInternalError(ctx, err)
 			}
 
-			// First we recalculate any stale privileges
-			for _, priv := range privileges {
-				if priv.Stale {
+			scopesChanged := false
+			permissionsChanged := false
+
+			// If the number of permissions in the token is different to what is stored in the database, then
+			// something has definitely changed
+			if len(privileges) != len(*tokenClaims.Permissions) {
+				permissionsChanged = true
+			} else {
+				// Compare the scopes to those contained in the current token
+				for _, tokenPermission := range *tokenClaims.Permissions {
 					// Retrieve the up to date scopes for the resource
-					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, priv.IdentityID, priv.ResourceID)
+					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, *tokenPermission.ResourceSetID)
 					if err != nil {
 						return nil, errors.NewInternalError(ctx, err)
 					}
 
+					// Compare the scopes of the resource with the scopes in the token
 					scopes := privilegeCache.ScopesAsArray()
+					if !s.scopesEquivalent(tokenPermission.Scopes, scopes) {
+						scopesChanged = true
+						break
+					}
 
-					scopesChanged := false
+					resourceFound := false
 
-					// Compare the scopes to those contained in the current token
-					for _, tokenPermission := range *tokenClaims.Permissions {
-						// Find the corresponding resource set ID in the token's permissions claim
-						if *tokenPermission.ResourceSetID == priv.ResourceID {
-							if !s.scopesEquivalent(tokenPermission.Scopes, scopes) {
-								scopesChanged = true
-								break
-							}
+					// Also confirm that the resources in the token's permissions match those stored in the database
+					for _, priv := range privileges {
+						if priv.ResourceID == *tokenPermission.ResourceSetID {
+							resourceFound = true
 						}
 					}
 
-					// If the scopes haven't changed, and the specified resouce ID is already contained in the current
-					// token, then reset the token status to valid and return an empty string
-					if !scopesChanged {
-						loadedToken.Status = 0
-						err = s.Repositories().TokenRepository().Save(ctx, loadedToken)
-						if err != nil {
-							return nil, errors.NewInternalError(ctx, err)
-						}
-
-						return nil, nil
+					if !resourceFound {
+						permissionsChanged = true
+						break
 					}
 				}
+			}
+
+			// If the scopes haven't changed, and the permission set is the same, and the specified resouce ID is
+			// already contained in the current token, then reset the token status to valid and return an empty string
+			if !scopesChanged && !permissionsChanged {
+				loadedToken.Status = 0
+				err = s.Repositories().TokenRepository().Save(ctx, loadedToken)
+				if err != nil {
+					return nil, errors.NewInternalError(ctx, err)
+				}
+
+				return nil, nil
 			}
 		}
 	}
