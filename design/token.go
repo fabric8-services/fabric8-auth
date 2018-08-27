@@ -200,6 +200,7 @@ var _ = a.Resource("token", func() {
 		)
 		a.Params(func() {
 			a.Param("resource_id", d.String, "Resource ID of a resource on which the user wishes to perform an operation")
+			a.Required("resource_id")
 		})
 		a.Description("Verifies the state of an existing token in respect to its privileges for a specified resource, and issues a new token if required")
 		a.Response(d.OK, func() {
@@ -207,6 +208,7 @@ var _ = a.Resource("token", func() {
 		})
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 })
 

@@ -698,7 +698,7 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 
 	tokenString := token.Raw
 
-	auditedToken, err := c.app.TokenService().Audit(ctx, currentIdentity, tokenString, *ctx.ResourceID)
+	auditedToken, err := c.app.TokenService().Audit(ctx, currentIdentity, tokenString, ctx.ResourceID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

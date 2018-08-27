@@ -302,6 +302,45 @@ func (rest *TestTokenREST) TestGenerateOK() {
 	validateToken(rest.T(), result[0])
 }
 
+func (rest *TestTokenREST) TestTokenAudit() {
+	// Create a user
+	user := rest.Graph.CreateUser()
+
+	// Create a new resource type
+	rt := rest.Graph.CreateResourceType()
+	rt.AddScope("lima")
+
+	// Create a new role with the resource type, and with the "lima" scope
+	limaRole := rest.Graph.CreateRole(rt)
+	limaRole.AddScope("lima")
+
+	// Create a resource with the resource type
+	res := rest.Graph.CreateResource(rt)
+
+	// Assign the role to the user
+	rest.Graph.CreateIdentityRole(user, res, limaRole)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*user.Identity())
+
+	manager, err := token.NewManager(rest.Configuration)
+	require.Nil(rest.T(), err)
+
+	tk, err := manager.Parse(rest.Ctx, rest.sampleAccessToken)
+	require.NoError(rest.T(), err)
+
+	_, response := test.AuditTokenOK(rest.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
+
+	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	require.NoError(rest.T(), err)
+
+	require.NotNil(rest.T(), tokenClaims.Permissions)
+	require.Len(rest.T(), *tokenClaims.Permissions, 1)
+
+	perms := *tokenClaims.Permissions
+	require.Equal(rest.T(), res.ResourceID(), *perms[0].ResourceSetID)
+	require.Contains(rest.T(), perms[0].Scopes, "lima")
+}
+
 func validateToken(t *testing.T, token *app.AuthToken) {
 	assert.NotNil(t, token, "Token data is nil")
 	assert.NotEmpty(t, token.Token.AccessToken, "Access token is empty")
