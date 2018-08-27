@@ -34,6 +34,8 @@ func identityIDFromWrapper(t *testing.T, wrapper interface{}) uuid.UUID {
 		return w.identity.ID
 	case *teamWrapper:
 		return w.identity.ID
+	case *organizationWrapper:
+		return w.identity.ID
 	}
 	assert.FailNowf(t, "invalid type of identity wrapper", "wrapper must be either 'user', 'identity' or 'team' wrapper but it was %T", wrapper)
 	return uuid.UUID{}

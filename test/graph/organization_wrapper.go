@@ -63,6 +63,7 @@ func newOrganizationWrapper(g *TestGraph, params []interface{}) interface{} {
 	resourceType := g.LoadResourceType(organizationResource.resource.ResourceTypeID).resourceType
 	organizationResource.resource.ResourceType = *resourceType
 	w.resource = organizationResource.Resource()
+	w.Identity().IdentityResource = *w.resource
 	fmt.Printf("loaded organization with resource=%v\n", w.resource)
 	return &w
 }
@@ -96,5 +97,13 @@ func (w *organizationWrapper) AddAdmin(wrapper interface{}) *organizationWrapper
 // AddRole assigns the given role to a user for the org
 func (w *organizationWrapper) AddRole(wrapper interface{}, roleWrapper *roleWrapper) *organizationWrapper {
 	addRole(w.baseWrapper, w.resource, authorization.IdentityResourceTypeOrganization, identityIDFromWrapper(w.graph.t, wrapper), roleWrapper.Role())
+	return w
+}
+
+// AddMember adds the given user or identity as a member of the organization
+func (w *organizationWrapper) AddMember(wrapper interface{}) *organizationWrapper {
+	identityID := identityIDFromWrapper(w.graph.t, wrapper)
+	err := w.graph.app.Identities().AddMember(w.graph.ctx, w.identity.ID, identityID)
+	require.NoError(w.graph.t, err)
 	return w
 }
