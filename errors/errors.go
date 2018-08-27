@@ -12,6 +12,9 @@ const (
 	stBadParameterErrorMsg         = "Bad value for parameter '%s': '%v' - %s"
 	stBadParameterErrorExpectedMsg = "Bad value for parameter '%s': '%v' (expected: '%v') - %s"
 	stNotFoundErrorMsg             = "%s with %s '%s' not found"
+
+	UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED = 1
+	UNAUTHORIZED_CODE_TOKEN_REVOKED       = 2
 )
 
 // Constants that can be used to identify internal server errors
@@ -49,7 +52,11 @@ func IsInternalError(err error) (bool, error) {
 
 // NewUnauthorizedError returns the custom defined error of type UnauthorizedError.
 func NewUnauthorizedError(msg string) UnauthorizedError {
-	return UnauthorizedError{simpleError{msg}}
+	return UnauthorizedError{simpleError{msg}, 0}
+}
+
+func NewUnauthorizedErrorWithCode(msg string, code int) UnauthorizedError {
+	return UnauthorizedError{simpleError{msg}, code}
 }
 
 // IsUnauthorizedError returns true if the cause of the given error can be
@@ -89,6 +96,7 @@ func (ie InternalError) Error() string {
 // UnauthorizedError means that the operation is unauthorized
 type UnauthorizedError struct {
 	simpleError
+	UnauthorizedCode int
 }
 
 // ForbiddenError means that the operation is forbidden

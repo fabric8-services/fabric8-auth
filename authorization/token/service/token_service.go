@@ -93,16 +93,12 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 
 		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
 		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED) {
-			// return a WWW-Authenticate: DEPROVISIONED response
-			// TODO adjust this error return code
-			return nil, errors.NewInternalError(ctx, nil)
+			return nil, errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
 		}
 
 		// If the token has been revoked or the user is logged out, we respond in the same way
 		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT) {
-			// return a WWW-Authenticate: LOGIN response
-			// TODO adjust this error return code
-			return nil, errors.NewInternalError(ctx, nil)
+			return nil, errors.NewUnauthorizedErrorWithCode("token revoked or logged out", errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)
 		}
 
 		// If the token is stale, yet the resource exists in the token

@@ -468,3 +468,13 @@ The "exp" (expiration time) claim identifies the expiration time on or after whi
 ==== Golang
 - Import `github.com/fabric8-services/fabric8-auth/token/jwk` to make use of `FetchKeys(endpointURL)` from https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go to get the currently in-use public keys.
 - Use the `ParseToken(..)` function of `github.com/fabric8-services/fabric8-common/token` from https://github.com/fabric8-services/fabric8-common/blob/master/token/token.go#L133 to validate & parse the token.
+
+
+== Configuration
+This section describes the configuration options available for the fabric8-auth service.
+
+|===
+| *Property* | *Default* | *Description*
+| privilege.cache.expiry.seconds | 86400 | The number of seconds after a privilege cache entry is created that it will expire
+| rpt.token.max.permissions | 10 | The maximum number of permissions that may be stored in an RPT Token
+|===

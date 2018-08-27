@@ -700,6 +700,21 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 
 	auditedToken, err := c.app.TokenService().Audit(ctx, currentIdentity, tokenString, ctx.ResourceID)
 	if err != nil {
+		switch t := err.(type) {
+		case errors.UnauthorizedError:
+			{
+				if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED {
+					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
+					ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Token has been deprovisioned\"")
+					return jsonapi.JSONErrorResponse(ctx, err)
+				} else if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_REVOKED {
+					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
+					ctx.ResponseData.Header().Set("WWW-Authenticate", "LOGIN description=\"Token has been revoked or logged out\"")
+					return jsonapi.JSONErrorResponse(ctx, err)
+				}
+			}
+		}
+
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
