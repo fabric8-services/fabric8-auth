@@ -31,6 +31,9 @@ import (
 )
 
 const acceptInvitationEndPoint = "https://openshift.io/_redirects/_acceptInvitation"
+const uiUrl = "https://openshift.io"
+const authUIUrl = "AUTH_UI_URL"
+const authInvitationAcceptedUrl = "AUTH_INVITATION_ACCEPTED_URL"
 const testSpaceName = "my-test-space"
 
 func TestInvitationController(t *testing.T) {
@@ -206,11 +209,11 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 
 	s.T().Run("ok", func(t *testing.T) {
 		// given
-		existingURL := os.Getenv("AUTH_INVITATION_ACCEPTED_URL")
+		existingURL := os.Getenv(authUIUrl)
 		defer func() {
-			os.Setenv("AUTH_INVITATION_ACCEPTED_URL", existingURL)
+			os.Setenv(authUIUrl, existingURL)
 		}()
-		os.Setenv("AUTH_INVITATION_ACCEPTED_URL", acceptInvitationEndPoint)
+		os.Setenv(authUIUrl, uiUrl)
 		g := s.NewTestGraph(t)
 		team := g.CreateTeam()
 		invitee := g.CreateUser()
@@ -233,11 +236,15 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 
 		s.T().Run("non-uuid code", func(t *testing.T) {
 			// given
-			existingURL := os.Getenv("AUTH_INVITATION_ACCEPTED_URL")
+			existingURL := os.Getenv(authInvitationAcceptedUrl)
+			ui := os.Getenv(authUIUrl)
 			defer func() {
-				os.Setenv("AUTH_INVITATION_ACCEPTED_URL", existingURL)
+				os.Setenv(authInvitationAcceptedUrl, existingURL)
+				os.Setenv(authUIUrl, ui)
 			}()
-			os.Setenv("AUTH_INVITATION_ACCEPTED_URL", acceptInvitationEndPoint)
+			os.Setenv(authInvitationAcceptedUrl, acceptInvitationEndPoint)
+			os.Setenv(authUIUrl, uiUrl)
+
 			*s.witServiceMock = *testservice.NewWITServiceMock(s.T())
 			g := s.NewTestGraph(t)
 			team := g.CreateTeam()
@@ -261,11 +268,15 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 
 		s.T().Run("invalid code", func(t *testing.T) {
 			// given
-			existingURL := os.Getenv("AUTH_INVITATION_ACCEPTED_URL")
+			existingURL := os.Getenv(authInvitationAcceptedUrl)
+			ui := os.Getenv(authUIUrl)
 			defer func() {
-				os.Setenv("AUTH_INVITATION_ACCEPTED_URL", existingURL)
+				os.Setenv(authInvitationAcceptedUrl, existingURL)
+				os.Setenv(authUIUrl, ui)
 			}()
-			os.Setenv("AUTH_INVITATION_ACCEPTED_URL", acceptInvitationEndPoint)
+			os.Setenv(authInvitationAcceptedUrl, acceptInvitationEndPoint)
+			os.Setenv(authUIUrl, uiUrl)
+
 			*s.witServiceMock = *testservice.NewWITServiceMock(s.T())
 			service, controller := s.SecuredController(s.testIdentity)
 			// when

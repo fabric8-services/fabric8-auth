@@ -12,12 +12,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
-	"net/url"
 )
 
 // InvitationControllerConfiguration the Configuration for the InvitationController
 type InvitationControllerConfiguration interface {
 	GetInvitationAcceptedRedirectURL() string
+	GetUIURL() string
 }
 
 // InvitationController implements the invitation resource.
@@ -149,10 +149,7 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		return ctx.TemporaryRedirect()
 	}
 
-	redirectURL, err := generateInvitationAcceptedRedirectURL(acceptedRedirectURL, absoluteSpacePath)
-	if err != nil {
-		return err
-	}
+	redirectURL := generateInvitationAcceptedRedirectURL(c.config.GetUIURL(), absoluteSpacePath)
 
 	log.Debug(ctx, map[string]interface{}{
 		"accept-code": ctx.AcceptCode,
@@ -162,16 +159,6 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 	return ctx.TemporaryRedirect()
 }
 
-func generateInvitationAcceptedRedirectURL(acceptedRedirectURL, path string) (string, error) {
-	u, e := url.Parse(acceptedRedirectURL)
-	if e != nil {
-		return "", e
-	}
-	scheme := "http"
-	if u.Scheme == "https" {
-		scheme = "https"
-	}
-
-	newURL := fmt.Sprintf("%s://%s/%s", scheme, u.Host, path)
-	return newURL, nil
+func generateInvitationAcceptedRedirectURL(uiURL, path string) string {
+	return fmt.Sprintf("%s/%s", uiURL, path)
 }

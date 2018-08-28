@@ -216,6 +216,80 @@ func TestGetWITURLNotDevModeOK(t *testing.T) {
 	assert.Equal(t, "https://api.some.wit.io", computedWITURL)
 }
 
+func TestGetUIUrl(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	constAuthEnvironment := "AUTH_ENVIRONMENT"
+	constAuthUIUrl := "AUTH_UI_URL"
+
+	t.Run("env", func(t *testing.T) {
+		testUrl := "http://ui.for.test"
+		uiUrlExisting := os.Getenv(constAuthUIUrl)
+		defer func() {
+			os.Setenv(constAuthUIUrl, uiUrlExisting)
+		}()
+		os.Setenv(constAuthUIUrl, testUrl)
+
+		// when
+		uiUrl := config.GetUIURL()
+
+		// then
+		assert.Equal(t, uiUrl, testUrl)
+	})
+
+	t.Run("default", func(t *testing.T) {
+		// when
+		uiUrl := config.GetUIURL()
+
+		// then
+		assert.Equal(t, uiUrl, "http://localhost:8080")
+
+	})
+
+	t.Run("prod-preview", func(t *testing.T) {
+		// when
+		existingEnvironment := os.Getenv(constAuthEnvironment)
+		defer func() {
+			os.Setenv(constAuthEnvironment, existingEnvironment)
+		}()
+		os.Setenv(constAuthEnvironment, "prod-preview")
+		uiUrl := config.GetUIURL()
+
+		// then
+		assert.Equal(t, uiUrl, "https://prod-preview.openshift.io")
+	})
+
+	t.Run("prod", func(t *testing.T) {
+		// given
+		existingEnvironment := os.Getenv(constAuthEnvironment)
+		defer func() {
+			os.Setenv(constAuthEnvironment, existingEnvironment)
+		}()
+		os.Setenv(constAuthEnvironment, "production")
+
+		// when
+		uiUrl := config.GetUIURL()
+
+		// then
+		assert.Equal(t, uiUrl, "https://openshift.io")
+	})
+
+	t.Run("unknown", func(t *testing.T) {
+		// given
+		existingEnvironment := os.Getenv(constAuthEnvironment)
+		defer func() {
+			os.Setenv(constAuthEnvironment, existingEnvironment)
+		}()
+		os.Setenv(constAuthEnvironment, "unknown")
+
+		// when
+		uiUrl := config.GetUIURL()
+
+		// then
+		assert.Equal(t, uiUrl, "http://localhost:8080")
+
+	})
+}
+
 func TestGetEnvironmentOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
