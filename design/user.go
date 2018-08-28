@@ -136,9 +136,15 @@ var userResourceData = a.Type("UserResourceData", func() {
 	a.Required("id", "type", "attributes")
 })
 
-// userResourceDataAttributes contains info about the role and scopes that the user has in the resource
+// userResourceDataAttributes contains info about the roles that the user has in the resource
 var userResourceDataAttributes = a.Type("UserResourceDataAttributes", func() {
-	a.Attribute("role", d.String, "The role of the user in the corresponding resource")
-	a.Attribute("scopes", a.ArrayOf(d.String), "The scopes associated with the role of the user in the corresponding resource")
-	a.Required("role", "scopes")
+	a.Attribute("roles", a.ArrayOf(userResourceRoles), "The role of the user in the corresponding resource")
+	a.Required("roles")
+})
+
+// userResourceRoles contains info about each role and its scopes that the user has in the resource
+var userResourceRoles = a.Type("UserResourceRoles", func() {
+	a.Attribute("name", d.String, "The name of the role of the user in the corresponding resource")
+	a.Attribute("scopes", a.ArrayOf(d.String), "The name of the scopes of the user in the corresponding resource")
+	a.Required("name", "scopes")
 })

@@ -102,20 +102,41 @@ func (c *UserController) ListResources(ctx *app.ListResourcesUserContext) error 
 // convertToUserResources converts a list of resources to which the user has a role
 func convertToUserResources(roles []role.ResourceRoleDescriptor) *app.UserResourcesList {
 	result := app.UserResourcesList{}
-	result.Data = make([]*app.UserResourceData, len(roles))
-	for i, r := range roles {
-		result.Data[i] = convertToUserResourcesData(r)
+	// group roles per resource
+	rolesPerResource := make(map[string][]role.ResourceRoleDescriptor)
+	for _, r := range roles {
+		if _, ok := rolesPerResource[r.ResourceID]; !ok {
+			rolesPerResource[r.ResourceID] = make([]role.ResourceRoleDescriptor, 0)
+		}
+		rolesPerResource[r.ResourceID] = append(rolesPerResource[r.ResourceID], r)
 	}
+	result.Data = convertToUserResourcesData(rolesPerResource)
 	return &result
 }
 
-func convertToUserResourcesData(r role.ResourceRoleDescriptor) *app.UserResourceData {
-	return &app.UserResourceData{
-		Type: "spaces", // could be compared to r.ResourceType for a more generic response
-		ID:   r.ResourceID,
-		Attributes: &app.UserResourceDataAttributes{
-			Role:   r.RoleName,
-			Scopes: r.Scopes,
-		},
+func convertToUserResourcesData(rolesPerResource map[string][]role.ResourceRoleDescriptor) []*app.UserResourceData {
+	result := make([]*app.UserResourceData, 0)
+	for resourceID, roles := range rolesPerResource {
+		data := &app.UserResourceData{
+			Type:       "spaces", // could be compared to r.ResourceType for a more generic response
+			ID:         resourceID,
+			Attributes: convertToUserResourcesDataAttributes(roles),
+		}
+		result = append(result, data)
+	}
+	return result
+}
+
+func convertToUserResourcesDataAttributes(roles []role.ResourceRoleDescriptor) *app.UserResourceDataAttributes {
+	roleData := make([]*app.UserResourceRoles, 0)
+	for _, r := range roles {
+		roleData = append(roleData,
+			&app.UserResourceRoles{
+				Name:   r.RoleName,
+				Scopes: r.Scopes,
+			})
+	}
+	return &app.UserResourceDataAttributes{
+		Roles: roleData,
 	}
 }
