@@ -97,6 +97,12 @@ func (w *resourceWrapper) ResourceID() string {
 	return w.resource.ResourceID
 }
 
+// AddRole assigns the given role to a user for the space
+func (w *resourceWrapper) AddRole(wrapper interface{}, roleWrapper *roleWrapper) *resourceWrapper {
+	addRole(w.baseWrapper, w.resource, w.resource.ResourceType.Name, identityIDFromWrapper(w.graph.t, wrapper), roleWrapper.Role())
+	return w
+}
+
 func addRoleByName(w baseWrapper, resource *resource.Resource, resourceTypeName string, identityID uuid.UUID, roleName string) {
 	r, err := w.graph.app.RoleRepository().Lookup(w.graph.ctx, roleName, resourceTypeName)
 	require.NoError(w.graph.t, err)
