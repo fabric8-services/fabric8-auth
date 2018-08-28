@@ -75,6 +75,11 @@ objects:
               configMapKeyRef:
                 name: ${SERVICE_NAME}
                 key: notification.serviceurl
+          - name: AUTH_UI_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: ui.url
           name: ${SERVICE_NAME}
           ports:
           - containerPort: 8089
