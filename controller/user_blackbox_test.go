@@ -203,7 +203,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			require.Len(t, spaces.Data, 0)
 		})
 
-		t.Run("role on 1 space", func(t *testing.T) {
+		t.Run("1 role on 1 space", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			user := g.CreateUser()
@@ -215,16 +215,47 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, authorization.ResourceTypeSpace)
 			// then
 			require.Len(t, spaces.Data, 1)
-			require.Equal(t, space.SpaceID(), spaces.Data[0].ID)
-			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role)
-			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role)
-			assert.ElementsMatch(t, spaces.Data[0].Attributes.Scopes, []string{
+			assert.Equal(t, space.SpaceID(), spaces.Data[0].ID)
+			require.Len(t, spaces.Data[0].Attributes.Roles, 1)
+			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Roles[0].Name)
+			assert.ElementsMatch(t, spaces.Data[0].Attributes.Roles[0].Scopes, []string{
 				authorization.ManageSpaceScope,
 				authorization.ContributeSpaceScope,
 				authorization.ViewSpaceScope})
 		})
 
-		t.Run("role on 2 spaces", func(t *testing.T) {
+		t.Run("2 roles on 1 space", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			space := g.CreateSpace().AddAdmin(user).AddContributor(user)
+			require.NotNil(t, user.Identity())
+			identity := user.Identity()
+			// when
+			svc, userCtrl := s.SecuredController(*identity)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, spacesResourceType)
+			// then
+			require.Len(t, spaces.Data, 1)
+			assert.Equal(t, space.SpaceID(), spaces.Data[0].ID)
+			require.Len(t, spaces.Data[0].Attributes.Roles, 2)
+			require.ElementsMatch(t, []string{authorization.SpaceAdminRole, authorization.SpaceContributorRole},
+				[]string{spaces.Data[0].Attributes.Roles[0].Name, spaces.Data[0].Attributes.Roles[1].Name})
+			for i, role := range spaces.Data[0].Attributes.Roles {
+				switch role.Name {
+				case authorization.SpaceAdminRole:
+					assert.ElementsMatch(t, spaces.Data[0].Attributes.Roles[i].Scopes, []string{
+						authorization.ManageSpaceScope,
+						authorization.ContributeSpaceScope,
+						authorization.ViewSpaceScope})
+				case authorization.SpaceContributorRole:
+					assert.ElementsMatch(t, spaces.Data[0].Attributes.Roles[i].Scopes, []string{
+						authorization.ContributeSpaceScope,
+						authorization.ViewSpaceScope})
+				}
+			}
+		})
+
+		t.Run("1 role on 2 spaces", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			user := g.CreateUser()
@@ -243,14 +274,16 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			for _, spaceData := range spaces.Data {
 				switch spaceData.ID {
 				case space1.SpaceID():
-					assert.Equal(t, authorization.SpaceAdminRole, spaceData.Attributes.Role)
-					assert.ElementsMatch(t, spaceData.Attributes.Scopes, []string{
+					require.Len(t, spaceData.Attributes.Roles, 1)
+					assert.Equal(t, authorization.SpaceAdminRole, spaceData.Attributes.Roles[0].Name)
+					assert.ElementsMatch(t, spaceData.Attributes.Roles[0].Scopes, []string{
 						authorization.ManageSpaceScope,
 						authorization.ContributeSpaceScope,
 						authorization.ViewSpaceScope})
 				case space2.SpaceID():
-					assert.Equal(t, authorization.SpaceContributorRole, spaceData.Attributes.Role)
-					assert.ElementsMatch(t, spaceData.Attributes.Scopes, []string{
+					require.Len(t, spaceData.Attributes.Roles, 1)
+					assert.Equal(t, authorization.SpaceContributorRole, spaceData.Attributes.Roles[0].Name)
+					assert.ElementsMatch(t, spaceData.Attributes.Roles[0].Scopes, []string{
 						authorization.ContributeSpaceScope,
 						authorization.ViewSpaceScope})
 				}
