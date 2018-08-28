@@ -164,6 +164,12 @@ func (s *tokenBlackBoxTest) TestCreateListPrivileges() {
 	t := s.Graph.CreateToken()
 	pc := s.Graph.CreatePrivilegeCache()
 
+	// Create some noise
+	s.repo.CreatePrivilege(s.Ctx, &tokenRepo.TokenPrivilege{
+		TokenID:          s.Graph.CreateToken().TokenID(),
+		PrivilegeCacheID: s.Graph.CreatePrivilegeCache().PrivilegeCache().PrivilegeCacheID,
+	})
+
 	tp := &tokenRepo.TokenPrivilege{
 		TokenID:          t.TokenID(),
 		PrivilegeCacheID: pc.PrivilegeCache().PrivilegeCacheID,

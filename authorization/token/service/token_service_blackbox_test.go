@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
@@ -367,4 +368,126 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivileges() {
 	// But it should now contain both scopes
 	require.Contains(s.T(), perms[0].Scopes, "november")
 	require.Contains(s.T(), perms[0].Scopes, "oscar")
+}
+
+func (s *tokenServiceBlackboxTest) TestDeprovisionedToken() {
+	tm := testtoken.TokenManager
+
+	// Create a user
+	u := s.Graph.CreateUser()
+
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(s.Ctx, *u.Identity(), false)
+	require.NoError(s.T(), err)
+
+	// Create a new resource type, with scope "tango"
+	rt := s.Graph.CreateResourceType()
+	rt.AddScope("tango")
+
+	// Create a role with scope tango
+	role := s.Graph.CreateRole(rt)
+	role.AddScope("tango")
+
+	// Create a resource with the new resource type
+	res := s.Graph.CreateResource(rt)
+
+	// Assign the role to the user for the new resource
+	s.Graph.CreateIdentityRole(u, res, role)
+
+	// Audit the user token for the resource ID
+	rptToken, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+
+	// Parse the signed RPT token to get the token ID
+	tokenClaims, err := tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// Extract the token ID from the token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	require.NoError(s.T(), err)
+
+	// Load the token from the repository
+	t, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
+	require.NoError(s.T(), err)
+
+	// Mark the token as deprovisioned and save it
+	t.SetStatus(token.TOKEN_STATUS_DEPROVISIONED, true)
+	err = s.Application.TokenRepository().Save(s.Ctx, t)
+	require.NoError(s.T(), err)
+
+	// Audit the RPT token for the same ID
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, errors.UnauthorizedError{})
+	require.Equal(s.T(), err.(errors.UnauthorizedError).UnauthorizedCode, errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
+}
+
+func (s *tokenServiceBlackboxTest) TestRevokedToken() {
+	tm := testtoken.TokenManager
+
+	// Create a user
+	u := s.Graph.CreateUser()
+
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(s.Ctx, *u.Identity(), false)
+	require.NoError(s.T(), err)
+
+	// Create a new resource type, with scope "tango"
+	rt := s.Graph.CreateResourceType()
+	rt.AddScope("uniform")
+
+	// Create a role with the scope
+	role := s.Graph.CreateRole(rt)
+	role.AddScope("uniform")
+
+	// Create a resource with the new resource type
+	res := s.Graph.CreateResource(rt)
+
+	// Assign the role to the user for the new resource
+	s.Graph.CreateIdentityRole(u, res, role)
+
+	// Audit the user token for the resource ID
+	rptToken, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+
+	// Parse the signed RPT token to get the token ID
+	tokenClaims, err := tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// Extract the token ID from the token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	require.NoError(s.T(), err)
+
+	// Load the token from the repository
+	t, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
+	require.NoError(s.T(), err)
+
+	// Mark the token as revoked and save it
+	t.SetStatus(token.TOKEN_STATUS_REVOKED, true)
+	err = s.Application.TokenRepository().Save(s.Ctx, t)
+	require.NoError(s.T(), err)
+
+	// Audit the RPT token for the same ID
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, errors.UnauthorizedError{})
+	require.Equal(s.T(), err.(errors.UnauthorizedError).UnauthorizedCode, errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)
+}
+
+func (s *tokenServiceBlackboxTest) TestAuditNonExistentResource() {
+	tm := testtoken.TokenManager
+
+	// Create a user
+	u := s.Graph.CreateUser()
+
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(s.Ctx, *u.Identity(), false)
+	require.NoError(s.T(), err)
+
+	// Audit the user token for a non-existent resource ID
+	_, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, uuid.NewV4().String())
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, errors.BadParameterError{})
 }

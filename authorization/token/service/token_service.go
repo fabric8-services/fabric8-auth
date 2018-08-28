@@ -40,6 +40,15 @@ func NewTokenService(context servicecontext.ServiceContext, conf TokenServiceCon
 // then a new token is generated and returned.
 // Returns nil if no new token has been issued, otherwise returns the new token string
 func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error) {
+	// Confirm that the resource exists
+	err := s.Repositories().ResourceRepository().CheckExists(ctx, resourceID)
+	if err != nil {
+		switch err.(type) {
+		case errors.NotFoundError:
+			return nil, errors.NewBadParameterErrorFromString("resourceID", resourceID, "resource does not exist")
+		}
+		return nil, err
+	}
 
 	// Get the token manager from the context
 	manager, err := token.ReadManagerFromContext(ctx)
@@ -218,31 +227,33 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 				}
 
 				// Don't process the same resource that was already specified for this request
-				if oldPriv.ResourceID != resourceID {
-					// Retrieve the cached privileges for the resource
-					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPriv.ResourceID)
-					if err != nil {
-						return errors.NewInternalError(ctx, err)
-					}
-
-					oldPrivResourceID := oldPriv.ResourceID
-
-					// Create a new permissions object for the RPT token and store it in the array
-					perm := &token.Permissions{
-						ResourceSetID: &oldPrivResourceID,
-						Scopes:        privilegeCache.ScopesAsArray(),
-						Expiry:        privilegeCache.ExpiryTime.Unix(),
-					}
-
-					perms = append(perms, *perm)
-
-					// Create a token privilege object to store in the database
-					tokenPriv := &tokenRepo.TokenPrivilege{
-						PrivilegeCacheID: privilegeCache.PrivilegeCacheID,
-					}
-
-					tokenPrivs = append(tokenPrivs, *tokenPriv)
+				if oldPriv.ResourceID == resourceID {
+					continue
 				}
+
+				// Retrieve the cached privileges for the resource
+				privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPriv.ResourceID)
+				if err != nil {
+					return errors.NewInternalError(ctx, err)
+				}
+
+				oldPrivResourceID := oldPriv.ResourceID
+
+				// Create a new permissions object for the RPT token and store it in the array
+				perm := &token.Permissions{
+					ResourceSetID: &oldPrivResourceID,
+					Scopes:        privilegeCache.ScopesAsArray(),
+					Expiry:        privilegeCache.ExpiryTime.Unix(),
+				}
+
+				perms = append(perms, *perm)
+
+				// Create a token privilege object to store in the database
+				tokenPriv := &tokenRepo.TokenPrivilege{
+					PrivilegeCacheID: privilegeCache.PrivilegeCacheID,
+				}
+
+				tokenPrivs = append(tokenPrivs, *tokenPriv)
 			}
 		}
 

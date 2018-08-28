@@ -13,6 +13,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -28,6 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/oauth2"
+	"strings"
 )
 
 type TestTokenREST struct {
@@ -302,7 +304,7 @@ func (rest *TestTokenREST) TestGenerateOK() {
 	validateToken(rest.T(), result[0])
 }
 
-func (rest *TestTokenREST) TestTokenAudit() {
+func (rest *TestTokenREST) TestTokenAuditOK() {
 	// Create a user
 	user := rest.Graph.CreateUser()
 
@@ -339,6 +341,110 @@ func (rest *TestTokenREST) TestTokenAudit() {
 	perms := *tokenClaims.Permissions
 	require.Equal(rest.T(), res.ResourceID(), *perms[0].ResourceSetID)
 	require.Contains(rest.T(), perms[0].Scopes, "lima")
+}
+
+func (rest *TestTokenREST) TestAuditDeprovisionedToken() {
+	// Create a user
+	user := rest.Graph.CreateUser()
+
+	// Create a new resource type
+	rt := rest.Graph.CreateResourceType()
+	rt.AddScope("xray")
+
+	// Create a new role with the resource type, and with the "xray" scope
+	role := rest.Graph.CreateRole(rt)
+	role.AddScope("xray")
+
+	// Create a resource with the resource type
+	res := rest.Graph.CreateResource(rt)
+
+	// Assign the role to the user
+	rest.Graph.CreateIdentityRole(user, res, role)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*user.Identity())
+
+	manager, err := token.NewManager(rest.Configuration)
+	require.Nil(rest.T(), err)
+
+	tk, err := manager.Parse(rest.Ctx, rest.sampleAccessToken)
+	require.NoError(rest.T(), err)
+
+	_, response := test.AuditTokenOK(rest.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
+
+	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	require.NoError(rest.T(), err)
+
+	require.NotNil(rest.T(), tokenClaims.Permissions)
+	require.Len(rest.T(), *tokenClaims.Permissions, 1)
+
+	perms := *tokenClaims.Permissions
+	require.Equal(rest.T(), res.ResourceID(), *perms[0].ResourceSetID)
+	require.Contains(rest.T(), perms[0].Scopes, "xray")
+
+	// Deprovision the token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	t, err := rest.Application.TokenRepository().Load(rest.Ctx, tokenID)
+	require.NoError(rest.T(), err)
+	t.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, true)
+	err = rest.Application.TokenRepository().Save(rest.Ctx, t)
+
+	rptToken, err := manager.Parse(rest.Ctx, *response.RptToken)
+
+	response2, _ := test.AuditTokenUnauthorized(rest.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
+	authHeader := response2.Header().Get("WWW-Authenticate")
+	require.True(rest.T(), strings.HasPrefix(authHeader, "DEPROVISIONED"))
+}
+
+func (rest *TestTokenREST) TestAuditRevokedToken() {
+	// Create a user
+	user := rest.Graph.CreateUser()
+
+	// Create a new resource type
+	rt := rest.Graph.CreateResourceType()
+	rt.AddScope("victor")
+
+	// Create a new role with the resource type, and with the "victor" scope
+	role := rest.Graph.CreateRole(rt)
+	role.AddScope("victor")
+
+	// Create a resource with the resource type
+	res := rest.Graph.CreateResource(rt)
+
+	// Assign the role to the user
+	rest.Graph.CreateIdentityRole(user, res, role)
+
+	svc, ctrl := rest.SecuredControllerWithIdentity(*user.Identity())
+
+	manager, err := token.NewManager(rest.Configuration)
+	require.Nil(rest.T(), err)
+
+	tk, err := manager.Parse(rest.Ctx, rest.sampleAccessToken)
+	require.NoError(rest.T(), err)
+
+	_, response := test.AuditTokenOK(rest.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
+
+	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	require.NoError(rest.T(), err)
+
+	require.NotNil(rest.T(), tokenClaims.Permissions)
+	require.Len(rest.T(), *tokenClaims.Permissions, 1)
+
+	perms := *tokenClaims.Permissions
+	require.Equal(rest.T(), res.ResourceID(), *perms[0].ResourceSetID)
+	require.Contains(rest.T(), perms[0].Scopes, "victor")
+
+	// Deprovision the token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	t, err := rest.Application.TokenRepository().Load(rest.Ctx, tokenID)
+	require.NoError(rest.T(), err)
+	t.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, true)
+	err = rest.Application.TokenRepository().Save(rest.Ctx, t)
+
+	rptToken, err := manager.Parse(rest.Ctx, *response.RptToken)
+
+	response2, _ := test.AuditTokenUnauthorized(rest.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
+	authHeader := response2.Header().Get("WWW-Authenticate")
+	require.True(rest.T(), strings.HasPrefix(authHeader, "LOGIN"))
 }
 
 func validateToken(t *testing.T, token *app.AuthToken) {

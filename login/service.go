@@ -941,7 +941,7 @@ func LoadContextIdentityIfNotDeprovisioned(ctx context.Context, repos repository
 		return nil, err
 	}
 	if identity.User.Deprovisioned {
-		return nil, autherrors.NewUnauthorizedError("user deprovisioined")
+		return nil, autherrors.NewUnauthorizedError("user deprovisioned")
 	}
 	return identity, err
 }
