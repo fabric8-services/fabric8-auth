@@ -718,9 +718,11 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	rptToken := *auditedToken
+
 	if auditedToken != nil {
 		rptTokenPayload := &app.RPTToken{
-			RptToken: auditedToken,
+			RptToken: &rptToken,
 		}
 		return ctx.OK(rptTokenPayload)
 	} else {
