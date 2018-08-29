@@ -384,8 +384,10 @@ func (rest *TestTokenREST) TestAuditDeprovisionedToken() {
 	// Deprovision the token
 	tokenID, err := uuid.FromString(tokenClaims.Id)
 	require.NoError(rest.T(), err)
+
 	t, err := rest.Application.TokenRepository().Load(rest.Ctx, tokenID)
 	require.NoError(rest.T(), err)
+
 	t.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, true)
 	err = rest.Application.TokenRepository().Save(rest.Ctx, t)
 	require.NoError(rest.T(), err)
@@ -438,12 +440,17 @@ func (rest *TestTokenREST) TestAuditRevokedToken() {
 
 	// Deprovision the token
 	tokenID, err := uuid.FromString(tokenClaims.Id)
+	require.NoError(rest.T(), err)
+
 	t, err := rest.Application.TokenRepository().Load(rest.Ctx, tokenID)
 	require.NoError(rest.T(), err)
+
 	t.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, true)
 	err = rest.Application.TokenRepository().Save(rest.Ctx, t)
+	require.NoError(rest.T(), err)
 
 	rptToken, err := manager.Parse(rest.Ctx, *response.RptToken)
+	require.NoError(rest.T(), err)
 
 	response2, _ := test.AuditTokenUnauthorized(rest.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
 	authHeader := response2.Header().Get("WWW-Authenticate")
