@@ -417,7 +417,7 @@ func (s *tokenServiceBlackboxTest) TestDeprovisionedToken() {
 	require.NoError(s.T(), err)
 
 	// Audit the RPT token for the same ID
-	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
+	_, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
 	require.Error(s.T(), err)
 	require.IsType(s.T(), err, errors.UnauthorizedError{})
 	require.Equal(s.T(), err.(errors.UnauthorizedError).UnauthorizedCode, errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
@@ -470,7 +470,7 @@ func (s *tokenServiceBlackboxTest) TestRevokedToken() {
 	require.NoError(s.T(), err)
 
 	// Audit the RPT token for the same ID
-	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
+	_, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
 	require.Error(s.T(), err)
 	require.IsType(s.T(), err, errors.UnauthorizedError{})
 	require.Equal(s.T(), err.(errors.UnauthorizedError).UnauthorizedCode, errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)

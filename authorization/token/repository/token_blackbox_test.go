@@ -165,17 +165,18 @@ func (s *tokenBlackBoxTest) TestCreateListPrivileges() {
 	pc := s.Graph.CreatePrivilegeCache()
 
 	// Create some noise
-	s.repo.CreatePrivilege(s.Ctx, &tokenRepo.TokenPrivilege{
+	err := s.repo.CreatePrivilege(s.Ctx, &tokenRepo.TokenPrivilege{
 		TokenID:          s.Graph.CreateToken().TokenID(),
 		PrivilegeCacheID: s.Graph.CreatePrivilegeCache().PrivilegeCache().PrivilegeCacheID,
 	})
+	require.NoError(s.T(), err)
 
 	tp := &tokenRepo.TokenPrivilege{
 		TokenID:          t.TokenID(),
 		PrivilegeCacheID: pc.PrivilegeCache().PrivilegeCacheID,
 	}
 
-	err := s.repo.CreatePrivilege(s.Ctx, tp)
+	err = s.repo.CreatePrivilege(s.Ctx, tp)
 	require.NoError(s.T(), err)
 
 	privs, err := s.repo.ListPrivileges(s.Ctx, t.TokenID())
