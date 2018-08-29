@@ -445,6 +445,13 @@ func testMigration33(t *testing.T) {
 	assert.False(t, dialect.HasTable("space_resources"))
 }
 
+func testMigration36(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(37)], (37))
+
+	assert.True(t, dialect.HasColumn("invitation", "success_redirect_url"))
+	assert.True(t, dialect.HasColumn("invitation", "failure_redirect_url"))
+}
+
 // runSQLscript loads the given filename from the packaged SQL test files and
 // executes it on the given database. Golang text/template module is used
 // to handle all the optional arguments passed to the sql test files

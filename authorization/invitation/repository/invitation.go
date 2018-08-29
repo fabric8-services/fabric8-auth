@@ -35,6 +35,10 @@ type Invitation struct {
 	// AcceptCode is the code sent in the invitation e-mail to the user, used to accept the invitation
 	AcceptCode uuid.UUID `sql:"type:uuid" gorm:"column:accept_code"`
 
+	// url's to redirect after accepting invitation in case of success or failure
+	SuccessRedirectURL *string `gorm:"column:success_redirect_url"`
+	FailureRedirectURL *string `gorm:"column:failure_redirect_url"`
+
 	Member bool
 }
 
