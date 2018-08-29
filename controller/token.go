@@ -23,6 +23,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -684,4 +685,48 @@ func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
 	}
 	ctx.ResponseData.Header().Set("Location", redirectLocation)
 	return ctx.TemporaryRedirect()
+}
+
+func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("no token in request"))
+	}
+
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	tokenString := token.Raw
+
+	auditedToken, err := c.app.TokenService().Audit(ctx, currentIdentity, tokenString, ctx.ResourceID)
+	if err != nil {
+		switch t := err.(type) {
+		case errors.UnauthorizedError:
+			{
+				if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED {
+					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
+					ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Token has been deprovisioned\"")
+					return jsonapi.JSONErrorResponse(ctx, err)
+				} else if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_REVOKED {
+					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
+					ctx.ResponseData.Header().Set("WWW-Authenticate", "LOGIN description=\"Token has been revoked or logged out\"")
+					return jsonapi.JSONErrorResponse(ctx, err)
+				}
+			}
+		}
+
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	if auditedToken != nil {
+		rptToken := *auditedToken
+		rptTokenPayload := &app.RPTToken{
+			RptToken: &rptToken,
+		}
+		return ctx.OK(rptTokenPayload)
+	} else {
+		return ctx.OK(nil)
+	}
 }

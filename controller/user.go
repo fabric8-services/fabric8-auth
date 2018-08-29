@@ -83,11 +83,13 @@ func (c *UserController) ListResources(ctx *app.ListResourcesUserContext) error 
 		}, "Bad Token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("bad or missing token"))
 	}
-	var resourceType string
+	resourceType := ctx.Type
 	switch ctx.Type {
-	case "spaces":
-		resourceType = authorization.ResourceTypeSpace
+	case authorization.ResourceTypeSpace:
+		// ok
 	default:
+		// resource type is unknown, so let respond with an error instead of running an expensive request
+		// that will return no result.
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("type", ctx.Type, "invalid or unsupported type of resource. Valid value is:'spaces'."))
 	}
 

@@ -192,6 +192,24 @@ var _ = a.Resource("token", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
+
+	a.Action("audit", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.POST("/audit"),
+		)
+		a.Params(func() {
+			a.Param("resource_id", d.String, "Resource ID of a resource on which the user wishes to perform an operation")
+			a.Required("resource_id")
+		})
+		a.Description("Verifies the state of an existing token in respect to its privileges for a specified resource, and issues a new token if required")
+		a.Response(d.OK, func() {
+			a.Media(RPTToken)
+		})
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 })
 
 // PublicKeys represents an public keys payload
@@ -247,6 +265,17 @@ var tokenData = a.Type("TokenData", func() {
 	a.Required("expires_in")
 	a.Required("refresh_expires_in")
 	a.Required("not-before-policy")
+})
+
+var RPTToken = a.MediaType("application/vnd.rpttoken+json", func() {
+	a.TypeName("RPTToken")
+	a.Description("JWT Token")
+	a.Attributes(func() {
+		a.Attribute("rpt_token", d.String, "RPT token")
+	})
+	a.View("default", func() {
+		a.Attribute("rpt_token")
+	})
 })
 
 // OauthToken represents an Oauth 2.0 token payload

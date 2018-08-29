@@ -16,6 +16,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -944,32 +945,30 @@ func ContextIdentityIfExists(ctx context.Context, app application.Application) (
 // LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
 // If no token present in the context then an Unauthorized error is returned
 // If the identity represented by the token doesn't exist in the DB or not associated with any User then an Unauthorized error is returned
-func LoadContextIdentityAndUser(ctx context.Context, app application.Application) (*account.Identity, error) {
+func LoadContextIdentityAndUser(ctx context.Context, repos repository.Repositories) (*account.Identity, error) {
 	var identity *account.Identity
 	identityID, err := ContextIdentity(ctx)
 	if err != nil {
 		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
 	// Check if the identity exists
-	err = transaction.Transactional(app, func(tr transaction.TransactionalResources) error {
-		identity, err = tr.Identities().LoadWithUser(ctx, *identityID)
-		if err != nil {
-			return autherrors.NewUnauthorizedError(err.Error())
-		}
-		return nil
-	})
+	identity, err = repos.Identities().LoadWithUser(ctx, *identityID)
+	if err != nil {
+		return nil, autherrors.NewUnauthorizedError(err.Error())
+	}
+
 	return identity, err
 }
 
 // LoadContextIdentityIfNotDeprovisioned returns the same identity as LoadContextIdentityAndUser()
 // if the user is not deprovisioned. Returns an Unauthorized error if the user is deprovisioned.
-func LoadContextIdentityIfNotDeprovisioned(ctx context.Context, app application.Application) (*account.Identity, error) {
-	identity, err := LoadContextIdentityAndUser(ctx, app)
+func LoadContextIdentityIfNotDeprovisioned(ctx context.Context, repos repository.Repositories) (*account.Identity, error) {
+	identity, err := LoadContextIdentityAndUser(ctx, repos)
 	if err != nil {
 		return nil, err
 	}
 	if identity.User.Deprovisioned {
-		return nil, autherrors.NewUnauthorizedError("user deprovisioined")
+		return nil, autherrors.NewUnauthorizedError("user deprovisioned")
 	}
 	return identity, err
 }

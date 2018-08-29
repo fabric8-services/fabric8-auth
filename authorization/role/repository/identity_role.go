@@ -72,6 +72,7 @@ type IdentityRoleRepository interface {
 	FindIdentityRolesByResourceAndRoleName(ctx context.Context, resourceID string, roleName string, includeParenResources bool) ([]IdentityRole, error)
 	FindIdentityRolesByResource(ctx context.Context, resourceID string, includeParenResources bool) ([]IdentityRole, error)
 	FindIdentityRolesByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]IdentityRole, error)
+	FindScopesByIdentityAndResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -482,6 +483,147 @@ func (m *GormIdentityRoleRepository) DeleteForIdentityAndResource(ctx context.Co
 // FindIdentityRolesByIdentityAndResource returns all identity roles by identity ID and resource ID
 func (m *GormIdentityRoleRepository) FindIdentityRolesByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]IdentityRole, error) {
 	return m.query(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID))
+}
+
+func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error) {
+
+	type Result struct {
+		Scope string
+	}
+
+	var results []Result
+
+	err := m.db.Raw(`WITH identity_resource_roles AS (
+	WITH identity_hierarchy AS (
+		WITH RECURSIVE m AS (
+			SELECT
+		    member_of
+		  FROM
+		    membership
+		  WHERE
+		    member_id = ? /* IDENTITY_ID */
+		  UNION SELECT
+		    p.member_of
+		  FROM
+		    membership p INNER JOIN m ON m.member_of = p.member_id
+		)
+		SELECT
+		  member_of AS identity_id
+		FROM 
+		  m
+		UNION SELECT
+		  id
+		FROM
+		  identities
+		WHERE
+		  id = ? /* IDENTITY_ID */
+	),
+	resource_hierarchy AS (
+	  WITH RECURSIVE m AS (
+	    SELECT
+	      resource_id, parent_resource_id
+	    FROM
+	      resource
+	    WHERE
+	      resource_id = ? /* RESOURCE_ID */
+	    UNION SELECT
+	      p.resource_id, p.parent_resource_id
+	    FROM
+	      resource p INNER JOIN m ON m.parent_resource_id = p.resource_id
+	  )
+	  SELECT
+	    m.resource_id
+	  FROM
+	    m
+	),
+	matching_roles AS (
+	  SELECT
+	    r.role_id
+	  FROM
+	    role r,
+	    resource rs
+	  WHERE
+	    r.resource_type_id = rs.resource_type_id
+	    AND rs.resource_id = ? /* RESOURCE_ID */
+	),
+	role_mappings AS (
+		SELECT DISTINCT
+		  frm.from_role_id,
+		  trm.to_role_id
+		FROM
+		  role_mapping frm,
+		  role_mapping trm
+		WHERE
+		  frm.resource_id IN (SELECT resource_id FROM resource_hierarchy) 
+		  AND trm.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+		  AND trm.to_role_id IN (SELECT role_id FROM matching_roles)
+		  AND frm.from_role_id != trm.to_role_id
+		  AND frm.from_role_id IN (
+		    SELECT DISTINCT
+		      rl.role_id
+		    FROM (
+		      WITH RECURSIVE prm AS (
+		        SELECT
+		          rm.from_role_id,
+		          rm.to_role_id
+		        FROM
+		          role_mapping rm
+		        WHERE
+		          rm.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+		          AND to_role_id = trm.to_role_id
+		        UNION SELECT
+		          trm.from_role_id,
+		          trm.to_role_id
+		        FROM
+		          role_mapping trm INNER JOIN prm ON prm.from_role_id = trm.to_role_id
+		        WHERE
+		          trm.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+	        )
+	        SELECT
+	          prm.from_role_id,
+	          prm.to_role_id
+	        FROM prm
+	      ) AS mappings
+	    CROSS JOIN LATERAL (
+	      VALUES (from_role_id), (to_role_id)
+	    ) AS rl (role_id)    
+	  )
+	)
+	SELECT 
+	  rm.to_role_id AS role_id
+	FROM
+	  identity_role ir,
+      role_mappings rm
+	WHERE
+      ir.role_id = rm.from_role_id
+	  AND ir.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+	  AND ir.identity_id IN (SELECT identity_id FROM identity_hierarchy)
+	UNION SELECT
+	  ir2.role_id
+	FROM
+	  identity_role ir2
+	WHERE 
+	  ir2.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+	  AND ir2.identity_id IN (SELECT identity_id FROM identity_hierarchy)
+	  AND ir2.role_id IN (SELECT role_id FROM matching_roles)
+)
+SELECT
+  rts.name AS scope
+FROM
+  identity_resource_roles irr LEFT JOIN role_scope rs ON irr.role_id = rs.role_id
+  LEFT JOIN resource_type_scope rts ON rs.scope_id = rts.resource_type_scope_id`, identityID, identityID, resourceID, resourceID).Scan(&results).Error
+
+	if err != nil {
+		return nil, errs.WithStack(err)
+	}
+
+	var scopes []string
+
+	for i := range results {
+		scopes = append(scopes, results[i].Scope)
+	}
+
+	return scopes, nil
 }
 
 // Query exposes an open ended Query model

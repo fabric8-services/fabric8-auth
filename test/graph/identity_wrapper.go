@@ -41,3 +41,7 @@ func newIdentityWrapper(g *TestGraph, params []interface{}) interface{} {
 func (w *identityWrapper) Identity() *account.Identity {
 	return w.identity
 }
+
+func (w *identityWrapper) ID() uuid.UUID {
+	return w.identity.ID
+}

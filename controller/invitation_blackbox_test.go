@@ -20,11 +20,16 @@ import (
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-type TestInvitationREST struct {
+func TestInvitationController(t *testing.T) {
+	suite.Run(t, &InvitationControllerTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+}
+
+type InvitationControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
 	testIdentity account.Identity
 	service      *goa.Service
@@ -32,7 +37,7 @@ type TestInvitationREST struct {
 	invRepo      invitationrepo.InvitationRepository
 }
 
-func (s *TestInvitationREST) SetupSuite() {
+func (s *InvitationControllerTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.invService = s.Application.InvitationService()
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
@@ -44,320 +49,266 @@ func (s *TestInvitationREST) SetupSuite() {
 	require.Nil(s.T(), err)
 }
 
-func (s *TestInvitationREST) SecuredController(identity account.Identity) (*goa.Service, *InvitationController) {
+func (s *InvitationControllerTestSuite) SecuredController(identity account.Identity) (*goa.Service, *InvitationController) {
 	svc := testsupport.ServiceAsUser("Invitation-Service", identity)
 	return svc, NewInvitationController(svc, s.Application, s.Configuration)
 }
 
-func (s *TestInvitationREST) UnsecuredController() (*goa.Service, *InvitationController) {
+func (s *InvitationControllerTestSuite) UnsecuredController() (*goa.Service, *InvitationController) {
 	svc := goa.New("Invitation-Service")
 	controller := NewInvitationController(svc, s.Application, s.Configuration)
 	return svc, controller
 }
 
-func TestRunInvitationREST(t *testing.T) {
-	suite.Run(t, &TestInvitationREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
-}
-
 /*
 * This test will attempt to create a new invitation for a user to become a member of an organization
  */
-func (s *TestInvitationREST) TestCreateTeamMemberInvitationSuccess() {
-	var err error
+func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 
-	team := s.Graph.CreateTeam()
+	s.T().Run("team member", func(t *testing.T) {
 
-	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
-	r.AddScope(authorization.ManageTeamMembersScope)
-	team.AssignRole(&s.testIdentity, r.Role())
+		t.Run("success", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			team := g.CreateTeam()
+			r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+			r.AddScope(authorization.ManageTeamMembersScope)
+			team.AssignRole(&s.testIdentity, r.Role())
+			invitee := g.CreateUser()
+			inviteeID := invitee.IdentityID().String()
+			payload := newCreateInvitationPayload(inviteeID, true)
+			service, controller := s.SecuredController(s.testIdentity)
+			// when
+			test.CreateInviteInvitationCreated(t, service.Context, service, controller, team.TeamID().String(), payload)
+			// then
+			invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
+			require.NoError(t, err, "could not list invitations")
+			// We should have 1 invitation
+			require.Len(t, invitations, 1)
+			assert.Equal(t, invitee.IdentityID(), invitations[0].IdentityID)
+			assert.True(t, invitations[0].Member)
+		})
+	})
 
-	service, controller := s.SecuredController(s.testIdentity)
+	s.T().Run("organization", func(t *testing.T) {
 
-	invitee := s.Graph.CreateUser()
-	inviteeID := invitee.IdentityID().String()
+		t.Run("success", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			team := g.CreateTeam()
+			r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+			r.AddScope(authorization.ManageTeamMembersScope)
+			team.AssignRole(&s.testIdentity, r.Role())
+			invitee := g.CreateUser()
+			inviteeID := invitee.IdentityID().String()
+			payload := newCreateInvitationPayload(inviteeID, false, r.Role().Name)
+			service, controller := s.SecuredController(s.testIdentity)
+			// when
+			test.CreateInviteInvitationCreated(t, service.Context, service, controller, team.TeamID().String(), payload)
+			// then
+			invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
+			require.NoError(t, err, "could not list invitations")
+			// We should have 1 invitation
+			require.Len(t, invitations, 1)
+			assert.Equal(t, invitee.IdentityID(), invitations[0].IdentityID)
+			assert.False(t, invitations[0].Member)
+			roles, err := s.invRepo.ListRoles(s.Ctx, invitations[0].InvitationID)
+			require.NoError(t, err, "could not list invitation roles")
+			// We should have 1 role
+			require.Len(t, roles, 1)
+			// And it should be the owner role
+			assert.Equal(t, r.Role().Name, roles[0].Name)
+		})
 
-	payload := &app.CreateInviteInvitationPayload{
+		t.Run("unauthorized", func(t *testing.T) { // This test will attempt to create a new invitation for a user to become a member of an organization, however perform an unauthorized request to create the invitation
+			// given
+			orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+			require.NoError(t, err, "could not create organization")
+			testUsername := "jsmith" + uuid.NewV4().String()
+			invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
+			require.NoError(t, err, "could not create invitee user")
+			inviteeID := invitee.ID.String()
+			payload := newCreateInvitationPayload(inviteeID, true)
+			service, controller := s.UnsecuredController()
+			// when
+			test.CreateInviteInvitationUnauthorized(t, service.Context, service, controller, orgIdentity.ID.String(), payload)
+			// then
+			invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
+			require.NoError(t, err, "could not list invitations")
+			// We should have no invitations
+			assert.Empty(t, invitations)
+		})
+
+		t.Run("invalid role", func(t *testing.T) { // This test will attempt to create a new invitation for a user to accept an invalid role in an organization, we should get a bad request error as a result
+			// given
+			orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+			require.NoError(t, err, "could not create organization")
+			testUsername := "jsmith" + uuid.NewV4().String()
+			invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
+			require.NoError(t, err, "could not create invitee user")
+			inviteeID := invitee.ID.String()
+			payload := newCreateInvitationPayload(inviteeID, false, "foobar")
+			service, controller := s.SecuredController(s.testIdentity)
+			// when
+			test.CreateInviteInvitationBadRequest(t, service.Context, service, controller, orgIdentity.ID.String(), payload)
+			invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
+			require.NoError(t, err, "could not list invitations")
+			// We should have no invitations
+			assert.Empty(t, invitations)
+		})
+
+		t.Run("invalid user", func(t *testing.T) { // This test will attempt to create a new invitation however provide no identifying information for the user we should get a bad request error as a result
+			// given
+			orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
+			require.NoError(t, err, "could not create organization")
+			service, controller := s.SecuredController(s.testIdentity)
+			payload := newCreateInvitationPayload("", true, "foobar")
+			// when
+			test.CreateInviteInvitationBadRequest(t, service.Context, service, controller, orgIdentity.ID.String(), payload)
+			// then
+			invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
+			require.NoError(t, err, "could not list invitations")
+			// We should have no invitations
+			assert.Empty(t, invitations)
+		})
+	})
+
+}
+
+func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		team := g.CreateTeam()
+		invitee := g.CreateUser()
+		inv := g.CreateInvitation(team, invitee)
+		service, controller := s.UnsecuredController()
+		// when
+		response := test.AcceptInviteInvitationTemporaryRedirect(t, service.Context, service, controller, inv.Invitation().AcceptCode.String())
+		// then
+		require.NotNil(t, response.Header().Get("Location"))
+		// The invitation should no longer be there after acceptance
+		_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
+		require.Error(t, err)
+		require.IsType(t, errors.NotFoundError{}, err)
+	})
+
+	s.T().Run("failure", func(t *testing.T) {
+
+		s.T().Run("non-uuid code", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			team := g.CreateTeam()
+			invitee := g.CreateUser()
+			g.CreateInvitation(team, invitee)
+			service, controller := s.SecuredController(s.testIdentity)
+			// when
+			response := test.AcceptInviteInvitationTemporaryRedirect(t, service.Context, service, controller, "foo")
+			// then
+			parsedURL, err := url.Parse(response.Header().Get("Location"))
+			require.NoError(t, err)
+			parameters := parsedURL.Query()
+			require.NotNil(t, parameters.Get("error"))
+		})
+
+		s.T().Run("invalid code", func(t *testing.T) {
+			// given
+			service, controller := s.SecuredController(s.testIdentity)
+			// when
+			// This should still work, however there should now be an error param in the redirect URL
+			response := test.AcceptInviteInvitationTemporaryRedirect(t, service.Context, service, controller, uuid.NewV4().String())
+			// then
+			require.NotNil(t, response.Header().Get("Location"))
+			parsedURL, err := url.Parse(response.Header().Get("Location"))
+			require.NoError(t, err)
+			parameters := parsedURL.Query()
+			require.NotNil(t, parameters.Get("error"))
+		})
+	})
+
+}
+
+func (s *InvitationControllerTestSuite) TestRescindInvitation() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		team := g.CreateTeam()
+		invitee := g.CreateUser()
+		inv := g.CreateInvitation(team, invitee)
+		r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+		r.AddScope(authorization.ManageTeamMembersScope)
+		team.AssignRole(&s.testIdentity, r.Role())
+		service, controller := s.SecuredController(s.testIdentity)
+		// when
+		response := test.RescindInviteInvitationOK(t, service.Context, service, controller, inv.Invitation().InvitationID.String())
+		// then
+		require.NotNil(t, response.Header().Get("Location"))
+		// The invitation should no longer be there after rescinding
+		_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+		require.Error(t, err)
+		require.IsType(t, errors.NotFoundError{}, err)
+	})
+
+	s.T().Run("fail", func(t *testing.T) {
+		t.Run("invalid id", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			team := g.CreateTeam()
+			invitee := g.CreateUser()
+			g.CreateInvitation(team, invitee)
+			r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+			r.AddScope(authorization.ManageTeamMembersScope)
+			team.AssignRole(&s.testIdentity, r.Role())
+			service, controller := s.SecuredController(s.testIdentity)
+			// when
+			response, _ := test.RescindInviteInvitationNotFound(t, service.Context, service, controller, uuid.NewV4().String())
+			// then
+			require.NotNil(t, response.Header().Get("Location"))
+		})
+
+		t.Run("non-uuid id", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			team := g.CreateTeam()
+			invitee := g.CreateUser()
+			g.CreateInvitation(team, invitee)
+			r := g.CreateRole(g.LoadResourceType(authorization.IdentityResourceTypeTeam))
+			r.AddScope(authorization.ManageTeamMembersScope)
+			team.AssignRole(&s.testIdentity, r.Role())
+			service, controller := s.SecuredController(s.testIdentity)
+			// when
+			response, _ := test.RescindInviteInvitationNotFound(t, service.Context, service, controller, "foo")
+			// then
+			require.NotNil(t, response.Header().Get("Location"))
+		})
+	})
+
+	s.T().Run("unauthorized", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		team := g.CreateTeam()
+		invitee := g.CreateUser()
+		inv := g.CreateInvitation(team, invitee)
+		service, controller := s.SecuredController(s.testIdentity)
+		// when
+		response, _ := test.RescindInviteInvitationInternalServerError(t, service.Context, service, controller, inv.Invitation().InvitationID.String())
+		// then
+		require.NotNil(t, response.Header().Get("Location"))
+		_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
+		require.NoError(t, err)
+	})
+}
+
+func newCreateInvitationPayload(inviteeID string, member bool, roles ...string) *app.CreateInviteInvitationPayload {
+	return &app.CreateInviteInvitationPayload{
 		Data: []*app.Invitee{
 			{
 				IdentityID: &inviteeID,
-				Member:     boolPointer(true),
+				Member:     &member,
+				Roles:      roles,
 			},
 		},
 	}
-
-	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, team.TeamID().String(), payload)
-
-	invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
-	require.NoError(s.T(), err, "could not list invitations")
-
-	// We should have 1 invitation
-	require.Equal(s.T(), 1, len(invitations))
-
-	require.Equal(s.T(), invitee.IdentityID(), invitations[0].IdentityID)
-	require.True(s.T(), invitations[0].Member)
-}
-
-/*
-* This test will attempt to create a new invitation for a user to accept a role in an organization
- */
-func (s *TestInvitationREST) TestCreateTeamRoleInvitationSuccess() {
-	var err error
-
-	team := s.Graph.CreateTeam()
-
-	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
-	r.AddScope(authorization.ManageTeamMembersScope)
-	team.AssignRole(&s.testIdentity, r.Role())
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	invitee := s.Graph.CreateUser()
-	inviteeID := invitee.IdentityID().String()
-
-	payload := &app.CreateInviteInvitationPayload{
-		Data: []*app.Invitee{
-			{
-				IdentityID: &inviteeID,
-				Member:     boolPointer(false),
-				Roles:      []string{r.Role().Name},
-			},
-		},
-	}
-
-	test.CreateInviteInvitationCreated(s.T(), service.Context, service, controller, team.TeamID().String(), payload)
-
-	invitations, err := s.invRepo.ListForIdentity(s.Ctx, team.TeamID())
-	require.NoError(s.T(), err, "could not list invitations")
-
-	// We should have 1 invitation
-	require.Equal(s.T(), 1, len(invitations))
-
-	require.Equal(s.T(), invitee.IdentityID(), invitations[0].IdentityID)
-	require.False(s.T(), invitations[0].Member)
-
-	roles, err := s.invRepo.ListRoles(s.Ctx, invitations[0].InvitationID)
-	require.NoError(s.T(), err, "could not list invitation roles")
-
-	// We should have 1 role
-	require.Equal(s.T(), 1, len(roles))
-	// And it should be the owner role
-	require.Equal(s.T(), r.Role().Name, roles[0].Name)
-}
-
-/*
-* This test will attempt to create a new invitation for a user to become a member of an organization, however perform an unauthorized request to create the invitation
- */
-func (s *TestInvitationREST) TestCreateOrganizationMemberInvitationUnauthorized() {
-	var err error
-
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
-	require.NoError(s.T(), err, "could not create organization")
-
-	service, controller := s.UnsecuredController()
-
-	testUsername := "jsmith" + uuid.NewV4().String()
-	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
-	require.NoError(s.T(), err, "could not create invitee user")
-
-	inviteeID := invitee.ID.String()
-
-	payload := &app.CreateInviteInvitationPayload{
-		Data: []*app.Invitee{
-			{
-				IdentityID: &inviteeID,
-				Member:     boolPointer(true),
-			},
-		},
-	}
-
-	test.CreateInviteInvitationUnauthorized(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
-
-	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
-	require.NoError(s.T(), err, "could not list invitations")
-
-	// We should have no invitations
-	require.Equal(s.T(), 0, len(invitations))
-}
-
-/*
-* This test will attempt to create a new invitation for a user to accept an invalid role in an organization,
-* we should get a bad request error as a result
- */
-func (s *TestInvitationREST) TestCreateOrganizationInvalidRoleInvitation() {
-	var err error
-
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
-	require.NoError(s.T(), err, "could not create organization")
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	testUsername := "jsmith" + uuid.NewV4().String()
-	invitee, err := testsupport.CreateTestIdentityAndUser(s.DB, testUsername, "InvitationTest")
-	require.NoError(s.T(), err, "could not create invitee user")
-
-	inviteeID := invitee.ID.String()
-
-	payload := &app.CreateInviteInvitationPayload{
-		Data: []*app.Invitee{
-			{
-				IdentityID: &inviteeID,
-				Member:     boolPointer(false),
-				Roles:      []string{"foobar"},
-			},
-		},
-	}
-
-	test.CreateInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
-
-	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
-	require.NoError(s.T(), err, "could not list invitations")
-
-	// We should have no invitations
-	require.Equal(s.T(), 0, len(invitations))
-}
-
-/*
-* This test will attempt to create a new invitation however provide no identifying information for the user
-* we should get a bad request error as a result
- */
-func (s *TestInvitationREST) TestCreateOrganizationInvalidUserInvitation() {
-	var err error
-
-	orgIdentity, err := testsupport.CreateTestOrganization(s.Ctx, s.DB, s.Application, s.testIdentity.ID, "Acme Corporation"+uuid.NewV4().String())
-	require.NoError(s.T(), err, "could not create organization")
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	payload := &app.CreateInviteInvitationPayload{
-		Data: []*app.Invitee{
-			{
-				Member: boolPointer(true),
-				Roles:  []string{"foobar"},
-			},
-		},
-	}
-
-	test.CreateInviteInvitationBadRequest(s.T(), service.Context, service, controller, orgIdentity.ID.String(), payload)
-
-	invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
-	require.NoError(s.T(), err, "could not list invitations")
-
-	// We should have no invitations
-	require.Equal(s.T(), 0, len(invitations))
-}
-
-func (s *TestInvitationREST) TestAcceptInvitation() {
-	team := s.Graph.CreateTeam()
-	invitee := s.Graph.CreateUser()
-	inv := s.Graph.CreateInvitation(team, invitee)
-
-	service, controller := s.UnsecuredController()
-
-	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, inv.Invitation().AcceptCode.String())
-
-	require.NotNil(s.T(), response.Header().Get("Location"))
-
-	// The invitation should no longer be there after acceptance
-	_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
-	require.Error(s.T(), err)
-	require.IsType(s.T(), errors.NotFoundError{}, err)
-}
-
-func (s *TestInvitationREST) TestAcceptInvitationFailsForInvalidCode() {
-	service, controller := s.SecuredController(s.testIdentity)
-
-	// This should still work, however there should now be an error param in the redirect URL
-	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, uuid.NewV4().String())
-	require.NotNil(s.T(), response.Header().Get("Location"))
-
-	parsedURL, err := url.Parse(response.Header().Get("Location"))
-	require.NoError(s.T(), err)
-	parameters := parsedURL.Query()
-	require.NotNil(s.T(), parameters.Get("error"))
-}
-
-func (s *TestInvitationREST) TestAcceptInvitationFailsForNonUUIDCode() {
-	team := s.Graph.CreateTeam()
-	invitee := s.Graph.CreateUser()
-	s.Graph.CreateInvitation(team, invitee)
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	response := test.AcceptInviteInvitationTemporaryRedirect(s.T(), service.Context, service, controller, "foo")
-	parsedURL, err := url.Parse(response.Header().Get("Location"))
-	require.NoError(s.T(), err)
-	parameters := parsedURL.Query()
-	require.NotNil(s.T(), parameters.Get("error"))
-}
-
-func (s *TestInvitationREST) TestRescindInvitation() {
-	team := s.Graph.CreateTeam()
-	invitee := s.Graph.CreateUser()
-	inv := s.Graph.CreateInvitation(team, invitee)
-
-	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
-	r.AddScope(authorization.ManageTeamMembersScope)
-	team.AssignRole(&s.testIdentity, r.Role())
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	response := test.RescindInviteInvitationOK(s.T(), service.Context, service, controller, inv.Invitation().InvitationID.String())
-
-	require.NotNil(s.T(), response.Header().Get("Location"))
-
-	// The invitation should no longer be there after rescinding
-	_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
-	require.Error(s.T(), err)
-	require.IsType(s.T(), errors.NotFoundError{}, err)
-}
-
-func (s *TestInvitationREST) TestRescindInvitationFailsForUnauthorized() {
-	team := s.Graph.CreateTeam()
-	invitee := s.Graph.CreateUser()
-	inv := s.Graph.CreateInvitation(team, invitee)
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	response, _ := test.RescindInviteInvitationInternalServerError(s.T(), service.Context, service, controller, inv.Invitation().InvitationID.String())
-
-	require.NotNil(s.T(), response.Header().Get("Location"))
-
-	_, err := s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
-	require.NoError(s.T(), err)
-}
-
-func (s *TestInvitationREST) TestRescindInvitationFailsForInvalidID() {
-	team := s.Graph.CreateTeam()
-	invitee := s.Graph.CreateUser()
-	s.Graph.CreateInvitation(team, invitee)
-
-	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
-	r.AddScope(authorization.ManageTeamMembersScope)
-	team.AssignRole(&s.testIdentity, r.Role())
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	response, _ := test.RescindInviteInvitationNotFound(s.T(), service.Context, service, controller, uuid.NewV4().String())
-
-	require.NotNil(s.T(), response.Header().Get("Location"))
-}
-
-func (s *TestInvitationREST) TestRescindInvitationFailsForNonUUIDValue() {
-	team := s.Graph.CreateTeam()
-	invitee := s.Graph.CreateUser()
-	s.Graph.CreateInvitation(team, invitee)
-
-	r := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
-	r.AddScope(authorization.ManageTeamMembersScope)
-	team.AssignRole(&s.testIdentity, r.Role())
-
-	service, controller := s.SecuredController(s.testIdentity)
-
-	response, _ := test.RescindInviteInvitationNotFound(s.T(), service.Context, service, controller, "foo")
-
-	require.NotNil(s.T(), response.Header().Get("Location"))
-}
-
-func boolPointer(value bool) *bool {
-	return &value
 }
