@@ -22,7 +22,6 @@ import (
 	. "github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
@@ -110,13 +109,7 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
 	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
-	witServiceMock := testservice.NewWITServiceMock(s.T())
-	witServiceMock.CreateUserFunc = func(p context.Context, p1 *account.Identity, p2 string) (r error) {
-		return nil
-	}
-	witServiceMock.UpdateUserFunc = func(p context.Context, p1 *app.UpdateUsersPayload, p2 string) (r error) {
-		return nil
-	}
+	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
 	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
 }
