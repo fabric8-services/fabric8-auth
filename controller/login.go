@@ -38,16 +38,6 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	oauthIdentityProvider := login.NewLoginIdentityProvider(c.Configuration)
 	oauthIdentityProvider.RedirectURL = rest.AbsoluteURL(ctx.RequestData, "/api/login", nil)
 
-	/*
-		oauth := &oauth2.Config{
-			ClientID:     c.Configuration.GetKeycloakClientID(),
-			ClientSecret: c.Configuration.GetKeycloakSecret(),
-			Scopes:       []string{"user:email"},
-			Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-			RedirectURL:  rest.AbsoluteURL(ctx.RequestData, "/api/login", nil),
-		}
-	*/
-
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	return c.Auth.Login(ctx, *oauthIdentityProvider, c.Configuration)
+	return c.Auth.Login(ctx, oauthIdentityProvider, c.Configuration)
 }
