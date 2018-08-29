@@ -38,6 +38,10 @@ func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
 	s.checkGenerateUserTokenForIdentity(true) // Offline token
 }
 
+func (s *TestTokenSuite) TestGenerateRPTTokenForIdentity() {
+	s.checkGenerateRPTTokenForIdentity()
+}
+
 func (s *TestTokenSuite) checkGenerateUserTokenForIdentity(offlineToken bool) {
 	token, identity, ctx := s.generateToken(offlineToken)
 	s.assertGeneratedToken(token, identity, offlineToken)
@@ -47,6 +51,63 @@ func (s *TestTokenSuite) checkGenerateUserTokenForIdentity(offlineToken bool) {
 	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, offlineToken)
 	require.NoError(s.T(), err)
 	s.assertGeneratedToken(token, identity, offlineToken)
+}
+
+func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
+	t, identity, ctx := s.generateToken(false)
+	s.assertGeneratedToken(t, identity, false)
+
+	// With verified email
+	identity.User.EmailVerified = true
+
+	userToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
+	require.NoError(s.T(), err)
+
+	claims, err := testtoken.TokenManager.ParseToken(ctx, userToken.AccessToken)
+	require.NoError(s.T(), err)
+
+	perms := []token.Permissions{}
+	resourceID := uuid.NewV4().String()
+	perms = append(perms, token.Permissions{
+		ResourceSetID: &resourceID,
+		Scopes:        []string{"foo", "bar"},
+	})
+
+	rptToken, err := testtoken.TokenManager.GenerateUnsignedRPTTokenForIdentity(ctx, claims, identity, &perms)
+	require.NoError(s.T(), err)
+
+	signedRPTToken, err := testtoken.TokenManager.SignRPTToken(ctx, rptToken)
+	require.NoError(s.T(), err)
+
+	// Headers
+	s.assertHeaders(signedRPTToken)
+
+	rptClaims, err := testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), signedRPTToken)
+	require.NoError(s.T(), err)
+
+	// Claims
+	s.assertJti(rptClaims)
+	iat := s.assertIat(rptClaims)
+	s.assertExpiresIn(rptClaims["exp"])
+	s.assertIntClaim(rptClaims, "nbf", 0)
+	s.assertClaim(rptClaims, "iss", "https://auth.openshift.io")
+	s.assertClaim(rptClaims, "aud", "https://openshift.io")
+	s.assertClaim(rptClaims, "typ", "Bearer")
+	s.assertClaim(rptClaims, "auth_time", iat)
+	s.assertClaim(rptClaims, "approved", !identity.User.Deprovisioned)
+	s.assertClaim(rptClaims, "sub", identity.ID.String())
+	s.assertClaim(rptClaims, "email", identity.User.Email)
+	s.assertClaim(rptClaims, "email_verified", identity.User.EmailVerified)
+	s.assertClaim(rptClaims, "preferred_username", identity.Username)
+
+	firstName, lastName := account.SplitFullName(identity.User.FullName)
+	s.assertClaim(rptClaims, "given_name", firstName)
+	s.assertClaim(rptClaims, "family_name", lastName)
+
+	s.assertClaim(rptClaims, "allowed-origins", []interface{}{
+		"https://auth.openshift.io",
+		"https://openshift.io",
+	})
 }
 
 func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, identity repository.Identity, offlineToken bool) {
