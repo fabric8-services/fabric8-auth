@@ -12,8 +12,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -21,10 +23,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testservice "github.com/fabric8-services/fabric8-auth/test/service"
-
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -56,13 +54,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
 	s.profileService = keycloakUserProfileService
 	s.linkAPIService = &dummyKeycloakLinkService{}
-	witServiceMock := testservice.NewWITServiceMock(s.T())
-	witServiceMock.CreateUserFunc = func(p context.Context, p1 *accountrepo.Identity, p2 string) (r error) {
-		return nil
-	}
-	witServiceMock.UpdateUserFunc = func(p context.Context, p1 *app.UpdateUsersPayload, p2 string) (r error) {
-		return nil
-	}
+	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
 	s.userRepo = s.Application.Users()
