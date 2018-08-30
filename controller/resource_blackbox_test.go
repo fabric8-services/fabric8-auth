@@ -192,3 +192,63 @@ func (rest *TestResourceREST) TestDeleteResource() {
 
 	test.ReadResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
 }
+
+func (rest *TestResourceREST) TestScopesOK() {
+	// Create a new resource type, with scope "foo"
+	rt := rest.Graph.CreateResourceType()
+	rt.AddScope("foo")
+
+	// Create a resource with the resource type
+	res := rest.Graph.CreateResource(rt)
+
+	// Create a role for the resource type with scope "foo"
+	role := rest.Graph.CreateRole(rt)
+	role.AddScope("foo")
+
+	// Create a user
+	user := rest.Graph.CreateUser()
+
+	// Assign the role to the user
+	rest.Graph.CreateIdentityRole(user, role, res)
+
+	svc := testsupport.ServiceAsUser("Resource-Service", *user.Identity())
+	ctrl := NewResourceController(svc, rest.Application)
+
+	// Invoke the endpoint
+	_, scopes := test.ScopesResourceOK(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
+	require.Equal(rest.T(), scopes.Data.ID, res.ResourceID())
+	require.Equal(rest.T(), scopes.Data.Type, "resource")
+	require.Len(rest.T(), scopes.Data.Scopes, 1)
+	require.Contains(rest.T(), scopes.Data.Scopes, "foo")
+
+	// Create another user
+	user2 := rest.Graph.CreateUser()
+
+	svc = testsupport.ServiceAsUser("Resource-Service", *user2.Identity())
+	ctrl = NewResourceController(svc, rest.Application)
+
+	// There should be no scopes assigned for user2
+	_, scopes = test.ScopesResourceOK(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
+	require.Equal(rest.T(), scopes.Data.ID, res.ResourceID())
+	require.Equal(rest.T(), scopes.Data.Type, "resource")
+	require.Len(rest.T(), scopes.Data.Scopes, 0)
+}
+
+func (rest *TestResourceREST) TestScopesInvalidResourceIDNotFound() {
+	user := rest.Graph.CreateUser()
+	svc := testsupport.ServiceAsUser("Resource-Service", *user.Identity())
+	ctrl := NewResourceController(svc, rest.Application)
+
+	// An invalid resource ID should return a not found response
+	test.ScopesResourceNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4().String())
+}
+
+func (rest *TestResourceREST) TestScopesUnauthorized() {
+	svc := testsupport.UnsecuredService("Resource-Service")
+	ctrl := NewResourceController(svc, rest.Application)
+
+	res := rest.Graph.CreateResource()
+
+	// The service is only available to authenticated users
+	test.ScopesResourceUnauthorized(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
+}

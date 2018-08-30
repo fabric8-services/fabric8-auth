@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
 )
 
@@ -80,4 +81,35 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 	}
 
 	return ctx.Created(&app.RegisterResourceResponse{ResourceID: &res.ResourceID})
+}
+
+// Scopes runs the scopes action, which returns the available scopes for the specified resource
+func (c *ResourceController) Scopes(ctx *app.ScopesResourceContext) error {
+	// Load the identity from the context
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	// Check if the resource exists
+	err = c.app.ResourceRepository().CheckExists(ctx, ctx.ResourceID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	// Load the scopes
+	pc, err := c.app.PrivilegeCacheService().CachedPrivileges(ctx, currentIdentity.ID, ctx.ResourceID)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	res := &app.ResourceScopesData{
+		Data: &app.ResourceScopes{
+			ID:     ctx.ResourceID,
+			Type:   "resource",
+			Scopes: pc.ScopesAsArray(),
+		},
+	}
+
+	return ctx.OK(res)
 }
