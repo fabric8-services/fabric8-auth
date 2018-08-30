@@ -221,11 +221,19 @@ func (rest *TestResourceREST) TestScopesOK() {
 
 	// Invoke the endpoint
 	_, scopes := test.ScopesResourceOK(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
-	require.Equal(rest.T(), scopes.Data.ID, res.ResourceID())
-	require.Equal(rest.T(), scopes.Data.Type, "resource")
-	require.Len(rest.T(), scopes.Data.Scopes, 2)
-	require.Contains(rest.T(), scopes.Data.Scopes, "foo")
-	require.Contains(rest.T(), scopes.Data.Scopes, "bar")
+	require.Len(rest.T(), scopes.Data, 2)
+	fooFound := false
+	barFound := false
+	for _, scope := range scopes.Data {
+		require.Equal(rest.T(), "user_resource_scope", scope.Type)
+		if scope.ID == "foo" {
+			fooFound = true
+		} else if scope.ID == "bar" {
+			barFound = true
+		}
+	}
+	require.True(rest.T(), fooFound)
+	require.True(rest.T(), barFound)
 
 	// Create another user
 	user2 := rest.Graph.CreateUser()
@@ -235,9 +243,7 @@ func (rest *TestResourceREST) TestScopesOK() {
 
 	// There should be no scopes assigned for user2
 	_, scopes = test.ScopesResourceOK(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
-	require.Equal(rest.T(), scopes.Data.ID, res.ResourceID())
-	require.Equal(rest.T(), scopes.Data.Type, "resource")
-	require.Len(rest.T(), scopes.Data.Scopes, 0)
+	require.Len(rest.T(), scopes.Data, 0)
 }
 
 func (rest *TestResourceREST) TestScopesInvalidResourceIDNotFound() {

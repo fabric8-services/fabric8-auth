@@ -103,12 +103,17 @@ func (c *ResourceController) Scopes(ctx *app.ScopesResourceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	scopes := []*app.ResourceScopes{}
+
+	for _, scope := range pc.ScopesAsArray() {
+		scopes = append(scopes, &app.ResourceScopes{
+			ID:   scope,
+			Type: "user_resource_scope",
+		})
+	}
+
 	res := &app.ResourceScopesData{
-		Data: &app.ResourceScopes{
-			ID:     ctx.ResourceID,
-			Type:   "resource",
-			Scopes: pc.ScopesAsArray(),
-		},
+		Data: scopes,
 	}
 
 	return ctx.OK(res)

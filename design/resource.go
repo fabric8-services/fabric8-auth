@@ -93,7 +93,7 @@ var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 var ResourceScopesData = a.MediaType("application/vnd.resource_scopes_data+json", func() {
 	a.Description("Resource scopes data wrapper")
 	a.Attributes(func() {
-		a.Attribute("data", ResourceScopesMedia, "The data wrapper for the response")
+		a.Attribute("data", a.ArrayOf(ResourceScopesMedia), "The data wrapper for the response")
 		a.Required("data")
 	})
 	a.View("default", func() {
@@ -104,15 +104,13 @@ var ResourceScopesData = a.MediaType("application/vnd.resource_scopes_data+json"
 var ResourceScopesMedia = a.MediaType("application/vnd.resource_scopes+json", func() {
 	a.Description("Resource scopes payload")
 	a.Attributes(func() {
-		a.Attribute("id", d.String, "Identifier of the resource")
+		a.Attribute("id", d.String, "Name of the scope")
 		a.Attribute("type", d.String, "Type of resource")
-		a.Attribute("scopes", a.ArrayOf(d.String), "The available scopes for the resource")
-		a.Required("id", "type", "scopes")
+		a.Required("id", "type")
 	})
 	a.View("default", func() {
 		a.Attribute("id")
 		a.Attribute("type")
-		a.Attribute("scopes")
 	})
 
 })
