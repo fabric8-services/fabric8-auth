@@ -24,14 +24,14 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 	})
 
-	a.Action("read", func() {
+	a.Action("show", func() { // action named "show" will have an associated, generated `href` utility function
 		a.Routing(
 			a.GET("/:resourceId"),
 		)
 		a.Params(func() {
 			a.Param("resourceId", d.String, "The identifier of the resource to read")
 		})
-		a.Description("Read a specific resource")
+		a.Description("Shows a specific resource")
 		a.Response(d.OK, ResourceMedia)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)

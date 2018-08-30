@@ -183,3 +183,8 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 
 	return res, err
 }
+
+// FindWithRoleByResourceTypeAndIdentity lists all resources of a given type that are available for a given user (i.e, having a direct/inherited role in the resource)
+func (s *resourceServiceImpl) FindWithRoleByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]string, error) {
+	return s.Repositories().ResourceRepository().FindWithRoleByResourceTypeAndIdentity(ctx, resourceType, identityID)
+}
