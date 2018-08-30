@@ -7,6 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -48,6 +49,10 @@ type PermissionService interface {
 	RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error
 }
 
+type PrivilegeCacheService interface {
+	CachedPrivileges(ctx context.Context, identityID uuid.UUID, resourceID string) (*permission.PrivilegeCache, error)
+}
+
 type ResourceService interface {
 	Delete(ctx context.Context, resourceID string) error
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
@@ -69,6 +74,10 @@ type TeamService interface {
 	CreateTeam(ctx context.Context, identityID uuid.UUID, spaceID string, teamName string) (*uuid.UUID, error)
 	ListTeamsInSpace(ctx context.Context, identityID uuid.UUID, spaceID string) ([]account.Identity, error)
 	ListTeamsForIdentity(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
+}
+
+type TokenService interface {
+	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
 }
 
 type SpaceService interface {
@@ -95,13 +104,15 @@ type WITService interface {
 //Services creates instances of service layer objects
 type Services interface {
 	InvitationService() InvitationService
-	OrganizationService() OrganizationService
-	ResourceService() ResourceService
-	PermissionService() PermissionService
-	RoleManagementService() RoleManagementService
-	TeamService() TeamService
-	SpaceService() SpaceService
-	UserService() UserService
 	NotificationService() NotificationService
+	OrganizationService() OrganizationService
+	PermissionService() PermissionService
+	PrivilegeCacheService() PrivilegeCacheService
+	ResourceService() ResourceService
+	RoleManagementService() RoleManagementService
+	SpaceService() SpaceService
+	TeamService() TeamService
+	TokenService() TokenService
+	UserService() UserService
 	WITService() WITService
 }

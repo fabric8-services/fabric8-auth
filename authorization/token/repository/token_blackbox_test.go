@@ -3,6 +3,7 @@ package repository_test
 import (
 	"testing"
 
+	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -106,4 +107,81 @@ func (s *tokenBlackBoxTest) TestSaveFailsForDeletedToken() {
 
 	err = s.repo.Save(s.Ctx, token.Token())
 	require.Error(s.T(), err, "save token should fail for deleted token")
+}
+
+func (s *tokenBlackBoxTest) TestStatusUpdates() {
+	token := s.Graph.CreateToken().Token()
+
+	// A newly created token should be valid by default
+	require.True(s.T(), token.Valid())
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+	require.False(s.T(), token.Valid())
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, false)
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+	require.True(s.T(), token.Valid())
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.False(s.T(), token.Valid())
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_STALE, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.False(s.T(), token.Valid())
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+	require.False(s.T(), token.Valid())
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT, true)
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT, false)
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT))
+	require.False(s.T(), token.Valid())
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_STALE))
+	require.False(s.T(), token.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED))
+
+	token.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, false)
+	token.SetStatus(tokenPkg.TOKEN_STATUS_STALE, false)
+
+	require.True(s.T(), token.Valid())
+}
+
+func (s *tokenBlackBoxTest) TestCreateListPrivileges() {
+	t := s.Graph.CreateToken()
+	pc := s.Graph.CreatePrivilegeCache()
+
+	// Create some noise
+	err := s.repo.CreatePrivilege(s.Ctx, &tokenRepo.TokenPrivilege{
+		TokenID:          s.Graph.CreateToken().TokenID(),
+		PrivilegeCacheID: s.Graph.CreatePrivilegeCache().PrivilegeCache().PrivilegeCacheID,
+	})
+	require.NoError(s.T(), err)
+
+	tp := &tokenRepo.TokenPrivilege{
+		TokenID:          t.TokenID(),
+		PrivilegeCacheID: pc.PrivilegeCache().PrivilegeCacheID,
+	}
+
+	err = s.repo.CreatePrivilege(s.Ctx, tp)
+	require.NoError(s.T(), err)
+
+	privs, err := s.repo.ListPrivileges(s.Ctx, t.TokenID())
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), privs, 1)
+	require.Equal(s.T(), pc.PrivilegeCache().PrivilegeCacheID, privs[0].PrivilegeCacheID)
 }

@@ -4,6 +4,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -27,4 +28,5 @@ type Repositories interface {
 	DefaultRoleMappingRepository() role.DefaultRoleMappingRepository
 	RoleMappingRepository() role.RoleMappingRepository
 	TokenRepository() token.TokenRepository
+	PrivilegeCacheRepository() permission.PrivilegeCacheRepository
 }

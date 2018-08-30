@@ -192,3 +192,75 @@ func (rest *TestResourceREST) TestDeleteResource() {
 
 	test.ReadResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
 }
+
+func (rest *TestResourceREST) TestScopesOK() {
+	// Create a new resource type, with scope "foo"
+	rt := rest.Graph.CreateResourceType()
+	rt.AddScope("foo")
+	rt.AddScope("bar")
+
+	// Create a resource with the resource type
+	res := rest.Graph.CreateResource(rt)
+
+	// Create a role for the resource type with scope "foo"
+	role := rest.Graph.CreateRole(rt)
+	role.AddScope("foo")
+
+	role2 := rest.Graph.CreateRole(rt)
+	role2.AddScope("bar")
+
+	// Create a user
+	user := rest.Graph.CreateUser()
+
+	// Assign the roles to the user
+	rest.Graph.CreateIdentityRole(user, role, res)
+	rest.Graph.CreateIdentityRole(user, role2, res)
+
+	svc := testsupport.ServiceAsUser("Resource-Service", *user.Identity())
+	ctrl := NewResourceController(svc, rest.Application)
+
+	// Invoke the endpoint
+	_, scopes := test.ScopesResourceOK(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
+	require.Len(rest.T(), scopes.Data, 2)
+	fooFound := false
+	barFound := false
+	for _, scope := range scopes.Data {
+		require.Equal(rest.T(), "user_resource_scope", scope.Type)
+		if scope.ID == "foo" {
+			fooFound = true
+		} else if scope.ID == "bar" {
+			barFound = true
+		}
+	}
+	require.True(rest.T(), fooFound)
+	require.True(rest.T(), barFound)
+
+	// Create another user
+	user2 := rest.Graph.CreateUser()
+
+	svc = testsupport.ServiceAsUser("Resource-Service", *user2.Identity())
+	ctrl = NewResourceController(svc, rest.Application)
+
+	// There should be no scopes assigned for user2
+	_, scopes = test.ScopesResourceOK(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
+	require.Len(rest.T(), scopes.Data, 0)
+}
+
+func (rest *TestResourceREST) TestScopesInvalidResourceIDNotFound() {
+	user := rest.Graph.CreateUser()
+	svc := testsupport.ServiceAsUser("Resource-Service", *user.Identity())
+	ctrl := NewResourceController(svc, rest.Application)
+
+	// An invalid resource ID should return a not found response
+	test.ScopesResourceNotFound(rest.T(), svc.Context, svc, ctrl, uuid.NewV4().String())
+}
+
+func (rest *TestResourceREST) TestScopesUnauthorized() {
+	svc := testsupport.UnsecuredService("Resource-Service")
+	ctrl := NewResourceController(svc, rest.Application)
+
+	res := rest.Graph.CreateResource()
+
+	// The service is only available to authenticated users
+	test.ScopesResourceUnauthorized(rest.T(), svc.Context, svc, ctrl, res.ResourceID())
+}

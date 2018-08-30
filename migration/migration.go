@@ -216,7 +216,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("035-unique_constraint_default_role_mapping.sql")})
 
 	// Version 36
-	m = append(m, steps{ExecuteSQLFile("036-invitation-redirect-url.sql")})
+	m = append(m, steps{ExecuteSQLFile("036-token-privileges.sql")})
+
+	m = append(m, steps{ExecuteSQLFile("037-invitation-redirect-url.sql")})
 
 	// Version N
 	//

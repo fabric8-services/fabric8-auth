@@ -187,8 +187,6 @@ func (s *UserControllerTestSuite) TestShowUser() {
 
 func (s *UserControllerTestSuite) TestListUserSpaces() {
 
-	const spacesResourceType string = "spaces"
-
 	s.T().Run("ok", func(t *testing.T) {
 
 		t.Run("role on no space", func(t *testing.T) {
@@ -200,7 +198,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			identity := user.Identity()
 			// when
 			svc, userCtrl := s.SecuredController(*identity)
-			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, spacesResourceType)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, authorization.ResourceTypeSpace)
 			// then
 			require.Len(t, spaces.Data, 0)
 		})
@@ -214,7 +212,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			identity := user.Identity()
 			// when
 			svc, userCtrl := s.SecuredController(*identity)
-			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, spacesResourceType)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, authorization.ResourceTypeSpace)
 			// then
 			require.Len(t, spaces.Data, 1)
 			require.Equal(t, space.SpaceID(), spaces.Data[0].ID)
@@ -236,7 +234,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			identity := user.Identity()
 			// when
 			svc, userCtrl := s.SecuredController(*identity)
-			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, spacesResourceType)
+			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, authorization.ResourceTypeSpace)
 			// then
 			require.Len(t, spaces.Data, 2)
 			require.ElementsMatch(t,
@@ -270,7 +268,7 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			// when
 			svc, userCtrl := s.UnsecuredController()
 			// when/then
-			test.ListResourcesUserUnauthorized(t, svc.Context, svc, userCtrl, spacesResourceType)
+			test.ListResourcesUserUnauthorized(t, svc.Context, svc, userCtrl, authorization.ResourceTypeSpace)
 		})
 	})
 
