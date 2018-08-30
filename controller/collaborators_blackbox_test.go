@@ -33,20 +33,6 @@ type CollaboratorsControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
 }
 
-// func (s *CollaboratorsControllerTestSuite) SetupTest() {
-// 	s.DBTestSuite.SetupTest()
-// 	// out of the 3 identities, have one with a user which has a private email.
-// 	testIdentity, err := testsupport.CreateTestUser(s.DB, &testsupport.TestUserPrivate)
-// 	require.Nil(s.T(), err)
-// 	s.testIdentity1 = testIdentity
-// 	testIdentity, err = testsupport.CreateTestIdentity(s.DB, "TestCollaborators-"+uuid.NewV4().String(), "TestCollaborators")
-// 	require.Nil(s.T(), err)
-// 	s.testIdentity2 = testIdentity
-// 	testIdentity, err = testsupport.CreateTestIdentity(s.DB, "TestCollaborators-"+uuid.NewV4().String(), "TestCollaborators")
-// 	require.Nil(s.T(), err)
-// 	s.testIdentity3 = testIdentity
-// }
-
 func (s *CollaboratorsControllerTestSuite) NewSecuredController(identity *account.Identity) (*goa.Service, *CollaboratorsController) {
 	svc := testsupport.ServiceAsUser("Collaborators-Service", *identity)
 	return svc, NewCollaboratorsController(svc, s.Application, s.Configuration)
@@ -335,7 +321,6 @@ func (s *CollaboratorsControllerTestSuite) TestAddSingleCollaborator() {
 			extraUser := g.CreateUser()
 			// when/then
 			test.AddCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, extraUser.IdentityID().String())
-
 		})
 
 		t.Run("deprovisionned user", func(t *testing.T) {
