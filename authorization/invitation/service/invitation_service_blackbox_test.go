@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"context"
-	"fmt"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -23,7 +23,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const spaceName = "my-test-space"
+const (
+	spaceName = "my-test-space"
+	success   = "https://success"
+	failure   = "https://failure"
+)
 
 type invitationServiceBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
@@ -88,7 +92,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, teamAdmin.IdentityID().String(), spaceName)
 
 		// when
-		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
+		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), redirectURL(), invitations)
 
 		// then
 		require.NoError(t, err, "Error creating invitations")
@@ -103,6 +107,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.NoError(t, err, "Error listing invitations")
 		require.Equal(t, 1, len(invs))
 		require.True(t, invs[0].Member)
+		require.Equal(t, success, invs[0].SuccessRedirectURL)
+		require.Equal(t, failure, invs[0].FailureRedirectURL)
 	})
 
 	s.T().Run("should fail to issue invitation for invalid id", func(t *testing.T) {
@@ -132,7 +138,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, uuid.NewV4().String(), spaceName)
 
 		// when
-		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, uuid.NewV4().String(), invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, uuid.NewV4().String(), redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -140,7 +146,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, uint64(0), s.witServiceMock.GetSpaceCounter)
 
 		// when
-		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, "foo", invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, "foo", redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -179,7 +185,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, inviter.IdentityID().String(), spaceName)
 
 		// when - issue the invitation
-		err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), invitations)
+		err := s.Application.InvitationService().Issue(s.Ctx, inviter.IdentityID(), space.SpaceID(), redirectURL(), invitations)
 
 		// then
 		require.NoError(t, err)
@@ -197,6 +203,10 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Equal(t, 1, len(invs))
 		require.False(t, invs[0].Member)
 		require.Equal(t, invitee.IdentityID(), invs[0].IdentityID)
+
+		// there should be success and failure redirect url
+		require.Equal(t, success, invs[0].SuccessRedirectURL)
+		require.Equal(t, failure, invs[0].FailureRedirectURL)
 
 		//List the roles for our invitation
 		roles, err := s.invitationRepo.ListRoles(s.Ctx, invs[0].InvitationID)
@@ -259,7 +269,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, uuid.NewV4().String(), spaceName)
 
 		// when - issue the invitation, which should fail because the new resource can't have members
-		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -307,7 +317,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, uuid.NewV4().String(), spaceName)
 
 		// when - issue the invitation, which should fail because the inviter has insufficient privileges to issue an invitation
-		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, resource.ResourceID, redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -346,7 +356,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, uuid.NewV4().String(), spaceName)
 
 		// when
-		err = s.Application.InvitationService().Issue(s.Ctx, otherIdentity.ID, orgId.String(), invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, otherIdentity.ID, orgId.String(), redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -383,7 +393,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, uuid.NewV4().String(), spaceName)
 
 		// when - this should fail because we specified an unknown identity ID
-		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -418,7 +428,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, uuid.NewV4().String(), spaceName)
 
 		// when - This should fail because we specified a non-user identity in the invitation
-		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, orgId.String(), redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -453,7 +463,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, uuid.NewV4().String(), spaceName)
 
 		// when - invite the user to "join" the other user as a member, this should fail
-		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, identity.ID.String(), invitations)
+		err = s.Application.InvitationService().Issue(s.Ctx, identity.ID, identity.ID.String(), redirectURL(), invitations)
 
 		// then
 		require.Error(t, err)
@@ -498,7 +508,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, teamAdmin.IdentityID().String(), spaceName)
 
 		// when
-		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
+		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), redirectURL(), invitations)
 
 		// then
 		require.NoError(t, err, "Error creating invitations")
@@ -522,6 +532,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 				require.True(t, inv.Member)
 				require.Equal(t, invitee1.IdentityID(), inv.IdentityID)
 				require.Equal(t, team.TeamID(), *inv.InviteTo)
+				require.Equal(t, success, inv.SuccessRedirectURL)
+				require.Equal(t, failure, inv.FailureRedirectURL)
 			}
 		}
 
@@ -532,6 +544,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			if inv.IdentityID == invitee2.IdentityID() {
 				found = true
 				require.True(t, inv.Member)
+				require.Equal(t, success, inv.SuccessRedirectURL)
+				require.Equal(t, failure, inv.FailureRedirectURL)
 			}
 		}
 		require.True(t, found, "Second invitee not found in invitations")
@@ -565,7 +579,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		}
 
 		// when
-		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
+		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), redirectURL(), invitations)
 
 		// then
 		require.NoError(t, err, "Error creating invitations")
@@ -582,6 +596,9 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.NoError(t, err, "could not list roles")
 		require.Len(t, roles, 1)
 		require.Equal(t, r.Role().Name, roles[0].Name)
+
+		require.Equal(t, success, invs[0].SuccessRedirectURL)
+		require.Equal(t, failure, invs[0].FailureRedirectURL)
 	})
 
 	s.T().Run("should issue invitation for team member", func(t *testing.T) {
@@ -614,7 +631,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, teamAdmin.IdentityID().String(), spaceName)
 
 		// when
-		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), invitations)
+		err := s.Application.InvitationService().Issue(s.Ctx, teamAdmin.IdentityID(), team.TeamID().String(), redirectURL(), invitations)
 
 		//then
 		require.NoError(t, err)
@@ -630,6 +647,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Len(t, invs, 1)
 		require.Equal(t, user.IdentityID(), invs[0].IdentityID)
 		require.True(t, invs[0].Member)
+		require.Equal(t, success, invs[0].SuccessRedirectURL)
+		require.Equal(t, failure, invs[0].FailureRedirectURL)
 	})
 
 	s.T().Run("should issue invitation for space", func(t *testing.T) {
@@ -660,7 +679,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		*s.witServiceMock = *test.NewWITMock(t, spaceAdmin.IdentityID().String(), spaceName)
 
 		// when
-		err := s.Application.InvitationService().Issue(s.Ctx, spaceAdmin.IdentityID(), space.SpaceID(), invitations)
+		err := s.Application.InvitationService().Issue(s.Ctx, spaceAdmin.IdentityID(), space.SpaceID(), redirectURL(), invitations)
 
 		// then
 		require.NoError(t, err)
@@ -676,6 +695,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 		require.Len(t, invs, 1)
 		require.Equal(t, invitee.IdentityID(), invs[0].IdentityID)
 		require.False(t, invs[0].Member)
+		require.Equal(t, success, invs[0].SuccessRedirectURL)
+		require.Equal(t, failure, invs[0].FailureRedirectURL)
 	})
 }
 
@@ -684,10 +705,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		// given
 		team := s.Graph.CreateTeam()
 		user := s.Graph.CreateUser()
-		inv := s.Graph.CreateInvitation(team, user, true)
-
-		spaceOwner := s.Graph.CreateUser()
-		*s.witServiceMock = *test.NewWITMock(t, spaceOwner.IdentityID().String(), spaceName)
+		inv := s.Graph.CreateInvitation(team, user, true, redirectURL())
 
 		// when
 		resourceID, redirectPath, err := s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
@@ -695,8 +713,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		// then
 		require.NoError(t, err)
 		require.Equal(t, team.ResourceID(), resourceID)
-		require.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
-		require.Equal(t, fmt.Sprintf("%s/%s", spaceOwner.Identity().Username, spaceName), redirectPath)
+		require.Equal(t, success, redirectPath)
 
 		assocs, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
 		require.NoError(t, err)
@@ -718,10 +735,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		team := s.Graph.CreateTeam()
 		user := s.Graph.CreateUser()
 		teamRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.IdentityResourceTypeTeam))
-		inv := s.Graph.CreateInvitation(team, user, false, teamRole)
-
-		spaceOwner := s.Graph.CreateUser()
-		*s.witServiceMock = *test.NewWITMock(t, spaceOwner.IdentityID().String(), spaceName)
+		inv := s.Graph.CreateInvitation(team, user, false, teamRole, redirectURL())
 
 		// when
 		resourceID, redirectPath, err := s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
@@ -729,8 +743,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		// then
 		require.NoError(t, err)
 		require.Equal(t, team.ResourceID(), resourceID)
-		require.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
-		require.Equal(t, fmt.Sprintf("%s/%s", spaceOwner.Identity().Username, spaceName), redirectPath)
+		require.Equal(t, success, redirectPath)
 
 		assocs, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
 		require.NoError(t, err)
@@ -752,10 +765,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		space := s.Graph.CreateSpace()
 		user := s.Graph.CreateUser()
 		spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
-		inv := s.Graph.CreateInvitation(space, user, spaceRole)
-
-		spaceOwner := s.Graph.CreateUser()
-		*s.witServiceMock = *test.NewWITMock(t, spaceOwner.IdentityID().String(), spaceName)
+		inv := s.Graph.CreateInvitation(space, user, spaceRole, redirectURL())
 
 		// when
 		resourceID, redirectPath, err := s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
@@ -763,8 +773,7 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		// then
 		require.NoError(t, err)
 		require.Equal(t, space.SpaceID(), resourceID)
-		require.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
-		require.Equal(t, fmt.Sprintf("%s/%s", spaceOwner.Identity().Username, spaceName), redirectPath)
+		require.Equal(t, success, redirectPath)
 
 		roles, err := s.Application.IdentityRoleRepository().FindIdentityRolesForIdentity(s.Ctx, user.IdentityID(), nil)
 		require.NoError(t, err)
@@ -793,15 +802,11 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		spaceRole := s.Graph.CreateRole(s.Graph.LoadResourceType(authorization.ResourceTypeSpace))
 		s.Graph.CreateInvitation(space, user, spaceRole)
 
-		spaceOwner := s.Graph.CreateUser()
-		*s.witServiceMock = *test.NewWITMock(t, spaceOwner.IdentityID().String(), spaceName)
-
 		// when
 		resourceID, redirectPath, err := s.Application.InvitationService().Accept(s.Ctx, uuid.NewV4())
 
 		//then
 		require.Error(t, err)
-		require.Equal(t, uint64(0), s.witServiceMock.GetSpaceCounter)
 		require.Empty(t, resourceID)
 		require.Empty(t, redirectPath)
 	})
@@ -933,4 +938,11 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitation() {
 		_, err = s.Application.InvitationRepository().Load(s.Ctx, inv.Invitation().InvitationID)
 		require.NoError(t, err)
 	})
+}
+
+func redirectURL() *app.RedirectURL {
+	success := success
+	failure := failure
+
+	return &app.RedirectURL{&failure, &success}
 }

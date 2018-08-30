@@ -93,6 +93,7 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			payload := newCreateInvitationPayload(inviteeID, true)
 			service, controller := s.SecuredController(s.testIdentity)
 			*s.witServiceMock = *testsupport.NewWITMock(t, inviteeID, testSpaceName)
+
 			// when
 			test.CreateInviteInvitationCreated(t, service.Context, service, controller, team.TeamID().String(), payload)
 			// then
@@ -217,15 +218,18 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 		g := s.NewTestGraph(t)
 		team := g.CreateTeam()
 		invitee := g.CreateUser()
-		inv := g.CreateInvitation(team, invitee)
-		*s.witServiceMock = *testsupport.NewWITMock(t, invitee.IdentityID().String(), testSpaceName)
+
+		redirectOnSuccess := fmt.Sprintf("https://openshift.io/%s/%s", invitee.Identity().Username, testSpaceName)
+		redirectOnFailure := "https://failure.io"
+		redirectURL := app.RedirectURL{OnSuccess: &redirectOnSuccess, OnFailure: &redirectOnFailure}
+		inv := g.CreateInvitation(team, invitee, &redirectURL)
 
 		service, controller := s.UnsecuredController()
+
 		// when
 		response := test.AcceptInviteInvitationTemporaryRedirect(t, service.Context, service, controller, inv.Invitation().AcceptCode.String())
 		// then
 		require.Equal(t, fmt.Sprintf("https://openshift.io/%s/%s", invitee.Identity().Username, testSpaceName), response.Header().Get("Location"))
-		require.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
 		// The invitation should no longer be there after acceptance
 		_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
 		require.Error(t, err)

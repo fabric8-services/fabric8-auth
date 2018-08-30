@@ -58,11 +58,18 @@ var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitatio
 	a.Description("Request payload required to create new invitations")
 	a.Attributes(func() {
 		a.Attribute("data", a.ArrayOf(invitee), "An array of users invited to become members or to accept a role")
+		a.Attribute("links", redirectURL, "links to redirect after accepting invitation sucessfully or in case of error")
 	})
 	a.Required("data")
 	a.View("default", func() {
 		a.Attribute("data")
+		a.Attribute("links")
 	})
+})
+
+var redirectURL = a.Type("RedirectURL", func() {
+	a.Attribute("OnSuccess", d.String, "URL to be redirected to after successfully accepting invitation. If not set then will redirect to default url's used in auth config.")
+	a.Attribute("OnFailure", d.String, "URL to be redirected to after failed to accept invitation. If not set then will redirect to default url's used in auth config.")
 })
 
 var invitee = a.Type("Invitee", func() {

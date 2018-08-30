@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
@@ -65,7 +64,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		})
 	}
 
-	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
+	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, ctx.Payload.Links, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -119,7 +118,7 @@ func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationCon
 }
 
 func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
-	acceptedRedirectURL := c.config.GetInvitationAcceptedRedirectURL()
+	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
 
 	acceptCode, err := uuid.FromString(ctx.AcceptCode)
 	if err != nil {
@@ -128,16 +127,20 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		}, "failed to accept invitation, invalid code")
 
 		errResponse := err.Error()
-		acceptedRedirectURL, err = rest.AddParam(acceptedRedirectURL, "error", errResponse)
-		ctx.ResponseData.Header().Set("Location", acceptedRedirectURL)
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
+		ctx.ResponseData.Header().Set("Location", redirectURL)
 		return ctx.TemporaryRedirect()
 	}
 
-	_, absoluteSpacePath, err := c.app.InvitationService().Accept(ctx, acceptCode)
+	_, invitationRedirectURL, err := c.app.InvitationService().Accept(ctx, acceptCode)
+
+	if len(invitationRedirectURL) > 0 {
+		redirectURL = invitationRedirectURL
+	}
 
 	if err != nil {
 		errResponse := err.Error()
-		acceptedRedirectURL, err = rest.AddParam(acceptedRedirectURL, "error", errResponse)
+		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
 		if err != nil {
 			return err
 		}
@@ -145,11 +148,9 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 			"err": err,
 		}, "failed to accept invitation")
 
-		ctx.ResponseData.Header().Set("Location", acceptedRedirectURL)
+		ctx.ResponseData.Header().Set("Location", redirectURL)
 		return ctx.TemporaryRedirect()
 	}
-
-	redirectURL := generateInvitationAcceptedRedirectURL(c.config.GetUIURL(), absoluteSpacePath)
 
 	log.Debug(ctx, map[string]interface{}{
 		"accept-code": ctx.AcceptCode,
@@ -157,8 +158,4 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
-}
-
-func generateInvitationAcceptedRedirectURL(uiURL, path string) string {
-	return fmt.Sprintf("%s/%s", uiURL, path)
 }
