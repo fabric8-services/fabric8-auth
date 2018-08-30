@@ -128,7 +128,6 @@ const (
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
 	varAuthURL                = "auth.url"
-	varUIURL                  = "ui.url"
 
 	// sentry
 	varEnvironment = "environment"
@@ -607,21 +606,6 @@ func (c *ConfigurationData) GetAuthServiceURL() string {
 		return "https://auth.prod-preview.openshift.io"
 	default:
 		return "http://localhost"
-	}
-}
-
-// GetUIURL returns UI URL
-func (c *ConfigurationData) GetUIURL() string {
-	if c.v.IsSet(varUIURL) {
-		return c.v.GetString(varUIURL)
-	}
-	switch c.GetEnvironment() {
-	case prodEnvironment:
-		return "https://openshift.io"
-	case prodPreviewEnvironment:
-		return "https://prod-preview.openshift.io"
-	default:
-		return "http://localhost:8080" // here we are assuming your ui is running on localhost:8080 locally
 	}
 }
 

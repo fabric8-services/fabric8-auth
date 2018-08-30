@@ -16,7 +16,6 @@ import (
 // InvitationControllerConfiguration the Configuration for the InvitationController
 type InvitationControllerConfiguration interface {
 	GetInvitationAcceptedRedirectURL() string
-	GetUIURL() string
 }
 
 // InvitationController implements the invitation resource.
