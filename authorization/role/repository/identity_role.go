@@ -485,6 +485,8 @@ func (m *GormIdentityRoleRepository) FindIdentityRolesByIdentityAndResource(ctx 
 	return m.query(identityRoleFilterByIdentityID(identityID), identityRoleFilterByResource(resourceID))
 }
 
+// FindScopesByIdentityAndResource returns all scopes for the specified identity and resource, both assigned directly and
+// also those indirectly inherited via memberships, resource hierarchy and role mappings.
 func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error) {
 
 	type Result struct {

@@ -331,8 +331,40 @@ func (g *TestGraph) CreateToken(params ...interface{}) *tokenWrapper {
 	return g.createAndRegister(newTokenWrapper, params).(*tokenWrapper)
 }
 
+func (g *TestGraph) LoadToken(params ...interface{}) *tokenWrapper {
+	var tokenID *uuid.UUID
+	for i := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			tokenID = t
+		case uuid.UUID:
+			tokenID = &t
+		}
+	}
+	require.NotNil(g.t, tokenID, "Must specify a uuid parameter for the token ID")
+	w := loadTokenWrapper(g, *tokenID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
 func (g *TestGraph) CreatePrivilegeCache(params ...interface{}) *privilegeCacheWrapper {
 	return g.createAndRegister(newPrivilegeCacheWrapper, params).(*privilegeCacheWrapper)
+}
+
+func (g *TestGraph) LoadPrivilegeCache(params ...interface{}) *privilegeCacheWrapper {
+	var privilegeCacheID *uuid.UUID
+	for i := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			privilegeCacheID = t
+		case uuid.UUID:
+			privilegeCacheID = &t
+		}
+	}
+	require.NotNil(g.t, privilegeCacheID, "Must specify a uuid parameter for the privilege cache ID")
+	w := loadPrivilegeCacheWrapper(g, *privilegeCacheID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
 }
 
 func (g *TestGraph) CreateIdentityRole(params ...interface{}) *identityRoleWrapper {

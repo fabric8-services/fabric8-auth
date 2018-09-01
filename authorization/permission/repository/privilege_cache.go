@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -70,6 +71,7 @@ type PrivilegeCacheRepository interface {
 	Save(ctx context.Context, cache *PrivilegeCache) error
 	Delete(ctx context.Context, privilegeCacheID uuid.UUID) error
 	FindForIdentityResource(ctx context.Context, identityID uuid.UUID, resourceID string) (*PrivilegeCache, error)
+	FlagAsStale(ctx context.Context, identityID uuid.UUID, resourceID string) error
 }
 
 // CheckExists returns true if the given ID exists otherwise returns an error
@@ -200,4 +202,133 @@ func (m *GormPrivilegeCacheRepository) FindForIdentityResource(ctx context.Conte
 	}
 
 	return &native, errs.WithStack(err)
+}
+
+// FlagAsStale executes two update queries; the first sets the stale flag to true for all privilege cache records where
+// the identity ID is equal to, or a descendent of (via memberships) the specified identity ID, and the resourceID is
+// equal to, or a descendent of (via the resource hierarchy) the specified resource ID.
+// The second query updates the token table, setting the STALE flag of the token STATUS field to true, for all
+// token records that are mapped to the corresponding privilege cache records in the first query, via the
+// many-to-many TOKEN_PRIVILEGE table
+func (m *GormPrivilegeCacheRepository) FlagAsStale(ctx context.Context, identityID uuid.UUID, resourceID string) error {
+	defer goa.MeasureSince([]string{"goa", "db", "privilege_cache", "FlagAsStale"}, time.Now())
+
+	result := m.db.Exec(`WITH identity_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    member_id
+	  FROM
+	    membership
+	  WHERE
+	    member_of = ? /* IDENTITY_ID */
+	  UNION SELECT
+	    p.member_id
+	  FROM
+	    membership p INNER JOIN m ON m.member_id = p.member_of
+	  )
+	  SELECT
+	    member_id AS identity_id
+	  FROM 
+	    m
+	  UNION SELECT
+	    id
+	  FROM
+	    identities
+	  WHERE
+	    id = ? /* IDENTITY_ID */
+), 
+resource_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    resource_id, parent_resource_id
+	  FROM
+	    resource
+	  WHERE
+	    resource_id = ? /* RESOURCE_ID */
+	  UNION SELECT
+	    p.resource_id, p.parent_resource_id
+	  FROM
+	    resource p INNER JOIN m ON m.resource_id = p.parent_resource_id
+	  )
+	  SELECT
+	    m.resource_id
+	  FROM
+	    m
+)
+UPDATE privilege_cache SET
+  STALE = true
+WHERE
+  resource_id IN (SELECT resource_id FROM resource_hierarchy)
+  AND identity_id IN (SELECT identity_id FROM identity_hierarchy)
+  AND deleted_at IS NULL
+  `, identityID, identityID, resourceID)
+
+	if result.Error != nil {
+		return errors.NewInternalError(ctx, result.Error)
+	}
+
+	result = m.db.Exec(`WITH identity_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    member_id
+	  FROM
+	    membership
+	  WHERE
+	    member_of = ? /* IDENTITY_ID */
+	  UNION SELECT
+	    p.member_id
+	  FROM
+	    membership p INNER JOIN m ON m.member_id = p.member_of
+	  )
+	  SELECT
+	    member_id AS identity_id
+	  FROM 
+	    m
+	  UNION SELECT
+	    id
+	  FROM
+	    identities
+	  WHERE
+	    id = ? /* IDENTITY_ID */
+), 
+resource_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    resource_id, parent_resource_id
+	  FROM
+	    resource
+	  WHERE
+	    resource_id = ? /* RESOURCE_ID */
+	  UNION SELECT
+	    p.resource_id, p.parent_resource_id
+	  FROM
+	    resource p INNER JOIN m ON m.resource_id = p.parent_resource_id
+	  )
+	  SELECT
+	    m.resource_id
+	  FROM
+	    m
+)
+UPDATE token t SET
+  STATUS = STATUS | ? /* TOKEN_STATUS_STALE */
+FROM
+  token_privilege tp,
+  privilege_cache pc
+WHERE
+  t.token_id = tp.token_id
+  AND tp.privilege_cache_id = pc.privilege_cache_id
+  AND pc.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+  AND pc.identity_id IN (SELECT identity_id FROM identity_hierarchy)
+  AND pc.deleted_at IS NULL
+`, identityID, identityID, resourceID, token.TOKEN_STATUS_STALE)
+
+	if result.Error != nil {
+		return errors.NewInternalError(ctx, result.Error)
+	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"rows_marked_stale": result.RowsAffected,
+	}, "Privilege cache rows marked stale")
+
+	return nil
 }

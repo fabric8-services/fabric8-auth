@@ -86,3 +86,12 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 
 	return privilegeCache, nil
 }
+
+func (s *privilegeCacheServiceImpl) NotifyIdentityRoleCreated(ctx context.Context, identityID uuid.UUID, resourceID string) error {
+
+	return nil
+}
+
+func (s *privilegeCacheServiceImpl) NotifyIdentityRoleDeleted(ctx context.Context, identityID uuid.UUID, resourceID string) error {
+	return nil
+}

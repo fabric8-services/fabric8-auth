@@ -87,7 +87,7 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	// privileges for the resource, otherwise the invitation workflow should be used instead
 	assignments := make(map[uuid.UUID][]uuid.UUID)
 
-	var existingRoleIDs []uuid.UUID
+	existingRoles := []rolerepo.IdentityRole{}
 
 	roleIDByNameCache := make(map[string]uuid.UUID)
 	checkedIdentityIDs := make(map[uuid.UUID]bool)
@@ -120,7 +120,7 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 					return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
 				}
 				for _, role := range assignedRoles {
-					existingRoleIDs = append(existingRoleIDs, role.IdentityRoleID)
+					existingRoles = append(existingRoles, role)
 				}
 				checkedIdentityIDs[identityIDAsUUID] = true
 			}
@@ -139,8 +139,14 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 
 		if !appendToExistingRoles {
 			// Delete all existing roles before creating the new ones
-			for _, roleID := range existingRoleIDs {
-				err = s.Repositories().IdentityRoleRepository().Delete(ctx, roleID)
+			for _, ir := range existingRoles {
+				err = s.Repositories().IdentityRoleRepository().Delete(ctx, ir.IdentityRoleID)
+				if err != nil {
+					return err
+				}
+
+				// Notify the privilege cache service that an identity role has been deleted
+				err = s.Services().PrivilegeCacheService().NotifyIdentityRoleDeleted(ctx, ir.IdentityID, ir.ResourceID)
 				if err != nil {
 					return err
 				}
@@ -163,6 +169,12 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 						"identity_id": identityIDAsUUID,
 						"role_id":     roleID,
 					}, "assignment failed")
+					return err
+				}
+
+				// Notify the privilege cache service that a new identity role has been created
+				err = s.Services().PrivilegeCacheService().NotifyIdentityRoleCreated(ctx, ir.IdentityID, ir.ResourceID)
+				if err != nil {
 					return err
 				}
 			}
@@ -192,7 +204,17 @@ func (s *roleManagementServiceImpl) ForceAssign(ctx context.Context, assignedTo 
 			RoleID:     role.RoleID,
 		}
 
-		return s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
+		err = s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
+		if err != nil {
+			return err
+		}
+
+		err = s.Services().PrivilegeCacheService().NotifyIdentityRoleCreated(ctx, ir.IdentityID, ir.ResourceID)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	return err
@@ -217,6 +239,11 @@ func (s *roleManagementServiceImpl) RevokeResourceRoles(ctx context.Context, cur
 	err = s.ExecuteInTransaction(func() error {
 		for _, identityID := range identities {
 			err := s.Repositories().IdentityRoleRepository().DeleteForIdentityAndResource(ctx, resourceID, identityID)
+			if err != nil {
+				return err
+			}
+
+			err = s.Services().PrivilegeCacheService().NotifyIdentityRoleDeleted(ctx, identityID, resourceID)
 			if err != nil {
 				return err
 			}

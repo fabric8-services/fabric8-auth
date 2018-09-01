@@ -13,6 +13,18 @@ type privilegeCacheWrapper struct {
 	privilegeCache *permission.PrivilegeCache
 }
 
+func loadPrivilegeCacheWrapper(g *TestGraph, privilegeCacheID uuid.UUID) privilegeCacheWrapper {
+	w := privilegeCacheWrapper{baseWrapper: baseWrapper{g}}
+
+	var native permission.PrivilegeCache
+	err := w.graph.db.Table("privilege_cache").Where("privilege_cache_id = ?", privilegeCacheID).Find(&native).Error
+	require.NoError(w.graph.t, err)
+
+	w.privilegeCache = &native
+
+	return w
+}
+
 func newPrivilegeCacheWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := privilegeCacheWrapper{baseWrapper: baseWrapper{g}}
 
