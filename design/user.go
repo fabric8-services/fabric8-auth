@@ -131,14 +131,6 @@ var showUserResources = JSONList(
 var userResourceData = a.Type("UserResourceData", func() {
 	a.Attribute("id", d.String, "id of the resource that in which the user has a role")
 	a.Attribute("type", d.String, "type of the resource")
-	a.Attribute("attributes", userResourceDataAttributes, "Info about the role and scopes that the user has in the resource")
 	a.Attribute("links", genericLinks)
-	a.Required("id", "type", "attributes")
-})
-
-// userResourceDataAttributes contains info about the role and scopes that the user has in the resource
-var userResourceDataAttributes = a.Type("UserResourceDataAttributes", func() {
-	a.Attribute("role", d.String, "The role of the user in the corresponding resource")
-	a.Attribute("scopes", a.ArrayOf(d.String), "The scopes associated with the role of the user in the corresponding resource")
-	a.Required("role", "scopes")
+	a.Required("id", "type")
 })

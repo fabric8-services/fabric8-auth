@@ -2,6 +2,8 @@ package controller_test
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -185,7 +187,7 @@ func (s *UserControllerTestSuite) TestShowUser() {
 	})
 }
 
-func (s *UserControllerTestSuite) TestListUserSpaces() {
+func (s *UserControllerTestSuite) TestListUserResources() {
 
 	s.T().Run("ok", func(t *testing.T) {
 
@@ -215,13 +217,11 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, authorization.ResourceTypeSpace)
 			// then
 			require.Len(t, spaces.Data, 1)
-			require.Equal(t, space.SpaceID(), spaces.Data[0].ID)
-			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role)
-			assert.Equal(t, authorization.SpaceAdminRole, spaces.Data[0].Attributes.Role)
-			assert.ElementsMatch(t, spaces.Data[0].Attributes.Scopes, []string{
-				authorization.ManageSpaceScope,
-				authorization.ContributeSpaceScope,
-				authorization.ViewSpaceScope})
+			assert.Equal(t, space.SpaceID(), spaces.Data[0].ID)
+			assert.Equal(t, "resources", spaces.Data[0].Type)
+			assert.NotNil(t, 1, spaces.Data[0].Links)
+			assert.NotNil(t, 1, spaces.Data[0].Links.Related)
+			assert.Equal(t, fmt.Sprintf("http:///api/resource/%s", space.SpaceID()), *spaces.Data[0].Links.Related)
 		})
 
 		t.Run("role on 2 spaces", func(t *testing.T) {
@@ -237,24 +237,14 @@ func (s *UserControllerTestSuite) TestListUserSpaces() {
 			_, spaces := test.ListResourcesUserOK(t, svc.Context, svc, userCtrl, authorization.ResourceTypeSpace)
 			// then
 			require.Len(t, spaces.Data, 2)
-			require.ElementsMatch(t,
+			r, _ := json.Marshal(spaces)
+			fmt.Printf(string(r))
+			assert.ElementsMatch(t,
 				[]string{space1.SpaceID(), space2.SpaceID()},
 				[]string{spaces.Data[0].ID, spaces.Data[1].ID})
-			for _, spaceData := range spaces.Data {
-				switch spaceData.ID {
-				case space1.SpaceID():
-					assert.Equal(t, authorization.SpaceAdminRole, spaceData.Attributes.Role)
-					assert.ElementsMatch(t, spaceData.Attributes.Scopes, []string{
-						authorization.ManageSpaceScope,
-						authorization.ContributeSpaceScope,
-						authorization.ViewSpaceScope})
-				case space2.SpaceID():
-					assert.Equal(t, authorization.SpaceContributorRole, spaceData.Attributes.Role)
-					assert.ElementsMatch(t, spaceData.Attributes.Scopes, []string{
-						authorization.ContributeSpaceScope,
-						authorization.ViewSpaceScope})
-				}
-			}
+			assert.ElementsMatch(t,
+				[]string{"resources", "resources"},
+				[]string{spaces.Data[0].Type, spaces.Data[1].Type})
 		})
 	})
 
