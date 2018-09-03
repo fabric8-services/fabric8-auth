@@ -64,6 +64,7 @@ type ResourceRepository interface {
 	Create(ctx context.Context, resource *Resource) error
 	Save(ctx context.Context, resource *Resource) error
 	Delete(ctx context.Context, id string) error
+	FindWithRoleByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]string, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -197,4 +198,99 @@ func (m *GormResourceRepository) Delete(ctx context.Context, id string) error {
 	}, "Resource deleted!")
 
 	return nil
+}
+
+// FindWithRoleByResourceTypeAndIdentity returns the IDs of the resources of the given type for which the given user (identity) has a role in.
+func (m *GormResourceRepository) FindWithRoleByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]string, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "resource", "FindWithRoleByResourceTypeAndIdentity"}, time.Now())
+	var result []string
+	db := m.db.Raw(`
+		/* list all resources with their type and their ancestor (whatever level) */
+		WITH RECURSIVE all_resources AS ( 
+			SELECT r.resource_id, r.resource_type_id, r.parent_resource_id as ancestor_resource_id 
+			FROM resource r INNER JOIN resource_type rt on r.resource_type_id = rt.resource_type_id 
+			WHERE rt.name = $2 /* limit to resources of the given type */
+			UNION SELECT r.resource_id, r.resource_type_id, a.ancestor_resource_id  
+			FROM resource r INNER JOIN all_resources a ON r.parent_resource_id = a.resource_id
+			WHERE a.ancestor_resource_id IS NOT NULL
+			  AND r.deleted_at IS NULL
+		),
+		/* list the identities of the teams to which the current user belongs, plus herself's identity */
+		teams AS ( 
+			SELECT member_of as "id"
+			FROM membership
+			WHERE member_id = $1 /* user's identity */
+			UNION SELECT m.member_of
+			FROM membership m INNER JOIN teams ON teams.id = m.member_id
+		)
+
+		/* list the roles on resources of the given type when the user has a direct role */
+		SELECT res.resource_id
+		FROM identity_role ir
+			INNER JOIN role ON role.role_id = ir.role_id
+			INNER JOIN resource res ON res.resource_id = ir.resource_id
+			INNER JOIN resource_type rt ON rt.resource_type_id = res.resource_type_id
+		WHERE rt.name = $2 /* filter on given resource type */
+			AND ir.identity_id IN ( /* look-up users alone or as a member of a team */
+				SELECT $1
+				UNION SELECT teams.id from teams
+			)
+			AND res.deleted_at IS NULL
+			AND role.deleted_at IS NULL
+			AND ir.deleted_at IS NULL
+		/* list the roles on resources of the given type when the user has a role inherited from an ancestor resource via default role mapping */
+		UNION
+		SELECT inherited_res.resource_id
+		FROM identity_role ir
+			INNER JOIN role via_role ON via_role.role_id = ir.role_id
+			INNER JOIN all_resources ar ON ir.resource_id = ar.ancestor_resource_id
+			INNER JOIN resource inherited_res ON inherited_res.resource_id = ar.resource_id
+			INNER JOIN resource_type inherited_rt ON inherited_rt.resource_type_id = inherited_res.resource_type_id
+			INNER JOIN default_role_mapping drm on (ir.role_id = drm.from_role_id AND drm.resource_type_id = inherited_res.resource_type_id)
+			INNER JOIN role inherited_role on drm.to_role_id = inherited_role.role_id
+		WHERE inherited_rt.name = $2 /* filter on given resource type */
+			AND ir.identity_id IN ( /* look-up users alone or as a member of a team */
+				SELECT $1
+				UNION SELECT teams.id from teams
+			)
+        	AND ir.deleted_at IS NULL
+			AND via_role.deleted_at IS NULL
+			AND inherited_res.deleted_at IS NULL
+			AND drm.deleted_at IS NULL
+			AND inherited_role.deleted_at IS NULL`,
+		identityID, resourceType)
+
+	rows, err := db.Rows()
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resourceType": resourceType,
+			"err":          err,
+		}, "error running custom sql to get available roles")
+		return result, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"resource_type": resourceType,
+			"err":           err,
+		}, "error getting columns")
+		return result, errors.NewInternalError(ctx, err)
+	}
+	columnValues := make([]interface{}, len(columns))
+
+	var ignore interface{}
+	for index := range columnValues {
+		columnValues[index] = &ignore
+	}
+
+	for rows.Next() {
+		var resourceID string
+		if err = rows.Scan(&resourceID); err != nil {
+			return result, errs.Wrapf(err, "failed to read database record")
+		}
+		result = append(result, resourceID)
+	}
+	return result, err
 }

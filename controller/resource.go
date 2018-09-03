@@ -43,8 +43,8 @@ func (c *ResourceController) Delete(ctx *app.DeleteResourceContext) error {
 	return ctx.NoContent()
 }
 
-// Read runs the read action.
-func (c *ResourceController) Read(ctx *app.ReadResourceContext) error {
+// Show runs the "Show" action.
+func (c *ResourceController) Show(ctx *app.ShowResourceContext) error {
 
 	if !token.IsServiceAccount(ctx) {
 		log.Error(ctx, map[string]interface{}{}, "Unable to read resource. Not a service account")

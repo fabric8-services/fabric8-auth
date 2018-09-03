@@ -58,6 +58,7 @@ type ResourceService interface {
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
 	CheckExists(ctx context.Context, resourceID string) error
 	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
+	FindWithRoleByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]string, error)
 }
 
 type RoleManagementService interface {
@@ -67,7 +68,6 @@ type RoleManagementService interface {
 	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 	ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error
 	RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error
-	ListAvailableRolesByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]role.ResourceRoleDescriptor, error)
 }
 
 type TeamService interface {

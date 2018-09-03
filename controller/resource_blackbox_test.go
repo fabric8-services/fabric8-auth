@@ -69,7 +69,7 @@ func (rest *TestResourceREST) TestFailRegisterResourceNonServiceAccount() {
 
 	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
 
-	test.ReadResourceUnauthorized(rest.T(), service.Context, service, controller, *created.ResourceID)
+	test.ShowResourceUnauthorized(rest.T(), service.Context, service, controller, *created.ResourceID)
 }
 
 /*
@@ -118,7 +118,7 @@ func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
 	require.NotNil(rest.T(), created.ResourceID)
 	require.EqualValues(rest.T(), *created.ResourceID, resourceID)
 
-	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
+	_, readResource := test.ShowResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
 
 	require.NotNil(rest.T(), readResource)
 	require.NotNil(rest.T(), readResource.ResourceID)
@@ -166,7 +166,7 @@ func (rest *TestResourceREST) TestRegisterResourceWithParentResourceSetCreated()
 	require.NotNil(rest.T(), childCreated)
 	require.NotNil(rest.T(), childCreated.ResourceID)
 
-	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *childCreated.ResourceID)
+	_, readResource := test.ShowResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *childCreated.ResourceID)
 
 	require.EqualValues(rest.T(), payload.Type, "openshift.io/resource/area")
 	require.EqualValues(rest.T(), payload.ParentResourceID, readResource.ParentResourceID)
@@ -184,13 +184,13 @@ func (rest *TestResourceREST) TestDeleteResource() {
 	require.NotNil(rest.T(), created)
 	require.NotNil(rest.T(), created.ResourceID)
 
-	_, readResource := test.ReadResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
+	_, readResource := test.ShowResourceOK(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
 
 	require.EqualValues(rest.T(), created.ResourceID, readResource.ResourceID)
 
 	test.DeleteResourceNoContent(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
 
-	test.ReadResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
+	test.ShowResourceNotFound(rest.T(), rest.service.Context, rest.service, rest.securedController, *created.ResourceID)
 }
 
 func (rest *TestResourceREST) TestScopesOK() {
