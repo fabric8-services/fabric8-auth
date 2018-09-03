@@ -137,7 +137,7 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			// And it should be the owner role
 			assert.Equal(t, r.Role().Name, roles[0].Name)
 			// verify wit service is called once
-			require.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
+			assert.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
 		})
 
 		t.Run("unauthorized", func(t *testing.T) { // This test will attempt to create a new invitation for a user to become a member of an organization, however perform an unauthorized request to create the invitation

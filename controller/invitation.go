@@ -63,7 +63,18 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		})
 	}
 
-	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, ctx.Payload.Links, invitations)
+	var redirectOnSuccess, redirectOnFailure string
+	links := ctx.Payload.Links
+	if links != nil {
+		if links.OnSuccess != nil {
+			redirectOnSuccess = *links.OnSuccess
+		}
+		if links.OnFailure != nil {
+			redirectOnFailure = *links.OnFailure
+		}
+	}
+
+	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, redirectOnSuccess, redirectOnFailure, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
