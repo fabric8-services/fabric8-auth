@@ -59,7 +59,7 @@ func (s *CollaboratorsControllerTestSuite) TestListCollaborators() {
 
 	s.T().Run("ok", func(t *testing.T) {
 
-		t.Run("default", func(t *testing.T) {
+		t.Run("with admin account", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			admin := g.CreateUser()   // email is not private
@@ -75,6 +75,26 @@ func (s *CollaboratorsControllerTestSuite) TestListCollaborators() {
 			// then
 			assertResponseHeaders(t, res)
 			checkCollaborators(t, actualUsers, admin.Identity(), contrib.Identity())
+		})
+
+		t.Run("with any account", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			admin := g.CreateUser()
+			space := g.CreateSpace().AddAdmin(admin)
+			spaceID, _ := uuid.FromString(space.SpaceID())
+			svc, ctrl := s.NewSecuredController(admin.Identity())
+			_, actualUsers := test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+			checkCollaborators(t, actualUsers, admin.Identity())
+			currentIdentity := g.CreateUser().Identity()
+			svc, ctrl = s.NewSecuredController(currentIdentity)
+			// 403 from Auth
+			// We have to allow any OSIO user to list collaborators. See https://github.com/fabric8-services/fabric8-auth/pull/521 for details
+			//test.ListCollaboratorsForbidden(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+			// when
+			_, actualUsers = test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+			// then
+			checkCollaborators(t, actualUsers, admin.Identity()) // viewer user is not included, since she has no `collaborate` scope
 		})
 
 		t.Run("private email", func(t *testing.T) {
@@ -474,22 +494,22 @@ func (s *CollaboratorsControllerTestSuite) TestRemoveSingleCollaborator() {
 	})
 
 	s.T().Run("forbidden", func(t *testing.T) {
-		// given
-		g := s.NewTestGraph(t)
-		admin := g.CreateUser()
-		space := g.CreateSpace().AddAdmin(admin)
-		spaceID, _ := uuid.FromString(space.SpaceID())
-		svc, ctrl := s.NewSecuredController(admin.Identity())
-		_, actualUsers := test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
-		checkCollaborators(t, actualUsers, admin.Identity())
-		currentIdentity := g.CreateUser().Identity()
-		svc, ctrl = s.NewSecuredController(currentIdentity)
-		// 403 from Auth
-		// We have to allow any OSIO user to list collaborators. See https://github.com/fabric8-services/fabric8-auth/pull/521 for details
-		//test.ListCollaboratorsForbidden(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
-		test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
 
 		t.Run("add", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			admin := g.CreateUser()
+			space := g.CreateSpace().AddAdmin(admin)
+			spaceID, _ := uuid.FromString(space.SpaceID())
+			svc, ctrl := s.NewSecuredController(admin.Identity())
+			_, actualUsers := test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+			checkCollaborators(t, actualUsers, admin.Identity())
+			currentIdentity := g.CreateUser().Identity()
+			svc, ctrl = s.NewSecuredController(currentIdentity)
+			// 403 from Auth
+			// We have to allow any OSIO user to list collaborators. See https://github.com/fabric8-services/fabric8-auth/pull/521 for details
+			//test.ListCollaboratorsForbidden(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+			test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
 			// when
 			payload := newAddManyCollaboratorsPayload(t, g.CreateUser().Identity())
 			// then
@@ -498,6 +518,20 @@ func (s *CollaboratorsControllerTestSuite) TestRemoveSingleCollaborator() {
 		})
 
 		t.Run("remove", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			admin := g.CreateUser()
+			space := g.CreateSpace().AddAdmin(admin)
+			spaceID, _ := uuid.FromString(space.SpaceID())
+			svc, ctrl := s.NewSecuredController(admin.Identity())
+			_, actualUsers := test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+			checkCollaborators(t, actualUsers, admin.Identity())
+			currentIdentity := g.CreateUser().Identity()
+			svc, ctrl = s.NewSecuredController(currentIdentity)
+			// 403 from Auth
+			// We have to allow any OSIO user to list collaborators. See https://github.com/fabric8-services/fabric8-auth/pull/521 for details
+			//test.ListCollaboratorsForbidden(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
+			test.ListCollaboratorsOK(t, svc.Context, svc, ctrl, spaceID, nil, nil, nil, nil)
 			// when
 			payload := newRemoveManyCollaboratorsPayload(t, g.CreateUser().Identity())
 			// then
