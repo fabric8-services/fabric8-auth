@@ -146,7 +146,7 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 				}
 
 				// Notify the privilege cache service that an identity role has been deleted
-				err = s.Services().PrivilegeCacheService().NotifyIdentityRoleDeleted(ctx, ir.IdentityID, ir.ResourceID)
+				err = s.Services().PrivilegeCacheService().NotifyIdentityResourcePrivilegesUpdated(ctx, ir.IdentityID, ir.ResourceID)
 				if err != nil {
 					return err
 				}
@@ -173,7 +173,7 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 				}
 
 				// Notify the privilege cache service that a new identity role has been created
-				err = s.Services().PrivilegeCacheService().NotifyIdentityRoleCreated(ctx, ir.IdentityID, ir.ResourceID)
+				err = s.Services().PrivilegeCacheService().NotifyIdentityResourcePrivilegesUpdated(ctx, ir.IdentityID, ir.ResourceID)
 				if err != nil {
 					return err
 				}
@@ -209,7 +209,7 @@ func (s *roleManagementServiceImpl) ForceAssign(ctx context.Context, assignedTo 
 			return err
 		}
 
-		err = s.Services().PrivilegeCacheService().NotifyIdentityRoleCreated(ctx, ir.IdentityID, ir.ResourceID)
+		err = s.Services().PrivilegeCacheService().NotifyIdentityResourcePrivilegesUpdated(ctx, ir.IdentityID, ir.ResourceID)
 		if err != nil {
 			return err
 		}
@@ -243,7 +243,7 @@ func (s *roleManagementServiceImpl) RevokeResourceRoles(ctx context.Context, cur
 				return err
 			}
 
-			err = s.Services().PrivilegeCacheService().NotifyIdentityRoleDeleted(ctx, identityID, resourceID)
+			err = s.Services().PrivilegeCacheService().NotifyIdentityResourcePrivilegesUpdated(ctx, identityID, resourceID)
 			if err != nil {
 				return err
 			}

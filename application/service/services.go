@@ -51,8 +51,7 @@ type PermissionService interface {
 
 type PrivilegeCacheService interface {
 	CachedPrivileges(ctx context.Context, identityID uuid.UUID, resourceID string) (*permission.PrivilegeCache, error)
-	NotifyIdentityRoleCreated(ctx context.Context, identityID uuid.UUID, resourceID string) error
-	NotifyIdentityRoleDeleted(ctx context.Context, identityID uuid.UUID, resourceID string) error
+	NotifyIdentityResourcePrivilegesUpdated(ctx context.Context, identityID uuid.UUID, resourceID string) error
 }
 
 type ResourceService interface {

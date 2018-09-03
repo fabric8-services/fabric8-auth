@@ -161,7 +161,8 @@ func (s *privilegeCacheBlackBoxTest) TestFlagAsStale() {
 	require.False(s.T(), t2.Token().HasStatus(token.TOKEN_STATUS_STALE))
 
 	// Flag the privilege cache as stale
-	s.repo.FlagAsStale(s.Ctx, pc.PrivilegeCache().IdentityID, pc.PrivilegeCache().ResourceID)
+	err := s.repo.FlagAsStale(s.Ctx, pc.PrivilegeCache().IdentityID, pc.PrivilegeCache().ResourceID)
+	require.NoError(s.T(), err)
 
 	// Reload the privilege cache
 	pc = s.Graph.LoadPrivilegeCache(pc.PrivilegeCache().PrivilegeCacheID)
