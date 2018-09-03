@@ -548,7 +548,7 @@ func (s *roleManagementServiceBlackboxTest) TestPrivilegeCacheNotified() {
 	require.Contains(s.T(), privs.ScopesAsArray(), "foo")
 
 	// Assign a role via the role management service Assign() function
-	assignments := map[string][]uuid.UUID{"barRole": []uuid.UUID{user.IdentityID()}}
+	assignments := map[string][]uuid.UUID{"barRole": {user.IdentityID()}}
 	err = s.Application.RoleManagementService().Assign(s.Ctx, admin.IdentityID(), assignments, res.ResourceID(), true)
 	require.NoError(s.T(), err)
 
