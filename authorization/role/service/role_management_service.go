@@ -62,11 +62,6 @@ func (s *roleManagementServiceImpl) ListAvailableRolesByResourceType(ctx context
 	return s.Repositories().RoleRepository().FindRolesByResourceType(ctx, resourceType)
 }
 
-// ListAvailableRolesByResourceTypeAndIdentity lists all roles on resources of a given type that are available for a given user (i.e, having a direct/inherited role in the resource)
-func (s *roleManagementServiceImpl) ListAvailableRolesByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]role.ResourceRoleDescriptor, error) {
-	return s.Repositories().RoleRepository().FindRolesByResourceTypeAndIdentity(ctx, resourceType, identityID)
-}
-
 // Assign assigns an identity ( users or organizations or teams or groups ) with a role, for a specific resource.
 // roleAssignments is a map of role assignments where the key is a role name and the value is an array of IDs of the identities
 // which we want to assign the role to.
