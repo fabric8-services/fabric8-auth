@@ -141,16 +141,7 @@ func (m *GormPrivilegeCacheRepository) Create(ctx context.Context, privilegeCach
 func (m *GormPrivilegeCacheRepository) Save(ctx context.Context, privilegeCache *PrivilegeCache) error {
 	defer goa.MeasureSince([]string{"goa", "db", "privilege_cache", "save"}, time.Now())
 
-	obj, err := m.Load(ctx, privilegeCache.PrivilegeCacheID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"privilege_cache_id": privilegeCache.PrivilegeCacheID,
-			"err":                err,
-		}, "unable to update privilege cache")
-		return errs.WithStack(err)
-	}
-
-	err = m.db.Model(obj).Updates(privilegeCache).Error
+	err := m.db.Save(privilegeCache).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"privilege_cache_id": privilegeCache.PrivilegeCacheID,
