@@ -364,7 +364,7 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, token)
 
 	if err != nil {
-		return "", "", err
+		return "", "", errs.Wrapf(err, "something went wrong while finding invitation with accept code")
 	}
 
 	// get redirect urls

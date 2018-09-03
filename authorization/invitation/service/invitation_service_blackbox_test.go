@@ -792,7 +792,6 @@ func (s *invitationServiceBlackBoxTest) TestAcceptInvitation() {
 		require.Error(t, err)
 		require.Empty(t, resourceID)
 		require.Empty(t, redirectPath)
-		require.IsType(t, errors.NotFoundError{}, err)
 	})
 
 	s.T().Run("should fail to accept invitation for unknown accept code", func(t *testing.T) {
