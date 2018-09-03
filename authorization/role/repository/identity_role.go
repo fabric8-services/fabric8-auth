@@ -527,7 +527,8 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
 	    FROM
 	      resource
 	    WHERE
-	      resource_id = ? /* RESOURCE_ID */
+          deleted_at IS NULL
+	      AND resource_id = ? /* RESOURCE_ID */
 	    UNION SELECT
 	      p.resource_id, p.parent_resource_id
 	    FROM
@@ -546,6 +547,8 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
 	    resource rs
 	  WHERE
 	    r.resource_type_id = rs.resource_type_id
+        AND r.deleted_at IS NULL
+        AND rs.deleted_at IS NULL
 	    AND rs.resource_id = ? /* RESOURCE_ID */
 	),
 	role_mappings AS (
@@ -556,7 +559,9 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
 		  role_mapping frm,
 		  role_mapping trm
 		WHERE
-		  frm.resource_id IN (SELECT resource_id FROM resource_hierarchy) 
+		  frm.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+          AND frm.deleted_at IS NULL
+          AND trm.deleted_at IS NULL
 		  AND trm.resource_id IN (SELECT resource_id FROM resource_hierarchy)
 		  AND trm.to_role_id IN (SELECT role_id FROM matching_roles)
 		  AND frm.from_role_id != trm.to_role_id
@@ -572,6 +577,7 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
 		          role_mapping rm
 		        WHERE
 		          rm.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+                  AND rm.deleted_at IS NULL
 		          AND to_role_id = trm.to_role_id
 		        UNION SELECT
 		          trm.from_role_id,
@@ -580,6 +586,7 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
 		          role_mapping trm INNER JOIN prm ON prm.from_role_id = trm.to_role_id
 		        WHERE
 		          trm.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+                  AND trm.deleted_at IS NULL
 	        )
 	        SELECT
 	          prm.from_role_id,
@@ -598,6 +605,7 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
       role_mappings rm
 	WHERE
       ir.role_id = rm.from_role_id
+      AND ir.deleted_at IS NULL
 	  AND ir.resource_id IN (SELECT resource_id FROM resource_hierarchy)
 	  AND ir.identity_id IN (SELECT identity_id FROM identity_hierarchy)
 	UNION SELECT
@@ -606,6 +614,7 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
 	  identity_role ir2
 	WHERE 
 	  ir2.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+      AND ir2.deleted_at IS NULL
 	  AND ir2.identity_id IN (SELECT identity_id FROM identity_hierarchy)
 	  AND ir2.role_id IN (SELECT role_id FROM matching_roles)
 )

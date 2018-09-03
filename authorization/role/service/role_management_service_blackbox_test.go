@@ -489,6 +489,7 @@ func (s *roleManagementServiceBlackboxTest) TestPrivilegeCacheNotified() {
 	rt.AddScope("manage")
 	rt.AddScope("foo")
 	rt.AddScope("bar")
+	rt.AddScope("charlie")
 
 	// Create an admin role
 	adminRole := s.Graph.CreateRole(rt, "admin")
@@ -548,7 +549,7 @@ func (s *roleManagementServiceBlackboxTest) TestPrivilegeCacheNotified() {
 
 	// Assign a role via the role management service Assign() function
 	assignments := map[string][]uuid.UUID{"barRole": []uuid.UUID{user.IdentityID()}}
-	err = s.Application.RoleManagementService().Assign(s.Ctx, admin.IdentityID(), assignments, res.ResourceID(), false)
+	err = s.Application.RoleManagementService().Assign(s.Ctx, admin.IdentityID(), assignments, res.ResourceID(), true)
 	require.NoError(s.T(), err)
 
 	// Hit the privilege cache again
@@ -558,6 +559,34 @@ func (s *roleManagementServiceBlackboxTest) TestPrivilegeCacheNotified() {
 	// The user should now also have the "bar" scope
 	require.Len(s.T(), privs.ScopesAsArray(), 2)
 	require.ElementsMatch(s.T(), privs.ScopesAsArray(), []string{"foo", "bar"})
+
+	// Now create a team
+	t := s.Graph.CreateTeam()
+
+	// And create an organization
+	org := s.Graph.CreateOrganization()
+
+	// Add the team to the organization
+	org.AddMember(t)
+
+	// Add the user to the team
+	t.AddMember(user)
+
+	// Create a new charlie role with scope "charlie"
+	charlieRole := s.Graph.CreateRole(rt, "charlieRole")
+	charlieRole.AddScope("charlie")
+
+	// Assign the role to the organization
+	err = s.Application.RoleManagementService().ForceAssign(s.Ctx, org.OrganizationID(), "charlieRole", *res.Resource())
+	require.NoError(s.T(), err)
+
+	// Hit the privilege cache again
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The user should now also have all three scopes
+	require.Len(s.T(), privs.ScopesAsArray(), 3)
+	require.ElementsMatch(s.T(), privs.ScopesAsArray(), []string{"foo", "bar", "charlie"})
 }
 
 func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {
