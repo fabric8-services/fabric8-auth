@@ -1141,7 +1141,7 @@ func ConvertToAppUser(request *goa.RequestData, user *accountrepo.User, identity
 
 // ConvertUsersSimple converts a array of simple Identity IDs into a Generic Reletionship List
 func ConvertUsersSimple(request *goa.RequestData, identityIDs []interface{}) []*app.GenericData {
-	ops := []*app.GenericData{}
+	var ops []*app.GenericData
 	for _, identityID := range identityIDs {
 		ops = append(ops, ConvertUserSimple(request, identityID))
 	}

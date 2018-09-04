@@ -48,16 +48,6 @@ func (s *TestWITSuite) SetupSuite() {
 	s.doer = doer
 }
 
-func (s *TestWITSuite) TestDevNullWITService() {
-	ws := &testsupport.DevWITService{}
-	assert.Nil(s.T(), ws.CreateUser(nil, nil, ""))
-	assert.Nil(s.T(), ws.UpdateUser(nil, nil, ""))
-
-	space, e := ws.GetSpace(nil, "")
-	assert.Nil(s.T(), e)
-	assert.Equal(s.T(), &wit.Space{}, space)
-}
-
 func (s *TestWITSuite) TestCreateWITUser() {
 	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
 	ctx = tokencontext.ContextWithTokenManager(ctx, testtoken.TokenManager)

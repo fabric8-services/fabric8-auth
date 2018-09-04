@@ -32,11 +32,11 @@ Steps for adding a new Service:
 
 type InvitationService interface {
 	// Issue creates a new invitation for a user.
-	Issue(ctx context.Context, issuingUserID uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
+	Issue(ctx context.Context, issuingUserID uuid.UUID, inviteTo string, redirectOnSuccess string, redirectOnFailure string, invitations []invitation.Invitation) error
 	// Rescind revokes an invitation for a user.
 	Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error
 	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
-	Accept(ctx context.Context, token uuid.UUID) (string, error)
+	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
 }
 
 type OrganizationService interface {

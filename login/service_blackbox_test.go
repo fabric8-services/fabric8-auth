@@ -109,7 +109,8 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
 	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(&testsupport.DevWITService{}))
+	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
 	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
 }
 

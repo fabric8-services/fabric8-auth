@@ -63,7 +63,18 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		})
 	}
 
-	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
+	var redirectOnSuccess, redirectOnFailure string
+	links := ctx.Payload.Links
+	if links != nil {
+		if links.OnSuccess != nil {
+			redirectOnSuccess = *links.OnSuccess
+		}
+		if links.OnFailure != nil {
+			redirectOnFailure = *links.OnFailure
+		}
+	}
+
+	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, redirectOnSuccess, redirectOnFailure, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -131,7 +142,11 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		return ctx.TemporaryRedirect()
 	}
 
-	_, err = c.app.InvitationService().Accept(ctx, acceptCode)
+	_, invitationRedirectURL, err := c.app.InvitationService().Accept(ctx, acceptCode)
+
+	if len(invitationRedirectURL) > 0 {
+		redirectURL = invitationRedirectURL
+	}
 
 	if err != nil {
 		errResponse := err.Error()
@@ -139,6 +154,12 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		if err != nil {
 			return err
 		}
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to accept invitation")
+
+		ctx.ResponseData.Header().Set("Location", redirectURL)
+		return ctx.TemporaryRedirect()
 	}
 
 	log.Debug(ctx, map[string]interface{}{
