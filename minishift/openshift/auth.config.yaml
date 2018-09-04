@@ -33,3 +33,5 @@ objects:
   data:
     wit.url: http://wit
     notification.serviceurl: http://f8notification
+ #  you can set "ui.url" to your locally deployed ui. by default it's localhost:8080
+ #  ui.url: http://ui
