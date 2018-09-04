@@ -207,26 +207,58 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 
 	s.T().Run("ok", func(t *testing.T) {
-		// given
-		g := s.NewTestGraph(t)
-		team := g.CreateTeam()
-		invitee := g.CreateUser()
+		s.T().Run("redirect to links in req payload", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			team := g.CreateTeam()
+			invitee := g.CreateUser()
 
-		redirectOnSuccess := fmt.Sprintf("https://openshift.io/%s/%s", invitee.Identity().Username, testSpaceName)
-		redirectOnFailure := "https://failure.io"
-		redirectURL := app.RedirectURL{OnSuccess: &redirectOnSuccess, OnFailure: &redirectOnFailure}
-		inv := g.CreateInvitation(team, invitee, &redirectURL)
+			redirectOnSuccess := fmt.Sprintf("https://openshift.io/%s/%s", invitee.Identity().Username, testSpaceName)
+			redirectOnFailure := "https://failure.io"
+			redirectURL := app.RedirectURL{OnSuccess: &redirectOnSuccess, OnFailure: &redirectOnFailure}
+			inv := g.CreateInvitation(team, invitee, &redirectURL)
 
-		service, controller := s.UnsecuredController()
+			service, controller := s.UnsecuredController()
 
-		// when
-		response := test.AcceptInviteInvitationTemporaryRedirect(t, service.Context, service, controller, inv.Invitation().AcceptCode.String())
-		// then
-		require.Equal(t, fmt.Sprintf("https://openshift.io/%s/%s", invitee.Identity().Username, testSpaceName), response.Header().Get("Location"))
-		// The invitation should no longer be there after acceptance
-		_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
-		require.Error(t, err)
-		require.IsType(t, errors.NotFoundError{}, err)
+			// when
+			response := test.AcceptInviteInvitationTemporaryRedirect(t, service.Context, service, controller, inv.Invitation().AcceptCode.String())
+			// then
+			require.Equal(t, fmt.Sprintf("https://openshift.io/%s/%s", invitee.Identity().Username, testSpaceName), response.Header().Get("Location"))
+			// The invitation should no longer be there after acceptance
+			_, err := s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
+			require.Error(t, err)
+			require.IsType(t, errors.NotFoundError{}, err)
+		})
+
+		s.T().Run("redirect to default url", func(t *testing.T) {
+			// given
+			existingURL := os.Getenv(authInvitationAcceptedUrl)
+			defer func() {
+				os.Setenv(authInvitationAcceptedUrl, existingURL)
+			}()
+			os.Setenv(authInvitationAcceptedUrl, acceptInvitationEndPoint)
+
+			g := s.NewTestGraph(t)
+			team := g.CreateTeam()
+			invitee := g.CreateUser()
+
+			inv := g.CreateInvitation(team, invitee, nil)
+
+			service, controller := s.UnsecuredController()
+
+			// when
+			response := test.AcceptInviteInvitationTemporaryRedirect(t, service.Context, service, controller, inv.Invitation().AcceptCode.String())
+
+			// then
+			parsedURL, err := url.Parse(response.Header().Get("Location"))
+			require.NoError(t, err)
+
+			require.Equal(t, acceptInvitationEndPoint, fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, parsedURL.Path))
+			// The invitation should no longer be there after acceptance
+			_, err = s.Application.InvitationRepository().FindByAcceptCode(s.Ctx, inv.Invitation().AcceptCode)
+			require.Error(t, err)
+			require.IsType(t, errors.NotFoundError{}, err)
+		})
 	})
 
 	s.T().Run("failure", func(t *testing.T) {
