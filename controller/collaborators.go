@@ -19,6 +19,7 @@ import (
 	errs "github.com/pkg/errors"
 
 	"fmt"
+
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -99,6 +100,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 		resultUsers[i] = idn.User
 		resultIdentities[i] = idn
 	}
+	log.Debug(ctx, map[string]interface{}{"offset": offset, "limit": limit, "page_offset": pageOffset, "page_limit": pageLimit, "count": len(resultIdentities), "resource_id": ctx.SpaceID.String()}, "listed collaborators for resource")
 
 	return ctx.ConditionalEntities(resultUsers, c.config.GetCacheControlCollaborators, func() error {
 		data := make([]*app.UserData, len(page))
