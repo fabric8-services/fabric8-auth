@@ -53,6 +53,7 @@ func newResourceWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	if resourceType == nil {
 		resourceType = w.graph.CreateResourceType().ResourceType()
+		g.t.Logf("created new resource type with name='%v' (%v)", resourceType.Name, resourceType.ResourceTypeID)
 	}
 
 	if resourceName == nil {
