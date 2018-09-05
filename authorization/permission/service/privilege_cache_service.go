@@ -90,3 +90,8 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 func (s *privilegeCacheServiceImpl) NotifyIdentityResourcePrivilegesUpdated(ctx context.Context, identityID uuid.UUID, resourceID string) error {
 	return s.Repositories().PrivilegeCacheRepository().FlagAsStale(ctx, identityID, resourceID)
 }
+
+func (s *privilegeCacheServiceImpl) NotifyMembershipChanged(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error {
+	// TODO implement this
+	return nil
+}
