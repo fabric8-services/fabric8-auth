@@ -292,8 +292,6 @@ func EqualRefreshTokens(ctx context.Context, expectedToken, actualToken string) 
 		return err
 	}
 	return equalTokenClaim("sub", expectedClaims, actualClaims)
-
-	return nil
 }
 
 func equalTokenClaim(claimName string, expectedToken, actualToken jwt.MapClaims) error {

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/login"
@@ -37,6 +38,9 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 
 	oauthIdentityProvider := login.NewLoginIdentityProvider(c.Configuration)
 	oauthIdentityProvider.RedirectURL = rest.AbsoluteURL(ctx.RequestData, "/api/login", nil)
+	if ctx.Scope != nil {
+		oauthIdentityProvider.Endpoint.AuthURL = fmt.Sprintf("%s?scope=%s", oauthIdentityProvider.Endpoint.AuthURL, *ctx.Scope) // Offline token
+	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return c.Auth.Login(ctx, oauthIdentityProvider, c.Configuration)

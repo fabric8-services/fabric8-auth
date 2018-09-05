@@ -275,6 +275,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, idpProvider oauth.IdentityProvider, config Configuration) (*string, *oauth2.Token, error) {
+
 	witURL, err := config.GetWITURL()
 	if err != nil {
 		return nil, nil, autherrors.NewInternalError(ctx, err)
@@ -346,7 +347,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	}, "local user created/updated")
 
 	// Generate a new token instead of using the original Keycloak token
-	userToken, err := keycloak.TokenManager.GenerateUserToken(ctx, *keycloakToken, identity)
+	userToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token")
 		return nil, nil, err
@@ -587,6 +588,7 @@ func (keycloak *KeycloakOAuthProvider) reclaimReferrerAndResponseMode(ctx contex
 
 func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
 	tokenJson, err := TokenToJson(ctx, outhToken)
+
 	if err != nil {
 		return err
 	}
@@ -663,16 +665,18 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	}
 
 	identity := &account.Identity{}
-	// TODO : Check this only if UUID is not null
-	// If identity already existed in WIT, then IDs should match !
-	if identity.Username != "" && keycloakIdentityID.String() != identity.ID.String() {
-		log.Error(ctx, map[string]interface{}{
-			"keycloak_identity_id": keycloakIdentityID,
-			"wit_identity_id":      identity.ID,
-			"err":                  err,
-		}, "keycloak identity id and existing identity id in wit service does not match")
-		return nil, false, errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
-	}
+	/*
+		// TODO : Check this only if UUID is not null
+		// If identity already existed in WIT, then IDs should match !
+		if identity.Username != "" && keycloakIdentityID.String() != identity.ID.String() {
+			log.Error(ctx, map[string]interface{}{
+				"keycloak_identity_id": keycloakIdentityID,
+				"wit_identity_id":      identity.ID,
+				"err":                  err,
+			}, "keycloak identity id and existing identity id in wit service does not match")
+			return nil, false, errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
+		}
+	*/
 
 	identities, err := keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
 	if err != nil {
