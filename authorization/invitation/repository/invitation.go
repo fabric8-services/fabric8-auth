@@ -36,6 +36,10 @@ type Invitation struct {
 	AcceptCode uuid.UUID `sql:"type:uuid" gorm:"column:accept_code"`
 
 	Member bool
+
+	// url's to redirect after accepting invitation in case of success or failure
+	SuccessRedirectURL string `sql:"type:string" gorm:"column:success_redirect_url"`
+	FailureRedirectURL string `sql:"type:string" gorm:"column:failure_redirect_url"`
 }
 
 func (m Invitation) TableName() string {

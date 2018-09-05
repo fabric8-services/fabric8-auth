@@ -218,6 +218,8 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 36
 	m = append(m, steps{ExecuteSQLFile("036-token-privileges.sql")})
 
+	m = append(m, steps{ExecuteSQLFile("037-invitation-redirect-url.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

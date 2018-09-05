@@ -3,8 +3,6 @@ package controller
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/role"
-
 	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -12,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
@@ -84,40 +83,32 @@ func (c *UserController) ListResources(ctx *app.ListResourcesUserContext) error 
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("bad or missing token"))
 	}
 	resourceType := ctx.Type
-	switch ctx.Type {
-	case authorization.ResourceTypeSpace:
-		// ok
-	default:
-		// resource type is unknown, so let respond with an error instead of running an expensive request
-		// that will return no result.
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("type", ctx.Type, "invalid or unsupported type of resource. Valid value is:'spaces'."))
+	if resourceType != authorization.ResourceTypeSpace {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("type", ctx.Type, "invalid or unsupported type of resource."))
 	}
 
-	roles, err := c.app.RoleManagementService().ListAvailableRolesByResourceTypeAndIdentity(ctx, resourceType, identityID)
-	log.Info(ctx, map[string]interface{}{"roles": len(roles), "identity_id": identityID.String()}, "retrieve resources with a role for the current user")
+	resourceIDs, err := c.app.ResourceService().FindWithRoleByResourceTypeAndIdentity(ctx, resourceType, identityID)
+	log.Info(ctx, map[string]interface{}{"matching_resources": len(resourceIDs), "identity_id": identityID.String()}, "retrieved resources with a role for the current user")
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	return ctx.OK(convertToUserResources(roles))
+	return ctx.OK(convertToUserResources(ctx.RequestData, resourceType, resourceIDs))
 }
 
 // convertToUserResources converts a list of resources to which the user has a role
-func convertToUserResources(roles []role.ResourceRoleDescriptor) *app.UserResourcesList {
-	result := app.UserResourcesList{}
-	result.Data = make([]*app.UserResourceData, len(roles))
-	for i, r := range roles {
-		result.Data[i] = convertToUserResourcesData(r)
+func convertToUserResources(request *goa.RequestData, resourceType string, resourceIDs []string) *app.UserResourcesList {
+	data := make([]*app.UserResourceData, 0)
+	for _, resourceID := range resourceIDs {
+		resourceHref := rest.AbsoluteURL(request, app.ResourceHref(resourceID), nil)
+		data = append(data, &app.UserResourceData{
+			ID:   resourceID,
+			Type: "resources",
+			Links: &app.GenericLinks{
+				Related: &resourceHref,
+			},
+		})
 	}
-	return &result
-}
-
-func convertToUserResourcesData(r role.ResourceRoleDescriptor) *app.UserResourceData {
-	return &app.UserResourceData{
-		Type: "spaces", // could be compared to r.ResourceType for a more generic response
-		ID:   r.ResourceID,
-		Attributes: &app.UserResourceDataAttributes{
-			Role:   r.RoleName,
-			Scopes: r.Scopes,
-		},
+	return &app.UserResourcesList{
+		Data: data,
 	}
 }

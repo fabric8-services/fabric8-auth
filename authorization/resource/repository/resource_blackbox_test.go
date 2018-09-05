@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"context"
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -195,4 +196,190 @@ func createAndLoadResource(s *resourceBlackBoxTest, parentResourceID *string) *r
 	require.Nil(s.T(), err, "Could not load resource")
 
 	return createdResource
+}
+
+func (s *resourceBlackBoxTest) TestFindWithRoleByResourceTypeAndIdentity() {
+
+	s.T().Run("individual", func(t *testing.T) {
+
+		t.Run("individual is admin on no resource", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			rt := g.CreateResourceType()
+			r := g.CreateResource(rt)
+			require.Equal(t, rt.ResourceType().Name, r.Resource().ResourceType.Name)
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				rt.ResourceType().Name,
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			assert.Empty(t, resources)
+		})
+
+		t.Run("individual is admin on 1 resource", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			rt := g.CreateResourceType()
+			role := g.CreateRole(rt).AddScope("resource-scope1").AddScope("space-scope2").AddScope("space-scope3")
+			user := g.CreateUser()
+			r := g.CreateResource(rt).AddRole(user, role)
+			require.Equal(t, rt.Name(), r.Resource().ResourceType.Name)
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				rt.Name(),
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, r.Resource().ResourceID, resources[0])
+		})
+
+		t.Run("individual is admin on 2 resources", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			rt := g.CreateResourceType()
+			role := g.CreateRole(rt).AddScope("space-scope1").AddScope("space-scope2").AddScope("space-scope3")
+			user := g.CreateUser()
+			r1 := g.CreateResource(rt).AddRole(user, role)
+			require.Equal(t, rt.Name(), r1.Resource().ResourceType.Name)
+			r2 := g.CreateResource(rt).AddRole(user, role)
+			require.Equal(t, rt.Name(), r2.Resource().ResourceType.Name)
+			g.CreateSpace() // another space on which the user has no role
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				rt.Name(),
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			require.Len(t, resources, 2)
+			// resources should be space1 and space2, not space3
+			assert.ElementsMatch(t, []string{r1.ResourceID(), r2.ResourceID()}, resources)
+		})
+
+		t.Run("individual is admin in the parent resource but no default or custom role mapping", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			parentResourceType := g.CreateResourceType()
+			parentResource := g.CreateResource(user, parentResourceType) // user will be creator and have a role in the org
+			childResourceType := g.CreateResourceType()
+			g.CreateResource(childResourceType, parentResource)
+			// here we don't map the admin role in the org to a contributor role in the space,
+			// so the user is not considered as a contributor in the created space
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				childResourceType.Name(),
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			assert.Empty(t, resources)
+		})
+
+		t.Run("individual is contributor in the parent resource with default role mapping", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			parentType := g.CreateResourceType()
+			parentRole := g.CreateRole(parentType).AddScope("parent-scope1").AddScope("parent-scope2").AddScope("parent-scope3")
+			parentResource := g.CreateResource(parentType).AddRole(user, parentRole) // user will be creator and have a role in the org
+			childType := g.CreateResourceType()
+			childResource := g.CreateResource(childType, parentResource)
+			// here we map the role in the org to another role in the space,
+			// so the user also inherits a role in the created space
+			childRole := g.CreateRole(childType).AddScope("child-scope1").AddScope("child-scope2").AddScope("child-scope3")
+			g.CreateDefaultRoleMapping(childType, parentRole, childRole)
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				childType.Name(),
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			require.Len(t, resources, 1)
+			assert.Equal(t, childResource.Resource().ResourceID, resources[0])
+		})
+
+		t.Run("individual is admin in the parent organization with custom role mapping", func(t *testing.T) {
+			t.Skipf("not implemented yet")
+		})
+
+	})
+
+	s.T().Run("teams", func(t *testing.T) {
+
+		t.Run("individual belongs to admin team on no resource", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			g.CreateTeam("team").AddMember(user)
+			rt := g.CreateResourceType()
+			require.Equal(t, rt.Name(), rt.Name())
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				rt.Name(),
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			assert.Len(t, resources, 0)
+		})
+
+		t.Run("individual belongs to admin team on 1 resource", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			team := g.CreateTeam("team").AddMember(user)
+			rt := g.CreateResourceType()
+			role := g.CreateRole(rt).AddScope("resource-scope1").AddScope("resource-scope2").AddScope("resource-scope3")
+			r := g.CreateResource(rt).AddRole(team, role)
+			require.Equal(t, rt.Name(), rt.Name())
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				rt.Name(),
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			require.Len(t, resources, 1)
+			assert.Equal(t, r.Resource().ResourceID, resources[0])
+		})
+
+		t.Run("individual is member of admin team in the parent resource with default role mapping", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			creator := g.CreateUser()
+			parentResourceType := g.CreateResourceType()                    // team (hence user) will be creator and admin of the org
+			parentResource := g.CreateResource(creator, parentResourceType) // team (hence user) will be creator and admin of the org
+			user := g.CreateUser()
+			team := g.CreateTeam("team").AddMember(user)
+			parentRole := g.CreateRole(parentResourceType).AddScope("parent-scope1").AddScope("parent-scope2").AddScope("parent-scope3")
+			parentResource.AddRole(team, parentRole)
+			childResourceType := g.CreateResourceType()
+			childResource := g.CreateResource(childResourceType, parentResource)
+			// here we map the admin role in the org to a contributor role in the space,
+			// so the user is also considered as a contributor in the created space
+			childRole := g.CreateRole(childResourceType).AddScope("child-scope1").AddScope("child-scope2").AddScope("child-scope3")
+			g.CreateDefaultRoleMapping(childResourceType, parentRole, childRole)
+			// when
+			resources, err := s.repo.FindWithRoleByResourceTypeAndIdentity(
+				context.Background(),
+				childResourceType.Name(),
+				user.IdentityID())
+			// then
+			require.NoError(t, err)
+			require.Len(t, resources, 1)
+			assert.Equal(t, childResource.Resource().ResourceID, resources[0])
+		})
+
+		t.Run("individual is member of admin team in the parent organization with custom role mapping", func(t *testing.T) {
+			t.Skipf("not implemented yet")
+		})
+	})
+
 }

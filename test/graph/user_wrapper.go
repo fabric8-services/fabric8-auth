@@ -31,11 +31,22 @@ func loadUserWrapper(g *TestGraph, identityID uuid.UUID) userWrapper {
 func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := userWrapper{baseWrapper: baseWrapper{g}}
 	id := uuid.NewV4()
+	fullname := fmt.Sprintf("TestUser-%s", id)
+	emailPrivate := false
+	for _, param := range params {
+		switch p := param.(type) {
+		case bool:
+			emailPrivate = p
+		case string:
+			fullname = p
+		}
+	}
 	w.user = &account.User{
-		ID:       id,
-		Email:    fmt.Sprintf("TestUser-%s@test.com", id),
-		FullName: fmt.Sprintf("TestUser-%s", id),
-		Cluster:  fmt.Sprintf("TestCluster-%s", id),
+		ID:           id,
+		Email:        fmt.Sprintf("TestUser-%s@test.com", id),
+		EmailPrivate: emailPrivate,
+		FullName:     fullname,
+		Cluster:      fmt.Sprintf("TestCluster-%s", id),
 	}
 
 	err := g.app.Users().Create(g.ctx, w.user)

@@ -60,6 +60,10 @@ func (w *resourceTypeWrapper) ResourceType() *resourcetype.ResourceType {
 	return w.resourceType
 }
 
+func (w *resourceTypeWrapper) Name() string {
+	return w.resourceType.Name
+}
+
 func (w *resourceTypeWrapper) AddScope(scope string) {
 	rts := &resourcetype.ResourceTypeScope{
 		ResourceTypeID: w.resourceType.ResourceTypeID,

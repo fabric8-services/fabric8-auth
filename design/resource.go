@@ -24,14 +24,14 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.NotFound, JSONAPIErrors)
 	})
 
-	a.Action("read", func() {
+	a.Action("show", func() { // action named "show" will have an associated, generated `href` utility function
 		a.Routing(
 			a.GET("/:resourceId"),
 		)
 		a.Params(func() {
 			a.Param("resourceId", d.String, "The identifier of the resource to read")
 		})
-		a.Description("Read a specific resource")
+		a.Description("Shows a specific resource")
 		a.Response(d.OK, ResourceMedia)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.TemporaryRedirect)
@@ -56,6 +56,21 @@ var _ = a.Resource("resource", func() {
 		a.Response(d.NoContent)
 	})
 
+	a.Action("scopes", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/:resourceId/scopes"),
+		)
+		a.Params(func() {
+			a.Param("resourceId", d.String, "Identifier of the resource to list scopes for")
+		})
+		a.Description("List scopes for a resource")
+		a.Response(d.OK, ResourceScopesData)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+	})
+
 })
 
 // ResourceMedia represents a protected resource
@@ -73,6 +88,31 @@ var ResourceMedia = a.MediaType("application/vnd.resource+json", func() {
 		a.Attribute("parent_resource_id")
 		a.Attribute("resource_id")
 	})
+})
+
+var ResourceScopesData = a.MediaType("application/vnd.resource_scopes_data+json", func() {
+	a.Description("Resource scopes data wrapper")
+	a.Attributes(func() {
+		a.Attribute("data", a.ArrayOf(ResourceScopesMedia), "The data wrapper for the response")
+		a.Required("data")
+	})
+	a.View("default", func() {
+		a.Attribute("data")
+	})
+})
+
+var ResourceScopesMedia = a.MediaType("application/vnd.resource_scopes+json", func() {
+	a.Description("Resource scopes payload")
+	a.Attributes(func() {
+		a.Attribute("id", d.String, "Name of the scope")
+		a.Attribute("type", d.String, "Type of resource")
+		a.Required("id", "type")
+	})
+	a.View("default", func() {
+		a.Attribute("id")
+		a.Attribute("type")
+	})
+
 })
 
 var RegisterResourceMedia = a.MediaType("application/vnd.register_resource+json", func() {

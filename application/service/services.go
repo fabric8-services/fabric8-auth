@@ -32,11 +32,11 @@ Steps for adding a new Service:
 
 type InvitationService interface {
 	// Issue creates a new invitation for a user.
-	Issue(ctx context.Context, issuingUserID uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
+	Issue(ctx context.Context, issuingUserID uuid.UUID, inviteTo string, redirectOnSuccess string, redirectOnFailure string, invitations []invitation.Invitation) error
 	// Rescind revokes an invitation for a user.
 	Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error
 	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
-	Accept(ctx context.Context, token uuid.UUID) (string, error)
+	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
 }
 
 type OrganizationService interface {
@@ -58,6 +58,7 @@ type ResourceService interface {
 	Read(ctx context.Context, resourceID string) (*app.Resource, error)
 	CheckExists(ctx context.Context, resourceID string) error
 	Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error)
+	FindWithRoleByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]string, error)
 }
 
 type RoleManagementService interface {
@@ -67,7 +68,6 @@ type RoleManagementService interface {
 	Assign(ctx context.Context, assignedBy uuid.UUID, roleAssignments map[string][]uuid.UUID, resourceID string, appendToExistingRoles bool) error
 	ForceAssign(ctx context.Context, assignedTo uuid.UUID, roleName string, res resource.Resource) error
 	RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error
-	ListAvailableRolesByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]role.ResourceRoleDescriptor, error)
 }
 
 type TeamService interface {
