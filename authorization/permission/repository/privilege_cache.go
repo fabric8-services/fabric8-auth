@@ -375,7 +375,7 @@ WITH RECURSIVE m AS (
   FROM
     identities
   WHERE
-    id = /* MEMBER_OF */
+    id = ? /* MEMBER_OF */
 ),
 resource_hierarchy AS (
 	WITH RECURSIVE m AS (
