@@ -356,7 +356,7 @@ func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, i
 	return err
 }
 
-// Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
+// Accept processes an invitation acceptance click, returns the resource ID of the resource or identity resource which the invitation is for and url to redirect after accepting invitation
 func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (string, string, error) {
 
 	// Locate the invitation
