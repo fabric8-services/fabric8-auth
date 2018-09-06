@@ -6,7 +6,9 @@ import (
 
 // Invitation is a DTO used to pass state between the controller and service layers when issuing new invitations
 type Invitation struct {
-	IdentityID *uuid.UUID
-	Roles      []string
-	Member     bool
+	IdentityID        *uuid.UUID
+	Roles             []string
+	Member            bool
+	RedirectOnSuccess string
+	RedirectOnFailure string
 }

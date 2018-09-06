@@ -41,6 +41,17 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	var redirectOnSuccess, redirectOnFailure string
+	links := ctx.Payload.Links
+	if links != nil {
+		if links.OnSuccess != nil {
+			redirectOnSuccess = *links.OnSuccess
+		}
+		if links.OnFailure != nil {
+			redirectOnFailure = *links.OnFailure
+		}
+	}
+
 	var invitations []invitation.Invitation
 
 	for _, invitee := range ctx.Payload.Data {
@@ -57,24 +68,15 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 
 		// Create the Invitation object, and append it to our list of invitations
 		invitations = append(invitations, invitation.Invitation{
-			IdentityID: &identityID,
-			Roles:      invitee.Roles,
-			Member:     *invitee.Member,
+			IdentityID:        &identityID,
+			Roles:             invitee.Roles,
+			Member:            *invitee.Member,
+			RedirectOnSuccess: redirectOnSuccess,
+			RedirectOnFailure: redirectOnFailure,
 		})
 	}
 
-	var redirectOnSuccess, redirectOnFailure string
-	links := ctx.Payload.Links
-	if links != nil {
-		if links.OnSuccess != nil {
-			redirectOnSuccess = *links.OnSuccess
-		}
-		if links.OnFailure != nil {
-			redirectOnFailure = *links.OnFailure
-		}
-	}
-
-	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, redirectOnSuccess, redirectOnFailure, invitations)
+	err = c.app.InvitationService().Issue(ctx, currentIdentity.ID, ctx.InviteTo, invitations)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
