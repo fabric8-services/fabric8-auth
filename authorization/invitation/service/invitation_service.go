@@ -45,7 +45,7 @@ func NewInvitationService(context servicecontext.ServiceContext, config Invitati
 // This method creates one record in the INVITATION table for each user in the invitations parameter.  Any roles that are issued
 // as part of a user's invitation are created in the INVITATION_ROLE table.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, redirectOnSuccess string, redirectOnFailure string, invitations []invitation.Invitation) error {
+func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UUID, inviteTo string, invitations []invitation.Invitation) error {
 	var inviteToIdentity *account.Identity
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
@@ -151,13 +151,12 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			inv := new(invitationrepo.Invitation)
 			inv.IdentityID = *invitation.IdentityID
 			inv.Identity = *identity
-
-			if len(redirectOnSuccess) > 0 {
-				inv.SuccessRedirectURL = redirectOnSuccess
+			if len(invitation.RedirectOnSuccess) > 0 {
+				inv.SuccessRedirectURL = invitation.RedirectOnSuccess
 			}
 
-			if len(redirectOnFailure) > 0 {
-				inv.FailureRedirectURL = redirectOnFailure
+			if len(invitation.RedirectOnFailure) > 0 {
+				inv.FailureRedirectURL = invitation.RedirectOnFailure
 			}
 
 			if inviteToIdentity != nil {
@@ -357,7 +356,7 @@ func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, i
 	return err
 }
 
-// Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
+// Accept processes an invitation acceptance click, returns the resource ID of the resource or identity resource which the invitation is for and url to redirect after accepting invitation
 func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (string, string, error) {
 
 	// Locate the invitation
