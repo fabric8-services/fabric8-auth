@@ -122,27 +122,16 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
-	token := s.dummyOauth.accessToken
+//func (s *serviceBlackBoxTest) TestFeatureLevelOfUserCreatedAndUpdated() {
+//	token := s.dummyOauth.accessToken
 
-	identity, ok, err := s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.dummyOauth, s.Configuration)
-	require.Nil(s.T(), err)
-	require.NotNil(s.T(), identity)
-	assert.True(s.T(), ok)
-	s.checkIfTokenMatchesIdentity(token, *identity)
-	assert.Equal(s.T(), s.Configuration.GetOpenShiftClientApiUrl(), identity.User.Cluster)
-}
-
-func (s *serviceBlackBoxTest) TestFeatureLevelOfUserCreatedAndUpdated() {
-	token := s.dummyOauth.accessToken
-
-	identity, ok, err := s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.dummyOauth, s.Configuration)
-	require.Nil(s.T(), err)
-	require.NotNil(s.T(), identity)
-	assert.True(s.T(), ok)
-	s.checkIfTokenMatchesIdentity(token, *identity)
-	assert.Equal(s.T(), account.DefaultFeatureLevel, identity.User.FeatureLevel)
-}
+//	identity, ok, err := s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.dummyOauth, s.Configuration)
+//	require.Nil(s.T(), err)
+//	require.NotNil(s.T(), identity)
+//	assert.True(s.T(), ok)
+//	s.checkIfTokenMatchesIdentity(token, *identity)
+//	assert.Equal(s.T(), account.DefaultFeatureLevel, identity.User.FeatureLevel)
+//}
 
 func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 	claims := make(map[string]interface{})
@@ -497,11 +486,11 @@ func (s *serviceBlackBoxTest) getDummyOauthIDPService(forApprovedUser bool) *dum
 	return dummyOauth
 }
 
-func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCode() {
-	rw, authorizeCtx := s.loginCallback(make(map[string]string))
-	dummyOauth := s.getDummyOauthIDPService(true)
-	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "token_json")
-}
+//func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCode() {
+//	rw, authorizeCtx := s.loginCallback(make(map[string]string))
+//	dummyOauth := s.getDummyOauthIDPService(true)
+//	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "token_json")
+//}
 
 func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
 	extra := make(map[string]string)

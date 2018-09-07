@@ -300,3 +300,17 @@ func equalTokenClaim(claimName string, expectedToken, actualToken jwt.MapClaims)
 	}
 	return nil
 }
+
+func EqualAccessTokenWithIdentity(ctx context.Context, accessToken string, expectedIdentity account.Identity) error {
+	actualClaims, err := TokenManager.ParseTokenWithMapClaims(ctx, accessToken)
+	if err != nil {
+		return err
+	}
+	if actualClaims["sub"] != expectedIdentity.ID.String() {
+		return errors.New("mistmatching claim") // TODO: add more details
+	}
+	if actualClaims["preferred_username"] != expectedIdentity.Username {
+		return errors.New("mismatching claim")
+	}
+	return nil
+}

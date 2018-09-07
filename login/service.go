@@ -353,17 +353,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		return nil, nil, err
 	}
 
-	//_, err = keycloak.synchronizeAuthToKeycloak(ctx, request, keycloakToken, config, identity)
-	//if err != nil {
-	//	log.Error(ctx, map[string]interface{}{
-	//		"err":         err,
-	//		"identity_id": identity.ID,
-	//		"username":    identity.Username,
-	//	}, "unable to synchronize user from auth to keycloak ")
-
-	// don't wish to cause a login error if something goes wrong here
-	//}
-
 	// new user for WIT
 	if newUser {
 		err = keycloak.App.WITService().CreateUser(ctx, identity, identity.ID.String())
@@ -651,10 +640,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		return nil, false, errors.New("unable to get user profile " + err.Error())
 	}
 
-	if !userProfile.Approved {
-		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
-	}
-
 	keycloakIdentityID, err := uuid.FromString(userProfile.Subject)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -665,20 +650,8 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	}
 
 	identity := &account.Identity{}
-	/*
-		// TODO : Check this only if UUID is not null
-		// If identity already existed in WIT, then IDs should match !
-		if identity.Username != "" && keycloakIdentityID.String() != identity.ID.String() {
-			log.Error(ctx, map[string]interface{}{
-				"keycloak_identity_id": keycloakIdentityID,
-				"wit_identity_id":      identity.ID,
-				"err":                  err,
-			}, "keycloak identity id and existing identity id in wit service does not match")
-			return nil, false, errors.New("Keycloak identity ID and existing identity ID in WIT does not match")
-		}
-	*/
 
-	identities, err := keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
+	identities, err := keycloak.Identities.Query(account.IdentityFilterByUsername(userProfile.Username), account.IdentityWithUser())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_identity_id": keycloakIdentityID,
@@ -688,49 +661,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	}
 
 	if len(identities) == 0 {
-		// No Identity found, create a new Identity and User
-
-		// Now that user/identity objects have been initialized, update it
-		// from the token claims info.
-
-		_, err = fillUserFromResponse(*userProfile, identity)
-		if identity.User.Cluster == "" {
-			identity.User.Cluster = configuration.GetOpenShiftClientApiUrl()
-		}
-		if identity.User.FeatureLevel == "" {
-			identity.User.FeatureLevel = account.DefaultFeatureLevel
-		}
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"keycloak_identity_id": keycloakIdentityID,
-				"err": err,
-			}, "unable to create user/identity")
-			return nil, false, errors.New("failed to update user/identity from claims" + err.Error())
-		}
-
-		err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
-			user := &identity.User
-			err := tr.Users().Create(ctx, user)
-			if err != nil {
-				return err
-			}
-
-			identity.ID = keycloakIdentityID
-			identity.ProviderType = account.KeycloakIDP
-			identity.UserID = account.NullUUID{UUID: user.ID, Valid: true}
-			identity.User = *user
-			err = tr.Identities().Create(ctx, identity)
-			return err
-		})
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"keycloak_identity_id": keycloakIdentityID,
-				"username":             userProfile.Username,
-				"err":                  err,
-			}, "unable to create user/identity")
-			return nil, false, errors.New("failed to create user/identity " + err.Error())
-		}
-		newIdentityCreated = true
+		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
 	} else {
 		identity = &identities[0]
 

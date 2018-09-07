@@ -17,7 +17,7 @@ Sample response:
 {\"sub\":\"837f2447-2e42-4db9-9f32-817d4866178a\",\"approved\":true,\"email_verified\":true,\"name\":\"Shoubhik Bose\",\"company\":\"red hat\",\"preferred_username\":\"shbose\",\"given_name\":\"Shoubhik\",\"family_name\":\"Bose\",\"email\":\"sbose0708@gmail.com\"}
 */
 
-type loginIdentityProviderResponse struct {
+type LoginIdentityProviderResponse struct {
 	Username      string `json:"preferred_username"`
 	GivenName     string `json:"given_name"`
 	FamilyName    string `json:"family_name"`
@@ -45,7 +45,7 @@ func (provider *LoginIdentityProvider) Profile(ctx context.Context, token oauth2
 		return nil, err
 	}
 	var u oauth.UserProfile
-	var idpResponse loginIdentityProviderResponse
+	var idpResponse LoginIdentityProviderResponse
 	err = json.Unmarshal(body, &idpResponse)
 	if err != nil {
 		return nil, err
