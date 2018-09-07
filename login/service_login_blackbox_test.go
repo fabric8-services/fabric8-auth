@@ -3,7 +3,6 @@ package login_test
 import (
 	"context"
 	"encoding/json"
-
 	"fmt"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -11,6 +10,7 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
@@ -138,7 +138,8 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEnd() {
 	returnedToken, err := token.ReadTokenSetFromJson(context.Background(), tokenJson[0])
 	require.NoError(s.T(), err)
 
-	require.NoError(s.T(), testtoken.EqualAccessTokenWithIdentity(context.Background(), *returnedToken.AccessToken, *s.identity))
+	checkIfTokenMatchesIdentity(s.T(), *returnedToken.AccessToken, *s.identity)
+	//require.NoError(s.T(), testtoken.EqualAccessTokenWithIdentity(context.Background(), *returnedToken.AccessToken, *s.identity))
 }
 
 func (s *serviceLoginBlackBoxTest) TestLoginEndToEndUnapproved() {
@@ -291,4 +292,14 @@ func (s *serviceLoginBlackBoxTest) createNewLoginService() *login.KeycloakOAuthP
 		nil,
 		&testsupport.DummyOSORegistrationApp{},
 	)
+}
+
+func checkIfTokenMatchesIdentity(t *testing.T, tokenString string, identity account.Identity) {
+	claims, err := testtoken.TokenManager.ParseToken(context.Background(), tokenString)
+	require.Nil(t, err)
+	assert.Equal(t, claims.Company, identity.User.Company)
+	assert.Equal(t, claims.Username, identity.Username)
+	assert.Equal(t, claims.Email, identity.User.Email)
+	assert.Equal(t, claims.Subject, identity.ID.String())
+	assert.Equal(t, claims.Name, identity.User.FullName)
 }

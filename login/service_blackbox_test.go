@@ -186,16 +186,6 @@ func (s *serviceBlackBoxTest) resetConfiguration() {
 	require.Nil(s.T(), err)
 }
 
-func (s *serviceBlackBoxTest) checkIfTokenMatchesIdentity(tokenString string, identity account.Identity) {
-	claims, err := testtoken.TokenManager.ParseToken(context.Background(), tokenString)
-	require.Nil(s.T(), err)
-	assert.Equal(s.T(), claims.Company, identity.User.Company)
-	assert.Equal(s.T(), claims.Username, identity.Username)
-	assert.Equal(s.T(), claims.Email, identity.User.Email)
-	assert.Equal(s.T(), claims.Subject, identity.ID.String())
-	assert.Equal(s.T(), claims.Name, identity.User.FullName)
-}
-
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam() {
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
