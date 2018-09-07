@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -73,6 +74,7 @@ type IdentityRoleRepository interface {
 	FindIdentityRolesByResource(ctx context.Context, resourceID string, includeParenResources bool) ([]IdentityRole, error)
 	FindIdentityRolesByIdentityAndResource(ctx context.Context, resourceID string, identityID uuid.UUID) ([]IdentityRole, error)
 	FindScopesByIdentityAndResource(ctx context.Context, identityID uuid.UUID, resourceID string) ([]string, error)
+	FlagPrivilegeCacheStaleForIdentityRoleChange(ctx context.Context, identityID uuid.UUID, resourceID string) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -127,6 +129,15 @@ func (m *GormIdentityRoleRepository) Create(ctx context.Context, u *IdentityRole
 		}
 		return errs.WithStack(err)
 	}
+
+	err = m.FlagPrivilegeCacheStaleForIdentityRoleChange(ctx, u.IdentityID, u.ResourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_role_id": u.IdentityRoleID,
+			"err":              err,
+		}, "error notifying privilege cache when creating identity role")
+	}
+
 	log.Debug(ctx, map[string]interface{}{
 		"identity_role_id": u.IdentityRoleID,
 	}, "Identity Role created!")
@@ -150,6 +161,14 @@ func (m *GormIdentityRoleRepository) Save(ctx context.Context, model *IdentityRo
 		return errs.WithStack(err)
 	}
 
+	err = m.FlagPrivilegeCacheStaleForIdentityRoleChange(ctx, obj.IdentityID, obj.ResourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_role_id": model.IdentityRoleID,
+			"err":              err,
+		}, "error notifying privilege cache when saving identity role")
+	}
+
 	log.Debug(ctx, map[string]interface{}{
 		"identity_role_id": model.IdentityRoleID,
 	}, "Identity Role saved!")
@@ -160,7 +179,14 @@ func (m *GormIdentityRoleRepository) Save(ctx context.Context, model *IdentityRo
 func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "delete"}, time.Now())
 
-	obj := IdentityRole{IdentityRoleID: id}
+	obj, err := m.Load(ctx, id)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_role_id": id,
+			"err":              err,
+		}, "unable to delete the identity role - record does not exist")
+		return errors.NewNotFoundError("identity_role", id.String())
+	}
 
 	result := m.db.Delete(obj)
 
@@ -171,9 +197,15 @@ func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) e
 		}, "unable to delete the identity role")
 		return errs.WithStack(result.Error)
 	}
-	if result.RowsAffected == 0 {
-		return errors.NewNotFoundError("identity_role", id.String())
+
+	err = m.FlagPrivilegeCacheStaleForIdentityRoleChange(ctx, obj.IdentityID, obj.ResourceID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_role_id": obj.IdentityRoleID,
+			"err":              err,
+		}, "error notifying privilege cache when deleting identity role")
 	}
+
 	log.Debug(ctx, map[string]interface{}{
 		"identity_role_id": id,
 	}, "Identity role deleted!")
@@ -664,4 +696,133 @@ func identityRoleFilterByIdentityID(identityID uuid.UUID) func(db *gorm.DB) *gor
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("identity_id = ?", identityID)
 	}
+}
+
+// FlagStaleForIdentityRoleChange executes two update queries; the first sets the stale flag to true for all privilege cache records where
+// the identity ID is equal to, or a descendent of (via memberships) the specified identity ID, and the resourceID is
+// equal to, or a descendent of (via the resource hierarchy) the specified resource ID.
+// The second query updates the token table, setting the STALE flag of the token STATUS field to true, for all
+// token records that are mapped to the corresponding privilege cache records in the first query, via the
+// many-to-many TOKEN_PRIVILEGE table
+func (m *GormIdentityRoleRepository) FlagPrivilegeCacheStaleForIdentityRoleChange(ctx context.Context, identityID uuid.UUID, resourceID string) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity_role", "FlagPrivilegeCacheStaleForIdentityRoleChange"}, time.Now())
+
+	result := m.db.Exec(`WITH identity_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    member_id
+	  FROM
+	    membership
+	  WHERE
+	    member_of = ? /* IDENTITY_ID */
+	  UNION SELECT
+	    p.member_id
+	  FROM
+	    membership p INNER JOIN m ON m.member_id = p.member_of
+	  )
+	  SELECT
+	    member_id AS identity_id
+	  FROM 
+	    m
+	  UNION SELECT
+	    id
+	  FROM
+	    identities
+	  WHERE
+	    id = ? /* IDENTITY_ID */
+), 
+resource_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    resource_id, parent_resource_id
+	  FROM
+	    resource
+	  WHERE
+	    resource_id = ? /* RESOURCE_ID */
+	  UNION SELECT
+	    p.resource_id, p.parent_resource_id
+	  FROM
+	    resource p INNER JOIN m ON m.resource_id = p.parent_resource_id
+	  )
+	  SELECT
+	    m.resource_id
+	  FROM
+	    m
+)
+UPDATE privilege_cache SET
+  STALE = true
+WHERE
+  resource_id IN (SELECT resource_id FROM resource_hierarchy)
+  AND identity_id IN (SELECT identity_id FROM identity_hierarchy)
+  AND deleted_at IS NULL
+  `, identityID, identityID, resourceID)
+
+	if result.Error != nil {
+		return errors.NewInternalError(ctx, result.Error)
+	}
+
+	result = m.db.Exec(`WITH identity_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    member_id
+	  FROM
+	    membership
+	  WHERE
+	    member_of = ? /* IDENTITY_ID */
+	  UNION SELECT
+	    p.member_id
+	  FROM
+	    membership p INNER JOIN m ON m.member_id = p.member_of
+	  )
+	  SELECT
+	    member_id AS identity_id
+	  FROM 
+	    m
+	  UNION SELECT
+	    id
+	  FROM
+	    identities
+	  WHERE
+	    id = ? /* IDENTITY_ID */
+), 
+resource_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    resource_id, parent_resource_id
+	  FROM
+	    resource
+	  WHERE
+	    resource_id = ? /* RESOURCE_ID */
+	  UNION SELECT
+	    p.resource_id, p.parent_resource_id
+	  FROM
+	    resource p INNER JOIN m ON m.resource_id = p.parent_resource_id
+	  )
+	  SELECT
+	    m.resource_id
+	  FROM
+	    m
+)
+UPDATE token t SET
+  STATUS = STATUS | ? /* TOKEN_STATUS_STALE */
+FROM
+  token_privilege tp,
+  privilege_cache pc
+WHERE
+  t.token_id = tp.token_id
+  AND tp.privilege_cache_id = pc.privilege_cache_id
+  AND pc.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+  AND pc.identity_id IN (SELECT identity_id FROM identity_hierarchy)
+  AND pc.deleted_at IS NULL
+`, identityID, identityID, resourceID, token.TOKEN_STATUS_STALE)
+
+	if result.Error != nil {
+		return errors.NewInternalError(ctx, result.Error)
+	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"rows_marked_stale": result.RowsAffected,
+	}, "Privilege cache rows marked stale")
+
+	return nil
 }

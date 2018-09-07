@@ -399,12 +399,6 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 				if err != nil {
 					return err
 				}
-
-				// Notify the privilege cache service of the change in memberships
-				err = s.Services().PrivilegeCacheService().NotifyMembershipChanged(ctx, currentIdentityID, inviteToIdentity.ID)
-				if err != nil {
-					return err
-				}
 			}
 
 			roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
@@ -422,12 +416,6 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 				}
 
 				err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
-				if err != nil {
-					return err
-				}
-
-				// Notify the privilege cache service of the change in identity roles
-				err = s.Services().PrivilegeCacheService().NotifyIdentityResourcePrivilegesUpdated(ctx, currentIdentityID, inviteToIdentity.IdentityResourceID.String)
 				if err != nil {
 					return err
 				}
@@ -464,12 +452,6 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 				if err != nil {
 					return err
 				}
-
-				// Notify the privilege cache service of the change in identity roles
-				err = s.Services().PrivilegeCacheService().NotifyIdentityResourcePrivilegesUpdated(ctx, currentIdentityID, inviteToResource.ResourceID)
-				if err != nil {
-					return err
-				}
 			}
 
 			// Delete the invitation
@@ -491,5 +473,4 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 
 	// Return the resource ID and redirect path
 	return resourceID, redirectOnSuccess, nil
-
 }

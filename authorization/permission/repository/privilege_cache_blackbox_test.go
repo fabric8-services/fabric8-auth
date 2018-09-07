@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/satori/go.uuid"
@@ -138,49 +137,4 @@ func (s *privilegeCacheBlackBoxTest) TestFindForIdentityResource() {
 	require.Equal(s.T(), pc2.ResourceID, found.ResourceID)
 	require.Len(s.T(), pc2.ScopesAsArray(), 0)
 	require.Empty(s.T(), pc2.Scopes)
-}
-
-func (s *privilegeCacheBlackBoxTest) TestFlagAsStale() {
-	// Create a couple of new privilege cache records
-	pc := s.Graph.CreatePrivilegeCache("foo", "bar")
-	pc2 := s.Graph.CreatePrivilegeCache("foo", "bar")
-
-	// Create a couple of token records
-	t := s.Graph.CreateToken()
-	t2 := s.Graph.CreateToken()
-
-	// Link token t to privilege cache entry pc
-	t.AddPrivilege(pc)
-
-	// Assert that the privilege caches are not stale
-	require.False(s.T(), pc.PrivilegeCache().Stale)
-	require.False(s.T(), pc2.PrivilegeCache().Stale)
-
-	// Assert that the tokens are not stale
-	require.False(s.T(), t.Token().HasStatus(token.TOKEN_STATUS_STALE))
-	require.False(s.T(), t2.Token().HasStatus(token.TOKEN_STATUS_STALE))
-
-	// Flag the privilege cache as stale
-	err := s.repo.FlagStaleForIdentityRoleChange(s.Ctx, pc.PrivilegeCache().IdentityID, pc.PrivilegeCache().ResourceID)
-	require.NoError(s.T(), err)
-
-	// Reload the privilege cache
-	pc = s.Graph.LoadPrivilegeCache(pc.PrivilegeCache().PrivilegeCacheID)
-
-	// Assert that the cache is now stale
-	require.True(s.T(), pc.PrivilegeCache().Stale)
-
-	// Assert that pc2 is still not stale
-	pc2 = s.Graph.LoadPrivilegeCache(pc2.PrivilegeCache().PrivilegeCacheID)
-	require.False(s.T(), pc2.PrivilegeCache().Stale)
-
-	// Reload the token
-	t = s.Graph.LoadToken(s.Ctx, t.TokenID())
-
-	// Assert that the token is now stale
-	require.True(s.T(), t.Token().HasStatus(token.TOKEN_STATUS_STALE))
-
-	// Assert that t2 is still not stale
-	t2 = s.Graph.LoadToken(s.Ctx, t2.TokenID())
-	require.False(s.T(), t2.Token().HasStatus(token.TOKEN_STATUS_STALE))
 }

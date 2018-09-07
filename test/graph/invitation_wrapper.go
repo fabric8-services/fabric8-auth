@@ -28,6 +28,10 @@ func newInvitationWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	for i := range params {
 		switch t := params[i].(type) {
+		case *resourceWrapper:
+			resourceID = &t.Resource().ResourceID
+		case resourceWrapper:
+			resourceID = &t.Resource().ResourceID
 		case resource.Resource:
 			resourceID = &t.ResourceID
 		case *spaceWrapper:

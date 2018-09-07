@@ -86,11 +86,3 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 
 	return privilegeCache, nil
 }
-
-func (s *privilegeCacheServiceImpl) NotifyIdentityResourcePrivilegesUpdated(ctx context.Context, identityID uuid.UUID, resourceID string) error {
-	return s.Repositories().PrivilegeCacheRepository().FlagStaleForIdentityRoleChange(ctx, identityID, resourceID)
-}
-
-func (s *privilegeCacheServiceImpl) NotifyMembershipChanged(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error {
-	return s.Repositories().PrivilegeCacheRepository().FlagStaleForMembershipChange(ctx, memberID, memberOf)
-}
