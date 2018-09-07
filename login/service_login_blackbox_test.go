@@ -12,25 +12,20 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 
-	"net/url"
-	"strconv"
-	"time"
-	//autherror "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	//"github.com/fabric8-services/fabric8-auth/token/oauth"
-	"github.com/goadesign/goa/uuid"
-	//"github.com/pkg/errors"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	//"github.com/stretchr/testify/assert"
+	"github.com/goadesign/goa/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	//"golang.org/x/oauth2"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"strconv"
 	"testing"
+	"time"
 )
 
 func TestServiceLoginBlackboxTest(t *testing.T) {
@@ -41,38 +36,34 @@ func TestServiceLoginBlackboxTest(t *testing.T) {
 
 type serviceLoginBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	IDPServer    *httptest.Server
-	config       *configuration.ConfigurationData
-	state        string
-	accessToken  string
-	approved     bool
-	refreshToken string
-	identity     *account.Identity
+	configuration *configuration.ConfigurationData
+	IDPServer     *httptest.Server
+	state         string
+	approved      bool
+	identity      *account.Identity
 }
 
 func (s *serviceLoginBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.IDPServer = s.createOauthServer(s.serveOauthServer)
 	s.state = uuid.NewV4().String()
-}
-
-func (s *serviceLoginBlackBoxTest) TearDownSuite() {
-	s.IDPServer.CloseClientConnections()
-	s.IDPServer.Close()
-}
-
-func (s *serviceLoginBlackBoxTest) getCustomConfig() *configuration.ConfigurationData {
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
+
 	os.Setenv("AUTH_ENDPOINT_USERINFO", idpServerURL+"profile")
 	os.Setenv("AUTH_OAUTH_ENDPOINT_AUTH", idpServerURL+"code")
 	os.Setenv("AUTH_OAUTH_ENDPOINT_TOKEN", idpServerURL+"token")
 	config, err := configuration.GetConfigurationData()
 	require.Nil(s.T(), err)
-	return config
+	s.configuration = config
+
 }
 
-func (s *serviceLoginBlackBoxTest) TestRedirectToLoginPage() {
-
+func (s *serviceLoginBlackBoxTest) TearDownSuite() {
+	s.IDPServer.CloseClientConnections()
+	s.IDPServer.Close()
+	os.Unsetenv("AUTH_ENDPOINT_USERINFO")
+	os.Unsetenv("AUTH_OAUTH_ENDPOINT_AUTH")
+	os.Unsetenv("AUTH_OAUTH_ENDPOINT_TOKEN")
 }
 
 func (s *serviceLoginBlackBoxTest) TestLoginEndToEnd() {
@@ -82,11 +73,10 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEnd() {
 
 	authorizeCtx, rw := s.createNewLoginContext("/api/login", prms)
 	service := s.createNewLoginService()
-	customConfig := s.getCustomConfig()
 
 	// ############ STEP 1 Call /api/login without state or code
 	// ############
-	err := service.Login(authorizeCtx, login.NewLoginIdentityProvider(customConfig), customConfig)
+	err := service.Login(authorizeCtx, login.NewLoginIdentityProvider(s.configuration), s.configuration)
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
@@ -126,7 +116,7 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEnd() {
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	rw = httptest.NewRecorder()
 	authorizeCtx, rw = s.createNewLoginContext("/api/login", prms)
-	err = service.Login(authorizeCtx, login.NewLoginIdentityProvider(customConfig), customConfig)
+	err = service.Login(authorizeCtx, login.NewLoginIdentityProvider(s.configuration), s.configuration)
 
 	//  ############ STEP 4: Token generated and recieved as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
@@ -158,11 +148,10 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEndUnapproved() {
 
 	authorizeCtx, rw := s.createNewLoginContext("/api/login", prms)
 	service := s.createNewLoginService()
-	customConfig := s.getCustomConfig()
 
 	// ############ STEP 1 Call /api/login without state or code
 	// ############
-	err := service.Login(authorizeCtx, login.NewLoginIdentityProvider(customConfig), customConfig)
+	err := service.Login(authorizeCtx, login.NewLoginIdentityProvider(s.configuration), s.configuration)
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
@@ -202,7 +191,7 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEndUnapproved() {
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	rw = httptest.NewRecorder()
 	authorizeCtx, rw = s.createNewLoginContext("/api/login", prms)
-	err = service.Login(authorizeCtx, login.NewLoginIdentityProvider(customConfig), customConfig)
+	err = service.Login(authorizeCtx, login.NewLoginIdentityProvider(s.configuration), s.configuration)
 
 	//  ############ STEP 4: Token generated and recieved as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
@@ -285,7 +274,6 @@ func (s *serviceLoginBlackBoxTest) createNewLoginContext(path string, prms url.V
 	refererUrl := "https://alm-url.example.org/path"
 	req.Header.Add("referer", refererUrl)
 
-	//prms := url.Values{"code": []string{"dfd"}}
 	ctx := testtoken.ContextWithTokenManager()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	loginCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
