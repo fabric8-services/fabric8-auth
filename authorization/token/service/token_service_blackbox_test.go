@@ -491,3 +491,146 @@ func (s *tokenServiceBlackboxTest) TestAuditNonExistentResource() {
 	require.Error(s.T(), err)
 	require.IsType(s.T(), err, errors.BadParameterError{})
 }
+
+func (s *tokenServiceBlackboxTest) TestTokenUpdatedWhenUserAcceptsResourceInvitation() {
+	tm := testtoken.TokenManager
+
+	// Create a user
+	user := s.Graph.CreateUser()
+
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(s.Ctx, *user.Identity(), false)
+	require.NoError(s.T(), err)
+
+	// Create a new resource type with three scopes
+	rt := s.Graph.CreateResourceType()
+	rt.AddScope("alpha")
+	rt.AddScope("bravo")
+	rt.AddScope("manage")
+
+	// Create an admin role with manage scope
+	adminRole := s.Graph.CreateRole(rt)
+	adminRole.AddScope("manage")
+
+	// Create an alpha role
+	alphaRole := s.Graph.CreateRole(rt)
+	alphaRole.AddScope("alpha")
+
+	// Create a bravo role
+	bravoRole := s.Graph.CreateRole(rt)
+	bravoRole.AddScope("bravo")
+
+	// Create an admin user
+	admin := s.Graph.CreateUser()
+
+	// Create a resource
+	res := s.Graph.CreateResource(rt)
+
+	// Assign the admin user the admin role for the resource
+	s.Graph.CreateIdentityRole(admin, res, adminRole)
+
+	// Assign the user the alpha role for the resource
+	s.Graph.CreateIdentityRole(user, res, alphaRole)
+
+	// Audit the user token for the resource ID
+	rptToken, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), user.Identity(), at.AccessToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+
+	// Parse the signed RPT token to obtain the claims
+	tokenClaims, err := tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// There should be one permission in the claims, with the "alpha" scope
+	perms := *tokenClaims.Permissions
+	require.Len(s.T(), perms, 1)
+	require.Contains(s.T(), perms[0].Scopes, "alpha")
+
+	// Issue an invitation for the user to accept the "bravo" role for the resource
+	inv := s.Graph.CreateInvitation(user, res, bravoRole)
+
+	// Accept the invitation
+	_, _, err = s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	// Audit the user token for same resource ID
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), user.Identity(), *rptToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+
+	// Parse the signed RPT token to obtain the claims
+	tokenClaims, err = tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// There should still be one permission in the claims, however it should now have both the "alpha" scope and the "bravo" scope
+	perms = *tokenClaims.Permissions
+	require.Len(s.T(), perms, 1)
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"alpha", "bravo"})
+
+	// Create another user
+	user2 := s.Graph.CreateUser()
+
+	// Create an access token for user2
+	at2, err := tm.GenerateUserTokenForIdentity(s.Ctx, *user2.Identity(), false)
+	require.NoError(s.T(), err)
+
+	// Issue an invitation for the user to accept the "alpha" role for the resource
+	inv = s.Graph.CreateInvitation(user2, res, alphaRole)
+
+	// Accept the invitation
+	_, _, err = s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	// Audit user2's token for the same resource ID
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), user2.Identity(), at2.AccessToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+
+	// Parse the signed RPT token to obtain the claims
+	tokenClaims, err = tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// There should still be one permission in the claims, with "alpha" scope
+	perms = *tokenClaims.Permissions
+	require.Len(s.T(), perms, 1)
+	require.Contains(s.T(), perms[0].Scopes, "alpha")
+
+	// Create a child resource of the resource, with the same type
+	res2 := s.Graph.CreateResource(res, rt)
+
+	// Issue an invitation for the user to accept the "bravo" role for res2
+	inv = s.Graph.CreateInvitation(user2, res2, bravoRole)
+
+	// Accept the invitation
+	_, _, err = s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	// Audit user2's token for the res2's resource ID
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), user2.Identity(), *rptToken, res2.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+
+	// Parse the signed RPT token to obtain the claims
+	tokenClaims, err = tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// There should now be two permissions in the claims
+	perms = *tokenClaims.Permissions
+	require.Len(s.T(), perms, 2)
+
+	resFound := false
+	res2Found := false
+
+	for _, perm := range perms {
+		if *perm.ResourceSetID == res.ResourceID() {
+			require.Contains(s.T(), perm.Scopes, "alpha")
+			resFound = true
+		} else if *perm.ResourceSetID == res2.ResourceID() {
+			require.ElementsMatch(s.T(), perm.Scopes, []string{"alpha", "bravo"})
+			res2Found = true
+		}
+	}
+
+	require.True(s.T(), resFound, "res not found in permissions claim")
+	require.True(s.T(), res2Found, "res2 not found in permissions claim")
+}

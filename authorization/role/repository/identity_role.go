@@ -761,6 +761,10 @@ WHERE
 		return errors.NewInternalError(ctx, result.Error)
 	}
 
+	log.Debug(ctx, map[string]interface{}{
+		"rows_marked_stale": result.RowsAffected,
+	}, "Privilege cache rows marked stale")
+
 	result = m.db.Exec(`WITH identity_hierarchy AS (
 	WITH RECURSIVE m AS (
 	  SELECT
@@ -822,7 +826,7 @@ WHERE
 
 	log.Debug(ctx, map[string]interface{}{
 		"rows_marked_stale": result.RowsAffected,
-	}, "Privilege cache rows marked stale")
+	}, "Token rows marked stale")
 
 	return nil
 }
