@@ -779,57 +779,6 @@ func (keycloak *KeycloakOAuthProvider) equalsKeycloakUserProfileAttributes(ctx c
 	return profileEqual, nil
 }
 
-func fillUserFromResponse(userProfile oauth.UserProfile, identity *account.Identity) (bool, error) {
-	isChanged := false // will go away in future.
-	identity.ID, _ = uuid.FromString(userProfile.Subject)
-	identity.User.FullName = name.GenerateFullName(&userProfile.GivenName, &userProfile.FamilyName)
-	identity.User.Email = userProfile.Email
-
-	identity.User.Company = userProfile.Company
-	identity.User.EmailVerified = userProfile.EmailVerified
-	identity.Username = userProfile.Username
-	if identity.User.ImageURL == "" {
-		image, err := generateGravatarURL(userProfile.Email)
-		if err != nil {
-			log.Warn(nil, map[string]interface{}{
-				"user_full_name": identity.User.FullName,
-				"err":            err,
-			}, "error when generating gravatar")
-			// if there is an error, we will qualify the identity/user as unchanged.
-			return false, errors.New("Error when generating gravatar " + err.Error())
-		}
-		identity.User.ImageURL = image
-	}
-	return isChanged, nil
-}
-
-func fillUser(claims *token.TokenClaims, identity *account.Identity) (bool, error) {
-	isChanged := false
-	if identity.User.FullName != claims.Name || identity.User.Email != claims.Email || identity.User.Company != claims.Company || identity.Username != claims.Username || identity.User.ImageURL == "" {
-		isChanged = true
-	} else {
-		return isChanged, nil
-	}
-	identity.User.FullName = claims.Name
-	identity.User.Email = claims.Email
-	identity.User.Company = claims.Company
-	identity.User.EmailVerified = claims.EmailVerified
-	identity.Username = claims.Username
-	if identity.User.ImageURL == "" {
-		image, err := generateGravatarURL(claims.Email)
-		if err != nil {
-			log.Warn(nil, map[string]interface{}{
-				"user_full_name": identity.User.FullName,
-				"err":            err,
-			}, "error when generating gravatar")
-			// if there is an error, we will qualify the identity/user as unchanged.
-			return false, errors.New("Error when generating gravatar " + err.Error())
-		}
-		identity.User.ImageURL = image
-	}
-	return isChanged, nil
-}
-
 // ContextIdentity returns the identity's ID found in given context
 // Uses tokenManager.Locate to fetch the identity of currently logged in user
 func ContextIdentity(ctx context.Context) (*uuid.UUID, error) {
