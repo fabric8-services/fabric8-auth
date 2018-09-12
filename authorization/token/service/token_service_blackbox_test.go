@@ -759,4 +759,38 @@ func (s *tokenServiceBlackboxTest) TestTokenUpdatedWhenUserAcceptsResourceInvita
 
 	require.True(s.T(), res2Found)
 	require.True(s.T(), res3Found)
+
+	// Now, remove user user3 from the team
+	err = s.Application.Identities().RemoveMember(s.Ctx, team.TeamID(), user3.IdentityID())
+	require.NoError(s.T(), err)
+
+	// Audit user3's token for res3's resource ID again
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), user3.Identity(), *rptToken, res3.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+
+	// Parse the signed RPT token to obtain the claims
+	tokenClaims, err = tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// There should still be 2 permissions, however neither should have any scopes now
+	perms = *tokenClaims.Permissions
+	require.Len(s.T(), perms, 2)
+
+	res2Found = false
+	res3Found = false
+
+	for _, perm := range perms {
+		if *perm.ResourceSetID == res2.ResourceID() {
+			require.Len(s.T(), perm.Scopes, 0)
+			res2Found = true
+		} else if *perm.ResourceSetID == res3.ResourceID() {
+			require.Len(s.T(), perm.Scopes, 0)
+			res3Found = true
+		}
+	}
+
+	require.True(s.T(), res2Found)
+	require.True(s.T(), res3Found)
+
 }

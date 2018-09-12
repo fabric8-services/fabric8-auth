@@ -132,6 +132,7 @@ type IdentityRepository interface {
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 	FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error)
 	AddMember(ctx context.Context, identityID uuid.UUID, memberID uuid.UUID) error
+	RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error
 	FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error
 }
 
@@ -587,6 +588,43 @@ func (m *GormIdentityRepository) AddMember(ctx context.Context, identityID uuid.
 		"member_of": identityID,
 		"member_id": memberID,
 	}, "Membership created!")
+
+	return nil
+}
+
+// RemoveMember removes an existing membership with the specified memberOf and memberID values
+func (m *GormIdentityRepository) RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "RemoveMember"}, time.Now())
+
+	membership := &Membership{
+		MemberOf: memberOf,
+		MemberID: memberID,
+	}
+
+	err := m.db.Delete(membership).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"member_of": memberOf,
+			"member_id": memberID,
+			"err":       err,
+		}, "unable to remove the membership")
+		return errs.WithStack(err)
+	}
+
+	err = m.FlagPrivilegeCacheStaleForMembershipChange(ctx, memberID, memberOf)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"member_of": memberOf,
+			"member_id": memberID,
+			"err":       err,
+		}, "unable to remove the membership - error notifying privilege cache")
+		return errs.WithStack(err)
+	}
+
+	log.Info(ctx, map[string]interface{}{
+		"member_of": memberOf,
+		"member_id": memberID,
+	}, "Membership removed!")
 
 	return nil
 }
