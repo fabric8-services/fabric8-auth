@@ -933,7 +933,7 @@ func (c *ConfigurationData) GetDeprecatedUserAccountPrivateKey() ([]byte, string
 	return []byte(c.v.GetString(varUserAccountPrivateKeyDeprecated)), c.v.GetString(varUserAccountPrivateKeyIDDeprecated)
 }
 
-// GetUserAccountPrivateKey returns the service account private key and its ID
+// GetUserAccountPrivateKey returns the user account private key and its ID
 // that is used to sign user access and refresh tokens.
 func (c *ConfigurationData) GetUserAccountPrivateKey() ([]byte, string) {
 	return []byte(c.v.GetString(varUserAccountPrivateKey)), c.v.GetString(varUserAccountPrivateKeyID)
