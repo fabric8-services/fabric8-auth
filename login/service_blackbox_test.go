@@ -358,7 +358,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 	// devcluster valid referrer passes
 	rw = httptest.NewRecorder()
 	prms = url.Values{}
-	prms.Add("redirect", "http://rhche-dfestal-preview-che.devtools-dev.ext.devshift.net/something")
+	prms.Add("redirect", "http://anything.devtools-dev.ext.devshift.net/something")
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
