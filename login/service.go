@@ -640,23 +640,13 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		return nil, false, errors.New("unable to get user profile " + err.Error())
 	}
 
-	keycloakIdentityID, err := uuid.FromString(userProfile.Subject)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"token": accessToken,
-			"err":   err,
-		}, "unable to get identity ID")
-		return nil, false, errors.New("unable to get identity ID " + err.Error())
-	}
-
 	identity := &account.Identity{}
 
 	identities, err := keycloak.Identities.Query(account.IdentityFilterByUsername(userProfile.Username), account.IdentityWithUser())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"keycloak_identity_id": keycloakIdentityID,
 			"err": err,
-		}, "unable to  query for an identity by ID")
+		}, "unable to  query for an identity by username")
 		return nil, false, errors.New("Error during querying for an identity by ID " + err.Error())
 	}
 
@@ -671,7 +661,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 
 		if identity.User.ID == uuid.Nil {
 			log.Error(ctx, map[string]interface{}{
-				"identity_id": keycloakIdentityID,
+				"identity_id": identity.ID,
 			}, "Found Keycloak identity is not linked to any User")
 			return nil, false, errors.New("found Keycloak identity is not linked to any User")
 		}
