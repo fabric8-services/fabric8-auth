@@ -308,7 +308,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 
 	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
+	assert.Contains(s.T(), rw.Header().Get("Location"), s.Configuration.GetOAuthEndpointAuth())
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 
 }
