@@ -12,6 +12,18 @@ type tokenWrapper struct {
 	token *tokenRepo.Token
 }
 
+func loadTokenWrapper(g *TestGraph, tokenID uuid.UUID) tokenWrapper {
+	w := tokenWrapper{baseWrapper: baseWrapper{g}}
+
+	var native tokenRepo.Token
+	err := w.graph.db.Table("token").Where("token_id = ?", tokenID).Find(&native).Error
+	require.NoError(w.graph.t, err)
+
+	w.token = &native
+
+	return w
+}
+
 func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := tokenWrapper{baseWrapper: baseWrapper{g}}
 

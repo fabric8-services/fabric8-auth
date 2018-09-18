@@ -87,7 +87,7 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 	// privileges for the resource, otherwise the invitation workflow should be used instead
 	assignments := make(map[uuid.UUID][]uuid.UUID)
 
-	var existingRoleIDs []uuid.UUID
+	existingRoles := []rolerepo.IdentityRole{}
 
 	roleIDByNameCache := make(map[string]uuid.UUID)
 	checkedIdentityIDs := make(map[uuid.UUID]bool)
@@ -120,7 +120,7 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 					return errors.NewBadParameterErrorFromString("identityID", identityIDAsUUID, fmt.Sprintf("cannot update roles for an identity %s without an existing role", identityIDAsUUID))
 				}
 				for _, role := range assignedRoles {
-					existingRoleIDs = append(existingRoleIDs, role.IdentityRoleID)
+					existingRoles = append(existingRoles, role)
 				}
 				checkedIdentityIDs[identityIDAsUUID] = true
 			}
@@ -139,8 +139,8 @@ func (s *roleManagementServiceImpl) Assign(ctx context.Context, assignedBy uuid.
 
 		if !appendToExistingRoles {
 			// Delete all existing roles before creating the new ones
-			for _, roleID := range existingRoleIDs {
-				err = s.Repositories().IdentityRoleRepository().Delete(ctx, roleID)
+			for _, ir := range existingRoles {
+				err = s.Repositories().IdentityRoleRepository().Delete(ctx, ir.IdentityRoleID)
 				if err != nil {
 					return err
 				}
@@ -192,7 +192,12 @@ func (s *roleManagementServiceImpl) ForceAssign(ctx context.Context, assignedTo 
 			RoleID:     role.RoleID,
 		}
 
-		return s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
+		err = s.Repositories().IdentityRoleRepository().Create(ctx, &ir)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	return err

@@ -62,19 +62,6 @@ func (s *privilegeCacheServiceBlackBoxTest) TestPrivilegeCache() {
 	priv, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, id.Identity().ID, r.ResourceID())
 	require.NoError(s.T(), err)
 
-	// There should still be exactly one scope, "charlie"
-	require.Len(s.T(), priv.ScopesAsArray(), 1)
-	require.Contains(s.T(), priv.ScopesAsArray(), "charlie")
-
-	// Mark the privilege cache as stale and save it
-	priv.Stale = true
-	err = s.Application.PrivilegeCacheRepository().Save(s.Ctx, priv)
-	require.NoError(s.T(), err)
-
-	// Retrieve the privilege cache for the identity/resource again
-	priv, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, id.Identity().ID, r.ResourceID())
-	require.NoError(s.T(), err)
-
 	// This time there should be two scopes, "charlie" and "delta"
 	require.Len(s.T(), priv.ScopesAsArray(), 2)
 	require.Contains(s.T(), priv.ScopesAsArray(), "charlie")

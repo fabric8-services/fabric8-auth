@@ -311,3 +311,24 @@ func (s *IdentityRepositoryTestSuite) TestAddMember() {
 
 	})
 }
+
+func (s *IdentityRepositoryTestSuite) TestRemoveMember() {
+	// Create a team, and a user, and add the user as a member to the team
+	team := s.Graph.CreateTeam()
+	user := s.Graph.CreateUser()
+	team.AddMember(user)
+
+	// Confirm that the membership exists
+	memberships, err := s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), memberships, 1)
+
+	// Remove the membership
+	err = s.Application.Identities().RemoveMember(s.Ctx, team.TeamID(), user.IdentityID())
+	require.NoError(s.T(), err)
+
+	// Confirm that the membership has been removed
+	memberships, err = s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), memberships, 0)
+}

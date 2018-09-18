@@ -67,7 +67,10 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 				ExpiryTime: time.Now().Local().Add(time.Second * time.Duration(s.conf.GetPrivilegeCacheExpirySeconds())),
 			}
 
-			err = s.Repositories().PrivilegeCacheRepository().Create(ctx, privilegeCache)
+			err = s.ExecuteInTransaction(func() error {
+				return s.Repositories().PrivilegeCacheRepository().Create(ctx, privilegeCache)
+			})
+
 			if err != nil {
 				return nil, errors.NewInternalError(ctx, err)
 			}
@@ -77,7 +80,10 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 			privilegeCache.Stale = false
 			privilegeCache.ExpiryTime = time.Now().Local().Add(time.Second * time.Duration(s.conf.GetPrivilegeCacheExpirySeconds()))
 
-			err = s.Repositories().PrivilegeCacheRepository().Save(ctx, privilegeCache)
+			err = s.ExecuteInTransaction(func() error {
+				return s.Repositories().PrivilegeCacheRepository().Save(ctx, privilegeCache)
+			})
+
 			if err != nil {
 				return nil, errors.NewInternalError(ctx, err)
 			}
