@@ -572,6 +572,10 @@ func (s *roleManagementServiceBlackboxTest) TestPrivilegeCacheNotified() {
 	// Add the user to the team
 	t.AddMember(user)
 
+	// Create another user and add it to the same team
+	otherUser := s.Graph.CreateUser()
+	t.AddMember(otherUser)
+
 	// Create a new charlie role with scope "charlie"
 	charlieRole := s.Graph.CreateRole(rt, "charlieRole")
 	charlieRole.AddScope("charlie")
@@ -587,6 +591,31 @@ func (s *roleManagementServiceBlackboxTest) TestPrivilegeCacheNotified() {
 	// The user should now also have all three scopes
 	require.Len(s.T(), privs.ScopesAsArray(), 3)
 	require.ElementsMatch(s.T(), privs.ScopesAsArray(), []string{"foo", "bar", "charlie"})
+
+	// Now check the scopes for the other user
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, otherUser.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The other user should just have the charlie scope
+	require.Len(s.T(), privs.ScopesAsArray(), 1)
+	require.Contains(s.T(), privs.ScopesAsArray(), "charlie")
+
+	// Remove the user from the team
+	t.RemoveMember(user)
+
+	// Check the privilege cache for the user again
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The user should now only have the foo and bar scopes
+	require.Len(s.T(), privs.ScopesAsArray(), 2)
+	require.ElementsMatch(s.T(), privs.ScopesAsArray(), []string{"foo", "bar"})
+
+	// Ensure the remaining team member still has the correct scopes
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, otherUser.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), privs.ScopesAsArray(), 1)
+	require.Contains(s.T(), privs.ScopesAsArray(), "charlie")
 }
 
 func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {

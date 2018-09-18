@@ -111,6 +111,14 @@ func (w *teamWrapper) AddMember(wrapper interface{}) *teamWrapper {
 	return w
 }
 
+func (w *teamWrapper) RemoveMember(wrapper interface{}) *teamWrapper {
+	identityID := identityIDFromWrapper(w.graph.t, wrapper)
+
+	err := w.graph.app.Identities().RemoveMember(w.graph.ctx, w.identity.ID, identityID)
+	require.NoError(w.graph.t, err)
+	return w
+}
+
 func (w *teamWrapper) AssignRole(identity *account.Identity, role *rolerepo.Role) {
 	ir := &rolerepo.IdentityRole{
 		IdentityID: identity.ID,

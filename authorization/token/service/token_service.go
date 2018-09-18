@@ -238,7 +238,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 					// Lookup the scopes for the old privilege, as they may have changed
 					privilegeCache, err = s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPrivResourceID)
 					if err != nil {
-						return errors.NewInternalError(ctx, err)
+						return err
 					}
 					// Create a new permissions object for the RPT token and store it in the array
 					perms = append(perms, token.Permissions{
