@@ -1148,7 +1148,7 @@ func (c *ConfigurationData) GetOAuthEndpointAuth() string {
 	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("auth"))
 }
 
-// GetOAuthEndpointToken returns the URL for reading User Accounts details as per OIDC spec
+// GetOAuthEndpointToken returns the URL to request token as per OIDC spec
 func (c *ConfigurationData) GetOAuthEndpointToken() string {
 	if c.v.IsSet(varOauthEndpointToken) {
 		return c.v.GetString(varOauthEndpointToken)
