@@ -2,18 +2,16 @@ package controller
 
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
+
+	"github.com/fabric8-services/fabric8-common/http/proxy"
 
 	"github.com/goadesign/goa"
 )
 
 type clusterConfiguration interface {
-	GetOSOClusters() map[string]configuration.OSOCluster
+	GetClusterServiceURL() string
 }
 
 // ClustersController implements the clusters resource.
@@ -32,25 +30,12 @@ func NewClustersController(service *goa.Service, config clusterConfiguration) *C
 
 // Show runs the list of available OSO clusters.
 func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
-	if !token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy) {
-		log.Error(ctx, nil, "unauthorized access to cluster info")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("unauthorized access to cluster info"))
+	err := proxy.RouteHTTP(ctx, c.config.GetClusterServiceURL())
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to proxy to cluster service")
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	var data []*app.ClusterData
-	for _, clusterConfig := range c.config.GetOSOClusters() {
-		cluster := &app.ClusterData{
-			Name:              clusterConfig.Name,
-			APIURL:            rest.AddTrailingSlashToURL(clusterConfig.APIURL),
-			ConsoleURL:        rest.AddTrailingSlashToURL(clusterConfig.ConsoleURL),
-			MetricsURL:        rest.AddTrailingSlashToURL(clusterConfig.MetricsURL),
-			LoggingURL:        rest.AddTrailingSlashToURL(clusterConfig.LoggingURL),
-			AppDNS:            clusterConfig.AppDNS,
-			CapacityExhausted: clusterConfig.CapacityExhausted,
-		}
-		data = append(data, cluster)
-	}
-	clusters := app.ClusterList{
-		Data: data,
-	}
-	return ctx.OK(&clusters)
+	return nil
 }

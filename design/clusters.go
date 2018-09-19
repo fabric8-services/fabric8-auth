@@ -36,5 +36,6 @@ var _ = a.Resource("clusters", func() {
 		a.Response(d.OK, clusterList)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.BadGateway, JSONAPIErrors)
 	})
 })

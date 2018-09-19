@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -128,6 +126,7 @@ const (
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
 	varAuthURL                = "auth.url"
+	varShortClusterServiceURL = "cluster.url.short"
 
 	// sentry
 	varEnvironment = "environment"
@@ -142,10 +141,6 @@ const (
 
 type serviceAccountConfig struct {
 	Accounts []ServiceAccount
-}
-
-type osoClusterConfig struct {
-	Clusters []OSOCluster
 }
 
 // ServiceAccount represents a service account configuration
@@ -180,17 +175,13 @@ type ConfigurationData struct {
 	// Service Account Configuration is a map of service accounts where the key == the service account ID
 	sa map[string]ServiceAccount
 
-	// OSO Cluster Configuration is a map of clusters where the key == the OSO cluster API URL
-	clusters              map[string]OSOCluster
-	clusterConfigFilePath string
-
 	defaultConfigurationError error
 
 	mux sync.RWMutex
 }
 
 // NewConfigurationData creates a configuration reader object using configurable configuration file paths
-func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string, osoClusterConfigFile string) (*ConfigurationData, error) {
+func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string) (*ConfigurationData, error) {
 	c := &ConfigurationData{
 		v: viper.New(),
 	}
@@ -230,13 +221,6 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		c.sa[account.ID] = account
 	}
 	c.checkServiceAccountConfig()
-
-	// Set up the OSO cluster configuration (stored in a separate config file)
-	clusterConfigFilePath, err := c.initClusterConfig(osoClusterConfigFile, defaultOsoClusterConfigPath)
-	if err != nil {
-		return nil, err
-	}
-	c.clusterConfigFilePath = clusterConfigFilePath
 
 	// Check sensitive default configuration
 	if c.IsPostgresDeveloperModeEnabled() {
@@ -309,48 +293,6 @@ func (c *ConfigurationData) validateURL(serviceURL, serviceName string) {
 	}
 }
 
-func (c *ConfigurationData) initClusterConfig(osoClusterConfigFile, defaultClusterConfigFile string) (string, error) {
-	clusterViper, defaultConfigErrorMsg, usedClusterConfigFile, err := readFromJSONFile(osoClusterConfigFile, defaultClusterConfigFile, osoClusterConfigFileName)
-	if err != nil {
-		return usedClusterConfigFile, err
-	}
-	if defaultConfigErrorMsg != nil {
-		c.appendDefaultConfigErrorMessage(*defaultConfigErrorMsg)
-	}
-
-	var clusterConf osoClusterConfig
-	err = clusterViper.Unmarshal(&clusterConf)
-	if err != nil {
-		return usedClusterConfigFile, err
-	}
-	c.clusters = map[string]OSOCluster{}
-	for _, cluster := range clusterConf.Clusters {
-		if cluster.ConsoleURL == "" {
-			cluster.ConsoleURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return usedClusterConfigFile, err
-			}
-		}
-		if cluster.MetricsURL == "" {
-			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
-			if err != nil {
-				return usedClusterConfigFile, err
-			}
-		}
-		if cluster.LoggingURL == "" {
-			// This is not a typo; the logging host is the same as the console host in current k8s
-			cluster.LoggingURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return usedClusterConfigFile, err
-			}
-		}
-		c.clusters[cluster.APIURL] = cluster
-	}
-
-	err = c.checkClusterConfig()
-	return usedClusterConfigFile, err
-}
-
 func (c *ConfigurationData) checkServiceAccountConfig() {
 	notFoundServiceAccountNames := map[string]bool{
 		"fabric8-wit":           true,
@@ -379,54 +321,6 @@ func (c *ConfigurationData) checkServiceAccountConfig() {
 	if len(notFoundServiceAccountNames) != 0 {
 		c.appendDefaultConfigErrorMessage("some expected service accounts are missing in service account config")
 	}
-}
-
-// checkClusterConfig checks if there is any missing keys or empty values in oso-clusters.conf
-func (c *ConfigurationData) checkClusterConfig() error {
-	if len(c.clusters) == 0 {
-		return errors.New("empty cluster config file")
-	}
-
-	err := errors.New("")
-	ok := true
-	for _, cluster := range c.clusters {
-		iVal := reflect.ValueOf(&cluster).Elem()
-		typ := iVal.Type()
-		for i := 0; i < iVal.NumField(); i++ {
-			f := iVal.Field(i)
-			tag := typ.Field(i).Tag.Get("mapstructure")
-			switch f.Interface().(type) {
-			case string:
-				if f.String() == "" {
-					err = errors.Errorf("%s; key %v is missing in cluster config", err.Error(), tag)
-					ok = false
-				}
-			case bool:
-				// Ignore
-			default:
-				err = errors.Errorf("%s; wrong type of key %v", err.Error(), tag)
-				ok = false
-			}
-		}
-	}
-	if !ok {
-		return err
-	}
-	return nil
-}
-
-func convertAPIURL(apiURL string, newPrefix string, newPath string) (string, error) {
-	newURL, err := url.Parse(apiURL)
-	if err != nil {
-		return "", err
-	}
-	newHost, err := rest.ReplaceDomainPrefix(newURL.Host, newPrefix)
-	if err != nil {
-		return "", err
-	}
-	newURL.Host = newHost
-	newURL.Path = newPath
-	return newURL.String(), nil
 }
 
 func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, *string, string, error) {
@@ -506,88 +400,6 @@ func getServiceAccountConfigFile() string {
 	return envServiceAccountConfigFile
 }
 
-func getOSOClusterConfigFile() string {
-	envOSOClusterConfigFile, _ := os.LookupEnv("AUTH_OSO_CLUSTER_CONFIG_FILE")
-	return envOSOClusterConfigFile
-}
-
-// InitializeClusterWatcher initializes a file watcher for the cluster config file
-// When the file is updated the configuration synchronously reload the cluster configuration
-func (c *ConfigurationData) InitializeClusterWatcher() (func() error, error) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-				if event.Op&fsnotify.Remove == fsnotify.Remove {
-					time.Sleep(1 * time.Second) // Wait for one second before re-adding and reloading. It might be needed if the file is removed and then re-added in some environments
-					err = watcher.Add(event.Name)
-					if err != nil {
-						log.WithFields(map[string]interface{}{
-							"file": event.Name,
-						}).Errorln("cluster config was removed but unable to re-add it to watcher")
-					}
-				}
-				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Remove == fsnotify.Remove {
-					// Reload config if operation is Write or Remove.
-					// Both can be part of file update depending on environment and actual operation.
-					err := c.reloadClusterConfig()
-					if err != nil {
-						// Do not crash. Log the error and keep using the existing configuration
-						log.WithFields(map[string]interface{}{
-							"err":  err,
-							"file": event.Name,
-							"op":   event.Op.String(),
-						}).Errorln("unable to reload cluster config file")
-					} else {
-						log.WithFields(map[string]interface{}{
-							"file": event.Name,
-							"op":   event.Op.String(),
-						}).Infoln("cluster config file modified and reloaded")
-					}
-				}
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				log.WithFields(map[string]interface{}{
-					"err": err,
-				}).Errorln("cluster config file watcher error")
-			}
-		}
-	}()
-
-	configFilePath, err := pathExists(c.clusterConfigFilePath)
-	if err == nil && configFilePath != "" {
-		err = watcher.Add(configFilePath)
-		log.WithFields(map[string]interface{}{
-			"file": c.clusterConfigFilePath,
-		}).Infoln("cluster config file watcher initialized")
-	} else {
-		// OK in Dev Mode
-		log.WithFields(map[string]interface{}{
-			"file": c.clusterConfigFilePath,
-		}).Warnln("cluster config file watcher not initialized for non-existent file")
-	}
-
-	return watcher.Close, err
-}
-
-func (c *ConfigurationData) reloadClusterConfig() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	_, err := c.initClusterConfig("", c.clusterConfigFilePath)
-	return err
-}
-
 // DefaultConfigurationError returns an error if the default values is used
 // for sensitive configuration like service account secrets or private keys.
 // Error contains all the details.
@@ -630,12 +442,17 @@ func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
 
+//GetClusterServiceURL returns the short cluster service url
+// "http://cluster" is the default URL
+func (c *ConfigurationData) GetClusterServiceURL() string {
+	return c.v.GetString(varShortClusterServiceURL)
+}
+
 // GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
 func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 	// Lock for reading because config file watcher can update cluster configuration
-	c.mux.RLock()
-	defer c.mux.RUnlock()
-	return c.clusters
+	//return c.clusters
+	return nil
 }
 
 // GetOSOClusterByURL returns a OSO cluster configurations by matching URL
@@ -645,14 +462,11 @@ func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
 // Returns nil if no matching API URL found
 func (c *ConfigurationData) GetOSOClusterByURL(url string) *OSOCluster {
 	// Lock for reading because config file watcher can update cluster configuration
-	c.mux.RLock()
-	defer c.mux.RUnlock()
-
-	for apiURL, cluster := range c.clusters {
-		if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
-			return &cluster
-		}
-	}
+	//for apiURL, cluster := range c.clusters {
+	//	if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
+	//		return &cluster
+	//	}
+	//}
 
 	return nil
 }
@@ -665,7 +479,7 @@ func (c *ConfigurationData) GetDefaultConfigurationFile() string {
 // GetConfigurationData is a wrapper over NewConfigurationData which reads configuration file path
 // from the environment variable.
 func GetConfigurationData() (*ConfigurationData, error) {
-	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile(), getOSOClusterConfigFile())
+	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile())
 }
 
 func (c *ConfigurationData) setConfigDefaults() {
@@ -775,6 +589,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// RPT Token maximum permissions
 	c.v.SetDefault(varRPTTokenMaxPermissions, 10)
+
+	c.v.SetDefault(varShortClusterServiceURL, "http://cluster")
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
