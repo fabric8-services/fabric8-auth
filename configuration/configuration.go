@@ -90,9 +90,9 @@ const (
 	varKeycloakEndpointAccount  = "keycloak.endpoint.account"
 	varKeycloakEndpointLogout   = "keycloak.endpoint.logout"
 
-	varUserInfoEndpoint   = "endpoint.userinfo"
-	varOauthEndpointAuth  = "oauth.endpoint.auth"
-	varOauthEndpointToken = "oauth.endpoint.token"
+	varOauthEndpointUserInfo = "oauth.endpoint.userinfo"
+	varOauthEndpointAuth     = "oauth.endpoint.auth"
+	varOauthEndpointToken    = "oauth.endpoint.token"
 
 	// Private keys for signing OSIO Serivice Account tokens
 	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.deprecated"
@@ -1132,8 +1132,8 @@ func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (st
 
 // GetUserInfoEndpoint returns the API URL for reading User Accounts details as per OIDC spec
 func (c *ConfigurationData) GetUserInfoEndpoint() string {
-	if c.v.IsSet(varUserInfoEndpoint) {
-		return c.v.GetString(varUserInfoEndpoint)
+	if c.v.IsSet(varOauthEndpointUserInfo) {
+		return c.v.GetString(varOauthEndpointUserInfo)
 	}
 	// soft migration: keep using the keycloak url if nothing explicitly is defined.
 	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("userinfo"))
