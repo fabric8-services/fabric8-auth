@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 
+	client "github.com/fabric8-services/fabric8-auth/client"
 	"github.com/goadesign/goa"
 )
 
@@ -36,8 +37,8 @@ func NewLoginController(service *goa.Service, auth *login.KeycloakOAuthProvider,
 // Login runs the login action.
 func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 
-	oauthIdentityProvider := login.NewLoginIdentityProvider(c.Configuration)
-	oauthIdentityProvider.RedirectURL = rest.AbsoluteURL(ctx.RequestData, "/api/login", nil)
+	oauthIdentityProvider := login.NewIdentityProvider(c.Configuration)
+	oauthIdentityProvider.RedirectURL = rest.AbsoluteURL(ctx.RequestData, client.LoginLoginPath(), nil)
 	if ctx.Scope != nil {
 		oauthIdentityProvider.Endpoint.AuthURL = fmt.Sprintf("%s?scope=%s", oauthIdentityProvider.Endpoint.AuthURL, *ctx.Scope) // Offline token
 	}

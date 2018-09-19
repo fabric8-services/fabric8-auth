@@ -7,7 +7,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type LoginIdentityProvider struct {
+type IdentityProvider struct {
 	oauth.OauthIdentityProvider
 }
 
@@ -17,7 +17,7 @@ Sample response:
 {\"sub\":\"837f2447-2e42-4db9-9f32-817d4866178a\",\"approved\":true,\"email_verified\":true,\"name\":\"Shoubhik Bose\",\"company\":\"red hat\",\"preferred_username\":\"shbose\",\"given_name\":\"Shoubhik\",\"family_name\":\"Bose\",\"email\":\"sbose0708@gmail.com\"}
 */
 
-type LoginIdentityProviderResponse struct {
+type IdentityProviderResponse struct {
 	Username      string `json:"preferred_username"`
 	GivenName     string `json:"given_name"`
 	FamilyName    string `json:"family_name"`
@@ -28,8 +28,8 @@ type LoginIdentityProviderResponse struct {
 	Subject       string `json:"sub"`
 }
 
-func NewLoginIdentityProvider(config Configuration) *LoginIdentityProvider {
-	provider := &LoginIdentityProvider{}
+func NewIdentityProvider(config Configuration) *IdentityProvider {
+	provider := &IdentityProvider{}
 	provider.ProfileURL = config.GetUserInfoEndpoint()
 	provider.ClientID = config.GetKeycloakClientID()
 	provider.ClientSecret = config.GetKeycloakSecret()
@@ -39,13 +39,13 @@ func NewLoginIdentityProvider(config Configuration) *LoginIdentityProvider {
 }
 
 // Profile fetches a user profile from the Identity Provider
-func (provider *LoginIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
+func (provider *IdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
 	body, err := provider.UserProfilePayload(ctx, token)
 	if err != nil {
 		return nil, err
 	}
 	var u oauth.UserProfile
-	var idpResponse LoginIdentityProviderResponse
+	var idpResponse IdentityProviderResponse
 	err = json.Unmarshal(body, &idpResponse)
 	if err != nil {
 		return nil, err

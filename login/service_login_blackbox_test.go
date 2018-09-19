@@ -86,7 +86,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 
 	// ############ STEP 1 Call /api/login without state or code
 	// ############
-	err := service.Login(authorizeCtx, login.NewLoginIdentityProvider(s.configuration), s.configuration)
+	err := service.Login(authorizeCtx, login.NewIdentityProvider(s.configuration), s.configuration)
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
@@ -126,7 +126,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	rw = httptest.NewRecorder()
 	authorizeCtx, rw = s.createNewLoginContext("/api/login", prms)
-	err = service.Login(authorizeCtx, login.NewLoginIdentityProvider(s.configuration), s.configuration)
+	err = service.Login(authorizeCtx, login.NewIdentityProvider(s.configuration), s.configuration)
 
 	//  ############ STEP 4: Token generated and recieved as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
@@ -185,7 +185,7 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 
 	// ############ STEP 1 Call /api/authorize without state or code
 	// ############
-	oauthConfig := login.NewLoginIdentityProvider(s.Configuration)
+	oauthConfig := login.NewIdentityProvider(s.Configuration)
 	oauthCodeRedirectURL := "http://auth.openshift.io/authorize/callback"
 	oauthConfig.RedirectURL = oauthCodeRedirectURL
 	redirectedTo, err := service.AuthCodeURL(authorizeCtx, &redirectURL, &apiClient, &state, nil, authorizeCtx.RequestData, oauthConfig, s.Configuration)
@@ -422,7 +422,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 
 	} else if req.URL.Path == "/api/profile" {
 		require.NotEqual(s.T(), "Bearer", req.Header.Get("authorization"))
-		userResponse := login.LoginIdentityProviderResponse{
+		userResponse := login.IdentityProviderResponse{
 			Username: s.identity.Username,
 			Subject:  s.identity.ID.String(),
 			Company:  s.identity.User.Company,
