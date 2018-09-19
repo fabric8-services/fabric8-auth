@@ -23,7 +23,7 @@ import (
 
 const (
 	// KeycloakIDP is the name of the main Keycloak Identity Provider
-	KeycloakIDP string = "kc"
+	KeycloakIDP = "kc"
 )
 
 // NullUUID can be used with the standard sql package to represent a
