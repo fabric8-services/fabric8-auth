@@ -53,7 +53,7 @@ func (s *loginIDPTestSuite) getCustomConfig() *configuration.ConfigurationData {
 }
 
 func (s *loginIDPTestSuite) TestProfileOK() {
-	loginIDP := login.NewLoginIdentityProvider(s.getCustomConfig())
+	loginIDP := login.NewIdentityProvider(s.getCustomConfig())
 	data, err := loginIDP.Profile(context.Background(), oauth2.Token{})
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), data)
@@ -62,14 +62,14 @@ func (s *loginIDPTestSuite) TestProfileOK() {
 
 func (s *loginIDPTestSuite) TestProfileInternalError() {
 	// this will try reaching keycloak
-	loginIDP := login.NewLoginIdentityProvider(s.Configuration)
+	loginIDP := login.NewIdentityProvider(s.Configuration)
 	data, err := loginIDP.Profile(context.Background(), oauth2.Token{})
 	require.Error(s.T(), err)
 	require.Nil(s.T(), data)
 	require.IsType(s.T(), autherror.InternalError{}, errors.Cause(err))
 }
 
-func (s *loginIDPTestSuite) compareResponse(response login.LoginIdentityProviderResponse, profile oauth.UserProfile) {
+func (s *loginIDPTestSuite) compareResponse(response login.IdentityProviderResponse, profile oauth.UserProfile) {
 	assert.Equal(s.T(), profile.Username, response.Username)
 	assert.Equal(s.T(), profile.Company, response.Company)
 	assert.Equal(s.T(), profile.Email, response.Email)
@@ -79,7 +79,7 @@ func (s *loginIDPTestSuite) compareResponse(response login.LoginIdentityProvider
 
 // Run a mocked IDP server
 
-var loginIDPResponseSample login.LoginIdentityProviderResponse = login.LoginIdentityProviderResponse{
+var loginIDPResponseSample login.IdentityProviderResponse = login.IdentityProviderResponse{
 	Username:      "username",
 	GivenName:     "gname",
 	FamilyName:    "fname",

@@ -143,7 +143,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	idpService := login.NewLoginIdentityProvider(c.Configuration)
+	idpService := login.NewIdentityProvider(c.Configuration)
 	_, token, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, ctx.RequestData.URL, generatedToken, ctx.RequestData, idpService, c.Configuration)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -484,7 +484,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		return nil, nil, errors.NewInternalError(ctx, err)
 	}
 
-	idpService := login.NewLoginIdentityProvider(c.Configuration)
+	idpService := login.NewIdentityProvider(c.Configuration)
 	notApprovedRedirectURL, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, idpService, c.Configuration)
 
 	if err != nil {

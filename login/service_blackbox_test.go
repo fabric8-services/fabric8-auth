@@ -59,7 +59,7 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
 	var err error
-	s.oauth = login.NewLoginIdentityProvider(s.Configuration)
+	s.oauth = login.NewIdentityProvider(s.Configuration)
 
 	claims := make(map[string]interface{})
 	claims["sub"] = uuid.NewV4().String()
@@ -467,9 +467,9 @@ func (s *serviceBlackBoxTest) getDummyOauthIDPService(forApprovedUser bool) *dum
 	require.Nil(s.T(), err)
 
 	dummyOauth := &dummyIDPOauthService{
-		LoginIdentityProvider: *login.NewLoginIdentityProvider(s.Configuration),
-		accessToken:           accessToken,
-		refreshToken:          refreshToken,
+		IdentityProvider: *login.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
+		refreshToken:     refreshToken,
 	}
 	return dummyOauth
 }
@@ -509,7 +509,7 @@ type dummyIDPOauth interface {
 }
 
 type dummyIDPOauthService struct {
-	LoginIdentityProvider
+	IdentityProvider
 	accessToken  string
 	refreshToken string
 }
@@ -569,8 +569,8 @@ func (s *serviceBlackBoxTest) TestDeprovisionedUserLoginUnauthorized() {
 	require.Nil(s.T(), err)
 
 	dummyOauth := &dummyIDPOauthService{
-		LoginIdentityProvider: *login.NewLoginIdentityProvider(s.Configuration),
-		accessToken:           accessToken,
+		IdentityProvider: *login.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
 	}
 
 	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
@@ -599,9 +599,9 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 	require.Nil(s.T(), err)
 
 	dummyIDPConfigRef := dummyIDPOauthService{
-		LoginIdentityProvider: *login.NewLoginIdentityProvider(s.Configuration),
-		accessToken:           accessToken,
-		refreshToken:          refreshToken,
+		IdentityProvider: *login.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
+		refreshToken:     refreshToken,
 	}
 
 	err = s.loginService.Login(authorizeCtx, &dummyIDPConfigRef, s.Configuration)
