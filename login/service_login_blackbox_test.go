@@ -6,11 +6,12 @@ import (
 	"fmt"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/configuration"
+	//"github.com/fabric8-services/fabric8-auth/configuration"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
+	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
@@ -36,35 +37,41 @@ func TestServiceLoginBlackboxTest(t *testing.T) {
 
 type serviceLoginBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	configuration   *configuration.ConfigurationData
-	IDPServer       *httptest.Server
-	state           string
-	approved        bool
-	identity        *account.Identity
-	alreadyLoggedIn bool
+	//configuration      *configuration.ConfigurationData
+	IDPServer          *httptest.Server
+	WITServer          *httptest.Server
+	witIdentityIDCache []string
+	state              string
+	approved           bool
+	identity           *account.Identity
+	alreadyLoggedIn    bool
 }
 
 func (s *serviceLoginBlackBoxTest) SetupSuite() {
-	s.DBTestSuite.SetupSuite()
-	s.IDPServer = s.createOauthServer(s.serveOauthServer)
+	s.IDPServer = s.createMockHTTPServer(s.serveOauthServer)
 	s.state = uuid.NewV4().String()
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
 
 	os.Setenv("AUTH_OAUTH_ENDPOINT_USERINFO", idpServerURL+"profile")
 	os.Setenv("AUTH_OAUTH_ENDPOINT_AUTH", idpServerURL+"code")
 	os.Setenv("AUTH_OAUTH_ENDPOINT_TOKEN", idpServerURL+"token")
-	config, err := configuration.GetConfigurationData()
-	require.Nil(s.T(), err)
-	s.configuration = config
 
+	s.WITServer = s.createMockHTTPServer(s.serveWITServer)
+	witServerURL := "http://" + s.WITServer.Listener.Addr().String()
+	os.Setenv("AUTH_WIT_URL", witServerURL)
+
+	s.DBTestSuite.SetupSuite()
 }
 
 func (s *serviceLoginBlackBoxTest) TearDownSuite() {
 	s.IDPServer.CloseClientConnections()
 	s.IDPServer.Close()
+	s.WITServer.CloseClientConnections()
+	s.WITServer.Close()
 	os.Unsetenv("AUTH_ENDPOINT_USERINFO")
 	os.Unsetenv("AUTH_OAUTH_ENDPOINT_AUTH")
 	os.Unsetenv("AUTH_OAUTH_ENDPOINT_TOKEN")
+	os.Unsetenv("AUTH_WIT_URL")
 }
 
 func (s *serviceLoginBlackBoxTest) TestLoginEndToEnd() {
@@ -100,7 +107,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 
 	// ############ STEP 1 Call /api/login without state or code
 	// ############
-	err := service.Login(authorizeCtx, login.NewIdentityProvider(s.configuration), s.configuration)
+	err := service.Login(authorizeCtx, login.NewIdentityProvider(s.Configuration), s.Configuration)
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
@@ -140,7 +147,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	rw = httptest.NewRecorder()
 	authorizeCtx, rw = s.createNewLoginContext("/api/login", prms)
-	err = service.Login(authorizeCtx, login.NewIdentityProvider(s.configuration), s.configuration)
+	err = service.Login(authorizeCtx, login.NewIdentityProvider(s.Configuration), s.Configuration)
 
 	//  ############ STEP 4: Token generated and recieved as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
@@ -167,8 +174,14 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 		require.NotNil(s.T(), updatedIdentity)
 		s.identity = updatedIdentity
 		checkIfTokenMatchesIdentity(s.T(), *returnedToken.AccessToken, *updatedIdentity)
+		require.True(s.T(), s.identity.RegistrationCompleted)
+
+		if !s.alreadyLoggedIn {
+			require.True(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
+		}
 	} else {
 		require.Equal(s.T(), 401, rw.Code)
+		require.False(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
 	}
 
 }
@@ -395,6 +408,15 @@ func checkIfTokenMatchesIdentity(t *testing.T, tokenString string, identity acco
 	assert.Equal(t, "COMPANY_OVERRIDE", claims.Company)
 }
 
+func (s *serviceLoginBlackBoxTest) witCreateUserAPICalled(identityID string) bool {
+	for _, cachedWITUser := range s.witIdentityIDCache {
+		if strings.Compare(identityID, cachedWITUser) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // ############################
 // Run a mocked Oauth IDP server
 // #############################
@@ -481,5 +503,17 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 		inBytes, _ := json.Marshal(userResponse)
 		rw.Header().Set("Content-Type", "application/json")
 		rw.Write(inBytes)
+	}
+}
+
+func (s *serviceLoginBlackBoxTest) createMockHTTPServer(handle func(http.ResponseWriter, *http.Request)) *httptest.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", handle)
+	return httptest.NewServer(mux)
+}
+func (s *serviceLoginBlackBoxTest) serveWITServer(rw http.ResponseWriter, req *http.Request) {
+	// keep an eye on calls going to POST /api/users/:identityID
+	if strings.Contains(req.URL.Path, "users") && req.Method == "POST" {
+		s.witIdentityIDCache = append(s.witIdentityIDCache, strings.Split(req.URL.Path, "/users/")[1])
 	}
 }
