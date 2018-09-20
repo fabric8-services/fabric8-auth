@@ -217,10 +217,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	identity.UserID = accountrepo.NullUUID{UUID: user.ID, Valid: true}
 
 	// Optional Attributes
-	registrationCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
-	if registrationCompleted != nil {
-		identity.RegistrationCompleted = true
-	}
+	identity.RegistrationCompleted = false // Start with 'false', set it to true when user logs in.
 
 	company := ctx.Payload.Data.Attributes.Company
 	if company != nil {

@@ -365,17 +365,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 			}, "unable to create user in WIT ")
 			// let's carry on instead of erroring out
 		}
-	} else {
-		err = keycloak.updateWITUser(ctx, identity, witURL, identity.ID.String())
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"identity_id": identity.ID,
-				"username":    identity.Username,
-				"err":         err,
-				"wit_url":     witURL,
-			}, "unable to update user in WIT ")
-			// let's carry on instead of erroring out
-		}
 	}
 
 	err = encodeToken(ctx, referrerURL, userToken, apiClient)
@@ -627,6 +616,7 @@ func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Co
 
 // CreateOrUpdateIdentityInDB creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
+// TODO: Rename this to GetExistingIdentityInfo
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, idpProvider oauth.IdentityProvider, configuration Configuration) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
@@ -665,8 +655,47 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			}, "Found Keycloak identity is not linked to any User")
 			return nil, false, errors.New("found Keycloak identity is not linked to any User")
 		}
+
+		if !identity.RegistrationCompleted {
+			newIdentityCreated = true
+			fillUserFromUserInfo(*userProfile, identity)
+			identity.RegistrationCompleted = true
+			err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
+				// Using the old-fashioned service
+				err := tr.Identities().Save(ctx, identity)
+				if err != nil {
+					return err
+				}
+				err = tr.Users().Save(ctx, &identity.User)
+				if err != nil {
+					return err
+				}
+				return nil
+			})
+		}
+
 	}
 	return identity, newIdentityCreated, err
+}
+
+func fillUserFromUserInfo(userinfo oauth.UserProfile, identity *account.Identity) error {
+	identity.User.FullName = name.GenerateFullName(&userinfo.GivenName, &userinfo.FamilyName)
+	identity.User.Email = userinfo.Email
+	identity.User.Company = userinfo.Company
+	identity.Username = userinfo.Username
+	if identity.User.ImageURL == "" {
+		image, err := generateGravatarURL(userinfo.Email)
+		if err != nil {
+			log.Warn(nil, map[string]interface{}{
+				"user_full_name": identity.User.FullName,
+				"err":            err,
+			}, "error when generating gravatar")
+			// if there is an error, we will qualify the identity/user as unchanged.
+			return errors.New("Error when generating gravatar " + err.Error())
+		}
+		identity.User.ImageURL = image
+	}
+	return nil
 }
 
 func (keycloak *KeycloakOAuthProvider) updateWITUser(ctx context.Context, identity *account.Identity, witURL string, identityID string) error {

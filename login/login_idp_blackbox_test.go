@@ -46,7 +46,7 @@ func (s *loginIDPTestSuite) TearDownSuite() {
 
 func (s *loginIDPTestSuite) getCustomConfig() *configuration.ConfigurationData {
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/"
-	os.Setenv("AUTH_ENDPOINT_USERINFO", idpServerURL)
+	os.Setenv("AUTH_OAUTH_ENDPOINT_USERINFO", idpServerURL)
 	config, err := configuration.GetConfigurationData()
 	require.Nil(s.T(), err)
 	return config

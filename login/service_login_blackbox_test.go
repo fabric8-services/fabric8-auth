@@ -36,11 +36,12 @@ func TestServiceLoginBlackboxTest(t *testing.T) {
 
 type serviceLoginBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	configuration *configuration.ConfigurationData
-	IDPServer     *httptest.Server
-	state         string
-	approved      bool
-	identity      *account.Identity
+	configuration   *configuration.ConfigurationData
+	IDPServer       *httptest.Server
+	state           string
+	approved        bool
+	identity        *account.Identity
+	alreadyLoggedIn bool
 }
 
 func (s *serviceLoginBlackBoxTest) SetupSuite() {
@@ -49,7 +50,7 @@ func (s *serviceLoginBlackBoxTest) SetupSuite() {
 	s.state = uuid.NewV4().String()
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
 
-	os.Setenv("AUTH_ENDPOINT_USERINFO", idpServerURL+"profile")
+	os.Setenv("AUTH_OAUTH_ENDPOINT_USERINFO", idpServerURL+"profile")
 	os.Setenv("AUTH_OAUTH_ENDPOINT_AUTH", idpServerURL+"code")
 	os.Setenv("AUTH_OAUTH_ENDPOINT_TOKEN", idpServerURL+"token")
 	config, err := configuration.GetConfigurationData()
@@ -68,18 +69,31 @@ func (s *serviceLoginBlackBoxTest) TearDownSuite() {
 
 func (s *serviceLoginBlackBoxTest) TestLoginEndToEnd() {
 	s.approved = true
+	s.alreadyLoggedIn = false
 	s.runLoginEndToEnd()
+
+	// login successful, try doing multiple logins.
+	for i := 0; i < 10; i++ {
+		s.alreadyLoggedIn = true
+		s.runLoginEndToEnd()
+	}
 }
 
 func (s *serviceLoginBlackBoxTest) TestLoginEndToEndNotApproved() {
 	s.approved = false
+	s.alreadyLoggedIn = false
 	s.runLoginEndToEnd()
+
+	// login failed, try doing multiple logins and see the same result.
+	for i := 0; i < 10; i++ {
+		s.alreadyLoggedIn = false
+		s.runLoginEndToEnd()
+	}
 }
 
 func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
 	prms := url.Values{}
-	s.approved = true
 
 	authorizeCtx, rw := s.createNewLoginContext("/api/login", prms)
 	service := s.createNewLoginService()
@@ -149,7 +163,10 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 		returnedToken, err := token.ReadTokenSetFromJson(context.Background(), tokenJson[0])
 		require.NoError(s.T(), err)
 
-		checkIfTokenMatchesIdentity(s.T(), *returnedToken.AccessToken, *s.identity)
+		updatedIdentity := s.Graph.LoadUser(s.identity.ID).Identity()
+		require.NotNil(s.T(), updatedIdentity)
+		s.identity = updatedIdentity
+		checkIfTokenMatchesIdentity(s.T(), *returnedToken.AccessToken, *updatedIdentity)
 	} else {
 		require.Equal(s.T(), 401, rw.Code)
 	}
@@ -162,12 +179,16 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 
 func (s *serviceLoginBlackBoxTest) TestOauth2LoginEndToEnd() {
 	s.approved = true
+	s.alreadyLoggedIn = false
 	s.runOauth2LoginEndToEnd()
 
+	s.alreadyLoggedIn = true
+	s.runOauth2LoginEndToEnd()
 }
 
 func (s *serviceLoginBlackBoxTest) TestOauth2LoginEndToEndNotApproved() {
 	s.approved = false
+	s.alreadyLoggedIn = false
 	s.runOauth2LoginEndToEnd()
 }
 
@@ -361,11 +382,17 @@ func (s *serviceLoginBlackBoxTest) createNewLoginService() *login.KeycloakOAuthP
 func checkIfTokenMatchesIdentity(t *testing.T, tokenString string, identity account.Identity) {
 	claims, err := testtoken.TokenManager.ParseToken(context.Background(), tokenString)
 	require.Nil(t, err)
-	assert.Equal(t, claims.Company, identity.User.Company)
-	assert.Equal(t, claims.Username, identity.Username)
-	assert.Equal(t, claims.Email, identity.User.Email)
-	assert.Equal(t, claims.Subject, identity.ID.String())
-	assert.Equal(t, claims.Name, identity.User.FullName)
+	assert.Equal(t, identity.Username, claims.Username)
+	assert.Equal(t, identity.User.Email, claims.Email)
+	assert.Equal(t, identity.ID.String(), claims.Subject)
+
+	// On first login, this info is pulled from the userinfo and populated.
+	// On Subsequent logins, irrespective of what RHD userinfo returns,
+	// the identity data in the DB remains the same.
+	assert.Equal(t, "GIVEN_NAME_OVERRIDE FAMILY_NAME_OVERRIDE", claims.Name)
+	assert.Equal(t, "FAMILY_NAME_OVERRIDE", claims.FamilyName)
+	assert.Equal(t, "GIVEN_NAME_OVERRIDE", claims.GivenName)
+	assert.Equal(t, "COMPANY_OVERRIDE", claims.Company)
 }
 
 // ############################
@@ -382,13 +409,18 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 
 	if req.URL.Path == "/api/code" {
 
-		s.identity = s.Graph.CreateUser(s.Graph.ID(uuid.NewV4().String())).Identity()
+		if !s.alreadyLoggedIn {
+			// new user only if user is logging in for the first time.
+			// This bit comes handy to determine outcome of multiple logins by the same user
+			s.identity = s.Graph.CreateUser(s.Graph.ID(uuid.NewV4().String())).Identity()
+			require.NotEmpty(s.T(), s.identity.Username)
+		}
 
 		//require.NotEmpty(s.T(), req.Referer())
 		urlRef, err := url.Parse(req.Referer())
 		require.NoError(s.T(), err)
 
-		// redirect_uri takes higher precedence
+		// redirect_uri takes higher precedencefalse
 		if len(req.URL.Query().Get("redirect_uri")) > 0 {
 			urlRef, err = url.Parse(req.URL.Query().Get("redirect_uri"))
 		}
@@ -423,14 +455,28 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 	} else if req.URL.Path == "/api/profile" {
 		require.NotEqual(s.T(), "Bearer", req.Header.Get("authorization"))
 		userResponse := login.IdentityProviderResponse{
-			Username: s.identity.Username,
-			Subject:  s.identity.ID.String(),
-			Company:  s.identity.User.Company,
-			Email:    s.identity.User.Email,
+			Username:   s.identity.Username,
+			Subject:    s.identity.ID.String(),
+			Company:    uuid.NewV4().String(),
+			Email:      s.identity.User.Email,
+			FamilyName: uuid.NewV4().String(),
+			GivenName:  uuid.NewV4().String(),
 		}
 
 		if !s.approved {
 			userResponse.Username = uuid.NewV4().String()
+		}
+
+		// Return a fixed value only on first login.
+		// On subsequent logins, the values would be populated by random data.
+		// In spite of that, the token would always have claims populated from DB.
+
+		// This randomization is to test that even if RHD userinfo returns different profile data
+		// on every login, we wouldn't be updating that in the db - except on the first login.
+		if !s.alreadyLoggedIn {
+			userResponse.FamilyName = "FAMILY_NAME_OVERRIDE"
+			userResponse.GivenName = "GIVEN_NAME_OVERRIDE"
+			userResponse.Company = "COMPANY_OVERRIDE"
 		}
 		inBytes, _ := json.Marshal(userResponse)
 		rw.Header().Set("Content-Type", "application/json")

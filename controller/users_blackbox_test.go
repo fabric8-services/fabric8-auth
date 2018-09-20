@@ -1238,7 +1238,7 @@ func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser accountr
 	} else {
 		assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	}
-	assert.Equal(t, expectedIdentity.RegistrationCompleted, *actual.Attributes.RegistrationCompleted)
+	assert.Equal(t, false, *actual.Attributes.RegistrationCompleted)
 	assert.Equal(t, expectedUser.FullName, *actual.Attributes.FullName)
 	assert.Equal(t, expectedUser.ImageURL, *actual.Attributes.ImageURL)
 	assert.Equal(t, expectedUser.Email, *actual.Attributes.Email)
