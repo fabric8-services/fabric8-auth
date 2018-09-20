@@ -356,7 +356,8 @@ func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, i
 	return err
 }
 
-// Accept processes an invitation acceptance click, returns the resource ID of the resource or identity resource which the invitation is for and url to redirect after accepting invitation
+// Accept processes an invitation acceptance click, returns the resource ID of the resource or identity resource which
+// the invitation is for and url to redirect after accepting invitation
 func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (string, string, error) {
 
 	// Locate the invitation
@@ -381,76 +382,95 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 		return "", redirectOnFailure, autherrors.NewUnauthorizedError("user deprovisioned")
 	}
 
-	invitationID := inv.InvitationID
-	// If this invitation is for an identity
-	if inv.InviteTo != nil {
-		inviteTo := *inv.InviteTo
-		inviteToIdentity, err := s.Repositories().Identities().Load(ctx, inviteTo)
-		if err != nil {
-			return "", redirectOnFailure, errs.Wrapf(err, "failed to load identity for inviteTo %d", inviteTo)
-		}
+	var resourceID string
 
-		// If the invitation is for a membership, add a membership record
-		if inv.Member {
-			s.Repositories().Identities().AddMember(ctx, inviteToIdentity.ID, currentIdentityID)
-		}
+	err = s.ExecuteInTransaction(func() error {
 
-		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, invitationID)
-		if err != nil {
-			return "", redirectOnFailure, errs.Wrapf(err, "failed to list roles for invitation %d", invitationID)
-		}
-
-		// If the invitation includes role assignments, assign them
-		inviteToIdentityResourceID := inviteToIdentity.IdentityResourceID.String
-		for _, role := range roles {
-			ir := &repository.IdentityRole{
-				IdentityID: currentIdentityID,
-				RoleID:     role.RoleID,
-				ResourceID: inviteToIdentityResourceID,
-			}
-
-			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+		// If this invitation is for an identity
+		if inv.InviteTo != nil {
+			inviteToIdentity, err := s.Repositories().Identities().Load(ctx, *inv.InviteTo)
 			if err != nil {
-				return "", redirectOnFailure, errs.Wrap(err, "failed to create identity role")
-			}
-		}
-
-		// Delete the invitation
-		s.Repositories().InvitationRepository().Delete(ctx, invitationID)
-
-		// Return the identity ID and redirect Path
-		return inviteToIdentityResourceID, redirectOnSuccess, nil
-
-	} else if inv.ResourceID != nil {
-		resourceID := *inv.ResourceID
-		inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, resourceID)
-		if err != nil {
-			return "", redirectOnFailure, errs.Wrapf(err, "failed to load resource %s", resourceID)
-		}
-		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, invitationID)
-		if err != nil {
-			return "", redirectOnFailure, errs.Wrapf(err, "failed to load roles for invitation %d", invitationID)
-		}
-
-		for _, role := range roles {
-			ir := &repository.IdentityRole{
-				IdentityID: currentIdentityID,
-				RoleID:     role.RoleID,
-				ResourceID: inviteToResource.ResourceID,
+				return err
 			}
 
-			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+			// If the invitation is for a membership, add a membership record
+			if inv.Member {
+				err = s.Repositories().Identities().AddMember(ctx, inviteToIdentity.ID, currentIdentityID)
+				if err != nil {
+					return err
+				}
+			}
+
+			roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
 			if err != nil {
-				return "", redirectOnFailure, errs.Wrap(err, "failed to create identity role")
+				return err
 			}
+
+			// If the invitation includes role assignments, assign them
+			inviteToIdentityResourceID := inviteToIdentity.IdentityResourceID.String
+			for _, role := range roles {
+				ir := &repository.IdentityRole{
+					IdentityID: currentIdentityID,
+					RoleID:     role.RoleID,
+					ResourceID: inviteToIdentityResourceID,
+				}
+
+				err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Delete the invitation
+			err = s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
+			if err != nil {
+				return errs.Wrap(err, "failed to create identity role")
+			}
+
+			// Return the identity ID
+			resourceID = inviteToIdentity.IdentityResourceID.String
+
+		} else if inv.ResourceID != nil {
+			inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, *inv.ResourceID)
+			if err != nil {
+				return errs.Wrapf(err, "failed to load resource %s", resourceID)
+			}
+
+			roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
+			if err != nil {
+				return errs.Wrapf(err, "failed to load roles for invitation %d", inv.InvitationID)
+			}
+
+			for _, role := range roles {
+				ir := &repository.IdentityRole{
+					IdentityID: currentIdentityID,
+					RoleID:     role.RoleID,
+					ResourceID: inviteToResource.ResourceID,
+				}
+
+				err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Delete the invitation
+			err = s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
+			if err != nil {
+				return errs.Wrapf(err, "failed to delete invitation %d", inv.InvitationID)
+			}
+
+			// Set the resource ID
+			resourceID = inviteToResource.ResourceID
 		}
 
-		// Delete the invitation
-		s.Repositories().InvitationRepository().Delete(ctx, invitationID)
+		return nil
+	})
 
-		// Return the resource ID and redirect path
-		return inviteToResource.ResourceID, redirectOnSuccess, nil
+	if err != nil {
+		return "", redirectOnFailure, err
 	}
 
-	return "", redirectOnFailure, errs.Errorf("resources for which you are trying to accept invitation does not exist or identity for which you are being invited does not exist")
+	// Return the resource ID and redirect path
+	return resourceID, redirectOnSuccess, nil
 }

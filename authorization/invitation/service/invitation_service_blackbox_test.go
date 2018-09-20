@@ -967,6 +967,40 @@ func (s *invitationServiceBlackBoxTest) TestRescindInvitation() {
 	})
 }
 
+func (s *invitationServiceBlackBoxTest) TestAcceptBasicResourceInvitationUpdatesPrivilegeCache() {
+	// Create a new resource type with scope "foo"
+	rt := s.Graph.CreateResourceType()
+	rt.AddScope("foo")
+
+	// Create a role for the new resource type, with scope "foo"
+	role := s.Graph.CreateRole(rt)
+	role.AddScope("foo")
+
+	// Create a new resource
+	res := s.Graph.CreateResource(rt)
+
+	// Create a user
+	user := s.Graph.CreateUser()
+
+	// Invite the user to accept the role for the resource
+	inv := s.Graph.CreateInvitation(res, user, role, false)
+
+	// At this point in time, the user should have no scopes for the resource
+	privs, err := s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), privs.ScopesAsArray(), 0)
+
+	// Accept the invitation
+	_, _, err = s.Application.InvitationService().Accept(s.Ctx, inv.Invitation().AcceptCode)
+	require.NoError(s.T(), err)
+
+	// The user should now have the "foo" scope
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), privs.ScopesAsArray(), 1)
+	require.Contains(s.T(), privs.ScopesAsArray(), "foo")
+}
+
 func redirectURL() *app.RedirectURL {
 	success := success
 	failure := failure

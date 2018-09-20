@@ -483,6 +483,141 @@ func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesOK() {
 	assert.Len(s.T(), idRoles, 10)
 }
 
+func (s *roleManagementServiceBlackboxTest) TestPrivilegeCacheNotified() {
+	// Create a new resource type
+	rt := s.Graph.CreateResourceType()
+	rt.AddScope("manage")
+	rt.AddScope("foo")
+	rt.AddScope("bar")
+	rt.AddScope("charlie")
+
+	// Create an admin role
+	adminRole := s.Graph.CreateRole(rt, "admin")
+	adminRole.AddScope("manage")
+
+	// Create a role with scope "foo"
+	r1 := s.Graph.CreateRole(rt, "fooRole")
+	r1.AddScope("foo")
+
+	// Create a role with scope "bar"
+	r2 := s.Graph.CreateRole(rt, "barRole")
+	r2.AddScope("bar")
+
+	// Create a new resource
+	res := s.Graph.CreateResource(rt)
+
+	// Create an admin user
+	admin := s.Graph.CreateUser()
+
+	// Read the privilege cache for the admin scopes
+	privs, err := s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, admin.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+	// At this stage the admin user should have no scopes
+	require.Len(s.T(), privs.ScopesAsArray(), 0)
+
+	// Assign the admin user the admin role for the resource, using the ForceAssign() function
+	err = s.Application.RoleManagementService().ForceAssign(s.Ctx, admin.IdentityID(), "admin", *res.Resource())
+	require.NoError(s.T(), err)
+
+	// Now the admin user should have the manage scope
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, admin.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), privs.ScopesAsArray(), 1)
+	require.Contains(s.T(), privs.ScopesAsArray(), "manage")
+
+	// Create a user
+	user := s.Graph.CreateUser()
+
+	// Hit the privilege cache
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be no privileges assigned at this point in time
+	require.Len(s.T(), privs.ScopesAsArray(), 0)
+
+	// Assign a role via the role management service ForceAssign() function
+	err = s.Application.RoleManagementService().ForceAssign(s.Ctx, user.IdentityID(), "fooRole", *res.Resource())
+	require.NoError(s.T(), err)
+
+	// Hit the privilege cache again
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The user should now have the "foo" scope
+	require.Len(s.T(), privs.ScopesAsArray(), 1)
+	require.Contains(s.T(), privs.ScopesAsArray(), "foo")
+
+	// Assign a role via the role management service Assign() function
+	assignments := map[string][]uuid.UUID{"barRole": {user.IdentityID()}}
+	err = s.Application.RoleManagementService().Assign(s.Ctx, admin.IdentityID(), assignments, res.ResourceID(), true)
+	require.NoError(s.T(), err)
+
+	// Hit the privilege cache again
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The user should now also have the "bar" scope
+	require.Len(s.T(), privs.ScopesAsArray(), 2)
+	require.ElementsMatch(s.T(), privs.ScopesAsArray(), []string{"foo", "bar"})
+
+	// Now create a team
+	t := s.Graph.CreateTeam()
+
+	// And create an organization
+	org := s.Graph.CreateOrganization()
+
+	// Add the team to the organization
+	org.AddMember(t)
+
+	// Add the user to the team
+	t.AddMember(user)
+
+	// Create another user and add it to the same team
+	otherUser := s.Graph.CreateUser()
+	t.AddMember(otherUser)
+
+	// Create a new charlie role with scope "charlie"
+	charlieRole := s.Graph.CreateRole(rt, "charlieRole")
+	charlieRole.AddScope("charlie")
+
+	// Assign the role to the organization
+	err = s.Application.RoleManagementService().ForceAssign(s.Ctx, org.OrganizationID(), "charlieRole", *res.Resource())
+	require.NoError(s.T(), err)
+
+	// Hit the privilege cache again
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The user should now also have all three scopes
+	require.Len(s.T(), privs.ScopesAsArray(), 3)
+	require.ElementsMatch(s.T(), privs.ScopesAsArray(), []string{"foo", "bar", "charlie"})
+
+	// Now check the scopes for the other user
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, otherUser.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The other user should just have the charlie scope
+	require.Len(s.T(), privs.ScopesAsArray(), 1)
+	require.Contains(s.T(), privs.ScopesAsArray(), "charlie")
+
+	// Remove the user from the team
+	t.RemoveMember(user)
+
+	// Check the privilege cache for the user again
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, user.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+
+	// The user should now only have the foo and bar scopes
+	require.Len(s.T(), privs.ScopesAsArray(), 2)
+	require.ElementsMatch(s.T(), privs.ScopesAsArray(), []string{"foo", "bar"})
+
+	// Ensure the remaining team member still has the correct scopes
+	privs, err = s.Application.PrivilegeCacheService().CachedPrivileges(s.Ctx, otherUser.IdentityID(), res.ResourceID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), privs.ScopesAsArray(), 1)
+	require.Contains(s.T(), privs.ScopesAsArray(), "charlie")
+}
+
 func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, returnedAssignedRoles []rolerepo.IdentityRole) {
 	for _, returnedAssignment := range returnedAssignedRoles {
 		require.Equal(t, resourceID, returnedAssignment.ResourceID)

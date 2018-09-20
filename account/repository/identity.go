@@ -15,6 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -131,6 +132,8 @@ type IdentityRepository interface {
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
 	FindIdentitiesByResourceTypeWithParentResource(ctx context.Context, resourceTypeID uuid.UUID, parentResourceID string) ([]Identity, error)
 	AddMember(ctx context.Context, identityID uuid.UUID, memberID uuid.UUID) error
+	RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error
+	FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -570,10 +573,260 @@ func (m *GormIdentityRepository) AddMember(ctx context.Context, identityID uuid.
 		}, "unable to create the membership")
 		return errs.WithStack(err)
 	}
+
+	err = m.FlagPrivilegeCacheStaleForMembershipChange(ctx, identityID, memberID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"member_of": identityID,
+			"member_id": memberID,
+			"err":       err,
+		}, "unable to create the membership - error notifying privilege cache")
+		return errs.WithStack(err)
+	}
+
 	log.Info(ctx, map[string]interface{}{
 		"member_of": identityID,
 		"member_id": memberID,
 	}, "Membership created!")
+
+	return nil
+}
+
+// RemoveMember removes an existing membership with the specified memberOf and memberID values
+func (m *GormIdentityRepository) RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "RemoveMember"}, time.Now())
+
+	membership := &Membership{
+		MemberOf: memberOf,
+		MemberID: memberID,
+	}
+
+	err := m.db.Delete(membership).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"member_of": memberOf,
+			"member_id": memberID,
+			"err":       err,
+		}, "unable to remove the membership")
+		return errs.WithStack(err)
+	}
+
+	err = m.FlagPrivilegeCacheStaleForMembershipChange(ctx, memberID, memberOf)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"member_of": memberOf,
+			"member_id": memberID,
+			"err":       err,
+		}, "unable to remove the membership - error notifying privilege cache")
+		return errs.WithStack(err)
+	}
+
+	log.Info(ctx, map[string]interface{}{
+		"member_of": memberOf,
+		"member_id": memberID,
+	}, "Membership removed!")
+
+	return nil
+}
+
+// FlagStaleForMembershipChange executes two update queries; the first sets the stale flag to true for all privilege
+// cache records where the identity ID is equal to, or a descendent of (via memberships) the specified member ID, and
+// the resourceID is contained in a set of resources for which there is an IDENTITY_ROLE record for the resource, or
+// any of its descendent resources, and the IDENTITY_ROLE's identity is in the identity ancestor hierarchy specified by
+// the memberOf parameter.
+//
+// The second query updates the token table, setting the STALE flag of the token STATUS field to true, for all
+// token records that are mapped to the corresponding privilege cache records in the first query, via the
+// many-to-many TOKEN_PRIVILEGE table
+func (m *GormIdentityRepository) FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "FlagPrivilegeCacheStaleForMembershipChange"}, time.Now())
+
+	result := m.db.Exec(`WITH member_identity_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    member_id
+	  FROM
+	    membership
+	  WHERE
+	    member_of = ? /* MEMBER_ID */
+	  UNION SELECT
+	    p.member_id
+	  FROM
+	    membership p INNER JOIN m ON m.member_id = p.member_of
+	  )
+	  SELECT
+	    member_id AS identity_id
+	  FROM 
+	    m
+	  UNION SELECT
+	    id
+	  FROM
+	    identities
+	  WHERE
+	    id = ? /* MEMBER_ID */
+),
+member_of_identity_hierarchy AS (
+WITH RECURSIVE m AS (
+  SELECT
+    member_of
+  FROM
+    membership
+  WHERE
+    member_id = ? /* MEMBER_OF */
+  UNION SELECT
+    p.member_of
+  FROM
+    membership p INNER JOIN m ON m.member_of = p.member_id
+  )
+  SELECT
+    member_of AS identity_id
+  FROM 
+    m
+  UNION SELECT
+    id
+  FROM
+    identities
+  WHERE
+    id = ? /* MEMBER_OF */
+),
+resource_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    resource_id, parent_resource_id
+	  FROM
+	    resource
+	  WHERE
+        deleted_at IS NULL
+	    AND resource_id IN (
+          SELECT 
+            resource_id 
+          FROM 
+            identity_role ir 
+          WHERE 
+            ir.deleted_at IS NULL 
+            AND ir.identity_id IN (SELECT identity_id FROM member_of_identity_hierarchy)
+        )
+	  UNION SELECT
+	    p.resource_id, p.parent_resource_id
+	  FROM
+	    resource p INNER JOIN m ON m.resource_id = p.parent_resource_id
+      WHERE
+        p.deleted_at IS NULL
+	  )
+	  SELECT
+	    m.resource_id
+	  FROM
+	    m
+)
+UPDATE privilege_cache SET
+  STALE = true
+WHERE
+  resource_id IN (SELECT resource_id FROM resource_hierarchy)
+  AND identity_id IN (SELECT identity_id FROM member_identity_hierarchy)
+  AND deleted_at IS NULL
+  `, memberID, memberID, memberOf, memberOf)
+
+	if result.Error != nil {
+		return errors.NewInternalError(ctx, result.Error)
+	}
+
+	result = m.db.Exec(`WITH member_identity_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    member_id
+	  FROM
+	    membership
+	  WHERE
+	    member_of = ? /* MEMBER_ID */
+	  UNION SELECT
+	    p.member_id
+	  FROM
+	    membership p INNER JOIN m ON m.member_id = p.member_of
+	  )
+	  SELECT
+	    member_id AS identity_id
+	  FROM 
+	    m
+	  UNION SELECT
+	    id
+	  FROM
+	    identities
+	  WHERE
+	    id = ? /* MEMBER_ID */
+),
+member_of_identity_hierarchy AS (
+WITH RECURSIVE m AS (
+  SELECT
+    member_of
+  FROM
+    membership
+  WHERE
+    member_id = ? /* MEMBER_OF */
+  UNION SELECT
+    p.member_of
+  FROM
+    membership p INNER JOIN m ON m.member_of = p.member_id
+  )
+  SELECT
+    member_of AS identity_id
+  FROM 
+    m
+  UNION SELECT
+    id
+  FROM
+    identities
+  WHERE
+    id = ? /* MEMBER_OF */
+),
+resource_hierarchy AS (
+	WITH RECURSIVE m AS (
+	  SELECT
+	    resource_id, parent_resource_id
+	  FROM
+	    resource
+	  WHERE
+        deleted_at IS NULL
+	    AND resource_id IN (
+          SELECT 
+            resource_id 
+          FROM 
+            identity_role ir 
+          WHERE 
+            ir.deleted_at IS NULL 
+            AND ir.identity_id IN (SELECT identity_id FROM member_of_identity_hierarchy)
+        )
+	  UNION SELECT
+	    p.resource_id, p.parent_resource_id
+	  FROM
+	    resource p INNER JOIN m ON m.resource_id = p.parent_resource_id
+      WHERE
+        p.deleted_at IS NULL
+	  )
+	  SELECT
+	    m.resource_id
+	  FROM
+	    m
+)
+UPDATE token t SET
+  STATUS = STATUS | ? /* TOKEN_STATUS_STALE */
+FROM
+  token_privilege tp,
+  privilege_cache pc
+WHERE
+  t.token_id = tp.token_id
+  AND tp.privilege_cache_id = pc.privilege_cache_id
+  AND pc.resource_id IN (SELECT resource_id FROM resource_hierarchy)
+  AND pc.identity_id IN (SELECT identity_id FROM member_identity_hierarchy)
+  AND pc.deleted_at IS NULL
+  `, memberID, memberID, memberOf, memberOf, token.TOKEN_STATUS_STALE)
+
+	if result.Error != nil {
+		return errors.NewInternalError(ctx, result.Error)
+	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"rows_marked_stale": result.RowsAffected,
+	}, "Privilege cache rows marked stale")
 
 	return nil
 }

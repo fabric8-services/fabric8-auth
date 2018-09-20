@@ -233,14 +233,26 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 
 				oldPrivResourceID := oldPriv.ResourceID
 
-				// Create a new permissions object for the RPT token and store it in the array
-				perm := &token.Permissions{
-					ResourceSetID: &oldPrivResourceID,
-					Scopes:        oldPriv.ScopesAsArray(),
-					Expiry:        oldPriv.ExpiryTime.Unix(),
+				// If the old privilege is stale, then refresh its scopes and expiry time
+				if oldPriv.Stale {
+					// Lookup the scopes for the old privilege, as they may have changed
+					privilegeCache, err = s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPrivResourceID)
+					if err != nil {
+						return err
+					}
+					// Create a new permissions object for the RPT token and store it in the array
+					perms = append(perms, token.Permissions{
+						ResourceSetID: &oldPrivResourceID,
+						Scopes:        privilegeCache.ScopesAsArray(),
+						Expiry:        privilegeCache.ExpiryTime.Unix(),
+					})
+				} else {
+					perms = append(perms, token.Permissions{
+						ResourceSetID: &oldPrivResourceID,
+						Scopes:        oldPriv.ScopesAsArray(),
+						Expiry:        oldPriv.ExpiryTime.Unix(),
+					})
 				}
-
-				perms = append(perms, *perm)
 
 				// Create a token privilege object to store in the database
 				tokenPriv := &tokenRepo.TokenPrivilege{
