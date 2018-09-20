@@ -445,6 +445,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 		// redirect_uri takes higher precedencefalse
 		if len(req.URL.Query().Get("redirect_uri")) > 0 {
 			urlRef, err = url.Parse(req.URL.Query().Get("redirect_uri"))
+			require.NoError(s.T(), err)
 		}
 
 		params := urlRef.Query()
