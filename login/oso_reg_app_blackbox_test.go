@@ -9,9 +9,9 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/test"
-	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"github.com/fabric8-services/fabric8-auth/test/token"
 
 	"bytes"
@@ -23,25 +23,25 @@ import (
 )
 
 type TestOSORegistrationAppSuite struct {
-	testsuite.UnitTestSuite
+	gormtestsupport.DBTestSuite
 	osoApp      login.OSOSubscriptionManager
 	client      *test.DummyHttpClient
 	loginConfig login.Configuration
 }
 
 func TestOSORegistrationApp(t *testing.T) {
-	suite.Run(t, &TestOSORegistrationAppSuite{UnitTestSuite: testsuite.NewUnitTestSuite()})
+	suite.Run(t, &TestOSORegistrationAppSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *TestOSORegistrationAppSuite) SetupSuite() {
-	s.UnitTestSuite.SetupSuite()
+	s.DBTestSuite.SetupSuite()
 	s.client = &test.DummyHttpClient{AssertRequest: func(req *http.Request) {
 		assert.Equal(s.T(), "GET", req.Method)
 		assert.Equal(s.T(), "https://some.osourl.io/api/accounts/test-oso-registration-app-user/subscriptions?authorization_username=test-oso-admin-user", req.URL.String())
 		assert.Equal(s.T(), "Bearer test-oso-admin-token", req.Header.Get("Authorization"))
 	}}
-	s.osoApp = login.NewOSORegistrationAppWithClient(s.client)
-	s.loginConfig = &dummyConfig{s.Config}
+	s.osoApp = login.NewOSORegistrationAppWithClient(s.client, s.Application)
+	s.loginConfig = &dummyConfig{s.Configuration}
 }
 
 // Fails if there is no token manager in the context

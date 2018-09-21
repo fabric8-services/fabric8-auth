@@ -19,7 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -49,7 +48,6 @@ type Configuration interface {
 	GetOSORegistrationAppURL() string
 	GetOSORegistrationAppAdminUsername() string
 	GetOSORegistrationAppAdminToken() string
-	GetOSOClusterByURL(url string) *configuration.OSOCluster
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization

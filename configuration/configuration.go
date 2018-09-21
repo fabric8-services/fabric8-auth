@@ -128,6 +128,9 @@ const (
 	varAuthURL                = "auth.url"
 	varShortClusterServiceURL = "cluster.url.short"
 
+	// Cluster information refresh interval in nanoseconds
+	varClusterRefreshInterval = "cluster.refresh.int"
+
 	// sentry
 	varEnvironment = "environment"
 	varSentryDSN   = "sentry.dsn"
@@ -148,23 +151,6 @@ type ServiceAccount struct {
 	Name    string   `mapstructure:"name"`
 	ID      string   `mapstructure:"id"`
 	Secrets []string `mapstructure:"secrets"`
-}
-
-// OSOCluster represents an OSO cluster configuration
-type OSOCluster struct {
-	Name                   string `mapstructure:"name"`
-	APIURL                 string `mapstructure:"api-url"`
-	ConsoleURL             string `mapstructure:"console-url"` // Optional in oso-clusters.conf
-	MetricsURL             string `mapstructure:"metrics-url"` // Optional in oso-clusters.conf
-	LoggingURL             string `mapstructure:"logging-url"` // Optional in oso-clusters.conf
-	AppDNS                 string `mapstructure:"app-dns"`
-	ServiceAccountToken    string `mapstructure:"service-account-token"`
-	ServiceAccountUsername string `mapstructure:"service-account-username"`
-	TokenProviderID        string `mapstructure:"token-provider-id"`
-	AuthClientID           string `mapstructure:"auth-client-id"`
-	AuthClientSecret       string `mapstructure:"auth-client-secret"`
-	AuthClientDefaultScope string `mapstructure:"auth-client-default-scope"`
-	CapacityExhausted      bool   `mapstructure:"capacity-exhausted"` // Optional in oso-clusters.conf ('false' by default)
 }
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -272,6 +258,10 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	}
 	if c.GetSentryDSN() == "" {
 		c.appendDefaultConfigErrorMessage("Sentry DSN is empty")
+	}
+	c.validateURL(c.GetClusterServiceURL(), "Cluster service")
+	if c.GetClusterCacheRefreshInterval() < 5*time.Second || c.GetClusterCacheRefreshInterval() > time.Hour {
+		c.appendDefaultConfigErrorMessage("Cluster cache refresh interval is less than five seconds or more than one hour")
 	}
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
@@ -448,27 +438,8 @@ func (c *ConfigurationData) GetClusterServiceURL() string {
 	return c.v.GetString(varShortClusterServiceURL)
 }
 
-// GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
-func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
-	// Lock for reading because config file watcher can update cluster configuration
-	//return c.clusters
-	return nil
-}
-
-// GetOSOClusterByURL returns a OSO cluster configurations by matching URL
-// Regardless of trailing slashes if cluster API URL == "https://api.openshift.com"
-// or "https://api.openshift.com/" it will match any "https://api.openshift.com*"
-// like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
-// Returns nil if no matching API URL found
-func (c *ConfigurationData) GetOSOClusterByURL(url string) *OSOCluster {
-	// Lock for reading because config file watcher can update cluster configuration
-	//for apiURL, cluster := range c.clusters {
-	//	if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
-	//		return &cluster
-	//	}
-	//}
-
-	return nil
+func (c *ConfigurationData) GetClusterCacheRefreshInterval() time.Duration {
+	return c.v.GetDuration(varClusterRefreshInterval)
 }
 
 // GetDefaultConfigurationFile returns the default configuration file.
@@ -590,7 +561,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// RPT Token maximum permissions
 	c.v.SetDefault(varRPTTokenMaxPermissions, 10)
 
+	// Cluster service
 	c.v.SetDefault(varShortClusterServiceURL, "http://cluster")
+	c.v.SetDefault(varClusterRefreshInterval, 5*time.Minute) // 5 minutes
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email

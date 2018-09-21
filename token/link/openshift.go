@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/satori/go.uuid"
@@ -21,12 +21,12 @@ const (
 // OpenShiftIdentityProviderConfig represents an OpenShift Identity Provider
 type OpenShiftIdentityProviderConfig interface {
 	oauth.IdentityProvider
-	OSOCluster() configuration.OSOCluster
+	OSOCluster() cluster.Cluster
 }
 
 type OpenShiftIdentityProvider struct {
 	oauth.OauthIdentityProvider
-	Cluster configuration.OSOCluster
+	Cluster cluster.Cluster
 }
 
 type openshiftUser struct {
@@ -37,7 +37,7 @@ type metadata struct {
 	Name string `json:"name"`
 }
 
-func NewOpenShiftIdentityProvider(cluster configuration.OSOCluster, authURL string) (*OpenShiftIdentityProvider, error) {
+func NewOpenShiftIdentityProvider(cluster cluster.Cluster, authURL string) (*OpenShiftIdentityProvider, error) {
 	provider := &OpenShiftIdentityProvider{}
 	provider.Cluster = cluster
 	provider.ClientID = cluster.AuthClientID
@@ -70,7 +70,7 @@ func (provider *OpenShiftIdentityProvider) TypeName() string {
 	return "openshift-v3"
 }
 
-func (provider *OpenShiftIdentityProvider) OSOCluster() configuration.OSOCluster {
+func (provider *OpenShiftIdentityProvider) OSOCluster() cluster.Cluster {
 	return provider.Cluster
 }
 

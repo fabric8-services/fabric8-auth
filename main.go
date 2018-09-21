@@ -12,6 +12,7 @@ import (
 	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -172,8 +173,16 @@ func main() {
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
+	// Start Cluster Service cache refresher
+	err = clusterservice.Start(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to start cluster service")
+	}
+
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService, login.NewOSORegistrationApp())
+	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService, login.NewOSORegistrationApp(appDB))
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 

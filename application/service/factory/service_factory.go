@@ -17,10 +17,12 @@ import (
 	spaceservice "github.com/fabric8-services/fabric8-auth/authorization/space/service"
 	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	tokenservice "github.com/fabric8-services/fabric8-auth/authorization/token/service"
+	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
 	witservice "github.com/fabric8-services/fabric8-auth/wit/service"
+
 	"github.com/pkg/errors"
 )
 
@@ -128,6 +130,7 @@ type ServiceFactory struct {
 	config                  *configuration.ConfigurationData
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
+	clusterServiceFunc      func() service.ClusterService      // the function to call when `ClusterService()` is called on this factory
 }
 
 // Option an option to configure the Service Factory
@@ -217,4 +220,8 @@ func (f *ServiceFactory) NotificationService() service.NotificationService {
 
 func (f *ServiceFactory) WITService() service.WITService {
 	return f.witServiceFunc()
+}
+
+func (f *ServiceFactory) ClusterService() service.ClusterService {
+	return clusterservice.NewClusterService(f.getContext())
 }
