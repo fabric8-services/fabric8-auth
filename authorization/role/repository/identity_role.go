@@ -650,7 +650,7 @@ func (m *GormIdentityRoleRepository) FindScopesByIdentityAndResource(ctx context
 	  AND ir2.identity_id IN (SELECT identity_id FROM identity_hierarchy)
 	  AND ir2.role_id IN (SELECT role_id FROM matching_roles)
 )
-SELECT
+SELECT DISTINCT
   rts.name AS scope
 FROM
   identity_resource_roles irr LEFT JOIN role_scope rs ON irr.role_id = rs.role_id

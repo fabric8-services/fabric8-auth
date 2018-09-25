@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"context"
+
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	res "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	rolePkg "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -79,4 +81,8 @@ func newIdentityRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 
 func (w *identityRoleWrapper) IdentityRole() *rolePkg.IdentityRole {
 	return w.identityRole
+}
+
+func (w *identityRoleWrapper) Delete() {
+	w.graph.app.IdentityRoleRepository().Delete(context.Background(), w.identityRole.IdentityRoleID)
 }
