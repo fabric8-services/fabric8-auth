@@ -266,10 +266,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
-		// var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
 		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
-			// messages = msgs
 			return nil, nil
 		}
 
@@ -316,10 +314,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
-		// var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
 		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
-			// messages = msgs
 			return nil, nil
 		}
 
@@ -357,10 +353,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
-		// var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
 		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
-			// messages = msgs
 			return nil, nil
 		}
 
@@ -396,10 +390,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
-		// var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
 		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
-			// messages = msgs
 			return nil, nil
 		}
 
@@ -433,10 +425,8 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 			},
 		}
 
-		// var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
 		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
-			// messages = msgs
 			return nil, nil
 		}
 
