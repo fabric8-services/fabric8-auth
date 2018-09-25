@@ -130,7 +130,6 @@ type ServiceFactory struct {
 	config                  *configuration.ConfigurationData
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
-	clusterServiceFunc      func() service.ClusterService      // the function to call when `ClusterService()` is called on this factory
 }
 
 // Option an option to configure the Service Factory
