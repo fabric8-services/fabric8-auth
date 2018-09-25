@@ -300,8 +300,7 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivilegesAfterRoleA
 	perms := *tokenClaims.Permissions
 	require.Len(s.T(), perms, 1)
 	// And it should contain one scope
-	require.Len(s.T(), perms[0].Scopes, 1)
-	require.Contains(s.T(), perms[0].Scopes, "november", "oscar")
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november", "oscar"})
 	// Extract the token ID from the token
 	storedTokenID := tokenClaims.Id
 	// Now add the second role to the user
