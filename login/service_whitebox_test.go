@@ -3,6 +3,7 @@ package login
 import (
 	"context"
 	"encoding/json"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"testing"
 
 	name "github.com/fabric8-services/fabric8-auth/account"
@@ -23,34 +24,6 @@ func TestGravatarURLGeneration(t *testing.T) {
 	grURL, err := generateGravatarURL("alkazako@redhat.com")
 	assert.Nil(t, err)
 	assert.Equal(t, "https://www.gravatar.com/avatar/0fa6cfaa2812a200c566f671803cdf2d.jpg", grURL)
-}
-
-func TestFillUserDoesntOverwriteExistingImageURL(t *testing.T) {
-	t.Parallel()
-	resource.Require(t, resource.UnitTest)
-
-	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", ImageURL: "http://vpupkin.io/image.jpg"}}
-	claims := &token.TokenClaims{Username: "new username", Name: "new name", Company: "new company", Email: "new email"}
-	isChanged, err := fillUser(claims, identity)
-	require.Nil(t, err)
-	require.True(t, isChanged)
-	assert.Equal(t, "new name", identity.User.FullName)
-	assert.Equal(t, "new company", identity.User.Company)
-	assert.Equal(t, "new email", identity.User.Email)
-	assert.Equal(t, "new username", identity.Username)
-	assert.Equal(t, "http://vpupkin.io/image.jpg", identity.User.ImageURL)
-}
-
-func TestFillUserOverwritesEmailVerified(t *testing.T) {
-	t.Parallel()
-	resource.Require(t, resource.UnitTest)
-
-	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", EmailVerified: false, ImageURL: "http://vpupkin.io/image.jpg"}}
-	claims := &token.TokenClaims{Username: "new username", Name: "new name", Company: "new company", Email: "new email", EmailVerified: true}
-	isChanged, err := fillUser(claims, identity)
-	require.Nil(t, err)
-	require.True(t, isChanged)
-	assert.Equal(t, true, identity.User.EmailVerified)
 }
 
 func TestEncodeTokenOK(t *testing.T) {
@@ -238,4 +211,28 @@ func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUs
 
 func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *KeycloakUserProfileResponse) {
 	d.dummyGetResponse = dummyGetResponse
+}
+
+func TestFillUserDoesntOverwriteExistingImageURL(t *testing.T) {
+	t.Parallel()
+	resource.Require(t, resource.UnitTest)
+
+	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", ImageURL: "http://vpupkin.io/image.jpg"}}
+	claims := oauth.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email"}
+	fillUserFromUserInfo(claims, identity)
+	assert.Equal(t, "new name", identity.User.FullName)
+	assert.Equal(t, "new company", identity.User.Company)
+	assert.Equal(t, "new email", identity.User.Email)
+	assert.Equal(t, "new username", identity.Username)
+	assert.Equal(t, "http://vpupkin.io/image.jpg", identity.User.ImageURL)
+}
+
+func TestFillUserDoesntOverwritesEmailVerified(t *testing.T) {
+	t.Parallel()
+	resource.Require(t, resource.UnitTest)
+
+	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", EmailVerified: false, ImageURL: "http://vpupkin.io/image.jpg"}}
+	claims := oauth.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email", EmailVerified: true}
+	fillUserFromUserInfo(claims, identity)
+	assert.Equal(t, false, identity.User.EmailVerified)
 }

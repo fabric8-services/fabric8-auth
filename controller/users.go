@@ -23,7 +23,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
-	"github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -132,32 +131,8 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewVersionConflictError("user with such email or username already exists"))
 	}
 
-	tokenEndpoint, err := c.config.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		return errors.NewInternalError(ctx, err)
-	}
-	log.Info(ctx, map[string]interface{}{
-		"keycloak_client_id": c.config.GetKeycloakClientID(),
-		"token_endpoint":     tokenEndpoint,
-	}, "will generate PAT ")
-	protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, c.config.GetKeycloakClientID(), c.config.GetKeycloakSecret())
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
-	keycloakUserID, err := c.createOrUpdateUserInKeycloak(ctx, protectedAccessToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":      err,
-			"username": ctx.Payload.Data.Attributes.Username,
-		}, "failed to create user in keycloak")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	log.Info(ctx, map[string]interface{}{
-		"keycloak_user_id": *keycloakUserID,
-	}, "successfully created new user in keycloak")
-
-	identityID, err := uuid.FromString(*keycloakUserID)
+	// If it's a new user, Auth service generates an Identity ID for the user.
+	identityID, err := uuid.FromString(uuid.NewV4().String())
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
@@ -165,8 +140,8 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	identity, user, err := c.createUserInDB(ctx, identityID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"err":              err,
-			"keycloak_user_id": *keycloakUserID,
+			"err":      err,
+			"username": identity.Username,
 		}, "failed to create user in DB")
 
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
@@ -176,8 +151,8 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	err = c.app.WITService().CreateUser(ctx.Context, identity, identityID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"err":              err,
-			"keycloak_user_id": *keycloakUserID,
+			"err":      err,
+			"username": identity.Username,
 		}, "failed to create user in WIT")
 		// Not a blocker. Log the error and proceed.
 	}
@@ -213,80 +188,6 @@ func rhdUserName(userAttributes app.CreateIdentityDataAttributes) string {
 	return rhdUsername
 }
 
-// createOrUpdateUserInKeycloak creates a new user in Keycloak. If the user already exists then try to update the user
-func (c *UsersController) createOrUpdateUserInKeycloak(ctx *app.CreateUsersContext, protectedAccessToken string) (*string, error) {
-
-	// All the below attributes are mandatory: "username", "email"
-	// "cluster" is mandatory too but we do not store it in Keycloak
-
-	userAttributes := ctx.Payload.Data.Attributes
-
-	keycloakUser := login.KeycloakUserRequest{
-		Username: &userAttributes.Username,
-		Email:    &userAttributes.Email,
-	}
-
-	attributes := login.KeycloakUserProfileAttributes{}
-
-	approved := true // Approved by default
-	if userAttributes.Approved != nil {
-		approved = *userAttributes.Approved
-	}
-	attributes[login.ApprovedAttributeName] = []string{fmt.Sprint(approved)}
-
-	company := "" // Empty string by default
-	if userAttributes.Company != nil {
-		company = *userAttributes.Company
-	}
-	attributes[login.CompanyAttributeName] = []string{company}
-
-	rhdUsername := rhdUserName(*userAttributes)
-	attributes[login.RHDUsernameAttribute] = []string{rhdUsername}
-
-	keycloakUser.Attributes = &attributes
-
-	if userAttributes.FullName != nil {
-		nameComponents := strings.Split(*userAttributes.FullName, " ")
-		firstName := nameComponents[0]
-		lastName := ""
-		if len(nameComponents) > 1 {
-			lastName = strings.Join(nameComponents[1:], " ")
-		}
-
-		keycloakUser.FirstName = &firstName
-		keycloakUser.LastName = &lastName
-	}
-
-	usersEndpoint, err := c.config.GetKeycloakEndpointUsers(ctx.RequestData)
-	if err != nil {
-		return nil, err
-	}
-
-	userURL, created, err := c.userProfileService.CreateOrUpdate(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Handle error, check if there was actually a URL returned.
-	userURLComponents := strings.Split(*userURL, "/")
-	identityID := userURLComponents[len(userURLComponents)-1]
-
-	// Link only new accounts. Do not link already existing (and updated) ones
-	if created {
-		rhdUserID := userAttributes.RhdUserID
-		err = c.linkUserToRHD(ctx, identityID, rhdUserName(*ctx.Payload.Data.Attributes), rhdUserID, protectedAccessToken)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":              err,
-				"keycloak_user_id": identityID,
-			}, "failed to link user to rhd")
-			return nil, err
-		}
-	}
-
-	return &identityID, nil
-}
-
 func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID uuid.UUID) (*accountrepo.Identity, *accountrepo.User, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identityID, "user attributes": ctx.Payload.Data.Attributes}, "creating a new user in DB...")
 	userID := uuid.NewV4()
@@ -316,10 +217,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	identity.UserID = accountrepo.NullUUID{UUID: user.ID, Valid: true}
 
 	// Optional Attributes
-	registrationCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
-	if registrationCompleted != nil {
-		identity.RegistrationCompleted = true
-	}
+	identity.RegistrationCompleted = false // Start with 'false', set it to true when user logs in.
 
 	company := ctx.Payload.Data.Attributes.Company
 	if company != nil {
@@ -382,84 +280,6 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	return identity, user, nil
 }
 
-func mergeKeycloakUserProfileInfo(keycloakUserProfile *login.KeycloakUserProfile, existingProfile *login.KeycloakUserProfileResponse) *login.KeycloakUserProfile {
-
-	// If the *new* FirstName has already been set, we won't be updating it with the *existing* value
-	if existingProfile.FirstName != nil && keycloakUserProfile.FirstName == nil {
-		keycloakUserProfile.FirstName = existingProfile.FirstName
-	}
-	if existingProfile.LastName != nil && keycloakUserProfile.LastName == nil {
-		keycloakUserProfile.LastName = existingProfile.LastName
-	}
-	if existingProfile.Email != nil && keycloakUserProfile.Email == nil {
-		keycloakUserProfile.Email = existingProfile.Email
-	}
-
-	if existingProfile.Attributes != nil && keycloakUserProfile.Attributes != nil {
-
-		// If there are existing attributes, we overwite only those
-		// handled by the Users service in platform. The value would be non-nil if they
-		// they are to be updated by the PATCH request.
-
-		if (*keycloakUserProfile.Attributes)[login.ImageURLAttributeName] != nil {
-			(*existingProfile.Attributes)[login.ImageURLAttributeName] = (*keycloakUserProfile.Attributes)[login.ImageURLAttributeName]
-		}
-		if (*keycloakUserProfile.Attributes)[login.BioAttributeName] != nil {
-			(*existingProfile.Attributes)[login.BioAttributeName] = (*keycloakUserProfile.Attributes)[login.BioAttributeName]
-		}
-		if (*keycloakUserProfile.Attributes)[login.URLAttributeName] != nil {
-			(*existingProfile.Attributes)[login.URLAttributeName] = (*keycloakUserProfile.Attributes)[login.URLAttributeName]
-		}
-		if (*keycloakUserProfile.Attributes)[login.CompanyAttributeName] != nil {
-			(*existingProfile.Attributes)[login.CompanyAttributeName] = (*keycloakUserProfile.Attributes)[login.CompanyAttributeName]
-		}
-		if (*keycloakUserProfile.Attributes)[login.ApprovedAttributeName] != nil {
-			(*existingProfile.Attributes)[login.ApprovedAttributeName] = (*keycloakUserProfile.Attributes)[login.ApprovedAttributeName]
-		}
-
-		// Copy over the rest of the attributes as well.
-		keycloakUserProfile.Attributes = existingProfile.Attributes
-	}
-
-	if existingProfile.Username != nil && keycloakUserProfile.Username == nil {
-		keycloakUserProfile.Username = existingProfile.Username
-	}
-
-	return keycloakUserProfile
-}
-
-func (c *UsersController) copyExistingKeycloakUserProfileInfo(ctx context.Context, keycloakUserProfile *login.KeycloakUserProfile, tokenString string, accountAPIEndpoint string) (*login.KeycloakUserProfile, error) {
-
-	// The keycloak API doesn't support PATCH, hence the entire info needs
-	// to be sent over for User profile updation in Keycloak. So the POST request to KC needs
-	// to have everything - whatever we are updating, and whatever are not.
-
-	if keycloakUserProfile == nil {
-		keycloakUserProfile = &login.KeycloakUserProfile{}
-		keycloakUserProfile.Attributes = &login.KeycloakUserProfileAttributes{}
-	}
-
-	existingProfile, err := c.getKeycloakProfileInformation(ctx, tokenString, accountAPIEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	keycloakUserProfile = mergeKeycloakUserProfileInfo(keycloakUserProfile, existingProfile)
-
-	return keycloakUserProfile, nil
-}
-
-func (c *UsersController) getKeycloakProfileInformation(ctx context.Context, tokenString string, accountAPIEndpoint string) (*login.KeycloakUserProfileResponse, error) {
-
-	response, err := c.userProfileService.Get(ctx, tokenString, accountAPIEndpoint)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to fetch keycloak account information")
-	}
-	return response, err
-}
-
 // Update updates the authorized user based on the provided Token
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
@@ -473,9 +293,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
 	var isKeycloakUserProfileUpdateNeeded bool
 	var isEmailVerificationNeeded bool
-	// prepare for updating keycloak user profile
-	tokenString := jwt.ContextJWT(ctx).Raw
-	accountAPIEndpoint, err := c.config.GetKeycloakAccountEndpoint(ctx.RequestData)
 
 	var identity *accountrepo.Identity
 	var user *accountrepo.User
@@ -663,34 +480,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		}
 	}
 
-	if isKeycloakUserProfileUpdateNeeded {
-		keycloakUserProfile, err = c.copyExistingKeycloakUserProfileInfo(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
-		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, err)
-		}
-
-		err = c.userProfileService.Update(ctx, keycloakUserProfile, tokenString, accountAPIEndpoint)
-
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"user_name": keycloakUserProfile.Username,
-				"email":     keycloakUserProfile.Email,
-				"err":       err,
-			}, "failed to update keycloak account")
-
-			jerrors, _ := jsonapi.ErrorToJSONAPIErrors(ctx, err)
-
-			// We have mapped keycloak's 500 InternalServerError to our errors.BadParameterError
-			// because this scenario is directly associated with attempts to update
-			// duplicate email and/or username.
-			switch err.(type) {
-			default:
-				return ctx.BadRequest(jerrors)
-			case errors.UnauthorizedError:
-				return ctx.Unauthorized(jerrors)
-			}
-		}
-	}
 	err = c.updateWITUser(ctx, identity.ID.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
