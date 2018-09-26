@@ -63,7 +63,7 @@ func main() {
 			"config_file":                 configFile,
 			"service_account_config_file": serviceAccountConfigFile,
 			"oso_cluster_config_file":     osoClusterConfigFile,
-			"err":                         err,
+			"err": err,
 		}, "failed to setup the configuration")
 	}
 
