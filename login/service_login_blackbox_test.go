@@ -387,7 +387,6 @@ func (s *serviceLoginBlackBoxTest) createNewLoginService() *login.KeycloakOAuthP
 		testtoken.TokenManager,
 		s.Application,
 		nil,
-		nil,
 		&testsupport.DummyOSORegistrationApp{},
 	)
 }

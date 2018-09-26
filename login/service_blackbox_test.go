@@ -81,7 +81,7 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
 	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
+	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.osoSubscriptionManager)
 }
 
 func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
@@ -613,7 +613,7 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	// Fails if invalid format of refresh token
 	s.keycloakTokenService.fail = false
-	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
+	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", s.Configuration)
 	require.EqualError(s.T(), err, "token contains an invalid number of segments")
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
@@ -629,7 +629,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	require.NoError(s.T(), err)
 
 	ctx := testtoken.ContextWithRequest(nil)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, s.Configuration)
 	require.EqualError(s.T(), err, "Token is expired")
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
@@ -638,14 +638,8 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	refreshToken, err = testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.NoError(s.T(), err)
 
-	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, s.Configuration)
 	require.NoError(s.T(), err)
-
-	// Fails if KC fails
-	s.keycloakTokenService.fail = true
-	_, err = s.loginService.ExchangeRefreshToken(context.Background(), refreshToken, "", s.Configuration)
-	require.EqualError(s.T(), err, "kc refresh failed")
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
 func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
@@ -658,7 +652,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	ctx := testtoken.ContextWithRequest(nil)
 	generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
 	require.NoError(s.T(), err)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 	require.Equal(s.T(), "unauthorized access", err.Error())
@@ -682,7 +676,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	// Refresh tokens
 	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
 	require.NoError(s.T(), err)
-	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
+	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, s.Configuration)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenSet)
 

@@ -107,6 +107,7 @@ type Manager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
+	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
 	SignRPTToken(ctx context.Context, rptToken *jwt.Token) (string, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
@@ -493,6 +494,46 @@ func (mgm *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, ident
 	return token, nil
 }
 
+func (mgm *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity) (*oauth2.Token, error) {
+
+	nowTime := time.Now().Unix()
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessTokenFromRefreshToken(ctx, refreshTokenString, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	accessToken, err := unsignedAccessToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, refreshTokenString, identity)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	refreshToken, err := unsignedRefreshToken.SignedString(mgm.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var nbf int64
+
+	token := &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       time.Unix(nowTime+mgm.config.GetAccessTokenExpiresIn(), 0),
+		TokenType:    "bearer",
+	}
+
+	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
+	extra := make(map[string]interface{})
+	extra["expires_in"] = mgm.config.GetAccessTokenExpiresIn()
+	extra["refresh_expires_in"] = mgm.config.GetRefreshTokenExpiresIn()
+	extra["not_before_policy"] = nbf
+
+	token = token.WithExtra(extra)
+
+	return token, nil
+}
+
 // GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
 func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *repository.Identity) (*jwt.Token, error) {
 	kcClaims, err := mgm.ParseToken(ctx, keycloakAccessToken)
@@ -510,6 +551,8 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.C
 
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
+
+	// TODO generate value instead of using it from claim
 	claims["exp"] = tokenClaims.ExpiresAt
 	claims["nbf"] = tokenClaims.NotBefore
 	claims["iat"] = tokenClaims.IssuedAt
@@ -518,6 +561,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.C
 	claims["typ"] = "Bearer"
 	claims["auth_time"] = tokenClaims.IssuedAt
 	claims["approved"] = identity != nil && !identity.User.Deprovisioned && tokenClaims.Approved
+
 	if identity != nil {
 		claims["sub"] = identity.ID.String()
 		claims["email_verified"] = identity.User.EmailVerified
@@ -555,6 +599,87 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.C
 
 	claims["azp"] = tokenClaims.Audience
 	claims["session_state"] = tokenClaims.SessionState
+	claims["acr"] = "0"
+
+	realmAccess := make(map[string]interface{})
+	realmAccess["roles"] = []string{"uma_authorization"}
+	claims["realm_access"] = realmAccess
+
+	resourceAccess := make(map[string]interface{})
+	broker := make(map[string]interface{})
+	broker["roles"] = []string{"read-token"}
+	resourceAccess["broker"] = broker
+
+	account := make(map[string]interface{})
+	account["roles"] = []string{"manage-account", "manage-account-links", "view-profile"}
+	resourceAccess["account"] = account
+
+	claims["resource_access"] = resourceAccess
+
+	return token, nil
+}
+
+func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	refreshTokenClaims, err := mgm.ParseToken(ctx, refreshTokenString)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	iat := time.Now().Unix()
+	claims["exp"] = iat + mgm.config.GetAccessTokenExpiresIn()
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
+	claims["typ"] = "Bearer"
+	claims["auth_time"] = iat // TODO should use the time when user actually logged-in the last time. Will need to get this time from the RHD token
+	claims["allowed-origins"] = []string{
+		authOpenshiftIO,
+		openshiftIO,
+	}
+	claims["approved"] = identity != nil && !identity.User.Deprovisioned
+	if identity != nil {
+		claims["sub"] = identity.ID.String()
+		claims["email_verified"] = identity.User.EmailVerified
+		claims["name"] = identity.User.FullName
+		claims["preferred_username"] = identity.Username
+		firstName, lastName := account.SplitFullName(identity.User.FullName)
+		claims["given_name"] = firstName
+		claims["family_name"] = lastName
+		claims["email"] = identity.User.Email
+		claims["company"] = identity.User.Company
+	} else {
+		claims["sub"] = refreshTokenClaims.Subject
+
+		// TODO Should we populate this data for api_client first time generating refresh token so that we can have this data available while refreshing access token
+		// otherwise we won't be having following claims for newly generated access token.
+		claims["email_verified"] = refreshTokenClaims.EmailVerified
+		claims["name"] = refreshTokenClaims.Name
+		claims["preferred_username"] = refreshTokenClaims.Username
+		claims["given_name"] = refreshTokenClaims.GivenName
+		claims["family_name"] = refreshTokenClaims.FamilyName
+		claims["email"] = refreshTokenClaims.Email
+		claims["company"] = refreshTokenClaims.Company
+	}
+
+	claims["azp"] = refreshTokenClaims.Audience
+	claims["session_state"] = refreshTokenClaims.SessionState
 	claims["acr"] = "0"
 
 	realmAccess := make(map[string]interface{})
@@ -633,11 +758,11 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 }
 
 // GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, keycloakRefreshToken string, identity *repository.Identity) (*jwt.Token, error) {
+func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, refreshToken string, identity *repository.Identity) (*jwt.Token, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
 
-	kcClaims, err := mgm.ParseToken(ctx, keycloakRefreshToken)
+	oldClaims, err := mgm.ParseToken(ctx, refreshToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -647,28 +772,37 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, k
 		return nil, errors.New("missing request in context")
 	}
 
-	typ := "Refresh"
-	if kcClaims.ExpiresAt == 0 {
-		typ = "Offline"
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
+
 	claims := token.Claims.(jwt.MapClaims)
 	claims["jti"] = uuid.NewV4().String()
-	claims["exp"] = kcClaims.ExpiresAt
-	claims["nbf"] = kcClaims.NotBefore
-	claims["iat"] = kcClaims.IssuedAt
-	claims["iss"] = kcClaims.Issuer
-	claims["aud"] = kcClaims.Audience
+	iat := time.Now().Unix()
+	var exp int64 // Offline tokens do not expire
+	typ := "Offline"
+	if oldClaims.ExpiresAt != 0 {
+		exp = iat + mgm.config.GetRefreshTokenExpiresIn()
+		typ = "Refresh"
+	}
+	claims["exp"] = exp
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
 	claims["typ"] = typ
 	claims["auth_time"] = 0
 
 	if identity != nil {
 		claims["sub"] = identity.ID.String()
 	} else {
-		claims["sub"] = kcClaims.Subject
+		claims["sub"] = oldClaims.Subject
 	}
 
-	claims["azp"] = kcClaims.Audience
-	claims["session_state"] = kcClaims.SessionState
+	claims["azp"] = oldClaims.Audience
+	claims["session_state"] = oldClaims.SessionState
 
 	return token, nil
 }

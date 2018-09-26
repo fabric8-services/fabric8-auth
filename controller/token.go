@@ -74,15 +74,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
 	}
 
-	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
-	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -402,15 +394,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 
-	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get Keycloak token endpoint URL")
-	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err

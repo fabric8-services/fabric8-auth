@@ -23,7 +23,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 
 	"github.com/goadesign/goa"
@@ -183,10 +182,9 @@ func main() {
 	}
 
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
-	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, keycloakTokenService, login.NewOSORegistrationApp())
+	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, login.NewOSORegistrationApp())
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 

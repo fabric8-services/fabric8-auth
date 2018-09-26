@@ -10,7 +10,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/login"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token/keycloak"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +31,7 @@ func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController
 }
 
 func newTestKeycloakOAuthProvider(app application.Application) *login.KeycloakOAuthProvider {
-	return login.NewKeycloakOAuthProvider(app.Identities(), app.Users(), testtoken.TokenManager, app, login.NewKeycloakUserProfileClient(), &keycloak.KeycloakTokenService{}, &testsupport.DummyOSORegistrationApp{})
+	return login.NewKeycloakOAuthProvider(app.Identities(), app.Users(), testtoken.TokenManager, app, login.NewKeycloakUserProfileClient(), &testsupport.DummyOSORegistrationApp{})
 }
 
 func (rest *TestLoginREST) TestLoginOK() {
