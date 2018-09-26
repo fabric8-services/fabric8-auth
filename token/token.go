@@ -628,7 +628,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 		authOpenshiftIO,
 		openshiftIO,
 	}
-
+	claims["session_state"] = uuid.NewV4().String()
 	return token, nil
 }
 
