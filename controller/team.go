@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"strings"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -9,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
-	"strings"
 )
 
 // TeamController implements the team resource.
