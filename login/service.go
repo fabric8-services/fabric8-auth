@@ -58,10 +58,10 @@ type Configuration interface {
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
 func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:             identities,
-		Users:                  users,
-		TokenManager:           tokenManager,
-		App:                    app,
+		Identities:   identities,
+		Users:        users,
+		TokenManager: tokenManager,
+		App:          app,
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
