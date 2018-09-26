@@ -606,7 +606,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	return token, nil
 }
 
-func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, authorizationToken *string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}

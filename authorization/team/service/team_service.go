@@ -89,7 +89,10 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 
 		// Create the team identity
 		teamIdentity := &account.Identity{
-			IdentityResourceID: sql.NullString{res.ResourceID, true},
+			IdentityResourceID: sql.NullString{
+				String: res.ResourceID,
+				Valid:  true,
+			},
 		}
 
 		err = s.Repositories().Identities().Create(ctx, teamIdentity)

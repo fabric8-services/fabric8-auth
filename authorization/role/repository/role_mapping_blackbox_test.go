@@ -41,7 +41,7 @@ func (s *roleMappingBlackBoxTest) TestOKToDelete() {
 	mappings, err := s.repo.List(s.Ctx)
 	require.Nil(s.T(), err, "Could not list role mappings")
 
-	require.Equal(s.T(), 2, len(mappings))
+	require.Len(s.T(), mappings, 2)
 
 	err = s.repo.Delete(s.Ctx, rm1.RoleMappingID)
 	assert.Nil(s.T(), err)

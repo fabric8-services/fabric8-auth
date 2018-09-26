@@ -264,6 +264,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	}
 	// if an authorization token is provided, then parse it to see if there is a `permissions` claim
 	if identity != nil && accessToken != "" {
+		// TODO: call the loginService.ExchangeRefreshToken()
 		rptClaims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
 		if err != nil {
 			return nil, autherrors.NewUnauthorizedError(err.Error())

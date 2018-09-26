@@ -629,13 +629,6 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 			require.NoError(t, err)
-			// TODO: what about this syntax?
-			// refreshToken, err := testtoken.GenerateRefreshToken(
-			// 	testtoken.WithSub(identity.ID.String()),
-			// 	testtoken.WithIAT(time.Now().Unix()-60*60), // Issued 1h ago
-			// 	testtoken.WithExp(time.Now().Unix()+60*60), // Expires in 1h
-			// )
-			// require.NoError(t, err)
 			// when
 			ctx := testtoken.ContextWithRequest(nil)
 			result, err := s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)

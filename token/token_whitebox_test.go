@@ -42,7 +42,7 @@ func (s *TestWhiteboxTokenSuite) SetupSuite() {
 }
 
 type authURLConfig struct {
-	config.ConfigurationData
+	*config.ConfigurationData
 	authURL string
 }
 
@@ -52,7 +52,10 @@ func (c *authURLConfig) GetAuthServiceURL() string {
 
 func (s *TestWhiteboxTokenSuite) tokenManagerWithAuthURL() (*tokenManager, string) {
 	authURL := uuid.NewV4().String()
-	m, err := NewManager(&authURLConfig{ConfigurationData: *s.Config, authURL: authURL})
+	m, err := NewManager(&authURLConfig{
+		ConfigurationData: s.Config,
+		authURL:           authURL,
+	})
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), m)
 	tm, ok := m.(*tokenManager)
