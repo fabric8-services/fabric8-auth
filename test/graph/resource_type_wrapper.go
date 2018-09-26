@@ -64,11 +64,12 @@ func (w *resourceTypeWrapper) Name() string {
 	return w.resourceType.Name
 }
 
-func (w *resourceTypeWrapper) AddScope(scope string) {
+func (w *resourceTypeWrapper) AddScope(scope string) *resourceTypeWrapper {
 	rts := &resourcetype.ResourceTypeScope{
 		ResourceTypeID: w.resourceType.ResourceTypeID,
 		Name:           scope,
 	}
 	err := w.graph.app.ResourceTypeScopeRepository().Create(w.graph.ctx, rts)
 	require.NoError(w.graph.t, err)
+	return w
 }

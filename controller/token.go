@@ -390,7 +390,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 }
 
 func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
-	authorizationToken, err := jwtrequest.ParseFromRequest(ctx.Request, jwtrequest.AuthorizationHeaderExtractor, c.TokenManager.KeyFunction(ctx))
+	authorizationToken, err := jwtrequest.AuthorizationHeaderExtractor.ExtractToken(ctx.Request)
 	if err != nil && err != jwtrequest.ErrNoTokenInRequest {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,

@@ -80,3 +80,7 @@ func newIdentityRoleWrapper(g *TestGraph, params []interface{}) interface{} {
 func (w *identityRoleWrapper) IdentityRole() *rolePkg.IdentityRole {
 	return w.identityRole
 }
+
+func (w *identityRoleWrapper) Delete() {
+	w.graph.app.IdentityRoleRepository().Delete(w.graph.ctx, w.identityRole.IdentityRoleID)
+}
