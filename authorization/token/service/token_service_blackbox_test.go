@@ -1,6 +1,8 @@
 package service_test
 
 import (
+	"testing"
+
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -9,14 +11,13 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type tokenServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 }
 
-func TestRunTokenServiceBlackboxTest(t *testing.T) {
+func TestTokenServiceBlackbox(t *testing.T) {
 	suite.Run(t, &tokenServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
@@ -35,12 +36,10 @@ func (s *tokenServiceBlackboxTest) TestSimpleAuditAccessToken() {
 	require.NoError(s.T(), err)
 
 	// Create a new resource type, with scope "echo"
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("echo")
+	rt := s.Graph.CreateResourceType().AddScope("echo")
 
 	// Create a role with scope echo
-	echoRole := s.Graph.CreateRole(rt)
-	echoRole.AddScope("echo")
+	echoRole := s.Graph.CreateRole(rt).AddScope("echo")
 
 	// Create a resource with the new resource type
 	r := s.Graph.CreateResource(rt)
@@ -83,17 +82,13 @@ func (s *tokenServiceBlackboxTest) TestRPTTokenReplacedWithAdditionalResource() 
 	require.NoError(s.T(), err)
 
 	// Create a new resource type, with scopes "foxtrot" and "golf"
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("foxtrot")
-	rt.AddScope("golf")
+	rt := s.Graph.CreateResourceType().AddScope("foxtrot").AddScope("golf")
 
 	// Create a role with scope foxtrot
-	foxtrotRole := s.Graph.CreateRole(rt)
-	foxtrotRole.AddScope("foxtrot")
+	foxtrotRole := s.Graph.CreateRole(rt).AddScope("foxtrot")
 
 	// Create a role with scope golf
-	golfRole := s.Graph.CreateRole(rt)
-	golfRole.AddScope("golf")
+	golfRole := s.Graph.CreateRole(rt).AddScope("golf")
 
 	// Create a resource with the new resource type
 	r := s.Graph.CreateResource(rt)
@@ -169,12 +164,10 @@ func (s *tokenServiceBlackboxTest) TestOldestPermissionRemovedFromMaxSizeToken()
 	require.NoError(s.T(), err)
 
 	// Create a new resource type, with scope "hotel"
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("hotel")
+	rt := s.Graph.CreateResourceType().AddScope("hotel")
 
 	// Create a role with scope hotel
-	hotelRole := s.Graph.CreateRole(rt)
-	hotelRole.AddScope("hotel")
+	hotelRole := s.Graph.CreateRole(rt).AddScope("hotel")
 
 	// Create a resource with the new resource type
 	firstResource := s.Graph.CreateResource(rt)
@@ -238,12 +231,10 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithUnchangedPrivileges() {
 	require.NoError(s.T(), err)
 
 	// Create a new resource type, with scope "mike"
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("mike")
+	rt := s.Graph.CreateResourceType().AddScope("mike")
 
 	// Create a role with scope mike
-	mikeRole := s.Graph.CreateRole(rt)
-	mikeRole.AddScope("mike")
+	mikeRole := s.Graph.CreateRole(rt).AddScope("mike")
 
 	// Create a resource with the new resource type
 	res := s.Graph.CreateResource(rt)
@@ -282,7 +273,112 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithUnchangedPrivileges() {
 	require.Nil(s.T(), rptToken)
 }
 
-func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivileges() {
+func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivilegesAfterRoleAddedToUser() {
+	// given
+	tm := testtoken.TokenManager
+	// Create a user
+	u := s.Graph.CreateUser()
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(s.Ctx, *u.Identity(), false)
+	require.NoError(s.T(), err)
+	// Create a new resource type, with scopes "november", "oscar" and "papa"
+	rt := s.Graph.CreateResourceType().AddScope("november").AddScope("oscar").AddScope("papa")
+	// Create a role with scope "november"
+	role1 := s.Graph.CreateRole(rt).AddScope("november").AddScope("oscar")
+	// Create a resource with the new resource type
+	res := s.Graph.CreateResource(rt)
+	// Assign the role to the user for the new resource
+	s.Graph.CreateIdentityRole(u, res, role1)
+	// Audit the user token for the resource ID
+	rptToken, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+	// Parse the signed RPT token
+	tokenClaims, err := tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+	// There should be one permission in the token
+	perms := *tokenClaims.Permissions
+	require.Len(s.T(), perms, 1)
+	// And it should contain one scope
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november", "oscar"})
+	// Extract the token ID from the token
+	storedTokenID := tokenClaims.Id
+	// Now add the second role to the user
+	// Create a role with scopes "oscar" and "papa"
+	role2 := s.Graph.CreateRole(rt).AddScope("oscar").AddScope("papa")
+	// Assign the role to the user for the resource (privileged cache is automatically marked as staled)
+	s.Graph.CreateIdentityRole(u, res, role2)
+	// Audit the RPT token for the same resource ID
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+	// Parse the signed RPT token
+	tokenClaims, err = tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+	// It should have a different token ID
+	require.NotEqual(s.T(), storedTokenID, tokenClaims.Id)
+	// There should still only be one permission
+	perms = *tokenClaims.Permissions
+	require.Len(s.T(), perms, 1)
+	// But it should now contain both scopes
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november", "oscar", "papa"}) // there should not be duplicate scopes
+}
+
+func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivilegesAfterRoleRemovedFromUser() {
+	// given
+	tm := testtoken.TokenManager
+	// Create a user
+	u := s.Graph.CreateUser()
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(s.Ctx, *u.Identity(), false)
+	require.NoError(s.T(), err)
+	// Create a new resource type, with 3 scopes
+	rt := s.Graph.CreateResourceType().AddScope("november").AddScope("oscar").AddScope("papa")
+	// Create a role with scope "november" and "oscar"
+	role1 := s.Graph.CreateRole(rt).AddScope("november").AddScope("oscar")
+	// Now add the second role to the user
+	// Create a role with scope "oscar" and "papa"
+	role2 := s.Graph.CreateRole(rt).AddScope("oscar").AddScope("papa")
+	// Create a resource with the new resource type
+	res := s.Graph.CreateResource(rt)
+	// Assign the 1st role to the user for the new resource
+	s.Graph.CreateIdentityRole(u, res, role1)
+	// Assign the 2nd role to the user for the resource
+	idr := s.Graph.CreateIdentityRole(u, res, role2)
+	// Audit the user token for the resource ID
+	rptToken, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+	// Parse the signed RPT token
+	tokenClaims, err := tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+	// There should be one permission in the token
+	perms := *tokenClaims.Permissions
+	require.Len(s.T(), perms, 1)
+	// And it should contain scopes for both roles, without duplicates
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november", "oscar", "papa"})
+	// Extract the token ID from the token
+	storedTokenID := tokenClaims.Id
+	// now, let's remove the 2nd role from the user
+	idr.Delete()
+	// Audit the RPT token for the same resource ID
+	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), rptToken)
+	// Parse the signed RPT token
+	tokenClaims, err = tm.ParseToken(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+	// It should have a different token ID
+	require.NotEqual(s.T(), storedTokenID, tokenClaims.Id)
+	// There should still only be one permission
+	perms = *tokenClaims.Permissions
+	require.Len(s.T(), perms, 1)
+	// But it should now contain only scopes for 1st role
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november", "oscar"})
+}
+
+func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivilegesAfterScopeAddedToRole() {
+	// given
 	tm := testtoken.TokenManager
 
 	// Create a user
@@ -293,13 +389,10 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivileges() {
 	require.NoError(s.T(), err)
 
 	// Create a new resource type, with scope "november"
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("november")
-	rt.AddScope("oscar")
+	rt := s.Graph.CreateResourceType().AddScope("november").AddScope("oscar")
 
 	// Create a role with scope november
-	role := s.Graph.CreateRole(rt)
-	role.AddScope("november")
+	role := s.Graph.CreateRole(rt).AddScope("november")
 
 	// Create a resource with the new resource type
 	res := s.Graph.CreateResource(rt)
@@ -319,10 +412,8 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivileges() {
 	// There should be one permission in the token
 	perms := *tokenClaims.Permissions
 	require.Len(s.T(), perms, 1)
-
 	// And it should contain one scope
-	require.Len(s.T(), perms[0].Scopes, 1)
-	require.Contains(s.T(), perms[0].Scopes, "november")
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november"})
 
 	// Extract the token ID from the token
 	storedTokenID := tokenClaims.Id
@@ -364,10 +455,8 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivileges() {
 	// There should still only be one permission
 	perms = *tokenClaims.Permissions
 	require.Len(s.T(), perms, 1)
-
 	// But it should now contain both scopes
-	require.Contains(s.T(), perms[0].Scopes, "november")
-	require.Contains(s.T(), perms[0].Scopes, "oscar")
+	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november", "oscar"})
 }
 
 func (s *tokenServiceBlackboxTest) TestDeprovisionedToken() {
@@ -381,12 +470,10 @@ func (s *tokenServiceBlackboxTest) TestDeprovisionedToken() {
 	require.NoError(s.T(), err)
 
 	// Create a new resource type, with scope "tango"
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("tango")
+	rt := s.Graph.CreateResourceType().AddScope("tango")
 
 	// Create a role with scope tango
-	role := s.Graph.CreateRole(rt)
-	role.AddScope("tango")
+	role := s.Graph.CreateRole(rt).AddScope("tango")
 
 	// Create a resource with the new resource type
 	res := s.Graph.CreateResource(rt)
@@ -434,12 +521,10 @@ func (s *tokenServiceBlackboxTest) TestRevokedToken() {
 	require.NoError(s.T(), err)
 
 	// Create a new resource type, with scope "tango"
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("uniform")
+	rt := s.Graph.CreateResourceType().AddScope("uniform")
 
 	// Create a role with the scope
-	role := s.Graph.CreateRole(rt)
-	role.AddScope("uniform")
+	role := s.Graph.CreateRole(rt).AddScope("uniform")
 
 	// Create a resource with the new resource type
 	res := s.Graph.CreateResource(rt)
@@ -503,22 +588,16 @@ func (s *tokenServiceBlackboxTest) TestTokenUpdatedWhenUserAcceptsResourceInvita
 	require.NoError(s.T(), err)
 
 	// Create a new resource type with three scopes
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("alpha")
-	rt.AddScope("bravo")
-	rt.AddScope("manage")
+	rt := s.Graph.CreateResourceType().AddScope("alpha").AddScope("bravo").AddScope("manage")
 
 	// Create an admin role with manage scope
-	adminRole := s.Graph.CreateRole(rt)
-	adminRole.AddScope("manage")
+	adminRole := s.Graph.CreateRole(rt).AddScope("manage")
 
 	// Create an alpha role
-	alphaRole := s.Graph.CreateRole(rt, "alpha")
-	alphaRole.AddScope("alpha")
+	alphaRole := s.Graph.CreateRole(rt, "alpha").AddScope("alpha")
 
 	// Create a bravo role
-	bravoRole := s.Graph.CreateRole(rt, "bravo")
-	bravoRole.AddScope("bravo")
+	bravoRole := s.Graph.CreateRole(rt, "bravo").AddScope("bravo")
 
 	// Create an admin user
 	admin := s.Graph.CreateUser()
@@ -684,12 +763,10 @@ func (s *tokenServiceBlackboxTest) TestTokenUpdatedWhenUserAcceptsResourceInvita
 	require.Contains(s.T(), perms[0].Scopes, "alpha")
 
 	// Create another resource type, with scope "zulu"
-	rt2 := s.Graph.CreateResourceType()
-	rt2.AddScope("zulu")
+	rt2 := s.Graph.CreateResourceType().AddScope("zulu")
 
 	// Create a role with the zulu scope
-	zuluRole := s.Graph.CreateRole(rt2)
-	zuluRole.AddScope("zulu")
+	zuluRole := s.Graph.CreateRole(rt2).AddScope("zulu")
 
 	// Create a child resource of res2, with the new resource type
 	res3 := s.Graph.CreateResource(res2, rt2)

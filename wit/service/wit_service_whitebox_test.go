@@ -20,12 +20,13 @@ import (
 
 	"bytes"
 	"fmt"
+	"io/ioutil"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"io/ioutil"
 )
 
 func TestWIT(t *testing.T) {
@@ -41,7 +42,10 @@ type TestWITSuite struct {
 
 func (s *TestWITSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
-	s.witConfig = &witURLConfig{ConfigurationData: *s.Config, witURL: "https://wit"}
+	s.witConfig = &witURLConfig{
+		ConfigurationData: s.Config,
+		witURL:            "https://wit",
+	}
 	s.ws = NewWITService(nil, s.witConfig).(*witServiceImpl)
 	doer := testsupport.NewDummyHttpDoer()
 	s.ws.doer = doer
@@ -224,7 +228,7 @@ func (s *TestWITSuite) TestDefaultDoer() {
 }
 
 type witURLConfig struct {
-	configuration.ConfigurationData
+	*configuration.ConfigurationData
 	witURL string
 }
 

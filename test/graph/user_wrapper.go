@@ -47,6 +47,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 		EmailPrivate: emailPrivate,
 		FullName:     fullname,
 		Cluster:      fmt.Sprintf("TestCluster-%s", id),
+		FeatureLevel: "released",
 	}
 
 	err := g.app.Users().Create(g.ctx, w.user)
@@ -56,7 +57,9 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 		Username:     fmt.Sprintf("TestUserIdentity-%s", id),
 		ProviderType: account.KeycloakIDP,
 		User:         *w.user,
-		UserID:       account.NullUUID{w.user.ID, true},
+		UserID: account.NullUUID{
+			UUID:  w.user.ID,
+			Valid: true},
 	}
 
 	err = g.app.Identities().Create(g.ctx, w.identity)

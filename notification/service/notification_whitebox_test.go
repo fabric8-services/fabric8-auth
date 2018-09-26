@@ -13,12 +13,13 @@ import (
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
 	tokenutil "github.com/fabric8-services/fabric8-auth/token"
 
+	"net/http"
+
 	"github.com/fabric8-services/fabric8-auth/test/recorder"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"net/http"
 )
 
 func TestNotification(t *testing.T) {
@@ -35,7 +36,10 @@ type TestNotificationSuite struct {
 
 func (s *TestNotificationSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
-	s.notificationConfig = &notificationURLConfig{ConfigurationData: *s.Config, notificationURL: "https://notification"}
+	s.notificationConfig = &notificationURLConfig{
+		ConfigurationData: s.Config,
+		notificationURL:   "https://notification",
+	}
 	s.ns = NewNotificationService(nil, s.notificationConfig).(*notificationServiceImpl)
 
 	// create a message
@@ -152,7 +156,10 @@ func (s *TestNotificationSuite) TestSend() {
 func (s *TestNotificationSuite) TestSendAsync() {
 	// given
 	ctx, _, _ := token.ContextWithTokenAndRequestID(s.T())
-	config := &notificationURLConfig{ConfigurationData: *s.Config, notificationURL: "::::"}
+	config := &notificationURLConfig{
+		ConfigurationData: s.Config,
+		notificationURL:   "::::",
+	}
 	ns := NewNotificationService(nil, config).(*notificationServiceImpl)
 	msg := s.msg
 	messageID := new(uuid.UUID)
@@ -259,7 +266,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 }
 
 type notificationURLConfig struct {
-	configuration.ConfigurationData
+	*configuration.ConfigurationData
 	notificationURL string
 }
 

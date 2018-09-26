@@ -82,3 +82,4 @@ configuration/confbindata.go
 wit/witservice
 account/tenant
 test/service
+test/token/oauth

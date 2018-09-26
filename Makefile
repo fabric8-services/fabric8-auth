@@ -154,6 +154,8 @@ generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only neces
 	@echo "Generating mocks..."
 	@-mkdir -p test/service
 	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService -o ./test/service/ -s ".go"
+	@-mkdir -p test/token/oauth
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/token/oauth.IdentityProvider -o ./test/token/oauth/ -s ".go"
 
 .PHONY: build
 ## Build server and client.
@@ -243,6 +245,7 @@ clean-generated:
 	-rm -rf ./test/service
 	-rm -rf ./notification/client
 	-rm -rf ./cluster/client
+	-rm -rf ./test/token/oauth
 
 CLEAN_TARGETS += clean-vendor
 .PHONY: clean-vendor

@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"strings"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -9,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
-	"strings"
 )
 
 // TeamController implements the team resource.
@@ -53,7 +54,9 @@ func (c *TeamController) Create(ctx *app.CreateTeamContext) error {
 
 	teamIDStr := teamID.String()
 
-	return ctx.Created(&app.CreateTeamResponse{&teamIDStr})
+	return ctx.Created(&app.CreateTeamResponse{
+		TeamID: &teamIDStr,
+	})
 }
 
 // List runs the list action.
@@ -76,7 +79,9 @@ func (c *TeamController) List(ctx *app.ListTeamContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	return ctx.OK(&app.IdentityTeamArray{convertToIdentityTeamData(teams)})
+	return ctx.OK(&app.IdentityTeamArray{
+		Data: convertToIdentityTeamData(teams),
+	})
 }
 
 func convertToIdentityTeamData(teams []authorization.IdentityAssociation) []*app.IdentityTeamData {

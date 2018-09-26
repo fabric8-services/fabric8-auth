@@ -44,7 +44,7 @@ type User struct {
 
 const (
 	// DefaultFeatureLevel the default feature level for users: `released`, which means that they don't have access to preproduction/unreleased features.
-	DefaultFeatureLevel string = "released" // the default value, which is also the default DB column value
+	DefaultFeatureLevel = "released" // the default value, which is also the default DB column value
 )
 
 // TableName overrides the table name settings in Gorm to force a specific table name

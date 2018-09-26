@@ -590,7 +590,7 @@ func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, re
 
 // CreateOrUpdateIdentityAndUser is a mocked service contract which returns a token but not a redirect url.
 
-func (s *DummyKeycloakOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+func (s *DummyKeycloakOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
@@ -626,10 +626,10 @@ func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string, con
 	return token, nil
 }
 
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, configuration login.Configuration) (*account.Identity, bool, error) {
+func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration login.Configuration) (*account.Identity, bool, error) {
 	return nil, false, errors.NewUnauthorizedError("user is absent")
 }
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
 
 	/* This mocked method simulates the contract
 	where redir url is always returned, but token is returned when there is not error
