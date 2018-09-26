@@ -51,7 +51,7 @@ func NewTokenController(service *goa.Service, app application.Application, auth 
 		TokenManager:          tokenManager,
 		Configuration:         configuration,
 		providerConfigFactory: providerConfigFactory,
-		app: app,
+		app:                   app,
 	}
 }
 
@@ -277,7 +277,7 @@ func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource 
 		}
 		if osConfig.OSOCluster().ServiceAccountUsername != userProfile.Username {
 			log.Warn(ctx, map[string]interface{}{
-				"for": forResource,
+				"for":                    forResource,
 				"configuration_username": osConfig.OSOCluster().ServiceAccountUsername,
 				"user_profile_username":  userProfile.Username,
 			}, "username from user profile for cluster token does not match username stored in configuration")
