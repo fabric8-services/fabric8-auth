@@ -41,7 +41,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("organization name cannot be empty"))
 	}
 
-	organizationId, err := c.app.OrganizationService().CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
+	organizationID, err := c.app.OrganizationService().CreateOrganization(ctx, *currentUser, *ctx.Payload.Name)
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -53,12 +53,14 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"organization_id": organizationId.String(),
+		"organization_id": organizationID.String(),
 	}, "organization created")
 
-	orgId := organizationId.String()
+	orgID := organizationID.String()
 
-	return ctx.Created(&app.CreateOrganizationResponse{&orgId})
+	return ctx.Created(&app.CreateOrganizationResponse{
+		OrganizationID: &orgID,
+	})
 }
 
 // List runs the list action.
@@ -81,7 +83,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
-	return ctx.OK(&app.OrganizationArray{convertToAppOrganization(orgs)})
+	return ctx.OK(&app.OrganizationArray{Data: convertToAppOrganization(orgs)})
 }
 
 func convertToAppOrganization(orgs []authorization.IdentityAssociation) []*app.OrganizationData {

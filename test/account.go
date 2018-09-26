@@ -130,7 +130,10 @@ func CreateTestOrganizationIdentity(db *gorm.DB) (account.Identity, error) {
 		}
 
 		orgIdentity = account.Identity{
-			IdentityResourceID: sql.NullString{orgResource.ResourceID, true},
+			IdentityResourceID: sql.NullString{
+				String: orgResource.ResourceID,
+				Valid:  true,
+			},
 		}
 
 		err = CreateTestIdentityForAccountIdentity(db, &orgIdentity)

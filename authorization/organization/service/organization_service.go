@@ -63,7 +63,10 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 
 		// Create the organization identity
 		orgIdentity := &account.Identity{
-			IdentityResourceID: sql.NullString{res.ResourceID, true},
+			IdentityResourceID: sql.NullString{
+				String: res.ResourceID,
+				Valide: true,
+			},
 		}
 
 		err = s.Repositories().Identities().Create(ctx, orgIdentity)
