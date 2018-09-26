@@ -6,6 +6,8 @@ import (
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
+	"strings"
 )
 
 type clusterService struct {
@@ -21,18 +23,40 @@ func NewClusterService(context servicecontext.ServiceContext) service.ClusterSer
 
 // Clusters returns cached map of OpenShift clusters
 func (s *clusterService) Clusters() []cluster.Cluster {
+	if clusterCache == nil {
+		return []cluster.Cluster{}
+	}
 	clusterCache.refreshLock.RLock()
 	defer clusterCache.refreshLock.RUnlock()
-	clusters := make([]cluster.Cluster, len(clusterCache.clusters))
-	for _, cls := range clusterCache.clusters {
-		clusters = append(clusters, *cls)
-	}
-	return clusters
+
+	return Clusters(clusterCache.clusters)
 }
 
 // ClusterByURL returns the cached cluster for the given cluster API URL
 func (s *clusterService) ClusterByURL(url string) *cluster.Cluster {
+	if clusterCache == nil {
+		return nil
+	}
 	clusterCache.refreshLock.RLock()
 	defer clusterCache.refreshLock.RUnlock()
-	return clusterCache.clusters[rest.AddTrailingSlashToURL(url)]
+
+	return ClusterByURL(clusterCache.clusters, url)
+}
+
+func Clusters(clusters map[string]*cluster.Cluster) []cluster.Cluster {
+	var cs []cluster.Cluster
+	for _, cls := range clusters {
+		cs = append(cs, *cls)
+	}
+	return cs
+}
+
+func ClusterByURL(clusters map[string]*cluster.Cluster, url string) *cluster.Cluster {
+	for apiURL, cluster := range clusters {
+		if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
+			return cluster
+		}
+	}
+
+	return nil
 }

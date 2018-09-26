@@ -153,7 +153,7 @@ $(MINIMOCK_BIN):
 generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only necessary after clean or if changes occurred in interfaces.
 	@echo "Generating mocks..."
 	@-mkdir -p test/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService -o ./test/service/ -s ".go"
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService -o ./test/service/ -s ".go"
 
 .PHONY: build
 ## Build server and client.

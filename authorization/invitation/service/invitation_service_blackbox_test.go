@@ -15,8 +15,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -86,7 +86,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -134,7 +134,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -183,7 +183,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -269,7 +269,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -319,7 +319,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -360,7 +360,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -399,7 +399,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -436,7 +436,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -473,7 +473,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -522,7 +522,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -597,7 +597,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -649,7 +649,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}
@@ -699,7 +699,7 @@ func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {
 
 		var messages []notification.Message
 		*s.notificationServiceMock = *testservice.NewNotificationServiceMock(t)
-		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...configuration.HTTPClientOption) (r chan error, r1 error) {
+		s.notificationServiceMock.SendMessagesAsyncFunc = func(p context.Context, msgs []notification.Message, p2 ...rest.HTTPClientOption) (r chan error, r1 error) {
 			messages = msgs
 			return nil, nil
 		}

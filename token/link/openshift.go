@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/client"
@@ -43,8 +44,8 @@ func NewOpenShiftIdentityProvider(cluster cluster.Cluster, authURL string) (*Ope
 	provider.ClientID = cluster.AuthClientID
 	provider.ClientSecret = cluster.AuthClientSecret
 	provider.Endpoint = oauth2.Endpoint{
-		AuthURL:  fmt.Sprintf("%s/oauth/authorize", cluster.APIURL),
-		TokenURL: fmt.Sprintf("%s/oauth/token", cluster.APIURL),
+		AuthURL:  fmt.Sprintf("%soauth/authorize", rest.AddTrailingSlashToURL(cluster.APIURL)),
+		TokenURL: fmt.Sprintf("%soauth/token", rest.AddTrailingSlashToURL(cluster.APIURL)),
 	}
 	provider.RedirectURL = authURL + client.CallbackTokenPath()
 	provider.ScopeStr = cluster.AuthClientDefaultScope
@@ -54,7 +55,7 @@ func NewOpenShiftIdentityProvider(cluster cluster.Cluster, authURL string) (*Ope
 		return nil, err
 	}
 	provider.ProviderID = prID
-	provider.ProfileURL = fmt.Sprintf("%s/oapi/v1/users/~", cluster.APIURL)
+	provider.ProfileURL = fmt.Sprintf("%soapi/v1/users/~", rest.AddTrailingSlashToURL(cluster.APIURL))
 	return provider, nil
 }
 

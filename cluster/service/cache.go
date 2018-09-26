@@ -45,6 +45,7 @@ func newCache(config clusterConfig, options ...rest.HTTPClientOption) *cache {
 	}
 }
 
+// Start starts the default Cluster cache
 func Start(config clusterConfig, options ...rest.HTTPClientOption) error {
 	cacheLock.Lock()
 	defer cacheLock.Unlock()

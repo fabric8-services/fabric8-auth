@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
@@ -69,6 +70,6 @@ func (provider *DummyProvider) Profile(ctx context.Context, token oauth2.Token) 
 	}, nil
 }
 
-func (provider *DummyProvider) OSOCluster() configuration.OSOCluster {
-	return *provider.factory.Config.GetOSOClusterByURL(provider.URL())
+func (provider *DummyProvider) OSOCluster() cluster.Cluster {
+	return *ClusterByURL(provider.URL())
 }

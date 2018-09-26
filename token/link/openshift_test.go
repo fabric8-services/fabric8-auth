@@ -32,6 +32,6 @@ func TestOpenShiftProviderID(t *testing.T) {
 	assert.Equal(t, p.ProviderID, prID)
 	assert.Equal(t, p.ScopeStr, scope)
 	assert.Equal(t, p.ClientID, id)
-	assert.Equal(t, p.Cluster, secret)
+	assert.Equal(t, p.Cluster.AuthClientSecret, secret)
 	assert.Equal(t, p.RedirectURL, "https://test-auth/api/token/link/callback")
 }

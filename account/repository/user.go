@@ -35,7 +35,7 @@ type User struct {
 	URL           string // The URL of the User
 	Company       string // The (optional) Company of the User
 	FeatureLevel  string // the level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
-	Cluster       string // The OpenShift cluster allocted to the user.
+	Cluster       string // The OpenShift cluster allocated to the user.
 	// Whether the user has been deprovisioned
 	Deprovisioned      bool                       `gorm:"column:deprovisioned"`
 	Identities         []Identity                 // has many Identities from different IDPs

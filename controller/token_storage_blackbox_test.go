@@ -11,7 +11,10 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/token/link"
@@ -32,10 +35,17 @@ type TestTokenStorageREST struct {
 
 	providerConfigFactory      link.OauthProviderFactory
 	dummyProviderConfigFactory *testsupport.DummyProviderFactory
+	clusterServiceMock         service.ClusterService
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
 	suite.Run(t, &TestTokenStorageREST{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+}
+
+func (rest *TestTokenStorageREST) SetupSuite() {
+	rest.DBTestSuite.SetupSuite()
+	rest.clusterServiceMock = testsupport.NewClusterServiceMock(rest.T())
+	rest.Application = gormapplication.NewGormDB(rest.DB, rest.Configuration, factory.WithClusterService(rest.clusterServiceMock))
 }
 
 func (rest *TestTokenStorageREST) SetupTest() {
@@ -93,8 +103,8 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 		Username: saName,
 	}
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
-	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
-	for _, cluster := range rest.Configuration.GetOSOClusters() {
+	require.True(rest.T(), len(rest.clusterServiceMock.Clusters()) > 0)
+	for _, cluster := range rest.clusterServiceMock.Clusters() {
 		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
@@ -119,10 +129,10 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenValidOnForc
 	rest.dummyProviderConfigFactory.LoadProfileFail = false
 	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 
-	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
+	require.True(rest.T(), len(rest.clusterServiceMock.Clusters()) > 0)
 	forcePull := true
 
-	for _, cluster := range rest.Configuration.GetOSOClusters() {
+	for _, cluster := range rest.clusterServiceMock.Clusters() {
 		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, &forcePull)
 
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
@@ -146,10 +156,8 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenInvalidOnFo
 	rest.dummyProviderConfigFactory.LoadProfileFail = true
 
 	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
-	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
-
 	forcePull := true
-	for _, cluster := range rest.Configuration.GetOSOClusters() {
+	for _, cluster := range rest.clusterServiceMock.Clusters() {
 		// Token status is OK, but when tested with provider it's invalid.
 		test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 		rw, _ := test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.APIURL, &forcePull)
@@ -162,10 +170,10 @@ func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSA
 	sa := account.Identity{
 		Username: "unknown-sa",
 	}
+	require.NotEmpty(rest.T(), rest.clusterServiceMock.Clusters())
 
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
-	require.True(rest.T(), len(rest.Configuration.GetOSOClusters()) > 0)
-	for _, cluster := range rest.Configuration.GetOSOClusters() {
+	for _, cluster := range rest.clusterServiceMock.Clusters() {
 		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 	}
 }
@@ -302,7 +310,7 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (accou
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
-	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com", tokenResponse.ProviderAPIURL)
+	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com/", tokenResponse.ProviderAPIURL)
 
 	// Alias
 	_, tokenResponse = test.RetrieveTokenOK(rest.T(), service.Context, service, controller, "openshift", nil)
@@ -310,7 +318,7 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (accou
 	require.Equal(rest.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(rest.T(), expectedToken.Username, tokenResponse.Username)
 	require.Equal(rest.T(), "bearer", tokenResponse.TokenType)
-	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com", tokenResponse.ProviderAPIURL)
+	require.Equal(rest.T(), "https://api.starter-us-east-2a.openshift.com/", tokenResponse.ProviderAPIURL)
 
 	return identity, expectedToken
 }
@@ -440,10 +448,10 @@ func (rest *TestTokenStorageREST) statusExternalOSOTokenFromDBSuccess() account.
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 
 	_, tokenStatus := test.StatusTokenOK(rest.T(), service.Context, service, controller, "https://api.starter-us-east-2a.openshift.com", nil)
-	rest.assertTokenStatus("1234-from-dbtestuser", "https://api.starter-us-east-2a.openshift.com", tokenStatus)
+	rest.assertTokenStatus("1234-from-dbtestuser", "https://api.starter-us-east-2a.openshift.com/", tokenStatus)
 
 	_, tokenStatus = test.StatusTokenOK(rest.T(), service.Context, service, controller, "openshift", nil)
-	rest.assertTokenStatus("1234-from-dbtestuser", "https://api.starter-us-east-2a.openshift.com", tokenStatus)
+	rest.assertTokenStatus("1234-from-dbtestuser", "https://api.starter-us-east-2a.openshift.com/", tokenStatus)
 
 	return identity
 }
@@ -522,8 +530,8 @@ func (rest *TestTokenStorageREST) TestStatusExternalTokenValidOnForcePullInterna
 	require.Nil(rest.T(), err)
 	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "https://github.com/a/b", "https://github.com")
 	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "github", "https://github.com")
-	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "openshift", "https://api.starter-us-east-2.openshift.com")
-	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "https://api.starter-us-east-2.openshift.com", "https://api.starter-us-east-2.openshift.com")
+	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "openshift", "https://api.starter-us-east-2.openshift.com/")
+	rest.checkStatusExternalTokenValidOnForcePullInternalError(identity, "https://api.starter-us-east-2.openshift.com", "https://api.starter-us-east-2.openshift.com/")
 }
 
 func (rest *TestTokenStorageREST) checkStatusExternalTokenValidOnForcePullInternalError(identity account.Identity, for_, expectedProviderURL string) {

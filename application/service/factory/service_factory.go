@@ -130,6 +130,7 @@ type ServiceFactory struct {
 	config                  *configuration.ConfigurationData
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
+	clusterServiceFunc      func() service.ClusterService
 }
 
 // Option an option to configure the Service Factory
@@ -151,6 +152,14 @@ func WithNotificationService(s service.NotificationService) Option {
 	}
 }
 
+func WithClusterService(s service.ClusterService) Option {
+	return func(f *ServiceFactory) {
+		f.clusterServiceFunc = func() service.ClusterService {
+			return s
+		}
+	}
+}
+
 func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
@@ -160,6 +169,10 @@ func NewServiceFactory(producer ServiceContextProducer, config *configuration.Co
 	// default function to return an instance of Notification Service
 	f.notificationServiceFunc = func() service.NotificationService {
 		return notificationservice.NewNotificationService(f.getContext(), f.config)
+	}
+	// default function to return an instance of Cluster Service
+	f.clusterServiceFunc = func() service.ClusterService {
+		return clusterservice.NewClusterService(f.getContext())
 	}
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
 	// and options
@@ -222,5 +235,5 @@ func (f *ServiceFactory) WITService() service.WITService {
 }
 
 func (f *ServiceFactory) ClusterService() service.ClusterService {
-	return clusterservice.NewClusterService(f.getContext())
+	return f.clusterServiceFunc()
 }

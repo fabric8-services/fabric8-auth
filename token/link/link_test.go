@@ -10,11 +10,15 @@ import (
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	. "github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -26,9 +30,10 @@ import (
 
 type LinkTestSuite struct {
 	gormtestsupport.DBTestSuite
-	linkService  LinkOAuthService
-	testIdentity account.Identity
-	requestData  *goa.RequestData
+	linkService        LinkOAuthService
+	testIdentity       account.Identity
+	requestData        *goa.RequestData
+	clusterServiceMock service.ClusterService
 }
 
 func TestRunLinkTestSuite(t *testing.T) {
@@ -38,6 +43,10 @@ func TestRunLinkTestSuite(t *testing.T) {
 
 func (s *LinkTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
+
+	s.clusterServiceMock = testsupport.NewClusterServiceMock(s.T())
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithClusterService(s.clusterServiceMock))
+
 	providerFactory := NewOauthProviderFactory(s.Configuration, s.Application)
 	s.linkService = NewLinkServiceWithFactory(s.Configuration, s.Application, providerFactory)
 	s.requestData = &goa.RequestData{Request: &http.Request{
@@ -198,7 +207,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
-	s.checkCallback(s.Configuration.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"].TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
+	s.checkCallback(s.clusterServiceMock.ClusterByURL("https://api.starter-us-east-2.openshift.com").TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
 }
 
 func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
@@ -215,7 +224,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
 	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
-	s.checkCallback(s.Configuration.GetOSOClusters()["https://api.starter-us-east-2.openshift.com"].TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
+	s.checkCallback(s.clusterServiceMock.ClusterByURL("https://api.starter-us-east-2.openshift.com").TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
 }
 
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {
