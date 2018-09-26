@@ -58,10 +58,10 @@ type Configuration interface {
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
 func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:   identities,
-		Users:        users,
-		TokenManager: tokenManager,
-		App:          app,
+		Identities:             identities,
+		Users:                  users,
+		TokenManager:           tokenManager,
+		App:                    app,
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
@@ -84,7 +84,7 @@ type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.IdentityProvider, serviceConfig Configuration) error
 	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig Configuration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error)
+	ExchangeRefreshToken(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration Configuration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig Configuration) (*string, *oauth2.Token, error)
@@ -213,8 +213,9 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 }
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
-func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error) {
-
+// if the user request contained an access token in the authorization header (i.e, non empty value),
+// then it is used to fill the token to return, based on its `permissions` claim (if available)
+func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, accessToken string, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error) {
 	// Load identity for the refresh token
 	var identity *account.Identity
 	claims, err := keycloak.TokenManager.ParseTokenWithMapClaims(ctx, refreshToken)
@@ -260,6 +261,16 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 			return keycloak.TokenManager.ConvertToken(*generatedToken)
 		}
 		return nil, err
+	}
+	// if an authorization token is provided, then parse it to see if there is a `permissions` claim
+	if identity != nil && accessToken != "" {
+		rptClaims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
+		if err != nil {
+			return nil, autherrors.NewUnauthorizedError(err.Error())
+		}
+		if rptClaims.Permissions != nil {
+			// keycloak.App.TokenService().Audit()
+		}
 	}
 
 	// Generate token based on the Keycloak token

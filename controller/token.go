@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	jwtrequest "github.com/dgrijalva/jwt-go/request"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -51,7 +52,7 @@ func NewTokenController(service *goa.Service, app application.Application, auth 
 		TokenManager:          tokenManager,
 		Configuration:         configuration,
 		providerConfigFactory: providerConfigFactory,
-		app: app,
+		app:                   app,
 	}
 }
 
@@ -69,6 +70,8 @@ func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
 
 // Refresh obtains a new access token using the refresh token.
 func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
+	// retrieve the access token if it exists (otherwise, a jwtrequest.ErrNoTokenInRequest is returned, but it can be ignored here)
+	authorizationToken, _ := jwtrequest.AuthorizationHeaderExtractor.ExtractToken(ctx.Request)
 	refreshToken := ctx.Payload.RefreshToken
 	if refreshToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
@@ -82,7 +85,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
 	}
 
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, authorizationToken, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -277,7 +280,7 @@ func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource 
 		}
 		if osConfig.OSOCluster().ServiceAccountUsername != userProfile.Username {
 			log.Warn(ctx, map[string]interface{}{
-				"for": forResource,
+				"for":                    forResource,
 				"configuration_username": osConfig.OSOCluster().ServiceAccountUsername,
 				"user_profile_username":  userProfile.Username,
 			}, "username from user profile for cluster token does not match username stored in configuration")
@@ -387,6 +390,13 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 }
 
 func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
+	authorizationToken, err := jwtrequest.ParseFromRequest(ctx.Request, jwtrequest.AuthorizationHeaderExtractor, c.TokenManager.KeyFunction(ctx))
+	if err != nil && err != jwtrequest.ErrNoTokenInRequest {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to parse the token in the request's authorization header")
+		return nil, errors.NewBadParameterErrorFromString("authorization_header", "", "failed to parse the token in the request's authorization header")
+	}
 
 	payload := ctx.Payload
 	refreshToken := payload.RefreshToken
@@ -410,7 +420,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		return nil, errors.NewInternalErrorFromString(ctx, "unable to get Keycloak token endpoint URL")
 	}
 
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, authorizationToken, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err

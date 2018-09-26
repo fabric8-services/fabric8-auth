@@ -78,6 +78,7 @@ type TeamService interface {
 
 type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
+	Refresh(ctx context.Context, identity *account.Identity, tokenString string) (string, error)
 }
 
 type SpaceService interface {

@@ -1,6 +1,14 @@
 package service_test
 
 import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/fabric8-services/fabric8-auth/authorization"
+
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -9,14 +17,13 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type tokenServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
 }
 
-func TestRunTokenServiceBlackboxTest(t *testing.T) {
+func TestTokenServiceBlackbox(t *testing.T) {
 	suite.Run(t, &tokenServiceBlackboxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
@@ -264,17 +271,8 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithUnchangedPrivileges() {
 	perms := *tokenClaims.Permissions
 	require.Len(s.T(), perms, 1)
 
-	// Extract the token ID from the token
-	tokenID, err := uuid.FromString(tokenClaims.Id)
-	require.NoError(s.T(), err)
-
 	// "Staleify" the token
-	tk, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
-	require.NoError(s.T(), err)
-
-	tk.SetStatus(token.TOKEN_STATUS_STALE, true)
-	err = s.Application.TokenRepository().Save(s.Ctx, tk)
-	require.NoError(s.T(), err)
+	s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_STALE)
 
 	// Audit the RPT token for the same resource ID, it should return nil
 	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
@@ -324,30 +322,13 @@ func (s *tokenServiceBlackboxTest) TestStaleTokenWithChangedPrivileges() {
 	require.Len(s.T(), perms[0].Scopes, 1)
 	require.Contains(s.T(), perms[0].Scopes, "november")
 
-	// Extract the token ID from the token
-	storedTokenID := tokenClaims.Id
-	tokenID, err := uuid.FromString(storedTokenID)
-	require.NoError(s.T(), err)
-
 	// Now add the "oscar" scope to the role
 	role.AddScope("oscar")
 
 	// "Staleify" the token
-	tk, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
-	require.NoError(s.T(), err)
-
-	tk.SetStatus(token.TOKEN_STATUS_STALE, true)
-	err = s.Application.TokenRepository().Save(s.Ctx, tk)
-	require.NoError(s.T(), err)
-
-	// Also mark the privilege cache as stale
-	privCache, err := s.Application.PrivilegeCacheRepository().FindForIdentityResource(s.Ctx, u.IdentityID(), res.ResourceID())
-	require.NoError(s.T(), err)
-	privCache.Stale = true
-
-	// Save the modified privilege cache
-	err = s.Application.PrivilegeCacheRepository().Save(s.Ctx, privCache)
-	require.NoError(s.T(), err)
+	storedTokenID := s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_STALE, res.ResourceID())
+	// also, mark permissions for resource in cache as stale
+	s.setPermissionStale(s.T(), u.IdentityID(), res.ResourceID())
 
 	// Audit the RPT token for the same resource ID
 	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
@@ -399,22 +380,8 @@ func (s *tokenServiceBlackboxTest) TestDeprovisionedToken() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rptToken)
 
-	// Parse the signed RPT token to get the token ID
-	tokenClaims, err := tm.ParseToken(s.Ctx, *rptToken)
-	require.NoError(s.T(), err)
-
-	// Extract the token ID from the token
-	tokenID, err := uuid.FromString(tokenClaims.Id)
-	require.NoError(s.T(), err)
-
-	// Load the token from the repository
-	t, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
-	require.NoError(s.T(), err)
-
 	// Mark the token as deprovisioned and save it
-	t.SetStatus(token.TOKEN_STATUS_DEPROVISIONED, true)
-	err = s.Application.TokenRepository().Save(s.Ctx, t)
-	require.NoError(s.T(), err)
+	s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_DEPROVISIONED)
 
 	// Audit the RPT token for the same ID
 	_, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
@@ -451,23 +418,8 @@ func (s *tokenServiceBlackboxTest) TestRevokedToken() {
 	rptToken, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, res.ResourceID())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rptToken)
-
-	// Parse the signed RPT token to get the token ID
-	tokenClaims, err := tm.ParseToken(s.Ctx, *rptToken)
-	require.NoError(s.T(), err)
-
-	// Extract the token ID from the token
-	tokenID, err := uuid.FromString(tokenClaims.Id)
-	require.NoError(s.T(), err)
-
-	// Load the token from the repository
-	t, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
-	require.NoError(s.T(), err)
-
 	// Mark the token as revoked and save it
-	t.SetStatus(token.TOKEN_STATUS_REVOKED, true)
-	err = s.Application.TokenRepository().Save(s.Ctx, t)
-	require.NoError(s.T(), err)
+	s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_REVOKED)
 
 	// Audit the RPT token for the same ID
 	_, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), *rptToken, res.ResourceID())
@@ -792,5 +744,142 @@ func (s *tokenServiceBlackboxTest) TestTokenUpdatedWhenUserAcceptsResourceInvita
 
 	require.True(s.T(), res2Found)
 	require.True(s.T(), res3Found)
+}
 
+func (s *tokenServiceBlackboxTest) TestRefresh() {
+
+	tm := testtoken.TokenManager
+
+	s.T().Run("using audit token", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		ctx := testtoken.ContextWithRequest(context.Background())
+		// Create a user
+		u := g.CreateUser()
+		// Create an access token for the user
+		at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
+		require.NoError(t, err)
+		// when
+		// Refresh the user token
+		ctx = tokencontext.ContextWithTokenManager(ctx, tm)
+		result, err := s.Application.TokenService().Refresh(ctx, u.Identity(), at.AccessToken)
+		// then the result token should not contain a `permissions` claim
+		require.NoError(t, err)
+		rptClaims, err := tm.ParseToken(ctx, result)
+		require.NoError(t, err)
+		assert.Empty(t, rptClaims.Permissions)
+	})
+
+	s.T().Run("using RP token", func(t *testing.T) {
+
+		t.Run("containing permissions on 1 resource", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+			// create a user
+			u := g.CreateUser()
+			// Create an initial access token for the user
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
+			atClaims, err := tm.ParseToken(ctx, at.AccessToken)
+			require.NoError(t, err)
+			// create space
+			space := g.CreateSpace().AddAdmin(u)
+			time.Sleep(1 * time.Second)
+			// create RPT for the space
+			rptToken, err := s.Application.TokenService().Audit(ctx, u.Identity(), at.AccessToken, space.SpaceID())
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), rptToken)
+			// when
+			// refresh the user token
+			result, err := s.Application.TokenService().Refresh(ctx, u.Identity(), *rptToken)
+			// then the result token should not contain a `permissions` claim
+			require.NoError(t, err)
+			rptClaims, err := tm.ParseToken(ctx, result)
+			require.NoError(t, err)
+			assert.True(t, rptClaims.ExpiresAt > atClaims.ExpiresAt) // verify that the token expiry changed after the refresh
+			require.NotNil(t, rptClaims.Permissions)
+			permissions := *rptClaims.Permissions
+			require.Len(t, permissions, 1)
+			assert.Equal(t, *permissions[0].ResourceSetID, space.SpaceID())
+			assert.ElementsMatch(t, permissions[0].Scopes, []string{authorization.ManageSpaceScope, authorization.ContributeSpaceScope, authorization.ViewSpaceScope})
+		})
+
+		t.Run("containing permissions on 2 resources and staled after change", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+			// create a user
+			u := g.CreateUser()
+			// Create an initial access token for the user
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
+			// create space 1
+			space1 := g.CreateSpace().AddAdmin(u)
+			// create RPT for the 1st space
+			rptToken, err := s.Application.TokenService().Audit(ctx, u.Identity(), at.AccessToken, space1.SpaceID())
+			require.NoError(s.T(), err)
+			// create space 2
+			space2 := g.CreateSpace().AddContributor(u)
+			// create RPT for the 2nd space
+			rptToken, err = s.Application.TokenService().Audit(ctx, u.Identity(), *rptToken, space2.SpaceID())
+			require.NoError(s.T(), err)
+			// modify permission on 1st space
+			space1.RemoveAdmin(u).AddViewer(u)
+			// when
+			// refresh the user token
+			result, err := s.Application.TokenService().Refresh(ctx, u.Identity(), *rptToken)
+			// then the result token should not contain a `permissions` claim
+			require.NoError(t, err)
+			rptClaims, err := tm.ParseToken(ctx, result)
+			require.NoError(t, err)
+			require.NotNil(t, rptClaims.Permissions)
+			permissions := *rptClaims.Permissions
+			require.Len(t, permissions, 2)
+			assert.Equal(t, *permissions[0].ResourceSetID, space2.SpaceID()) // more recent resource is 1st in the list of permissions
+			assert.ElementsMatch(t, permissions[0].Scopes, []string{authorization.ContributeSpaceScope, authorization.ViewSpaceScope})
+			assert.Equal(t, *permissions[1].ResourceSetID, space1.SpaceID())
+			assert.ElementsMatch(t, permissions[1].Scopes, []string{authorization.ViewSpaceScope})
+			t.Logf("new permissions: %v", permissions[1].Scopes)
+		})
+
+		t.Run("deprovisioned user", func(t *testing.T) {
+			t.Skipf("not implemented yet")
+		})
+
+		t.Run("revoked token", func(t *testing.T) {
+			t.Skipf("not implemented yet")
+		})
+
+	})
+
+}
+
+func (s *tokenServiceBlackboxTest) setTokenStatus(t *testing.T, rptToken string, status int, resourceIDs ...string) string {
+	// Parse the signed RPT token to get the token ID
+	tm := testtoken.TokenManager
+	ctx := tokencontext.ContextWithTokenManager(context.Background(), tm)
+	tokenClaims, err := tm.ParseToken(ctx, rptToken)
+	require.NoError(t, err)
+	// Extract the token ID from the token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	require.NoError(s.T(), err)
+	// Load the token from the repository
+	tk, err := s.Application.TokenRepository().Load(ctx, tokenID)
+	require.NoError(t, err)
+	tk.SetStatus(status, true)
+	err = s.Application.TokenRepository().Save(s.Ctx, tk)
+	require.NoError(s.T(), err)
+	return tokenClaims.Id
+}
+
+func (s *tokenServiceBlackboxTest) setPermissionStale(t *testing.T, identityID uuid.UUID, resourceIDs ...string) {
+	for _, resourceID := range resourceIDs {
+		// Also mark the privilege cache as stale
+		privCache, err := s.Application.PrivilegeCacheRepository().FindForIdentityResource(s.Ctx, identityID, resourceID)
+		require.NoError(s.T(), err)
+		privCache.Stale = true
+
+		// Save the modified privilege cache
+		err = s.Application.PrivilegeCacheRepository().Save(s.Ctx, privCache)
+		require.NoError(s.T(), err)
+	}
 }

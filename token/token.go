@@ -102,6 +102,7 @@ type Manager interface {
 	PublicKey(keyID string) *rsa.PublicKey
 	JSONWebKeys() jwk.JSONKeys
 	PemKeys() jwk.JSONKeys
+	KeyFunction(context.Context) jwt.Keyfunc
 	AuthServiceAccountToken() string
 	GenerateServiceAccountToken(saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
@@ -282,7 +283,7 @@ func toPemKeys(publicKeys []*jwk.PublicKey) (jwk.JSONKeys, error) {
 
 // ParseToken parses token claims
 func (mgm *tokenManager) ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, mgm.keyFunction(ctx))
+	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, mgm.KeyFunction(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +296,7 @@ func (mgm *tokenManager) ParseToken(ctx context.Context, tokenString string) (*T
 
 // ParseTokenWithMapClaims parses token claims
 func (mgm *tokenManager) ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, mgm.keyFunction(ctx))
+	token, err := jwt.Parse(tokenString, mgm.KeyFunction(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +307,7 @@ func (mgm *tokenManager) ParseTokenWithMapClaims(ctx context.Context, tokenStrin
 	return nil, errors.WithStack(errors.New("token is not valid"))
 }
 
-func (mgm *tokenManager) keyFunction(ctx context.Context) jwt.Keyfunc {
+func (mgm *tokenManager) KeyFunction(ctx context.Context) jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
@@ -445,7 +446,6 @@ func (mgm *tokenManager) GenerateUnsignedRPTTokenForIdentity(ctx context.Context
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-
 	return unsignedRPTtoken, nil
 }
 
@@ -785,7 +785,7 @@ func (mgm *tokenManager) extraInt(oauthToken oauth2.Token, claimName string) (*i
 }
 
 func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {
-	keyFunc := mgm.keyFunction(ctx)
+	keyFunc := mgm.KeyFunction(ctx)
 	jwtToken, err := jwt.Parse(tokenString, keyFunc)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

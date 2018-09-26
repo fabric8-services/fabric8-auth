@@ -826,6 +826,8 @@ WHERE
 
 	log.Debug(ctx, map[string]interface{}{
 		"rows_marked_stale": result.RowsAffected,
+		"identity_id":       identityID,
+		"resource_id":       resourceID,
 	}, "Token rows marked stale")
 
 	return nil

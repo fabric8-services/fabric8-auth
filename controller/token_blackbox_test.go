@@ -67,7 +67,7 @@ func (s *TokenControllerTestSuite) SetupTest() {
 	s.exchangeStrategy = ""
 }
 
-func (s *TokenControllerTestSuite) UnSecuredController() (*goa.Service, *TokenController) {
+func (s *TokenControllerTestSuite) UnsecuredController() (*goa.Service, *TokenController) {
 	svc := goa.New("Token-Service")
 	manager, err := token.NewManager(s.Configuration)
 	require.Nil(s.T(), err)
@@ -119,7 +119,7 @@ func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity accoun
 }
 
 func (s *TokenControllerTestSuite) TestPublicKeys() {
-	svc, ctrl := s.UnSecuredController()
+	svc, ctrl := s.UnsecuredController()
 
 	s.T().Run("file not found", func(t *testing.T) {
 		_, keys := test.KeysTokenOK(s.T(), svc.Context, svc, ctrl, nil)
@@ -154,25 +154,51 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 	s.T().Run("using correct refresh token", func(t *testing.T) {
 
-		t.Run("without bearer RPT token", func(t *testing.T) {
+		t.Run("without authorization token", func(t *testing.T) {
+			// given
 			service, ctrl := s.SecuredController()
-
 			refreshToken := "SOME_REFRESH_TOKEN"
 			payload := &app.RefreshToken{
 				RefreshToken: &refreshToken,
 			}
+			// when
 			_, authToken := test.RefreshTokenOK(t, service.Context, service, ctrl, payload)
+			// then
 			token := authToken.Token
-			require.NotNil(s.T(), token.TokenType)
-			require.Equal(s.T(), "Bearer", *token.TokenType)
-			require.NotNil(s.T(), token.AccessToken)
-			require.Equal(s.T(), s.sampleAccessToken, *token.AccessToken)
-			require.NotNil(s.T(), token.RefreshToken)
-			require.Equal(s.T(), s.sampleRefreshToken, *token.RefreshToken)
+			require.NotNil(t, token.TokenType)
+			require.Equal(t, "Bearer", *token.TokenType)
+			require.NotNil(t, token.AccessToken)
+			require.Equal(t, s.sampleAccessToken, *token.AccessToken)
+			require.NotNil(t, token.RefreshToken)
+			require.Equal(t, s.sampleRefreshToken, *token.RefreshToken)
 			expiresIn, ok := token.ExpiresIn.(*int64)
-			require.True(s.T(), ok)
-			require.True(s.T(), *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+			require.True(t, ok)
+			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 		})
+
+		// t.Run("with authorization token", func(t *testing.T) {
+		// 	t.Run("invalid token", func(t *testing.T) {
+		// 		// given
+		// 		service, ctrl := s.SecuredController()
+		// 		refreshToken := "SOME_REFRESH_TOKEN"
+		// 		payload := &app.RefreshToken{
+		// 			RefreshToken: &refreshToken,
+		// 		}
+		// 		// when
+		// 		_, authToken := test.RefreshTokenOK(t, service.Context, service, ctrl, payload)
+		// 		// then
+		// 		token := authToken.Token
+		// 		require.NotNil(t, token.TokenType)
+		// 		require.Equal(t, "Bearer", *token.TokenType)
+		// 		require.NotNil(t, token.AccessToken)
+		// 		require.Equal(t, s.sampleAccessToken, *token.AccessToken)
+		// 		require.NotNil(t, token.RefreshToken)
+		// 		require.Equal(t, s.sampleRefreshToken, *token.RefreshToken)
+		// 		expiresIn, ok := token.ExpiresIn.(*int64)
+		// 		require.True(t, ok)
+		// 		require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+		// 	})
+		// })
 
 	})
 
@@ -307,7 +333,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectRefreshTokenOK() {
 }
 
 func (s *TokenControllerTestSuite) TestGenerateOK() {
-	svc, ctrl := s.UnSecuredController()
+	svc, ctrl := s.UnsecuredController()
 	_, result := test.GenerateTokenOK(s.T(), svc.Context, svc, ctrl)
 	require.Len(s.T(), result, 1)
 	validateToken(s.T(), result[0])
@@ -580,7 +606,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	return token, nil
 }
 
-func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, authorizationToken *string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}
