@@ -1,8 +1,8 @@
 package service_test
 
 import (
-	"testing"
 	"context"
+	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
