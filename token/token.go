@@ -623,6 +623,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.
 	claims["given_name"] = firstName
 	claims["family_name"] = lastName
 	claims["email"] = identity.User.Email
+	claims["company"] = identity.User.Company
 	claims["allowed-origins"] = []string{
 		authOpenshiftIO,
 		openshiftIO,

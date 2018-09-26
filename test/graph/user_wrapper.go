@@ -47,6 +47,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 		EmailPrivate: emailPrivate,
 		FullName:     fullname,
 		Cluster:      fmt.Sprintf("TestCluster-%s", id),
+		FeatureLevel: "released",
 	}
 
 	err := g.app.Users().Create(g.ctx, w.user)
