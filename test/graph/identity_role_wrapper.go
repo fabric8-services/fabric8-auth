@@ -1,8 +1,6 @@
 package graph
 
 import (
-	"context"
-
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	res "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	rolePkg "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -84,5 +82,5 @@ func (w *identityRoleWrapper) IdentityRole() *rolePkg.IdentityRole {
 }
 
 func (w *identityRoleWrapper) Delete() {
-	w.graph.app.IdentityRoleRepository().Delete(context.Background(), w.identityRole.IdentityRoleID)
+	w.graph.app.IdentityRoleRepository().Delete(w.graph.ctx, w.identityRole.IdentityRoleID)
 }
