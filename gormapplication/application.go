@@ -143,8 +143,16 @@ func (g *GormBase) PrivilegeCacheRepository() permission.PrivilegeCacheRepositor
 	return permission.NewPrivilegeCacheRepository(g.db)
 }
 
+func (g *GormDB) AuthenticationProviderService() service.AuthenticationProviderService {
+	return g.serviceFactory.AuthenticationProviderService()
+}
+
 func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
+}
+
+func (g *GormDB) LoginService() service.LoginService {
+	return g.serviceFactory.LoginService()
 }
 
 func (g *GormDB) OrganizationService() service.OrganizationService {

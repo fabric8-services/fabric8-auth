@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -14,6 +13,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
+
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
 )
@@ -30,6 +31,11 @@ Steps for adding a new Service:
    and use the factory method from the step #4
 */
 
+type AuthenticationProviderService interface {
+	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
+		state *string, responseMode *string, referrer string, config oauth.OauthConfig) (*string, error)
+}
+
 type InvitationService interface {
 	// Issue creates a new invitation for a user.
 	Issue(ctx context.Context, issuingUserID uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
@@ -37,6 +43,11 @@ type InvitationService interface {
 	Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error
 	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
 	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
+}
+
+type LoginService interface {
+	Login(ctx context.Context, config oauth.OauthConfig) (*string, error)
+	Callback(ctx context.Context, state *string, code *string) error
 }
 
 type OrganizationService interface {
@@ -109,7 +120,9 @@ type ClusterService interface {
 
 //Services creates instances of service layer objects
 type Services interface {
+	AuthenticationProviderService() AuthenticationProviderService
 	InvitationService() InvitationService
+	LoginService() LoginService
 	NotificationService() NotificationService
 	OrganizationService() OrganizationService
 	PermissionService() PermissionService

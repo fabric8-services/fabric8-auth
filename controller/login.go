@@ -46,3 +46,17 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return c.Auth.Login(ctx, oauthIdentityProvider, c.Configuration)
 }
+
+/*
+func (c *LoginController) Callback(ctx *app.LoginCallbackContext) error {
+
+	state := ctx.Params.Get("state")
+	code := ctx.Params.Get("code")
+
+
+	log.Debug(ctx, map[string]interface{}{
+		"code":  code,
+		"state": state,
+	}, "login request received")
+}
+*/
