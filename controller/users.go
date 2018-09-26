@@ -291,7 +291,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 	keycloakUserProfile := &login.KeycloakUserProfile{}
 	keycloakUserProfile.Attributes = &login.KeycloakUserProfileAttributes{}
 
-	var isKeycloakUserProfileUpdateNeeded bool
 	var isEmailVerificationNeeded bool
 
 	var identity *accountrepo.Identity
@@ -325,7 +324,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 				return errs.Wrap(errors.NewBadParameterError("email", *updatedEmail).Expected("unique email"), fmt.Sprintf("email : %s is already in use", *updatedEmail))
 			}
 			user.Email = *updatedEmail
-			isKeycloakUserProfileUpdateNeeded = true
 
 			isEmailVerificationNeeded = true
 			user.EmailVerified = false
@@ -353,7 +351,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 				return errs.Wrap(errors.NewBadParameterError("username", *updatedUserName).Expected("unique username"), fmt.Sprintf("username : %s is already in use", *updatedUserName))
 			}
 			identity.Username = *updatedUserName
-			isKeycloakUserProfileUpdateNeeded = true
 			keycloakUserProfile.Username = updatedUserName
 		}
 
@@ -374,7 +371,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedBio := ctx.Payload.Data.Attributes.Bio
 		if updatedBio != nil && *updatedBio != user.Bio {
 			user.Bio = *updatedBio
-			isKeycloakUserProfileUpdateNeeded = true
 			(*keycloakUserProfile.Attributes)[login.BioAttributeName] = []string{*updatedBio}
 		}
 		updatedFullName := ctx.Payload.Data.Attributes.FullName
@@ -388,22 +384,18 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			if len(nameComponents) > 1 {
 				lastName = strings.Join(nameComponents[1:], " ")
 			}
-			isKeycloakUserProfileUpdateNeeded = true
 			keycloakUserProfile.FirstName = &firstName
 			keycloakUserProfile.LastName = &lastName
 		}
 		updatedImageURL := ctx.Payload.Data.Attributes.ImageURL
 		if updatedImageURL != nil && *updatedImageURL != user.ImageURL {
 			user.ImageURL = *updatedImageURL
-			isKeycloakUserProfileUpdateNeeded = true
 			(*keycloakUserProfile.Attributes)[login.ImageURLAttributeName] = []string{*updatedImageURL}
 
 		}
 		updateURL := ctx.Payload.Data.Attributes.URL
 		if updateURL != nil && *updateURL != user.URL {
 			user.URL = *updateURL
-			isKeycloakUserProfileUpdateNeeded = true
-
 			(*keycloakUserProfile.Attributes)[login.URLAttributeName] = []string{*updateURL}
 		}
 
@@ -415,7 +407,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedCompany := ctx.Payload.Data.Attributes.Company
 		if updatedCompany != nil && *updatedCompany != user.Company {
 			user.Company = *updatedCompany
-			isKeycloakUserProfileUpdateNeeded = true
 			(*keycloakUserProfile.Attributes)[login.CompanyAttributeName] = []string{*updatedCompany}
 		}
 

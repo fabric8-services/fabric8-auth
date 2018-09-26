@@ -34,7 +34,7 @@ func NewOrganizationService(context servicecontext.ServiceContext) service.Organ
 // Also assigns Admin role to the organization creator.
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creatorIdentityID uuid.UUID, organizationName string) (*uuid.UUID, error) {
-	var organizationId uuid.UUID
+	var organizationID uuid.UUID
 
 	err := s.ExecuteInTransaction(func() error {
 		// Lookup the identity for the current user
@@ -63,7 +63,10 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 
 		// Create the organization identity
 		orgIdentity := &account.Identity{
-			IdentityResourceID: sql.NullString{res.ResourceID, true},
+			IdentityResourceID: sql.NullString{
+				String: res.ResourceID,
+				Valid:  true,
+			},
 		}
 
 		err = s.Repositories().Identities().Create(ctx, orgIdentity)
@@ -71,7 +74,7 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 			return errors.NewInternalError(ctx, err)
 		}
 
-		organizationId = orgIdentity.ID
+		organizationID = orgIdentity.ID
 
 		// Lookup the identity/organization admin role
 		adminRole, err := s.Repositories().RoleRepository().Lookup(ctx, authorization.OrganizationAdminRole, authorization.IdentityResourceTypeOrganization)
@@ -93,7 +96,7 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 		}
 
 		log.Debug(ctx, map[string]interface{}{
-			"organization_id": organizationId.String(),
+			"organization_id": organizationID.String(),
 		}, "organization created")
 
 		return err
@@ -103,7 +106,7 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 		return nil, err
 	}
 
-	return &organizationId, nil
+	return &organizationID, nil
 }
 
 // Returns an array of all organizations in which the specified identity is a member or is assigned a role

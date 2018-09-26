@@ -84,7 +84,9 @@ func (c *SpaceController) ListTeams(ctx *app.ListTeamsSpaceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	return ctx.OK(&app.TeamArray{convertToTeamData(teams)})
+	return ctx.OK(&app.TeamArray{
+		Data: convertToTeamData(teams),
+	})
 }
 
 func convertToTeamData(teams []account.Identity) []*app.TeamData {

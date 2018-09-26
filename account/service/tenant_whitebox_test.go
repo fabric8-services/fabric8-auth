@@ -34,7 +34,7 @@ type TestTenantServiceSuite struct {
 
 func (s *TestTenantServiceSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
-	s.tenantConfig = &tenantURLConfig{ConfigurationData: *s.Config, tenantURL: "https://some.tenant.io"}
+	s.tenantConfig = &tenantURLConfig{ConfigurationData: s.Config, tenantURL: "https://some.tenant.io"}
 	s.ts = NewTenantService(s.tenantConfig).(*tenantServiceImpl)
 	doer := authtest.NewDummyHttpDoer()
 	s.ts.doer = doer
@@ -77,7 +77,7 @@ func (s *TestTenantServiceSuite) TestInit() {
 	assert.Equal(s.T(), "something went wrong", err.Error())
 
 	// Fail if tenant service URL is invalid
-	tenant := NewTenantService(&tenantURLConfig{ConfigurationData: *s.Config, tenantURL: "::::"})
+	tenant := NewTenantService(&tenantURLConfig{ConfigurationData: s.Config, tenantURL: "::::"})
 	ts := tenant.(*tenantServiceImpl)
 	doer := authtest.NewDummyHttpDoer()
 	ts.doer = doer
@@ -124,7 +124,7 @@ func (s *TestTenantServiceSuite) TestDelete() {
 }
 
 type tenantURLConfig struct {
-	configuration.ConfigurationData
+	*configuration.ConfigurationData
 	tenantURL string
 }
 
