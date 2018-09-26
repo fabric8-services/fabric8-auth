@@ -58,10 +58,10 @@ type Configuration interface {
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
 func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:   identities,
-		Users:        users,
-		TokenManager: tokenManager,
-		App:          app,
+		Identities:             identities,
+		Users:                  users,
+		TokenManager:           tokenManager,
+		App:                    app,
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
@@ -648,8 +648,8 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	if identity.User.ID == uuid.Nil {
 		log.Error(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
-		}, "Found Keycloak identity is not linked to any User")
-		return nil, false, errors.New("found Keycloak identity is not linked to any User")
+		}, "token identity is not linked to any user")
+		return nil, false, errors.New("token identity is not linked to any user")
 	}
 
 	if !identity.RegistrationCompleted {
