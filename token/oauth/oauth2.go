@@ -2,11 +2,12 @@ package oauth
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/application"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 
-	"github.com/fabric8-services/fabric8-auth/application"
+	//"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"

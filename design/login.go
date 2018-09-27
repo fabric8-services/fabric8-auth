@@ -27,6 +27,21 @@ var _ = a.Resource("login", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
+
+	a.Action("callback", func() {
+		a.Routing(
+			a.GET("/callback"),
+		)
+		a.Params(func() {
+			a.Param("code", d.String, "Authorization code")
+			a.Param("state", d.String, "state value")
+		})
+		a.Description("Authorization code callback")
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
 })
 
 var _ = a.Resource("authorize", func() {

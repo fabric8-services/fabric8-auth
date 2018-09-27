@@ -4,6 +4,7 @@ import (
 	"context"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/authentication/login"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
@@ -46,8 +47,8 @@ type InvitationService interface {
 }
 
 type LoginService interface {
-	Login(ctx context.Context, config oauth.OauthConfig) (*string, error)
-	Callback(ctx context.Context, state *string, code *string) error
+	Login(ctx context.Context, redirect *string, apiClient *string, referrer string, config login.OauthConfig) (*string, error)
+	Callback(ctx context.Context, state string, code string) error
 }
 
 type OrganizationService interface {

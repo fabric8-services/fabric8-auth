@@ -5,16 +5,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authentication/login"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
 
 type LoginServiceConfiguration interface {
-	login.Configuration
 	GetKeycloakEndpointAuth(*goa.RequestData) (string, error)
 	GetKeycloakURL() string
 	GetKeycloakRealm() string
@@ -35,16 +33,14 @@ func NewLoginService(context servicecontext.ServiceContext, conf LoginServiceCon
 }
 
 // Login is responsible for redirecting the client to the authentication service in order to authenticate
-func (s *loginServiceImpl) Login(ctx context.Context, config oauth.OauthConfig) (*string, error) {
+func (s *loginServiceImpl) Login(ctx context.Context, redirect *string, apiClient *string, referrer string, config login.OauthConfig) (*string, error) {
 	// Redirect to the oauth provider
 	generatedState := uuid.NewV4().String()
-	redirectURL, err := s.Services().AuthenticationProviderService().AuthCodeURL(ctx, ctx.Redirect, ctx.APIClient, &generatedState, nil, ctx.RequestData, config)
+	redirectURL, err := s.Services().AuthenticationProviderService().GenerateAuthCodeURL(ctx, redirect, apiClient, &generatedState, nil, referrer, config)
 	if err != nil {
 		return nil, err
 	}
 	return redirectURL, nil
-	ctx.ResponseData.Header().Set("Location", *redirectURL)
-	return ctx.TemporaryRedirect()
 }
 
 // Callback is invoked after the client has visited the authentication service and state and code values are returned
