@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,22 +11,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
+
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	. "github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	testoauth "github.com/fabric8-services/fabric8-auth/test/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token"
 
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
@@ -39,23 +40,23 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type serviceBlackBoxTest struct {
+type serviceBlackBoxTestSuite struct {
 	gormtestsupport.DBTestSuite
-	loginService           *KeycloakOAuthProvider
+	loginService           *login.KeycloakOAuthProvider
 	oauth                  oauth.IdentityProvider
 	keycloakTokenService   *DummyTokenService
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
-func TestRunServiceBlackBoxTest(t *testing.T) {
+func TestServiceBlackBox(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &serviceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+	suite.Run(t, &serviceBlackBoxTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 // SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
 // The SetupSuite method will run before the tests in the suite are run.
 // It sets up a database connection for all the tests in this suite without polluting global space.
-func (s *serviceBlackBoxTest) SetupSuite() {
+func (s *serviceBlackBoxTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
 	var err error
@@ -74,17 +75,17 @@ func (s *serviceBlackBoxTest) SetupSuite() {
 
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
-	userProfileClient := NewKeycloakUserProfileClient()
+	userProfileClient := login.NewKeycloakUserProfileClient()
 
 	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
 	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
 	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.osoSubscriptionManager)
+	s.loginService = login.NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.osoSubscriptionManager)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
+func (s *serviceBlackBoxTestSuite) TestKeycloakAuthorizationRedirect() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -115,7 +116,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
+func (s *serviceBlackBoxTestSuite) TestUnapprovedUserUnauthorized() {
 	claims := make(map[string]interface{})
 	claims["username"] = "something-that-doesn-not-exist-in-db" + uuid.NewV4().String()
 	token, err := testtoken.GenerateTokenWithClaims(claims)
@@ -132,7 +133,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
-func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
+func (s *serviceBlackBoxTestSuite) TestUnapprovedUserRedirected() {
 	env := os.Getenv("AUTH_NOTAPPROVED_REDIRECT")
 	defer func() {
 		os.Setenv("AUTH_NOTAPPROVED_REDIRECT", env)
@@ -155,7 +156,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
 	require.Equal(s.T(), "https://xyz.io?status=", *redirect)
 }
 
-func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
+func (s *serviceBlackBoxTestSuite) unapprovedUserRedirected() (*string, error) {
 	redirect, err := url.Parse("https://openshift.io/_home")
 	require.Nil(s.T(), err)
 
@@ -180,13 +181,13 @@ func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
 	return redirectURL, err
 }
 
-func (s *serviceBlackBoxTest) resetConfiguration() {
+func (s *serviceBlackBoxTestSuite) resetConfiguration() {
 	var err error
 	s.Configuration, err = configuration.GetConfigurationData()
 	require.Nil(s.T(), err)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam() {
+func (s *serviceBlackBoxTestSuite) TestKeycloakAuthorizationRedirectsToRedirectParam() {
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
 	u := &url.URL{
@@ -218,7 +219,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam(
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
+func (s *serviceBlackBoxTestSuite) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -241,7 +242,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 	assert.Equal(s.T(), 400, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails() {
+func (s *serviceBlackBoxTestSuite) TestKeycloakAuthorizationWithNoValidRefererFails() {
 
 	// since we no longer pass the valid redirect urls as a parameter,
 	existingValidRedirects := os.Getenv("AUTH_REDIRECT_VALID")
@@ -312,7 +313,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 
 }
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
+func (s *serviceBlackBoxTestSuite) TestKeycloakAuthorizationDevModePasses() {
 	// Any redirects pass in Dev mode.
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -338,7 +339,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestInvalidState() {
+func (s *serviceBlackBoxTestSuite) TestInvalidState() {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -367,7 +368,7 @@ func (s *serviceBlackBoxTest) TestInvalidState() {
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
+func (s *serviceBlackBoxTestSuite) TestInvalidOAuthAuthorizationCode() {
 
 	// When a valid referrer talks to our system and provides
 	// an invalid OAuth2.0 code, the access token exchange
@@ -450,7 +451,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	assert.Contains(s.T(), locationString, refererUrl)
 }
 
-func (s *serviceBlackBoxTest) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOauthService {
+func (s *serviceBlackBoxTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOauthService {
 	g := s.NewTestGraph(s.T())
 	newIdentity := g.CreateUser().Identity()
 	claims := make(map[string]interface{})
@@ -474,13 +475,13 @@ func (s *serviceBlackBoxTest) getDummyOauthIDPService(forApprovedUser bool) *dum
 	return dummyOauth
 }
 
-func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCode() {
+func (s *serviceBlackBoxTestSuite) TestValidOAuthAuthorizationCode() {
 	rw, authorizeCtx := s.loginCallback(make(map[string]string))
 	dummyOauth := s.getDummyOauthIDPService(true)
 	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "token_json")
 }
 
-func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
+func (s *serviceBlackBoxTestSuite) TestUnapprovedUserLoginUnauthorized() {
 	extra := make(map[string]string)
 	rw, authorizeCtx := s.loginCallback(extra)
 
@@ -494,11 +495,11 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
 	assert.Equal(s.T(), 1, len(rw.HeaderMap["Location"]))
 }
 
-func (s *serviceBlackBoxTest) TestAPIClientForApprovedUsersReturnOK() {
+func (s *serviceBlackBoxTestSuite) TestAPIClientForApprovedUsersReturnOK() {
 	s.checkAPIClientForUsersReturnOK(true)
 }
 
-func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
+func (s *serviceBlackBoxTestSuite) TestAPIClientForUnapprovedUsersReturnOK() {
 	s.checkAPIClientForUsersReturnOK(false)
 }
 
@@ -509,7 +510,7 @@ type dummyIDPOauth interface {
 }
 
 type dummyIDPOauthService struct {
-	IdentityProvider
+	login.IdentityProvider
 	accessToken  string
 	refreshToken string
 }
@@ -544,7 +545,7 @@ func (c *dummyIDPOauthService) Profile(ctx context.Context, jwtToken oauth2.Toke
 	}, nil
 }
 
-func (s *serviceBlackBoxTest) checkAPIClientForUsersReturnOK(approved bool) {
+func (s *serviceBlackBoxTestSuite) checkAPIClientForUsersReturnOK(approved bool) {
 	extra := make(map[string]string)
 	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
@@ -553,7 +554,7 @@ func (s *serviceBlackBoxTest) checkAPIClientForUsersReturnOK(approved bool) {
 	s.checkLoginCallback(dummyIDPOauthServiceRef, rw, authorizeCtx, "api_token")
 }
 
-func (s *serviceBlackBoxTest) TestDeprovisionedUserLoginUnauthorized() {
+func (s *serviceBlackBoxTestSuite) TestDeprovisionedUserLoginUnauthorized() {
 	extra := make(map[string]string)
 	rw, authorizeCtx := s.loginCallback(extra)
 
@@ -581,7 +582,7 @@ func (s *serviceBlackBoxTest) TestDeprovisionedUserLoginUnauthorized() {
 	assert.Equal(s.T(), 1, len(rw.HeaderMap["Location"]))
 }
 
-func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
+func (s *serviceBlackBoxTestSuite) TestNotDeprovisionedUserLoginOK() {
 	extra := make(map[string]string)
 	rw, authorizeCtx := s.loginCallback(extra)
 
@@ -610,7 +611,7 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 	assert.Equal(s.T(), 307, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
+func (s *serviceBlackBoxTestSuite) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	// Fails if invalid format of refresh token
 	s.keycloakTokenService.fail = false
 	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", s.Configuration)
@@ -642,7 +643,7 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	require.NoError(s.T(), err)
 }
 
-func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
+func (s *serviceBlackBoxTestSuite) TestExchangeRefreshTokenForDeprovisionedUser() {
 	// 1. Fails if identity is deprovisioned
 	s.keycloakTokenService.fail = false
 	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
@@ -688,9 +689,14 @@ func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
 	assert.Equal(s.T(), typ, *tokenSet.TokenType)
 	assert.Equal(s.T(), in30days, *tokenSet.ExpiresIn)
 	assert.Equal(s.T(), in30days, *tokenSet.RefreshExpiresIn)
+	// verify some claims in the resulting access tokens
+	assert.NotNil(s.T(), tokenSet.AccessToken)
+	accessClaims, err := testtoken.TokenManager.ParseToken(ctx, *tokenSet.AccessToken)
+	assert.NotEmpty(s.T(), accessClaims.SessionState)
+
 }
 
-func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
+func (s *serviceBlackBoxTestSuite) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -751,7 +757,7 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	return rw, authorizeCtx
 }
 
-func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyIDPOauthService, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
+func (s *serviceBlackBoxTestSuite) checkLoginCallback(dummyOauth *dummyIDPOauthService, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
 
 	err := s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
@@ -785,9 +791,10 @@ type dummyOauth2Config struct {
 	refreshToken string
 }
 
+const thirtyDays = 60 * 60 * 24 * 30
+
 func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
-	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
 		TokenType:    "bearer",
 		AccessToken:  c.accessToken,
@@ -802,7 +809,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 	return token, nil
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
+func (s *serviceBlackBoxTestSuite) TestKeycloakAuthorizationRedirectForAuthorize() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
@@ -847,7 +854,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 	require.NotNil(s.T(), redirectTo)
 }
 
-func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
+func (s *serviceBlackBoxTestSuite) TestValidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("valid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -860,7 +867,7 @@ func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
 	require.NotNil(s.T(), keycloakToken)
 }
 
-func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
+func (s *serviceBlackBoxTestSuite) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("invalid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -892,7 +899,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 }
 
-func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
+func (s *serviceBlackBoxTestSuite) TestInvalidOAuthStateForAuthorize() {
 
 	rw, callbackCtx := s.authorizeCallback("invalid_state")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -901,7 +908,53 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
+func (s *serviceBlackBoxTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
+	// given
+	g := s.NewTestGraph(s.T())
+	config := s.Configuration
+	redirectURL := "redirect_url"
+	claims := make(map[string]interface{})
+	user := g.CreateUser()
+	claims["sub"] = user.IdentityID().String()
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+
+	oauth2Token := &oauth2.Token{
+		TokenType:    "bearer",
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	identityProvider := testoauth.NewIdentityProviderMock(s.T())
+	identityProvider.ProfileFunc = func(ctx context.Context, tk oauth2.Token) (*oauth.UserProfile, error) {
+		return &oauth.UserProfile{
+			Username: user.Identity().Username,
+		}, nil
+	}
+	// when
+	resultURL, userToken, err := s.loginService.CreateOrUpdateIdentityAndUser(
+		testtoken.ContextWithRequest(context.Background()),
+		&url.URL{Path: redirectURL},
+		oauth2Token,
+		&goa.RequestData{
+			Request: &http.Request{Host: "test.auth"},
+		},
+		identityProvider,
+		config)
+	// then
+	require.NoError(s.T(), err)
+	assert.NotNil(s.T(), resultURL)
+	require.NotNil(s.T(), userToken)
+	resultAccessTokenClaims, err := testtoken.TokenManager.ParseToken(context.Background(), userToken.AccessToken)
+	require.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), resultAccessTokenClaims.SessionState)
+	s.T().Logf("token claim `session_state`: %v", resultAccessTokenClaims.SessionState)
+
+}
+
+func (s *serviceBlackBoxTestSuite) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
