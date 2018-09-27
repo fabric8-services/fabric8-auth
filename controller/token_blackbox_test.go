@@ -176,29 +176,16 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 		})
 
-		// t.Run("with authorization token", func(t *testing.T) {
-		// 	t.Run("invalid token", func(t *testing.T) {
-		// 		// given
-		// 		service, ctrl := s.SecuredController()
-		// 		refreshToken := "SOME_REFRESH_TOKEN"
-		// 		payload := &app.RefreshToken{
-		// 			RefreshToken: &refreshToken,
-		// 		}
-		// 		// when
-		// 		_, authToken := test.RefreshTokenOK(t, service.Context, service, ctrl, payload)
-		// 		// then
-		// 		token := authToken.Token
-		// 		require.NotNil(t, token.TokenType)
-		// 		require.Equal(t, "Bearer", *token.TokenType)
-		// 		require.NotNil(t, token.AccessToken)
-		// 		require.Equal(t, s.sampleAccessToken, *token.AccessToken)
-		// 		require.NotNil(t, token.RefreshToken)
-		// 		require.Equal(t, s.sampleRefreshToken, *token.RefreshToken)
-		// 		expiresIn, ok := token.ExpiresIn.(*int64)
-		// 		require.True(t, ok)
-		// 		require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
-		// 	})
-		// })
+		t.Run("with authorization token", func(t *testing.T) {
+
+			t.Run("valid token", func(t *testing.T) {
+				t.Skipf("not implemented yet")
+			})
+
+			t.Run("invalid token", func(t *testing.T) {
+				t.Skipf("not implemented yet")
+			})
+		})
 
 	})
 
