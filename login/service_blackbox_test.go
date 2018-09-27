@@ -822,7 +822,7 @@ func (s *serviceTestSuite) TestExchangeRefreshTokenFailsIfInvalidToken() {
 	require.NoError(s.T(), err)
 
 	ctx := testtoken.ContextWithRequest(nil)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", "", s.Configuration)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
 	require.EqualError(s.T(), err, "Token is expired")
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
