@@ -614,24 +614,23 @@ func (s *serviceTestSuite) TestNotDeprovisionedUserLoginOK() {
 
 func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
-	g := s.NewTestGraph(s.T())
-	identity := g.CreateIdentity()
+	tm, err := token.NewManager(s.Configuration)
+	require.NoError(s.T(), err)
 
 	s.T().Run("valid refresh token", func(t *testing.T) {
 
-		tm, err := token.NewManager(s.Configuration)
-		require.NoError(t, err)
-
 		t.Run("without access token", func(t *testing.T) { // just expect a regular access token
 			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
 			claims := make(map[string]interface{})
-			claims["sub"] = identity.ID().String()
+			claims["sub"] = user.IdentityID().String()
 			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 			require.NoError(t, err)
 			// when
-			ctx := testtoken.ContextWithRequest(nil)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			result, err := s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
 			// then
 			require.NoError(t, err)
@@ -648,9 +647,11 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
 		t.Run("with access token", func(t *testing.T) { // just expect a regular access token
 			// given
-			ctx := testtoken.ContextWithRequest(nil)
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			claims := make(map[string]interface{})
-			claims["sub"] = identity.ID().String()
+			claims["sub"] = user.IdentityID().String()
 			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
@@ -675,9 +676,11 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
 		t.Run("with rpt token", func(t *testing.T) { // just expect a regular access token
 			// given
-			ctx := testtoken.ContextWithRequest(nil)
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			claims := make(map[string]interface{})
-			claims["sub"] = identity.ID().String()
+			claims["sub"] = user.IdentityID().String()
 			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
@@ -685,8 +688,8 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 			accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 			require.NoError(t, err)
 			// obtain an RPT token using the access token
-			space := g.CreateSpace().AddAdmin(identity)
-			rpt, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(ctx, tm), identity.Identity(), accessToken, space.SpaceID())
+			space := g.CreateSpace().AddAdmin(user)
+			rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
 			require.NoError(t, err)
 			// when
 			result, err := s.loginService.ExchangeRefreshToken(ctx, *rpt, refreshToken, "", s.Configuration)
@@ -713,7 +716,7 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 			// given
 			s.keycloakTokenService.fail = false
 			// when
-			ctx := testtoken.ContextWithRequest(nil)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			_, err := s.loginService.ExchangeRefreshToken(ctx, "", "", "", s.Configuration)
 			// then
 			require.EqualError(t, err, "token contains an invalid number of segments")
@@ -721,14 +724,17 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 		})
 
 		t.Run("expired", func(t *testing.T) { // Fails if refresh token is expired
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
 			claims := make(map[string]interface{})
-			claims["sub"] = identity.ID().String()
+			claims["sub"] = user.IdentityID().String()
 			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 			claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 			require.NoError(t, err)
 			// when
-			ctx := testtoken.ContextWithRequest(nil)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
 			// then
 			require.EqualError(t, err, "Token is expired")
@@ -737,160 +743,23 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
 		t.Run("kc failure", func(t *testing.T) { // Fails if KC fails
 			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
 			s.keycloakTokenService.fail = true
 			claims := make(map[string]interface{})
-			claims["sub"] = identity.ID().String()
+			claims["sub"] = user.IdentityID().String()
 			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 			require.NoError(t, err)
 			// when
-			ctx := testtoken.ContextWithRequest(nil)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
 			// then
 			require.EqualError(t, err, "kc refresh failed")
 			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
 		})
 	})
-
-	s.T().Run("deprovisioned user", func(t *testing.T) {
-		// 1. Fails if identity is deprovisioned
-		s.keycloakTokenService.fail = false
-		identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
-		require.NoError(s.T(), err)
-
-		// Refresh tokens
-		ctx := testtoken.ContextWithRequest(nil)
-		generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
-		require.NoError(s.T(), err)
-		_, err = s.loginService.ExchangeRefreshToken(ctx, "", generatedToken.RefreshToken, "", s.Configuration)
-		require.NotNil(s.T(), err)
-		require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
-		require.Equal(s.T(), "unauthorized access", err.Error())
-
-		// 2. OK if identity is not deprovisioned
-		identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
-		require.NoError(s.T(), err)
-
-		// Generate expected tokens returned by dummy KC service
-		claims := make(map[string]interface{})
-		claims["sub"] = identity.ID.String()
-		accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
-		require.NoError(s.T(), err)
-		refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-		require.NoError(s.T(), err)
-		typ := "bearer"
-		var in30days int64
-		in30days = 30 * 24 * 60 * 60
-		s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
-
-		// Refresh tokens
-		generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
-		require.NoError(s.T(), err)
-		tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, "", generatedToken.RefreshToken, "", s.Configuration)
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), tokenSet)
-
-		// Compare tokens
-		err = testtoken.EqualAccessTokens(ctx, *s.keycloakTokenService.tokenSet.RefreshToken, *tokenSet.RefreshToken)
-		require.NoError(s.T(), err)
-		err = testtoken.EqualRefreshTokens(ctx, *s.keycloakTokenService.tokenSet.AccessToken, *tokenSet.AccessToken)
-		require.NoError(s.T(), err)
-		assert.Equal(s.T(), typ, *tokenSet.TokenType)
-		assert.Equal(s.T(), in30days, *tokenSet.ExpiresIn)
-		assert.Equal(s.T(), in30days, *tokenSet.RefreshExpiresIn)
-	})
-
-}
-
-func (s *serviceTestSuite) TestExchangeRefreshTokenFailsIfInvalidToken() {
-	// Fails if invalid format of refresh token
-	s.keycloakTokenService.fail = false
-	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", "", s.Configuration)
-	require.EqualError(s.T(), err, "token contains an invalid number of segments")
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
-
-	// Fails if refresh token is expired
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenFailsIfInvalidToken-"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-
-	claims := make(map[string]interface{})
-	claims["sub"] = identity.ID.String()
-	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
-	claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
-	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.NoError(s.T(), err)
-
-	ctx := testtoken.ContextWithRequest(nil)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
-	require.EqualError(s.T(), err, "Token is expired")
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
-
-	// OK if not expired
-	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
-	refreshToken, err = testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.NoError(s.T(), err)
-
-	_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
-	require.NoError(s.T(), err)
-
-	// Fails if KC fails
-	s.keycloakTokenService.fail = true
-	_, err = s.loginService.ExchangeRefreshToken(context.Background(), "", refreshToken, "", s.Configuration)
-	require.EqualError(s.T(), err, "kc refresh failed")
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
-}
-
-func (s *serviceTestSuite) TestExchangeRefreshTokenForDeprovisionedUser() {
-	// 1. Fails if identity is deprovisioned
-	s.keycloakTokenService.fail = false
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-
-	// Refresh tokens
-	ctx := testtoken.ContextWithRequest(nil)
-	generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
-	require.NoError(s.T(), err)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, "", generatedToken.RefreshToken, "", s.Configuration)
-	require.NotNil(s.T(), err)
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
-	require.Equal(s.T(), "unauthorized access", err.Error())
-
-	// 2. OK if identity is not deprovisioned
-	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-
-	// Generate expected tokens returned by dummy KC service
-	claims := make(map[string]interface{})
-	claims["sub"] = identity.ID.String()
-	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
-	require.NoError(s.T(), err)
-	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.NoError(s.T(), err)
-	typ := "bearer"
-	var in30days int64
-	in30days = 30 * 24 * 60 * 60
-	s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
-
-	// Refresh tokens
-	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
-	require.NoError(s.T(), err)
-	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, "", generatedToken.RefreshToken, "", s.Configuration)
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), tokenSet)
-
-	// Compare tokens
-	err = testtoken.EqualAccessTokens(ctx, *s.keycloakTokenService.tokenSet.RefreshToken, *tokenSet.RefreshToken)
-	require.NoError(s.T(), err)
-	err = testtoken.EqualRefreshTokens(ctx, *s.keycloakTokenService.tokenSet.AccessToken, *tokenSet.AccessToken)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), typ, *tokenSet.TokenType)
-	assert.Equal(s.T(), in30days, *tokenSet.ExpiresIn)
-	assert.Equal(s.T(), in30days, *tokenSet.RefreshExpiresIn)
-	// verify some claims in the resulting access tokens
-	assert.NotNil(s.T(), tokenSet.AccessToken)
-	accessClaims, err := testtoken.TokenManager.ParseToken(ctx, *tokenSet.AccessToken)
-	assert.NotEmpty(s.T(), accessClaims.SessionState)
 
 }
 

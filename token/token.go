@@ -571,6 +571,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.C
 	resourceAccess["account"] = account
 
 	claims["resource_access"] = resourceAccess
+	claims["permissions"] = tokenClaims.Permissions
 
 	return token, nil
 }

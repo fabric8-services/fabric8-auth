@@ -19,6 +19,7 @@ import (
 	"time"
 )
 
+// TokenServiceConfiguration the required configuration for the token service implementation
 type TokenServiceConfiguration interface {
 	GetRPTTokenMaxPermissions() int
 	GetAccessTokenExpiresIn() int64
@@ -29,6 +30,7 @@ type tokenServiceImpl struct {
 	config TokenServiceConfiguration
 }
 
+// NewTokenService returns a new Token Service
 func NewTokenService(context servicecontext.ServiceContext, conf TokenServiceConfiguration) service.TokenService {
 	return &tokenServiceImpl{
 		BaseService: base.NewBaseService(context),
@@ -326,6 +328,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 // Refresh checks the resource permissions in the given tokenString for the given user, and returns a
 // new RPToken (with a new expiry time and updated permissions if needed)
 func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identity, tokenString string) (string, error) {
+	log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "refreshing a user token...")
 	// Get the token manager from the context
 	manager, err := token.ReadManagerFromContext(ctx)
 	if err != nil {

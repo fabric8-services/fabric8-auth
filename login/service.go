@@ -58,10 +58,10 @@ type Configuration interface {
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
 func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
-		Identities:             identities,
-		Users:                  users,
-		TokenManager:           tokenManager,
-		App:                    app,
+		Identities:   identities,
+		Users:        users,
+		TokenManager: tokenManager,
+		App:          app,
 		keycloakProfileService: keycloakProfileService,
 		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
@@ -230,6 +230,8 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	if err != nil {
 		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
+	log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String(), "request_with_access_token": (accessToken != ""), "dev_mode": serviceConfig.IsPostgresDeveloperModeEnabled()}, "refreshing a token...")
+
 	err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
 		identity, err = tr.Identities().LoadWithUser(ctx, identityID)
 		return err
@@ -253,6 +255,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	tokeSet, err := keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
 	if err != nil {
 		if serviceConfig.IsPostgresDeveloperModeEnabled() && identity != nil && reflect.TypeOf(keycloak.keycloakTokenService) == reflect.TypeOf(&keycloaktoken.KeycloakTokenService{}) {
+			log.Info(ctx, map[string]interface{}{"identity_id": identityID.String(), "dev_mode": serviceConfig.IsPostgresDeveloperModeEnabled()}, "returning a refresh token without using Keycloak")
 			// If running in dev mode but not in a test then we ignore an error from Keycloak and just generate a refresh token
 			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 			if err != nil {
@@ -260,18 +263,30 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 			}
 			return keycloak.TokenManager.ConvertToken(*generatedToken)
 		}
+		log.Info(ctx, map[string]interface{}{"identity_id": identityID.String(), "err": err}, "error occurred")
 		return nil, err
 	}
 	// if an authorization token is provided, then parse it to see if there is a `permissions` claim
 	if identity != nil && accessToken != "" {
-		// TODO: call the loginService.ExchangeRefreshToken()
-		rptClaims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
+		refreshedAccessToken, err := keycloak.App.TokenService().Refresh(ctx, identity, accessToken)
 		if err != nil {
-			return nil, autherrors.NewUnauthorizedError(err.Error())
+			return nil, err
 		}
-		if rptClaims.Permissions != nil {
-			// keycloak.App.TokenService().Audit()
+		log.Info(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
+		if log.IsDebug() {
+			rptClaims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{"identity_id": identityID.String(), "error": err}, "failed to parse new access token")
+			} else {
+				log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String(), "permissions": rptClaims.Permissions}, "new access token permissions")
+			}
 		}
+		tokeSet.AccessToken = &refreshedAccessToken
+
+		// //
+		// if rptClaims.Permissions != nil {
+		// 	// TODO: call the loginService.ExchangeRefreshToken()
+		// }
 	}
 
 	// Generate token based on the Keycloak token
