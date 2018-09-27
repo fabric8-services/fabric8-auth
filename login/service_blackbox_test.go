@@ -11,25 +11,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	testoauth "github.com/fabric8-services/fabric8-auth/test/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
@@ -48,7 +49,7 @@ type serviceTestSuite struct {
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
-func TestService(t *testing.T) {
+func TestServiceBlackBox(t *testing.T) {
 	resource.Require(t, resource.Database)
 	suite.Run(t, &serviceTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
@@ -802,6 +803,97 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
 }
 
+func (s *serviceTestSuite) TestExchangeRefreshTokenFailsIfInvalidToken() {
+	// Fails if invalid format of refresh token
+	s.keycloakTokenService.fail = false
+	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", "", s.Configuration)
+	require.EqualError(s.T(), err, "token contains an invalid number of segments")
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+
+	// Fails if refresh token is expired
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenFailsIfInvalidToken-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+
+	ctx := testtoken.ContextWithRequest(nil)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", "", s.Configuration)
+	require.EqualError(s.T(), err, "Token is expired")
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+
+	// OK if not expired
+	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+	refreshToken, err = testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+
+	_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
+	require.NoError(s.T(), err)
+
+	// Fails if KC fails
+	s.keycloakTokenService.fail = true
+	_, err = s.loginService.ExchangeRefreshToken(context.Background(), "", refreshToken, "", s.Configuration)
+	require.EqualError(s.T(), err, "kc refresh failed")
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+}
+
+func (s *serviceTestSuite) TestExchangeRefreshTokenForDeprovisionedUser() {
+	// 1. Fails if identity is deprovisioned
+	s.keycloakTokenService.fail = false
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	// Refresh tokens
+	ctx := testtoken.ContextWithRequest(nil)
+	generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
+	require.NoError(s.T(), err)
+	_, err = s.loginService.ExchangeRefreshToken(ctx, "", generatedToken.RefreshToken, "", s.Configuration)
+	require.NotNil(s.T(), err)
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+	require.Equal(s.T(), "unauthorized access", err.Error())
+
+	// 2. OK if identity is not deprovisioned
+	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
+
+	// Generate expected tokens returned by dummy KC service
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	typ := "bearer"
+	var in30days int64
+	in30days = 30 * 24 * 60 * 60
+	s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
+
+	// Refresh tokens
+	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
+	require.NoError(s.T(), err)
+	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, "", generatedToken.RefreshToken, "", s.Configuration)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), tokenSet)
+
+	// Compare tokens
+	err = testtoken.EqualAccessTokens(ctx, *s.keycloakTokenService.tokenSet.RefreshToken, *tokenSet.RefreshToken)
+	require.NoError(s.T(), err)
+	err = testtoken.EqualRefreshTokens(ctx, *s.keycloakTokenService.tokenSet.AccessToken, *tokenSet.AccessToken)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), typ, *tokenSet.TokenType)
+	assert.Equal(s.T(), in30days, *tokenSet.ExpiresIn)
+	assert.Equal(s.T(), in30days, *tokenSet.RefreshExpiresIn)
+	// verify some claims in the resulting access tokens
+	assert.NotNil(s.T(), tokenSet.AccessToken)
+	accessClaims, err := testtoken.TokenManager.ParseToken(ctx, *tokenSet.AccessToken)
+	assert.NotEmpty(s.T(), accessClaims.SessionState)
+
+}
+
 func (s *serviceTestSuite) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
@@ -897,9 +989,10 @@ type dummyOauth2Config struct {
 	refreshToken string
 }
 
+const thirtyDays = 60 * 60 * 24 * 30
+
 func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
-	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
 		TokenType:    "bearer",
 		AccessToken:  c.accessToken,
@@ -1011,6 +1104,52 @@ func (s *serviceTestSuite) TestInvalidOAuthStateForAuthorize() {
 	require.NotNil(s.T(), err)
 	jsonapi.JSONErrorResponse(callbackCtx, err)
 	assert.Equal(s.T(), 401, rw.Code)
+}
+
+func (s *serviceTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
+	// given
+	g := s.NewTestGraph(s.T())
+	config := s.Configuration
+	redirectURL := "redirect_url"
+	claims := make(map[string]interface{})
+	user := g.CreateUser()
+	claims["sub"] = user.IdentityID().String()
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+
+	oauth2Token := &oauth2.Token{
+		TokenType:    "bearer",
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	identityProvider := testoauth.NewIdentityProviderMock(s.T())
+	identityProvider.ProfileFunc = func(ctx context.Context, tk oauth2.Token) (*oauth.UserProfile, error) {
+		return &oauth.UserProfile{
+			Username: user.Identity().Username,
+		}, nil
+	}
+	// when
+	resultURL, userToken, err := s.loginService.CreateOrUpdateIdentityAndUser(
+		testtoken.ContextWithRequest(context.Background()),
+		&url.URL{Path: redirectURL},
+		oauth2Token,
+		&goa.RequestData{
+			Request: &http.Request{Host: "test.auth"},
+		},
+		identityProvider,
+		config)
+	// then
+	require.NoError(s.T(), err)
+	assert.NotNil(s.T(), resultURL)
+	require.NotNil(s.T(), userToken)
+	resultAccessTokenClaims, err := testtoken.TokenManager.ParseToken(context.Background(), userToken.AccessToken)
+	require.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), resultAccessTokenClaims.SessionState)
+	s.T().Logf("token claim `session_state`: %v", resultAccessTokenClaims.SessionState)
+
 }
 
 func (s *serviceTestSuite) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {

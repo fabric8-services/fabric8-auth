@@ -287,16 +287,8 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, idpProvider oauth.IdentityProvider, config Configuration) (*string, *oauth2.Token, error) {
-
-	witURL, err := config.GetWITURL()
-	if err != nil {
-		return nil, nil, autherrors.NewInternalError(ctx, err)
-	}
-
 	apiClient := referrerURL.Query().Get(apiClientParam)
-
 	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, idpProvider, config)
-
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -367,6 +359,10 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	// new user for WIT
 	if newUser {
+		witURL, err := config.GetWITURL()
+		if err != nil {
+			return nil, nil, autherrors.NewInternalError(ctx, err)
+		}
 		err = keycloak.App.WITService().CreateUser(ctx, identity, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -577,16 +573,16 @@ func (keycloak *KeycloakOAuthProvider) reclaimReferrerAndResponseMode(ctx contex
 }
 
 func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
-	tokenJson, err := TokenToJson(ctx, outhToken)
+	tokenJSON, err := TokenToJson(ctx, outhToken)
 
 	if err != nil {
 		return err
 	}
 	parameters := referrer.Query()
 	if apiClient != "" {
-		parameters.Add(apiTokenParam, tokenJson)
+		parameters.Add(apiTokenParam, tokenJSON)
 	} else {
-		parameters.Add(tokenJSONParam, tokenJson)
+		parameters.Add(tokenJSONParam, tokenJSON)
 	}
 	referrer.RawQuery = parameters.Encode()
 	return nil
@@ -648,44 +644,42 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "unable to  query for an identity by username")
-		return nil, false, errors.New("Error during querying for an identity by ID " + err.Error())
+		}, "unable to query for an identity by username")
+		return nil, false, errs.Wrapf(err, "error during querying for an identity by ID")
 	}
 
 	if len(identities) == 0 {
 		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
-	} else {
-		identity = &identities[0]
+	}
+	identity = &identities[0]
 
-		// we had done a
-		// keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
-		// so, identity.user should have been populated.
+	// we had done a
+	// keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
+	// so, identity.user should have been populated.
 
-		if identity.User.ID == uuid.Nil {
-			log.Error(ctx, map[string]interface{}{
-				"identity_id": identity.ID,
-			}, "Found Keycloak identity is not linked to any User")
-			return nil, false, errors.New("found Keycloak identity is not linked to any User")
-		}
+	if identity.User.ID == uuid.Nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id": identity.ID,
+		}, "token identity is not linked to any user")
+		return nil, false, errors.New("token identity is not linked to any user")
+	}
 
-		if !identity.RegistrationCompleted {
-			newIdentityCreated = true
-			fillUserFromUserInfo(*userProfile, identity)
-			identity.RegistrationCompleted = true
-			err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
-				// Using the old-fashioned service
-				err := tr.Identities().Save(ctx, identity)
-				if err != nil {
-					return err
-				}
-				err = tr.Users().Save(ctx, &identity.User)
-				if err != nil {
-					return err
-				}
-				return nil
-			})
-		}
-
+	if !identity.RegistrationCompleted {
+		newIdentityCreated = true
+		fillUserFromUserInfo(*userProfile, identity)
+		identity.RegistrationCompleted = true
+		err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
+			// Using the old-fashioned service
+			err := tr.Identities().Save(ctx, identity)
+			if err != nil {
+				return err
+			}
+			err = tr.Users().Save(ctx, &identity.User)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 	}
 	return identity, newIdentityCreated, err
 }
