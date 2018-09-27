@@ -105,7 +105,7 @@ type Manager interface {
 	AuthServiceAccountToken() string
 	GenerateServiceAccountToken(saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
-	GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error)
+	GenerateUserTokenForAPIClient(ctx context.Context, keycloakToken oauth2.Token) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
 	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
@@ -394,9 +394,8 @@ func (mgm *tokenManager) GenerateUnsignedServiceAccountToken(saID string, saName
 	return token
 }
 
-// GenerateUserToken generates an OAuth2 user token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oauth2.Token, identity *repository.Identity) (*oauth2.Token, error) {
-	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessToken(ctx, keycloakToken.AccessToken, identity)
+func (mgm *tokenManager) GenerateUserTokenForAPIClient(ctx context.Context, keycloakToken oauth2.Token) (*oauth2.Token, error) {
+	unsignedAccessToken, err := mgm.GenerateUnsignedUserAccessTokenForAPIClient(ctx, keycloakToken.AccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -404,7 +403,7 @@ func (mgm *tokenManager) GenerateUserToken(ctx context.Context, keycloakToken oa
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshToken(ctx, keycloakToken.RefreshToken, identity)
+	unsignedRefreshToken, err := mgm.GenerateUnsignedUserRefreshTokenForAPIClient(ctx, keycloakToken.AccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -534,14 +533,79 @@ func (mgm *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context,
 	return token, nil
 }
 
-// GenerateUnsignedUserAccessToken generates an unsigned OAuth2 user access token for the given identity based on the Keycloak token
-func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, keycloakAccessToken string, identity *repository.Identity) (*jwt.Token, error) {
+// GenerateUnsignedUserAccessTokenForAPIClient generates an unsigned OAuth2 user access token for the api_client based on the Keycloak token
+func (mgm *tokenManager) GenerateUnsignedUserAccessTokenForAPIClient(ctx context.Context, keycloakAccessToken string) (*jwt.Token, error) {
 	kcClaims, err := mgm.ParseToken(ctx, keycloakAccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return mgm.GenerateUnsignedUserAccessTokenFromClaims(ctx, kcClaims, identity)
+	return mgm.GenerateUnsignedUserAccessTokenFromClaimsForAPIClient(ctx, kcClaims)
+}
+
+// GenerateUnsignedUserAccessTokenFromClaimsForAPIClient generates a new token based on the specified claims for api_client
+func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromClaimsForAPIClient(ctx context.Context, tokenClaims *TokenClaims) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+
+	iat := time.Now().Unix()
+	claims["exp"] = iat + mgm.config.GetAccessTokenExpiresIn()
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
+	claims["typ"] = "Bearer"
+	claims["auth_time"] = iat
+	claims["typ"] = "Bearer"
+	claims["approved"] = tokenClaims.Approved
+
+	claims["sub"] = tokenClaims.Subject
+	claims["email_verified"] = tokenClaims.EmailVerified
+	claims["name"] = tokenClaims.Name
+	claims["preferred_username"] = tokenClaims.Username
+	claims["given_name"] = tokenClaims.GivenName
+	claims["family_name"] = tokenClaims.FamilyName
+	claims["email"] = tokenClaims.Email
+
+	claims["allowed-origins"] = []string{
+		authOpenshiftIO,
+		openshiftIO,
+	}
+
+	claims["azp"] = tokenClaims.Audience
+	claims["session_state"] = tokenClaims.SessionState
+	claims["acr"] = "0"
+
+	realmAccess := make(map[string]interface{})
+	realmAccess["roles"] = []string{"uma_authorization"}
+	claims["realm_access"] = realmAccess
+
+	resourceAccess := make(map[string]interface{})
+	broker := make(map[string]interface{})
+	broker["roles"] = []string{"read-token"}
+	resourceAccess["broker"] = broker
+
+	account := make(map[string]interface{})
+	account["roles"] = []string{"manage-account", "manage-account-links", "view-profile"}
+	resourceAccess["account"] = account
+
+	claims["resource_access"] = resourceAccess
+
+	return token, nil
 }
 
 // GenerateUnsignedUserAccessTokenFromClaims generates a new token based on the specified claims
@@ -667,8 +731,7 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromRefreshToken(ctx con
 	} else {
 		claims["sub"] = refreshTokenClaims.Subject
 
-		// TODO Should we populate this data for api_client first time generating refresh token so that we can have this data available while refreshing access token
-		// otherwise we won't be having following claims for newly generated access token.
+		// refresh token should have all following claims included only for api_client(e.g. vscode analytics) who don't have identity in auth db
 		claims["email_verified"] = refreshTokenClaims.EmailVerified
 		claims["name"] = refreshTokenClaims.Name
 		claims["preferred_username"] = refreshTokenClaims.Username
@@ -798,11 +861,68 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, r
 	if identity != nil {
 		claims["sub"] = identity.ID.String()
 	} else {
+		// populate claims for user details in refresh token for api_client as we don't have identity in db for it
 		claims["sub"] = oldClaims.Subject
+		claims["email_verified"] = oldClaims.EmailVerified
+		claims["name"] = oldClaims.Name
+		claims["preferred_username"] = oldClaims.Username
+		claims["given_name"] = oldClaims.GivenName
+		claims["family_name"] = oldClaims.FamilyName
+		claims["email"] = oldClaims.Email
 	}
 
 	claims["azp"] = oldClaims.Audience
 	claims["session_state"] = oldClaims.SessionState
+
+	return token, nil
+}
+
+// GenerateUnsignedUserRefreshToken generates an unsigned OAuth2 user refresh token for the given identity based on the Keycloak token
+func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForAPIClient(ctx context.Context, accessToken string) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	tokenClaims, err := mgm.ParseToken(ctx, accessToken)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+	iat := time.Now().Unix()
+	exp := iat + mgm.config.GetRefreshTokenExpiresIn()
+	typ := "Refresh"
+	claims["exp"] = exp
+	claims["nbf"] = 0
+	claims["iat"] = iat
+	claims["iss"] = authOpenshiftIO
+	claims["aud"] = openshiftIO
+	claims["typ"] = typ
+	claims["auth_time"] = 0
+
+	// populate claims for user details in refresh token for api_client
+	claims["sub"] = tokenClaims.Subject
+	claims["email_verified"] = tokenClaims.EmailVerified
+	claims["name"] = tokenClaims.Name
+	claims["preferred_username"] = tokenClaims.Username
+	claims["given_name"] = tokenClaims.GivenName
+	claims["family_name"] = tokenClaims.FamilyName
+	claims["email"] = tokenClaims.Email
+
+	// ToDo - Do we need azp claim?
+	claims["azp"] = tokenClaims.Audience
+	claims["session_state"] = tokenClaims.SessionState
 
 	return token, nil
 }
@@ -840,6 +960,7 @@ func (mgm *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context
 	claims["typ"] = typ
 	claims["auth_time"] = 0
 	claims["sub"] = identity.ID.String()
+	claims["session_state"] = uuid.NewV4().String()
 
 	return token, nil
 }

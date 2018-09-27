@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -262,7 +261,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		case autherrors.UnauthorizedError:
 			if apiClient != "" {
 				// Return the api token
-				userToken, err := keycloak.TokenManager.GenerateUserToken(ctx, *keycloakToken, nil)
+				userToken, err := keycloak.TokenManager.GenerateUserTokenForAPIClient(ctx, *keycloakToken)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to generate token")
 					return nil, nil, err
@@ -355,45 +354,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	redirectTo := referrerURL.String()
 	return &redirectTo, userToken, nil
-}
-
-func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeycloakUserRequest, config Configuration, identity *account.Identity) error {
-	tokenEndpoint, err := config.GetKeycloakEndpointToken(request)
-	if err != nil {
-		return autherrors.NewInternalError(ctx, err)
-	}
-	protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"keycloak_client_id": config.GetKeycloakClientID(),
-			"token_endpoint":     tokenEndpoint,
-			"err":                err,
-		}, "error generating PAT")
-		return err
-	}
-
-	if protectedAccessToken != "" {
-		// try hitting the admin user endpoint only if getting a PAT
-		// was successful.
-
-		usersEndpoint, err := config.GetKeycloakEndpointUsers(request)
-
-		// not using userProfileService.Update() because it needs a user token
-		// and here we don't have one.
-		keycloakUserID, _, err := keycloak.keycloakProfileService.CreateOrUpdate(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err": err,
-			}, "failed to update user in keycloak")
-			return err
-		} else {
-			log.Info(ctx, map[string]interface{}{
-				"keycloak_user_id": *keycloakUserID,
-			}, "successfully updated user in keycloak")
-			return nil
-		}
-	}
-	return autherrors.NewInternalErrorFromString(ctx, "couldn't update profile because PAT wasn't generated")
 }
 
 // AuthCodeCallback takes care of authorization callback.
