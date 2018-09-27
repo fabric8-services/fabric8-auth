@@ -855,6 +855,7 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			u := g.CreateUser()
 			// Create an initial access token for the user
 			at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
+			require.NoError(t, err)
 			atClaims, err := tm.ParseToken(ctx, at.AccessToken)
 			require.NoError(t, err)
 			// create space
@@ -887,6 +888,7 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			u := g.CreateUser()
 			// Create an initial access token for the user
 			at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
+			require.NoError(s.T(), err)
 			// create space 1
 			space1 := g.CreateSpace().AddAdmin(u)
 			// create RPT for the 1st space
