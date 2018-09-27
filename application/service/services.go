@@ -4,7 +4,6 @@ import (
 	"context"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/authentication/login"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
@@ -14,8 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
-
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
 )
@@ -34,7 +31,7 @@ Steps for adding a new Service:
 
 type AuthenticationProviderService interface {
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
-		state *string, responseMode *string, referrer string, config oauth.OauthConfig) (*string, error)
+		state *string, responseMode *string, referrer string, callbackURL string) (*string, error)
 }
 
 type InvitationService interface {
@@ -47,7 +44,6 @@ type InvitationService interface {
 }
 
 type LoginService interface {
-	Login(ctx context.Context, redirect *string, apiClient *string, referrer string, config login.OauthConfig) (*string, error)
 	Callback(ctx context.Context, state string, code string) error
 }
 

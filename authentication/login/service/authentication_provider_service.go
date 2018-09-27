@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"net/url"
 	"regexp"
@@ -16,6 +16,18 @@ import (
 
 type AuthenticationProviderConfiguration interface {
 	GetValidRedirectURLs() string
+	GetUserInfoEndpoint() string
+	GetOAuthEndpointAuth() string
+	GetOAuthEndpointToken() string
+	GetOAuthClientID() string
+	GetOAuthSecret() string
+}
+
+type OAuthIdentityProvider struct {
+	oauth2.Config
+	ProviderID uuid.UUID
+	ScopeStr   string
+	ProfileURL string
 }
 
 type authenticationProviderServiceImpl struct {
@@ -36,11 +48,21 @@ func NewAuthenticationProviderService(context servicecontext.ServiceContext, con
 	}
 }
 
+func newIdentityProvider(config AuthenticationProviderConfiguration) *OAuthIdentityProvider {
+	provider := &OAuthIdentityProvider{}
+	provider.ProfileURL = config.GetUserInfoEndpoint()
+	provider.ClientID = config.GetOAuthClientID()
+	provider.ClientSecret = config.GetOAuthSecret()
+	provider.Scopes = []string{"user:email"}
+	provider.Endpoint = oauth2.Endpoint{AuthURL: config.GetOAuthEndpointAuth(), TokenURL: config.GetOAuthEndpointToken()}
+	return provider
+}
+
 // GenerateAuthCodeURL is used by both the login and authorize endpoints to generate a URL to which the client will be
 // redirected in order to obtain an authorization code, which will subsequently be exchanged for an access token.
 // https://oauth.net/2/grant-types/authorization-code/
 func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
-	state *string, responseMode *string, referrer string, config oauth.OauthConfig) (*string, error) {
+	state *string, responseMode *string, referrer string, callbackURL string) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := s.config.GetValidRedirectURLs()
 
@@ -77,7 +99,14 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 		return nil, err
 	}
 
-	redirectTo := config.AuthCodeURL(*state, oauth2.AccessTypeOnline)
+	// Create a new identity provider / configuration
+	provider := newIdentityProvider(s.config)
+
+	// Override the redirect URL, setting it to the callback URL that was passed in
+	provider.RedirectURL = callbackURL
+
+	// Generate the Authorization Code URL
+	redirectTo := provider.AuthCodeURL(*state, oauth2.AccessTypeOnline)
 
 	return &redirectTo, err
 }
