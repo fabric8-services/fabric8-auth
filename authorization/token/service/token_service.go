@@ -345,7 +345,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identi
 	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
 	var tokenID uuid.UUID
 
-	// Extract the kid from the token
+	// Extract the jti from the token
 	tokenID, err = uuid.FromString(tokenClaims.Id)
 	if err != nil {
 		return "", errors.NewBadParameterErrorFromString("jti", tokenClaims.Id, "invalid jti identifier - not a UUID")
