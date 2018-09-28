@@ -327,7 +327,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 
 // Refresh checks the resource permissions in the given tokenString for the given user, and returns a
 // new RPToken (with a new expiry time and updated permissions if needed)
-func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identity, tokenString string) (string, error) {
+func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identity, accessToken *jwt.Token) (string, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "refreshing a user token...")
 	// Get the token manager from the context
 	manager, err := token.ReadManagerFromContext(ctx)

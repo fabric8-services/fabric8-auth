@@ -71,10 +71,17 @@ func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
 // Refresh obtains a new access token using the refresh token.
 func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	// retrieve the access token if it exists (otherwise, a jwtrequest.ErrNoTokenInRequest is returned, but it can be ignored here)
-	authorizationToken, _ := jwtrequest.AuthorizationHeaderExtractor.ExtractToken(ctx.Request)
+	accessToken := goajwt.ContextJWT(ctx)
 	refreshToken := ctx.Payload.RefreshToken
 	if refreshToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
+	}
+	refreshClaims, err := c.TokenManager.ParseToken(ctx, *refreshToken)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Unable to get parse the refresh token")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("refresh_token", "<hidden>", "unable to parse the refresh token"))
 	}
 
 	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
@@ -85,7 +92,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
 	}
 
-	t, err := c.Auth.ExchangeRefreshToken(ctx, authorizationToken, *refreshToken, endpoint, c.Configuration)
+	t, err := c.Auth.ExchangeRefreshToken(ctx, accessToken, refreshClaims, endpoint, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return jsonapi.JSONErrorResponse(ctx, err)

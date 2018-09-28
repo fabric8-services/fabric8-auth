@@ -25,6 +25,7 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
+
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
@@ -111,13 +112,27 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 	s.T().Run("using correct refresh token", func(t *testing.T) {
 
+		// given
+		loginService := testlogin.NewKeycloakOAuthServiceMock(t)
+		svc, ctrl := s.SecuredController(loginService)
+		tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), testsupport.TestIdentity, false)
+		require.Nil(t, err)
+		payload := &app.RefreshToken{
+			RefreshToken: &tokenSet.RefreshToken,
+		}
+
 		t.Run("without authorization token", func(t *testing.T) {
 			// given
-			loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(t, testsupport.TestIdentity)
-			svc, ctrl := s.SecuredController(loginService)
-			rtk := "SOME_REFRESH_TOKEN"
-			payload := &app.RefreshToken{
-				RefreshToken: &rtk,
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+				var thirtyDays int64
+				thirtyDays = 60 * 60 * 24 * 30
+				bearer := "Bearer"
+				return &token.TokenSet{
+					TokenType:    &bearer,
+					AccessToken:  &authorizationToken,
+					RefreshToken: &refreshToken,
+					ExpiresIn:    &thirtyDays,
+				}, nil
 			}
 			// when
 			_, authToken := test.RefreshTokenOK(t, svc.Context, svc, ctrl, payload)
@@ -126,27 +141,59 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 			require.NotNil(t, token.TokenType)
 			require.Equal(t, "Bearer", *token.TokenType)
 			require.NotNil(t, token.AccessToken)
-			require.Equal(t, expectedAccessToken, *token.AccessToken)
+			require.Empty(t, *token.AccessToken)
 			require.NotNil(t, token.RefreshToken)
-			require.Equal(t, expectedRefreshToken, *token.RefreshToken)
+			require.Equal(t, tokenSet.RefreshToken, *token.RefreshToken)
 			expiresIn, ok := token.ExpiresIn.(*int64)
 			require.True(t, ok)
 			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 		})
 
-		t.Run("with authorization token", func(t *testing.T) {
+		t.Run("with valid authorization token", func(t *testing.T) {
+			// given
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+				var thirtyDays int64
+				thirtyDays = 60 * 60 * 24 * 30
+				bearer := "Bearer"
+				// configure the mock behaviour to return an refresh token only
+				return &token.TokenSet{
+					TokenType:    &bearer,
+					AccessToken:  &authorizationToken,
+					RefreshToken: &refreshToken,
+					ExpiresIn:    &thirtyDays,
+				}, nil
+			}
+			manager, err := token.NewManager(s.Configuration)
+			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
+			require.NoError(s.T(), err)
+			ctx := goajwt.WithJWT(svc.Context, tk)
+			svc.Encoder
+			// when
+			_, authToken := test.RefreshTokenOK(t, ctx, svc, ctrl, payload)
+			// then
+			token := authToken.Token
+			require.NotNil(t, token.TokenType)
+			require.Equal(t, "Bearer", *token.TokenType)
+			require.NotNil(t, token.AccessToken)
+			require.Equal(t, tokenSet.AccessToken, *token.AccessToken)
+			require.NotNil(t, token.RefreshToken)
+			require.Equal(t, tokenSet.RefreshToken, *token.RefreshToken)
+			expiresIn, ok := token.ExpiresIn.(*int64)
+			require.True(t, ok)
+			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+		})
 
-			t.Run("valid token without permissions", func(t *testing.T) {
-				t.Skipf("not implemented yet")
-			})
-
-			t.Run("valid token with permissions", func(t *testing.T) {
-				t.Skipf("not implemented yet")
-			})
-
-			t.Run("invalid token", func(t *testing.T) {
-				t.Skipf("not implemented yet")
-			})
+		t.Run("with invalid authorization token", func(t *testing.T) {
+			// given
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
+			}
+			manager, err := token.NewManager(s.Configuration)
+			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
+			require.NoError(s.T(), err)
+			ctx := goajwt.WithJWT(svc.Context, tk)
+			// when/then
+			test.RefreshTokenUnauthorized(t, ctx, svc, ctrl, payload)
 		})
 
 	})
