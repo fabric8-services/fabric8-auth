@@ -12,9 +12,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/notification"
-
 	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/wit"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
 )
 
@@ -78,7 +79,7 @@ type TeamService interface {
 
 type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
-	Refresh(ctx context.Context, identity *account.Identity, tokenString string) (string, error)
+	Refresh(ctx context.Context, identity *account.Identity, accessToken jwt.Token) (string, error)
 }
 
 type SpaceService interface {

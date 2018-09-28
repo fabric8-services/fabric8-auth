@@ -45,7 +45,6 @@ type serviceTestSuite struct {
 	gormtestsupport.DBTestSuite
 	loginService           *login.KeycloakOAuthProvider
 	oauth                  oauth.IdentityProvider
-	keycloakTokenService   *DummyTokenService
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
@@ -60,30 +59,19 @@ func TestServiceBlackBox(t *testing.T) {
 func (s *serviceTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
-	var err error
 	s.oauth = login.NewIdentityProvider(s.Configuration)
 
 	claims := make(map[string]interface{})
 	claims["sub"] = uuid.NewV4().String()
-	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
-	if err != nil {
-		panic(err)
-	}
-	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	if err != nil {
-		panic(err)
-	}
 
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
 	userProfileClient := login.NewKeycloakUserProfileClient()
 
-	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
-	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
 	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
-	s.loginService = login.NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
+	s.loginService = login.NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.osoSubscriptionManager)
 }
 
 func (s *serviceTestSuite) TestKeycloakAuthorizationRedirect() {
@@ -1101,16 +1089,4 @@ func (s *serviceTestSuite) authorizeCallback(testType string) (*httptest.Respons
 	require.Nil(s.T(), err)
 
 	return rw, callbackCtx
-}
-
-type DummyTokenService struct {
-	tokenSet token.TokenSet
-	fail     bool
-}
-
-func (s *DummyTokenService) RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
-	if s.fail {
-		return nil, autherrors.NewUnauthorizedError("kc refresh failed")
-	}
-	return &s.tokenSet, nil
 }

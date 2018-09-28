@@ -7,10 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
-	"reflect"
-	"time"
 
 	name "github.com/fabric8-services/fabric8-auth/account"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -18,16 +14,19 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
-	keycloaktoken "github.com/fabric8-services/fabric8-auth/token/keycloak"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
+
+	"net/http"
+	"net/url"
+
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -56,14 +55,13 @@ type Configuration interface {
 }
 
 // NewKeycloakOAuthProvider creates a new login.Service capable of using keycloak for authorization
-func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, keycloakTokenService keycloaktoken.TokenService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
+func NewKeycloakOAuthProvider(identities account.IdentityRepository, users account.UserRepository, tokenManager token.Manager, app application.Application, keycloakProfileService UserProfileService, osoSubscriptionManager OSOSubscriptionManager) *KeycloakOAuthProvider {
 	return &KeycloakOAuthProvider{
 		Identities:   identities,
 		Users:        users,
 		TokenManager: tokenManager,
 		App:          app,
 		keycloakProfileService: keycloakProfileService,
-		keycloakTokenService:   keycloakTokenService,
 		osoSubscriptionManager: osoSubscriptionManager,
 	}
 }
@@ -75,7 +73,6 @@ type KeycloakOAuthProvider struct {
 	TokenManager           token.Manager
 	App                    application.Application
 	keycloakProfileService UserProfileService // this should go away
-	keycloakTokenService   keycloaktoken.TokenService
 	osoSubscriptionManager OSOSubscriptionManager
 }
 
@@ -84,7 +81,7 @@ type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.IdentityProvider, serviceConfig Configuration) error
 	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig Configuration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	ExchangeRefreshToken(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error)
+	ExchangeRefreshToken(ctx context.Context, authorizationToken string, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration Configuration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig Configuration) (*string, *oauth2.Token, error)
@@ -213,9 +210,8 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 }
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
-// if the user request contained an access token in the authorization header (i.e, non empty value),
-// then it is used to fill the token to return, based on its `permissions` claim (if available)
-func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, accessToken string, refreshToken string, endpoint string, serviceConfig Configuration) (*token.TokenSet, error) {
+func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, accessToken *jwt.Token, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error) {
+
 	// Load identity for the refresh token
 	var identity *account.Identity
 	claims, err := keycloak.TokenManager.ParseTokenWithMapClaims(ctx, refreshToken)
@@ -230,7 +226,6 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	if err != nil {
 		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
-	log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String(), "request_with_access_token": (accessToken != ""), "dev_mode": serviceConfig.IsPostgresDeveloperModeEnabled()}, "refreshing a token...")
 
 	err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
 		identity, err = tr.Identities().LoadWithUser(ctx, identityID)
@@ -251,51 +246,19 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 		return nil, autherrors.NewUnauthorizedError("unauthorized access")
 	}
 
-	// Refresh token in Keycloak
-	tokeSet, err := keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, serviceConfig.GetKeycloakClientID(), serviceConfig.GetKeycloakSecret(), refreshToken)
+	generatedToken, err := keycloak.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity)
 	if err != nil {
-		if serviceConfig.IsPostgresDeveloperModeEnabled() && identity != nil && reflect.TypeOf(keycloak.keycloakTokenService) == reflect.TypeOf(&keycloaktoken.KeycloakTokenService{}) {
-			log.Info(ctx, map[string]interface{}{"identity_id": identityID.String(), "dev_mode": serviceConfig.IsPostgresDeveloperModeEnabled()}, "returning a refresh token without using Keycloak")
-			// If running in dev mode but not in a test then we ignore an error from Keycloak and just generate a refresh token
-			generatedToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
-			if err != nil {
-				return nil, err
-			}
-			return keycloak.TokenManager.ConvertToken(*generatedToken)
-		}
-		log.Info(ctx, map[string]interface{}{"identity_id": identityID.String(), "err": err}, "error occurred")
 		return nil, err
 	}
-	// if an authorization token is provided, then parse it to see if there is a `permissions` claim
-	if identity != nil && accessToken != "" {
-		refreshedAccessToken, err := keycloak.App.TokenService().Refresh(ctx, identity, accessToken)
+	// if an authorization token is provided, then use it to obtain a new token with updates permission claims
+	if identity != nil && accessToken != nil {
+		refreshedAccessToken, err := keycloak.App.TokenService().Refresh(ctx, identity, *accessToken)
 		if err != nil {
 			return nil, err
 		}
-		log.Info(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
-		if log.IsDebug() {
-			rptClaims, err := keycloak.TokenManager.ParseToken(ctx, accessToken)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{"identity_id": identityID.String(), "error": err}, "failed to parse new access token")
-			} else {
-				log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String(), "permissions": rptClaims.Permissions}, "new access token permissions")
-			}
-		}
-		tokeSet.AccessToken = &refreshedAccessToken
-
-		// //
-		// if rptClaims.Permissions != nil {
-		// 	// TODO: call the loginService.ExchangeRefreshToken()
-		// }
+		log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
+		generatedToken.AccessToken = refreshedAccessToken
 	}
-
-	// Generate token based on the Keycloak token
-	oauthToken := keycloak.TokenManager.ConvertTokenSet(*tokeSet)
-	generatedToken, err := keycloak.TokenManager.GenerateUserToken(ctx, *oauthToken, identity)
-	if err != nil {
-		return nil, err
-	}
-
 	return keycloak.TokenManager.ConvertToken(*generatedToken)
 }
 
@@ -312,7 +275,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 		case autherrors.UnauthorizedError:
 			if apiClient != "" {
 				// Return the api token
-				userToken, err := keycloak.TokenManager.GenerateUserToken(ctx, *keycloakToken, nil)
+				userToken, err := keycloak.TokenManager.GenerateUserTokenForAPIClient(ctx, *keycloakToken)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to generate token")
 					return nil, nil, err
@@ -405,132 +368,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 
 	redirectTo := referrerURL.String()
 	return &redirectTo, userToken, nil
-}
-
-func (keycloak *KeycloakOAuthProvider) updateUserInKeycloak(ctx context.Context, request *goa.RequestData, keycloakUser KeycloakUserRequest, config Configuration, identity *account.Identity) error {
-	tokenEndpoint, err := config.GetKeycloakEndpointToken(request)
-	if err != nil {
-		return autherrors.NewInternalError(ctx, err)
-	}
-	protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"keycloak_client_id": config.GetKeycloakClientID(),
-			"token_endpoint":     tokenEndpoint,
-			"err":                err,
-		}, "error generating PAT")
-		return err
-	}
-
-	if protectedAccessToken != "" {
-		// try hitting the admin user endpoint only if getting a PAT
-		// was successful.
-
-		usersEndpoint, err := config.GetKeycloakEndpointUsers(request)
-
-		// not using userProfileService.Update() because it needs a user token
-		// and here we don't have one.
-		keycloakUserID, _, err := keycloak.keycloakProfileService.CreateOrUpdate(ctx, &keycloakUser, protectedAccessToken, usersEndpoint)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err": err,
-			}, "failed to update user in keycloak")
-			return err
-		} else {
-			log.Info(ctx, map[string]interface{}{
-				"keycloak_user_id": *keycloakUserID,
-			}, "successfully updated user in keycloak")
-			return nil
-		}
-	}
-	return autherrors.NewInternalErrorFromString(ctx, "couldn't update profile because PAT wasn't generated")
-}
-
-func (keycloak *KeycloakOAuthProvider) synchronizeAuthToKeycloak(ctx context.Context, request *goa.RequestData, keycloakToken *oauth2.Token, config Configuration, identity *account.Identity) (*oauth2.Token, error) {
-	// Sync from auth db to keycloak.
-
-	accountAPIEndpoint, err := config.GetKeycloakAccountEndpoint(request)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":       err,
-			"user_name": identity.Username,
-		}, "error getting account endpoint")
-		return nil, err
-	}
-
-	claims, err := keycloak.TokenManager.ParseToken(ctx, keycloakToken.AccessToken)
-	tokenRefreshNeeded := !keycloak.equalsTokenClaims(ctx, claims, *identity)
-	log.Info(ctx, map[string]interface{}{
-		"token_refresh_needed": tokenRefreshNeeded,
-		"user_name":            identity.Username,
-	}, "is token refresh needed ?")
-
-	// if tokenRefreshNeeded = true, then we can deduce without GET-ing keycloak profile
-	// that we need to (1) update keycloak user profile (2) refresh token.
-
-	profileUpdateNeeded := tokenRefreshNeeded
-	if !tokenRefreshNeeded {
-		profileEqual, err := keycloak.equalsKeycloakUserProfileAttributes(ctx, keycloakToken.AccessToken, *identity, accountAPIEndpoint)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":       err,
-				"user_name": identity.Username,
-			}, "keycloak profile comparison failed")
-			return nil, err
-		}
-		profileUpdateNeeded = !profileEqual
-		log.Info(ctx, map[string]interface{}{
-			"profile_updated_needed": profileUpdateNeeded,
-			"user_name":              identity.Username,
-		}, "is profile update needed ?")
-	}
-
-	profileUpdatePayload := keycloakUserRequestFromIdentity(*identity)
-	if profileUpdateNeeded {
-		err = keycloak.updateUserInKeycloak(ctx, request, profileUpdatePayload, config, identity)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":       err,
-				"user_name": identity.Username,
-			}, "keycloak profile update failed")
-			return nil, err
-		}
-	}
-
-	if tokenRefreshNeeded {
-		endpoint, err := config.GetKeycloakEndpointToken(request)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":       err,
-				"user_name": identity.Username,
-			}, "error getting endpoint")
-			return nil, err
-		}
-
-		tokenSet, err := keycloak.keycloakTokenService.RefreshToken(ctx, endpoint, config.GetKeycloakClientID(), config.GetKeycloakSecret(), keycloakToken.AccessToken)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":               err,
-				"keycloak_endpoint": endpoint,
-				"user_name":         identity.Username,
-			}, "refresh token failed")
-			return nil, err
-		}
-		oauth2Token := &oauth2.Token{
-			Expiry:       time.Unix(*tokenSet.ExpiresIn, 0),
-			TokenType:    *tokenSet.TokenType,
-			AccessToken:  *tokenSet.AccessToken,
-			RefreshToken: *tokenSet.RefreshToken,
-		}
-		oauth2Token = oauth2Token.WithExtra(map[string]interface{}{
-			"expires_in":         *tokenSet.ExpiresIn,
-			"refresh_expires_in": *tokenSet.RefreshExpiresIn,
-			"not_before_policy":  *tokenSet.NotBeforePolicy,
-		})
-		return oauth2Token, nil
-	}
-
-	return keycloakToken, err
 }
 
 // AuthCodeCallback takes care of authorization callback.
