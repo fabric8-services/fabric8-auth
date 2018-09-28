@@ -737,7 +737,6 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 			RptToken: &rptToken,
 		}
 		return ctx.OK(rptTokenPayload)
-	} else {
-		return ctx.OK(nil)
 	}
+	return ctx.OK(nil)
 }
