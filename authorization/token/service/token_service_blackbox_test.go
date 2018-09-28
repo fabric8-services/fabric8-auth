@@ -830,14 +830,14 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 		g := s.NewTestGraph(t)
 		ctx := testtoken.ContextWithRequest(context.Background())
 		// Create a user
-		u := g.CreateUser()
+		user := g.CreateUser()
 		// Create an access token for the user
-		at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
+		at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 		require.NoError(t, err)
 		// when
 		// Refresh the user token
 		ctx = tokencontext.ContextWithTokenManager(ctx, tm)
-		result, err := s.Application.TokenService().Refresh(ctx, u.Identity(), at.AccessToken)
+		result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), at.AccessToken)
 		// then the result token should not contain a `permissions` claim
 		require.NoError(t, err)
 		rptClaims, err := tm.ParseToken(ctx, result)
@@ -852,22 +852,22 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			g := s.NewTestGraph(t)
 			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
 			// create a user
-			u := g.CreateUser()
+			user := g.CreateUser()
 			// Create an initial access token for the user
-			at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 			require.NoError(t, err)
 			atClaims, err := tm.ParseToken(ctx, at.AccessToken)
 			require.NoError(t, err)
 			// create space
-			space := g.CreateSpace().AddAdmin(u)
+			space := g.CreateSpace().AddAdmin(user)
 			time.Sleep(1 * time.Second)
 			// create RPT for the space
-			rptToken, err := s.Application.TokenService().Audit(ctx, u.Identity(), at.AccessToken, space.SpaceID())
-			require.NoError(s.T(), err)
-			require.NotNil(s.T(), rptToken)
+			rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space.SpaceID())
+			require.NoError(t, err)
+			require.NotNil(t, rptToken)
 			// when
 			// refresh the user token
-			result, err := s.Application.TokenService().Refresh(ctx, u.Identity(), *rptToken)
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
 			// then the result token should not contain a `permissions` claim
 			require.NoError(t, err)
 			rptClaims, err := tm.ParseToken(ctx, result)
@@ -880,30 +880,61 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			assert.ElementsMatch(t, permissions[0].Scopes, []string{authorization.ManageSpaceScope, authorization.ContributeSpaceScope, authorization.ViewSpaceScope})
 		})
 
+		t.Run("containing permissions on 1 resource and staled after change", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+			// create a user
+			user := g.CreateUser()
+			// Create an initial access token for the user
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+			require.NoError(t, err)
+			// create space
+			space := g.CreateSpace().AddAdmin(user)
+			// create RPT for the 2nd space
+			rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space.SpaceID())
+			require.NoError(t, err)
+			// modify permission on 1st space
+			space.RemoveAdmin(user).AddViewer(user)
+			// when
+			// refresh the user token
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
+			// then the result token should not contain a `permissions` claim
+			require.NoError(t, err)
+			rptClaims, err := tm.ParseToken(ctx, result)
+			require.NoError(t, err)
+			require.NotNil(t, rptClaims.Permissions)
+			permissions := *rptClaims.Permissions
+			require.Len(t, permissions, 1)
+			assert.Equal(t, *permissions[0].ResourceSetID, space.SpaceID())
+			assert.ElementsMatch(t, permissions[0].Scopes, []string{authorization.ViewSpaceScope})
+			t.Logf("new permissions: %v", permissions[0].Scopes)
+		})
+
 		t.Run("containing permissions on 2 resources and staled after change", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
 			// create a user
-			u := g.CreateUser()
+			user := g.CreateUser()
 			// Create an initial access token for the user
-			at, err := tm.GenerateUserTokenForIdentity(ctx, *u.Identity(), false)
-			require.NoError(s.T(), err)
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+			require.NoError(t, err)
 			// create space 1
-			space1 := g.CreateSpace().AddAdmin(u)
+			space1 := g.CreateSpace().AddAdmin(user)
 			// create RPT for the 1st space
-			rptToken, err := s.Application.TokenService().Audit(ctx, u.Identity(), at.AccessToken, space1.SpaceID())
-			require.NoError(s.T(), err)
+			rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space1.SpaceID())
+			require.NoError(t, err)
 			// create space 2
-			space2 := g.CreateSpace().AddContributor(u)
+			space2 := g.CreateSpace().AddContributor(user)
 			// create RPT for the 2nd space
-			rptToken, err = s.Application.TokenService().Audit(ctx, u.Identity(), *rptToken, space2.SpaceID())
-			require.NoError(s.T(), err)
+			rptToken, err = s.Application.TokenService().Audit(ctx, user.Identity(), *rptToken, space2.SpaceID())
+			require.NoError(t, err)
 			// modify permission on 1st space
-			space1.RemoveAdmin(u).AddViewer(u)
+			space1.RemoveAdmin(user).AddViewer(user)
 			// when
 			// refresh the user token
-			result, err := s.Application.TokenService().Refresh(ctx, u.Identity(), *rptToken)
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
 			// then the result token should not contain a `permissions` claim
 			require.NoError(t, err)
 			rptClaims, err := tm.ParseToken(ctx, result)
@@ -919,11 +950,63 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 		})
 
 		t.Run("deprovisioned user", func(t *testing.T) {
-			t.Skipf("not implemented yet")
+			// given
+			g := s.NewTestGraph(t)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+			// create a user
+			user := g.CreateUser()
+			// Create an initial access token for the user
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+			require.NoError(t, err)
+			// create space 1
+			space := g.CreateSpace().AddAdmin(user)
+			// create RPT for the 1st space
+			rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space.SpaceID())
+			require.NoError(t, err)
+			// mark user as deprovisionned, ie set the token as deprovisioned and save it
+			//s.Application.UserService().DeprovisionUser(ctx, user.Identity().Username) <- no trigger ATM
+			s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_DEPROVISIONED)
+			// when
+			// refresh the user token
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
+			// then the result token should not contain a `permissions` claim
+			require.Error(t, err)
+			assert.IsType(t, errors.UnauthorizedError{}, err)
+			assert.Empty(t, result)
 		})
 
 		t.Run("revoked token", func(t *testing.T) {
-			t.Skipf("not implemented yet")
+			// given
+			g := s.NewTestGraph(t)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+			// create a user
+			user := g.CreateUser()
+			// Create an initial access token for the user
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+			require.NoError(t, err)
+			// create space 1
+			space := g.CreateSpace().AddAdmin(user)
+			// create RPT for the 1st space
+			rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space.SpaceID())
+			require.NoError(t, err)
+			// revoke the token
+			tokenClaims, err := tm.ParseToken(ctx, *rptToken)
+			require.NoError(t, err)
+			tokenID, err := uuid.FromString(tokenClaims.Id)
+			require.NoError(s.T(), err)
+			tk, err := s.Application.TokenRepository().Load(ctx, tokenID)
+			require.NoError(t, err)
+			tk.SetStatus(token.TOKEN_STATUS_REVOKED, true)
+			err = s.Application.TokenRepository().Save(ctx, tk)
+			require.NoError(t, err)
+
+			// when
+			// refresh the user token
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
+			// then the result token should not contain a `permissions` claim
+			require.Error(t, err)
+			assert.IsType(t, errors.UnauthorizedError{}, err)
+			assert.Empty(t, result)
 		})
 
 	})
