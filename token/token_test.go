@@ -25,6 +25,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const thirtyDays = 60 * 60 * 24 * 30
+
 func TestToken(t *testing.T) {
 	suite.Run(t, &TestTokenSuite{})
 }
@@ -36,6 +38,79 @@ type TestTokenSuite struct {
 func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
 	s.checkGenerateUserTokenForIdentity(false)
 	s.checkGenerateUserTokenForIdentity(true) // Offline token
+}
+
+func (s *TestTokenSuite) TestRefreshedUserTokenForIdentity() {
+	s.checkRefreshedUserTokenForIdentity(false)
+	s.checkRefreshedUserTokenForIdentity(true)
+}
+
+func (s *TestTokenSuite) TestGenerateUserTokenAndRefreshFlowForAPIClient() {
+	// given
+	ctx := testtoken.ContextWithRequest(nil)
+	identityID := uuid.NewV4()
+	username := uuid.NewV4().String()
+	email := uuid.NewV4().String()
+	sessionState := uuid.NewV4().String()
+	user := repository.User{
+		ID:       uuid.NewV4(),
+		Email:    email,
+		FullName: username,
+		Cluster:  uuid.NewV4().String(),
+	}
+	// identity for api_client for which we don't have any record in auth db.
+	identity := repository.Identity{
+		ID:       identityID,
+		User:     user,
+		Username: username,
+	}
+
+	// we don't have any record in auth this is why deprovisioned is true to verify approved false.
+	identity.User.Deprovisioned = true
+	claims := make(map[string]interface{})
+	claims["sub"] = identityID.String()
+	claims["email"] = email
+	claims["preferred_username"] = username
+	claims["email_verified"] = false
+	claims["given_name"] = username
+	claims["family_name"] = ""
+	claims["session_state"] = sessionState
+	claims["approved"] = !identity.User.Deprovisioned
+
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	if err != nil {
+		panic(err)
+	}
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	if err != nil {
+		panic(err)
+	}
+
+	// assuming this token is generated from keycloak
+	token := &oauth2.Token{Expiry: time.Unix(time.Now().Unix()+thirtyDays, 0), AccessToken: accessToken, RefreshToken: refreshToken}
+
+	extra := make(map[string]interface{})
+	extra["expires_in"] = thirtyDays
+	extra["refresh_expires_in"] = thirtyDays
+	extra["not_before_policy"] = 0
+	token = token.WithExtra(extra)
+
+	// when
+	token, err = testtoken.TokenManager.GenerateUserTokenForAPIClient(ctx, *token)
+
+	// then
+	require.NoError(s.T(), err)
+	s.assertGeneratedToken(token, identity, false)
+	s.assertRefreshTokenForAPIClient(token, identity)
+
+	// when
+	// refresh access token using generated refresh token for api client
+	token, err = testtoken.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, token.RefreshToken, nil)
+
+	// then
+	require.NoError(s.T(), err)
+	s.assertGeneratedToken(token, identity, false)
+	s.assertRefreshTokenForAPIClient(token, identity)
 }
 
 func (s *TestTokenSuite) TestGenerateRPTTokenForIdentity() {
@@ -51,6 +126,15 @@ func (s *TestTokenSuite) checkGenerateUserTokenForIdentity(offlineToken bool) {
 	token, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, offlineToken)
 	require.NoError(s.T(), err)
 	s.assertGeneratedToken(token, identity, offlineToken)
+}
+
+func (s *TestTokenSuite) checkRefreshedUserTokenForIdentity(offlineToken bool) {
+	accessToken, identity, ctx := s.generateToken(offlineToken)
+	s.assertGeneratedToken(accessToken, identity, offlineToken)
+
+	refreshedAccessToken, err := testtoken.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, accessToken.RefreshToken, &identity)
+	require.NoError(s.T(), err)
+	s.assertGeneratedToken(refreshedAccessToken, identity, offlineToken)
 }
 
 func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
@@ -143,6 +227,7 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	s.assertClaim(accessToken, "email", identity.User.Email)
 	s.assertClaim(accessToken, "email_verified", identity.User.EmailVerified)
 	s.assertClaim(accessToken, "preferred_username", identity.Username)
+	s.assertSessionState(accessToken)
 
 	firstName, lastName := account.SplitFullName(identity.User.FullName)
 	s.assertClaim(accessToken, "given_name", firstName)
@@ -162,6 +247,7 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	s.assertHeaders(generatedToken.RefreshToken)
 
 	// Claims
+	s.assertSessionState(refreshToken)
 	s.assertJti(refreshToken)
 	s.assertIat(refreshToken)
 	s.assertIntClaim(refreshToken, "nbf", 0)
@@ -176,6 +262,20 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	}
 	s.assertIntClaim(refreshToken, "auth_time", 0)
 	s.assertClaim(refreshToken, "sub", identity.ID.String())
+}
+
+func (s *TestTokenSuite) assertRefreshTokenForAPIClient(generatedToken *oauth2.Token, identity repository.Identity) {
+	refreshToken, err := testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), generatedToken.RefreshToken)
+	require.NoError(s.T(), err)
+
+	s.assertClaim(refreshToken, "sub", identity.ID.String())
+	s.assertClaim(refreshToken, "email", identity.User.Email)
+	s.assertClaim(refreshToken, "email_verified", identity.User.EmailVerified)
+	s.assertClaim(refreshToken, "preferred_username", identity.Username)
+
+	firstName, lastName := account.SplitFullName(identity.User.FullName)
+	s.assertClaim(refreshToken, "given_name", firstName)
+	s.assertClaim(refreshToken, "family_name", lastName)
 }
 
 func (s *TestTokenSuite) TestAddLoginRequiredHeader() {
@@ -237,6 +337,14 @@ func (s *TestTokenSuite) assertJti(claims jwt.MapClaims) {
 	require.NotNil(s.T(), jti)
 	require.IsType(s.T(), "", jti)
 	_, err := uuid.FromString(jti.(string))
+	assert.NoError(s.T(), err)
+}
+
+func (s *TestTokenSuite) assertSessionState(claims jwt.MapClaims) {
+	sessionState := claims["session_state"]
+	require.NotEmpty(s.T(), sessionState)
+	require.IsType(s.T(), "", sessionState)
+	_, err := uuid.FromString(sessionState.(string))
 	assert.NoError(s.T(), err)
 }
 

@@ -73,7 +73,7 @@ func (rest *TestTokenREST) UnSecuredController() (*goa.Service, *TokenController
 
 	loginService := &DummyKeycloakOAuthService{}
 	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
+	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, &testsupport.DummyOSORegistrationApp{})
 	loginService.Identities = rest.Application.Identities()
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = manager
@@ -96,7 +96,7 @@ func (rest *TestTokenREST) SecuredControllerWithIdentity(identity account.Identi
 	newTestKeycloakOAuthProvider(rest.Application)
 	loginService := &DummyKeycloakOAuthService{}
 	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
+	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application, profileService, &testsupport.DummyOSORegistrationApp{})
 	loginService.Identities = rest.Application.Identities()
 	loginService.Users = rest.Application.Users()
 	loginService.TokenManager = testtoken.TokenManager
@@ -571,7 +571,7 @@ func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, c
 	return token, nil
 }
 
-func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 	if s.exchangeStrategy == "401" {
 		return nil, errors.NewUnauthorizedError("failed")
 	}
