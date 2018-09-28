@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	jwtrequest "github.com/dgrijalva/jwt-go/request"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -76,15 +75,14 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	if refreshToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
 	}
-	refreshClaims, err := c.TokenManager.ParseToken(ctx, *refreshToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get parse the refresh token")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("refresh_token", "<hidden>", "unable to parse the refresh token"))
+	var t *token.TokenSet
+	var err error
+	if accessToken != nil {
+		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
+		t, err = c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
+	} else {
+		t, err = c.Auth.ExchangeRefreshToken(ctx, "", *refreshToken, c.Configuration)
 	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, accessToken, refreshClaims, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -390,14 +388,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
 	// retrieve the access token from the request header, but ignore if it was not found
-	authorizationToken, err := jwtrequest.AuthorizationHeaderExtractor.ExtractToken(ctx.Request)
-	if err != nil && err != jwtrequest.ErrNoTokenInRequest {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to parse the token in the request's authorization header")
-		return nil, errors.NewBadParameterErrorFromString("authorization_header", "", "failed to parse the token in the request's authorization header")
-	}
-
+	accessToken := goajwt.ContextJWT(ctx)
 	payload := ctx.Payload
 	refreshToken := payload.RefreshToken
 	if refreshToken == nil {
@@ -411,8 +402,8 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		}, "unknown oauth client id")
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, authorizationToken, *refreshToken, c.Configuration)
+	// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
+	t, err := c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err

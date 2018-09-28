@@ -795,11 +795,9 @@ func (s *tokenServiceBlackboxTest) TestTokenUpdatedWhenUserAcceptsResourceInvita
 	rptToken, err = s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), user3.Identity(), *rptToken, res3.ResourceID())
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rptToken)
-
 	// Parse the signed RPT token to obtain the claims
 	tokenClaims, err = tm.ParseToken(s.Ctx, *rptToken)
 	require.NoError(s.T(), err)
-
 	// There should still be 2 permissions, however neither should have any scopes now
 	perms = *tokenClaims.Permissions
 	require.Len(s.T(), perms, 2)
@@ -834,10 +832,12 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 		// Create an access token for the user
 		at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 		require.NoError(t, err)
+		ctx = tokencontext.ContextWithTokenManager(ctx, tm)
+		accessToken, err := tm.Parse(ctx, at.AccessToken)
+		require.NoError(t, err)
 		// when
 		// Refresh the user token
-		ctx = tokencontext.ContextWithTokenManager(ctx, tm)
-		result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), at.AccessToken)
+		result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), accessToken.Raw)
 		// then the result token should not contain a `permissions` claim
 		require.NoError(t, err)
 		rptClaims, err := tm.ParseToken(ctx, result)
@@ -867,7 +867,9 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			require.NotNil(t, rptToken)
 			// when
 			// refresh the user token
-			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
+			accessToken, err := tm.Parse(ctx, *rptToken)
+			require.NoError(t, err)
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), accessToken.Raw)
 			// then the result token should not contain a `permissions` claim
 			require.NoError(t, err)
 			rptClaims, err := tm.ParseToken(ctx, result)
@@ -898,7 +900,9 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			space.RemoveAdmin(user).AddViewer(user)
 			// when
 			// refresh the user token
-			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
+			accessToken, err := tm.Parse(ctx, *rptToken)
+			require.NoError(t, err)
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), accessToken.Raw)
 			// then the result token should not contain a `permissions` claim
 			require.NoError(t, err)
 			rptClaims, err := tm.ParseToken(ctx, result)
@@ -966,9 +970,11 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			// mark user as deprovisionned, ie set the token as deprovisioned and save it
 			//s.Application.UserService().DeprovisionUser(ctx, user.Identity().Username) <- no trigger ATM
 			s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_DEPROVISIONED)
+			accessToken, err := tm.Parse(ctx, *rptToken)
+			require.NoError(t, err)
 			// when
 			// refresh the user token
-			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), accessToken.Raw)
 			// then the result token should not contain a `permissions` claim
 			require.Error(t, err)
 			assert.IsType(t, errors.UnauthorizedError{}, err)
@@ -999,10 +1005,11 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			tk.SetStatus(token.TOKEN_STATUS_REVOKED, true)
 			err = s.Application.TokenRepository().Save(ctx, tk)
 			require.NoError(t, err)
-
+			accessToken, err := tm.Parse(ctx, *rptToken)
+			require.NoError(t, err)
 			// when
 			// refresh the user token
-			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), *rptToken)
+			result, err := s.Application.TokenService().Refresh(ctx, user.Identity(), accessToken.Raw)
 			// then the result token should not contain a `permissions` claim
 			require.Error(t, err)
 			assert.IsType(t, errors.UnauthorizedError{}, err)

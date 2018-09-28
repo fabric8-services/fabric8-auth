@@ -619,7 +619,7 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 			require.NoError(t, err)
 			// when
 			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			result, err := s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
+			result, err := s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, s.Configuration)
 			// then
 			require.NoError(t, err)
 			require.NotNil(t, result)
@@ -647,7 +647,7 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 			accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 			require.NoError(t, err)
 			// when
-			result, err := s.loginService.ExchangeRefreshToken(ctx, accessToken, refreshToken, "", s.Configuration)
+			result, err := s.loginService.ExchangeRefreshToken(ctx, accessToken, refreshToken, s.Configuration)
 			// then
 			require.NoError(t, err)
 			require.NotNil(t, result)
@@ -680,7 +680,7 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 			rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
 			require.NoError(t, err)
 			// when
-			result, err := s.loginService.ExchangeRefreshToken(ctx, *rpt, refreshToken, "", s.Configuration)
+			result, err := s.loginService.ExchangeRefreshToken(ctx, *rpt, refreshToken, s.Configuration)
 			// then
 			require.NoError(t, err)
 			require.NotNil(t, result)
@@ -702,10 +702,9 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
 		t.Run("invalid format", func(t *testing.T) { // Fails if invalid format of refresh token
 			// given
-			s.keycloakTokenService.fail = false
-			// when
 			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			_, err := s.loginService.ExchangeRefreshToken(ctx, "", "", "", s.Configuration)
+			// when
+			_, err := s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
 			// then
 			require.EqualError(t, err, "token contains an invalid number of segments")
 			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
@@ -723,30 +722,12 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 			require.NoError(t, err)
 			// when
 			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
+			_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, s.Configuration)
 			// then
 			require.EqualError(t, err, "Token is expired")
 			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
 		})
 
-		t.Run("kc failure", func(t *testing.T) { // Fails if KC fails
-			// given
-			g := s.NewTestGraph(t)
-			user := g.CreateUser()
-			s.keycloakTokenService.fail = true
-			claims := make(map[string]interface{})
-			claims["sub"] = user.IdentityID().String()
-			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
-			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
-			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-			require.NoError(t, err)
-			// when
-			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, "", s.Configuration)
-			// then
-			require.EqualError(t, err, "kc refresh failed")
-			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
-		})
 	})
 
 }

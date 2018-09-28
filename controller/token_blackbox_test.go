@@ -123,14 +123,14 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("without authorization token", func(t *testing.T) {
 			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 				var thirtyDays int64
 				thirtyDays = 60 * 60 * 24 * 30
 				bearer := "Bearer"
 				return &token.TokenSet{
 					TokenType:    &bearer,
-					AccessToken:  &authorizationToken,
-					RefreshToken: &refreshToken,
+					AccessToken:  &tokenSet.AccessToken,
+					RefreshToken: &tokenSet.RefreshToken,
 					ExpiresIn:    &thirtyDays,
 				}, nil
 			}
@@ -141,9 +141,9 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 			require.NotNil(t, token.TokenType)
 			require.Equal(t, "Bearer", *token.TokenType)
 			require.NotNil(t, token.AccessToken)
-			require.Empty(t, *token.AccessToken)
+			assert.Equal(t, tokenSet.AccessToken, *token.AccessToken)
 			require.NotNil(t, token.RefreshToken)
-			require.Equal(t, tokenSet.RefreshToken, *token.RefreshToken)
+			assert.Equal(t, tokenSet.RefreshToken, *token.RefreshToken)
 			expiresIn, ok := token.ExpiresIn.(*int64)
 			require.True(t, ok)
 			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
@@ -151,14 +151,14 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("with valid authorization token", func(t *testing.T) {
 			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 				var thirtyDays int64
 				thirtyDays = 60 * 60 * 24 * 30
 				bearer := "Bearer"
 				// configure the mock behaviour to return an refresh token only
 				return &token.TokenSet{
 					TokenType:    &bearer,
-					AccessToken:  &authorizationToken,
+					AccessToken:  &tokenSet.AccessToken,
 					RefreshToken: &refreshToken,
 					ExpiresIn:    &thirtyDays,
 				}, nil
@@ -167,7 +167,6 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
 			ctx := goajwt.WithJWT(svc.Context, tk)
-			svc.Encoder
 			// when
 			_, authToken := test.RefreshTokenOK(t, ctx, svc, ctrl, payload)
 			// then
@@ -185,7 +184,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("with invalid authorization token", func(t *testing.T) {
 			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
 			}
 			manager, err := token.NewManager(s.Configuration)
@@ -214,7 +213,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 		t.Run("using wrong refresh token", func(t *testing.T) {
 			// given
 			loginService := testlogin.NewKeycloakOAuthServiceMock(t)
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
 			}
 			svc, ctrl := s.SecuredController(loginService)
@@ -335,7 +334,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
 func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
 	// given
 	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
-	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
 	}
 	svc, ctrl := s.SecuredController(loginService)
@@ -606,7 +605,7 @@ func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login
 		token = token.WithExtra(extra)
 		return token, nil
 	}
-	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
 		var thirtyDays int64
 		thirtyDays = 60 * 60 * 24 * 30
 		bearer := "Bearer"

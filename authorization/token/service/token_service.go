@@ -327,26 +327,25 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 
 // Refresh checks the resource permissions in the given tokenString for the given user, and returns a
 // new RPToken (with a new expiry time and updated permissions if needed)
-func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identity, accessToken jwt.Token) (string, error) {
+func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "refreshing a user token...")
 	// Get the token manager from the context
 	manager, err := token.ReadManagerFromContext(ctx)
 	if err != nil {
 		return "", errors.NewInternalError(ctx, err)
 	}
-
 	// Now parse the token string that was passed in
-	tokenClaims := accessToken.Claims.(token.TokenClaims)
-
+	accessTokenClaims, err := manager.ParseToken(ctx, accessToken)
+	if err != nil {
+		return "", errors.NewBadParameterErrorFromString("access_token", "<hidden>", "failed to parse the access token")
+	}
 	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
 	var tokenID uuid.UUID
-
 	// Extract the jti from the token
-	tokenID, err = uuid.FromString(tokenClaims.Id)
+	tokenID, err = uuid.FromString(accessTokenClaims.Id)
 	if err != nil {
-		return "", errors.NewBadParameterErrorFromString("jti", tokenClaims.Id, "invalid jti identifier - not a UUID")
+		return "", errors.NewBadParameterErrorFromString("jti", accessTokenClaims.Id, "invalid jti identifier - not a UUID")
 	}
-
 	loadedToken, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
 	if err != nil {
 		// This is not an error per se, so we'll just log an informational message
@@ -354,37 +353,29 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identi
 			"token_id": tokenID,
 		}, "token with specified id not found")
 	}
-
 	// check if the token is still valid
 	if loadedToken != nil {
 		// Confirm that the token belongs to the current identity
 		if loadedToken.IdentityID != identity.ID {
 			return "", errors.NewUnauthorizedError("invalid token for identity")
 		}
-
 		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
 		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
 			return "", errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
 		}
-
 		// If the token has been revoked or the user is logged out, we respond in the same way
 		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(authtoken.TOKEN_STATUS_LOGGED_OUT) {
 			return "", errors.NewUnauthorizedErrorWithCode("token revoked or logged out", errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)
 		}
 	}
-
 	// If we've gotten this far, it means that either no existing token was found, or the token that was found
 	// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
 	signedToken := ""
-
 	err = s.ExecuteInTransaction(func() error {
-
 		// Initialize an array of permission objects that will be included in the token
 		perms := []token.Permissions{}
-
 		// Initialize an array of TokenPrivilege objects so that we can persist a record of the token's privileges to the database
 		tokenPrivs := []tokenRepo.TokenPrivilege{}
-
 		// If an existing RPT token is being replaced with a new token, then populate it with the privileges from the
 		// existing token.  HOWEVER, don't exceed the maximum configured permissions for the token
 		if loadedToken != nil {
@@ -392,12 +383,10 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identi
 			if err != nil {
 				return errors.NewInternalError(ctx, err)
 			}
-
 			// Sort the old token privileges by expiry time, from latest to earliest
 			sort.Slice(oldTokenPrivs, func(i, j int) bool {
 				return oldTokenPrivs[i].ExpiryTime.After(oldTokenPrivs[j].ExpiryTime)
 			})
-
 			// Loop through the privileges stored in the previous token, and add them to the permissions of the
 			// new token, breaking once the maximum permission limit has been hit
 			for _, oldPriv := range oldTokenPrivs {
@@ -427,7 +416,6 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identi
 					}
 					perms = append(perms, *perm)
 				}
-
 				// Create a token privilege object to store in the database
 				tokenPriv := &tokenRepo.TokenPrivilege{
 					PrivilegeCacheID: oldPriv.PrivilegeCacheID,
@@ -437,10 +425,9 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identi
 		}
 		// update the expiry
 		now := time.Now().Unix()
-		tokenClaims.ExpiresAt = time.Unix(now+s.config.GetAccessTokenExpiresIn(), 0).Unix()
-
+		accessTokenClaims.ExpiresAt = time.Unix(now+s.config.GetAccessTokenExpiresIn(), 0).Unix()
 		// Generate a new RPT token
-		generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, &tokenClaims, *identity, &perms)
+		generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, accessTokenClaims, *identity, &perms)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}

@@ -26,7 +26,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -81,7 +80,7 @@ type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.IdentityProvider, serviceConfig Configuration) error
 	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig Configuration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	ExchangeRefreshToken(ctx context.Context, authorizationToken string, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error)
+	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration Configuration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig Configuration) (*string, *oauth2.Token, error)
@@ -210,7 +209,7 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 }
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
-func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, accessToken *jwt.Token, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error) {
+func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error) {
 
 	// Load identity for the refresh token
 	var identity *account.Identity
@@ -251,8 +250,8 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 		return nil, err
 	}
 	// if an authorization token is provided, then use it to obtain a new token with updates permission claims
-	if identity != nil && accessToken != nil {
-		refreshedAccessToken, err := keycloak.App.TokenService().Refresh(ctx, identity, *accessToken)
+	if identity != nil && accessToken != "" {
+		refreshedAccessToken, err := keycloak.App.TokenService().Refresh(ctx, identity, accessToken)
 		if err != nil {
 			return nil, err
 		}
