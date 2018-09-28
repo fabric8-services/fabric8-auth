@@ -164,6 +164,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 				}, nil
 			}
 			manager, err := token.NewManager(s.Configuration)
+			require.NoError(s.T(), err)
 			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
 			ctx := goajwt.WithJWT(svc.Context, tk)
@@ -188,6 +189,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
 			}
 			manager, err := token.NewManager(s.Configuration)
+			require.NoError(s.T(), err)
 			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
 			ctx := goajwt.WithJWT(svc.Context, tk)
