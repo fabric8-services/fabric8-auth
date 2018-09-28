@@ -80,7 +80,6 @@ func (s *TestClusterSuite) TestStartError() {
 	clusters := s.cs.Clusters()
 	assert.Equal(s.T(), 0, len(clusters))
 	assert.Nil(s.T(), s.cs.ClusterByURL("https://api.starter-us-east-2.openshift.com/"))
-	// TODO check clusters
 }
 
 func (s *TestClusterSuite) assertCluster(apiURL string) {
@@ -121,71 +120,3 @@ func ClusterRequestMatcher(t *testing.T, token string) cassette.Matcher {
 		return true
 	}
 }
-
-//func (s *TestClusterSuite) _TestClusters() {
-//	ctx, _, reqID := tokensupport.ContextWithTokenAndRequestID(s.T())
-//
-//	manager, err := token.ReadManagerFromContext(ctx)
-//	require.Nil(s.T(), err)
-//
-//	// extract the token
-//	saToken := (*manager).AuthServiceAccountToken()
-//
-//	msg := s.msg
-//	messageID := new(uuid.UUID)
-//
-//	r, err := recorder.New("../../test/data/notification/notification_sent.ok", recorder.WithMatcher(recorder.NotifyRequestHeaderPayloadMatcher(messageID, reqID, saToken)))
-//	require.NoError(s.T(), err)
-//	defer r.Stop()
-//
-//	// create client
-//	cl, err := s.ns.createClientWithContextSigner(ctx, rest.WithRoundTripper(r.Transport))
-//	require.NoError(s.T(), err)
-//
-//	s.T().Run("should send message", func(t *testing.T) {
-//		//given
-//		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af04")
-//		assert.NoError(t, e)
-//
-//		*messageID = msgID
-//		msg.MessageID = msgID
-//
-//		//when
-//		err := s.ns.send(ctx, cl, msg)
-//
-//		//then
-//		require.NoError(t, err)
-//	})
-//
-//	s.T().Run("should fail to send message if client returned an error", func(t *testing.T) {
-//		//given
-//		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af06")
-//		assert.NoError(t, e)
-//
-//		*messageID = msgID
-//		msg.MessageID = msgID
-//
-//		//when
-//		err = s.ns.send(ctx, cl, msg)
-//
-//		//then
-//		require.Error(t, err)
-//		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: ", err.Error())
-//	})
-//
-//	s.T().Run("should fail to send message if client returned an unexpected status", func(t *testing.T) {
-//		//given
-//		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af05")
-//		assert.NoError(t, e)
-//
-//		*messageID = msgID
-//		msg.MessageID = msgID
-//
-//		//when
-//		err = s.ns.send(ctx, cl, msg)
-//
-//		//then
-//		require.Error(t, err)
-//		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: ")
-//	})
-//}
