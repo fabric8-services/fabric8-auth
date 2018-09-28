@@ -23,6 +23,7 @@ var clusterCache *cache
 var cacheLock = &sync.Mutex{}
 
 type clusterConfig interface {
+	token.Configuration
 	GetClusterServiceURL() string
 	GetClusterCacheRefreshInterval() time.Duration
 }
@@ -33,6 +34,7 @@ type cache struct {
 
 	refresher   *time.Ticker
 	refreshLock *sync.RWMutex
+	stopCh      chan bool
 	clusters    map[string]*cluster.Cluster
 }
 
@@ -62,19 +64,34 @@ func (c *cache) start() error {
 	if err != nil {
 		return err
 	}
+
+	c.stopCh = make(chan bool, 1)
 	go func() {
-		for range c.refresher.C { // while the `cacheRefresh` ticker is running
-			err := c.refreshCache(context.Background())
-			if err != nil {
-				log.Error(nil, map[string]interface{}{"err": err}, "failed to load the list of clusters during cache refresh")
+		defer log.Info(nil, map[string]interface{}{}, "cluster cache refresher stopped")
+		log.Info(nil, map[string]interface{}{"interval": c.config.GetClusterCacheRefreshInterval()}, "cluster cache refresher started")
+		for {
+			select {
+			case <-c.refresher.C:
+				err := c.refreshCache(context.Background())
+				if err != nil {
+					log.Error(nil, map[string]interface{}{"err": err}, "failed to load the list of clusters during cache refresh")
+				}
+			case <-c.stopCh:
+				return
 			}
 		}
 	}()
 	return nil
 }
 
+func (c *cache) stop() {
+	if c.stopCh != nil {
+		c.stopCh <- true
+	}
+}
+
 func (c *cache) refreshCache(ctx context.Context) error {
-	log.Debug(ctx, nil, "refreshing cached list of clusters...")
+	log.Info(ctx, nil, "refreshing cached list of clusters...")
 	clusters, err := c.fetchClusters(ctx)
 	if err != nil {
 		return err
@@ -82,7 +99,7 @@ func (c *cache) refreshCache(ctx context.Context) error {
 	c.refreshLock.Lock()
 	defer c.refreshLock.Unlock()
 	c.clusters = clusters
-	defer log.Debug(ctx, nil, "refreshed cached list of clusters")
+	log.Info(ctx, nil, "refreshed cached list of clusters")
 	return nil
 }
 
@@ -94,9 +111,10 @@ func (c *cache) fetchClusters(ctx context.Context) (map[string]*cluster.Cluster,
 	}
 
 	res, err := cln.ShowAuthClientClusters(goasupport.ForwardContextRequestID(ctx), client.ShowClustersPath())
-	if err == nil {
-		defer rest.CloseResponse(res)
+	if err != nil {
+		return nil, err
 	}
+	defer rest.CloseResponse(res)
 
 	if res.StatusCode != http.StatusOK {
 		bodyString := rest.ReadBody(res.Body)
@@ -142,10 +160,11 @@ func (c *cache) createClientWithServiceAccountSigner(ctx context.Context) (*clie
 	if err != nil {
 		return nil, err
 	}
-	signer, err := token.AuthServiceAccountSigner(ctx)
+	manager, err := token.DefaultManager(c.config)
 	if err != nil {
 		return nil, err
 	}
+	signer := manager.AuthServiceAccountSigner()
 	cln.SetJWTSigner(signer)
 	return cln, nil
 }

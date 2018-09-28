@@ -1,13 +1,13 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/rest"
-
-	"strings"
 )
 
 type clusterService struct {

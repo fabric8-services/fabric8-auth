@@ -148,7 +148,7 @@ func main() {
 
 	appDB := gormapplication.NewGormDB(db, config)
 
-	tokenManager, err := token.NewManager(config)
+	tokenManager, err := token.DefaultManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -173,12 +173,14 @@ func main() {
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 	keycloakTokenService := &keycloak.KeycloakTokenService{}
 
-	// Start Cluster Service cache refresher
-	err = clusterservice.Start(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to start cluster service")
+	// Start Cluster Service cache refresher if not run id Dev mode
+	if !config.IsPostgresDeveloperModeEnabled() {
+		err = clusterservice.Start(config)
+		if err != nil {
+			log.Panic(nil, map[string]interface{}{
+				"err": err,
+			}, "failed to start cluster service")
+		}
 	}
 
 	// Mount "login" controller

@@ -51,8 +51,20 @@ const (
 	GeminiServer       = "fabric8-gemini-server"
 )
 
+var defaultManager Manager
+
+// DefaultManager creates the default manager if it has not created yet.
+// This function must be called in main to make sure the default manager is created during service startup.
+func DefaultManager(config Configuration) (Manager, error) {
+	var err error
+	if defaultManager == nil {
+		defaultManager, err = NewManager(config)
+	}
+	return defaultManager, err
+}
+
 // configuration represents configuration needed to construct a token manager
-type configuration interface {
+type Configuration interface {
 	GetServiceAccountPrivateKey() ([]byte, string)
 	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
 	GetUserAccountPrivateKey() ([]byte, string)
@@ -113,6 +125,7 @@ type Manager interface {
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 	AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter)
 	AddLoginRequiredHeader(rw http.ResponseWriter)
+	AuthServiceAccountSigner() client.Signer
 }
 
 type tokenManager struct {
@@ -123,11 +136,11 @@ type tokenManager struct {
 	jsonWebKeys              jwk.JSONKeys
 	pemKeys                  jwk.JSONKeys
 	serviceAccountToken      string
-	config                   configuration
+	config                   Configuration
 }
 
 // NewManager returns a new token Manager for handling tokens
-func NewManager(config configuration) (Manager, error) {
+func NewManager(config Configuration) (Manager, error) {
 	tm := &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{},
 	}

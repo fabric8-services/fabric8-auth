@@ -63,6 +63,13 @@ func (s *TestWhiteboxTokenSuite) tokenManagerWithAuthURL() (*tokenManager, strin
 	return tm, authURL
 }
 
+func (s *TestWhiteboxTokenSuite) TestDefaultManager() {
+	manager, err := DefaultManager(s.Config)
+	require.NoError(s.T(), err)
+	assert.NotNil(s.T(), manager)
+	assert.Equal(s.T(), defaultManager, manager)
+}
+
 func (s *TestWhiteboxTokenSuite) TestAuthServiceAccountGeneratedOK() {
 	m, authURL := s.tokenManagerWithAuthURL()
 	tokenString := m.AuthServiceAccountToken()
