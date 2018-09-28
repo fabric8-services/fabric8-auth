@@ -21,6 +21,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testlogin "github.com/fabric8-services/fabric8-auth/test/login"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
@@ -35,87 +36,43 @@ import (
 
 type TokenControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
-	sampleAccessToken  string
-	sampleRefreshToken string
-	exchangeStrategy   string
-	testDir            string
+	testDir string
 }
 
 func TestTokenController(t *testing.T) {
-	suite.Run(
-		t,
-		&TokenControllerTestSuite{
-			DBTestSuite: gormtestsupport.NewDBTestSuite(),
-		})
+	suite.Run(t, &TokenControllerTestSuite{
+		DBTestSuite: gormtestsupport.NewDBTestSuite(),
+	})
 }
 
 func (s *TokenControllerTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-
-	claims := make(map[string]interface{})
-	act, err := testtoken.GenerateAccessTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-	s.sampleAccessToken = act
-	act, err = testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-	s.sampleRefreshToken = act
 	s.testDir = filepath.Join("test-files", "token")
-}
-
-func (s *TokenControllerTestSuite) SetupTest() {
-	s.DBTestSuite.SetupTest()
-	s.exchangeStrategy = ""
 }
 
 func (s *TokenControllerTestSuite) UnsecuredController() (*goa.Service, *TokenController) {
 	svc := goa.New("Token-Service")
 	manager, err := token.NewManager(s.Configuration)
 	require.Nil(s.T(), err)
-
-	loginService := &DummyKeycloakOAuthService{}
-	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(s.Application.Identities(), s.Application.Users(), testtoken.TokenManager, s.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
-	loginService.Identities = s.Application.Identities()
-	loginService.Users = s.Application.Users()
-	loginService.TokenManager = manager
-	loginService.App = s.Application
-
+	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
 	return svc, NewTokenController(svc, s.Application, loginService, nil, nil, manager, s.Configuration)
 }
 
-func (s *TokenControllerTestSuite) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
-	return s.SecuredControllerWithIdentity(testsupport.TestIdentity)
+func (s *TokenControllerTestSuite) SecuredControllerWithNonExistentIdentity(loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
+	return s.SecuredControllerWithIdentity(testsupport.TestIdentity, loginService)
 }
 
-func (s *TokenControllerTestSuite) SecuredController() (*goa.Service, *TokenController) {
+func (s *TokenControllerTestSuite) SecuredController(loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
 	identity, err := testsupport.CreateTestIdentity(s.DB, uuid.NewV4().String(), "KC")
 	require.Nil(s.T(), err)
-	return s.SecuredControllerWithIdentity(identity)
+	return s.SecuredControllerWithIdentity(identity, loginService)
 }
 
-func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
+func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity, loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
 	newTestKeycloakOAuthProvider(s.Application)
-	loginService := &DummyKeycloakOAuthService{}
-	profileService := login.NewKeycloakUserProfileClient()
-	loginService.KeycloakOAuthProvider = *login.NewKeycloakOAuthProvider(s.Application.Identities(), s.Application.Users(), testtoken.TokenManager, s.Application, profileService, nil, &testsupport.DummyOSORegistrationApp{})
-	loginService.Identities = s.Application.Identities()
-	loginService.Users = s.Application.Users()
-	loginService.TokenManager = testtoken.TokenManager
-	loginService.App = s.Application
-	loginService.exchangeStrategy = s.exchangeStrategy
-
-	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
-	require.Nil(s.T(), err)
-	s.sampleAccessToken = tokenSet.AccessToken
-	s.sampleRefreshToken = tokenSet.RefreshToken
-
-	loginService.accessToken = s.sampleAccessToken
-	loginService.refreshToken = s.sampleRefreshToken
-
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
-
 	linkService := &DummyLinkService{}
-	return svc, NewTokenController(svc, s.Application, loginService, linkService, nil, loginService.TokenManager, s.Configuration)
+	return svc, NewTokenController(svc, s.Application, loginService, linkService, nil, testtoken.TokenManager, s.Configuration)
 }
 
 func (s *TokenControllerTestSuite) TestPublicKeys() {
@@ -156,21 +113,22 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("without authorization token", func(t *testing.T) {
 			// given
-			service, ctrl := s.SecuredController()
-			refreshToken := "SOME_REFRESH_TOKEN"
+			loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(t, testsupport.TestIdentity)
+			svc, ctrl := s.SecuredController(loginService)
+			rtk := "SOME_REFRESH_TOKEN"
 			payload := &app.RefreshToken{
-				RefreshToken: &refreshToken,
+				RefreshToken: &rtk,
 			}
 			// when
-			_, authToken := test.RefreshTokenOK(t, service.Context, service, ctrl, payload)
+			_, authToken := test.RefreshTokenOK(t, svc.Context, svc, ctrl, payload)
 			// then
 			token := authToken.Token
 			require.NotNil(t, token.TokenType)
 			require.Equal(t, "Bearer", *token.TokenType)
 			require.NotNil(t, token.AccessToken)
-			require.Equal(t, s.sampleAccessToken, *token.AccessToken)
+			require.Equal(t, expectedAccessToken, *token.AccessToken)
 			require.NotNil(t, token.RefreshToken)
-			require.Equal(t, s.sampleRefreshToken, *token.RefreshToken)
+			require.Equal(t, expectedRefreshToken, *token.RefreshToken)
 			expiresIn, ok := token.ExpiresIn.(*int64)
 			require.True(t, ok)
 			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
@@ -178,7 +136,11 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("with authorization token", func(t *testing.T) {
 
-			t.Run("valid token", func(t *testing.T) {
+			t.Run("valid token without permissions", func(t *testing.T) {
+				t.Skipf("not implemented yet")
+			})
+
+			t.Run("valid token with permissions", func(t *testing.T) {
 				t.Skipf("not implemented yet")
 			})
 
@@ -192,22 +154,30 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 	s.T().Run("failure", func(t *testing.T) {
 
 		t.Run("using nil refresh token", func(t *testing.T) {
-			service, ctrl := s.SecuredController()
-
+			// given
+			loginService, _, _ := newKeycloakOAuthMockService(t, testsupport.TestIdentity)
+			svc, ctrl := s.SecuredController(loginService)
 			payload := &app.RefreshToken{}
-			_, err := test.RefreshTokenBadRequest(t, service.Context, service, ctrl, payload)
+			// when
+			_, err := test.RefreshTokenBadRequest(t, svc.Context, svc, ctrl, payload)
+			// then
 			assert.NotNil(t, err)
 		})
 
 		t.Run("using wrong refresh token", func(t *testing.T) {
-			s.exchangeStrategy = "401"
-			service, ctrl := s.SecuredController()
-
+			// given
+			loginService := testlogin.NewKeycloakOAuthServiceMock(t)
+			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
+			}
+			svc, ctrl := s.SecuredController(loginService)
 			refreshToken := "WRONG_REFRESH_TOKEN"
 			payload := &app.RefreshToken{
 				RefreshToken: &refreshToken,
 			}
-			rw, _ := test.RefreshTokenUnauthorized(t, service.Context, service, ctrl, payload)
+			// when
+			rw, _ := test.RefreshTokenUnauthorized(t, svc.Context, svc, ctrl, payload)
+			// then
 			s.checkLoginRequiredHeader(rw)
 		})
 	})
@@ -215,36 +185,44 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 }
 
 func (s *TokenControllerTestSuite) TestLinkForNonExistentUserFails() {
-	service, ctrl := s.SecuredControllerWithNonExistentIdentity()
-
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredControllerWithNonExistentIdentity(loginService)
 	redirect := "https://openshift.io"
-	test.LinkTokenUnauthorized(s.T(), service.Context, service, ctrl, "https://github.com/org/repo", &redirect)
+	// when/then
+	test.LinkTokenUnauthorized(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", &redirect)
 }
 
 func (s *TokenControllerTestSuite) TestLinkNoRedirectNoReferrerFails() {
-	service, ctrl := s.SecuredController()
-
-	test.LinkTokenBadRequest(s.T(), service.Context, service, ctrl, "https://github.com/org/repo", nil)
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
+	// when/then
+	test.LinkTokenBadRequest(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", nil)
 }
 
 func (s *TokenControllerTestSuite) TestLinkOK() {
-	service, ctrl := s.SecuredController()
-
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
 	redirect := "https://openshift.io"
-	_, redirectLocation := test.LinkTokenOK(s.T(), service.Context, service, ctrl, "https://github.com/org/repo", &redirect)
+	_, redirectLocation := test.LinkTokenOK(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", &redirect)
 	require.NotNil(s.T(), redirectLocation)
 	require.Equal(s.T(), "providerLocation", redirectLocation.RedirectLocation)
-
-	// Multiple "for" resources
-	_, redirectLocation = test.LinkTokenOK(s.T(), service.Context, service, ctrl, "https://github.com/org/repo,"+s.Configuration.GetOpenShiftClientApiUrl(), &redirect)
+	// when Multiple "for" resources
+	_, redirectLocation = test.LinkTokenOK(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo,"+s.Configuration.GetOpenShiftClientApiUrl(), &redirect)
+	// then
 	require.NotNil(s.T(), redirectLocation)
 	require.Equal(s.T(), "providerLocation", redirectLocation.RedirectLocation)
 }
 
 func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
-	service, ctrl := s.SecuredController()
-
-	response := test.CallbackTokenTemporaryRedirect(s.T(), service.Context, service, ctrl, "", "")
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
+	// when
+	response := test.CallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "")
+	// then
 	require.NotNil(s.T(), response)
 	location := response.Header()["Location"]
 	require.Equal(s.T(), 1, len(location))
@@ -252,22 +230,26 @@ func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 }
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithIncompletePayload() {
-	service, ctrl := s.SecuredController()
-
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
 	someRandomString := "someString"
-	test.ExchangeTokenBadRequest(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
-	test.ExchangeTokenBadRequest(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString})
-	test.ExchangeTokenBadRequest(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString, RedirectURI: &someRandomString})
-	test.ExchangeTokenBadRequest(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: someRandomString})
+	// when/then
+	test.ExchangeTokenBadRequest(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
+	test.ExchangeTokenBadRequest(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString})
+	test.ExchangeTokenBadRequest(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: someRandomString, RedirectURI: &someRandomString})
+	test.ExchangeTokenBadRequest(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: someRandomString})
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongCredentialsFails() {
-	service, ctrl := s.SecuredController()
-
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
 	someRandomString := "someString"
 	witID := "fabric8-wit"
-	test.ExchangeTokenUnauthorized(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: someRandomString})
-	test.ExchangeTokenUnauthorized(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: witID})
+	// when/then
+	test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: someRandomString})
+	test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &someRandomString, ClientID: witID})
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCredentialsOK() {
@@ -277,204 +259,194 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCredentialsOK() {
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
-	s.exchangeStrategy = "401"
-	service, ctrl := s.SecuredController()
-
+	// given
+	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
+	loginService.ExchangeFunc = func(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
+	}
+	svc, ctrl := s.SecuredController(loginService)
 	someRandomString := "someString"
 	clientID := ctrl.Configuration.GetPublicOauthClientID()
 	code := "INVALID_OAUTH2.0_CODE"
-	test.ExchangeTokenUnauthorized(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
-
-	test.ExchangeTokenBadRequest(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID})
+	// when/then
+	test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
+	test.ExchangeTokenBadRequest(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID})
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
-	service, ctrl := s.SecuredController()
-
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
 	someRandomString := "someString"
 	clientID := "someString"
 	code := "doesnt_matter"
 	refreshToken := "doesnt_matter "
-	test.ExchangeTokenUnauthorized(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
-	test.ExchangeTokenUnauthorized(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
+	test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
+	test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
 }
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
-	s.exchangeStrategy = "401"
-	service, ctrl := s.SecuredController()
+	// given
+	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
+	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
+	}
+	svc, ctrl := s.SecuredController(loginService)
 	clientID := ctrl.Configuration.GetPublicOauthClientID()
 	refreshToken := "INVALID_REFRESH_TOKEN"
 
-	rw, _ := test.ExchangeTokenUnauthorized(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
+	rw, _ := test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
 	s.checkLoginRequiredHeader(rw)
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeOK() {
-	service, ctrl := s.SecuredController()
-	s.checkAuthorizationCode(service, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE")
+	// given
+	loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
+	s.checkAuthorizationCode(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE", expectedAccessToken, expectedRefreshToken)
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectRefreshTokenOK() {
-	service, ctrl := s.SecuredController()
-	s.checkExchangeWithRefreshToken(service, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN")
+	// given
+	loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
+	s.checkExchangeWithRefreshToken(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN", expectedAccessToken, expectedRefreshToken)
 }
 
 func (s *TokenControllerTestSuite) TestGenerateOK() {
-	svc, ctrl := s.UnsecuredController()
+	// given
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
 	_, result := test.GenerateTokenOK(s.T(), svc.Context, svc, ctrl)
 	require.Len(s.T(), result, 1)
 	validateToken(s.T(), result[0])
 }
 
 func (s *TokenControllerTestSuite) TestTokenAuditOK() {
+	// given
 	// Create a user
 	user := s.Graph.CreateUser()
-
 	// Create a new resource type
 	rt := s.Graph.CreateResourceType()
 	rt.AddScope("lima")
-
 	// Create a new role with the resource type, and with the "lima" scope
 	limaRole := s.Graph.CreateRole(rt)
 	limaRole.AddScope("lima")
-
 	// Create a resource with the resource type
 	res := s.Graph.CreateResource(rt)
-
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, limaRole)
-
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
-
+	// seup controller with mock KeycloakOAuthService behind
+	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
 	manager, err := token.NewManager(s.Configuration)
 	require.Nil(s.T(), err)
-
-	tk, err := manager.Parse(s.Ctx, s.sampleAccessToken)
+	tk, err := manager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
-
+	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
-
+	// then
 	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
-
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
-
 	perms := *tokenClaims.Permissions
 	require.Equal(s.T(), res.ResourceID(), *perms[0].ResourceSetID)
 	require.Contains(s.T(), perms[0].Scopes, "lima")
 }
 
 func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
+	// given
 	// Create a user
 	user := s.Graph.CreateUser()
-
 	// Create a new resource type
 	rt := s.Graph.CreateResourceType()
 	rt.AddScope("xray")
-
 	// Create a new role with the resource type, and with the "xray" scope
 	role := s.Graph.CreateRole(rt)
 	role.AddScope("xray")
-
 	// Create a resource with the resource type
 	res := s.Graph.CreateResource(rt)
-
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, role)
-
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
-
+	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
 	manager, err := token.NewManager(s.Configuration)
 	require.Nil(s.T(), err)
-
-	tk, err := manager.Parse(s.Ctx, s.sampleAccessToken)
+	tk, err := manager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
-
+	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
-
+	// then
 	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
-
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
-
 	perms := *tokenClaims.Permissions
 	require.Equal(s.T(), res.ResourceID(), *perms[0].ResourceSetID)
 	require.Contains(s.T(), perms[0].Scopes, "xray")
 
-	// Deprovision the token
+	// given: deprovision the token
 	tokenID, err := uuid.FromString(tokenClaims.Id)
 	require.NoError(s.T(), err)
-
 	t, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
 	require.NoError(s.T(), err)
-
 	t.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, true)
 	err = s.Application.TokenRepository().Save(s.Ctx, t)
 	require.NoError(s.T(), err)
-
 	rptToken, err := manager.Parse(s.Ctx, *response.RptToken)
 	require.NoError(s.T(), err)
-
+	// when
 	response2, _ := test.AuditTokenUnauthorized(s.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
+	// then
 	authHeader := response2.Header().Get("WWW-Authenticate")
 	require.True(s.T(), strings.HasPrefix(authHeader, "DEPROVISIONED"))
 }
 
 func (s *TokenControllerTestSuite) TestAuditRevokedToken() {
+	// given
 	// Create a user
 	user := s.Graph.CreateUser()
-
 	// Create a new resource type
 	rt := s.Graph.CreateResourceType()
 	rt.AddScope("victor")
-
 	// Create a new role with the resource type, and with the "victor" scope
 	role := s.Graph.CreateRole(rt)
 	role.AddScope("victor")
-
 	// Create a resource with the resource type
 	res := s.Graph.CreateResource(rt)
-
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, role)
-
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
-
+	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
 	manager, err := token.NewManager(s.Configuration)
 	require.Nil(s.T(), err)
-
-	tk, err := manager.Parse(s.Ctx, s.sampleAccessToken)
+	tk, err := manager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
-
+	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
-
+	// then
 	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
-
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
-
 	perms := *tokenClaims.Permissions
 	require.Equal(s.T(), res.ResourceID(), *perms[0].ResourceSetID)
 	require.Contains(s.T(), perms[0].Scopes, "victor")
 
-	// Deprovision the token
+	// given: deprovision the token
 	tokenID, err := uuid.FromString(tokenClaims.Id)
 	require.NoError(s.T(), err)
-
 	t, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
 	require.NoError(s.T(), err)
-
 	t.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, true)
 	err = s.Application.TokenRepository().Save(s.Ctx, t)
 	require.NoError(s.T(), err)
-
 	rptToken, err := manager.Parse(s.Ctx, *response.RptToken)
 	require.NoError(s.T(), err)
-
+	// when
 	response2, _ := test.AuditTokenUnauthorized(s.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
+	// then
 	authHeader := response2.Header().Get("WWW-Authenticate")
 	require.True(s.T(), strings.HasPrefix(authHeader, "LOGIN"))
 }
@@ -490,9 +462,10 @@ func validateToken(t *testing.T, token *app.AuthToken) {
 }
 
 func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, id string, secret string) {
-	service, ctrl := s.SecuredController()
+	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController(loginService)
 
-	_, saToken := test.ExchangeTokenOK(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
+	_, saToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
 	assert.NotNil(s.T(), saToken.TokenType)
 	assert.Equal(s.T(), "bearer", *saToken.TokenType)
 	assert.NotNil(s.T(), saToken.AccessToken)
@@ -505,30 +478,30 @@ func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, i
 	assert.True(s.T(), token.IsSpecificServiceAccount(ctx, name))
 }
 
-func (s *TokenControllerTestSuite) checkAuthorizationCode(service *goa.Service, ctrl *TokenController, name string, code string) {
-	_, token := test.ExchangeTokenOK(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
+func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl *TokenController, name string, code string, expectedAccessToken string, expectedRefreshToken string) {
+	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
 
 	require.NotNil(s.T(), token)
 	require.NotNil(s.T(), token.TokenType)
 	require.Equal(s.T(), "bearer", *token.TokenType)
 	require.NotNil(s.T(), token.AccessToken)
-	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), s.sampleAccessToken, *token.AccessToken))
+	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), expectedAccessToken, *token.AccessToken))
 	require.NotNil(s.T(), token.RefreshToken)
-	assert.NoError(s.T(), testtoken.EqualRefreshTokens(context.Background(), s.sampleRefreshToken, *token.RefreshToken))
+	assert.NoError(s.T(), testtoken.EqualRefreshTokens(context.Background(), expectedRefreshToken, *token.RefreshToken))
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(s.T(), err)
 	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 
-func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(service *goa.Service, ctrl *TokenController, name string, refreshToken string) {
-	_, token := test.ExchangeTokenOK(s.T(), service.Context, service, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOauthClientID(), RefreshToken: &refreshToken})
+func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Service, ctrl *TokenController, name string, refreshToken string, expectedAccessToken, expectedRefreshToken string) {
+	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOauthClientID(), RefreshToken: &refreshToken})
 
 	require.NotNil(s.T(), token.TokenType)
 	require.Equal(s.T(), "Bearer", *token.TokenType)
 	require.NotNil(s.T(), token.AccessToken)
-	require.Equal(s.T(), s.sampleAccessToken, *token.AccessToken)
+	require.Equal(s.T(), expectedAccessToken, *token.AccessToken)
 	require.NotNil(s.T(), token.RefreshToken)
-	require.Equal(s.T(), s.sampleRefreshToken, *token.RefreshToken)
+	require.Equal(s.T(), expectedRefreshToken, *token.RefreshToken)
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(s.T(), err)
 	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
@@ -566,72 +539,58 @@ func (s *DummyLinkService) Callback(ctx context.Context, req *goa.RequestData, s
 	return "originalLocation", nil
 }
 
-type DummyKeycloakOAuthService struct {
-	login.KeycloakOAuthProvider
-	accessToken      string
-	refreshToken     string
-	exchangeStrategy string
+func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login.KeycloakOAuthService, string, string) {
+	loginService := testlogin.NewKeycloakOAuthServiceMock(t)
+	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
+	require.Nil(t, err)
+	loginService.ExchangeFunc = func(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+		var thirtyDays, nbf int64
+		thirtyDays = 60 * 60 * 24 * 30
+		token := &oauth2.Token{
+			TokenType:    "Bearer",
+			AccessToken:  tokenSet.AccessToken,
+			RefreshToken: tokenSet.RefreshToken,
+			Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+		}
+		extra := make(map[string]interface{})
+		extra["expires_in"] = thirtyDays
+		extra["refresh_expires_in"] = thirtyDays
+		extra["not_before_policy"] = nbf
+		token = token.WithExtra(extra)
+		return token, nil
+	}
+	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
+		var thirtyDays int64
+		thirtyDays = 60 * 60 * 24 * 30
+		bearer := "Bearer"
+		token := &token.TokenSet{
+			TokenType:    &bearer,
+			AccessToken:  &tokenSet.AccessToken,
+			RefreshToken: &tokenSet.RefreshToken,
+			ExpiresIn:    &thirtyDays,
+		}
+		return token, nil
+	}
+	loginService.CreateOrUpdateIdentityAndUserFunc = func(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+		var thirtyDays, nbf int64
+		thirtyDays = 60 * 60 * 24 * 30
+		token := &oauth2.Token{
+			TokenType:    "bearer",
+			Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+			AccessToken:  keycloakToken.AccessToken,
+			RefreshToken: keycloakToken.RefreshToken,
+		}
+
+		extra := make(map[string]interface{})
+		extra["expires_in"] = thirtyDays
+		extra["refresh_expires_in"] = thirtyDays
+		extra["not_before_policy"] = nbf
+		token = token.WithExtra(extra)
+
+		return nil, token, nil
+	}
+	return loginService, tokenSet.AccessToken, tokenSet.RefreshToken
 }
-
-func (s *DummyKeycloakOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
-	if s.exchangeStrategy == "401" {
-		return nil, errors.NewUnauthorizedError("failed")
-	}
-	var thirtyDays, nbf int64
-	thirtyDays = 60 * 60 * 24 * 30
-	token := &oauth2.Token{
-		TokenType:    "Bearer",
-		AccessToken:  s.accessToken,
-		RefreshToken: s.refreshToken,
-		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
-	}
-	extra := make(map[string]interface{})
-	extra["expires_in"] = thirtyDays
-	extra["refresh_expires_in"] = thirtyDays
-	extra["not_before_policy"] = nbf
-	token = token.WithExtra(extra)
-	return token, nil
-}
-
-func (s *DummyKeycloakOAuthService) ExchangeRefreshToken(ctx context.Context, authorizationToken string, refreshToken string, endpoint string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-	if s.exchangeStrategy == "401" {
-		return nil, errors.NewUnauthorizedError("failed")
-	}
-
-	var thirtyDays int64
-	thirtyDays = 60 * 60 * 24 * 30
-	bearer := "Bearer"
-	token := &token.TokenSet{
-		TokenType:    &bearer,
-		AccessToken:  &s.accessToken,
-		RefreshToken: &s.refreshToken,
-		ExpiresIn:    &thirtyDays,
-	}
-	return token, nil
-}
-
-// CreateOrUpdateIdentityAndUser is a mocked service contract which returns a token but not a redirect url.
-
-func (s *DummyKeycloakOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
-	var thirtyDays, nbf int64
-	thirtyDays = 60 * 60 * 24 * 30
-	token := &oauth2.Token{
-		TokenType:    "bearer",
-		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
-		AccessToken:  keycloakToken.AccessToken,
-		RefreshToken: keycloakToken.RefreshToken,
-	}
-
-	extra := make(map[string]interface{})
-	extra["expires_in"] = thirtyDays
-	extra["refresh_expires_in"] = thirtyDays
-	extra["not_before_policy"] = nbf
-	token = token.WithExtra(extra)
-
-	return nil, token, nil
-}
-
-/* Custom oauth service for user-not-approved scenario */
 
 type NotApprovedOAuthService struct {
 	login.KeycloakOAuthProvider
