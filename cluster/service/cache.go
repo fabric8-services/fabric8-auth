@@ -18,10 +18,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// We need only one global instance of cluster cache
-var clusterCache *cache
-var cacheLock = &sync.Mutex{}
-
 type clusterConfig interface {
 	token.Configuration
 	GetClusterServiceURL() string
@@ -29,38 +25,26 @@ type clusterConfig interface {
 }
 
 type cache struct {
-	config  clusterConfig
-	options []rest.HTTPClientOption
+	sync.RWMutex
 
-	refresher   *time.Ticker
-	refreshLock *sync.RWMutex
-	stopCh      chan bool
-	clusters    map[string]*cluster.Cluster
+	config    clusterConfig
+	options   []rest.HTTPClientOption
+	refresher *time.Ticker
+	stopCh    chan bool
+	clusters  map[string]*cluster.Cluster
 }
 
 func newCache(config clusterConfig, options ...rest.HTTPClientOption) *cache {
 	return &cache{
-		config:      config,
-		refresher:   time.NewTicker(config.GetClusterCacheRefreshInterval()),
-		refreshLock: &sync.RWMutex{},
-		options:     options,
+		config:    config,
+		refresher: time.NewTicker(config.GetClusterCacheRefreshInterval()),
+		options:   options,
 	}
-}
-
-// Start starts the default Cluster cache
-func Start(config clusterConfig, options ...rest.HTTPClientOption) error {
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
-	if clusterCache == nil {
-		clusterCache = newCache(config, options...)
-		return clusterCache.start()
-	}
-	return nil
 }
 
 // start loads the list of clusters from Cluster Management Service into the cluster cache and initializes regular cache refreshing
-func (c *cache) start() error {
-	err := c.refreshCache(context.Background())
+func (c *cache) start(ctx context.Context) error {
+	err := c.refreshCache(ctx)
 	if err != nil {
 		return err
 	}
@@ -96,8 +80,8 @@ func (c *cache) refreshCache(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.refreshLock.Lock()
-	defer c.refreshLock.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	c.clusters = clusters
 	log.Info(ctx, nil, "refreshed cached list of clusters")
 	return nil

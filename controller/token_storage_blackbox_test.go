@@ -103,8 +103,10 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountToken(saName str
 		Username: saName,
 	}
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
-	require.True(rest.T(), len(rest.clusterServiceMock.Clusters()) > 0)
-	for _, cluster := range rest.clusterServiceMock.Clusters() {
+	clusters, err := rest.clusterServiceMock.Clusters(nil)
+	require.NoError(rest.T(), err)
+	require.NotEmpty(rest.T(), clusters)
+	for _, cluster := range clusters {
 		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
@@ -129,10 +131,12 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenValidOnForc
 	rest.dummyProviderConfigFactory.LoadProfileFail = false
 	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 
-	require.True(rest.T(), len(rest.clusterServiceMock.Clusters()) > 0)
+	clusters, err := rest.clusterServiceMock.Clusters(nil)
+	require.NoError(rest.T(), err)
+	require.NotEmpty(rest.T(), clusters)
 	forcePull := true
 
-	for _, cluster := range rest.clusterServiceMock.Clusters() {
+	for _, cluster := range clusters {
 		_, tokenResponse := test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, &forcePull)
 
 		assert.Equal(rest.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
@@ -157,7 +161,11 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenInvalidOnFo
 
 	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 	forcePull := true
-	for _, cluster := range rest.clusterServiceMock.Clusters() {
+	clusters, err := rest.clusterServiceMock.Clusters(nil)
+	require.NoError(rest.T(), err)
+	require.NotEmpty(rest.T(), clusters)
+
+	for _, cluster := range clusters {
 		// Token status is OK, but when tested with provider it's invalid.
 		test.RetrieveTokenOK(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 		rw, _ := test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.APIURL, &forcePull)
@@ -170,10 +178,12 @@ func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenForUnknownSA
 	sa := account.Identity{
 		Username: "unknown-sa",
 	}
-	require.NotEmpty(rest.T(), rest.clusterServiceMock.Clusters())
+	clusters, err := rest.clusterServiceMock.Clusters(nil)
+	require.NoError(rest.T(), err)
+	require.NotEmpty(rest.T(), clusters)
 
 	service, controller := rest.SecuredControllerWithServiceAccount(sa)
-	for _, cluster := range rest.clusterServiceMock.Clusters() {
+	for _, cluster := range clusters {
 		test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, cluster.APIURL, nil)
 	}
 }

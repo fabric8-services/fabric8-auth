@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test/recorder"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
+	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/dnaeon/go-vcr/cassette"
@@ -37,7 +39,8 @@ func (s *TestClusterSuite) SetupSuite() {
 
 func (s *TestClusterSuite) SetupTest() {
 	clusterCache = nil
-	s.cs = NewClusterService(nil)
+	started = 0
+	s.cs = NewClusterService(nil, s.Config)
 }
 
 func (s *TestClusterSuite) TearDownTest() {
@@ -46,47 +49,70 @@ func (s *TestClusterSuite) TearDownTest() {
 	}
 }
 
-func (s *TestClusterSuite) TestEmptyClusterListIfNotStarted() {
-	assert.Empty(s.T(), s.cs.Clusters())
-	assert.Nil(s.T(), s.cs.ClusterByURL("https://api.starter-us-east-2.openshift.com/"))
+func (s *TestClusterSuite) TestClustersFail() {
+	_, err := s.cs.Clusters(context.Background())
+	assert.EqualError(s.T(), err, "Get http://cluster/api/clusters/: dial tcp: lookup cluster on 127.0.0.53:53: server misbehaving")
 }
 
-func (s *TestClusterSuite) TestStartOK() {
-	r, err := recorder.New("../../test/data/cluster/cluster_get_ok", recorder.WithMatcher(ClusterRequestMatcher(s.T(), s.saToken)))
-	require.NoError(s.T(), err)
-	defer r.Stop()
-
-	err = Start(s.Config, rest.WithRoundTripper(r.Transport))
-	require.NoError(s.T(), err)
-	clusters := s.cs.Clusters()
-	assert.Equal(s.T(), 2, len(clusters))
-	s.assertCluster("https://api.starter-us-east-2.openshift.com/")
-	s.assertCluster("https://api.starter-us-east-2.openshift.com")
-	s.assertCluster("https://api.starter-us-east-2a.openshift.com/")
-	s.assertCluster("https://api.starter-us-east-2a.openshift.com")
-
-	assert.Nil(s.T(), s.cs.ClusterByURL("https://api.starter-us-east-unknown.openshift.com"))
+func (s *TestClusterSuite) TestClusterByURLFail() {
+	_, err := s.cs.ClusterByURL(context.Background(), "https://api.starter-us-east-2.openshift.com/")
+	assert.EqualError(s.T(), err, "Get http://cluster/api/clusters/: dial tcp: lookup cluster on 127.0.0.53:53: server misbehaving")
 }
 
-func (s *TestClusterSuite) TestStartError() {
-	r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(s.T(), s.saToken)))
-	require.NoError(s.T(), err)
-	defer r.Stop()
+func (s *TestClusterSuite) TestStart() {
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
-	err = Start(s.Config, rest.WithRoundTripper(r.Transport))
-	require.Error(s.T(), err)
-	assert.Equal(s.T(), "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+	s.T().Run("start fails if can't get clusters", func(t *testing.T) {
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(s.T(), reqID, s.saToken)))
+		require.NoError(s.T(), err)
+		defer r.Stop()
 
-	clusters := s.cs.Clusters()
-	assert.Equal(s.T(), 0, len(clusters))
-	assert.Nil(s.T(), s.cs.ClusterByURL("https://api.starter-us-east-2.openshift.com/"))
+		err = Start(ctx, s.Config, rest.WithRoundTripper(r.Transport))
+		assert.EqualError(s.T(), err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+
+		assert.Nil(s.T(), clusterCache)
+		assert.Equal(s.T(), uint32(0), started)
+
+		_, err = s.cs.Clusters(ctx, rest.WithRoundTripper(r.Transport))
+		assert.EqualError(s.T(), err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+
+		_, err = s.cs.ClusterByURL(ctx, "https://api.starter-us-east-2.openshift.com/", rest.WithRoundTripper(r.Transport))
+		assert.EqualError(s.T(), err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+	})
+
+	s.T().Run("start OK", func(t *testing.T) {
+		r, err := recorder.New("../../test/data/cluster/cluster_get_ok", recorder.WithMatcher(ClusterRequestMatcher(s.T(), reqID, s.saToken)))
+		require.NoError(s.T(), err)
+		defer r.Stop()
+
+		// It starts fine if there is no errors
+		err = Start(ctx, s.Config, rest.WithRoundTripper(r.Transport))
+		require.NoError(s.T(), err)
+
+		assert.NotNil(s.T(), clusterCache)
+		assert.Equal(s.T(), uint32(1), started)
+
+		clusters, err := s.cs.Clusters(ctx)
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), 2, len(clusters))
+		s.assertCluster("https://api.starter-us-east-2.openshift.com/")
+		s.assertCluster("https://api.starter-us-east-2.openshift.com")
+		s.assertCluster("https://api.starter-us-east-2a.openshift.com/")
+		s.assertCluster("https://api.starter-us-east-2a.openshift.com")
+
+		cls, err := s.cs.ClusterByURL(ctx, "https://api.starter-us-east-unknown.openshift.com")
+		require.NoError(s.T(), err)
+		assert.Nil(s.T(), cls)
+	})
 }
 
 func (s *TestClusterSuite) assertCluster(apiURL string) {
-	cluster := s.cs.ClusterByURL(apiURL)
+	cluster, err := s.cs.ClusterByURL(nil, apiURL)
+	require.NoError(s.T(), err)
 	require.NotNil(s.T(), cluster)
 
-	clusters := s.cs.Clusters()
+	clusters, err := s.cs.Clusters(nil)
+	require.NoError(s.T(), err)
 	for _, c := range clusters {
 		if c.APIURL == rest.AddTrailingSlashToURL(apiURL) {
 			assert.Equal(s.T(), cluster.APIURL, c.APIURL)
@@ -108,10 +134,13 @@ func (s *TestClusterSuite) assertCluster(apiURL string) {
 	assert.Fail(s.T(), "unable to find %s cluster", apiURL)
 }
 
-func ClusterRequestMatcher(t *testing.T, token string) cassette.Matcher {
+func ClusterRequestMatcher(t *testing.T, reqID, token string) cassette.Matcher {
 	return func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
 		authorization := httpRequest.Header.Get("Authorization")
 		assert.Equal(t, "Bearer "+token, authorization)
+
+		rID := httpRequest.Header.Get("X-Request-Id")
+		assert.Equal(t, reqID, rID)
 
 		assert.Equal(t, cassetteRequest.Method, httpRequest.Method)
 		require.NotNil(t, cassetteRequest.Method, httpRequest.URL)

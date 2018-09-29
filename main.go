@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
 	"os"
@@ -171,14 +172,13 @@ func main() {
 
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 
-	// Start Cluster Service cache refresher if not run id Dev mode
-	if !config.IsPostgresDeveloperModeEnabled() {
-		err = clusterservice.Start(config)
-		if err != nil {
-			log.Panic(nil, map[string]interface{}{
-				"err": err,
-			}, "failed to start cluster service")
-		}
+	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
+	err = clusterservice.Start(context.Background(), config)
+	if err != nil {
+		// It's not a critical error. Cluster management service can be offline. We will try to fetch clusters later when we need them.
+		log.Warn(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to fetch clusters")
 	}
 
 	// Mount "login" controller

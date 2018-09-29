@@ -207,7 +207,10 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
-	s.checkCallback(s.clusterServiceMock.ClusterByURL("https://api.starter-us-east-2.openshift.com").TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
+	cls, err := s.clusterServiceMock.ClusterByURL(context.Background(), "https://api.starter-us-east-2.openshift.com")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), cls)
+	s.checkCallback(cls.TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
 }
 
 func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
@@ -224,7 +227,10 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
 	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
-	s.checkCallback(s.clusterServiceMock.ClusterByURL("https://api.starter-us-east-2.openshift.com").TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
+	cls, err := s.clusterServiceMock.ClusterByURL(context.Background(), "https://api.starter-us-east-2.openshift.com")
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), cls)
+	s.checkCallback(cls.TokenProviderID, s.stateParam(callbackLocation), url.URL{Scheme: "https", Host: "openshift.io", Path: "/_home"})
 }
 
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {

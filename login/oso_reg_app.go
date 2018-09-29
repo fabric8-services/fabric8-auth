@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"golang.org/x/oauth2"
-
 	"github.com/fabric8-services/fabric8-auth/application"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+
+	"golang.org/x/oauth2"
 )
 
 const signUpNeededStatus = "signup_needed"
@@ -122,7 +122,10 @@ func (regApp *osoRegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 	}
 
 	for _, subscription := range sbs.Subscriptions {
-		cluster := regApp.App.ClusterService().ClusterByURL(subscription.Plan.Service.APIURL)
+		cluster, err := regApp.App.ClusterService().ClusterByURL(ctx, subscription.Plan.Service.APIURL)
+		if err != nil {
+			return "", autherrors.NewInternalError(ctx, err)
+		}
 		if cluster != nil {
 			return subscription.Status, nil
 		}

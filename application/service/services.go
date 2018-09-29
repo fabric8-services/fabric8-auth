@@ -103,8 +103,8 @@ type WITService interface {
 }
 
 type ClusterService interface {
-	Clusters() []cluster.Cluster
-	ClusterByURL(url string) *cluster.Cluster
+	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
+	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
 }
 
 //Services creates instances of service layer objects

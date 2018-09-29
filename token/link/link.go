@@ -277,7 +277,10 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 			return nil, errs.NewUnauthorizedError(err.Error())
 		}
 
-		cluster := service.app.ClusterService().ClusterByURL(clusterURL)
+		cluster, err := service.app.ClusterService().ClusterByURL(ctx, clusterURL)
+		if err != nil {
+			return nil, errs.NewInternalError(ctx, err)
+		}
 		if cluster == nil {
 			log.Error(ctx, map[string]interface{}{
 				"for":         forResource,
@@ -296,7 +299,10 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 	if resourceURL.Host == "github.com" {
 		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
 	}
-	cluster := service.app.ClusterService().ClusterByURL(forResource)
+	cluster, err := service.app.ClusterService().ClusterByURL(ctx, forResource)
+	if err != nil {
+		return nil, errs.NewInternalError(ctx, err)
+	}
 	if cluster != nil {
 		return NewOpenShiftIdentityProvider(*cluster, authURL)
 	}

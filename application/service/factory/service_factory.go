@@ -172,7 +172,7 @@ func NewServiceFactory(producer ServiceContextProducer, config *configuration.Co
 	}
 	// default function to return an instance of Cluster Service
 	f.clusterServiceFunc = func() service.ClusterService {
-		return clusterservice.NewClusterService(f.getContext())
+		return clusterservice.NewClusterService(f.getContext(), config)
 	}
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
 	// and options

@@ -1,8 +1,11 @@
 package test
 
 import (
+	"context"
+
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 
 	"github.com/gojuno/minimock"
@@ -16,11 +19,11 @@ var clusters = map[string]*cluster.Cluster{
 
 func NewClusterServiceMock(t minimock.Tester) *testservice.ClusterServiceMock {
 	clusterServiceMock := testservice.NewClusterServiceMock(t)
-	clusterServiceMock.ClusterByURLFunc = func(url string) *cluster.Cluster {
-		return ClusterByURL(url)
+	clusterServiceMock.ClusterByURLFunc = func(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error) {
+		return ClusterByURL(url), nil
 	}
-	clusterServiceMock.ClustersFunc = func() []cluster.Cluster {
-		return clusterservice.Clusters(clusters)
+	clusterServiceMock.ClustersFunc = func(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error) {
+		return clusterservice.Clusters(clusters), nil
 	}
 
 	return clusterServiceMock
