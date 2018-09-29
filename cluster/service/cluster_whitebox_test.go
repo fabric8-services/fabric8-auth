@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -50,13 +49,28 @@ func (s *TestClusterSuite) TearDownTest() {
 }
 
 func (s *TestClusterSuite) TestClustersFail() {
-	_, err := s.cs.Clusters(context.Background())
-	assert.EqualError(s.T(), err, "Get http://cluster/api/clusters/: dial tcp: lookup cluster on 127.0.0.53:53: server misbehaving")
-}
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
-func (s *TestClusterSuite) TestClusterByURLFail() {
-	_, err := s.cs.ClusterByURL(context.Background(), "https://api.starter-us-east-2.openshift.com/")
-	assert.EqualError(s.T(), err, "Get http://cluster/api/clusters/: dial tcp: lookup cluster on 127.0.0.53:53: server misbehaving")
+	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(s.T(), reqID, s.saToken)))
+		require.NoError(s.T(), err)
+		defer r.Stop()
+
+		_, err = s.cs.Clusters(ctx, rest.WithRoundTripper(r.Transport))
+		assert.EqualError(s.T(), err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+		assert.Nil(s.T(), clusterCache)
+		assert.Equal(s.T(), uint32(0), started)
+	})
+	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(s.T(), reqID, s.saToken)))
+		require.NoError(s.T(), err)
+		defer r.Stop()
+
+		_, err = s.cs.ClusterByURL(ctx, "https://api.starter-us-east-2.openshift.com/")
+		assert.EqualError(s.T(), err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+		assert.Nil(s.T(), clusterCache)
+		assert.Equal(s.T(), uint32(0), started)
+	})
 }
 
 func (s *TestClusterSuite) TestStart() {
