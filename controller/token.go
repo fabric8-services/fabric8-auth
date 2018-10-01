@@ -126,6 +126,26 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 			ProviderType:          account.KeycloakIDP,
 			RegistrationCompleted: true,
 		}
+
+		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			// Using the old-fashioned service
+			err := tr.Identities().Save(ctx, &devIdentity)
+			if err != nil {
+				return err
+			}
+			err = tr.Users().Save(ctx, &devIdentity.User)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "failed to create a user and identity for dev user")
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
 	} else {
 		devIdentity = identities[0]
 	}
@@ -135,12 +155,7 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	idpService := login.NewIdentityProvider(c.Configuration)
-	_, token, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, ctx.RequestData.URL, generatedToken, ctx.RequestData, idpService, c.Configuration)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	tokenSet, err := c.TokenManager.ConvertToken(*token)
+	tokenSet, err := c.TokenManager.ConvertToken(*generatedToken)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
