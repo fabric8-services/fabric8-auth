@@ -82,6 +82,7 @@ func (s *TestWhiteboxTokenSuite) TestDefaultManager() {
 	require.NoError(s.T(), err)
 	_, err1 := DefaultManager(c)
 	require.Error(s.T(), err1)
+
 	// Default manager is not initialized second time
 	os.Setenv("AUTH_USERACCOUNT_PRIVATEKEY", keyEnv)
 	c, err = config.GetConfigurationData() // Good config
@@ -91,7 +92,13 @@ func (s *TestWhiteboxTokenSuite) TestDefaultManager() {
 	assert.Equal(s.T(), err1, err2)
 
 	s.resetDefaultManager()
-	s.assertDefaultManager()
+	manager1, err := DefaultManager(s.Config)
+	require.NoError(s.T(), err)
+	manager2, err := DefaultManager(s.Config)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), manager1, manager2)
+	assert.Equal(s.T(), manager1, defaultManager)
+	assert.NotNil(s.T(), defaultManager)
 }
 
 func (s *TestWhiteboxTokenSuite) resetDefaultManager() {
