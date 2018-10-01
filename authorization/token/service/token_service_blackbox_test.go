@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	testjwt "github.com/fabric8-services/fabric8-auth/test/jwt"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
@@ -1014,6 +1015,46 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			require.Error(t, err)
 			assert.IsType(t, errors.UnauthorizedError{}, err)
 			assert.Empty(t, result)
+		})
+
+		t.Run("outdated access token (key pair rotated)", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+			// create a user
+			user := g.CreateUser()
+			// Create an initial access token for the user
+			at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+			require.NoError(t, err)
+			tokenClaims, err := tm.ParseToken(ctx, at.AccessToken)
+			// create a token for the user...
+			tk, err := tm.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *user.Identity(), nil)
+			require.NoError(t, err)
+			// ... but sign it with signed by a private key unknown to the tokenManager
+			privateKey, err := testjwt.PrivateKey("../../../test/jwt/private_key.pem")
+			require.NoError(t, err)
+			rptToken, err := tk.SignedString(privateKey)
+			require.NoError(t, err)
+			// when
+			// refresh the user token
+			_, err = s.Application.TokenService().Refresh(ctx, user.Identity(), rptToken)
+			// then the result token should not contain a `permissions` claim
+			require.Error(t, err)
+			assert.IsType(t, errors.UnauthorizedError{}, err)
+		})
+
+		t.Run("invalid access token", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+			// create a user
+			user := g.CreateUser()
+			// when
+			// refresh the user token
+			_, err := s.Application.TokenService().Refresh(ctx, user.Identity(), "foobar")
+			// then the result token should not contain a `permissions` claim
+			require.Error(t, err)
+			assert.IsType(t, errors.UnauthorizedError{}, err)
 		})
 
 	})

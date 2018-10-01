@@ -337,7 +337,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identi
 	// Now parse the token string that was passed in
 	accessTokenClaims, err := manager.ParseToken(ctx, accessToken)
 	if err != nil {
-		return "", errors.NewBadParameterErrorFromString("access_token", "<hidden>", "failed to parse the access token")
+		return "", errors.NewUnauthorizedError("failed to parse the request's access token")
 	}
 	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
 	var tokenID uuid.UUID
