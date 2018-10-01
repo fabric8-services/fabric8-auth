@@ -30,6 +30,11 @@ import (
 	"golang.org/x/oauth2"
 )
 
+const (
+	DevUsername = "developer"
+	DevEmail    = "osio-developer@email.com"
+)
+
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
@@ -101,11 +106,10 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled")))
 	}
 
-	devUsername := "developer"
 	var identities []account.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(DevUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
 		return err
 	})
 	if err != nil {
@@ -118,33 +122,35 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devUser := account.User{
 			EmailVerified: true,
 			FullName:      "OSIO Developer",
-			Email:         "osio-developer@email.com",
+			Email:         DevEmail,
+			Cluster:       "openshift.developer.osio",
 		}
 		devIdentity = account.Identity{
 			User:                  devUser,
-			Username:              devUsername,
+			Username:              DevUsername,
 			ProviderType:          account.KeycloakIDP,
 			RegistrationCompleted: true,
 		}
 
 		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
-			// Using the old-fashioned service
-			err := tr.Identities().Save(ctx, &devIdentity)
-			if err != nil {
-				return err
-			}
 			err = tr.Users().Save(ctx, &devIdentity.User)
 			if err != nil {
 				return err
 			}
+
+			err := tr.Identities().Save(ctx, &devIdentity)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		})
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err": err,
-			}, "failed to create a user and identity for dev user")
-			return jsonapi.JSONErrorResponse(ctx, err)
+			}, "failed to create a user or identity for user developer")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "failed to create a user or identity for user developer")))
 		}
 	} else {
 		devIdentity = identities[0]
