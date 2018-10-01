@@ -31,7 +31,7 @@ type cache struct {
 	options   []rest.HTTPClientOption
 	refresher *time.Ticker
 	stopCh    chan bool
-	clusters  map[string]*cluster.Cluster
+	clusters  map[string]cluster.Cluster
 }
 
 func newCache(config clusterConfig, options ...rest.HTTPClientOption) *cache {
@@ -88,7 +88,7 @@ func (c *cache) refreshCache(ctx context.Context) error {
 }
 
 // fetchClusters fetches a new list of clusters from Cluster Management Service
-func (c *cache) fetchClusters(ctx context.Context) (map[string]*cluster.Cluster, error) {
+func (c *cache) fetchClusters(ctx context.Context) (map[string]cluster.Cluster, error) {
 	cln, err := c.createClientWithServiceAccountSigner(ctx)
 	if err != nil {
 		return nil, err
@@ -114,10 +114,10 @@ func (c *cache) fetchClusters(ctx context.Context) (map[string]*cluster.Cluster,
 		return nil, err
 	}
 
-	clusterMap := map[string]*cluster.Cluster{}
+	clusterMap := map[string]cluster.Cluster{}
 	if clusters.Data != nil {
 		for _, d := range clusters.Data {
-			cls := &cluster.Cluster{
+			cls := cluster.Cluster{
 				Name:                   d.Name,
 				APIURL:                 d.APIURL,
 				AppDNS:                 d.AppDNS,

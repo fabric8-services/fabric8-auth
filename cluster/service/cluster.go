@@ -78,18 +78,18 @@ func Start(ctx context.Context, config clusterConfig, options ...rest.HTTPClient
 }
 
 // Clusters converts the given cluster map to an array slice
-func Clusters(clusters map[string]*cluster.Cluster) []cluster.Cluster {
-	var cs []cluster.Cluster
+func Clusters(clusters map[string]cluster.Cluster) []cluster.Cluster {
+	cs := make([]cluster.Cluster, 0, len(clusters))
 	for _, cls := range clusters {
-		cs = append(cs, *cls)
+		cs = append(cs, cls)
 	}
 	return cs
 }
 
-func ClusterByURL(clusters map[string]*cluster.Cluster, url string) *cluster.Cluster {
+func ClusterByURL(clusters map[string]cluster.Cluster, url string) *cluster.Cluster {
 	for apiURL, cluster := range clusters {
 		if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
-			return cluster
+			return &cluster
 		}
 	}
 

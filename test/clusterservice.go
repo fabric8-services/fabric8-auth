@@ -12,7 +12,7 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-var clusters = map[string]*cluster.Cluster{
+var clusters = map[string]cluster.Cluster{
 	"https://api.starter-us-east-2.openshift.com/":  newCluster("https://api.starter-us-east-2.openshift.com/"),
 	"https://api.starter-us-east-2a.openshift.com/": newCluster("https://api.starter-us-east-2a.openshift.com/"),
 }
@@ -33,8 +33,8 @@ func ClusterByURL(url string) *cluster.Cluster {
 	return clusterservice.ClusterByURL(clusters, url)
 }
 
-func newCluster(apiURL string) *cluster.Cluster {
-	return &cluster.Cluster{
+func newCluster(apiURL string) cluster.Cluster {
+	return cluster.Cluster{
 		APIURL:                 apiURL,
 		MetricsURL:             uuid.NewV4().String(),
 		LoggingURL:             uuid.NewV4().String(),
