@@ -13,6 +13,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	"github.com/fabric8-services/fabric8-auth/application"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -302,6 +303,7 @@ func (rest *TestTokenREST) TestGenerateOK() {
 	_, result := test.GenerateTokenOK(rest.T(), svc.Context, svc, ctrl)
 	require.Len(rest.T(), result, 1)
 	validateToken(rest.T(), result[0])
+	validateUserAndIdentity(rest.T(), rest.Application)
 }
 
 func (rest *TestTokenREST) TestTokenAuditOK() {
@@ -465,6 +467,18 @@ func validateToken(t *testing.T, token *app.AuthToken) {
 	assert.NotNil(t, token.Token.ExpiresIn, "Expires-in is nil")
 	assert.NotNil(t, token.Token.RefreshExpiresIn, "Refresh-expires-in is nil")
 	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
+}
+
+func validateUserAndIdentity(t *testing.T, app application.Application) {
+	identities, err := app.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(DevUsername))
+	require.NoError(t, err)
+	assert.Len(t, identities, 1)
+
+	users, err := app.Users().Query(account.UserFilterByEmail(DevEmail))
+	require.NoError(t, err)
+	assert.Len(t, users, 1)
+
+	assert.Equal(t, identities[0].User.ID, users[0].ID)
 }
 
 func (rest *TestTokenREST) checkServiceAccountCredentials(name string, id string, secret string) {
