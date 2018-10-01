@@ -27,7 +27,6 @@ objects:
     oso.regapp.admin.username: Cg==
     oso.regapp.admin.token: Cg==
     oso.regapp.url: Cg==
-
 - apiVersion: v1
   kind: Secret
   metadata:
@@ -55,3 +54,4 @@ objects:
     invitation.accepted.url: https://prod-preview.openshift.io/_home
     environment: prod-preview
     ignore.email.prod: ".+\\+preview.*\\@redhat\\.com"
+  
