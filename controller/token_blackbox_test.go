@@ -15,6 +15,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	"github.com/fabric8-services/fabric8-auth/application"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -368,6 +369,7 @@ func (s *TokenControllerTestSuite) TestGenerateOK() {
 	_, result := test.GenerateTokenOK(s.T(), svc.Context, svc, ctrl)
 	require.Len(s.T(), result, 1)
 	validateToken(s.T(), result[0])
+	validateUserAndIdentity(s.T(), s.Application)
 }
 
 func (s *TokenControllerTestSuite) TestTokenAuditOK() {
@@ -509,10 +511,21 @@ func validateToken(t *testing.T, token *app.AuthToken) {
 	assert.NotNil(t, token.Token.NotBeforePolicy, "Not-before-policy is nil")
 }
 
+func validateUserAndIdentity(t *testing.T, app application.Application) {
+	identities, err := app.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(DevUsername))
+	require.NoError(t, err)
+	assert.Len(t, identities, 1)
+
+	users, err := app.Users().Query(account.UserFilterByEmail(DevEmail))
+	require.NoError(t, err)
+	assert.Len(t, users, 1)
+
+	assert.Equal(t, identities[0].User.ID, users[0].ID)
+}
+
 func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, id string, secret string) {
 	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
 	svc, ctrl := s.SecuredController(loginService)
-
 	_, saToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
 	assert.NotNil(s.T(), saToken.TokenType)
 	assert.Equal(s.T(), "bearer", *saToken.TokenType)
