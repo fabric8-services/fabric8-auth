@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+
 	"github.com/dgrijalva/jwt-go"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
+	authtoken "github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -18,8 +19,10 @@ import (
 	"time"
 )
 
+// TokenServiceConfiguration the required configuration for the token service implementation
 type TokenServiceConfiguration interface {
 	GetRPTTokenMaxPermissions() int
+	GetAccessTokenExpiresIn() int64
 }
 
 type tokenServiceImpl struct {
@@ -27,6 +30,7 @@ type tokenServiceImpl struct {
 	config TokenServiceConfiguration
 }
 
+// NewTokenService returns a new Token Service
 func NewTokenService(context servicecontext.ServiceContext, conf TokenServiceConfiguration) service.TokenService {
 	return &tokenServiceImpl{
 		BaseService: base.NewBaseService(context),
@@ -59,6 +63,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 	// Now parse the token string that was passed in
 	tokenClaims, err := manager.ParseToken(ctx, tokenString)
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "invalid token string could not be parsed")
 		return nil, errors.NewBadParameterErrorFromString("tokenString", tokenString, "invalid token string could not be parsed")
 	}
 
@@ -101,19 +106,19 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 		}
 
 		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
-		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED) {
+		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
 			return nil, errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
 		}
 
 		// If the token has been revoked or the user is logged out, we respond in the same way
-		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_LOGGED_OUT) {
+		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(authtoken.TOKEN_STATUS_LOGGED_OUT) {
 			return nil, errors.NewUnauthorizedErrorWithCode("token revoked or logged out", errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)
 		}
 
 		// If the token is stale, yet the resource exists in the token
 		// we can re-evaluate its privileges to determine whether they have changed.
 		// If the privileges are unchanged, then reset the token status
-		if loadedToken.HasStatus(tokenPkg.TOKEN_STATUS_STALE) && resourceExistsInToken {
+		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_STALE) && resourceExistsInToken {
 			// Query for all of the token's privileges
 			privileges, err := s.Repositories().TokenRepository().ListPrivileges(ctx, tokenID)
 			if err != nil {
@@ -285,7 +290,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 			TokenID:    newTokenID,
 			IdentityID: identity.ID,
 			Status:     0,
-			TokenType:  tokenPkg.TOKEN_TYPE_RPT,
+			TokenType:  authtoken.TOKEN_TYPE_RPT,
 			ExpiryTime: time.Unix(expiresAt, 0),
 		}
 
@@ -318,6 +323,164 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 	}
 
 	return &signedToken, nil
+}
+
+// Refresh checks the resource permissions in the given tokenString for the given user, and returns a
+// new RPToken (with a new expiry time and updated permissions if needed)
+func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error) {
+	log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "refreshing a user token...")
+	// Get the token manager from the context
+	manager, err := token.ReadManagerFromContext(ctx)
+	if err != nil {
+		return "", errors.NewInternalError(ctx, err)
+	}
+	// Now parse the token string that was passed in
+	accessTokenClaims, err := manager.ParseToken(ctx, accessToken)
+	if err != nil {
+		return "", errors.NewUnauthorizedError("failed to parse the request's access token")
+	}
+	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
+	var tokenID uuid.UUID
+	// Extract the jti from the token
+	tokenID, err = uuid.FromString(accessTokenClaims.Id)
+	if err != nil {
+		return "", errors.NewBadParameterErrorFromString("jti", accessTokenClaims.Id, "invalid jti identifier - not a UUID")
+	}
+	loadedToken, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
+	if err != nil {
+		// This is not an error per se, so we'll just log an informational message
+		log.Info(ctx, map[string]interface{}{
+			"token_id": tokenID,
+		}, "token with specified id not found")
+	}
+	// check if the token is still valid
+	if loadedToken != nil {
+		// Confirm that the token belongs to the current identity
+		if loadedToken.IdentityID != identity.ID {
+			return "", errors.NewUnauthorizedError("invalid token for identity")
+		}
+		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
+		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
+			return "", errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
+		}
+		// If the token has been revoked or the user is logged out, we respond in the same way
+		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(authtoken.TOKEN_STATUS_LOGGED_OUT) {
+			return "", errors.NewUnauthorizedErrorWithCode("token revoked or logged out", errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)
+		}
+	}
+	// If we've gotten this far, it means that either no existing token was found, or the token that was found
+	// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
+	signedToken := ""
+	err = s.ExecuteInTransaction(func() error {
+		// Initialize an array of permission objects that will be included in the token
+		perms := []token.Permissions{}
+		// Initialize an array of TokenPrivilege objects so that we can persist a record of the token's privileges to the database
+		tokenPrivs := []tokenRepo.TokenPrivilege{}
+		// If an existing RPT token is being replaced with a new token, then populate it with the privileges from the
+		// existing token.  HOWEVER, don't exceed the maximum configured permissions for the token
+		if loadedToken != nil {
+			oldTokenPrivs, err := s.Repositories().TokenRepository().ListPrivileges(ctx, loadedToken.TokenID)
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
+			}
+			// Sort the old token privileges by expiry time, from latest to earliest
+			sort.Slice(oldTokenPrivs, func(i, j int) bool {
+				return oldTokenPrivs[i].ExpiryTime.After(oldTokenPrivs[j].ExpiryTime)
+			})
+			// Loop through the privileges stored in the previous token, and add them to the permissions of the
+			// new token, breaking once the maximum permission limit has been hit
+			for _, oldPriv := range oldTokenPrivs {
+				// If we have hit the maximum permissions limit then break
+				if len(perms) >= s.config.GetRPTTokenMaxPermissions() {
+					break
+				}
+				oldPrivResourceID := oldPriv.ResourceID
+				if loadedToken.Status&authtoken.TOKEN_STATUS_STALE > 0 || oldPriv.Stale {
+					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPrivResourceID)
+					if err != nil {
+						return errors.NewInternalError(ctx, err)
+					}
+					log.Debug(ctx, map[string]interface{}{"resource_id": oldPrivResourceID, "new_scopes": privilegeCache.ScopesAsArray(), "old_scopes": oldPriv.ScopesAsArray()}, "old privileges are stale")
+					perm := &token.Permissions{
+						ResourceSetID: &oldPrivResourceID,
+						Scopes:        privilegeCache.ScopesAsArray(),
+						Expiry:        privilegeCache.ExpiryTime.Unix(),
+					}
+					perms = append(perms, *perm)
+				} else {
+					// Create a new permissions object for the RPT token and store it in the array
+					perm := &token.Permissions{
+						ResourceSetID: &oldPrivResourceID,
+						Scopes:        oldPriv.ScopesAsArray(),
+						Expiry:        oldPriv.ExpiryTime.Unix(),
+					}
+					perms = append(perms, *perm)
+				}
+				// Create a token privilege object to store in the database
+				tokenPriv := &tokenRepo.TokenPrivilege{
+					PrivilegeCacheID: oldPriv.PrivilegeCacheID,
+				}
+				tokenPrivs = append(tokenPrivs, *tokenPriv)
+			}
+		}
+		// update the expiry
+		now := time.Now().Unix()
+		accessTokenClaims.ExpiresAt = time.Unix(now+s.config.GetAccessTokenExpiresIn(), 0).Unix()
+		// Generate a new RPT token
+		generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, accessTokenClaims, *identity, &perms)
+		if err != nil {
+			return errors.NewInternalError(ctx, err)
+		}
+
+		// Extract the new jti claim (the Token ID) from the token, and the expiry time, in order to create a database record for it
+		claims := generatedToken.Claims.(jwt.MapClaims)
+		id := claims["jti"].(string)
+		expiresAt := claims["exp"].(int64)
+
+		// Convert the new Token ID to a UUID value
+		newTokenID, err := uuid.FromString(id)
+		if err != nil {
+			return errors.NewInternalError(ctx, err)
+		}
+
+		// Create a new Token record in the database
+		newTokenRecord := &tokenRepo.Token{
+			TokenID:    newTokenID,
+			IdentityID: identity.ID,
+			Status:     0,
+			TokenType:  authtoken.TOKEN_TYPE_RPT,
+			ExpiryTime: time.Unix(expiresAt, 0),
+		}
+
+		// Persist the token record to the database
+		err = s.Repositories().TokenRepository().Create(ctx, newTokenRecord)
+		if err != nil {
+			return errors.NewInternalError(ctx, err)
+		}
+
+		// Assign privileges to the token record, and persist them to the database
+		for _, tokenPriv := range tokenPrivs {
+			tokenPriv.TokenID = newTokenRecord.TokenID
+			err = s.Repositories().TokenRepository().CreatePrivilege(ctx, &tokenPriv)
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
+			}
+		}
+
+		// Sign the token
+		signedToken, err = manager.SignRPTToken(ctx, generatedToken)
+		if err != nil {
+			return errors.NewInternalError(ctx, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return signedToken, nil
 }
 
 func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {

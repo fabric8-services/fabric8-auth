@@ -83,3 +83,4 @@ wit/witservice
 account/tenant
 test/service
 test/token/oauth
+test/login

@@ -74,12 +74,20 @@ func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
 
 // Refresh obtains a new access token using the refresh token.
 func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
+	// retrieve the access token if it exists (otherwise, a jwtrequest.ErrNoTokenInRequest is returned, but it can be ignored here)
+	accessToken := goajwt.ContextJWT(ctx)
 	refreshToken := ctx.Payload.RefreshToken
 	if refreshToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
 	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, c.Configuration)
+	var t *token.TokenSet
+	var err error
+	if accessToken != nil {
+		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
+		t, err = c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
+	} else {
+		t, err = c.Auth.ExchangeRefreshToken(ctx, "", *refreshToken, c.Configuration)
+	}
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -400,7 +408,8 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 }
 
 func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
-
+	// retrieve the access token from the request header, but ignore if it was not found
+	accessToken := goajwt.ContextJWT(ctx)
 	payload := ctx.Payload
 	refreshToken := payload.RefreshToken
 	if refreshToken == nil {
@@ -414,8 +423,8 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		}, "unknown oauth client id")
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, c.Configuration)
+	// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
+	t, err := c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err
@@ -731,7 +740,6 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 			RptToken: &rptToken,
 		}
 		return ctx.OK(rptTokenPayload)
-	} else {
-		return ctx.OK(nil)
 	}
+	return ctx.OK(nil)
 }

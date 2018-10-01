@@ -68,6 +68,12 @@ func (w *spaceWrapper) AddAdmin(wrapper interface{}) *spaceWrapper {
 	return w
 }
 
+// RemoveAdmin removes the admin role to a user for the space
+func (w *spaceWrapper) RemoveAdmin(wrapper interface{}) *spaceWrapper {
+	removeRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceAdminRole)
+	return w
+}
+
 // AddContributor assigns the admin role to a user for the space
 func (w *spaceWrapper) AddContributor(wrapper interface{}) *spaceWrapper {
 	addRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceContributorRole)

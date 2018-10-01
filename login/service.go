@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	name "github.com/fabric8-services/fabric8-auth/account"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -21,12 +22,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
+
+	"net/http"
+	"net/url"
+
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"net/http"
-	"net/url"
 )
 
 type Configuration interface {
@@ -77,7 +80,7 @@ type KeycloakOAuthService interface {
 	Login(ctx *app.LoginLoginContext, config oauth.IdentityProvider, serviceConfig Configuration) error
 	AuthCodeURL(ctx context.Context, redirect *string, apiClient *string, state *string, responseMode *string, request *goa.RequestData, config oauth.OauthConfig, serviceConfig Configuration) (*string, error)
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
-	ExchangeRefreshToken(ctx context.Context, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error)
+	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
 	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration Configuration) (*account.Identity, bool, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig Configuration) (*string, *oauth2.Token, error)
@@ -206,7 +209,7 @@ func (keycloak *KeycloakOAuthProvider) Exchange(ctx context.Context, code string
 }
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
-func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error) {
+func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error) {
 
 	// Load identity for the refresh token
 	var identity *account.Identity
@@ -222,6 +225,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	if err != nil {
 		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
+
 	err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
 		identity, err = tr.Identities().LoadWithUser(ctx, identityID)
 		return err
@@ -244,6 +248,15 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 	generatedToken, err := keycloak.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity)
 	if err != nil {
 		return nil, err
+	}
+	// if an authorization token is provided, then use it to obtain a new token with updates permission claims
+	if identity != nil && accessToken != "" {
+		refreshedAccessToken, err := keycloak.App.TokenService().Refresh(ctx, identity, accessToken)
+		if err != nil {
+			return nil, err
+		}
+		log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
+		generatedToken.AccessToken = refreshedAccessToken
 	}
 	return keycloak.TokenManager.ConvertToken(*generatedToken)
 }

@@ -206,7 +206,7 @@ func (m *GormIdentityRoleRepository) Delete(ctx context.Context, id uuid.UUID) e
 		}, "error notifying privilege cache when deleting identity role")
 	}
 
-	log.Debug(ctx, map[string]interface{}{
+	log.Warn(ctx, map[string]interface{}{
 		"identity_role_id": id,
 	}, "Identity role deleted!")
 
@@ -826,6 +826,8 @@ WHERE
 
 	log.Debug(ctx, map[string]interface{}{
 		"rows_marked_stale": result.RowsAffected,
+		"identity_id":       identityID,
+		"resource_id":       resourceID,
 	}, "Token rows marked stale")
 
 	return nil
