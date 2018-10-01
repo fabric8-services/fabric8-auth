@@ -169,6 +169,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: environment
+          - name: AUTH_IGNORE_EMAIL_PROD
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: ignore.email.prod          
           imagePullPolicy: Always
           name: auth
           ports:

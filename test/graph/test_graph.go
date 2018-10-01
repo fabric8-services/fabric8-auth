@@ -27,6 +27,9 @@ type baseWrapper struct {
 }
 
 func identityIDFromWrapper(t *testing.T, wrapper interface{}) uuid.UUID {
+	if wrapper == nil {
+		assert.FailNowf(t, "invalid identity wrapper", "wrapper cannot be nil")
+	}
 	switch w := wrapper.(type) {
 	case *userWrapper:
 		return w.identity.ID

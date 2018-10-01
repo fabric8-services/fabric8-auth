@@ -117,6 +117,7 @@ type Manager interface {
 	PublicKey(keyID string) *rsa.PublicKey
 	JSONWebKeys() jwk.JSONKeys
 	PemKeys() jwk.JSONKeys
+	KeyFunction(context.Context) jwt.Keyfunc
 	AuthServiceAccountToken() string
 	GenerateServiceAccountToken(saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
@@ -299,7 +300,7 @@ func toPemKeys(publicKeys []*jwk.PublicKey) (jwk.JSONKeys, error) {
 
 // ParseToken parses token claims
 func (mgm *tokenManager) ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, mgm.keyFunction(ctx))
+	token, err := jwt.ParseWithClaims(tokenString, &TokenClaims{}, mgm.KeyFunction(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +313,7 @@ func (mgm *tokenManager) ParseToken(ctx context.Context, tokenString string) (*T
 
 // ParseTokenWithMapClaims parses token claims
 func (mgm *tokenManager) ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, mgm.keyFunction(ctx))
+	token, err := jwt.Parse(tokenString, mgm.KeyFunction(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +324,7 @@ func (mgm *tokenManager) ParseTokenWithMapClaims(ctx context.Context, tokenStrin
 	return nil, errors.WithStack(errors.New("token is not valid"))
 }
 
-func (mgm *tokenManager) keyFunction(ctx context.Context) jwt.Keyfunc {
+func (mgm *tokenManager) KeyFunction(ctx context.Context) jwt.Keyfunc {
 	return func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
@@ -461,7 +462,6 @@ func (mgm *tokenManager) GenerateUnsignedRPTTokenForIdentity(ctx context.Context
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-
 	return unsignedRPTtoken, nil
 }
 
@@ -695,6 +695,83 @@ func (mgm *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.C
 	resourceAccess["account"] = account
 
 	claims["resource_access"] = resourceAccess
+	claims["permissions"] = tokenClaims.Permissions
+
+	return token, nil
+}
+
+// GenerateUnsignedUserAccessTokenFromClaims generates a new token based on the specified claims
+func (mgm *tokenManager) GenerateUnsignedUserAccessToken(ctx context.Context, tokenClaims *TokenClaims, identity *repository.Identity) (*jwt.Token, error) {
+	token := jwt.New(jwt.SigningMethodRS256)
+	token.Header["kid"] = mgm.userAccountPrivateKey.KeyID
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["jti"] = uuid.NewV4().String()
+
+	// TODO generate value instead of using it from claim
+	claims["exp"] = tokenClaims.ExpiresAt
+	claims["nbf"] = tokenClaims.NotBefore
+	claims["iat"] = tokenClaims.IssuedAt
+	claims["iss"] = tokenClaims.Issuer
+	claims["aud"] = tokenClaims.Audience
+	claims["typ"] = "Bearer"
+	claims["auth_time"] = tokenClaims.IssuedAt
+	claims["approved"] = identity != nil && !identity.User.Deprovisioned && tokenClaims.Approved
+
+	if identity != nil {
+		claims["sub"] = identity.ID.String()
+		claims["email_verified"] = identity.User.EmailVerified
+		claims["name"] = identity.User.FullName
+		claims["preferred_username"] = identity.Username
+		firstName, lastName := account.SplitFullName(identity.User.FullName)
+		claims["given_name"] = firstName
+		claims["family_name"] = lastName
+		claims["email"] = identity.User.Email
+	} else {
+		claims["sub"] = tokenClaims.Subject
+		claims["email_verified"] = tokenClaims.EmailVerified
+		claims["name"] = tokenClaims.Name
+		claims["preferred_username"] = tokenClaims.Username
+		claims["given_name"] = tokenClaims.GivenName
+		claims["family_name"] = tokenClaims.FamilyName
+		claims["email"] = tokenClaims.Email
+	}
+
+	req := goa.ContextRequest(ctx)
+	if req == nil {
+		return nil, errors.New("missing request in context")
+	}
+
+	authOpenshiftIO := rest.AbsoluteURL(req, "", mgm.config)
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", mgm.config)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	claims["allowed-origins"] = []string{
+		authOpenshiftIO,
+		openshiftIO,
+	}
+
+	claims["azp"] = tokenClaims.Audience
+	claims["session_state"] = tokenClaims.SessionState
+	claims["acr"] = "0"
+
+	realmAccess := make(map[string]interface{})
+	realmAccess["roles"] = []string{"uma_authorization"}
+	claims["realm_access"] = realmAccess
+
+	resourceAccess := make(map[string]interface{})
+	broker := make(map[string]interface{})
+	broker["roles"] = []string{"read-token"}
+	resourceAccess["broker"] = broker
+
+	account := make(map[string]interface{})
+	account["roles"] = []string{"manage-account", "manage-account-links", "view-profile"}
+	resourceAccess["account"] = account
+
+	claims["resource_access"] = resourceAccess
+	claims["permissions"] = tokenClaims.Permissions
 
 	return token, nil
 }
@@ -785,10 +862,10 @@ func (mgm *tokenManager) GenerateUnsignedRPTTokenFromClaims(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-
 	claims := token.Claims.(jwt.MapClaims)
-	claims["permissions"] = permissions
-
+	if permissions != nil && len(*permissions) > 0 {
+		claims["permissions"] = permissions
+	}
 	return token, nil
 }
 
@@ -1056,7 +1133,7 @@ func (mgm *tokenManager) extraInt(oauthToken oauth2.Token, claimName string) (*i
 }
 
 func (mgm *tokenManager) Parse(ctx context.Context, tokenString string) (*jwt.Token, error) {
-	keyFunc := mgm.keyFunction(ctx)
+	keyFunc := mgm.KeyFunction(ctx)
 	jwtToken, err := jwt.Parse(tokenString, keyFunc)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

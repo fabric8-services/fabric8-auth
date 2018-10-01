@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"context"
+
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -114,6 +116,20 @@ func addRoleByName(w baseWrapper, resource *resource.Resource, resourceTypeName 
 	}
 	err = w.graph.app.IdentityRoleRepository().Create(w.graph.ctx, identityRole)
 	require.NoError(w.graph.t, err)
+}
+
+func removeRoleByName(w baseWrapper, resource *resource.Resource, resourceTypeName string, identityID uuid.UUID, roleName string) {
+	roles, err := w.graph.app.IdentityRoleRepository().FindIdentityRolesByIdentityAndResource(w.graph.ctx, resource.ResourceID, identityID)
+	require.NoError(w.graph.t, err)
+	for _, r := range roles {
+		role, err := w.graph.app.RoleRepository().Load(w.graph.ctx, r.RoleID)
+		require.NoError(w.graph.t, err)
+		if role.Name == roleName {
+			w.graph.app.IdentityRoleRepository().Delete(context.Background(), r.IdentityRoleID)
+			return
+		}
+	}
+	w.graph.t.Fatalf("unable to remove role '%s' for user with identity '%v' on resource '%s'", roleName, identityID, resource.ResourceID)
 }
 
 func addRole(w baseWrapper, res *resource.Resource, resourceTypeName string, identityID uuid.UUID, r *role.Role) {
