@@ -4,7 +4,7 @@ interactions:
 - request:
     body: ""
     form: {}
-    url: http://cluster/api/clusters/
+    url: http://cluster/api/clusters/auth
     method: GET
   response:
     body: "oopsy woopsy"

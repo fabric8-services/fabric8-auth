@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/rest"
 	"strings"
+
+	"github.com/pkg/errors"
+
+	"github.com/fabric8-services/fabric8-auth/rest"
 
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/cluster"
@@ -52,7 +55,7 @@ func NewOpenShiftIdentityProvider(cluster cluster.Cluster, authURL string) (*Ope
 	provider.Config.Scopes = strings.Split(cluster.AuthClientDefaultScope, " ")
 	prID, err := uuid.FromString(cluster.TokenProviderID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to convert cluster TokenProviderID to UUID")
 	}
 	provider.ProviderID = prID
 	provider.ProfileURL = fmt.Sprintf("%soapi/v1/users/~", rest.AddTrailingSlashToURL(cluster.APIURL))

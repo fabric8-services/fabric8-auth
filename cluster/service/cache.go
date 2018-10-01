@@ -94,7 +94,7 @@ func (c *cache) fetchClusters(ctx context.Context) (map[string]cluster.Cluster, 
 		return nil, err
 	}
 
-	res, err := cln.ShowAuthClientClusters(goasupport.ForwardContextRequestID(ctx), client.ShowClustersPath())
+	res, err := cln.ShowAuthClientClusters(goasupport.ForwardContextRequestID(ctx), client.ShowAuthClientClustersPath())
 	if err != nil {
 		return nil, err
 	}
