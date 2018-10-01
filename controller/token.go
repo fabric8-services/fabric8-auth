@@ -206,6 +206,9 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
 	}
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to retrieve token")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return ctx.OK(appToken)
@@ -219,6 +222,9 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
 	}
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to check token status")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
