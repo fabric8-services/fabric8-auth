@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	config "github.com/fabric8-services/fabric8-auth/configuration"
@@ -64,6 +65,42 @@ func (s *TestWhiteboxTokenSuite) tokenManagerWithAuthURL() (*tokenManager, strin
 }
 
 func (s *TestWhiteboxTokenSuite) TestDefaultManager() {
+	// Init default manager OK
+	s.assertDefaultManager()
+	s.resetDefaultManager()
+	s.assertDefaultManager()
+
+	// Use broken configuration
+	keyEnv := os.Getenv("AUTH_USERACCOUNT_PRIVATEKEY")
+	defer func() {
+		os.Setenv("AUTH_USERACCOUNT_PRIVATEKEY", keyEnv)
+		s.resetDefaultManager()
+	}()
+	os.Setenv("AUTH_USERACCOUNT_PRIVATEKEY", "broken-key")
+	s.resetDefaultManager()
+	c, err := config.GetConfigurationData() // Broken config
+	require.NoError(s.T(), err)
+	_, err1 := DefaultManager(c)
+	require.Error(s.T(), err1)
+	// Default manager is not initialized second time
+	os.Setenv("AUTH_USERACCOUNT_PRIVATEKEY", keyEnv)
+	c, err = config.GetConfigurationData() // Good config
+	require.NoError(s.T(), err)
+	_, err2 := DefaultManager(c)
+	require.Error(s.T(), err2)
+	assert.Equal(s.T(), err1, err2)
+
+	s.resetDefaultManager()
+	s.assertDefaultManager()
+}
+
+func (s *TestWhiteboxTokenSuite) resetDefaultManager() {
+	defaultManager = nil
+	defaultErr = nil
+	defaultOnce = sync.Once{}
+}
+
+func (s *TestWhiteboxTokenSuite) assertDefaultManager() {
 	manager, err := DefaultManager(s.Config)
 	require.NoError(s.T(), err)
 	assert.NotNil(s.T(), manager)

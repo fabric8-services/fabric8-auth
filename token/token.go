@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -52,15 +53,17 @@ const (
 )
 
 var defaultManager Manager
+var defaultOnce sync.Once
+var defaultErr error
 
 // DefaultManager creates the default manager if it has not created yet.
 // This function must be called in main to make sure the default manager is created during service startup.
+// It will try to create the default manager only once even if called multiple times.
 func DefaultManager(config Configuration) (Manager, error) {
-	var err error
-	if defaultManager == nil {
-		defaultManager, err = NewManager(config)
-	}
-	return defaultManager, err
+	defaultOnce.Do(func() {
+		defaultManager, defaultErr = NewManager(config)
+	})
+	return defaultManager, defaultErr
 }
 
 // configuration represents configuration needed to construct a token manager
