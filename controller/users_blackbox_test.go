@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
@@ -1507,6 +1509,25 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithRequiredFieldsOnlyOK() {
 	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("testuser%s@email.com", uuid.NewV4().String()))
+}
+
+func (s *UsersControllerTestSuite) TestCreateUserWithPreviewEmailsOK() {
+	oldval := os.Getenv("AUTH_IGNORE_EMAIL_PROD")
+	defer func() {
+		os.Setenv("AUTH_IGNORE_EMAIL_PROD", oldval)
+		config, err := configuration.GetConfigurationData()
+		require.NoError(s.T(), err)
+		s.Configuration = config
+
+	}()
+
+	os.Setenv("AUTH_IGNORE_EMAIL_PROD", "nothing-rejected")
+
+	config, err := configuration.GetConfigurationData()
+	require.NoError(s.T(), err)
+	s.Configuration = config
+
+	s.checkCreateUserAsServiceAccountOK(fmt.Sprintf("testuser+preview%s@redhat.com", uuid.NewV4().String()))
 }
 
 func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email string) {
