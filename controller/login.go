@@ -16,18 +16,14 @@ import (
 // LoginController implements the login resource.
 type LoginController struct {
 	*goa.Controller
-	app          application.Application
-	Auth         login.KeycloakOAuthService
-	TokenManager token.Manager
+	app application.Application
 }
 
 // NewLoginController creates a login controller.
-func NewLoginController(service *goa.Service, app application.Application, auth *login.KeycloakOAuthProvider, tokenManager token.Manager) *LoginController {
+func NewLoginController(service *goa.Service, app application.Application) *LoginController {
 	return &LoginController{
-		Controller:   service.NewController("login"),
-		app:          app,
-		Auth:         auth,
-		TokenManager: tokenManager}
+		Controller: service.NewController("login"),
+		app:        app}
 }
 
 // Login runs the login action.
