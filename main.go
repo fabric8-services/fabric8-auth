@@ -175,7 +175,11 @@ func main() {
 	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
 	err = clusterservice.Start(context.Background(), config)
 	if err != nil {
-		// It's not a critical error. Cluster management service can be offline. We will try to fetch clusters later when we need them.
+		// It's not a critical error. Cluster management service can be offline during Auth service startup.
+		// Cluster service during startup requires Auth service to be ready to fetch public keys.
+		// So, we can't introduce cycle dependency in Auth service startup on Cluster service.
+		// If fetching clusters upfront failed in main function then let's just log this error and continue to start the service.
+		// We will try to fetch clusters later when we need them during user registration or OSO-OSIO account linking.
 		log.Warn(nil, map[string]interface{}{
 			"err": err,
 		}, "failed to fetch clusters")
