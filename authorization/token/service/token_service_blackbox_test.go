@@ -1027,6 +1027,7 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 			at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 			require.NoError(t, err)
 			tokenClaims, err := tm.ParseToken(ctx, at.AccessToken)
+			require.NoError(t, err)
 			// create a token for the user...
 			tk, err := tm.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *user.Identity(), nil)
 			require.NoError(t, err)
