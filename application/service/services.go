@@ -32,6 +32,7 @@ Steps for adding a new Service:
 type AuthenticationProviderService interface {
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, responseMode *string, referrer string, callbackURL string) (*string, error)
+	LoginCallback(ctx context.Context, state string, code string) (*string, error)
 }
 
 type InvitationService interface {
@@ -41,10 +42,6 @@ type InvitationService interface {
 	Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error
 	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
 	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
-}
-
-type LoginService interface {
-	Callback(ctx context.Context, state string, code string) error
 }
 
 type OrganizationService interface {
@@ -119,7 +116,6 @@ type ClusterService interface {
 type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
 	InvitationService() InvitationService
-	LoginService() LoginService
 	NotificationService() NotificationService
 	OrganizationService() OrganizationService
 	PermissionService() PermissionService

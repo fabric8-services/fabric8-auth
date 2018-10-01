@@ -195,10 +195,6 @@ func (f *ServiceFactory) InvitationService() service.InvitationService {
 	return invitationservice.NewInvitationService(f.getContext(), f.config)
 }
 
-func (f *ServiceFactory) LoginService() service.LoginService {
-	return loginservice.NewLoginService(f.getContext(), f.config)
-}
-
 func (f *ServiceFactory) OrganizationService() service.OrganizationService {
 	return organizationservice.NewOrganizationService(f.getContext())
 }

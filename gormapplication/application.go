@@ -151,10 +151,6 @@ func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
 }
 
-func (g *GormDB) LoginService() service.LoginService {
-	return g.serviceFactory.LoginService()
-}
-
 func (g *GormDB) OrganizationService() service.OrganizationService {
 	return g.serviceFactory.OrganizationService()
 }
