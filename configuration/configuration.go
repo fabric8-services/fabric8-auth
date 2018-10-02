@@ -566,7 +566,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varRPTTokenMaxPermissions, 10)
 
 	// Cluster service
-	c.v.SetDefault(varShortClusterServiceURL, "http://cluster")
+	c.v.SetDefault(varShortClusterServiceURL, "http://f8cluster")
 	c.v.SetDefault(varClusterRefreshInterval, 5*time.Minute) // 5 minutes
 }
 
