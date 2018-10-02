@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -40,12 +42,10 @@ func main() {
 	// --------------------------------------------------------------------
 	var configFile string
 	var serviceAccountConfigFile string
-	var osoClusterConfigFile string
 	var printConfig bool
 	var migrateDB bool
 	flag.StringVar(&configFile, "config", "", "Path to the config file to read")
 	flag.StringVar(&serviceAccountConfigFile, "serviceAccountConfig", "", "Path to the service account configuration file")
-	flag.StringVar(&osoClusterConfigFile, "osoClusterConfigFile", "", "Path to the OSO cluster configuration file")
 	flag.BoolVar(&printConfig, "printConfig", false, "Prints the config (including merged environment variables) and exits")
 	flag.BoolVar(&migrateDB, "migrateDatabase", false, "Migrates the database to the newest version and exits.")
 	flag.Parse()
@@ -54,14 +54,12 @@ func main() {
 	// not explicitly given via the command line.
 	configFile = configFileFromFlags("config", "AUTH_CONFIG_FILE_PATH")
 	serviceAccountConfigFile = configFileFromFlags("serviceAccountConfig", "AUTH_SERVICE_ACCOUNT_CONFIG_FILE")
-	osoClusterConfigFile = configFileFromFlags("osoClusterConfigFile", "AUTH_OSO_CLUSTER_CONFIG_FILE")
 
-	config, err := configuration.NewConfigurationData(configFile, serviceAccountConfigFile, osoClusterConfigFile)
+	config, err := configuration.NewConfigurationData(configFile, serviceAccountConfigFile)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"config_file":                 configFile,
 			"service_account_config_file": serviceAccountConfigFile,
-			"oso_cluster_config_file":     osoClusterConfigFile,
 			"err": err,
 		}, "failed to setup the configuration")
 	}
@@ -101,15 +99,6 @@ func main() {
 		}, "failed to setup the sentry client")
 	}
 	defer haltSentry()
-
-	// Initialize cluster config watcher
-	haltWatcher, err := config.InitializeClusterWatcher()
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to setup the cluster config watcher")
-	}
-	defer haltWatcher()
 
 	if config.IsPostgresDeveloperModeEnabled() && log.IsDebug() {
 		db = db.Debug()
@@ -159,7 +148,7 @@ func main() {
 
 	appDB := gormapplication.NewGormDB(db, config)
 
-	tokenManager, err := token.NewManager(config)
+	tokenManager, err := token.DefaultManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -183,8 +172,21 @@ func main() {
 
 	keycloakProfileService := login.NewKeycloakUserProfileClient()
 
+	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
+	err = clusterservice.Start(context.Background(), config)
+	if err != nil {
+		// It's not a critical error. Cluster management service can be offline during Auth service startup.
+		// Cluster service during startup requires Auth service to be ready to fetch public keys.
+		// So, we can't introduce cycle dependency in Auth service startup on Cluster service.
+		// If fetching clusters upfront failed in main function then let's just log this error and continue to start the service.
+		// We will try to fetch clusters later when we need them during user registration or OSO-OSIO account linking.
+		log.Warn(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to fetch clusters")
+	}
+
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, login.NewOSORegistrationApp())
+	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, login.NewOSORegistrationApp(appDB))
 	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
 	app.MountLoginController(service, loginCtrl)
 

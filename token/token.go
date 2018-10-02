@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
@@ -51,8 +52,22 @@ const (
 	GeminiServer       = "fabric8-gemini-server"
 )
 
+var defaultManager Manager
+var defaultOnce sync.Once
+var defaultErr error
+
+// DefaultManager creates the default manager if it has not created yet.
+// This function must be called in main to make sure the default manager is created during service startup.
+// It will try to create the default manager only once even if called multiple times.
+func DefaultManager(config Configuration) (Manager, error) {
+	defaultOnce.Do(func() {
+		defaultManager, defaultErr = NewManager(config)
+	})
+	return defaultManager, defaultErr
+}
+
 // configuration represents configuration needed to construct a token manager
-type configuration interface {
+type Configuration interface {
 	GetServiceAccountPrivateKey() ([]byte, string)
 	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
 	GetUserAccountPrivateKey() ([]byte, string)
@@ -115,6 +130,7 @@ type Manager interface {
 	ConvertToken(oauthToken oauth2.Token) (*TokenSet, error)
 	AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter)
 	AddLoginRequiredHeader(rw http.ResponseWriter)
+	AuthServiceAccountSigner() client.Signer
 }
 
 type tokenManager struct {
@@ -125,11 +141,11 @@ type tokenManager struct {
 	jsonWebKeys              jwk.JSONKeys
 	pemKeys                  jwk.JSONKeys
 	serviceAccountToken      string
-	config                   configuration
+	config                   Configuration
 }
 
 // NewManager returns a new token Manager for handling tokens
-func NewManager(config configuration) (Manager, error) {
+func NewManager(config Configuration) (Manager, error) {
 	tm := &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{},
 	}

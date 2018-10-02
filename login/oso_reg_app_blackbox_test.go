@@ -1,47 +1,56 @@
 package login_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"golang.org/x/oauth2"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/test"
-	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
+	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/test/token"
 
-	"bytes"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"io/ioutil"
 )
 
 type TestOSORegistrationAppSuite struct {
-	testsuite.UnitTestSuite
-	osoApp      login.OSOSubscriptionManager
-	client      *test.DummyHttpClient
-	loginConfig login.Configuration
+	gormtestsupport.DBTestSuite
+	osoApp             login.OSOSubscriptionManager
+	client             *test.DummyHttpClient
+	loginConfig        login.Configuration
+	clusterServiceMock service.ClusterService
 }
 
 func TestOSORegistrationApp(t *testing.T) {
-	suite.Run(t, &TestOSORegistrationAppSuite{UnitTestSuite: testsuite.NewUnitTestSuite()})
+	suite.Run(t, &TestOSORegistrationAppSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *TestOSORegistrationAppSuite) SetupSuite() {
-	s.UnitTestSuite.SetupSuite()
+	s.DBTestSuite.SetupSuite()
+
+	s.clusterServiceMock = testsupport.NewClusterServiceMock(s.T())
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithClusterService(s.clusterServiceMock))
+
 	s.client = &test.DummyHttpClient{AssertRequest: func(req *http.Request) {
 		assert.Equal(s.T(), "GET", req.Method)
 		assert.Equal(s.T(), "https://some.osourl.io/api/accounts/test-oso-registration-app-user/subscriptions?authorization_username=test-oso-admin-user", req.URL.String())
 		assert.Equal(s.T(), "Bearer test-oso-admin-token", req.Header.Get("Authorization"))
 	}}
-	s.osoApp = login.NewOSORegistrationAppWithClient(s.client)
-	s.loginConfig = &dummyConfig{s.Config}
+	s.osoApp = login.NewOSORegistrationAppWithClient(s.client, s.Application)
+	s.loginConfig = &dummyConfig{s.Configuration}
 }
 
 // Fails if there is no token manager in the context

@@ -153,7 +153,7 @@ $(MINIMOCK_BIN):
 generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only necessary after clean or if changes occurred in interfaces.
 	@echo "Generating mocks..."
 	@-mkdir -p test/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService -o ./test/service/ -s ".go"
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService -o ./test/service/ -s ".go"
 	@-mkdir -p test/token/oauth
 	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/token/oauth.IdentityProvider -o ./test/token/oauth/ -s ".go"
 	@-mkdir -p test/login
@@ -245,6 +245,9 @@ clean-generated:
 	-rm -rf wit/witservice
 	-rm -rf ./account/tenant
 	-rm -rf ./test/service
+	-rm -rf ./notification/client
+	-rm -rf ./cluster/client
+	-rm -rf ./test/token/oauth
 
 CLEAN_TARGETS += clean-vendor
 .PHONY: clean-vendor
@@ -286,6 +289,7 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-wit/design --notool --pkg witservice -o wit
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-tenant/design --notool --pkg tenant -o account
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-notification/design --notool --pkg client -o notification
+	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-cluster/design --notool --pkg client -o cluster
 
 .PHONY: migrate-database
 ## Compiles the server and runs the database migration with it

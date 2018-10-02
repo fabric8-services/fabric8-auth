@@ -11,10 +11,10 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
-	"github.com/fabric8-services/fabric8-auth/test/configuration"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/wit"
-
 	"github.com/satori/go.uuid"
 )
 
@@ -92,14 +92,19 @@ type UserService interface {
 }
 
 type NotificationService interface {
-	SendMessageAsync(ctx context.Context, msg notification.Message, options ...configuration.HTTPClientOption) (chan error, error)
-	SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...configuration.HTTPClientOption) (chan error, error)
+	SendMessageAsync(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (chan error, error)
+	SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...rest.HTTPClientOption) (chan error, error)
 }
 
 type WITService interface {
 	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
 	CreateUser(ctx context.Context, identity *account.Identity, identityID string) error
 	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
+}
+
+type ClusterService interface {
+	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
+	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
 }
 
 //Services creates instances of service layer objects
@@ -116,4 +121,5 @@ type Services interface {
 	TokenService() TokenService
 	UserService() UserService
 	WITService() WITService
+	ClusterService() ClusterService
 }

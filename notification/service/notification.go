@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -14,11 +15,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/notification/client"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/test/configuration"
 	"github.com/fabric8-services/fabric8-auth/token/signer"
+
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/goadesign/goa/uuid"
-	"net/http"
 )
 
 type notificationServiceImpl struct {
@@ -37,7 +37,7 @@ func NewNotificationService(context servicecontext.ServiceContext, config notifi
 // SendMessageAsync creates a new goroutine and sends a message to fabric8-notification service
 // chan error is used to send any errors received from remote notification service.
 // we might get an error while creating client which is before actual remote call to notification service, so using return type (chan error, error)
-func (s *notificationServiceImpl) SendMessageAsync(ctx context.Context, msg notification.Message, options ...configuration.HTTPClientOption) (chan error, error) {
+func (s *notificationServiceImpl) SendMessageAsync(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (chan error, error) {
 	c, err := s.createClientWithContextSigner(ctx, options...)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (s *notificationServiceImpl) SendMessageAsync(ctx context.Context, msg noti
 // SendMessagesAsync creates a new goroutine and sends multiple messages to fabric8-notification service
 // chan error is used to send any errors received from remote notification service.
 // we might get an error while creating client which is before actual remote call to notification service, so using return type (chan error, error)
-func (s *notificationServiceImpl) SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...configuration.HTTPClientOption) (chan error, error) {
+func (s *notificationServiceImpl) SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...rest.HTTPClientOption) (chan error, error) {
 	c, err := s.createClientWithContextSigner(ctx, options...)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (s *notificationServiceImpl) send(ctx context.Context, c *client.Client, ms
 }
 
 // createClientWithContextSigner creates with a signer based on current context
-func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Context, options ...configuration.HTTPClientOption) (*client.Client, error) {
+func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Context, options ...rest.HTTPClientOption) (*client.Client, error) {
 	c, err := s.createClient(options...)
 	if err != nil {
 		return nil, err
@@ -137,7 +137,7 @@ func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Cont
 	return c, nil
 }
 
-func (s *notificationServiceImpl) createClient(options ...configuration.HTTPClientOption) (*client.Client, error) {
+func (s *notificationServiceImpl) createClient(options ...rest.HTTPClientOption) (*client.Client, error) {
 	u, err := url.Parse(s.config.GetNotificationServiceURL())
 	if err != nil {
 		return nil, err

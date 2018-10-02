@@ -6,8 +6,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testconfig "github.com/fabric8-services/fabric8-auth/test/configuration"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	"github.com/fabric8-services/fabric8-auth/test/token"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
@@ -102,7 +102,7 @@ func (s *TestNotificationSuite) TestSend() {
 	defer r.Stop()
 
 	// create client
-	cl, err := s.ns.createClientWithContextSigner(ctx, testconfig.WithRoundTripper(r.Transport))
+	cl, err := s.ns.createClientWithContextSigner(ctx, rest.WithRoundTripper(r.Transport))
 	require.NoError(s.T(), err)
 
 	s.T().Run("should send message", func(t *testing.T) {
@@ -196,7 +196,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msg.MessageID = msgID
 
 		// when
-		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
+		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(r.Transport))
 		err, ok := <-errs
 
 		// then
@@ -216,7 +216,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msg.MessageID = msgID
 
 		//when
-		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
+		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(r.Transport))
 		err, ok := <-errs
 
 		//then
@@ -236,7 +236,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msg.MessageID = msgID
 
 		//when
-		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, testconfig.WithRoundTripper(r.Transport))
+		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(r.Transport))
 		err, ok := <-errs
 
 		//then
@@ -255,7 +255,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msg.MessageID = msgID
 
 		//when
-		errs, e := ns.SendMessageAsync(ctx, msg, testconfig.WithRoundTripper(r.Transport))
+		errs, e := ns.SendMessageAsync(ctx, msg, rest.WithRoundTripper(r.Transport))
 		err, ok := <-errs
 
 		//then

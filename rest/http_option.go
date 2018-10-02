@@ -1,4 +1,4 @@
-package configuration
+package rest
 
 import (
 	"net/http"

@@ -191,6 +191,10 @@ func (g *GormDB) WITService() service.WITService {
 	return g.serviceFactory.WITService()
 }
 
+func (g *GormDB) ClusterService() service.ClusterService {
+	return g.serviceFactory.ClusterService()
+}
+
 func (g *GormBase) DB() *gorm.DB {
 	return g.db
 }

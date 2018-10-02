@@ -20,7 +20,7 @@ func TestOSORegistrationAppWhiteBox(t *testing.T) {
 }
 
 func (s *TestOSORegistrationAppWhiteBoxSuite) TestDefaultClient() {
-	client := NewOSORegistrationApp()
+	client := NewOSORegistrationApp(nil)
 	require.NotNil(s.T(), client)
 	require.IsType(s.T(), &osoRegistrationApp{}, client)
 	regApp := client.(*osoRegistrationApp)

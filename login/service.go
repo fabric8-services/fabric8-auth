@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 
 	name "github.com/fabric8-services/fabric8-auth/account"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
@@ -14,7 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -22,9 +23,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
-
-	"net/http"
-	"net/url"
 
 	"github.com/goadesign/goa"
 	errs "github.com/pkg/errors"
@@ -47,7 +45,6 @@ type Configuration interface {
 	GetOSORegistrationAppURL() string
 	GetOSORegistrationAppAdminUsername() string
 	GetOSORegistrationAppAdminToken() string
-	GetOSOClusterByURL(url string) *configuration.OSOCluster
 	GetUserInfoEndpoint() string
 	GetOAuthEndpointAuth() string
 	GetOAuthEndpointToken() string

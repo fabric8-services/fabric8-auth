@@ -114,9 +114,6 @@ vwIDAQAB
 	serviceAccountConfigFileName    = "service-account-secrets.conf"
 	defaultServiceAccountConfigPath = "/etc/fabric8/" + serviceAccountConfigFileName
 
-	osoClusterConfigFileName    = "oso-clusters.conf"
-	defaultOsoClusterConfigPath = "/etc/fabric8/" + osoClusterConfigFileName
-
 	prodEnvironment        = "production"
 	prodPreviewEnvironment = "prod-preview"
 )
