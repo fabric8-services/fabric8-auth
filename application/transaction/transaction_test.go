@@ -25,14 +25,14 @@ func TestRunTransaction(t *testing.T) {
 
 func (test *TestTransaction) SetupTest() {
 	test.DBTestSuite.SetupTest()
-	test.app = gormapplication.NewGormDB(test.DB)
+	test.app = gormapplication.NewGormDB(test.DB, test.Configuration)
 }
 
 func (test *TestTransaction) TestTransactionInTime() {
 	// given
 	computeTime := 10 * time.Second
 	// then
-	err := transaction.Transactional(test.app.TransactionManager(), func(tr transaction.TransactionalResources) error {
+	err := transaction.Transactional(test.app, func(tr transaction.TransactionalResources) error {
 		time.Sleep(computeTime)
 		return nil
 	})
@@ -45,7 +45,7 @@ func (test *TestTransaction) TestTransactionOut() {
 	computeTime := 6 * time.Minute
 	transaction.SetDatabaseTransactionTimeout(5 * time.Second)
 	// then
-	err := transaction.Transactional(test.app.TransactionManager(), func(tr transaction.TransactionalResources) error {
+	err := transaction.Transactional(test.app, func(tr transaction.TransactionalResources) error {
 		time.Sleep(computeTime)
 		return nil
 	})
