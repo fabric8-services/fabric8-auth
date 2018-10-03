@@ -88,6 +88,9 @@ const (
 	varKeycloakEndpointAccount  = "keycloak.endpoint.account"
 	varKeycloakEndpointLogout   = "keycloak.endpoint.logout"
 
+	// Authentication Provider
+	varOAuthClientID         = "oauth.client.id"
+	varOAuthSecret           = "oauth.secret"
 	varOauthEndpointUserInfo = "oauth.endpoint.userinfo"
 	varOauthEndpointAuth     = "oauth.endpoint.auth"
 	varOauthEndpointToken    = "oauth.endpoint.token"
@@ -779,16 +782,30 @@ func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
 }
 
+// TODO remove this (replace by GetOAuthSecret)
 // GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
 // that is used to make authorized Keycloak API Calls.
 func (c *ConfigurationData) GetKeycloakSecret() string {
 	return c.v.GetString(varKeycloakSecret)
 }
 
+// GetOAuthSecret returns the oauth client secret (as set via config file or environment variable)
+// that is used to make authorized API Calls to the OAuth authentication provider.
+func (c *ConfigurationData) GetOAuthSecret() string {
+	return c.v.GetString(varOAuthSecret)
+}
+
+// TODO remove this (replaced by GetOAuthClientID)
 // GetKeycloakClientID returns the keycloak client ID (as set via config file or environment variable)
 // that is used to make authorized Keycloak API Calls.
 func (c *ConfigurationData) GetKeycloakClientID() string {
 	return c.v.GetString(varKeycloakClientID)
+}
+
+// GetOAuthClientID returns the oauth client ID (as set via config file or environment variable)
+// that is used to make authorized API Calls to the OAuth authentication provider.
+func (c *ConfigurationData) GetOAuthClientID() string {
+	return c.v.GetString(varOAuthClientID)
 }
 
 // GetPublicOauthClientID returns the public clientID

@@ -1,7 +1,8 @@
-package login
+package provider
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -12,6 +13,30 @@ import (
 	"net/http"
 )
 
+// UserProfile represents a user profile fetched from Identity Provider
+type UserProfile struct {
+	Name          string
+	Username      string
+	GivenName     string
+	FamilyName    string
+	Email         string
+	EmailVerified bool
+	Company       string
+	Approved      bool
+	Subject       string
+}
+
+type IdentityProviderResponse struct {
+	Username      string `json:"preferred_username"`
+	GivenName     string `json:"given_name"`
+	FamilyName    string `json:"family_name"`
+	Email         string `json:"email"`
+	EmailVerified bool   `json:"email_verified"`
+	Company       string `json:"company"`
+	Approved      bool   `json:"approved"`
+	Subject       string `json:"sub"`
+}
+
 // OauthConfig represents OAuth2 config
 type OauthConfig interface {
 	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
@@ -19,15 +44,41 @@ type OauthConfig interface {
 }
 
 // OauthIdentityProvider is an implementation of Identity Provider
-type OauthIdentityProvider struct {
+type OAuthIdentityProvider struct {
 	oauth2.Config
 	ProviderID uuid.UUID
 	ScopeStr   string
 	ProfileURL string
 }
 
+// Profile fetches a user profile from the Identity Provider
+func (provider *OAuthIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error) {
+	body, err := provider.UserProfilePayload(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	var u UserProfile
+	var idpResponse IdentityProviderResponse
+	err = json.Unmarshal(body, &idpResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	u = UserProfile{
+		Username:      idpResponse.Username,
+		GivenName:     idpResponse.GivenName,
+		FamilyName:    idpResponse.FamilyName,
+		Email:         idpResponse.Email,
+		EmailVerified: idpResponse.EmailVerified,
+		Company:       idpResponse.Company,
+		Approved:      idpResponse.Approved,
+		Subject:       idpResponse.Subject,
+	}
+	return &u, nil
+}
+
 // UserProfilePayload fetches user profile payload from Identity Provider
-func (provider *OauthIdentityProvider) UserProfilePayload(ctx context.Context, token oauth2.Token) ([]byte, error) {
+func (provider *OAuthIdentityProvider) UserProfilePayload(ctx context.Context, token oauth2.Token) ([]byte, error) {
 	req, err := http.NewRequest("GET", provider.ProfileURL, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

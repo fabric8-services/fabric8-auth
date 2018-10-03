@@ -2,17 +2,19 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
-	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
-	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"net/url"
@@ -20,24 +22,20 @@ import (
 )
 
 type AuthenticationProviderConfiguration interface {
+	token.TokenConfiguration
 	GetValidRedirectURLs() string
 	GetUserInfoEndpoint() string
 	GetOAuthEndpointAuth() string
 	GetOAuthEndpointToken() string
 	GetOAuthClientID() string
 	GetOAuthSecret() string
-}
-
-type OAuthIdentityProvider struct {
-	oauth2.Config
-	ProviderID uuid.UUID
-	ScopeStr   string
-	ProfileURL string
+	GetNotApprovedRedirect() string
 }
 
 type authenticationProviderServiceImpl struct {
 	base.BaseService
-	config AuthenticationProviderConfiguration
+	config       AuthenticationProviderConfiguration
+	tokenManager token.Manager
 }
 
 const (
@@ -46,20 +44,28 @@ const (
 	tokenJSONParam = "token_json"
 )
 
-func NewAuthenticationProviderService(context servicecontext.ServiceContext, conf AuthenticationProviderConfiguration) service.AuthenticationProviderService {
+func NewAuthenticationProviderService(context servicecontext.ServiceContext, config AuthenticationProviderConfiguration) service.AuthenticationProviderService {
+	tokenManager, err := token.NewManager(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create token manager")
+	}
+
 	return &authenticationProviderServiceImpl{
-		BaseService: base.NewBaseService(context),
-		config:      conf,
+		BaseService:  base.NewBaseService(context),
+		config:       config,
+		tokenManager: tokenManager,
 	}
 }
 
-func newIdentityProvider(config AuthenticationProviderConfiguration) *OAuthIdentityProvider {
-	provider := &OAuthIdentityProvider{}
-	provider.ProfileURL = config.GetUserInfoEndpoint()
-	provider.ClientID = config.GetOAuthClientID()
-	provider.ClientSecret = config.GetOAuthSecret()
+func (s *authenticationProviderServiceImpl) newIdentityProvider() *provider.OAuthIdentityProvider {
+	provider := &provider.OAuthIdentityProvider{}
+	provider.ProfileURL = s.config.GetUserInfoEndpoint()
+	provider.ClientID = s.config.GetOAuthClientID()
+	provider.ClientSecret = s.config.GetOAuthSecret()
 	provider.Scopes = []string{"user:email"}
-	provider.Endpoint = oauth2.Endpoint{AuthURL: config.GetOAuthEndpointAuth(), TokenURL: config.GetOAuthEndpointToken()}
+	provider.Endpoint = oauth2.Endpoint{AuthURL: s.config.GetOAuthEndpointAuth(), TokenURL: s.config.GetOAuthEndpointToken()}
 	return provider
 }
 
@@ -74,7 +80,7 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 	// First time access, redirect to oauth provider
 	if redirect == nil {
 		if referrer == "" {
-			return nil, errors.NewBadParameterError(
+			return nil, autherrors.NewBadParameterError(
 				"Referer Header and redirect param are both empty. At least one should be specified",
 				redirect).Expected("redirect")
 		}
@@ -105,7 +111,7 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 	}
 
 	// Create a new identity provider / configuration
-	provider := newIdentityProvider(s.config)
+	provider := s.newIdentityProvider()
 
 	// Override the redirect URL, setting it to the callback URL that was passed in
 	provider.RedirectURL = callbackURL
@@ -132,19 +138,19 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 		return nil, err
 	}
 
-	keycloakToken, err := s.Exchange(ctx, code)
+	token, err := s.Exchange(ctx, code)
 	if err != nil {
 		redirect := referrerURL.String() + "?error=" + err.Error()
 		return &redirect, err
 	}
 
-	redirectTo, _, err := keycloak.CreateOrUpdateIdentityAndUser(ctx, referrerURL, keycloakToken, ctx.RequestData, serviceConfig)
+	redirectTo, _, err := s.CreateOrUpdateIdentityAndUser(ctx, referrerURL, token, s.newIdentityProvider())
 	if err != nil {
 		return nil, err
 	}
 
 	if redirectTo != nil {
-		return *redirectTo, nil
+		return redirectTo, nil
 	}
 
 	redirect := referrerURL.String()
@@ -155,7 +161,7 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
 
 	// Create a new identity provider / configuration
-	provider := newIdentityProvider(s.config)
+	provider := s.newIdentityProvider()
 
 	// Exchange the code for an access token
 	token, err := provider.Exchange(ctx, code)
@@ -164,7 +170,7 @@ func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code s
 			"code": code,
 			"err":  err,
 		}, "oauth exchange operation failed")
-		return nil, errors.NewUnauthorizedError(err.Error())
+		return nil, autherrors.NewUnauthorizedError(err.Error())
 	}
 
 	log.Debug(ctx, map[string]interface{}{
@@ -176,18 +182,19 @@ func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code s
 
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
-func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, idpProvider oauth.IdentityProvider) (*string, *oauth2.Token, error) {
+func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
+	token *oauth2.Token, idpProvider oauth.IdentityProvider) (*string, *oauth2.Token, error) {
 	apiClient := referrerURL.Query().Get(apiClientParam)
-	identity, newUser, err := s.GetExistingIdentityInfo(ctx, keycloakToken.AccessToken, idpProvider, config)
+	identity, newUser, err := s.GetExistingIdentityInfo(ctx, token.AccessToken, idpProvider)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "failed to create a user and keycloak identity ")
 		switch err.(type) {
-		case errors.UnauthorizedError:
+		case autherrors.UnauthorizedError:
 			if apiClient != "" {
 				// Return the api token
-				userToken, err := keycloak.TokenManager.GenerateUserTokenForAPIClient(ctx, *keycloakToken)
+				userToken, err := s.tokenManager.GenerateUserTokenForAPIClient(ctx, *token)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to generate token")
 					return nil, nil, err
@@ -205,7 +212,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 				return &redirectTo, userToken, nil
 			}
 
-			userNotApprovedRedirectURL := config.GetNotApprovedRedirect()
+			userNotApprovedRedirectURL := s.config.GetNotApprovedRedirect()
 			if userNotApprovedRedirectURL != "" {
 				status, err := keycloak.osoSubscriptionManager.LoadOSOSubscriptionStatus(ctx, config, *keycloakToken)
 				if err != nil {
@@ -222,7 +229,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 				}, "user not approved; redirecting to registration app")
 				return &userNotApprovedRedirectURL, nil, nil
 			}
-			return nil, nil, errors.NewUnauthorizedError(err.Error())
+			return nil, nil, autherrors.NewUnauthorizedError(err.Error())
 		}
 		return nil, nil, err
 	}
@@ -232,7 +239,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 			"identity_id": identity.ID,
 			"user_name":   identity.Username,
 		}, "deprovisioned user tried to login")
-		return nil, nil, errors.NewUnauthorizedError("unauthorized access")
+		return nil, nil, autherrors.NewUnauthorizedError("unauthorized access")
 	}
 
 	log.Debug(ctx, map[string]interface{}{
@@ -241,7 +248,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	}, "local user created/updated")
 
 	// Generate a new token instead of using the original Keycloak token
-	userToken, err := keycloak.TokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
+	userToken, err := s.tokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token")
 		return nil, nil, err
@@ -249,11 +256,11 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 
 	// new user for WIT
 	if newUser {
-		witURL, err := config.GetWITURL()
+		witURL, err := s.config.GetWITURL()
 		if err != nil {
-			return nil, nil, errors.NewInternalError(ctx, err)
+			return nil, nil, autherrors.NewInternalError(ctx, err)
 		}
-		err = keycloak.App.WITService().CreateUser(ctx, identity, identity.ID.String())
+		err = s.Services().WITService().CreateUser(ctx, identity, identity.ID.String())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
@@ -271,7 +278,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 			"err": err,
 		}, "failed to encode token")
 		redirectTo := referrerURL.String() + err.Error()
-		return &redirectTo, nil, errors.NewInternalError(ctx, err)
+		return &redirectTo, nil, autherrors.NewInternalError(ctx, err)
 	}
 	log.Debug(ctx, map[string]interface{}{
 		"referrerURL": referrerURL.String(),
@@ -284,7 +291,8 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 
 // GetExistingIdentityInfo creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string, idpProvider oauth.IdentityProvider) (*account.Identity, bool, error) {
+func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string,
+	idpProvider oauth.IdentityProvider) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	userProfile, err := idpProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
@@ -299,7 +307,7 @@ func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.
 
 	identity := &account.Identity{}
 
-	identities, err := keycloak.Identities.Query(account.IdentityFilterByUsername(userProfile.Username), account.IdentityWithUser())
+	identities, err := s.Repositories().Identities().Query(account.IdentityFilterByUsername(userProfile.Username), account.IdentityWithUser())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -308,7 +316,7 @@ func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.
 	}
 
 	if len(identities) == 0 {
-		return nil, false, errors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
+		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
 	}
 	identity = &identities[0]
 
@@ -327,13 +335,13 @@ func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.
 		newIdentityCreated = true
 		fillUserFromUserInfo(*userProfile, identity)
 		identity.RegistrationCompleted = true
-		err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
+		err = s.ExecuteInTransaction(func() error {
 			// Using the old-fashioned service
-			err := tr.Identities().Save(ctx, identity)
+			err := s.Repositories().Identities().Save(ctx, identity)
 			if err != nil {
 				return err
 			}
-			err = tr.Users().Save(ctx, &identity.User)
+			err = s.Repositories().Users().Save(ctx, &identity.User)
 			if err != nil {
 				return err
 			}
@@ -352,7 +360,7 @@ func (s *authenticationProviderServiceImpl) saveParams(ctx context.Context, redi
 				"redirect": redirect,
 				"err":      err,
 			}, "unable to parse redirect")
-			return nil, errors.NewBadParameterError("redirect", redirect).Expected("valid URL")
+			return nil, autherrors.NewBadParameterError("redirect", redirect).Expected("valid URL")
 		}
 		parameters := linkURL.Query()
 		if apiClient != nil {
@@ -383,7 +391,7 @@ func (s *authenticationProviderServiceImpl) saveReferrer(ctx context.Context, st
 			"referrer":           referrer,
 			"valid_referrer_url": validReferrerURL,
 		}, "Referrer not valid")
-		return errors.NewBadParameterError("redirect", "not valid redirect URL")
+		return autherrors.NewBadParameterError("redirect", "not valid redirect URL")
 	}
 	// TODO The state reference table will be collecting dead states left from some failed login attempts.
 	// We need to clean up the old states from time to time.
@@ -418,7 +426,7 @@ func (s *authenticationProviderServiceImpl) reclaimReferrerAndResponseMode(ctx c
 			"state": state,
 			"err":   err,
 		}, "unknown state")
-		return nil, nil, errors.NewUnauthorizedError("unknown state: " + err.Error())
+		return nil, nil, autherrors.NewUnauthorizedError("unknown state: " + err.Error())
 	}
 	referrerURL, err := url.Parse(knownReferrer)
 	if err != nil {
@@ -428,7 +436,7 @@ func (s *authenticationProviderServiceImpl) reclaimReferrerAndResponseMode(ctx c
 			"known_referrer": knownReferrer,
 			"err":            err,
 		}, "failed to parse referrer")
-		return nil, nil, errors.NewInternalError(ctx, err)
+		return nil, nil, autherrors.NewInternalError(ctx, err)
 	}
 
 	log.Debug(ctx, map[string]interface{}{

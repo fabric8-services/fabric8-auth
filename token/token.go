@@ -59,15 +59,15 @@ var defaultErr error
 // DefaultManager creates the default manager if it has not created yet.
 // This function must be called in main to make sure the default manager is created during service startup.
 // It will try to create the default manager only once even if called multiple times.
-func DefaultManager(config Configuration) (Manager, error) {
+func DefaultManager(config TokenConfiguration) (Manager, error) {
 	defaultOnce.Do(func() {
 		defaultManager, defaultErr = NewManager(config)
 	})
 	return defaultManager, defaultErr
 }
 
-// configuration represents configuration needed to construct a token manager
-type Configuration interface {
+// TokenConfiguration represents configuration needed to construct a token manager
+type TokenConfiguration interface {
 	GetServiceAccountPrivateKey() ([]byte, string)
 	GetDeprecatedServiceAccountPrivateKey() ([]byte, string)
 	GetUserAccountPrivateKey() ([]byte, string)
@@ -141,11 +141,11 @@ type tokenManager struct {
 	jsonWebKeys              jwk.JSONKeys
 	pemKeys                  jwk.JSONKeys
 	serviceAccountToken      string
-	config                   Configuration
+	config                   TokenConfiguration
 }
 
 // NewManager returns a new token Manager for handling tokens
-func NewManager(config Configuration) (Manager, error) {
+func NewManager(config TokenConfiguration) (Manager, error) {
 	tm := &tokenManager{
 		publicKeysMap: map[string]*rsa.PublicKey{},
 	}

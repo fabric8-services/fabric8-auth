@@ -9,7 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	loginservice "github.com/fabric8-services/fabric8-auth/authentication/login/service"
+	providerservice "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
@@ -188,7 +188,7 @@ func (f *ServiceFactory) getContext() context.ServiceContext {
 }
 
 func (f *ServiceFactory) AuthenticationProviderService() service.AuthenticationProviderService {
-	return loginservice.NewAuthenticationProviderService(f.getContext(), f.config)
+	return providerservice.NewAuthenticationProviderService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) InvitationService() service.InvitationService {
