@@ -10,7 +10,6 @@ import (
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
@@ -42,9 +41,9 @@ func (s *BenchTransactional) SetupSuite() {
 }
 
 func (s *BenchTransactional) SetupBenchmark() {
-	s.Clean = cleaner.DeleteCreatedEntities(s.DB)
+	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 	s.repo = account.NewIdentityRepository(s.DB)
-	s.app = gormapplication.NewGormDB(s.DB)
+	s.app = gormapplication.NewGormDB(s.DB, s.Configuration)
 
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),
@@ -58,11 +57,11 @@ func (s *BenchTransactional) SetupBenchmark() {
 }
 
 func (s *BenchTransactional) TearDownBenchmark() {
-	s.Clean()
+	s.clean()
 }
 
 func (s *BenchTransactional) transactionLoadSpace() {
-	err := transaction.Transactional(s.app.TransactionManager(), func(repos repository.Repositories) error {
+	err := transaction.Transactional(s.app, func(tr transaction.TransactionalResources) error {
 		_, err := s.repo.Load(s.ctx, s.identity.ID)
 		return err
 	})
