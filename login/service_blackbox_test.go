@@ -113,7 +113,7 @@ func (s *serviceTestSuite) TestUnapprovedUserUnauthorized() {
 
 	dummyOauthIDPRef := s.getDummyOauthIDPService(true)
 
-	_, _, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, dummyOauthIDPRef, s.Configuration)
+	_, err = s.loginService.UpdateIdentityUsingUserInfoEndPoint(context.Background(), token, dummyOauthIDPRef, s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 

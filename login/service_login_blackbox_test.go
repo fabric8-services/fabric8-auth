@@ -149,7 +149,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	authorizeCtx, rw = s.createNewLoginContext("/api/login", prms)
 	err = service.Login(authorizeCtx, login.NewIdentityProvider(s.Configuration), s.Configuration)
 
-	//  ############ STEP 4: Token generated and recieved as a param in the redirect
+	//  ############ STEP 4: Token generated and received as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
 	if s.approved {
 		require.Nil(s.T(), err)
@@ -175,13 +175,8 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 		s.identity = updatedIdentity
 		checkIfTokenMatchesIdentity(s.T(), *returnedToken.AccessToken, *updatedIdentity)
 		require.True(s.T(), s.identity.RegistrationCompleted)
-
-		if !s.alreadyLoggedIn {
-			require.True(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
-		}
 	} else {
 		require.Equal(s.T(), 401, rw.Code)
-		require.False(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
 	}
 
 }
@@ -405,15 +400,6 @@ func checkIfTokenMatchesIdentity(t *testing.T, tokenString string, identity acco
 	assert.Equal(t, "FAMILY_NAME_OVERRIDE", claims.FamilyName)
 	assert.Equal(t, "GIVEN_NAME_OVERRIDE", claims.GivenName)
 	assert.Equal(t, "COMPANY_OVERRIDE", claims.Company)
-}
-
-func (s *serviceLoginBlackBoxTest) witCreateUserAPICalled(identityID string) bool {
-	for _, cachedWITUser := range s.witIdentityIDCache {
-		if strings.Compare(identityID, cachedWITUser) == 0 {
-			return true
-		}
-	}
-	return false
 }
 
 // ############################

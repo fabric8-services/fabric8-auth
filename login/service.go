@@ -79,7 +79,7 @@ type KeycloakOAuthService interface {
 	Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error)
 	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string, serviceConfig Configuration) (*token.TokenSet, error)
 	AuthCodeCallback(ctx *app.CallbackAuthorizeContext) (*string, error)
-	CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration Configuration) (*account.Identity, bool, error)
+	UpdateIdentityUsingUserInfoEndPoint(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration Configuration) (*account.Identity, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig Configuration) (*string, *oauth2.Token, error)
 }
 
@@ -262,7 +262,7 @@ func (keycloak *KeycloakOAuthProvider) ExchangeRefreshToken(ctx context.Context,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, idpProvider oauth.IdentityProvider, config Configuration) (*string, *oauth2.Token, error) {
 	apiClient := referrerURL.Query().Get(apiClientParam)
-	identity, newUser, err := keycloak.CreateOrUpdateIdentityInDB(ctx, keycloakToken.AccessToken, idpProvider, config)
+	identity, err := keycloak.UpdateIdentityUsingUserInfoEndPoint(ctx, keycloakToken.AccessToken, idpProvider, config)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -329,24 +329,6 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityAndUser(ctx context
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token")
 		return nil, nil, err
-	}
-
-	// new user for WIT
-	if newUser {
-		witURL, err := config.GetWITURL()
-		if err != nil {
-			return nil, nil, autherrors.NewInternalError(ctx, err)
-		}
-		err = keycloak.App.WITService().CreateUser(ctx, identity, identity.ID.String())
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"identity_id": identity.ID,
-				"username":    identity.Username,
-				"wit_url":     witURL,
-			}, "unable to create user in WIT ")
-			// let's carry on instead of erroring out
-		}
 	}
 
 	err = encodeToken(ctx, referrerURL, userToken, apiClient)
@@ -470,12 +452,8 @@ func (keycloak *KeycloakOAuthProvider) getReferrerAndResponseMode(ctx context.Co
 	return oauth.LoadReferrerAndResponseMode(ctx, keycloak.App, state)
 }
 
-// CreateOrUpdateIdentityInDB creates a user and a keycloak identity. If the user and identity already exist then update them.
-// Returns the user, identity and true if a new user and identity have been created
-// TODO: Rename this to GetExistingIdentityInfo
-func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, idpProvider oauth.IdentityProvider, configuration Configuration) (*account.Identity, bool, error) {
-
-	newIdentityCreated := false
+// UpdateIdentityFromExistingIdentityInfo update identity if exists using profile information and returns updated identity.
+func (keycloak *KeycloakOAuthProvider) UpdateIdentityUsingUserInfoEndPoint(ctx context.Context, accessToken string, idpProvider oauth.IdentityProvider, configuration Configuration) (*account.Identity, error) {
 	userProfile, err := idpProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
 
 	if err != nil {
@@ -483,7 +461,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			"token": accessToken,
 			"err":   err,
 		}, "unable to get user profile")
-		return nil, false, errors.New("unable to get user profile " + err.Error())
+		return nil, errors.New("unable to get user profile " + err.Error())
 	}
 
 	identity := &account.Identity{}
@@ -493,11 +471,11 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to query for an identity by username")
-		return nil, false, errs.Wrapf(err, "error during querying for an identity by ID")
+		return nil, errs.Wrapf(err, "error during querying for an identity by ID")
 	}
 
 	if len(identities) == 0 {
-		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
+		return nil, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
 	}
 	identity = &identities[0]
 
@@ -509,11 +487,10 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 		log.Error(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
 		}, "token identity is not linked to any user")
-		return nil, false, errors.New("token identity is not linked to any user")
+		return nil, errors.New("token identity is not linked to any user")
 	}
 
 	if !identity.RegistrationCompleted {
-		newIdentityCreated = true
 		fillUserFromUserInfo(*userProfile, identity)
 		identity.RegistrationCompleted = true
 		err = transaction.Transactional(keycloak.App, func(tr transaction.TransactionalResources) error {
@@ -529,7 +506,7 @@ func (keycloak *KeycloakOAuthProvider) CreateOrUpdateIdentityInDB(ctx context.Co
 			return nil
 		})
 	}
-	return identity, newIdentityCreated, err
+	return identity, err
 }
 
 func fillUserFromUserInfo(userinfo oauth.UserProfile, identity *account.Identity) error {
