@@ -303,6 +303,8 @@ curl -X POST  http://localhost:8089/api/users   -H "authorization: Bearer $SERVI
 }'
 ```
 
+You don't have to find `rhd_user_id` from RHD as it is random UUID and you can put any random number there.
+
 This will create identity and user in the auth DB and user in WIT. Make sure to give correct email and username with your identity provider(RHD).
 
 Note: If you haven't not created user, you will get `user dipakpawar is not approved` error during logging. You need to follow above mentioned steps to approve user.
