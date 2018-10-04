@@ -151,6 +151,10 @@ func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
 }
 
+func (g *GormDB) OSOSubscriptionService() service.OSOSubscriptionService {
+	return g.serviceFactory.OSOSubscriptionService()
+}
+
 func (g *GormDB) OrganizationService() service.OrganizationService {
 	return g.serviceFactory.OrganizationService()
 }

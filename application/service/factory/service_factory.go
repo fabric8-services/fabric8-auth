@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	providerservice "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
+	subscriptionservice "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
@@ -82,7 +83,7 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 
 		return func() error {
 			errorChan := make(chan error, 1)
-			txTimeout := time.After(transaction.DatabaseTransactionTimeout())
+			txTimeout := time.After(transaction.DatabaseTransactionTimeout())subscriptionservice
 
 			go func() {
 				defer func() {
@@ -197,6 +198,10 @@ func (f *ServiceFactory) InvitationService() service.InvitationService {
 
 func (f *ServiceFactory) OrganizationService() service.OrganizationService {
 	return organizationservice.NewOrganizationService(f.getContext())
+}
+
+func (f *ServiceFactory) OSOSubscriptionService() service.OSOSubscriptionService {
+	return subscriptionservice.NewOSOSubscriptionService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) PermissionService() service.PermissionService {

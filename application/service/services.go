@@ -15,6 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/satori/go.uuid"
+	"golang.org/x/oauth2"
 )
 
 /*
@@ -47,6 +48,10 @@ type InvitationService interface {
 type OrganizationService interface {
 	CreateOrganization(ctx context.Context, creatorIdentityID uuid.UUID, organizationName string) (*uuid.UUID, error)
 	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
+}
+
+type OSOSubscriptionService interface {
+	LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error)
 }
 
 type PermissionService interface {
@@ -117,6 +122,7 @@ type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
 	InvitationService() InvitationService
 	NotificationService() NotificationService
+	OSOSubscriptionService() OSOSubscriptionService
 	OrganizationService() OrganizationService
 	PermissionService() PermissionService
 	PrivilegeCacheService() PrivilegeCacheService

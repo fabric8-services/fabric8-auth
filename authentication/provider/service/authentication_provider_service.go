@@ -2,9 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	name "github.com/fabric8-services/fabric8-auth/account"
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -14,7 +19,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"net/url"
@@ -30,6 +35,7 @@ type AuthenticationProviderConfiguration interface {
 	GetOAuthClientID() string
 	GetOAuthSecret() string
 	GetNotApprovedRedirect() string
+	GetWITURL() (string, error)
 }
 
 type authenticationProviderServiceImpl struct {
@@ -144,7 +150,7 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 		return &redirect, err
 	}
 
-	redirectTo, _, err := s.CreateOrUpdateIdentityAndUser(ctx, referrerURL, token, s.newIdentityProvider())
+	redirectTo, _, err := s.CreateOrUpdateIdentityAndUser(ctx, referrerURL, token, *s.newIdentityProvider())
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +189,7 @@ func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code s
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
-	token *oauth2.Token, idpProvider oauth.IdentityProvider) (*string, *oauth2.Token, error) {
+	token *oauth2.Token, idpProvider provider.OAuthIdentityProvider) (*string, *oauth2.Token, error) {
 	apiClient := referrerURL.Query().Get(apiClientParam)
 	identity, newUser, err := s.GetExistingIdentityInfo(ctx, token.AccessToken, idpProvider)
 	if err != nil {
@@ -214,7 +220,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 
 			userNotApprovedRedirectURL := s.config.GetNotApprovedRedirect()
 			if userNotApprovedRedirectURL != "" {
-				status, err := keycloak.osoSubscriptionManager.LoadOSOSubscriptionStatus(ctx, config, *keycloakToken)
+				status, err := s.Services().OSOSubscriptionService().LoadOSOSubscriptionStatus(ctx, *token)
 				if err != nil {
 					// Not critical. Just log the error and proceed
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to load OSO subscription status")
@@ -292,7 +298,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 // GetExistingIdentityInfo creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
 func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string,
-	idpProvider oauth.IdentityProvider) (*account.Identity, bool, error) {
+	idpProvider provider.OAuthIdentityProvider) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	userProfile, err := idpProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
@@ -480,4 +486,103 @@ func (s *authenticationProviderServiceImpl) loadReferrerAndResponseMode(ctx cont
 		return "", nil, err
 	}
 	return referrer, responseMode, nil
+}
+
+// encodeToken
+func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
+	tokenJSON, err := TokenToJson(ctx, outhToken)
+
+	if err != nil {
+		return err
+	}
+	parameters := referrer.Query()
+	if apiClient != "" {
+		parameters.Add(apiTokenParam, tokenJSON)
+	} else {
+		parameters.Add(tokenJSONParam, tokenJSON)
+	}
+	referrer.RawQuery = parameters.Encode()
+	return nil
+}
+
+// TokenToJson marshals an oauth2 token to a json string
+func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
+	str := outhToken.Extra("expires_in")
+	var expiresIn interface{}
+	var refreshExpiresIn interface{}
+	var err error
+	expiresIn, err = token.NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"expires_in": str,
+			"err":        err,
+		}, "unable to parse expires_in claim")
+		return "", errs.WithStack(err)
+	}
+	str = outhToken.Extra("refresh_expires_in")
+	refreshExpiresIn, err = token.NumberToInt(str)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"refresh_expires_in": str,
+			"err":                err,
+		}, "unable to parse expires_in claim")
+		return "", errs.WithStack(err)
+	}
+	tokenData := &app.TokenData{
+		AccessToken:      &outhToken.AccessToken,
+		RefreshToken:     &outhToken.RefreshToken,
+		TokenType:        &outhToken.TokenType,
+		ExpiresIn:        &expiresIn,
+		RefreshExpiresIn: &refreshExpiresIn,
+	}
+	b, err := json.Marshal(tokenData)
+	if err != nil {
+		return "", errs.WithStack(err)
+	}
+
+	return string(b), nil
+}
+
+// fillUserFromUserInfo
+func fillUserFromUserInfo(userinfo provider.UserProfile, identity *account.Identity) error {
+	identity.User.FullName = name.GenerateFullName(&userinfo.GivenName, &userinfo.FamilyName)
+	identity.User.Email = userinfo.Email
+	identity.User.Company = userinfo.Company
+	identity.Username = userinfo.Username
+	if identity.User.ImageURL == "" {
+		image, err := generateGravatarURL(userinfo.Email)
+		if err != nil {
+			log.Warn(nil, map[string]interface{}{
+				"user_full_name": identity.User.FullName,
+				"err":            err,
+			}, "error when generating gravatar")
+			// if there is an error, we will qualify the identity/user as unchanged.
+			return errors.New("Error when generating gravatar " + err.Error())
+		}
+		identity.User.ImageURL = image
+	}
+	return nil
+}
+
+// generateGravatarURL
+func generateGravatarURL(email string) (string, error) {
+	if email == "" {
+		return "", nil
+	}
+	grURL, err := url.Parse("https://www.gravatar.com/avatar/")
+	if err != nil {
+		return "", errs.WithStack(err)
+	}
+	hash := md5.New()
+	hash.Write([]byte(email))
+	grURL.Path += fmt.Sprintf("%v", hex.EncodeToString(hash.Sum(nil))) + ".jpg"
+
+	// We can use our own default image if there is no gravatar available for this email
+	// defaultImage := "someDefaultImageURL.jpg"
+	// parameters := url.Values{}
+	// parameters.Add("d", fmt.Sprintf("%v", defaultImage))
+	// grURL.RawQuery = parameters.Encode()
+
+	urlStr := grURL.String()
+	return urlStr, nil
 }
