@@ -309,6 +309,12 @@ This will create identity and user in the auth DB and user in WIT. Make sure to 
 
 Note: If you haven't not created user, you will get `user dipakpawar is not approved` error during logging. You need to follow above mentioned steps to approve user.
 
+==== Running above steps using shell script
+If you are too lasy to do above steps just run following command with your server, username, email parameters.
+```
+ curl -sSL https://git.io/fxY5T | bash -s -- -s http://localhost:8089/api/token -u dipakpawar -e dipakpawar@gmail.com -c mycluster.url.com
+```
+
 === Reset Database
 
 The database are kept in a docker container that gets reused between restarts. Thus restarts will not clear out the database.
