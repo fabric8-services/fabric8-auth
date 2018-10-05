@@ -107,7 +107,8 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserUnauthorized(
 	require.Nil(s.T(), err)
 
 	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(true))
-	_, _, err = s.Application.AuthenticationProviderService().GetExistingIdentityInfo(context.Background(), token)
+	_, err = s.Application.AuthenticationProviderService().UpdateIdentityUsingUserInfoEndPoint(context.Background(), token)
+
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 

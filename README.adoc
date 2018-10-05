@@ -265,6 +265,56 @@ Generate a token for future use.
 
 You should get Token in response, save this token in your favourite editor as you need to use this token for POST API calls
 
+=== Creating User using Service Account token in DB.
+==== Creating Service Account token for online registration.
+We need Service Account token to create user in AUTH. Now to create SA token in development mode, we can use following api
+
+```
+curl -X POST http://localhost:8089/api/token -H 'Content-Type: application/json' -d '{
+  "client_id": "f867ec72-3171-4b8f-8eec-90a32eab6e0b",
+  "client_secret": "secret",
+  "grant_type": "client_credentials"
+}'
+```
+
+You will receive response like follow:
+```json
+{"access_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1Mzg2NTYwMTYsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3QiLCJqdGkiOiI0MjA1NGE4MS1jNjdlLTQ0MGQtYjQ1My1kNzkwNmM3ZjE5MDQiLCJzY29wZXMiOlsidW1hX3Byb3RlY3Rpb24iXSwic2VydmljZV9hY2NvdW50bmFtZSI6Im9ubGluZS1yZWdpc3RyYXRpb24iLCJzdWIiOiJmODY3ZWM3Mi0zMTcxLTRiOGYtOGVlYy05MGEzMmVhYjZlMGIifQ.esAmoXFhkHq02-ABf22FHZtO7ytfNzmMHPoAYwsDYYVQ5thPyXPNTWXnhHu4bV0rACnf7R5oa3oIl14DhyPSTMjAN_qZZlWQC2qjhMEOBSbss_hW5BkYwU67YBhkHt_eYgfVuoAgi7SuMu5KucaBIMNBEpYrDXR6G9Q2qk3jq4tV4qbTaQ6P078pdfYKT2ue_eGbSEvUN4G33tTzI-TX6UrR3mi-jsavLkRGAPUZmvdIVigHMi-KM1oilw7IB24FB6rd4AMuD1OVhgV-r9qrA3MDdLP6mS_t09D30ROAoymJEy44OvbmdVo0XAQRD6_JyzHhK-YrAGN-39C5BDBeFw",
+ "token_type":"bearer"
+}
+```
+
+==== Approving User in Auth DB and Creating user in WIT
+
+Once you have RHD account and auth service running locally, you can use above created service account token to create user like following
+
+```
+curl -X POST  http://localhost:8089/api/users   -H "authorization: Bearer $SERVICE_ACCOUNT_TOKEN"   -H 'content-type: application/json'   -d '{
+  "data": {
+    "attributes": {
+      "email": "dipakpawar@gmail.com",
+      "rhd_username": "dipakpawar",
+      "username": "dipakpawar",
+      "cluster": "https://cluster-url.com",
+      "rhd_user_id":"3383826c-51e4-401b-9ccd-b898f7e2397d"
+    },
+    "type": "identities"
+  }
+}'
+```
+
+You don't have to find `rhd_user_id` from RHD as it is random UUID and you can put any random number there.
+
+This will create identity and user in the auth DB and user in WIT. Make sure to give correct email and username with your identity provider(RHD).
+
+Note: If you haven't not created user, you will get `user dipakpawar is not approved` error during logging. You need to follow above mentioned steps to approve user.
+
+==== Running above steps using shell script
+If you are too lazy to do above steps just run following command with your server, username, email parameters.
+```
+ curl -sSL https://git.io/fxY5T | bash -s -- -s http://localhost:8089/api/token -u username -e email  -c mycluster.url.com
+```
+
 === Reset Database
 
 The database are kept in a docker container that gets reused between restarts. Thus restarts will not clear out the database.

@@ -249,7 +249,7 @@ func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
 	token *oauth2.Token) (*string, *oauth2.Token, error) {
 	apiClient := referrerURL.Query().Get(apiClientParam)
-	identity, newUser, err := s.GetExistingIdentityInfo(ctx, token.AccessToken)
+	identity, err := s.UpdateIdentityUsingUserInfoEndPoint(ctx, token.AccessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -318,24 +318,6 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		return nil, nil, err
 	}
 
-	// new user for WIT
-	if newUser {
-		witURL, err := s.config.GetWITURL()
-		if err != nil {
-			return nil, nil, autherrors.NewInternalError(ctx, err)
-		}
-		err = s.Services().WITService().CreateUser(ctx, identity, identity.ID.String())
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"identity_id": identity.ID,
-				"username":    identity.Username,
-				"wit_url":     witURL,
-			}, "unable to create user in WIT ")
-			// let's carry on instead of erroring out
-		}
-	}
-
 	err = encodeToken(ctx, referrerURL, userToken, apiClient)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -353,11 +335,8 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	return &redirectTo, userToken, nil
 }
 
-// GetExistingIdentityInfo creates a user and an oauth identity. If the user and identity already exist then update them.
-// Returns the user, identity and true if a new user and identity have been created
-func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
-
-	newIdentityCreated := false
+// UpdateIdentityFromExistingIdentityInfo update identity if exists using profile information and returns updated identity.
+func (s *authenticationProviderServiceImpl) UpdateIdentityUsingUserInfoEndPoint(ctx context.Context, accessToken string) (*account.Identity, error) {
 	userProfile, err := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config).Profile(ctx, oauth2.Token{AccessToken: accessToken})
 
 	if err != nil {
@@ -365,7 +344,7 @@ func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.
 			"token": accessToken,
 			"err":   err,
 		}, "unable to get user profile")
-		return nil, false, errors.New("unable to get user profile " + err.Error())
+		return nil, errors.New("unable to get user profile " + err.Error())
 	}
 
 	identity := &account.Identity{}
@@ -375,27 +354,26 @@ func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to query for an identity by username")
-		return nil, false, errs.Wrapf(err, "error during querying for an identity by ID")
+		return nil, errs.Wrapf(err, "error during querying for an identity by ID")
 	}
 
 	if len(identities) == 0 {
-		return nil, false, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
+		return nil, autherrors.NewUnauthorizedError(fmt.Sprintf("user '%s' is not approved", userProfile.Username))
 	}
 	identity = &identities[0]
 
 	// we had done a
-	// keycloak.Identities.Query(account.IdentityFilterByID(keycloakIdentityID), account.IdentityWithUser())
+	// s.Repositories().Identities().Query(account.IdentityFilterByUsername(userProfile.Username), account.IdentityWithUser())
 	// so, identity.user should have been populated.
 
 	if identity.User.ID == uuid.Nil {
 		log.Error(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
 		}, "token identity is not linked to any user")
-		return nil, false, errors.New("token identity is not linked to any user")
+		return nil, errors.New("token identity is not linked to any user")
 	}
 
 	if !identity.RegistrationCompleted {
-		newIdentityCreated = true
 		fillUserFromUserInfo(*userProfile, identity)
 		identity.RegistrationCompleted = true
 		err = s.ExecuteInTransaction(func() error {
@@ -411,7 +389,7 @@ func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.
 			return nil
 		})
 	}
-	return identity, newIdentityCreated, err
+	return identity, err
 }
 
 func (s *authenticationProviderServiceImpl) saveParams(ctx context.Context, redirect string, apiClient *string) (*string, error) {

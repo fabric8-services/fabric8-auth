@@ -23,6 +23,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -42,6 +43,7 @@ type UsersControllerTestSuite struct {
 	userRepo      accountrepo.UserRepository
 	identityRepo  accountrepo.IdentityRepository
 	tenantService *dummyTenantService
+	witService    *testservice.WITServiceMock
 }
 
 func (s *UsersControllerTestSuite) SetupSuite() {
@@ -1371,10 +1373,6 @@ func newUpdateUsersPayload(updateOptions ...UpdateUserOption) *app.UpdateUsersPa
 	}
 }
 
-func getUserUpdatedAt(appUser app.User) time.Time {
-	return appUser.Data.Attributes.UpdatedAt.Truncate(time.Second).UTC()
-}
-
 func (s *UsersControllerTestSuite) generateUsersTag(allUsers app.UserArray) string {
 	entities := make([]app.ConditionalRequestEntity, len(allUsers.Data))
 	for i, user := range allUsers.Data {
@@ -1415,6 +1413,8 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	rhdUserName := "somerhdusername"
 	approved := false
 
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	// when
@@ -1423,6 +1423,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	// then
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
+	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails() {
@@ -1431,6 +1432,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	identity.User = user
 	identity.ProviderType = ""
 	user.Cluster = "https://some.cluster.com"
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
@@ -1438,19 +1440,27 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 
 	// First attempt should be OK
 	test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
 
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	// Another call with the same email and username should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	newEmail := uuid.NewV4().String() + user.Email
 	payloadWithSameUsername := newCreateUsersPayload(&newEmail, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 	// Another call with the same username should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameUsername)
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	newUsername := uuid.NewV4().String() + identity.Username
 	payloadWithSameEmail := newCreateUsersPayload(&user.Email, nil, nil, nil, nil, nil, &newUsername, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
 	// Another call with the same email should fail
 	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, payloadWithSameEmail)
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
+
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithRequiredFieldsOnlyOK() {
@@ -1489,6 +1499,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email strin
 		User:     user,
 	}
 
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	createUserPayload := newCreateUsersPayload(&email, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
@@ -1496,6 +1507,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email strin
 	// With only required fields should be OK
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
+	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithMissingRequiredFieldsFails() {
@@ -1523,24 +1535,28 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountUnauthorized() 
 	// given
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
 
 	// then
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized() {
 	// given
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 
 	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
 
 	// then
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForPreviewUserIgnored() {
@@ -1555,6 +1571,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForPreviewUserI
 }
 
 func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUserIgnored(email string) {
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	username := "someuser"
@@ -1565,16 +1582,19 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUser
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.NotNil(s.T(), appUser)
 	assertCreatedUser(s.T(), appUser.Data, accountrepo.User{Cluster: cluster, Email: email}, accountrepo.Identity{Username: username})
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserUnauthorized() {
 	// given
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 
 	// then
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, createUserPayload)
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 }
 
 func newCreateUsersPayload(email, fullName, bio, imageURL, profileURL, company, username, rhdUsername *string, rhdUserID string, cluster *string, registrationCompleted, approved *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {
