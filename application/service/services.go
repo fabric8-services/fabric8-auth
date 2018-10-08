@@ -45,6 +45,10 @@ type InvitationService interface {
 	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
 }
 
+type LogoutService interface {
+	Logout(ctx context.Context, redirectURL string) error
+}
+
 type OrganizationService interface {
 	CreateOrganization(ctx context.Context, creatorIdentityID uuid.UUID, organizationName string) (*uuid.UUID, error)
 	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
@@ -121,6 +125,7 @@ type ClusterService interface {
 type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
 	InvitationService() InvitationService
+	LogoutService() LogoutService
 	NotificationService() NotificationService
 	OSOSubscriptionService() OSOSubscriptionService
 	OrganizationService() OrganizationService

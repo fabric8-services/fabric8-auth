@@ -186,7 +186,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 		return "", errors.New("access token return by provider is empty")
 	}
 
-	userProfile, err := oauthProvider.Profile2(ctx, *providerToken)
+	userProfile, err := oauthProvider.Profile(ctx, *providerToken)
 	if err != nil {
 		return "", err
 	}

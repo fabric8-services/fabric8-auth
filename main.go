@@ -204,7 +204,7 @@ func main() {
 	app.MountAuthorizeController(service, authorizeCtrl)
 
 	// Mount "logout" controller
-	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, config)
+	logoutCtrl := controller.NewLogoutController(service, appDB)
 	app.MountLogoutController(service, logoutCtrl)
 
 	providerFactory := link.NewOauthProviderFactory(config, appDB)

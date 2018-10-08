@@ -19,7 +19,7 @@ import (
 )
 
 type clusterConfig interface {
-	token.Configuration
+	token.TokenConfiguration
 	GetClusterServiceURL() string
 	GetClusterCacheRefreshInterval() time.Duration
 }

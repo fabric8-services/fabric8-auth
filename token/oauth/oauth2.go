@@ -2,17 +2,14 @@ package oauth
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"io/ioutil"
-	"net/http"
-	"regexp"
-
-	//"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"io/ioutil"
+	"net/http"
+	"regexp"
 
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/satori/go.uuid"
@@ -51,43 +48,6 @@ type UserProfile struct {
 	Company       string
 	Approved      bool
 	Subject       string
-}
-
-type IdentityProviderResponse struct {
-	Username      string `json:"preferred_username"`
-	GivenName     string `json:"given_name"`
-	FamilyName    string `json:"family_name"`
-	Email         string `json:"email"`
-	EmailVerified bool   `json:"email_verified"`
-	Company       string `json:"company"`
-	Approved      bool   `json:"approved"`
-	Subject       string `json:"sub"`
-}
-
-// Profile fetches a user profile from the Identity Provider
-func (provider *OAuthIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error) {
-	body, err := provider.UserProfilePayload(ctx, token)
-	if err != nil {
-		return nil, err
-	}
-	var u UserProfile
-	var idpResponse IdentityProviderResponse
-	err = json.Unmarshal(body, &idpResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	u = UserProfile{
-		Username:      idpResponse.Username,
-		GivenName:     idpResponse.GivenName,
-		FamilyName:    idpResponse.FamilyName,
-		Email:         idpResponse.Email,
-		EmailVerified: idpResponse.EmailVerified,
-		Company:       idpResponse.Company,
-		Approved:      idpResponse.Approved,
-		Subject:       idpResponse.Subject,
-	}
-	return &u, nil
 }
 
 // UserProfilePayload fetches user profile payload from Identity Provider

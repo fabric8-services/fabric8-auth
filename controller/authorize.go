@@ -3,6 +3,7 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -14,6 +15,15 @@ import (
 	errs "github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
+
+type LoginConfiguration interface {
+	login.Configuration
+	GetKeycloakEndpointAuth(*goa.RequestData) (string, error)
+	GetKeycloakURL() string
+	GetKeycloakRealm() string
+	GetPublicOauthClientID() string
+	GetServiceAccounts() map[string]configuration.ServiceAccount
+}
 
 // AuthorizeController implements the authorize resource.
 type AuthorizeController struct {

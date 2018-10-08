@@ -19,7 +19,7 @@ const (
 )
 
 type GitHubIdentityProvider struct {
-	oauth.OauthIdentityProvider
+	oauth.OAuthIdentityProvider
 }
 
 type gitHubUser struct {

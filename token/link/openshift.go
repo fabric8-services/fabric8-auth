@@ -29,7 +29,7 @@ type OpenShiftIdentityProviderConfig interface {
 }
 
 type OpenShiftIdentityProvider struct {
-	oauth.OauthIdentityProvider
+	oauth.OAuthIdentityProvider
 	Cluster cluster.Cluster
 }
 

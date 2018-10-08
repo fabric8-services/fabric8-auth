@@ -9,6 +9,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	logoutservice "github.com/fabric8-services/fabric8-auth/authentication/logout/service"
 	providerservice "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
 	subscriptionservice "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
@@ -83,7 +84,7 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 
 		return func() error {
 			errorChan := make(chan error, 1)
-			txTimeout := time.After(transaction.DatabaseTransactionTimeout())subscriptionservice
+			txTimeout := time.After(transaction.DatabaseTransactionTimeout())
 
 			go func() {
 				defer func() {
@@ -194,6 +195,10 @@ func (f *ServiceFactory) AuthenticationProviderService() service.AuthenticationP
 
 func (f *ServiceFactory) InvitationService() service.InvitationService {
 	return invitationservice.NewInvitationService(f.getContext(), f.config)
+}
+
+func (f *ServiceFactory) LogoutService() service.LogoutService {
+	return logoutservice.NewLogoutService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) OrganizationService() service.OrganizationService {

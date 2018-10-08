@@ -4,11 +4,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -44,12 +41,14 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 }
 
 func (c *LoginController) Callback(ctx *app.CallbackLoginContext) error {
-
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
 
-	err := c.app.LoginService().Callback(ctx, state, code)
+	redirectURL, err := c.app.AuthenticationProviderService().LoginCallback(ctx, state, code)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
+		ctx.ResponseData.Header().Set("Location", *redirectURL+"?error="+err.Error())
+		return ctx.TemporaryRedirect()
 	}
+	ctx.ResponseData.Header().Set("Location", *redirectURL)
+	return ctx.TemporaryRedirect()
 }
