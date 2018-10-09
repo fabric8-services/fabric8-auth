@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"

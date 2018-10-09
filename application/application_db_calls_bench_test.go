@@ -13,7 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )

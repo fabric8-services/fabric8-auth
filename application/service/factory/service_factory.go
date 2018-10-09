@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	userservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	logoutservice "github.com/fabric8-services/fabric8-auth/authentication/logout/service"
 	providerservice "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
 	subscriptionservice "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"

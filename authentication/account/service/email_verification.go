@@ -3,10 +3,10 @@ package service
 import (
 	"context"
 
-	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	authclient "github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"

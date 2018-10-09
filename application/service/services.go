@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"

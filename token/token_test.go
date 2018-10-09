@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/account"
-	"github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-auth/token"

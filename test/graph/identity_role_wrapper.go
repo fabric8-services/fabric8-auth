@@ -1,7 +1,7 @@
 package graph
 
 import (
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	res "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	rolePkg "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/stretchr/testify/require"

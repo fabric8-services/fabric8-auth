@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strconv"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"

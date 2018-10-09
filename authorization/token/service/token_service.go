@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/dgrijalva/jwt-go"
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	authtoken "github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"

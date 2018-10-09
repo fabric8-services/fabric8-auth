@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/fabric8-services/fabric8-auth/account/tenant"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"

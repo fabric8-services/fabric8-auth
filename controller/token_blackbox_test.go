@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/dgrijalva/jwt-go"
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"

@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"time"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"

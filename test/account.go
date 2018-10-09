@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resourceRepo "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourceTypeRepo "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"

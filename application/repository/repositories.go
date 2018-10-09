@@ -1,8 +1,8 @@
 package repository
 
 import (
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/auth"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
