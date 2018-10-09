@@ -32,8 +32,9 @@ Steps for adding a new Service:
 
 type AuthenticationProviderService interface {
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
-		state *string, responseMode *string, referrer string, callbackURL string) (*string, error)
+		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)
+	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
 }
 
 type InvitationService interface {

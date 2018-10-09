@@ -79,7 +79,7 @@ func (s *authenticationProviderServiceImpl) newIdentityProvider() *provider.OAut
 // redirected in order to obtain an authorization code, which will subsequently be exchanged for an access token.
 // https://oauth.net/2/grant-types/authorization-code/
 func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
-	state *string, responseMode *string, referrer string, callbackURL string) (*string, error) {
+	state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error) {
 	/* Compute all the configuration urls */
 	validRedirectURL := s.config.GetValidRedirectURLs()
 
@@ -122,6 +122,11 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 	// Override the redirect URL, setting it to the callback URL that was passed in
 	provider.RedirectURL = callbackURL
 
+	// Override the scopes if a value is passed in
+	if scopes != nil {
+		provider.Scopes = scopes
+	}
+
 	// Generate the Authorization Code URL
 	redirectTo := provider.AuthCodeURL(*state, oauth2.AccessTypeOnline)
 
@@ -161,6 +166,29 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 
 	redirect := referrerURL.String()
 	return &redirect, nil
+}
+
+// AuthorizeCallback takes care of authorization callback.
+// When authorization_code is requested with /api/authorize, oauth provider returns authorization_code at /api/authorize/callback,
+// which would pass on the code along with the state to client using this method
+func (s *authenticationProviderServiceImpl) AuthorizeCallback(ctx context.Context, state string, code string) (*string, error) {
+	referrerURL, responseMode, err := s.reclaimReferrerAndResponseMode(ctx, state, code)
+	if err != nil {
+		return nil, err
+	}
+	var redirectTo string
+	parameters := referrerURL.Query()
+	parameters.Add("code", code)
+	parameters.Add("state", state)
+
+	if responseMode != nil && *responseMode == "fragment" {
+		referrerURL.Fragment = parameters.Encode()
+	} else {
+		referrerURL.RawQuery = parameters.Encode()
+	}
+	redirectTo = referrerURL.String()
+
+	return &redirectTo, nil
 }
 
 // Exchange exchanges the given code for OAuth2 token with the Authentication provider

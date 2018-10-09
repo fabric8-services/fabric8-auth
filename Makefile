@@ -243,7 +243,7 @@ clean-generated:
 	-rm -f ./migration/sqlbindata_test.go
 	-rm -f ./configuration/confbindata.go
 	-rm -rf wit/witservice
-	-rm -rf ./account/tenant
+	-rm -rf ./authentication/account/tenant
 	-rm -rf ./test/service
 	-rm -rf ./notification/client
 	-rm -rf ./cluster/client
@@ -287,7 +287,7 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) client -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) swagger -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-wit/design --notool --pkg witservice -o wit
-	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-tenant/design --notool --pkg tenant -o account
+	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-tenant/design --notool --pkg tenant -o authentication/account
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-notification/design --notool --pkg client -o notification
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-cluster/design --notool --pkg client -o cluster
 

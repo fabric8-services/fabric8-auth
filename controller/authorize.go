@@ -2,6 +2,7 @@ package controller
 
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -12,8 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
-	errs "github.com/pkg/errors"
-	"golang.org/x/oauth2"
 )
 
 type LoginConfiguration interface {
@@ -28,25 +27,24 @@ type LoginConfiguration interface {
 // AuthorizeController implements the authorize resource.
 type AuthorizeController struct {
 	*goa.Controller
+	app           application.Application
 	Auth          login.KeycloakOAuthService
 	TokenManager  token.Manager
 	Configuration LoginConfiguration
 }
 
 // NewAuthorizeController returns a new AuthorizeController
-func NewAuthorizeController(service *goa.Service, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration) *AuthorizeController {
-	return &AuthorizeController{Controller: service.NewController("AuthorizeController"), Auth: auth, TokenManager: tokenManager, Configuration: configuration}
+func NewAuthorizeController(service *goa.Service, app application.Application, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration) *AuthorizeController {
+	return &AuthorizeController{Controller: service.NewController("AuthorizeController"), app: app, Auth: auth, TokenManager: tokenManager, Configuration: configuration}
 }
 
 // Authorize runs the authorize action of /api/authorize endpoint.
 func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) error {
 
-	var scope []string
+	var scopes []string
 
-	if ctx.Scope == nil {
-		scope = []string{"user:email"}
-	} else {
-		scope = []string{*ctx.Scope}
+	if ctx.Scope != nil {
+		scopes = []string{*ctx.Scope}
 	}
 
 	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
@@ -57,31 +55,11 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("invalid oauth client id"))
 	}
 
-	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get keycloak auth endpoint url")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak auth endpoint url")))
-	}
+	// Get the URL of the callback endpoint, the client will be redirected here after being redirected to the authentication provider
+	callbackURL := rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil)
 
-	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get keycloak token endpoint url")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get keycloak token endpoint url")))
-	}
-
-	oauth := &oauth2.Config{
-		ClientID:     c.Configuration.GetKeycloakClientID(),
-		ClientSecret: c.Configuration.GetKeycloakSecret(),
-		Scopes:       scope,
-		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
-	}
-
-	redirectTo, err := c.Auth.AuthCodeURL(ctx, &ctx.RedirectURI, ctx.APIClient, &ctx.State, ctx.ResponseMode, ctx.RequestData, oauth, c.Configuration)
+	redirectTo, err := c.app.AuthenticationProviderService().GenerateAuthCodeURL(ctx, &ctx.RedirectURI, ctx.APIClient,
+		&ctx.State, scopes, ctx.ResponseMode, ctx.RequestData.Header.Get("Referer"), callbackURL)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -93,7 +71,10 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 
 // Callback takes care of Authorize callback
 func (c *AuthorizeController) Callback(ctx *app.CallbackAuthorizeContext) error {
-	redirectTo, err := c.Auth.AuthCodeCallback(ctx)
+
+	redirectTo, err := c.app.AuthenticationProviderService().AuthorizeCallback(ctx, ctx.State, ctx.Code)
+
+	//redirectTo, err := c.Auth.AuthCodeCallback(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

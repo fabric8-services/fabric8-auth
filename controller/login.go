@@ -32,7 +32,7 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	callbackURL := rest.AbsoluteURL(ctx.RequestData, client.CallbackLoginPath(), nil)
 
 	redirectURL, err := c.app.AuthenticationProviderService().GenerateAuthCodeURL(ctx, ctx.Redirect, ctx.APIClient,
-		&state, nil, ctx.RequestData.Header.Get("Referer"), callbackURL)
+		&state, nil, nil, ctx.RequestData.Header.Get("Referer"), callbackURL)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
