@@ -1,4 +1,4 @@
--- create RESOURCE_TYPE for a SPACE type
+-- create RESOURCE_TYPE for SYSTEM type
 
 INSERT INTO resource_type 
             (resource_type_id, 
