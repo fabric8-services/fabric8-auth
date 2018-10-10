@@ -3,6 +3,7 @@ package gormtestsupport
 import (
 	"context"
 	"os"
+	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/application"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
@@ -33,8 +34,8 @@ type DBTestSuite struct {
 	Configuration *config.ConfigurationData
 	DB            *gorm.DB
 	Application   application.Application
-	cleanTest     func()
-	cleanSuite    func()
+	CleanTest     func()
+	CleanSuite    func()
 	Ctx           context.Context
 	Graph         *graph.TestGraph
 }
@@ -58,23 +59,29 @@ func (s *DBTestSuite) SetupSuite() {
 			}, "failed to connect to the database")
 		}
 	}
-	s.DB = s.DB.Debug()
+	// configures the log mode for the SQL queries (by default, disabled)
+	s.DB.LogMode(s.Configuration.IsDBLogsEnabled())
 	s.Application = gormapplication.NewGormDB(s.DB, configuration)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
-	s.cleanSuite = cleaner.DeleteCreatedEntities(s.DB)
+	s.CleanSuite = cleaner.DeleteCreatedEntities(s.DB)
 }
 
 // SetupTest implements suite.SetupTest
 func (s *DBTestSuite) SetupTest() {
-	s.cleanTest = cleaner.DeleteCreatedEntities(s.DB)
-	g := s.NewTestGraph()
+	s.CleanTest = cleaner.DeleteCreatedEntities(s.DB)
+	g := s.NewTestGraph(s.T())
 	s.Graph = &g
 }
 
 // TearDownTest implements suite.TearDownTest
 func (s *DBTestSuite) TearDownTest() {
-	s.cleanTest()
+	// in some cases, we might need to keep the test data in the DB for inspecting/reproducing
+	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
+	// By default, test data will be removed from the DB after each test
+	if s.Configuration.IsCleanTestDataEnabled() {
+		s.CleanTest()
+	}
 	s.Graph = nil
 }
 
@@ -84,7 +91,12 @@ func (s *DBTestSuite) PopulateDBTestSuite(ctx context.Context) {
 
 // TearDownSuite implements suite.TearDownAllSuite
 func (s *DBTestSuite) TearDownSuite() {
-	s.cleanSuite()
+	// in some cases, we might need to keep the test data in the DB for inspecting/reproducing
+	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
+	// By default, test data will be removed from the DB after each test
+	if s.Configuration.IsCleanTestDataEnabled() {
+		s.CleanSuite()
+	}
 	s.DB.Close()
 }
 
@@ -109,6 +121,6 @@ func (s *DBTestSuite) DisableGormCallbacks() func() {
 	}
 }
 
-func (s *DBTestSuite) NewTestGraph() graph.TestGraph {
-	return graph.NewTestGraph(s.T(), s.Application, s.Ctx, s.DB)
+func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
+	return graph.NewTestGraph(t, s.Application, s.Ctx, s.DB)
 }

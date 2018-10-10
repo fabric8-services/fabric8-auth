@@ -22,6 +22,7 @@ DEP_BIN_DIR := ./tmp/bin
 DEP_BIN := $(DEP_BIN_DIR)/$(DEP_BIN_NAME)
 DEP_VERSION=v0.4.1
 GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
+MINIMOCK_BIN=$(VENDOR_DIR)/github.com/gojuno/minimock/cmd/minimock/minimock
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
 DOCKER_BIN := $(shell command -v $(DOCKER_BIN_NAME) 2> /dev/null)
 ASCIIDOCTOR_BIN := $(shell command -v $(ASCIIDOCTOR_BIN_NAME) 2> /dev/null)
@@ -144,6 +145,20 @@ govet:
 format-go-code: prebuild-check
 	@gofmt -s -l -w ${GOFORMAT_FILES}
 
+$(MINIMOCK_BIN):
+	@echo "building the minimock binary..."
+	@cd $(VENDOR_DIR)/github.com/gojuno/minimock/cmd/minimock && go build -v minimock.go
+
+.PHONY: generate-minimock
+generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only necessary after clean or if changes occurred in interfaces.
+	@echo "Generating mocks..."
+	@-mkdir -p test/service
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService -o ./test/service/ -s ".go"
+	@-mkdir -p test/token/oauth
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/token/oauth.IdentityProvider -o ./test/token/oauth/ -s ".go"
+	@-mkdir -p test/login
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/login.KeycloakOAuthService -o ./test/login/ -s ".go"
+
 .PHONY: build
 ## Build server and client.
 build: prebuild-check deps generate $(BINARY_SERVER_BIN) $(BINARY_CLIENT_BIN) # do the build
@@ -229,6 +244,10 @@ clean-generated:
 	-rm -f ./configuration/confbindata.go
 	-rm -rf wit/witservice
 	-rm -rf ./account/tenant
+	-rm -rf ./test/service
+	-rm -rf ./notification/client
+	-rm -rf ./cluster/client
+	-rm -rf ./test/token/oauth
 
 CLEAN_TARGETS += clean-vendor
 .PHONY: clean-vendor
@@ -270,6 +289,7 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-wit/design --notool --pkg witservice -o wit
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-tenant/design --notool --pkg tenant -o account
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-notification/design --notool --pkg client -o notification
+	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-cluster/design --notool --pkg client -o cluster
 
 .PHONY: migrate-database
 ## Compiles the server and runs the database migration with it
@@ -278,7 +298,7 @@ migrate-database: $(BINARY_SERVER_BIN)
 
 .PHONY: generate
 ## Generate GOA sources. Only necessary after clean of if changed `design` folder.
-generate: app/controllers.go migration/sqlbindata.go configuration/confbindata.go
+generate: app/controllers.go migration/sqlbindata.go configuration/confbindata.go generate-minimock
 
 .PHONY: regenerate
 ## Runs the "clean-generated" and the "generate" target

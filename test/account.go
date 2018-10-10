@@ -130,7 +130,10 @@ func CreateTestOrganizationIdentity(db *gorm.DB) (account.Identity, error) {
 		}
 
 		orgIdentity = account.Identity{
-			IdentityResourceID: sql.NullString{orgResource.ResourceID, true},
+			IdentityResourceID: sql.NullString{
+				String: orgResource.ResourceID,
+				Valid:  true,
+			},
 		}
 
 		err = CreateTestIdentityForAccountIdentity(db, &orgIdentity)
@@ -222,6 +225,7 @@ func CreateTestUser(db *gorm.DB, user *account.User) (account.Identity, error) {
 		identity.UserID.UUID = user.ID
 		return identityRepository.Create(context.Background(), &identity)
 	})
+	log.Debug(nil, map[string]interface{}{"identity_id": identity.ID}, "test user identity created")
 	return identity, err
 }
 

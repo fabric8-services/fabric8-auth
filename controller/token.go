@@ -22,13 +22,17 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
-	remotewitservice "github.com/fabric8-services/fabric8-auth/wit"
-
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
+)
+
+const (
+	DevUsername = "developer"
+	DevEmail    = "osio-developer@email.com"
 )
 
 // TokenController implements the login resource.
@@ -70,20 +74,20 @@ func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
 
 // Refresh obtains a new access token using the refresh token.
 func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
+	// retrieve the access token if it exists (otherwise, a jwtrequest.ErrNoTokenInRequest is returned, but it can be ignored here)
+	accessToken := goajwt.ContextJWT(ctx)
 	refreshToken := ctx.Payload.RefreshToken
 	if refreshToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
 	}
-
-	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "unable to get Keycloak token endpoint URL")))
+	var t *token.TokenSet
+	var err error
+	if accessToken != nil {
+		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
+		t, err = c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
+	} else {
+		t, err = c.Auth.ExchangeRefreshToken(ctx, "", *refreshToken, c.Configuration)
 	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -110,11 +114,10 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled")))
 	}
 
-	devUsername := "developer"
 	var identities []account.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(devUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(DevUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
 		return err
 	})
 	if err != nil {
@@ -127,13 +130,35 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		devUser := account.User{
 			EmailVerified: true,
 			FullName:      "OSIO Developer",
-			Email:         "osio-developer@email.com",
+			Email:         DevEmail,
+			Cluster:       "openshift.developer.osio",
 		}
 		devIdentity = account.Identity{
 			User:                  devUser,
-			Username:              devUsername,
+			Username:              DevUsername,
 			ProviderType:          account.KeycloakIDP,
 			RegistrationCompleted: true,
+		}
+
+		err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
+			err = tr.Users().Save(ctx, &devIdentity.User)
+			if err != nil {
+				return err
+			}
+
+			err := tr.Identities().Save(ctx, &devIdentity)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err": err,
+			}, "failed to create a user or identity for user developer")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.Wrap(err, "failed to create a user or identity for user developer")))
 		}
 	} else {
 		devIdentity = identities[0]
@@ -144,28 +169,18 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	_, token, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, ctx.RequestData.URL, generatedToken, ctx.RequestData, c.Configuration)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	tokenSet, err := c.TokenManager.ConvertToken(*token)
+	tokenSet, err := c.TokenManager.ConvertToken(*generatedToken)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	tokens := app.AuthTokenCollection{convertToken(*tokenSet)}
 
-	var remotewitserviceCaller remotewitservice.RemoteWITServiceCaller
-	witURL, err := c.Configuration.GetWITURL()
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-	err = remotewitserviceCaller.CreateWITUser(ctx, &devIdentity, witURL, devIdentity.ID.String())
+	err = c.app.WITService().CreateUser(ctx, &devIdentity, devIdentity.ID.String())
 	if err != nil {
 		log.Warn(ctx, map[string]interface{}{
 			"err":         err,
 			"identity_id": devIdentity.ID,
 			"username":    devIdentity.Username,
-			"wit_url":     witURL,
 		}, "unable to create user in WIT ")
 	}
 
@@ -191,6 +206,9 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
 	}
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to retrieve token")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return ctx.OK(appToken)
@@ -204,6 +222,9 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
 	}
 	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to check token status")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
@@ -367,12 +388,13 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 	var err error
 	var token *app.OauthToken
+	var notApprovedRedirect *string
 
 	switch payload.GrantType {
 	case "client_credentials":
 		token, err = c.exchangeWithGrantTypeClientCredentials(ctx)
 	case "authorization_code":
-		token, err = c.exchangeWithGrantTypeAuthorizationCode(ctx)
+		notApprovedRedirect, token, err = c.exchangeWithGrantTypeAuthorizationCode(ctx)
 	case "refresh_token":
 		token, err = c.exchangeWithGrantTypeRefreshToken(ctx)
 	default:
@@ -383,11 +405,17 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
+	if notApprovedRedirect != nil && token == nil {
+		// the code enters this block only if the user is not provisioned on OSO.
+		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to access OpenShift"))
+	}
+
 	return ctx.OK(token)
 }
 
 func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
-
+	// retrieve the access token from the request header, but ignore if it was not found
+	accessToken := goajwt.ContextJWT(ctx)
 	payload := ctx.Payload
 	refreshToken := payload.RefreshToken
 	if refreshToken == nil {
@@ -401,16 +429,8 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		}, "unknown oauth client id")
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
-
-	endpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Unable to get Keycloak token endpoint URL")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get Keycloak token endpoint URL")
-	}
-
-	t, err := c.Auth.ExchangeRefreshToken(ctx, *refreshToken, endpoint, c.Configuration)
+	// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
+	t, err := c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err
@@ -432,24 +452,24 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 	return token, nil
 }
 
-func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
+func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.ExchangeTokenContext) (*string, *app.OauthToken, error) {
 	payload := ctx.Payload
 	if payload.Code == nil {
-		return nil, errors.NewBadParameterError("code", "nil").Expected("authorization code")
+		return nil, nil, errors.NewBadParameterError("code", "nil").Expected("authorization code")
 	}
 	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	if payload.ClientID != c.Configuration.GetPublicOauthClientID() {
 		log.Error(ctx, map[string]interface{}{
 			"client_id": payload.ClientID,
 		}, "unknown oauth client id")
-		return nil, errors.NewUnauthorizedError("invalid oauth client id")
+		return nil, nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to get keycloak auth endpoint url")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak auth endpoint url")
+		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak auth endpoint url")
 	}
 
 	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
@@ -457,7 +477,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "unable to get keycloak token endpoint url")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak token endpoint url")
+		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak token endpoint url")
 	}
 
 	oauth := &oauth2.Config{
@@ -472,7 +492,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 	keycloakToken, err := c.Auth.Exchange(ctx, *payload.Code, oauth)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	redirectURL, err := url.Parse(oauth.RedirectURL)
@@ -481,34 +501,39 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 			"redirectURL": oauth.RedirectURL,
 			"err":         err,
 		}, "failed to parse referrer")
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, nil, errors.NewInternalError(ctx, err)
 	}
 
-	_, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, c.Configuration)
+	idpService := login.NewIdentityProvider(c.Configuration)
+	notApprovedRedirectURL, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, idpService, c.Configuration)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Convert expiry to expire_in
-	expiry := userToken.Expiry
-	var expireIn *string
-	if expiry != *new(time.Time) {
-		exp := expiry.Sub(time.Now())
-		if exp > 0 {
-			seconds := strconv.FormatInt(int64(exp/time.Second), 10)
-			expireIn = &seconds
+	var token *app.OauthToken
+
+	if userToken != nil {
+		// Convert expiry to expire_in
+		expiry := userToken.Expiry
+		var expireIn *string
+		if expiry != *new(time.Time) {
+			exp := expiry.Sub(time.Now())
+			if exp > 0 {
+				seconds := strconv.FormatInt(int64(exp/time.Second), 10)
+				expireIn = &seconds
+			}
+		}
+
+		token = &app.OauthToken{
+			AccessToken:  &userToken.AccessToken,
+			ExpiresIn:    expireIn,
+			RefreshToken: &userToken.RefreshToken,
+			TokenType:    &userToken.TokenType,
 		}
 	}
 
-	token := &app.OauthToken{
-		AccessToken:  &userToken.AccessToken,
-		ExpiresIn:    expireIn,
-		RefreshToken: &userToken.RefreshToken,
-		TokenType:    &userToken.TokenType,
-	}
-
-	return token, nil
+	return notApprovedRedirectURL, token, nil
 }
 
 func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
@@ -680,4 +705,47 @@ func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
 	}
 	ctx.ResponseData.Header().Set("Location", redirectLocation)
 	return ctx.TemporaryRedirect()
+}
+
+func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("no token in request"))
+	}
+
+	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	if err != nil {
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	tokenString := token.Raw
+
+	auditedToken, err := c.app.TokenService().Audit(ctx, currentIdentity, tokenString, ctx.ResourceID)
+	if err != nil {
+		switch t := err.(type) {
+		case errors.UnauthorizedError:
+			{
+				if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED {
+					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
+					ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Token has been deprovisioned\"")
+					return jsonapi.JSONErrorResponse(ctx, err)
+				} else if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_REVOKED {
+					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
+					ctx.ResponseData.Header().Set("WWW-Authenticate", "LOGIN description=\"Token has been revoked or logged out\"")
+					return jsonapi.JSONErrorResponse(ctx, err)
+				}
+			}
+		}
+
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	if auditedToken != nil {
+		rptToken := *auditedToken
+		rptTokenPayload := &app.RPTToken{
+			RptToken: &rptToken,
+		}
+		return ctx.OK(rptTokenPayload)
+	}
+	return ctx.OK(nil)
 }

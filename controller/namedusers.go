@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/fabric8-services/fabric8-auth/account/service"
+	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -18,11 +18,11 @@ type NamedusersController struct {
 	*goa.Controller
 	app           application.Application
 	config        UsersControllerConfiguration
-	tenantService service.Tenant
+	tenantService accountservice.TenantService
 }
 
 // NewNamedusersController creates a namedusers controller.
-func NewNamedusersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, tenantService service.Tenant) *NamedusersController {
+func NewNamedusersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, tenantService accountservice.TenantService) *NamedusersController {
 	return &NamedusersController{
 		Controller:    service.NewController("NamedusersController"),
 		app:           app,
@@ -48,7 +48,7 @@ func (c *NamedusersController) Deprovision(ctx *app.DeprovisionNamedusersContext
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	// Delete tenant
+	// Delete tenant (if access to tenant service is configured/enabled)
 	if c.tenantService != nil {
 		err := c.tenantService.Delete(ctx, identity.ID)
 		if err != nil {

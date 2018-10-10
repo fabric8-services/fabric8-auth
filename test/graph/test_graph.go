@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -24,14 +26,21 @@ type baseWrapper struct {
 	graph *TestGraph
 }
 
-func (w *baseWrapper) identityIDFromWrapper(wrapper interface{}) uuid.UUID {
-	switch t := wrapper.(type) {
-	case *userWrapper:
-		return t.identity.ID
-	case *identityWrapper:
-		return t.identity.ID
+func identityIDFromWrapper(t *testing.T, wrapper interface{}) uuid.UUID {
+	if wrapper == nil {
+		assert.FailNowf(t, "invalid identity wrapper", "wrapper cannot be nil")
 	}
-	require.True(w.graph.t, false, "wrapper must be either user wrapper or identity wrapper")
+	switch w := wrapper.(type) {
+	case *userWrapper:
+		return w.identity.ID
+	case *identityWrapper:
+		return w.identity.ID
+	case *teamWrapper:
+		return w.identity.ID
+	case *organizationWrapper:
+		return w.identity.ID
+	}
+	assert.FailNowf(t, "invalid type of identity wrapper", "wrapper must be either 'user', 'identity' or 'team' wrapper but it was %T", wrapper)
 	return uuid.UUID{}
 }
 
@@ -64,7 +73,7 @@ func (g *TestGraph) generateIdentifier(params []interface{}) string {
 	return uuid.NewV4().String()
 }
 
-type wrapperConstructor = func(g *TestGraph, params []interface{}) interface{}
+type wrapperConstructor func(g *TestGraph, params []interface{}) interface{}
 
 func (g *TestGraph) createAndRegister(constructor wrapperConstructor, params []interface{}) interface{} {
 	wrapper := constructor(g, params)
@@ -101,9 +110,19 @@ func (g *TestGraph) CreateResourceType(params ...interface{}) *resourceTypeWrapp
 	return g.createAndRegister(newResourceTypeWrapper, params).(*resourceTypeWrapper)
 }
 
-func (g *TestGraph) ResourceTypeByID(id string) *resourceTypeWrapper {
-	require.Contains(g.t, g.references, id, "resource type with such ID is not registered")
-	return g.references[id].(*resourceTypeWrapper)
+func (g *TestGraph) ResourceTypeByID(id uuid.UUID) *resourceTypeWrapper {
+	if rt, found := g.references[id.String()]; found {
+		return rt.(*resourceTypeWrapper)
+	}
+	// if look-up in references failed, then look for the role in the DB
+	rt, err := g.app.ResourceTypeRepository().Load(g.ctx, id)
+	require.NoErrorf(g.t, err, "failed to look-up resource type with id '%s'", id)
+	rtw := &resourceTypeWrapper{
+		baseWrapper:  baseWrapper{g},
+		resourceType: rt,
+	}
+	g.references[id.String()] = rtw
+	return rtw
 }
 
 func (g *TestGraph) LoadResourceType(params ...interface{}) *resourceTypeWrapper {
@@ -271,6 +290,25 @@ func (g *TestGraph) RoleByID(id string) *roleWrapper {
 	return g.references[id].(*roleWrapper)
 }
 
+func (g *TestGraph) RoleByNameAndResourceType(name, resourceType string) *roleWrapper {
+	for _, ref := range g.references {
+		if roleWrapper, ok := ref.(*roleWrapper); ok {
+			if roleWrapper.role.Name == name && roleWrapper.role.ResourceType.Name == resourceType {
+				return roleWrapper
+			}
+		}
+	}
+	// if look-up in references failed, then look for the role in the DB
+	r, err := g.app.RoleRepository().Lookup(g.ctx, name, resourceType)
+	require.NoErrorf(g.t, err, "failed to look-up role named '%s' for resource of type '%s'", name, resourceType)
+	rw := &roleWrapper{
+		baseWrapper: baseWrapper{g},
+		role:        r,
+	}
+	g.references[r.RoleID.String()] = rw
+	return rw
+}
+
 func (g *TestGraph) CreateDefaultRoleMapping(params ...interface{}) *defaultRoleMappingWrapper {
 	return g.createAndRegister(newDefaultRoleMappingWrapper, params).(*defaultRoleMappingWrapper)
 }
@@ -290,4 +328,48 @@ func (g *TestGraph) RoleMappingByID(id string) *roleMappingWrapper {
 
 func (g *TestGraph) CreateInvitation(params ...interface{}) *invitationWrapper {
 	return g.createAndRegister(newInvitationWrapper, params).(*invitationWrapper)
+}
+
+func (g *TestGraph) CreateToken(params ...interface{}) *tokenWrapper {
+	return g.createAndRegister(newTokenWrapper, params).(*tokenWrapper)
+}
+
+func (g *TestGraph) LoadToken(params ...interface{}) *tokenWrapper {
+	var tokenID *uuid.UUID
+	for i := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			tokenID = t
+		case uuid.UUID:
+			tokenID = &t
+		}
+	}
+	require.NotNil(g.t, tokenID, "Must specify a uuid parameter for the token ID")
+	w := loadTokenWrapper(g, *tokenID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
+func (g *TestGraph) CreatePrivilegeCache(params ...interface{}) *privilegeCacheWrapper {
+	return g.createAndRegister(newPrivilegeCacheWrapper, params).(*privilegeCacheWrapper)
+}
+
+func (g *TestGraph) LoadPrivilegeCache(params ...interface{}) *privilegeCacheWrapper {
+	var privilegeCacheID *uuid.UUID
+	for i := range params {
+		switch t := params[i].(type) {
+		case *uuid.UUID:
+			privilegeCacheID = t
+		case uuid.UUID:
+			privilegeCacheID = &t
+		}
+	}
+	require.NotNil(g.t, privilegeCacheID, "Must specify a uuid parameter for the privilege cache ID")
+	w := loadPrivilegeCacheWrapper(g, *privilegeCacheID)
+	g.register(g.generateIdentifier(params), &w)
+	return &w
+}
+
+func (g *TestGraph) CreateIdentityRole(params ...interface{}) *identityRoleWrapper {
+	return g.createAndRegister(newIdentityRoleWrapper, params).(*identityRoleWrapper)
 }

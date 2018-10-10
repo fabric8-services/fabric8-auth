@@ -1,0 +1,121 @@
+apiVersion: v1
+kind: Template
+parameters:
+- name: IMAGE
+  value: quay.io/openshiftio/fabric8-services-fabric8-notification
+- name: IMAGE_TAG
+  value: latest
+- name: SERVICE_NAME
+  required: true
+  value: f8notification
+- name: MEMORY_LIMIT
+  required: true
+  value: 1.0Gi
+metadata:
+  name: fabric8-notification-service
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      service: ${SERVICE_NAME}
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+    name: ${SERVICE_NAME}
+  spec:
+    replicas: 1
+    selector:
+      app: ${SERVICE_NAME}
+      deploymentconfig: ${SERVICE_NAME}
+    strategy:
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          service: ${SERVICE_NAME}
+          deploymentconfig: ${SERVICE_NAME}
+      spec:
+        containers:
+        - env:
+          - name: F8_MANDRILL_APIKEY
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: madrill.api
+          - name: F8_WIT_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: wit.url
+          - name: F8_AUTH_URL
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: auth.url
+          - name: F8_SERVICE_ACCOUNT_ID
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: service.account.id
+          - name: F8_SERVICE_ACCOUNT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: service.account.secret
+          image: ${IMAGE}:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          name: ${SERVICE_NAME}
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /api/status
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 0.1m
+              memory: 10Mi
+            limits:
+              cpu: 400m
+              memory: ${MEMORY_LIMIT}
+    triggers:
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: ${SERVICE_NAME}
+    labels:
+      service: ${SERVICE_NAME}
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+  spec:
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 8080
+    selector:
+      deploymentconfig: ${SERVICE_NAME}
+

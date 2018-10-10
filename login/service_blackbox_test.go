@@ -13,18 +13,24 @@ import (
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	. "github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	testoauth "github.com/fabric8-services/fabric8-auth/test/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token"
+	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
@@ -35,83 +41,40 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type serviceBlackBoxTest struct {
+type serviceTestSuite struct {
 	gormtestsupport.DBTestSuite
-	loginService           *KeycloakOAuthProvider
-	oauth                  *oauth2.Config
-	dummyOauth             *dummyOauth2Config
-	keycloakTokenService   *DummyTokenService
+	loginService           *login.KeycloakOAuthProvider
+	oauth                  oauth.IdentityProvider
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
-func TestRunServiceBlackBoxTest(t *testing.T) {
+func TestServiceBlackBox(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &serviceBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+	suite.Run(t, &serviceTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 // SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
 // The SetupSuite method will run before the tests in the suite are run.
 // It sets up a database connection for all the tests in this suite without polluting global space.
-func (s *serviceBlackBoxTest) SetupSuite() {
+func (s *serviceTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
-	var err error
-	req := &goa.RequestData{
-		Request: &http.Request{Host: "api.service.domain.org"},
-	}
-	authEndpoint, err := s.Configuration.GetKeycloakEndpointAuth(req)
-	if err != nil {
-		panic(err)
-	}
-	tokenEndpoint, err := s.Configuration.GetKeycloakEndpointToken(req)
-	if err != nil {
-		panic(err)
-	}
-	s.oauth = &oauth2.Config{
-		ClientID:     s.Configuration.GetKeycloakClientID(),
-		ClientSecret: s.Configuration.GetKeycloakSecret(),
-		Scopes:       []string{"user:email"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  authEndpoint,
-			TokenURL: tokenEndpoint,
-		},
-	}
+	s.oauth = login.NewIdentityProvider(s.Configuration)
+
 	claims := make(map[string]interface{})
 	claims["sub"] = uuid.NewV4().String()
-	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
-	if err != nil {
-		panic(err)
-	}
-	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	if err != nil {
-		panic(err)
-	}
-	s.dummyOauth = &dummyOauth2Config{
-		Config: oauth2.Config{
-			ClientID:     s.Configuration.GetKeycloakClientID(),
-			ClientSecret: s.Configuration.GetKeycloakSecret(),
-			Scopes:       []string{"user:email"},
-			Endpoint: oauth2.Endpoint{
-				AuthURL:  authEndpoint,
-				TokenURL: tokenEndpoint,
-			},
-		},
-		accessToken:  accessToken,
-		refreshToken: refreshToken,
-	}
 
 	userRepository := account.NewUserRepository(s.DB)
 	identityRepository := account.NewIdentityRepository(s.DB)
-	userProfileClient := NewKeycloakUserProfileClient()
+	userProfileClient := login.NewKeycloakUserProfileClient()
 
-	refreshTokenSet := token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken}
-	s.keycloakTokenService = &DummyTokenService{tokenSet: refreshTokenSet}
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
-
-	s.loginService = NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.keycloakTokenService, s.osoSubscriptionManager)
+	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
+	s.loginService = login.NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.osoSubscriptionManager)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
+func (s *serviceTestSuite) TestKeycloakAuthorizationRedirect() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -138,43 +101,19 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirect() {
 	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
+	assert.Contains(s.T(), rw.Header().Get("Location"), s.Configuration.GetOAuthEndpointAuth())
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestApprovedUserCreatedAndUpdated() {
+func (s *serviceTestSuite) TestUnapprovedUserUnauthorized() {
 	claims := make(map[string]interface{})
+	claims["username"] = "something-that-doesn-not-exist-in-db" + uuid.NewV4().String()
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	identity, ok, err := s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
-	require.Nil(s.T(), err)
-	require.NotNil(s.T(), identity)
-	assert.True(s.T(), ok)
-	s.checkIfTokenMatchesIdentity(token, *identity)
-	assert.Equal(s.T(), s.Configuration.GetOpenShiftClientApiUrl(), identity.User.Cluster)
-}
+	dummyOauthIDPRef := s.getDummyOauthIDPService(true)
 
-func (s *serviceBlackBoxTest) TestFeatureLevelOfUserCreatedAndUpdated() {
-	claims := make(map[string]interface{})
-	token, err := testtoken.GenerateTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-
-	identity, ok, err := s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
-	require.Nil(s.T(), err)
-	require.NotNil(s.T(), identity)
-	assert.True(s.T(), ok)
-	s.checkIfTokenMatchesIdentity(token, *identity)
-	assert.Equal(s.T(), account.DefaultFeatureLevel, identity.User.FeatureLevel)
-}
-
-func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
-	claims := make(map[string]interface{})
-	claims["approved"] = false
-	token, err := testtoken.GenerateTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-
-	_, _, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, s.Configuration)
+	_, err = s.loginService.UpdateIdentityUsingUserInfoEndPoint(context.Background(), token, dummyOauthIDPRef, s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
@@ -183,7 +122,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserUnauthorized() {
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
-func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
+func (s *serviceTestSuite) TestUnapprovedUserRedirected() {
 	env := os.Getenv("AUTH_NOTAPPROVED_REDIRECT")
 	defer func() {
 		os.Setenv("AUTH_NOTAPPROVED_REDIRECT", env)
@@ -206,7 +145,7 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserRedirected() {
 	require.Equal(s.T(), "https://xyz.io?status=", *redirect)
 }
 
-func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
+func (s *serviceTestSuite) unapprovedUserRedirected() (*string, error) {
 	redirect, err := url.Parse("https://openshift.io/_home")
 	require.Nil(s.T(), err)
 
@@ -215,35 +154,29 @@ func (s *serviceBlackBoxTest) unapprovedUserRedirected() (*string, error) {
 	}
 
 	claims := make(map[string]interface{})
-	claims["approved"] = false
-	accessTokenStr, err := testtoken.GenerateAccessTokenWithClaims(claims)
-	require.Nil(s.T(), err)
+	claims["sub"] = uuid.NewV4().String()
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	if err != nil {
+		panic(err)
+	}
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	if err != nil {
+		panic(err)
+	}
 
-	refreshTokenStr, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-
-	token := &oauth2.Token{AccessToken: accessTokenStr, RefreshToken: refreshTokenStr}
-	redirectURL, _, err := s.loginService.CreateOrUpdateIdentityAndUser(context.Background(), redirect, token, req, s.Configuration)
+	token := &oauth2.Token{Expiry: time.Now(), AccessToken: accessToken, RefreshToken: refreshToken}
+	dummyOauth := s.getDummyOauthIDPService(false)
+	redirectURL, _, err := s.loginService.CreateOrUpdateIdentityAndUser(testtoken.ContextWithRequest(context.Background()), redirect, token, req, dummyOauth, s.Configuration)
 	return redirectURL, err
 }
 
-func (s *serviceBlackBoxTest) resetConfiguration() {
+func (s *serviceTestSuite) resetConfiguration() {
 	var err error
 	s.Configuration, err = configuration.GetConfigurationData()
 	require.Nil(s.T(), err)
 }
 
-func (s *serviceBlackBoxTest) checkIfTokenMatchesIdentity(tokenString string, identity account.Identity) {
-	claims, err := testtoken.TokenManager.ParseToken(context.Background(), tokenString)
-	require.Nil(s.T(), err)
-	assert.Equal(s.T(), claims.Company, identity.User.Company)
-	assert.Equal(s.T(), claims.Username, identity.Username)
-	assert.Equal(s.T(), claims.Email, identity.User.Email)
-	assert.Equal(s.T(), claims.Subject, identity.ID.String())
-	assert.Equal(s.T(), claims.Name, identity.User.FullName)
-}
-
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam() {
+func (s *serviceTestSuite) TestKeycloakAuthorizationRedirectsToRedirectParam() {
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
 	u := &url.URL{
@@ -271,11 +204,11 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectsToRedirectParam(
 	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
+	assert.Contains(s.T(), rw.Header().Get("Location"), s.Configuration.GetOAuthEndpointAuth())
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
+func (s *serviceTestSuite) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -298,7 +231,7 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoRefererAndRedirectP
 	assert.Equal(s.T(), 400, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails() {
+func (s *serviceTestSuite) TestKeycloakAuthorizationWithNoValidRefererFails() {
 
 	// since we no longer pass the valid redirect urls as a parameter,
 	existingValidRedirects := os.Getenv("AUTH_REDIRECT_VALID")
@@ -349,11 +282,27 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationWithNoValidRefererFails()
 
 	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
+	assert.Contains(s.T(), rw.Header().Get("Location"), s.Configuration.GetOAuthEndpointAuth())
+	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
+
+	// devcluster valid referrer passes
+	rw = httptest.NewRecorder()
+	prms = url.Values{}
+	prms.Add("redirect", "http://rhche-dfestal-preview-che.devtools-dev.ext.devshift.net/something")
+
+	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
+	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
+	if err != nil {
+		panic("invalid test data " + err.Error()) // bug
+	}
+
+	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
+	assert.Equal(s.T(), 307, rw.Code)
+	assert.Contains(s.T(), rw.Header().Get("Location"), s.Configuration.GetOAuthEndpointAuth())
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 
 }
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
+func (s *serviceTestSuite) TestKeycloakAuthorizationDevModePasses() {
 	// Any redirects pass in Dev mode.
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -375,11 +324,11 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationDevModePasses() {
 
 	err = s.loginService.Login(authorizeCtx, s.oauth, s.Configuration)
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), rw.Header().Get("Location"), s.oauth.Endpoint.AuthURL)
+	assert.Contains(s.T(), rw.Header().Get("Location"), s.Configuration.GetOAuthEndpointAuth())
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceBlackBoxTest) TestInvalidState() {
+func (s *serviceTestSuite) TestInvalidState() {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -408,7 +357,7 @@ func (s *serviceBlackBoxTest) TestInvalidState() {
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
+func (s *serviceTestSuite) TestInvalidOAuthAuthorizationCode() {
 
 	// When a valid referrer talks to our system and provides
 	// an invalid OAuth2.0 code, the access token exchange
@@ -491,26 +440,43 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCode() {
 	assert.Contains(s.T(), locationString, refererUrl)
 }
 
-func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCode() {
-	rw, authorizeCtx := s.loginCallback(make(map[string]string))
-	s.checkLoginCallback(s.dummyOauth, rw, authorizeCtx, "token_json")
-}
-
-func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
-	extra := make(map[string]string)
-	rw, authorizeCtx := s.loginCallback(extra)
-
+func (s *serviceTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOauthService {
+	g := s.NewTestGraph(s.T())
+	newIdentity := g.CreateUser().Identity()
 	claims := make(map[string]interface{})
-	claims["approved"] = nil
+	claims["sub"] = uuid.NewV4()
+	if forApprovedUser {
+		claims["preferred_username"] = newIdentity.Username
+		claims["email"] = newIdentity.User.Email
+		claims["company"] = newIdentity.User.Company
+	}
 	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauth := &dummyOauth2Config{
-		Config:      oauth2.Config{},
-		accessToken: accessToken,
-	}
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.Nil(s.T(), err)
 
-	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
+	dummyOauth := &dummyIDPOauthService{
+		IdentityProvider: *login.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
+		refreshToken:     refreshToken,
+	}
+	return dummyOauth
+}
+
+func (s *serviceTestSuite) TestValidOAuthAuthorizationCode() {
+	rw, authorizeCtx := s.loginCallback(make(map[string]string))
+	dummyOauth := s.getDummyOauthIDPService(true)
+	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "token_json")
+}
+
+func (s *serviceTestSuite) TestUnapprovedUserLoginUnauthorized() {
+	extra := make(map[string]string)
+	rw, authorizeCtx := s.loginCallback(extra)
+
+	dummyOauth := s.getDummyOauthIDPService(false)
+
+	err := s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	assert.Equal(s.T(), 401, rw.Code)
@@ -518,39 +484,66 @@ func (s *serviceBlackBoxTest) TestUnapprovedUserLoginUnauthorized() {
 	assert.Equal(s.T(), 1, len(rw.HeaderMap["Location"]))
 }
 
-func (s *serviceBlackBoxTest) TestAPIClientForApprovedUsersReturnOK() {
+func (s *serviceTestSuite) TestAPIClientForApprovedUsersReturnOK() {
 	s.checkAPIClientForUsersReturnOK(true)
 }
 
-func (s *serviceBlackBoxTest) TestAPIClientForUnapprovedUsersReturnOK() {
+func (s *serviceTestSuite) TestAPIClientForUnapprovedUsersReturnOK() {
 	s.checkAPIClientForUsersReturnOK(false)
 }
 
-func (s *serviceBlackBoxTest) checkAPIClientForUsersReturnOK(approved bool) {
+type dummyIDPOauth interface {
+	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
+	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
+	Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error)
+}
+
+type dummyIDPOauthService struct {
+	login.IdentityProvider
+	accessToken  string
+	refreshToken string
+}
+
+func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+	var thirtyDays, nbf int64
+	thirtyDays = 60 * 60 * 24 * 30
+
+	token := &oauth2.Token{
+		TokenType:    "bearer",
+		AccessToken:  c.accessToken,
+		RefreshToken: c.refreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	extra := make(map[string]interface{})
+	extra["expires_in"] = time.Now().Unix() + thirtyDays
+	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
+	extra["not_before_policy"] = nbf
+	token = token.WithExtra(extra)
+	return token, nil
+}
+
+func (c *dummyIDPOauthService) Profile(ctx context.Context, jwtToken oauth2.Token) (*oauth.UserProfile, error) {
+	jwt, _ := testtoken.TokenManager.ParseToken(ctx, jwtToken.AccessToken)
+	return &oauth.UserProfile{
+		Company:    jwt.Company,
+		Subject:    jwt.Subject,
+		GivenName:  "Test",
+		FamilyName: "User",
+		Username:   jwt.Username,
+		Email:      jwt.Email,
+	}, nil
+}
+
+func (s *serviceTestSuite) checkAPIClientForUsersReturnOK(approved bool) {
 	extra := make(map[string]string)
 	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
 
-	claims := make(map[string]interface{})
-	if !approved {
-		claims["approved"] = nil
-	}
-	claims["sub"] = uuid.NewV4().String()
-	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.Nil(s.T(), err)
-
-	dummyOauth := &dummyOauth2Config{
-		Config:       oauth2.Config{},
-		accessToken:  accessToken,
-		refreshToken: refreshToken,
-	}
-
-	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "api_token")
+	dummyIDPOauthServiceRef := s.getDummyOauthIDPService(false)
+	s.checkLoginCallback(dummyIDPOauthServiceRef, rw, authorizeCtx, "api_token")
 }
 
-func (s *serviceBlackBoxTest) TestDeprovisionedUserLoginUnauthorized() {
+func (s *serviceTestSuite) TestDeprovisionedUserLoginUnauthorized() {
 	extra := make(map[string]string)
 	rw, authorizeCtx := s.loginCallback(extra)
 
@@ -565,9 +558,9 @@ func (s *serviceBlackBoxTest) TestDeprovisionedUserLoginUnauthorized() {
 	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauth := &dummyOauth2Config{
-		Config:      oauth2.Config{},
-		accessToken: accessToken,
+	dummyOauth := &dummyIDPOauthService{
+		IdentityProvider: *login.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
 	}
 
 	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
@@ -578,7 +571,7 @@ func (s *serviceBlackBoxTest) TestDeprovisionedUserLoginUnauthorized() {
 	assert.Equal(s.T(), 1, len(rw.HeaderMap["Location"]))
 }
 
-func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
+func (s *serviceTestSuite) TestNotDeprovisionedUserLoginOK() {
 	extra := make(map[string]string)
 	rw, authorizeCtx := s.loginCallback(extra)
 
@@ -595,105 +588,151 @@ func (s *serviceBlackBoxTest) TestNotDeprovisionedUserLoginOK() {
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauth := &dummyOauth2Config{
-		Config:       oauth2.Config{},
-		accessToken:  accessToken,
-		refreshToken: refreshToken,
+	dummyIDPConfigRef := dummyIDPOauthService{
+		IdentityProvider: *login.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
+		refreshToken:     refreshToken,
 	}
 
-	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
+	err = s.loginService.Login(authorizeCtx, &dummyIDPConfigRef, s.Configuration)
 	require.NoError(s.T(), err)
 
 	assert.Equal(s.T(), 307, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) TestExchangeRefreshTokenFailsIfInvalidToken() {
-	// Fails if invalid format of refresh token
-	s.keycloakTokenService.fail = false
-	_, err := s.loginService.ExchangeRefreshToken(context.Background(), "", "", s.Configuration)
-	require.EqualError(s.T(), err, "token contains an invalid number of segments")
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
-	// Fails if refresh token is expired
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenFailsIfInvalidToken-"+uuid.NewV4().String())
+	tm, err := token.NewManager(s.Configuration)
 	require.NoError(s.T(), err)
 
-	claims := make(map[string]interface{})
-	claims["sub"] = identity.ID.String()
-	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
-	claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
-	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.NoError(s.T(), err)
+	s.T().Run("valid refresh token", func(t *testing.T) {
 
-	ctx := testtoken.ContextWithRequest(nil)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
-	require.EqualError(s.T(), err, "Token is expired")
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+		t.Run("without access token", func(t *testing.T) { // just expect a regular access token
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			claims := make(map[string]interface{})
+			claims["sub"] = user.IdentityID().String()
+			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+			require.NoError(t, err)
+			// when
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			result, err := s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, s.Configuration)
+			// then
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			// verify that the refresh token is valid
+			require.NotNil(t, result.RefreshToken)
+			_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
+			assert.NoError(t, err)
+			// verify that the access token is valid
+			require.NotNil(t, result.AccessToken)
+			_, err = jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
+			assert.NoError(t, err)
+		})
 
-	// OK if not expired
-	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
-	refreshToken, err = testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.NoError(s.T(), err)
+		t.Run("with access token", func(t *testing.T) { // just expect a regular access token
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			claims := make(map[string]interface{})
+			claims["sub"] = user.IdentityID().String()
+			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+			require.NoError(t, err)
+			accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+			require.NoError(t, err)
+			// when
+			result, err := s.loginService.ExchangeRefreshToken(ctx, accessToken, refreshToken, s.Configuration)
+			// then
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			// verify that the refresh token is valid
+			require.NotNil(t, result.RefreshToken)
+			_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
+			assert.NoError(t, err)
+			// verify that the access token is valid
+			resultAccessToken, err := jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
+			require.NoError(t, err)
+			resultAccessTokenClaims := resultAccessToken.Claims.(jwt.MapClaims)
+			require.Nil(t, resultAccessTokenClaims["permissions"])
+		})
 
-	_, err = s.loginService.ExchangeRefreshToken(ctx, refreshToken, "", s.Configuration)
-	require.NoError(s.T(), err)
+		t.Run("with rpt token", func(t *testing.T) { // just expect a regular access token
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			claims := make(map[string]interface{})
+			claims["sub"] = user.IdentityID().String()
+			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+			require.NoError(t, err)
+			accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+			require.NoError(t, err)
+			// obtain an RPT token using the access token
+			space := g.CreateSpace().AddAdmin(user)
+			rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
+			require.NoError(t, err)
+			// when
+			result, err := s.loginService.ExchangeRefreshToken(ctx, *rpt, refreshToken, s.Configuration)
+			// then
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			// verify that the refresh token is valid
+			require.NotNil(t, result.RefreshToken)
+			_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
+			require.NoError(t, err)
+			// verify that the access token is valid
+			require.NotNil(t, result.AccessToken)
+			resultAccessToken, err := jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
+			require.NoError(t, err)
+			resultAccessTokenClaims := resultAccessToken.Claims.(jwt.MapClaims)
+			require.NotNil(t, resultAccessTokenClaims["permissions"])
+		})
 
-	// Fails if KC fails
-	s.keycloakTokenService.fail = true
-	_, err = s.loginService.ExchangeRefreshToken(context.Background(), refreshToken, "", s.Configuration)
-	require.EqualError(s.T(), err, "kc refresh failed")
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+	})
+
+	s.T().Run("fail", func(t *testing.T) {
+
+		t.Run("invalid format", func(t *testing.T) { // Fails if invalid format of refresh token
+			// given
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			// when
+			_, err := s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
+			// then
+			require.EqualError(t, err, "token contains an invalid number of segments")
+			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
+		})
+
+		t.Run("expired", func(t *testing.T) { // Fails if refresh token is expired
+			// given
+			g := s.NewTestGraph(t)
+			user := g.CreateUser()
+			claims := make(map[string]interface{})
+			claims["sub"] = user.IdentityID().String()
+			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+			claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
+			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+			require.NoError(t, err)
+			// when
+			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, s.Configuration)
+			// then
+			require.EqualError(t, err, "Token is expired")
+			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
+		})
+
+	})
+
 }
 
-func (s *serviceBlackBoxTest) TestExchangeRefreshTokenForDeprovisionedUser() {
-	// 1. Fails if identity is deprovisioned
-	s.keycloakTokenService.fail = false
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-
-	// Refresh tokens
-	ctx := testtoken.ContextWithRequest(nil)
-	generatedToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
-	require.NoError(s.T(), err)
-	_, err = s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
-	require.NotNil(s.T(), err)
-	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
-	require.Equal(s.T(), "unauthorized access", err.Error())
-
-	// 2. OK if identity is not deprovisioned
-	identity, err = testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestExchangeRefreshTokenForDeprovisionedUser-"+uuid.NewV4().String())
-	require.NoError(s.T(), err)
-
-	// Generate expected tokens returned by dummy KC service
-	claims := make(map[string]interface{})
-	claims["sub"] = identity.ID.String()
-	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
-	require.NoError(s.T(), err)
-	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-	require.NoError(s.T(), err)
-	typ := "bearer"
-	var in30days int64
-	in30days = 30 * 24 * 60 * 60
-	s.keycloakTokenService.tokenSet = token.TokenSet{AccessToken: &accessToken, RefreshToken: &refreshToken, TokenType: &typ, ExpiresIn: &in30days, RefreshExpiresIn: &in30days}
-
-	// Refresh tokens
-	generatedToken, err = testtoken.TokenManager.GenerateUserTokenForIdentity(ctx, identity, false)
-	require.NoError(s.T(), err)
-	tokenSet, err := s.loginService.ExchangeRefreshToken(ctx, generatedToken.RefreshToken, "", s.Configuration)
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), tokenSet)
-
-	// Compare tokens
-	err = testtoken.EqualAccessTokens(ctx, *s.keycloakTokenService.tokenSet.RefreshToken, *tokenSet.RefreshToken)
-	require.NoError(s.T(), err)
-	err = testtoken.EqualRefreshTokens(ctx, *s.keycloakTokenService.tokenSet.AccessToken, *tokenSet.AccessToken)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), typ, *tokenSet.TokenType)
-	assert.Equal(s.T(), in30days, *tokenSet.ExpiresIn)
-	assert.Equal(s.T(), in30days, *tokenSet.RefreshExpiresIn)
-}
-
-func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
+func (s *serviceTestSuite) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -715,7 +754,8 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	authorizeCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	err = s.loginService.Login(authorizeCtx, s.dummyOauth, s.Configuration)
+	dummyOauth := s.getDummyOauthIDPService(false)
+	err = s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
@@ -753,7 +793,7 @@ func (s *serviceBlackBoxTest) loginCallback(extraParams map[string]string) (*htt
 	return rw, authorizeCtx
 }
 
-func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
+func (s *serviceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOauthService, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
 
 	err := s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
@@ -771,11 +811,11 @@ func (s *serviceBlackBoxTest) checkLoginCallback(dummyOauth *dummyOauth2Config, 
 	require.NotNil(s.T(), tokenJson)
 	require.True(s.T(), len(tokenJson) > 0)
 
-	tokenSet, err := token.ReadTokenSetFromJson(context.Background(), tokenJson[0])
+	_, err = token.ReadTokenSetFromJson(context.Background(), tokenJson[0])
 	require.NoError(s.T(), err)
 
-	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.accessToken, *tokenSet.AccessToken))
-	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.refreshToken, *tokenSet.RefreshToken))
+	//assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.accessToken, *tokenSet.AccessToken))
+	//assert.NoError(s.T(), testtoken.EqualRefreshTokens(context.Background(), dummyOauth.refreshToken, *tokenSet.RefreshToken))
 
 	assert.NotContains(s.T(), locationString, "https://keycloak-url.example.org/path-of-login")
 	assert.Contains(s.T(), locationString, "https://openshift.io/somepath")
@@ -787,9 +827,10 @@ type dummyOauth2Config struct {
 	refreshToken string
 }
 
+const thirtyDays = 60 * 60 * 24 * 30
+
 func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
-	thirtyDays = 60 * 60 * 24 * 30
 	token := &oauth2.Token{
 		TokenType:    "bearer",
 		AccessToken:  c.accessToken,
@@ -804,7 +845,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 	return token, nil
 }
 
-func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
+func (s *serviceTestSuite) TestKeycloakAuthorizationRedirectForAuthorize() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
@@ -849,18 +890,20 @@ func (s *serviceBlackBoxTest) TestKeycloakAuthorizationRedirectForAuthorize() {
 	require.NotNil(s.T(), redirectTo)
 }
 
-func (s *serviceBlackBoxTest) TestValidOAuthAuthorizationCodeForAuthorize() {
+func (s *serviceTestSuite) TestValidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("valid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
 	require.Nil(s.T(), err)
 
-	keycloakToken, err := s.loginService.Exchange(callbackCtx, callbackCtx.Code, s.dummyOauth)
+	dummyIDPOauthServiceRef := s.getDummyOauthIDPService(true)
+
+	keycloakToken, err := s.loginService.Exchange(callbackCtx, callbackCtx.Code, dummyIDPOauthServiceRef)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), keycloakToken)
 }
 
-func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
+func (s *serviceTestSuite) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("invalid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -892,7 +935,7 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 }
 
-func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
+func (s *serviceTestSuite) TestInvalidOAuthStateForAuthorize() {
 
 	rw, callbackCtx := s.authorizeCallback("invalid_state")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -901,7 +944,53 @@ func (s *serviceBlackBoxTest) TestInvalidOAuthStateForAuthorize() {
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
+func (s *serviceTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
+	// given
+	g := s.NewTestGraph(s.T())
+	config := s.Configuration
+	redirectURL := "redirect_url"
+	claims := make(map[string]interface{})
+	user := g.CreateUser()
+	claims["sub"] = user.IdentityID().String()
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+
+	oauth2Token := &oauth2.Token{
+		TokenType:    "bearer",
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	identityProvider := testoauth.NewIdentityProviderMock(s.T())
+	identityProvider.ProfileFunc = func(ctx context.Context, tk oauth2.Token) (*oauth.UserProfile, error) {
+		return &oauth.UserProfile{
+			Username: user.Identity().Username,
+		}, nil
+	}
+	// when
+	resultURL, userToken, err := s.loginService.CreateOrUpdateIdentityAndUser(
+		testtoken.ContextWithRequest(context.Background()),
+		&url.URL{Path: redirectURL},
+		oauth2Token,
+		&goa.RequestData{
+			Request: &http.Request{Host: "test.auth"},
+		},
+		identityProvider,
+		config)
+	// then
+	require.NoError(s.T(), err)
+	assert.NotNil(s.T(), resultURL)
+	require.NotNil(s.T(), userToken)
+	resultAccessTokenClaims, err := testtoken.TokenManager.ParseToken(context.Background(), userToken.AccessToken)
+	require.NoError(s.T(), err)
+	assert.NotEmpty(s.T(), resultAccessTokenClaims.SessionState)
+	s.T().Logf("token claim `session_state`: %v", resultAccessTokenClaims.SessionState)
+
+}
+
+func (s *serviceTestSuite) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -922,7 +1011,8 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.Resp
 	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, &authorizeCtx.RedirectURI, authorizeCtx.APIClient, &authorizeCtx.State, authorizeCtx.ResponseMode, authorizeCtx.RequestData, s.dummyOauth, s.Configuration)
+	dummyOauth := s.getDummyOauthIDPService(false)
+	redirectTo, err := s.loginService.AuthCodeURL(authorizeCtx, &authorizeCtx.RedirectURI, authorizeCtx.APIClient, &authorizeCtx.State, authorizeCtx.ResponseMode, authorizeCtx.RequestData, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
 
 	authorizeCtx.ResponseData.Header().Set("Cache-Control", "no-cache")
@@ -980,16 +1070,4 @@ func (s *serviceBlackBoxTest) authorizeCallback(testType string) (*httptest.Resp
 	require.Nil(s.T(), err)
 
 	return rw, callbackCtx
-}
-
-type DummyTokenService struct {
-	tokenSet token.TokenSet
-	fail     bool
-}
-
-func (s *DummyTokenService) RefreshToken(ctx context.Context, refreshTokenEndpoint string, clientID string, clientSecret string, refreshTokenString string) (*token.TokenSet, error) {
-	if s.fail {
-		return nil, autherrors.NewUnauthorizedError("kc refresh failed")
-	}
-	return &s.tokenSet, nil
 }

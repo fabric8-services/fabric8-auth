@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
+
+	"github.com/fabric8-services/fabric8-auth/rest"
+
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/satori/go.uuid"
@@ -21,12 +25,12 @@ const (
 // OpenShiftIdentityProviderConfig represents an OpenShift Identity Provider
 type OpenShiftIdentityProviderConfig interface {
 	oauth.IdentityProvider
-	OSOCluster() configuration.OSOCluster
+	OSOCluster() cluster.Cluster
 }
 
 type OpenShiftIdentityProvider struct {
 	oauth.OauthIdentityProvider
-	Cluster configuration.OSOCluster
+	Cluster cluster.Cluster
 }
 
 type openshiftUser struct {
@@ -37,24 +41,24 @@ type metadata struct {
 	Name string `json:"name"`
 }
 
-func NewOpenShiftIdentityProvider(cluster configuration.OSOCluster, authURL string) (*OpenShiftIdentityProvider, error) {
+func NewOpenShiftIdentityProvider(cluster cluster.Cluster, authURL string) (*OpenShiftIdentityProvider, error) {
 	provider := &OpenShiftIdentityProvider{}
 	provider.Cluster = cluster
 	provider.ClientID = cluster.AuthClientID
 	provider.ClientSecret = cluster.AuthClientSecret
 	provider.Endpoint = oauth2.Endpoint{
-		AuthURL:  fmt.Sprintf("%s/oauth/authorize", cluster.APIURL),
-		TokenURL: fmt.Sprintf("%s/oauth/token", cluster.APIURL),
+		AuthURL:  fmt.Sprintf("%soauth/authorize", rest.AddTrailingSlashToURL(cluster.APIURL)),
+		TokenURL: fmt.Sprintf("%soauth/token", rest.AddTrailingSlashToURL(cluster.APIURL)),
 	}
 	provider.RedirectURL = authURL + client.CallbackTokenPath()
 	provider.ScopeStr = cluster.AuthClientDefaultScope
 	provider.Config.Scopes = strings.Split(cluster.AuthClientDefaultScope, " ")
 	prID, err := uuid.FromString(cluster.TokenProviderID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unable to convert cluster TokenProviderID to UUID")
 	}
 	provider.ProviderID = prID
-	provider.ProfileURL = fmt.Sprintf("%s/oapi/v1/users/~", cluster.APIURL)
+	provider.ProfileURL = fmt.Sprintf("%soapi/v1/users/~", rest.AddTrailingSlashToURL(cluster.APIURL))
 	return provider, nil
 }
 
@@ -70,7 +74,7 @@ func (provider *OpenShiftIdentityProvider) TypeName() string {
 	return "openshift-v3"
 }
 
-func (provider *OpenShiftIdentityProvider) OSOCluster() configuration.OSOCluster {
+func (provider *OpenShiftIdentityProvider) OSOCluster() cluster.Cluster {
 	return provider.Cluster
 }
 

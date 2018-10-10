@@ -7,16 +7,15 @@ import (
 	"net/url"
 	"strings"
 
+	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -48,8 +47,6 @@ type LinkConfig interface {
 	GetGitHubClientID() string
 	GetGitHubClientDefaultScopes() string
 	GetGitHubClientSecret() string
-	GetOSOClusters() map[string]configuration.OSOCluster
-	GetOSOClusterByURL(url string) *configuration.OSOCluster
 }
 
 // OauthProviderFactory represents oauth provider factory
@@ -279,7 +276,11 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 			}, "unable to lookup user's cluster URL for identity %s", identityID)
 			return nil, errs.NewUnauthorizedError(err.Error())
 		}
-		cluster := service.config.GetOSOClusterByURL(clusterURL)
+
+		cluster, err := service.app.ClusterService().ClusterByURL(ctx, clusterURL)
+		if err != nil {
+			return nil, errs.NewInternalError(ctx, err)
+		}
 		if cluster == nil {
 			log.Error(ctx, map[string]interface{}{
 				"for":         forResource,
@@ -298,7 +299,10 @@ func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context
 	if resourceURL.Host == "github.com" {
 		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
 	}
-	cluster := service.config.GetOSOClusterByURL(forResource)
+	cluster, err := service.app.ClusterService().ClusterByURL(ctx, forResource)
+	if err != nil {
+		return nil, errs.NewInternalError(ctx, err)
+	}
 	if cluster != nil {
 		return NewOpenShiftIdentityProvider(*cluster, authURL)
 	}

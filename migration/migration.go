@@ -72,7 +72,7 @@ func Migrate(db *sql.DB, catalog string, configuration MigrationConfiguration) e
 					"next_version": nextVersion,
 					"migrations":   m,
 					"err":          err,
-				}, "error while rolling back transaction: ", err)
+				}, "error while rolling back transaction")
 				return errs.Errorf("Error while rolling back transaction: %s\n", err)
 			}
 			return oldErr
@@ -210,7 +210,17 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("033-drop-space-resources.sql")})
 
 	// Version 34
-	m = append(m, steps{ExecuteSQLFile("034-admin-console-resource.sql")})
+	m = append(m, steps{ExecuteSQLFile("034-rename-token-table.sql")})
+
+	// Version 35
+	m = append(m, steps{ExecuteSQLFile("035-unique_constraint_default_role_mapping.sql")})
+
+	// Version 36
+	m = append(m, steps{ExecuteSQLFile("036-token-privileges.sql")})
+
+	m = append(m, steps{ExecuteSQLFile("037-invitation-redirect-url.sql")})
+
+	m = append(m, steps{ExecuteSQLFile("038-admin-console-resource.sql")})
 
 	// Version N
 	//

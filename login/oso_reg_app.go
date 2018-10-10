@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/oauth2"
 	"net/http"
 
+	"github.com/fabric8-services/fabric8-auth/application"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/token"
+
+	"golang.org/x/oauth2"
 )
 
 const signUpNeededStatus = "signup_needed"
@@ -39,15 +41,22 @@ type OSOSubscriptionManager interface {
 
 type osoRegistrationApp struct {
 	httpClient rest.HttpClient
+	App        application.Application
 }
 
 // NewOSORegistrationApp constructs a new OSOSubscriptionManager with default HTTP Client
-func NewOSORegistrationApp() OSOSubscriptionManager {
-	return &osoRegistrationApp{httpClient: http.DefaultClient}
+func NewOSORegistrationApp(app application.Application) OSOSubscriptionManager {
+	return &osoRegistrationApp{
+		httpClient: http.DefaultClient,
+		App:        app,
+	}
 }
 
-func NewOSORegistrationAppWithClient(client rest.HttpClient) OSOSubscriptionManager {
-	return &osoRegistrationApp{httpClient: client}
+func NewOSORegistrationAppWithClient(client rest.HttpClient, app application.Application) OSOSubscriptionManager {
+	return &osoRegistrationApp{
+		httpClient: client,
+		App:        app,
+	}
 }
 
 // LoadOSOSubscriptionStatus loads a subscription status from OpenShift Online Registration app
@@ -113,7 +122,11 @@ func (regApp *osoRegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context,
 	}
 
 	for _, subscription := range sbs.Subscriptions {
-		if config.GetOSOClusterByURL(subscription.Plan.Service.APIURL) != nil {
+		cluster, err := regApp.App.ClusterService().ClusterByURL(ctx, subscription.Plan.Service.APIURL)
+		if err != nil {
+			return "", autherrors.NewInternalError(ctx, err)
+		}
+		if cluster != nil {
 			return subscription.Status, nil
 		}
 	}

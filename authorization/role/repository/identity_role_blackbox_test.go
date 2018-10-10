@@ -15,6 +15,7 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	errs "github.com/pkg/errors"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,13 +32,12 @@ type identityRoleBlackBoxTest struct {
 	roleRepo              role.RoleRepository
 }
 
-func TestRunIdentityRoleBlackBoxTest(t *testing.T) {
+func TestIdentityRoleBlackBoxTest(t *testing.T) {
 	suite.Run(t, &identityRoleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *identityRoleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = role.NewIdentityRoleRepository(s.DB)
 	s.identityRepo = account.NewIdentityRepository(s.DB)
 	s.resourceTypeRepo = resourcetype.NewResourceTypeRepository(s.DB)
@@ -74,23 +74,21 @@ func (s *identityRoleBlackBoxTest) TestDeleteUnknownFails() {
 }
 
 func (s *identityRoleBlackBoxTest) TestOKToDeleteForResource() {
-	g := s.NewTestGraph()
-
 	// Test space
-	space := g.CreateSpace()
+	space := s.Graph.CreateSpace()
 	// One viewer in the space
-	space.AddViewer(g.CreateUser())
+	space.AddViewer(s.Graph.CreateUser())
 	// And 5 admins&contributors
 	for i := 0; i < 5; i++ {
-		u := g.CreateUser()
+		u := s.Graph.CreateUser()
 		space.AddAdmin(u)
 		space.AddContributor(u)
 	}
 
 	// Another space which we won't delete
-	spaceX := g.CreateSpace()
+	spaceX := s.Graph.CreateSpace()
 	for i := 0; i < 5; i++ {
-		spaceX.AddAdmin(g.CreateUser())
+		spaceX.AddAdmin(s.Graph.CreateUser())
 	}
 
 	// Check all expected identity roles are present
@@ -169,8 +167,7 @@ func (s *identityRoleBlackBoxTest) TestOKToDeleteForUnknownResource() {
 }
 
 func (s *identityRoleBlackBoxTest) TestDeleteForUnknownIdentityAndResourceFails() {
-	g := s.NewTestGraph()
-	space := g.CreateSpace()
+	space := s.Graph.CreateSpace()
 	//space.AddViewer(g.CreateUser())
 
 	// Unknown user
@@ -180,7 +177,7 @@ func (s *identityRoleBlackBoxTest) TestDeleteForUnknownIdentityAndResourceFails(
 
 	// Unknown resource
 	unknownResourceID := uuid.NewV4().String()
-	identityID := g.CreateUser().Identity().ID
+	identityID := s.Graph.CreateUser().Identity().ID
 	err = s.repo.DeleteForIdentityAndResource(s.Ctx, unknownResourceID, identityID)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", unknownResourceID, identityID)
 
@@ -403,21 +400,20 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByResource() {
 }
 
 func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() {
-	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace()
+	newSpace := s.Graph.CreateSpace()
 
 	var createdIdentities []uuid.UUID
 
 	for i := 0; i <= 10; i++ {
-		user := g.CreateUser()
+		user := s.Graph.CreateUser()
 		newSpace.AddAdmin(user)
 		createdIdentities = append(createdIdentities, user.Identity().ID)
 	}
 
 	// noise
 	for i := 0; i <= 10; i++ {
-		g.CreateSpace().AddAdmin(g.CreateUser())
-		newSpace.AddContributor(g.CreateUser())
+		s.Graph.CreateSpace().AddAdmin(s.Graph.CreateUser())
+		newSpace.AddContributor(s.Graph.CreateUser())
 	}
 
 	for _, i := range createdIdentities {
@@ -430,8 +426,7 @@ func (s *identityRoleBlackBoxTest) TestFindIdentityRolesByIdentityAndResource() 
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
-	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace()
+	newSpace := s.Graph.CreateSpace()
 
 	knownRoleID := getKnownRoleIDForSpace(s)
 
@@ -446,9 +441,8 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownIdentity() {
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
-	g := s.DBTestSuite.NewTestGraph()
-	newSpace := g.CreateSpace()
-	existingUser := g.CreateUser()
+	newSpace := s.Graph.CreateSpace()
+	existingUser := s.Graph.CreateUser()
 
 	ir := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
@@ -461,9 +455,7 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownRole() {
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
-	g := s.DBTestSuite.NewTestGraph()
-
-	existingUser := g.CreateUser()
+	existingUser := s.Graph.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)
 
 	ir := role.IdentityRole{
@@ -477,11 +469,9 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityRolesUnknownResource() {
 }
 
 func (s *identityRoleBlackBoxTest) TestCreateIdentityExistingAssignmentFails() {
-	g := s.DBTestSuite.NewTestGraph()
-
-	existingUser := g.CreateUser()
+	existingUser := s.Graph.CreateUser()
 	knownRoleID := getKnownRoleIDForSpace(s)
-	newSpace := g.CreateSpace()
+	newSpace := s.Graph.CreateSpace()
 
 	ir := role.IdentityRole{
 		IdentityRoleID: uuid.NewV4(),
@@ -526,4 +516,213 @@ func validateAssignee(t *testing.T, amongUsers []uuid.UUID, resourceID string, r
 		}
 	}
 	assert.Fail(t, "user not found")
+}
+
+func (s *identityRoleBlackBoxTest) TestFindScopesByIdentityAndResource() {
+	// Create a new resource type to use for the duration of the test, with two scopes; foo and bar
+	rt := s.Graph.CreateResourceType()
+	rt.AddScope("foo")
+	rt.AddScope("bar")
+
+	// Create a foo role with the foo scope
+	fooRole := s.Graph.CreateRole(rt)
+	fooRole.AddScope("foo")
+
+	// Create a bar role with the bar scope
+	barRole := s.Graph.CreateRole(rt)
+	barRole.AddScope("bar")
+
+	// Create a foobar role with both foo and bar scopes
+	fooBarRole := s.Graph.CreateRole(rt)
+	fooBarRole.AddScope("foo").AddScope("bar")
+
+	// Create a user
+	user1 := s.Graph.CreateUser()
+
+	// Create a resource with the new resource type
+	resource1 := s.Graph.CreateResource(rt)
+
+	// Assign a role directly to the user
+	s.Graph.CreateIdentityRole(user1, resource1, fooRole)
+
+	// Lookup all of user's scopes for the resource
+	scopes, err := s.repo.FindScopesByIdentityAndResource(s.Ctx, user1.IdentityID(), resource1.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be one scope, "foo"
+	require.ElementsMatch(s.T(), scopes, []string{"foo"})
+
+	// Create a child resource of the first resource, of the same resource type
+	childResource := s.Graph.CreateResource(rt, resource1)
+
+	// It should inherit the privileges from its parent resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user1.IdentityID(), childResource.ResourceID())
+	require.NoError(s.T(), err)
+	require.ElementsMatch(s.T(), scopes, []string{"foo"})
+
+	// Create a great-grandchild resource of the first resource
+	ggcResource := s.Graph.CreateResource(rt, s.Graph.CreateResource(rt, childResource))
+
+	// It shouldn't matter how deep the hierarchy is, resources always inherit privileges their parent resource of the same type
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user1.IdentityID(), ggcResource.ResourceID())
+	require.NoError(s.T(), err)
+	require.ElementsMatch(s.T(), scopes, []string{"foo"})
+
+	// Confirm that the user doesn't have any scopes for a random other resource of the same resource type
+	otherResource := s.Graph.CreateResource(rt)
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user1.IdentityID(), otherResource.ResourceID())
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), scopes)
+
+	// create another user
+	user2 := s.Graph.CreateUser()
+	// Create a resource with the new resource type
+	resource2 := s.Graph.CreateResource(rt)
+	// Assign roles directly to the user
+	s.Graph.CreateIdentityRole(user2, resource2, fooRole)
+	s.Graph.CreateIdentityRole(user2, resource2, fooBarRole)
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user2.IdentityID(), resource2.ResourceID())
+	require.NoError(s.T(), err)
+	require.ElementsMatch(s.T(), scopes, []string{"foo", "bar"}) // no scope duplicates
+
+	// Create another user
+	user3 := s.Graph.CreateUser()
+	// Create a team and add the user to the team
+	team := s.Graph.CreateTeam()
+	team.AddMember(user3)
+
+	// Create a resource with the new resource type
+	resource3 := s.Graph.CreateResource(rt)
+
+	// Assign a role directly to the team
+	s.Graph.CreateIdentityRole(team, resource3, barRole)
+
+	// Lookup all of user3's scopes for the resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user3.IdentityID(), resource3.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be one scope, "bar"
+	require.ElementsMatch(s.T(), scopes, []string{"bar"})
+
+	// Now lookup all of user's scopes for resource3
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user1.IdentityID(), resource3.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be no scopes
+	require.Empty(s.T(), scopes)
+
+	// Create another user
+	user4 := s.Graph.CreateUser()
+	// Create a team and add the user to the team
+	team4 := s.Graph.CreateTeam()
+	team4.AddMember(user4)
+	// Create an organization and add the team to the org
+	org3 := s.Graph.CreateOrganization()
+	org3.AddMember(team4)
+
+	// Create a resource with the new resource type
+	resource4 := s.Graph.CreateResource(rt)
+
+	// Assign a role directly to the org
+	s.Graph.CreateIdentityRole(org3, resource4, fooBarRole)
+
+	// Lookup all of user4's scopes for the resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user4.IdentityID(), resource4.ResourceID())
+	require.NoError(s.T(), err)
+
+	// There should be two scopes, "foo" and "bar"
+	require.ElementsMatch(s.T(), scopes, []string{"foo", "bar"})
+
+	// Create another resource type, with scope "alpha"
+	rt2 := s.Graph.CreateResourceType()
+	rt2.AddScope("alpha")
+
+	// Create an role with the alpha scope
+	alphaRole := s.Graph.CreateRole(rt2)
+	alphaRole.AddScope("alpha")
+
+	// Create a child resource of resource4, but with the new resource type
+	resource4Child := s.Graph.CreateResource(rt2, resource4)
+
+	// user4 should not have any scopes for the new child resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user4.IdentityID(), resource4Child.ResourceID())
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), scopes)
+
+	// Map the fooBar role to the alphaRole for resource4
+	s.Graph.CreateRoleMapping(resource4, fooBarRole, alphaRole)
+
+	// Now user4 should have the alpha scope for the new child resource, as the fooBar role is mapped to the alpha role
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user4.IdentityID(), resource4Child.ResourceID())
+	require.NoError(s.T(), err)
+	require.ElementsMatch(s.T(), scopes, []string{"alpha"})
+
+	// Create yet another resource type, with scope "bravo"
+	rt3 := s.Graph.CreateResourceType()
+	rt3.AddScope("bravo")
+
+	// Create a role with the bravo scope
+	bravoRole := s.Graph.CreateRole(rt3)
+	bravoRole.AddScope("bravo")
+
+	// Create a grandchild resource of resource4, with the new resource type
+	resource4Grandchild := s.Graph.CreateResource(rt3, resource4Child)
+
+	// user4 should not have any scopes for the new grandchild resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user4.IdentityID(), resource4Grandchild.ResourceID())
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), scopes)
+
+	// Map alphaRole to bravoRole for the resource
+	s.Graph.CreateRoleMapping(resource4, alphaRole, bravoRole)
+
+	// Ensure that privileges correctly traverse the role mapping hierarchy for a resource
+	scopes, err = s.repo.FindScopesByIdentityAndResource(s.Ctx, user4.IdentityID(), resource4Grandchild.ResourceID())
+	require.NoError(s.T(), err)
+	require.ElementsMatch(s.T(), scopes, []string{"bravo"})
+}
+
+func (s *identityRoleBlackBoxTest) TestFlagPrivilegeCacheAsStale() {
+	// Create a couple of new privilege cache records
+	pc := s.Graph.CreatePrivilegeCache("foo", "bar")
+	pc2 := s.Graph.CreatePrivilegeCache("foo", "bar")
+
+	// Create a couple of token records
+	t := s.Graph.CreateToken()
+	t2 := s.Graph.CreateToken()
+
+	// Link token t to privilege cache entry pc
+	t.AddPrivilege(pc)
+
+	// Assert that the privilege caches are not stale
+	require.False(s.T(), pc.PrivilegeCache().Stale)
+	require.False(s.T(), pc2.PrivilegeCache().Stale)
+
+	// Assert that the tokens are not stale
+	require.False(s.T(), t.Token().HasStatus(token.TOKEN_STATUS_STALE))
+	require.False(s.T(), t2.Token().HasStatus(token.TOKEN_STATUS_STALE))
+
+	// Flag the privilege cache as stale
+	err := s.repo.FlagPrivilegeCacheStaleForIdentityRoleChange(s.Ctx, pc.PrivilegeCache().IdentityID, pc.PrivilegeCache().ResourceID)
+	require.NoError(s.T(), err)
+
+	// Reload the privilege cache
+	pc = s.Graph.LoadPrivilegeCache(pc.PrivilegeCache().PrivilegeCacheID)
+
+	// Assert that the cache is now stale
+	require.True(s.T(), pc.PrivilegeCache().Stale)
+
+	// Assert that pc2 is still not stale
+	pc2 = s.Graph.LoadPrivilegeCache(pc2.PrivilegeCache().PrivilegeCacheID)
+	require.False(s.T(), pc2.PrivilegeCache().Stale)
+
+	// Reload the token
+	t = s.Graph.LoadToken(s.Ctx, t.TokenID())
+
+	// Assert that the token is now stale
+	require.True(s.T(), t.Token().HasStatus(token.TOKEN_STATUS_STALE))
+
+	// Assert that t2 is still not stale
+	t2 = s.Graph.LoadToken(s.Ctx, t2.TokenID())
+	require.False(s.T(), t2.Token().HasStatus(token.TOKEN_STATUS_STALE))
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,13 +27,12 @@ var knownRoles = []KnownRole{
 	{ResourceTypeName: "identity/organization", RoleName: "admin"},
 }
 
-func TestRunRoleBlackBoxTest(t *testing.T) {
+func TestRoleRepositoryBlackBox(t *testing.T) {
 	suite.Run(t, &roleBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 func (s *roleBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = role.NewRoleRepository(s.DB)
 }
 
@@ -84,8 +82,8 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 	t.Run("role exists", func(t *testing.T) {
 		//t.Parallel()
 		role, err := testsupport.CreateTestRoleWithDefaultType(s.Ctx, s.DB, uuid.NewV4().String())
-		require.NoError(s.T(), err)
-		require.NotNil(s.T(), role)
+		require.NoError(t, err)
+		require.NotNil(t, role)
 		// when
 		err = s.repo.CheckExists(s.Ctx, role.RoleID.String())
 		// then
@@ -97,7 +95,7 @@ func (s *roleBlackBoxTest) TestExistsRole() {
 		// Check not existing
 		err := s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
 		// then
-		require.IsType(s.T(), errors.NotFoundError{}, err)
+		require.IsType(t, errors.NotFoundError{}, err)
 	})
 }
 

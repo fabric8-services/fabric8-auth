@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/repository/base"
@@ -69,6 +70,7 @@ type DefaultRoleMappingRepository interface {
 	List(ctx context.Context) ([]DefaultRoleMapping, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
 	FindForResourceType(ctx context.Context, resourceTypeID uuid.UUID) ([]DefaultRoleMapping, error)
+	FindForResourceTypeAndRoles(ctx context.Context, resourceTypeID, fromRoleId, toRoleId uuid.UUID) (*DefaultRoleMapping, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -179,8 +181,20 @@ func (m *GormDefaultRoleMappingRepository) FindForResourceType(ctx context.Conte
 	var rows []DefaultRoleMapping
 
 	err := m.db.Model(&DefaultRoleMapping{}).Where("resource_type_id = ?", resourceTypeID).Find(&rows).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
+	if err != nil && err != gorm.ErrRecordNotFound { // TODO: should we wrap the gorm.ErrRecordNotFound into an errors.NotFoundError ?
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
+}
+
+func (m *GormDefaultRoleMappingRepository) FindForResourceTypeAndRoles(ctx context.Context, resourceTypeID, fromRoleId, toRoleId uuid.UUID) (*DefaultRoleMapping, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "default_role_mapping", "FindForResourceTypeAndRoles"}, time.Now())
+	var result DefaultRoleMapping
+	err := m.db.Model(&DefaultRoleMapping{}).Where("resource_type_id = ? AND from_role_id = ? AND to_role_id = ? ", resourceTypeID, fromRoleId, toRoleId).Find(&result).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errors.NewInternalError(ctx, err)
+	} else if err == gorm.ErrRecordNotFound {
+		return nil, errors.NewNotFoundErrorFromString(fmt.Sprintf("unable to find default mapping role for resource of type of ID '%v' and from role with ID '%v' to role with ID '%v'", resourceTypeID, fromRoleId, toRoleId))
+	}
+	return &result, nil
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 
 	config "github.com/fabric8-services/fabric8-auth/configuration"
@@ -42,7 +43,7 @@ func (s *TestWhiteboxTokenSuite) SetupSuite() {
 }
 
 type authURLConfig struct {
-	config.ConfigurationData
+	*config.ConfigurationData
 	authURL string
 }
 
@@ -52,12 +53,65 @@ func (c *authURLConfig) GetAuthServiceURL() string {
 
 func (s *TestWhiteboxTokenSuite) tokenManagerWithAuthURL() (*tokenManager, string) {
 	authURL := uuid.NewV4().String()
-	m, err := NewManager(&authURLConfig{ConfigurationData: *s.Config, authURL: authURL})
+	m, err := NewManager(&authURLConfig{
+		ConfigurationData: s.Config,
+		authURL:           authURL,
+	})
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), m)
 	tm, ok := m.(*tokenManager)
 	require.True(s.T(), ok)
 	return tm, authURL
+}
+
+func (s *TestWhiteboxTokenSuite) TestDefaultManager() {
+	// Init default manager OK
+	s.assertDefaultManager()
+	s.resetDefaultManager()
+	s.assertDefaultManager()
+
+	// Use broken configuration
+	keyEnv := os.Getenv("AUTH_USERACCOUNT_PRIVATEKEY")
+	defer func() {
+		os.Setenv("AUTH_USERACCOUNT_PRIVATEKEY", keyEnv)
+		s.resetDefaultManager()
+	}()
+	os.Setenv("AUTH_USERACCOUNT_PRIVATEKEY", "broken-key")
+	s.resetDefaultManager()
+	c, err := config.GetConfigurationData() // Broken config
+	require.NoError(s.T(), err)
+	_, err1 := DefaultManager(c)
+	require.Error(s.T(), err1)
+
+	// Default manager is not initialized second time
+	os.Setenv("AUTH_USERACCOUNT_PRIVATEKEY", keyEnv)
+	c, err = config.GetConfigurationData() // Good config
+	require.NoError(s.T(), err)
+	_, err2 := DefaultManager(c)
+	require.Error(s.T(), err2)
+	assert.Equal(s.T(), err1, err2)
+
+	s.resetDefaultManager()
+	manager1, err := DefaultManager(s.Config)
+	require.NoError(s.T(), err)
+	manager2, err := DefaultManager(s.Config)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), manager1, manager2)
+	assert.Equal(s.T(), manager1, defaultManager)
+	assert.NotNil(s.T(), defaultManager)
+}
+
+func (s *TestWhiteboxTokenSuite) resetDefaultManager() {
+	defaultManager = nil
+	defaultErr = nil
+	defaultOnce = sync.Once{}
+}
+
+func (s *TestWhiteboxTokenSuite) assertDefaultManager() {
+	manager, err := DefaultManager(s.Config)
+	require.NoError(s.T(), err)
+	assert.NotNil(s.T(), manager)
+	assert.Equal(s.T(), defaultManager, manager)
 }
 
 func (s *TestWhiteboxTokenSuite) TestAuthServiceAccountGeneratedOK() {

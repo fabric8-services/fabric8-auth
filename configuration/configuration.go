@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/goadesign/goa"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +39,8 @@ const (
 	varHTTPAddress                     = "http.address"
 	varMetricsHTTPAddress              = "metrics.http.address"
 	varDeveloperModeEnabled            = "developer.mode.enabled"
+	varCleanTestDataEnabled            = "clean.test.data"
+	varDBLogsEnabled                   = "enable.db.logs"
 	varNotApprovedRedirect             = "notapproved.redirect"
 	varHeaderMaxLength                 = "header.maxlength"
 	varUsersListLimit                  = "users.listlimit"
@@ -88,6 +88,10 @@ const (
 	varKeycloakEndpointAccount  = "keycloak.endpoint.account"
 	varKeycloakEndpointLogout   = "keycloak.endpoint.logout"
 
+	varOauthEndpointUserInfo = "oauth.endpoint.userinfo"
+	varOauthEndpointAuth     = "oauth.endpoint.auth"
+	varOauthEndpointToken    = "oauth.endpoint.token"
+
 	// Private keys for signing OSIO Serivice Account tokens
 	varServiceAccountPrivateKeyDeprecated   = "serviceaccount.privatekey.deprecated"
 	varServiceAccountPrivateKeyIDDeprecated = "serviceaccount.privatekeyid.deprecated"
@@ -126,18 +130,24 @@ const (
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
 	varAuthURL                = "auth.url"
+	varShortClusterServiceURL = "cluster.url.short"
+
+	// Cluster information refresh interval in nanoseconds
+	varClusterRefreshInterval = "cluster.refresh.int"
 
 	// sentry
 	varEnvironment = "environment"
 	varSentryDSN   = "sentry.dsn"
+
+	// Privilege cache
+	varPrivilegeCacheExpirySeconds = "privilege.cache.expiry.seconds"
+	varRPTTokenMaxPermissions      = "rpt.token.max.permissions"
+
+	secondsInOneDay = 24 * 60 * 60
 )
 
 type serviceAccountConfig struct {
 	Accounts []ServiceAccount
-}
-
-type osoClusterConfig struct {
-	Clusters []OSOCluster
 }
 
 // ServiceAccount represents a service account configuration
@@ -145,23 +155,6 @@ type ServiceAccount struct {
 	Name    string   `mapstructure:"name"`
 	ID      string   `mapstructure:"id"`
 	Secrets []string `mapstructure:"secrets"`
-}
-
-// OSOCluster represents an OSO cluster configuration
-type OSOCluster struct {
-	Name                   string `mapstructure:"name"`
-	APIURL                 string `mapstructure:"api-url"`
-	ConsoleURL             string `mapstructure:"console-url"` // Optional in oso-clusters.conf
-	MetricsURL             string `mapstructure:"metrics-url"` // Optional in oso-clusters.conf
-	LoggingURL             string `mapstructure:"logging-url"` // Optional in oso-clusters.conf
-	AppDNS                 string `mapstructure:"app-dns"`
-	ServiceAccountToken    string `mapstructure:"service-account-token"`
-	ServiceAccountUsername string `mapstructure:"service-account-username"`
-	TokenProviderID        string `mapstructure:"token-provider-id"`
-	AuthClientID           string `mapstructure:"auth-client-id"`
-	AuthClientSecret       string `mapstructure:"auth-client-secret"`
-	AuthClientDefaultScope string `mapstructure:"auth-client-default-scope"`
-	CapacityExhausted      bool   `mapstructure:"capacity-exhausted"` // Optional in oso-clusters.conf ('false' by default)
 }
 
 // ConfigurationData encapsulates the Viper configuration object which stores the configuration data in-memory.
@@ -172,17 +165,13 @@ type ConfigurationData struct {
 	// Service Account Configuration is a map of service accounts where the key == the service account ID
 	sa map[string]ServiceAccount
 
-	// OSO Cluster Configuration is a map of clusters where the key == the OSO cluster API URL
-	clusters              map[string]OSOCluster
-	clusterConfigFilePath string
-
 	defaultConfigurationError error
 
 	mux sync.RWMutex
 }
 
 // NewConfigurationData creates a configuration reader object using configurable configuration file paths
-func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string, osoClusterConfigFile string) (*ConfigurationData, error) {
+func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string) (*ConfigurationData, error) {
 	c := &ConfigurationData{
 		v: viper.New(),
 	}
@@ -222,13 +211,6 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		c.sa[account.ID] = account
 	}
 	c.checkServiceAccountConfig()
-
-	// Set up the OSO cluster configuration (stored in a separate config file)
-	clusterConfigFilePath, err := c.initClusterConfig(osoClusterConfigFile, defaultOsoClusterConfigPath)
-	if err != nil {
-		return nil, err
-	}
-	c.clusterConfigFilePath = clusterConfigFilePath
 
 	// Check sensitive default configuration
 	if c.IsPostgresDeveloperModeEnabled() {
@@ -281,6 +263,10 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetSentryDSN() == "" {
 		c.appendDefaultConfigErrorMessage("Sentry DSN is empty")
 	}
+	c.validateURL(c.GetClusterServiceURL(), "Cluster service")
+	if c.GetClusterCacheRefreshInterval() < 5*time.Second || c.GetClusterCacheRefreshInterval() > time.Hour {
+		c.appendDefaultConfigErrorMessage("Cluster cache refresh interval is less than five seconds or more than one hour")
+	}
 	if c.defaultConfigurationError != nil {
 		log.WithFields(map[string]interface{}{
 			"default_configuration_error": c.defaultConfigurationError.Error(),
@@ -299,48 +285,6 @@ func (c *ConfigurationData) validateURL(serviceURL, serviceName string) {
 			c.appendDefaultConfigErrorMessage(fmt.Sprintf("invalid %s url: %s", serviceName, err.Error()))
 		}
 	}
-}
-
-func (c *ConfigurationData) initClusterConfig(osoClusterConfigFile, defaultClusterConfigFile string) (string, error) {
-	clusterViper, defaultConfigErrorMsg, usedClusterConfigFile, err := readFromJSONFile(osoClusterConfigFile, defaultClusterConfigFile, osoClusterConfigFileName)
-	if err != nil {
-		return usedClusterConfigFile, err
-	}
-	if defaultConfigErrorMsg != nil {
-		c.appendDefaultConfigErrorMessage(*defaultConfigErrorMsg)
-	}
-
-	var clusterConf osoClusterConfig
-	err = clusterViper.Unmarshal(&clusterConf)
-	if err != nil {
-		return usedClusterConfigFile, err
-	}
-	c.clusters = map[string]OSOCluster{}
-	for _, cluster := range clusterConf.Clusters {
-		if cluster.ConsoleURL == "" {
-			cluster.ConsoleURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return usedClusterConfigFile, err
-			}
-		}
-		if cluster.MetricsURL == "" {
-			cluster.MetricsURL, err = convertAPIURL(cluster.APIURL, "metrics", "")
-			if err != nil {
-				return usedClusterConfigFile, err
-			}
-		}
-		if cluster.LoggingURL == "" {
-			// This is not a typo; the logging host is the same as the console host in current k8s
-			cluster.LoggingURL, err = convertAPIURL(cluster.APIURL, "console", "console")
-			if err != nil {
-				return usedClusterConfigFile, err
-			}
-		}
-		c.clusters[cluster.APIURL] = cluster
-	}
-
-	err = c.checkClusterConfig()
-	return usedClusterConfigFile, err
 }
 
 func (c *ConfigurationData) checkServiceAccountConfig() {
@@ -371,54 +315,6 @@ func (c *ConfigurationData) checkServiceAccountConfig() {
 	if len(notFoundServiceAccountNames) != 0 {
 		c.appendDefaultConfigErrorMessage("some expected service accounts are missing in service account config")
 	}
-}
-
-// checkClusterConfig checks if there is any missing keys or empty values in oso-clusters.conf
-func (c *ConfigurationData) checkClusterConfig() error {
-	if len(c.clusters) == 0 {
-		return errors.New("empty cluster config file")
-	}
-
-	err := errors.New("")
-	ok := true
-	for _, cluster := range c.clusters {
-		iVal := reflect.ValueOf(&cluster).Elem()
-		typ := iVal.Type()
-		for i := 0; i < iVal.NumField(); i++ {
-			f := iVal.Field(i)
-			tag := typ.Field(i).Tag.Get("mapstructure")
-			switch f.Interface().(type) {
-			case string:
-				if f.String() == "" {
-					err = errors.Errorf("%s; key %v is missing in cluster config", err.Error(), tag)
-					ok = false
-				}
-			case bool:
-				// Ignore
-			default:
-				err = errors.Errorf("%s; wrong type of key %v", err.Error(), tag)
-				ok = false
-			}
-		}
-	}
-	if !ok {
-		return err
-	}
-	return nil
-}
-
-func convertAPIURL(apiURL string, newPrefix string, newPath string) (string, error) {
-	newURL, err := url.Parse(apiURL)
-	if err != nil {
-		return "", err
-	}
-	newHost, err := rest.ReplaceDomainPrefix(newURL.Host, newPrefix)
-	if err != nil {
-		return "", err
-	}
-	newURL.Host = newHost
-	newURL.Path = newPath
-	return newURL.String(), nil
 }
 
 func readFromJSONFile(configFilePath string, defaultConfigFilePath string, configFileName string) (*viper.Viper, *string, string, error) {
@@ -498,88 +394,6 @@ func getServiceAccountConfigFile() string {
 	return envServiceAccountConfigFile
 }
 
-func getOSOClusterConfigFile() string {
-	envOSOClusterConfigFile, _ := os.LookupEnv("AUTH_OSO_CLUSTER_CONFIG_FILE")
-	return envOSOClusterConfigFile
-}
-
-// InitializeClusterWatcher initializes a file watcher for the cluster config file
-// When the file is updated the configuration synchronously reload the cluster configuration
-func (c *ConfigurationData) InitializeClusterWatcher() (func() error, error) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		for {
-			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-				if event.Op&fsnotify.Remove == fsnotify.Remove {
-					time.Sleep(1 * time.Second) // Wait for one second before re-adding and reloading. It might be needed if the file is removed and then re-added in some environments
-					err = watcher.Add(event.Name)
-					if err != nil {
-						log.WithFields(map[string]interface{}{
-							"file": event.Name,
-						}).Errorln("cluster config was removed but unable to re-add it to watcher")
-					}
-				}
-				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Remove == fsnotify.Remove {
-					// Reload config if operation is Write or Remove.
-					// Both can be part of file update depending on environment and actual operation.
-					err := c.reloadClusterConfig()
-					if err != nil {
-						// Do not crash. Log the error and keep using the existing configuration
-						log.WithFields(map[string]interface{}{
-							"err":  err,
-							"file": event.Name,
-							"op":   event.Op.String(),
-						}).Errorln("unable to reload cluster config file")
-					} else {
-						log.WithFields(map[string]interface{}{
-							"file": event.Name,
-							"op":   event.Op.String(),
-						}).Infoln("cluster config file modified and reloaded")
-					}
-				}
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				log.WithFields(map[string]interface{}{
-					"err": err,
-				}).Errorln("cluster config file watcher error")
-			}
-		}
-	}()
-
-	configFilePath, err := pathExists(c.clusterConfigFilePath)
-	if err == nil && configFilePath != "" {
-		err = watcher.Add(configFilePath)
-		log.WithFields(map[string]interface{}{
-			"file": c.clusterConfigFilePath,
-		}).Infoln("cluster config file watcher initialized")
-	} else {
-		// OK in Dev Mode
-		log.WithFields(map[string]interface{}{
-			"file": c.clusterConfigFilePath,
-		}).Warnln("cluster config file watcher not initialized for non-existent file")
-	}
-
-	return watcher.Close, err
-}
-
-func (c *ConfigurationData) reloadClusterConfig() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	_, err := c.initClusterConfig("", c.clusterConfigFilePath)
-	return err
-}
-
 // DefaultConfigurationError returns an error if the default values is used
 // for sensitive configuration like service account secrets or private keys.
 // Error contains all the details.
@@ -622,31 +436,14 @@ func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
 
-// GetOSOClusters returns a map of OSO cluster configurations by cluster API URL
-func (c *ConfigurationData) GetOSOClusters() map[string]OSOCluster {
-	// Lock for reading because config file watcher can update cluster configuration
-	c.mux.RLock()
-	defer c.mux.RUnlock()
-	return c.clusters
+//GetClusterServiceURL returns the short cluster service url
+// "http://cluster" is the default URL
+func (c *ConfigurationData) GetClusterServiceURL() string {
+	return c.v.GetString(varShortClusterServiceURL)
 }
 
-// GetOSOClusterByURL returns a OSO cluster configurations by matching URL
-// Regardless of trailing slashes if cluster API URL == "https://api.openshift.com"
-// or "https://api.openshift.com/" it will match any "https://api.openshift.com*"
-// like "https://api.openshift.com", "https://api.openshift.com/", or "https://api.openshift.com/patch"
-// Returns nil if no matching API URL found
-func (c *ConfigurationData) GetOSOClusterByURL(url string) *OSOCluster {
-	// Lock for reading because config file watcher can update cluster configuration
-	c.mux.RLock()
-	defer c.mux.RUnlock()
-
-	for apiURL, cluster := range c.clusters {
-		if strings.HasPrefix(rest.AddTrailingSlashToURL(url), apiURL) {
-			return &cluster
-		}
-	}
-
-	return nil
+func (c *ConfigurationData) GetClusterCacheRefreshInterval() time.Duration {
+	return c.v.GetDuration(varClusterRefreshInterval)
 }
 
 // GetDefaultConfigurationFile returns the default configuration file.
@@ -657,7 +454,7 @@ func (c *ConfigurationData) GetDefaultConfigurationFile() string {
 // GetConfigurationData is a wrapper over NewConfigurationData which reads configuration file path
 // from the environment variable.
 func GetConfigurationData() (*ConfigurationData, error) {
-	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile(), getOSOClusterConfigFile())
+	return NewConfigurationData(getMainConfigFile(), getServiceAccountConfigFile())
 }
 
 func (c *ConfigurationData) setConfigDefaults() {
@@ -698,7 +495,17 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
 
+	// By default, test data should be cleaned from DB, unless explicitely said otherwise.
+	c.v.SetDefault(varCleanTestDataEnabled, true)
+	// By default, DB logs are not output in the console
+	c.v.SetDefault(varDBLogsEnabled, false)
+
 	c.v.SetDefault(varLogLevel, defaultLogLevel)
+
+	// By default, test data should be cleaned from DB, unless explicitely said otherwise.
+	c.v.SetDefault(varCleanTestDataEnabled, true)
+	// By default, DB logs are not output in the console
+	c.v.SetDefault(varDBLogsEnabled, false)
 
 	// WIT related defaults
 	c.v.SetDefault(varWITDomainPrefix, defaultWITDomainPrefix)
@@ -751,6 +558,16 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// prod-preview or prod
 	c.v.SetDefault(varEnvironment, "local")
+
+	// Privilege cache expiry
+	c.v.SetDefault(varPrivilegeCacheExpirySeconds, secondsInOneDay)
+
+	// RPT Token maximum permissions
+	c.v.SetDefault(varRPTTokenMaxPermissions, 10)
+
+	// Cluster service
+	c.v.SetDefault(varShortClusterServiceURL, "http://f8cluster")
+	c.v.SetDefault(varClusterRefreshInterval, 5*time.Minute) // 5 minutes
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -858,6 +675,16 @@ func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 	return c.v.GetBool(varDeveloperModeEnabled)
 }
 
+// IsCleanTestDataEnabled returns `true` if the test data should be cleaned after each test. (default: true)
+func (c *ConfigurationData) IsCleanTestDataEnabled() bool {
+	return c.v.GetBool(varCleanTestDataEnabled)
+}
+
+// IsDBLogsEnabled returns `true` if the DB logs (ie, SQL queries) should be output in the console. (default: false)
+func (c *ConfigurationData) IsDBLogsEnabled() bool {
+	return c.v.GetBool(varDBLogsEnabled)
+}
+
 // GetMaxUsersListLimit returns the max number of users returned when searching users
 func (c *ConfigurationData) GetMaxUsersListLimit() int {
 	return c.v.GetInt(varUsersListLimit)
@@ -899,7 +726,7 @@ func (c *ConfigurationData) GetDeprecatedUserAccountPrivateKey() ([]byte, string
 	return []byte(c.v.GetString(varUserAccountPrivateKeyDeprecated)), c.v.GetString(varUserAccountPrivateKeyIDDeprecated)
 }
 
-// GetUserAccountPrivateKey returns the service account private key and its ID
+// GetUserAccountPrivateKey returns the user account private key and its ID
 // that is used to sign user access and refresh tokens.
 func (c *ConfigurationData) GetUserAccountPrivateKey() ([]byte, string) {
 	return []byte(c.v.GetString(varUserAccountPrivateKey)), c.v.GetString(varUserAccountPrivateKeyID)
@@ -1092,6 +919,33 @@ func (c *ConfigurationData) GetKeycloakAccountEndpoint(req *goa.RequestData) (st
 	return c.getKeycloakEndpoint(req, varKeycloakEndpointAccount, "auth/realms/"+c.GetKeycloakRealm()+"/account")
 }
 
+// GetUserInfoEndpoint returns the API URL for reading User Accounts details as per OIDC spec
+func (c *ConfigurationData) GetUserInfoEndpoint() string {
+	if c.v.IsSet(varOauthEndpointUserInfo) {
+		return c.v.GetString(varOauthEndpointUserInfo)
+	}
+	// soft migration: keep using the keycloak url if nothing explicitly is defined.
+	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("userinfo"))
+}
+
+// GetOAuthEndpointAuth returns the URL for requesting for the 'code' as per OIDC spec
+func (c *ConfigurationData) GetOAuthEndpointAuth() string {
+	if c.v.IsSet(varOauthEndpointAuth) {
+		return c.v.GetString(varOauthEndpointAuth)
+	}
+	// soft migration: keep using the keycloak url if nothing explicitly is defined.
+	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("auth"))
+}
+
+// GetOAuthEndpointToken returns the URL to request token as per OIDC spec
+func (c *ConfigurationData) GetOAuthEndpointToken() string {
+	if c.v.IsSet(varOauthEndpointToken) {
+		return c.v.GetString(varOauthEndpointToken)
+	}
+	// soft migration: keep using the keycloak url if nothing explicitly is defined.
+	return fmt.Sprintf("%s/%s", c.GetKeycloakURL(), c.openIDConnectPath("token"))
+}
+
 // GetKeycloakEndpointLogout returns the keycloak logout endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
@@ -1260,4 +1114,15 @@ func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 // `AUTH_ENVIRONMENT` is set.
 func (c *ConfigurationData) GetEnvironment() string {
 	return c.v.GetString(varEnvironment)
+}
+
+// GetPrivilegeCacheExpirySeconds returns the configured number of seconds after which a create privilege cache entry
+// should expire, should it not be marked as stale before this time
+func (c *ConfigurationData) GetPrivilegeCacheExpirySeconds() int64 {
+	return c.v.GetInt64(varPrivilegeCacheExpirySeconds)
+}
+
+// GetRPTTokenMaxPermissions returns the maximum number of permissions that may be stored in an RPT token
+func (c *ConfigurationData) GetRPTTokenMaxPermissions() int {
+	return c.v.GetInt(varRPTTokenMaxPermissions)
 }

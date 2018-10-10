@@ -35,7 +35,7 @@ type User struct {
 	URL           string // The URL of the User
 	Company       string // The (optional) Company of the User
 	FeatureLevel  string // the level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
-	Cluster       string // The OpenShift cluster allocted to the user.
+	Cluster       string // The OpenShift cluster allocated to the user.
 	// Whether the user has been deprovisioned
 	Deprovisioned      bool                       `gorm:"column:deprovisioned"`
 	Identities         []Identity                 // has many Identities from different IDPs
@@ -44,7 +44,7 @@ type User struct {
 
 const (
 	// DefaultFeatureLevel the default feature level for users: `released`, which means that they don't have access to preproduction/unreleased features.
-	DefaultFeatureLevel string = "released" // the default value, which is also the default DB column value
+	DefaultFeatureLevel = "released" // the default value, which is also the default DB column value
 )
 
 // TableName overrides the table name settings in Gorm to force a specific table name

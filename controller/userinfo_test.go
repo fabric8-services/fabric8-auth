@@ -6,7 +6,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/account/repository"
-	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	. "github.com/fabric8-services/fabric8-auth/controller"
@@ -24,50 +23,48 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TestUserInfoREST struct {
+type UserInfoControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
 }
 
-func TestRunUserInfoREST(t *testing.T) {
+func TestUserInfoController(t *testing.T) {
 	resource.Require(t, resource.Database)
-	suite.Run(t, &TestUserInfoREST{})
+	suite.Run(t, &UserInfoControllerTestSuite{})
 }
 
-func (rest *TestUserInfoREST) SecuredController(identity repository.Identity) (*goa.Service, *UserinfoController) {
+func (s *UserInfoControllerTestSuite) SecuredController(identity repository.Identity) (*goa.Service, *UserinfoController) {
 	svc := testsupport.ServiceAsUser("Userinfo-Service", identity)
-	userInfoProvider := service.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
-	controller := NewUserinfoController(svc, userInfoProvider, rest.Application, testtoken.TokenManager)
+	controller := NewUserinfoController(svc, s.Application, testtoken.TokenManager)
 	return svc, controller
 }
 
-func (rest *TestUserInfoREST) UnsecuredController() (*goa.Service, *UserinfoController) {
+func (s *UserInfoControllerTestSuite) UnsecuredController() (*goa.Service, *UserinfoController) {
 	svc := goa.New("Userinfo-Service")
-	userInfoProvider := service.NewUserInfoProvider(rest.Application.Identities(), rest.Application.Users(), testtoken.TokenManager, rest.Application)
-	controller := NewUserinfoController(svc, userInfoProvider, rest.Application, testtoken.TokenManager)
+	controller := NewUserinfoController(svc, s.Application, testtoken.TokenManager)
 	return svc, controller
 }
 
-func (rest *TestUserInfoREST) TestShowUserInfoOK() {
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, "userTestShowUserInfoOK"+uuid.NewV4().String())
-	require.Nil(rest.T(), err)
+func (s *UserInfoControllerTestSuite) TestShowUserInfoOK() {
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "userTestShowUserInfoOK"+uuid.NewV4().String())
+	require.Nil(s.T(), err)
 
-	svc, ctrl := rest.SecuredController(identity)
-	_, userInfo := test.ShowUserinfoOK(rest.T(), svc.Context, svc, ctrl)
+	svc, ctrl := s.SecuredController(identity)
+	_, userInfo := test.ShowUserinfoOK(s.T(), svc.Context, svc, ctrl)
 
-	rest.assertCurrentUserInfo(userInfo, identity, identity.User)
+	s.assertCurrentUserInfo(userInfo, identity, identity.User)
 }
 
-func (rest *TestUserInfoREST) TestPrivateEmailVisibleIfNotPrivate() {
-	rest.checkPrivateEmailVisible(false)
+func (s *UserInfoControllerTestSuite) TestPrivateEmailVisibleIfNotPrivate() {
+	s.checkPrivateEmailVisible(false)
 }
 
-func (rest *TestUserInfoREST) TestPrivateEmailVisibleIfPrivate() {
-	rest.checkPrivateEmailVisible(true)
+func (s *UserInfoControllerTestSuite) TestPrivateEmailVisibleIfPrivate() {
+	s.checkPrivateEmailVisible(true)
 }
 
-func (rest *TestUserInfoREST) TestShowUserInfoFailsWithInvalidToken() {
-	svc, ctrl := rest.UnsecuredController()
-	test.ShowUserinfoUnauthorized(rest.T(), svc.Context, svc, ctrl)
+func (s *UserInfoControllerTestSuite) TestShowUserInfoFailsWithInvalidToken() {
+	svc, ctrl := s.UnsecuredController()
+	test.ShowUserinfoUnauthorized(s.T(), svc.Context, svc, ctrl)
 
 	// Creates an unsigned Token without subject
 	jwtToken := jwtgo.NewWithClaims(jwtgo.SigningMethodRS256, jwtgo.MapClaims{
@@ -78,28 +75,28 @@ func (rest *TestUserInfoREST) TestShowUserInfoFailsWithInvalidToken() {
 	})
 	ctx := jwt.WithJWT(svc.Context, jwtToken)
 
-	_, err := test.ShowUserinfoUnauthorized(rest.T(), ctx, svc, ctrl)
-	require.Equal(rest.T(), err.Errors[0].Detail, fmt.Sprintf("bad token"))
+	_, err := test.ShowUserinfoUnauthorized(s.T(), ctx, svc, ctrl)
+	require.Equal(s.T(), err.Errors[0].Detail, fmt.Sprintf("bad or missing token"))
 
 	// We are adding subject, but subject is not matching any of the identities that we have
 	sub := uuid.NewV4().String()
 	jwtToken.Claims.(jwtgo.MapClaims)["sub"] = sub
-	_, err = test.ShowUserinfoUnauthorized(rest.T(), ctx, svc, ctrl)
-	require.Equal(rest.T(), err.Errors[0].Detail, fmt.Sprintf("auth token contains id %s of unknown Identity\n", sub))
+	_, err = test.ShowUserinfoUnauthorized(s.T(), ctx, svc, ctrl)
+	require.Equal(s.T(), err.Errors[0].Detail, fmt.Sprintf("auth token contains id %s of unknown Identity\n", sub))
 }
 
-func (rest *TestUserInfoREST) TestShowUserinfoDeprovisionedUserFails() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, "TestShowUserinfoDeprovisionedUserFails"+uuid.NewV4().String())
-	require.NoError(rest.T(), err)
+func (s *UserInfoControllerTestSuite) TestShowUserinfoDeprovisionedUserFails() {
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestShowUserinfoDeprovisionedUserFails"+uuid.NewV4().String())
+	require.NoError(s.T(), err)
 
-	svc, userCtrl := rest.SecuredController(identity)
-	rw, _ := test.ShowUserinfoUnauthorized(rest.T(), svc.Context, svc, userCtrl)
+	svc, userCtrl := s.SecuredController(identity)
+	rw, _ := test.ShowUserinfoUnauthorized(s.T(), svc.Context, svc, userCtrl)
 
-	assert.Equal(rest.T(), "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
-	assert.Contains(rest.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
+	assert.Equal(s.T(), "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Contains(s.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 
-func (rest *TestUserInfoREST) checkPrivateEmailVisible(emailPrivate bool) {
+func (s *UserInfoControllerTestSuite) checkPrivateEmailVisible(emailPrivate bool) {
 	testUser := repository.User{
 		ID:           uuid.NewV4(),
 		Email:        uuid.NewV4().String(),
@@ -108,26 +105,26 @@ func (rest *TestUserInfoREST) checkPrivateEmailVisible(emailPrivate bool) {
 		EmailPrivate: emailPrivate,
 	}
 
-	identity, err := testsupport.CreateTestUser(rest.DB, &testUser)
-	require.NoError(rest.T(), err)
-	svc, ctrl := rest.SecuredController(identity)
+	identity, err := testsupport.CreateTestUser(s.DB, &testUser)
+	require.NoError(s.T(), err)
+	svc, ctrl := s.SecuredController(identity)
 
-	_, returnedUserinfo := test.ShowUserinfoOK(rest.T(), svc.Context, svc, ctrl)
-	require.NotNil(rest.T(), returnedUserinfo)
-	require.Equal(rest.T(), testUser.Email, *returnedUserinfo.Email)
+	_, returnedUserinfo := test.ShowUserinfoOK(s.T(), svc.Context, svc, ctrl)
+	require.NotNil(s.T(), returnedUserinfo)
+	require.Equal(s.T(), testUser.Email, *returnedUserinfo.Email)
 }
 
-func (rest *TestUserInfoREST) assertCurrentUserInfo(actualUser *app.UserInfo, expectedIdentity repository.Identity, expectedUser repository.User) {
-	require.NotNil(rest.T(), actualUser)
-	require.NotNil(rest.T(), actualUser.Email)
-	require.Equal(rest.T(), expectedUser.Email, *actualUser.Email)
-	require.NotNil(rest.T(), actualUser.PreferredUsername)
-	require.Equal(rest.T(), expectedIdentity.Username, *actualUser.PreferredUsername)
-	require.NotNil(rest.T(), actualUser.Sub)
-	require.Equal(rest.T(), expectedIdentity.ID.String(), *actualUser.Sub)
-	require.NotNil(rest.T(), actualUser.GivenName)
-	require.NotNil(rest.T(), actualUser.FamilyName)
+func (s *UserInfoControllerTestSuite) assertCurrentUserInfo(actualUser *app.UserInfo, expectedIdentity repository.Identity, expectedUser repository.User) {
+	require.NotNil(s.T(), actualUser)
+	require.NotNil(s.T(), actualUser.Email)
+	require.Equal(s.T(), expectedUser.Email, *actualUser.Email)
+	require.NotNil(s.T(), actualUser.PreferredUsername)
+	require.Equal(s.T(), expectedIdentity.Username, *actualUser.PreferredUsername)
+	require.NotNil(s.T(), actualUser.Sub)
+	require.Equal(s.T(), expectedIdentity.ID.String(), *actualUser.Sub)
+	require.NotNil(s.T(), actualUser.GivenName)
+	require.NotNil(s.T(), actualUser.FamilyName)
 	givenName, familyName := account.SplitFullName(expectedUser.FullName)
-	require.Equal(rest.T(), givenName, *actualUser.GivenName)
-	require.Equal(rest.T(), familyName, *actualUser.FamilyName)
+	require.Equal(s.T(), givenName, *actualUser.GivenName)
+	require.Equal(s.T(), familyName, *actualUser.FamilyName)
 }

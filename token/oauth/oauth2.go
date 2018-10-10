@@ -40,7 +40,15 @@ type OauthIdentityProvider struct {
 
 // UserProfile represents a user profile fetched from Identity Provider
 type UserProfile struct {
-	Username string
+	Name          string
+	Username      string
+	GivenName     string
+	FamilyName    string
+	Email         string
+	EmailVerified bool
+	Company       string
+	Approved      bool
+	Subject       string
 }
 
 // UserProfilePayload fetches user profile payload from Identity Provider

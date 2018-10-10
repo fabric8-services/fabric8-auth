@@ -3,29 +3,28 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	"github.com/fabric8-services/fabric8-auth/errors"
-
-	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/notification"
-	"github.com/fabric8-services/fabric8-auth/wit"
-	"github.com/fabric8-services/fabric8-auth/wit/witservice"
-	goauuid "github.com/goadesign/goa/uuid"
+	errs "github.com/pkg/errors"
+
 	"github.com/satori/go.uuid"
-	"strings"
 )
 
 type InvitationConfiguration interface {
 	GetAuthServiceURL() string
-	GetWITURL() (string, error)
 	IsPostgresDeveloperModeEnabled() bool
 }
 
@@ -51,7 +50,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	var identityResource *resource.Resource
 	var inviteToResource *resource.Resource
 
-	notifications := []invitationNotification{}
+	var notifications []invitationNotification
 
 	err := s.ExecuteInTransaction(func() error {
 
@@ -131,6 +130,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 		// 1) a valid user has been specified via its Identity ID
 		// 2) any roles specified are valid roles for the organization, team or security group
 		// For each invitation, ensure that the IdentityID value can be found and set it
+		// 3) create invitation records
 		for _, invitation := range invitations {
 			// Load the identity
 			identity, err := s.Repositories().Identities().Load(ctx, *invitation.IdentityID)
@@ -146,12 +146,18 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 				// We cannot invite members to a resource, only certain identity types
 				return errors.NewBadParameterErrorFromString("Member", invitation.IdentityID, "can not invite members to a resource")
 			}
-		}
 
-		// Create the invitation records
-		for _, invitation := range invitations {
+			// Create the invitation records
 			inv := new(invitationrepo.Invitation)
 			inv.IdentityID = *invitation.IdentityID
+			inv.Identity = *identity
+			if len(invitation.RedirectOnSuccess) > 0 {
+				inv.SuccessRedirectURL = invitation.RedirectOnSuccess
+			}
+
+			if len(invitation.RedirectOnFailure) > 0 {
+				inv.FailureRedirectURL = invitation.RedirectOnFailure
+			}
 
 			if inviteToIdentity != nil {
 				inv.InviteTo = &inviteToIdentity.ID
@@ -160,9 +166,9 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 				inv.ResourceID = &inviteToResource.ResourceID
 			}
 
-			error := s.Repositories().InvitationRepository().Create(ctx, inv)
-			if error != nil {
-				return errors.NewInternalError(ctx, error)
+			err = s.Repositories().InvitationRepository().Create(ctx, inv)
+			if err != nil {
+				return err
 			}
 
 			// For each role in the invitation, lookup the role and add it to the invitation
@@ -174,15 +180,15 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 					resourceTypeName = inviteToResource.ResourceType.Name
 				}
 
-				role, error := s.Repositories().RoleRepository().Lookup(ctx, roleName, resourceTypeName)
+				role, err := s.Repositories().RoleRepository().Lookup(ctx, roleName, resourceTypeName)
 
-				if error != nil {
+				if err != nil {
 					return errors.NewBadParameterErrorFromString("Roles", roleName, fmt.Sprintf("no such role found for resource type %s", resourceTypeName))
 				}
 
-				error = s.Repositories().InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
-				if error != nil {
-					return errors.NewInternalError(ctx, error)
+				err = s.Repositories().InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
+				if err != nil {
+					return errors.NewInternalError(ctx, err)
 				}
 			}
 
@@ -200,7 +206,8 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 	}
 
 	// Lookup the identity record of the user doing the inviting
-	inviter, err := s.Repositories().Identities().Load(ctx, issuingUserId)
+	inviter, err := s.Repositories().Identities().LoadWithUser(ctx, issuingUserId)
+
 	if err != nil {
 		return err
 	}
@@ -242,175 +249,228 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	teamName := team.IdentityResource.Name
 
 	var spaceName string
-	var err error
-
-	witURL, err := s.config.GetWITURL()
+	res, err := s.Repositories().ResourceRepository().Load(ctx, team.IdentityResourceID.String)
 	if err != nil {
 		return err
 	}
 
 	// Every team *should* have a parent space, but we'll put this check here just in case
-	if !s.config.IsPostgresDeveloperModeEnabled() && team.IdentityResource.ParentResourceID != nil {
-		spaceName, err = lookupSpaceName(ctx, witURL, *team.IdentityResource.ParentResourceID)
+	if res.ParentResourceID != nil {
+		sp, err := s.Services().WITService().GetSpace(ctx, *res.ParentResourceID)
 		if err != nil {
-			return err
+			return errs.Wrap(err, "error while retrieving space from WIT")
 		}
+		spaceName = sp.Name
 	}
 
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s", s.config.GetAuthServiceURL(), client.AcceptInviteInvitationPath(n.invitation.AcceptCode.String()))
 
-		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+		messages = append(messages, notification.NewTeamInvitationEmail(n.invitation.Identity.ID.String(),
 			teamName,
 			inviterName,
 			spaceName,
 			acceptURL))
 	}
 
-	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+	_, e := s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+	return e
 }
 
 // processSpaceInviteNotifications sends an e-mail notification to a user.
 func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
 	inviterName string, notifications []invitationNotification) error {
-
-	var spaceName string
-	var err error
-
-	witURL, err := s.config.GetWITURL()
+	sp, err := s.Services().WITService().GetSpace(ctx, space.ResourceID)
 	if err != nil {
 		return err
 	}
-
-	if !s.config.IsPostgresDeveloperModeEnabled() {
-		spaceName, err = lookupSpaceName(ctx, witURL, space.ResourceID)
-		if err != nil {
-			return err
-		}
-	}
+	spaceName := sp.Name
 
 	var messages []notification.Message
 
 	for _, n := range notifications {
-		acceptURL := fmt.Sprintf("%s/api/invitations/accept?code=%s", s.config.GetAuthServiceURL(), n.invitation.AcceptCode.String())
+		acceptURL := fmt.Sprintf("%s%s", s.config.GetAuthServiceURL(), client.AcceptInviteInvitationPath(n.invitation.AcceptCode.String()))
 
-		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.UserID.UUID.String(),
+		messages = append(messages, notification.NewSpaceInvitationEmail(n.invitation.Identity.ID.String(),
 			spaceName,
 			inviterName,
 			strings.Join(n.roles, ","),
 			acceptURL))
 	}
-
-	return s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+	_, e := s.Services().NotificationService().SendMessagesAsync(ctx, messages)
+	return e
 }
 
-// lookupSpaceName talks to the WIT service to retrieve a space record for the specified spaceID, then
-// returns the name of the space
-func lookupSpaceName(ctx context.Context, witURL string, spaceID string) (string, error) {
-
-	remoteWITService, err := wit.CreateSecureRemoteClientAsServiceAccount(ctx, witURL)
-	if err != nil {
-		return "", err
-	}
-
-	spaceIDUUID, err := goauuid.FromString(spaceID)
-	if err != nil {
-		return "", err
-	}
-
-	response, err := remoteWITService.ShowSpace(ctx, witservice.ShowSpacePath(spaceIDUUID), nil, nil)
-	if err != nil {
-		return "", err
-	}
-
-	spaceSingle, err := remoteWITService.DecodeSpaceSingle(response)
-	if err != nil {
-		return "", err
-	}
-
-	return *spaceSingle.Data.Attributes.Name, nil
-}
-
-// Accept processes an invitation acceptance click, and returns the resource ID of the resource or identity resource which the invitation is for
-func (s *invitationServiceImpl) Accept(ctx context.Context, currentIdentityID uuid.UUID, token uuid.UUID) (string, error) {
-	var resourceID string
-
+// Rescind revokes an invitation request
+func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error {
 	// Locate the invitation
-	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, currentIdentityID, token)
-
+	inv, err := s.Repositories().InvitationRepository().Load(ctx, invitationID)
 	if err != nil {
-		return resourceID, err
+		return errors.NewNotFoundErrorFromString(fmt.Sprintf("invalid identifier '%s' provided for invitation", invitationID.String()))
 	}
 
-	// If this invitation is for an identity
+	// Create the permission service
+	permService := s.Services().PermissionService()
+
 	if inv.InviteTo != nil {
+		// Lookup identity with InviteTo ID
 		inviteToIdentity, err := s.Repositories().Identities().Load(ctx, *inv.InviteTo)
 		if err != nil {
-			return resourceID, err
+			return errors.NewNotFoundErrorFromString(fmt.Sprintf("invalid identifier '%s' provided for organization, team or security group", inv.InviteTo.String()))
 		}
 
-		// If the invitation is for a membership, add a membership record
-		if inv.Member {
-			s.Repositories().Identities().AddMember(ctx, inviteToIdentity.ID, currentIdentityID)
+		if !inviteToIdentity.IdentityResourceID.Valid {
+			return errors.NewNotFoundErrorFromString(fmt.Sprintf("specified identity '%s' has no resource", inv.InviteTo.String()))
 		}
 
-		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
+		identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
 		if err != nil {
-			return resourceID, err
+			return errors.NewInternalError(ctx, err)
 		}
 
-		// If the invitation includes role assignments, assign them
-		for _, role := range roles {
-			ir := &repository.IdentityRole{
-				IdentityID: currentIdentityID,
-				RoleID:     role.RoleID,
-				ResourceID: inviteToIdentity.IdentityResourceID.String,
-			}
-
-			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
-			if err != nil {
-				return resourceID, err
-			}
+		// Confirm that the rescinding user has the necessary scope to manage members for the organization, team or security group
+		err = permService.RequireScope(ctx, rescindingUserID, inviteToIdentity.IdentityResourceID.String, authorization.ScopeForManagingRolesInResourceType(identityResource.ResourceType.Name))
+		if err != nil {
+			return err
 		}
-
-		// Delete the invitation
-		s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
-
-		// Return the identity ID
-		return inviteToIdentity.IdentityResourceID.String, nil
-
 	} else if inv.ResourceID != nil {
+		// Lookup a resource with the ResourceID value
 		inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, *inv.ResourceID)
 		if err != nil {
-			return resourceID, err
+			return errors.NewNotFoundErrorFromString(fmt.Sprintf("invalid identifier '%s' provided for resource", *inv.ResourceID))
 		}
 
-		roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
+		// Confirm that the rescinding user has the manage members scope for the resource
+		err = permService.RequireScope(ctx, rescindingUserID, inviteToResource.ResourceID, authorization.ScopeForManagingRolesInResourceType(inviteToResource.ResourceType.Name))
 		if err != nil {
-			return resourceID, err
+			return err
 		}
-
-		for _, role := range roles {
-			ir := &repository.IdentityRole{
-				IdentityID: currentIdentityID,
-				RoleID:     role.RoleID,
-				ResourceID: inviteToResource.ResourceID,
-			}
-
-			err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
-			if err != nil {
-				return resourceID, err
-			}
-		}
-
-		// Delete the invitation
-		s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
-
-		// Return the resource ID
-		return inviteToResource.ResourceID, nil
 	}
 
-	return "", nil
+	err = s.ExecuteInTransaction(func() error {
+		// Delete the invitation
+		return s.Repositories().InvitationRepository().Delete(ctx, invitationID)
+	})
+	return err
+}
+
+// Accept processes an invitation acceptance click, returns the resource ID of the resource or identity resource which
+// the invitation is for and url to redirect after accepting invitation
+func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (string, string, error) {
+
+	// Locate the invitation
+	inv, err := s.Repositories().InvitationRepository().FindByAcceptCode(ctx, token)
+
+	if err != nil {
+		return "", "", errs.Wrapf(err, "something went wrong while finding invitation with accept code")
+	}
+
+	// get redirect urls
+	redirectOnSuccess := inv.SuccessRedirectURL
+	redirectOnFailure := inv.FailureRedirectURL
+
+	// get identity for invitation
+	currentIdentityID := inv.IdentityID
+	identity, err := s.Repositories().Identities().LoadWithUser(ctx, currentIdentityID)
+	if err != nil {
+		return "", redirectOnFailure, errs.Wrapf(err, "failed to load identity for invitee %d", currentIdentityID)
+	}
+
+	if identity.User.Deprovisioned {
+		return "", redirectOnFailure, autherrors.NewUnauthorizedError("user deprovisioned")
+	}
+
+	var resourceID string
+
+	err = s.ExecuteInTransaction(func() error {
+
+		// If this invitation is for an identity
+		if inv.InviteTo != nil {
+			inviteToIdentity, err := s.Repositories().Identities().Load(ctx, *inv.InviteTo)
+			if err != nil {
+				return err
+			}
+
+			// If the invitation is for a membership, add a membership record
+			if inv.Member {
+				err = s.Repositories().Identities().AddMember(ctx, inviteToIdentity.ID, currentIdentityID)
+				if err != nil {
+					return err
+				}
+			}
+
+			roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
+			if err != nil {
+				return err
+			}
+
+			// If the invitation includes role assignments, assign them
+			inviteToIdentityResourceID := inviteToIdentity.IdentityResourceID.String
+			for _, role := range roles {
+				ir := &repository.IdentityRole{
+					IdentityID: currentIdentityID,
+					RoleID:     role.RoleID,
+					ResourceID: inviteToIdentityResourceID,
+				}
+
+				err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Delete the invitation
+			err = s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
+			if err != nil {
+				return errs.Wrap(err, "failed to create identity role")
+			}
+
+			// Return the identity ID
+			resourceID = inviteToIdentity.IdentityResourceID.String
+
+		} else if inv.ResourceID != nil {
+			inviteToResource, err := s.Repositories().ResourceRepository().Load(ctx, *inv.ResourceID)
+			if err != nil {
+				return errs.Wrapf(err, "failed to load resource %s", resourceID)
+			}
+
+			roles, err := s.Repositories().InvitationRepository().ListRoles(ctx, inv.InvitationID)
+			if err != nil {
+				return errs.Wrapf(err, "failed to load roles for invitation %d", inv.InvitationID)
+			}
+
+			for _, role := range roles {
+				ir := &repository.IdentityRole{
+					IdentityID: currentIdentityID,
+					RoleID:     role.RoleID,
+					ResourceID: inviteToResource.ResourceID,
+				}
+
+				err = s.Repositories().IdentityRoleRepository().Create(ctx, ir)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Delete the invitation
+			err = s.Repositories().InvitationRepository().Delete(ctx, inv.InvitationID)
+			if err != nil {
+				return errs.Wrapf(err, "failed to delete invitation %d", inv.InvitationID)
+			}
+
+			// Set the resource ID
+			resourceID = inviteToResource.ResourceID
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", redirectOnFailure, err
+	}
+
+	// Return the resource ID and redirect path
+	return resourceID, redirectOnSuccess, nil
 }

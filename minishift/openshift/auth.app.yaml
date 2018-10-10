@@ -70,6 +70,11 @@ objects:
               configMapKeyRef:
                 name: ${SERVICE_NAME}
                 key: wit.url
+          - name: AUTH_NOTIFICATION_SERVICEURL
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: notification.serviceurl
           name: ${SERVICE_NAME}
           ports:
           - containerPort: 8089

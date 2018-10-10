@@ -108,14 +108,11 @@ vwIDAQAB
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
 	// In prod mode the following regex will be used by default:
-	DefaultValidRedirectURLs = "^(https|http)://(([^/?#]+[.])?(?i:openshift[.]io)|localhost)((/|:).*)?$" // *.openshift.io/* and localhost
+	DefaultValidRedirectURLs = "^(https|http)://(([^/?#]+[.])?(?i:openshift[.]io)|localhost|(?i:rhche-dfestal-preview-che[.]devtools-dev[.]ext[.]devshift[.]net))((/|:).*)?$" //"^(https|http)://(([^/?#]+[.])?(?i:openshift[.]io)|localhost)((/|:).*)?$" // *.openshift.io/* and localhost
 	devModeValidRedirectURLs = ".*"
 
 	serviceAccountConfigFileName    = "service-account-secrets.conf"
 	defaultServiceAccountConfigPath = "/etc/fabric8/" + serviceAccountConfigFileName
-
-	osoClusterConfigFileName    = "oso-clusters.conf"
-	defaultOsoClusterConfigPath = "/etc/fabric8/" + osoClusterConfigFileName
 
 	prodEnvironment        = "production"
 	prodPreviewEnvironment = "prod-preview"

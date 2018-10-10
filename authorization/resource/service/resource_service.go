@@ -106,6 +106,12 @@ func (s *resourceServiceImpl) Read(ctx context.Context, resourceID string) (*app
 	}, nil
 }
 
+// Checks if the resource with the given ID exists. Returns an `error.NotFoundError` if the resource does not exists,
+// or an `error.InternalServerError` if an error occurred
+func (s *resourceServiceImpl) CheckExists(ctx context.Context, resourceID string) error {
+	return s.Repositories().ResourceRepository().CheckExists(ctx, resourceID)
+}
+
 // Register registers/creates a new resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
 func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error) {
@@ -176,4 +182,9 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 	})
 
 	return res, err
+}
+
+// FindWithRoleByResourceTypeAndIdentity lists all resources of a given type that are available for a given user (i.e, having a direct/inherited role in the resource)
+func (s *resourceServiceImpl) FindWithRoleByResourceTypeAndIdentity(ctx context.Context, resourceType string, identityID uuid.UUID) ([]string, error) {
+	return s.Repositories().ResourceRepository().FindWithRoleByResourceTypeAndIdentity(ctx, resourceType, identityID)
 }

@@ -36,6 +36,10 @@ type Invitation struct {
 	AcceptCode uuid.UUID `sql:"type:uuid" gorm:"column:accept_code"`
 
 	Member bool
+
+	// url's to redirect after accepting invitation in case of success or failure
+	SuccessRedirectURL string `sql:"type:string" gorm:"column:success_redirect_url"`
+	FailureRedirectURL string `sql:"type:string" gorm:"column:failure_redirect_url"`
 }
 
 func (m Invitation) TableName() string {
@@ -82,7 +86,7 @@ type InvitationRepository interface {
 	ListRoles(ctx context.Context, id uuid.UUID) ([]rolerepo.Role, error)
 	AddRole(ctx context.Context, invitationId uuid.UUID, roleId uuid.UUID) error
 
-	FindByAcceptCode(ctx context.Context, identityID uuid.UUID, acceptCode uuid.UUID) (*Invitation, error)
+	FindByAcceptCode(ctx context.Context, acceptCode uuid.UUID) (*Invitation, error)
 }
 
 func (m *GormInvitationRepository) TableName() string {
@@ -274,14 +278,14 @@ func (m *GormInvitationRepository) AddRole(ctx context.Context, invitationId uui
 	return nil
 }
 
-// FindByAcceptCode returns the Invitation record for the specified identity, with the specified accept code
-func (m *GormInvitationRepository) FindByAcceptCode(ctx context.Context, identityID uuid.UUID, acceptCode uuid.UUID) (*Invitation, error) {
+// FindByAcceptCode returns the Invitation record for the specified accept code
+func (m *GormInvitationRepository) FindByAcceptCode(ctx context.Context, acceptCode uuid.UUID) (*Invitation, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "invitation", "FindByAcceptCode"}, time.Now())
 
 	var native Invitation
-	err := m.db.Table(m.TableName()).Where("identity_id = ? AND accept_code = ?", identityID, acceptCode).Find(&native).Error
+	err := m.db.Table(m.TableName()).Where("accept_code = ?", acceptCode).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
-		return nil, errors.NewNotFoundErrorWithKey("invitation", "identity:accept_code", identityID.String()+":"+acceptCode.String())
+		return nil, errors.NewNotFoundErrorWithKey("invitation", "accept_code", acceptCode.String())
 	}
 	return &native, errs.WithStack(err)
 }

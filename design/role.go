@@ -87,6 +87,22 @@ var _ = a.Resource("resource_roles", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.Conflict, JSONAPIErrors)
 	})
+	a.Action("hasScope", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/:resourceId/scopes/:scopeName"),
+		)
+		a.Params(func() {
+			a.Param("resourceId", d.String, "The identifier of the resource to check for a user scope")
+			a.Param("scopeName", d.String, "The name of the scope to check for the user")
+		})
+		a.Description("Checks if the user has the given scope on the requested resource")
+		a.Response(d.OK, identityResourceScope)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+	})
+
 })
 
 // ResourceMedia represents a protected resource
@@ -131,4 +147,26 @@ var assignRoleData = a.Type("AssignRoleData", func() {
 	a.Attribute("role", d.String, "name of the role to assign")
 	a.Attribute("ids", a.ArrayOf(d.String), "identity ids to assign role to")
 	a.Required("role", "ids")
+})
+
+// identityResourceScopes represents a response to a permission/scope check for a user on a given resource
+var identityResourceScope = a.MediaType("application/vnd.resource.scopes+json", func() {
+	a.UseTrait("jsonapi-media-type")
+	a.TypeName("IdentityResourceScope")
+	a.Description("HasScopes for a user on a resource")
+	a.Attributes(func() {
+		a.Attribute("data", identityResourceScopeData)
+		a.Required("data")
+	})
+	a.View("default", func() {
+		a.Attribute("data")
+		a.Required("data")
+	})
+})
+
+// identityResourceScopeData
+var identityResourceScopeData = a.Type("identityResourceScopeData", func() {
+	a.Attribute("scopeName", d.String, "the name of the scope that was checked")
+	a.Attribute("hasScope", d.Boolean, "'true' if the user has the given scope, 'false' otherwise")
+	a.Required("scopeName", "hasScope")
 })

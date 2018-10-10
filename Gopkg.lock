@@ -47,6 +47,31 @@
   version = "v3.9.0"
 
 [[projects]]
+  name = "github.com/dnaeon/go-vcr"
+  packages = [
+    "cassette",
+    "recorder"
+  ]
+  revision = "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
+
+[[projects]]
+  name = "github.com/fabric8-services/fabric8-cluster"
+  packages = ["design"]
+  revision = "edd01596bbe1dabf0f66b6dc431b4b88b35692b8"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/fabric8-services/fabric8-common"
+  packages = [
+    "configuration",
+    "errors",
+    "http/proxy",
+    "httpsupport",
+    "log"
+  ]
+  revision = "41debd6a68ab0999841b3fdc53e3603f16fa76e2"
+
+[[projects]]
   name = "github.com/fabric8-services/fabric8-notification"
   packages = ["design"]
   revision = "907d3253a9e8ae42f61ce7c931fd920df20ee0ec"
@@ -109,6 +134,21 @@
   ]
   revision = "5646a430cdeb66983d5ace3384e0a667c185abc7"
   version = "v1.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/generator"
+  packages = ["."]
+  revision = "487ec858da35ab9b34dea233bb8d91c048645add"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/gojuno/minimock"
+  packages = [
+    ".",
+    "cmd/minimock"
+  ]
+  revision = "79a6ca66b6ac53161df2dfca6cb70e51fd4be8fc"
 
 [[projects]]
   branch = "travis-1.9"
@@ -195,7 +235,8 @@
     ".",
     "oid"
   ]
-  revision = "4a82388ebc5138c8289fe9bc602cb0b3e32cd617"
+  revision = "4ded0e9383f75c197b3a2aaa6d590ac52df6fd79"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/magiconair/properties"
@@ -413,8 +454,11 @@
   packages = [
     "cover",
     "go/ast/astutil",
+    "go/buildutil",
     "go/gcexportdata",
-    "go/gcimporter15"
+    "go/gcimporter15",
+    "go/loader",
+    "imports"
   ]
   revision = "a888bfdffa4526cc6987572bca9a2c6b7758290f"
 
@@ -449,6 +493,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f9ae70a421ff438b6fba3b3902de326a3e8b79ec5dd098a849fccbb3a4722b9f"
+  inputs-digest = "ad058bd5b8a4aa55885ca1be687a29e02a6cde5492d8c62308d4c3b976aded0c"
   solver-name = "gps-cdcl"
   solver-version = 1

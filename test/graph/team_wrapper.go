@@ -104,9 +104,17 @@ func (w *teamWrapper) ResourceID() string {
 }
 
 func (w *teamWrapper) AddMember(wrapper interface{}) *teamWrapper {
-	identityID := w.identityIDFromWrapper(wrapper)
+	identityID := identityIDFromWrapper(w.graph.t, wrapper)
 
-	err := w.graph.db.Exec("INSERT INTO membership (member_id, member_of) VALUES (?, ?)", identityID, w.identity.ID).Error
+	err := w.graph.app.Identities().AddMember(w.graph.ctx, w.identity.ID, identityID)
+	require.NoError(w.graph.t, err)
+	return w
+}
+
+func (w *teamWrapper) RemoveMember(wrapper interface{}) *teamWrapper {
+	identityID := identityIDFromWrapper(w.graph.t, wrapper)
+
+	err := w.graph.app.Identities().RemoveMember(w.graph.ctx, w.identity.ID, identityID)
 	require.NoError(w.graph.t, err)
 	return w
 }

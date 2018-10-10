@@ -7,8 +7,6 @@ import (
 	_ "github.com/lib/pq"
 	"golang.org/x/net/context"
 
-	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
@@ -32,7 +30,6 @@ type BenchDbOperations struct {
 	clean    func()
 	repo     account.IdentityRepository
 	ctx      context.Context
-	appDB    application.DB
 	dbPq     *sql.DB
 	identity *account.Identity
 }
@@ -60,7 +57,6 @@ func (s *BenchDbOperations) SetupSuite() {
 func (s *BenchDbOperations) SetupBenchmark() {
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 	s.repo = account.NewIdentityRepository(s.DB)
-	s.appDB = gormapplication.NewGormDB(s.DB)
 
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),

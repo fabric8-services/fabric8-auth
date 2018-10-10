@@ -64,19 +64,31 @@ func loadSpaceWrapper(g *TestGraph, resourceID string) spaceWrapper {
 
 // AddAdmin assigns the admin role to a user for the space
 func (w *spaceWrapper) AddAdmin(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceAdminRole)
+	addRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceAdminRole)
+	return w
+}
+
+// RemoveAdmin removes the admin role to a user for the space
+func (w *spaceWrapper) RemoveAdmin(wrapper interface{}) *spaceWrapper {
+	removeRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceAdminRole)
 	return w
 }
 
 // AddContributor assigns the admin role to a user for the space
 func (w *spaceWrapper) AddContributor(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceContributorRole)
+	addRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceContributorRole)
 	return w
 }
 
 // AddViewer assigns the admin role to a user for the space
 func (w *spaceWrapper) AddViewer(wrapper interface{}) *spaceWrapper {
-	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, w.identityIDFromWrapper(wrapper), authorization.SpaceViewerRole)
+	addRoleByName(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), authorization.SpaceViewerRole)
+	return w
+}
+
+// AddRole assigns the given role to a user for the space
+func (w *spaceWrapper) AddRole(wrapper interface{}, roleWrapper *roleWrapper) *spaceWrapper {
+	addRole(w.baseWrapper, w.resource, authorization.ResourceTypeSpace, identityIDFromWrapper(w.graph.t, wrapper), roleWrapper.Role())
 	return w
 }
 

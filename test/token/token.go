@@ -81,19 +81,17 @@ func GenerateToken(identityID string, identityUsername string) (string, error) {
 func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
 	token := jwt.New(jwt.SigningMethodRS256)
 
+	// default claims
 	token.Claims.(jwt.MapClaims)["uuid"] = uuid.NewV4().String()
 	token.Claims.(jwt.MapClaims)["preferred_username"] = fmt.Sprintf("testUser-%s", uuid.NewV4().String())
 	token.Claims.(jwt.MapClaims)["sub"] = uuid.NewV4().String()
-
 	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
 	token.Claims.(jwt.MapClaims)["session_state"] = uuid.NewV4().String()
 	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()
 	token.Claims.(jwt.MapClaims)["exp"] = time.Now().Unix() + 60*60*24*30
-
 	token.Claims.(jwt.MapClaims)["nbf"] = 0
 	token.Claims.(jwt.MapClaims)["iss"] = "fabric8-auth"
 	token.Claims.(jwt.MapClaims)["typ"] = "Bearer"
-
 	token.Claims.(jwt.MapClaims)["approved"] = true
 	token.Claims.(jwt.MapClaims)["name"] = "Test User"
 	token.Claims.(jwt.MapClaims)["company"] = "Company Inc."
@@ -101,7 +99,7 @@ func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
 	token.Claims.(jwt.MapClaims)["family_name"] = "User"
 	token.Claims.(jwt.MapClaims)["email"] = fmt.Sprintf("testuser+%s@email.com", uuid.NewV4().String())
 	token.Claims.(jwt.MapClaims)["email_verified"] = true
-
+	// explicit values passed by the caller
 	for key, value := range claims {
 		token.Claims.(jwt.MapClaims)[key] = value
 	}
@@ -122,6 +120,7 @@ func GenerateAccessTokenWithClaims(claims map[string]interface{}) (string, error
 }
 
 func GenerateRefreshTokenWithClaims(claims map[string]interface{}) (string, error) {
+	// reset claims below
 	claims["approved"] = nil
 	claims["company"] = nil
 	claims["email"] = nil
@@ -292,13 +291,25 @@ func EqualRefreshTokens(ctx context.Context, expectedToken, actualToken string) 
 		return err
 	}
 	return equalTokenClaim("sub", expectedClaims, actualClaims)
-
-	return nil
 }
 
 func equalTokenClaim(claimName string, expectedToken, actualToken jwt.MapClaims) error {
 	if expectedToken[claimName] != actualToken[claimName] {
 		return errors.Errorf("'%s' claims are not equal. Expected: %v. Actual: %v", claimName, expectedToken[claimName], actualToken[claimName])
+	}
+	return nil
+}
+
+func EqualAccessTokenWithIdentity(ctx context.Context, accessToken string, expectedIdentity account.Identity) error {
+	actualClaims, err := TokenManager.ParseTokenWithMapClaims(ctx, accessToken)
+	if err != nil {
+		return err
+	}
+	if actualClaims["sub"] != expectedIdentity.ID.String() {
+		return errors.New("mistmatching claim") // TODO: add more details
+	}
+	if actualClaims["preferred_username"] != expectedIdentity.Username {
+		return errors.New("mismatching claim")
 	}
 	return nil
 }

@@ -24,20 +24,6 @@ func WithIdentity(ctx context.Context, ident account.Identity) context.Context {
 	return goajwt.WithJWT(ctx, token)
 }
 
-// WithAuthz fills the context with token
-// Token is filled using input Identity object and resource authorization information
-func WithAuthz(ctx context.Context, key interface{}, ident account.Identity, authz token.AuthorizationPayload) context.Context {
-	token := fillClaimsWithIdentity(ident)
-	token.Claims.(jwt.MapClaims)["authorization"] = authz
-	token.Header["kid"] = "test-key"
-	t, err := token.SignedString(key)
-	if err != nil {
-		panic(err.Error())
-	}
-	token.Raw = t
-	return goajwt.WithJWT(ctx, token)
-}
-
 func fillClaimsWithIdentity(ident account.Identity) *jwt.Token {
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Claims.(jwt.MapClaims)["sub"] = ident.ID.String()
@@ -62,25 +48,21 @@ func fillIncompleteClaimsWithIdentity(ident account.Identity) *jwt.Token {
 	return token
 }
 
-func service(serviceName string, key interface{}, u account.Identity, authz *token.AuthorizationPayload) *goa.Service {
+func service(serviceName string, key interface{}, u account.Identity) *goa.Service {
 	svc := goa.New(serviceName)
-	if authz == nil {
-		svc.Context = WithIdentity(svc.Context, u)
-	} else {
-		svc.Context = WithAuthz(svc.Context, key, u, *authz)
-	}
+	svc.Context = WithIdentity(svc.Context, u)
 	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
 	return svc
 }
 
 // ServiceAsUser creates a new service and fill the context with input Identity
 func ServiceAsUser(serviceName string, u account.Identity) *goa.Service {
-	return service(serviceName, nil, u, nil)
+	return service(serviceName, nil, u)
 }
 
 // ServiceAsUserWithIncompleteClaims creates a new service and fill the context with input Identity
 func ServiceAsUserWithIncompleteClaims(serviceName string, u account.Identity) *goa.Service {
-	svc := service(serviceName, nil, u, nil)
+	svc := service(serviceName, nil, u)
 	svc.Context = WithIncompleteIdentity(svc.Context, u)
 	return svc
 }

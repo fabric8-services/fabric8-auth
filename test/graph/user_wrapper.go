@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"fmt"
+
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -28,22 +30,36 @@ func loadUserWrapper(g *TestGraph, identityID uuid.UUID) userWrapper {
 
 func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := userWrapper{baseWrapper: baseWrapper{g}}
-
+	id := uuid.NewV4()
+	fullname := fmt.Sprintf("TestUser-%s", id)
+	emailPrivate := false
+	for _, param := range params {
+		switch p := param.(type) {
+		case bool:
+			emailPrivate = p
+		case string:
+			fullname = p
+		}
+	}
 	w.user = &account.User{
-		ID:       uuid.NewV4(),
-		Email:    uuid.NewV4().String() + "@random.com",
-		FullName: "TestUser-" + uuid.NewV4().String(),
-		Cluster:  "TestCluster-" + uuid.NewV4().String(),
+		ID:           id,
+		Email:        fmt.Sprintf("TestUser-%s@test.com", id),
+		EmailPrivate: emailPrivate,
+		FullName:     fullname,
+		Cluster:      fmt.Sprintf("TestCluster-%s", id),
+		FeatureLevel: "released",
 	}
 
 	err := g.app.Users().Create(g.ctx, w.user)
 	require.NoError(g.t, err)
 
 	w.identity = &account.Identity{
-		Username:     "TestUserIdentity-" + uuid.NewV4().String(),
+		Username:     fmt.Sprintf("TestUserIdentity-%s", id),
 		ProviderType: account.KeycloakIDP,
 		User:         *w.user,
-		UserID:       account.NullUUID{w.user.ID, true},
+		UserID: account.NullUUID{
+			UUID:  w.user.ID,
+			Valid: true},
 	}
 
 	err = g.app.Identities().Create(g.ctx, w.identity)

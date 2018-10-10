@@ -34,11 +34,22 @@ func NewInvitationController(service *goa.Service, app application.Application, 
 	}
 }
 
-// Create runs the create action.
+// CreateInvite runs the create action.
 func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
 	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	var redirectOnSuccess, redirectOnFailure string
+	links := ctx.Payload.Links
+	if links != nil {
+		if links.OnSuccess != nil {
+			redirectOnSuccess = *links.OnSuccess
+		}
+		if links.OnFailure != nil {
+			redirectOnFailure = *links.OnFailure
+		}
 	}
 
 	var invitations []invitation.Invitation
@@ -57,9 +68,11 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 
 		// Create the Invitation object, and append it to our list of invitations
 		invitations = append(invitations, invitation.Invitation{
-			IdentityID: &identityID,
-			Roles:      invitee.Roles,
-			Member:     *invitee.Member,
+			IdentityID:        &identityID,
+			Roles:             invitee.Roles,
+			Member:            *invitee.Member,
+			RedirectOnSuccess: redirectOnSuccess,
+			RedirectOnFailure: redirectOnFailure,
 		})
 	}
 
@@ -81,16 +94,43 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 	return ctx.Created()
 }
 
-func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
-	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
-
+// RescindInvite runs the revoke action.
+func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationContext) error {
 	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
 	if err != nil {
-		errResponse := err.Error()
-		redirectURL, err = rest.AddParam(redirectURL, "error", errResponse)
-		ctx.ResponseData.Header().Set("Location", redirectURL)
-		return ctx.TemporaryRedirect()
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+
+	invitationID, err := uuid.FromString(ctx.InviteTo)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":          err,
+			"invitationID": invitationID,
+		}, "failed to rescind invitation, invalid invitation id")
+
+		return jsonapi.JSONErrorResponse(ctx, errors.NewNotFoundError("invitationID", invitationID.String()))
+	}
+
+	err = c.app.InvitationService().Rescind(ctx, currentIdentity.ID, invitationID)
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":          err,
+			"invitationID": invitationID,
+		}, "failed to rescind invitation")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"rescinding-user-id": *currentIdentity,
+		"invitation-id":      ctx.InviteTo,
+	}, "invitation rescind")
+
+	return ctx.OK([]byte{})
+}
+
+func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationContext) error {
+	redirectURL := c.config.GetInvitationAcceptedRedirectURL()
 
 	acceptCode, err := uuid.FromString(ctx.AcceptCode)
 	if err != nil {
@@ -104,7 +144,11 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		return ctx.TemporaryRedirect()
 	}
 
-	_, err = c.app.InvitationService().Accept(ctx, currentIdentity.ID, acceptCode)
+	_, invitationRedirectURL, err := c.app.InvitationService().Accept(ctx, acceptCode)
+
+	if len(invitationRedirectURL) > 0 {
+		redirectURL = invitationRedirectURL
+	}
 
 	if err != nil {
 		errResponse := err.Error()
@@ -112,11 +156,16 @@ func (c *InvitationController) AcceptInvite(ctx *app.AcceptInviteInvitationConte
 		if err != nil {
 			return err
 		}
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to accept invitation")
+
+		ctx.ResponseData.Header().Set("Location", redirectURL)
+		return ctx.TemporaryRedirect()
 	}
 
 	log.Debug(ctx, map[string]interface{}{
-		"accepting-user-id": *currentIdentity,
-		"accept-code":       ctx.AcceptCode,
+		"accept-code": ctx.AcceptCode,
 	}, "invitation accepted")
 
 	ctx.ResponseData.Header().Set("Location", redirectURL)

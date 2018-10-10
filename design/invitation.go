@@ -26,7 +26,6 @@ var _ = a.Resource("invitation", func() {
 	})
 
 	a.Action("acceptInvite", func() {
-		a.Security("jwt")
 		a.Routing(
 			a.GET("/accept/:acceptCode"),
 		)
@@ -38,17 +37,39 @@ var _ = a.Resource("invitation", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.BadRequest, JSONAPIErrors)
 	})
+
+	a.Action("rescindInvite", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.DELETE("/:inviteTo"),
+		)
+		a.Params(func() {
+			a.Param("inviteTo", d.String, "Unique identifier for the invitation to the organization, team, security group or resource")
+		})
+		a.Response(d.OK)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.BadRequest, JSONAPIErrors)
+	})
 })
 
 var CreateInvitationRequestMedia = a.MediaType("application/vnd.create_invitation_request+json", func() {
 	a.Description("Request payload required to create new invitations")
 	a.Attributes(func() {
 		a.Attribute("data", a.ArrayOf(invitee), "An array of users invited to become members or to accept a role")
+		a.Attribute("links", redirectURL, "links to redirect after accepting invitation sucessfully or in case of error")
 	})
 	a.Required("data")
 	a.View("default", func() {
 		a.Attribute("data")
+		a.Attribute("links")
 	})
+})
+
+var redirectURL = a.Type("RedirectURL", func() {
+	a.Attribute("OnSuccess", d.String, "URL to be redirected to after successfully accepting invitation. If not set then will redirect to default url's used in auth config.")
+	a.Attribute("OnFailure", d.String, "URL to be redirected to after failed to accept invitation. If not set then will redirect to default url's used in auth config.")
 })
 
 var invitee = a.Type("Invitee", func() {

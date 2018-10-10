@@ -16,28 +16,28 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-type tenantConfig interface {
-	GetTenantServiceURL() string
-}
-
-// Tenant represents Tenant Service
-type Tenant interface {
+// TenantService represents the Tenant service
+type TenantService interface {
 	Init(ctx context.Context) error
 	Delete(ctx context.Context, identityID uuid.UUID) error
 }
 
-type tenantService struct {
+type tenantConfig interface {
+	GetTenantServiceURL() string
+}
+
+type tenantServiceImpl struct {
 	config tenantConfig
 	doer   rest.HttpDoer
 }
 
-// NewTenant creates a new tenant service
-func NewTenant(config tenantConfig) Tenant {
-	return &tenantService{config: config, doer: rest.DefaultHttpDoer()}
+// NewTenantService creates a new tenant service
+func NewTenantService(config tenantConfig) TenantService {
+	return &tenantServiceImpl{config: config, doer: rest.DefaultHttpDoer()}
 }
 
 // Init creates a new tenant in OSO
-func (t *tenantService) Init(ctx context.Context) error {
+func (t *tenantServiceImpl) Init(ctx context.Context) error {
 	c, err := t.createClientWithContextSigner(ctx)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func (t *tenantService) Init(ctx context.Context) error {
 }
 
 // Delete deletes tenants for the identity
-func (t *tenantService) Delete(ctx context.Context, identityID uuid.UUID) error {
+func (t *tenantServiceImpl) Delete(ctx context.Context, identityID uuid.UUID) error {
 	c, err := t.createClientWithServiceAccountSigner(ctx)
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func (t *tenantService) Delete(ctx context.Context, identityID uuid.UUID) error 
 }
 
 // createClientWithContextSigner creates with a signer based on current context
-func (t *tenantService) createClientWithContextSigner(ctx context.Context) (*tenant.Client, error) {
+func (t *tenantServiceImpl) createClientWithContextSigner(ctx context.Context) (*tenant.Client, error) {
 	c, err := t.createClient(ctx)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func (t *tenantService) createClientWithContextSigner(ctx context.Context) (*ten
 }
 
 // createClientWithSASigner creates a client with a JWT signer which uses the Auth Service Account token
-func (t *tenantService) createClientWithServiceAccountSigner(ctx context.Context) (*tenant.Client, error) {
+func (t *tenantServiceImpl) createClientWithServiceAccountSigner(ctx context.Context) (*tenant.Client, error) {
 	c, err := t.createClient(ctx)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (t *tenantService) createClientWithServiceAccountSigner(ctx context.Context
 	return c, nil
 }
 
-func (t *tenantService) createClient(ctx context.Context) (*tenant.Client, error) {
+func (t *tenantServiceImpl) createClient(ctx context.Context) (*tenant.Client, error) {
 	u, err := url.Parse(t.config.GetTenantServiceURL())
 	if err != nil {
 		return nil, err

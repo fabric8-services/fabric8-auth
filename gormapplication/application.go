@@ -11,9 +11,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/auth"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
+	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/token/provider"
 
@@ -49,14 +51,14 @@ const (
 
 //var y application.Application = &GormTransaction{}
 
-func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData) *GormDB {
-	val := new(GormDB)
-	val.db = db.Set("gorm:save_associations", false)
-	val.txIsoLevel = ""
-	val.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
-		return factory.NewServiceContext(val, val, config)
-	}, config)
-	return val
+func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, options ...factory.Option) *GormDB {
+	g := new(GormDB)
+	g.db = db.Set("gorm:save_associations", false)
+	g.txIsoLevel = ""
+	g.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
+		return factory.NewServiceContext(g, g, config, options...)
+	}, config, options...)
+	return g
 }
 
 // GormBase is a base struct for gorm implementations of db & transaction
@@ -133,6 +135,14 @@ func (g *GormBase) RoleMappingRepository() role.RoleMappingRepository {
 	return role.NewRoleMappingRepository(g.db)
 }
 
+func (g *GormBase) TokenRepository() token.TokenRepository {
+	return token.NewTokenRepository(g.db)
+}
+
+func (g *GormBase) PrivilegeCacheRepository() permission.PrivilegeCacheRepository {
+	return permission.NewPrivilegeCacheRepository(g.db)
+}
+
 func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
 }
@@ -143,6 +153,10 @@ func (g *GormDB) OrganizationService() service.OrganizationService {
 
 func (g *GormDB) PermissionService() service.PermissionService {
 	return g.serviceFactory.PermissionService()
+}
+
+func (g *GormDB) PrivilegeCacheService() service.PrivilegeCacheService {
+	return g.serviceFactory.PrivilegeCacheService()
 }
 
 func (g *GormDB) RoleManagementService() service.RoleManagementService {
@@ -161,12 +175,24 @@ func (g *GormDB) SpaceService() service.SpaceService {
 	return g.serviceFactory.SpaceService()
 }
 
+func (g *GormDB) TokenService() service.TokenService {
+	return g.serviceFactory.TokenService()
+}
+
 func (g *GormDB) UserService() service.UserService {
 	return g.serviceFactory.UserService()
 }
 
 func (g *GormDB) NotificationService() service.NotificationService {
 	return g.serviceFactory.NotificationService()
+}
+
+func (g *GormDB) WITService() service.WITService {
+	return g.serviceFactory.WITService()
+}
+
+func (g *GormDB) ClusterService() service.ClusterService {
+	return g.serviceFactory.ClusterService()
 }
 
 func (g *GormBase) DB() *gorm.DB {

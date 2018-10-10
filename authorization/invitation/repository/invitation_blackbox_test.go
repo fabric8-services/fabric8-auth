@@ -26,7 +26,6 @@ func TestRunInvitationBlackBoxTest(t *testing.T) {
 
 func (s *invitationBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.DB.LogMode(true)
 	s.repo = invitationRepo.NewInvitationRepository(s.DB)
 }
 
@@ -190,28 +189,28 @@ func (s *invitationBlackBoxTest) TestAddRoleFailsForInvalidRoleID() {
 }
 
 func (s *invitationBlackBoxTest) TestFindByAcceptCode() {
-	g := s.NewTestGraph()
+	g := s.NewTestGraph(s.T())
 	i := g.CreateInvitation()
 
 	// Create a couple more invitations for some noise
 	g.CreateInvitation()
 	g.CreateInvitation()
 
-	invitation, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().IdentityID, i.Invitation().AcceptCode)
+	invitation, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().AcceptCode)
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), i.Invitation().InvitationID, invitation.InvitationID)
 }
 
 func (s *invitationBlackBoxTest) TestFindByAcceptCodeNotFound() {
-	g := s.NewTestGraph()
-	i := g.CreateInvitation()
+	g := s.NewTestGraph(s.T())
+	g.CreateInvitation()
 
 	// Create a couple more invitations for some noise
 	g.CreateInvitation()
 	g.CreateInvitation()
 
-	_, err := s.repo.FindByAcceptCode(s.Ctx, i.Invitation().IdentityID, uuid.NewV4())
+	_, err := s.repo.FindByAcceptCode(s.Ctx, uuid.NewV4())
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.NotFoundError{}, err)
 }

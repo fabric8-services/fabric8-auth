@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"github.com/fabric8-services/fabric8-auth/app"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -27,6 +28,10 @@ func newInvitationWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	for i := range params {
 		switch t := params[i].(type) {
+		case *resourceWrapper:
+			resourceID = &t.Resource().ResourceID
+		case resourceWrapper:
+			resourceID = &t.Resource().ResourceID
 		case resource.Resource:
 			resourceID = &t.ResourceID
 		case *spaceWrapper:
@@ -59,6 +64,9 @@ func newInvitationWrapper(g *TestGraph, params []interface{}) interface{} {
 			roles = append(roles, t)
 		case repository.Role:
 			roles = append(roles, &t)
+		case *app.RedirectURL:
+			w.invitation.SuccessRedirectURL = *t.OnSuccess
+			w.invitation.FailureRedirectURL = *t.OnFailure
 		}
 	}
 
