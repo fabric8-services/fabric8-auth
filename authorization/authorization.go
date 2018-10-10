@@ -34,6 +34,21 @@ const (
 	// viewScope is the scope required for to contribute aspects of a grouped identity
 	contributeScope = "contribute"
 
+	// ResourceTypeSystem defines the string constant for the system resource type
+	ResourceTypeSystem = "openshift.io/resource/system"
+
+	// SystemAdminRole is the constant used to denote the name of the system resource's administrator role
+	SystemAdminRole = adminRole
+
+	// SystemViewerRole is the constant used to denote the name of the system resource's viewer role
+	SystemViewerRole = viewerRole
+
+	// ViewSystemScope is a general scope required to perform read-only operations on a resource of type system
+	ViewSystemScope = viewerRole
+
+	// ManageSystemScope is a general scope required to perform operations for managing a resource of type system
+	ManageSystemScope = manageScope
+
 	// OrganizationAdminRole is the constant used to denote the name of the organization resource's administrator role
 	OrganizationAdminRole = adminRole
 
@@ -119,6 +134,8 @@ func ScopeForManagingRolesInResourceType(resourceType string) string {
 		return ManageTeamMembersScope
 	case IdentityResourceTypeGroup:
 		return ManageSecurityGroupMembersScope
+	case ResourceTypeSystem:
+		return ManageSystemScope
 	}
 	// a default which we can choose to change later
 	return ManageRoleAssignmentsInSpaceScope
