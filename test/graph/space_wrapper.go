@@ -41,7 +41,7 @@ func newSpaceWrapper(g *TestGraph, params []interface{}) interface{} {
 	if w.parentResource != nil {
 		parentResourceID = &w.parentResource.ResourceID
 	}
-	w.resource, err = g.app.ResourceService().Register(g.ctx, resourceType.Name, resourceID, parentResourceID)
+	w.resource, err = g.app.ResourceService().Register(g.ctx, resourceType.Name, resourceID, parentResourceID, nil)
 	require.NoError(g.t, err)
 
 	return &w

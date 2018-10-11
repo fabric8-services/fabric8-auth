@@ -6,10 +6,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/token"
-
 	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
+	"github.com/satori/go.uuid"
 )
 
 // ResourceController implements the resource resource.
@@ -71,8 +71,17 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("not a service account"))
 	}
 
+	var managerIdentityID *uuid.UUID
+	if ctx.Payload.IdentityID != nil {
+		identityID, err := uuid.FromString(*ctx.Payload.IdentityID)
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("identityID", "incorrect identity ID"))
+		}
+		managerIdentityID = &identityID
+	}
+
 	svc := c.app.ResourceService()
-	res, err := svc.Register(ctx, ctx.Payload.Type, ctx.Payload.ResourceID, ctx.Payload.ParentResourceID)
+	res, err := svc.Register(ctx, ctx.Payload.Type, ctx.Payload.ResourceID, ctx.Payload.ParentResourceID, managerIdentityID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type": ctx.Payload.Type,

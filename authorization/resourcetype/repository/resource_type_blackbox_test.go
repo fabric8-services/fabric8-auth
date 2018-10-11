@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -15,7 +16,8 @@ import (
 
 type resourceTypeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo resourcetype.ResourceTypeRepository
+	repo     resourcetype.ResourceTypeRepository
+	rolerepo role.RoleRepository
 }
 
 var knownResourceTypes = [5]string{
@@ -32,6 +34,7 @@ func TestRunResourceTypeBlackBoxTest(t *testing.T) {
 func (s *resourceTypeBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = resourcetype.NewResourceTypeRepository(s.DB)
+	s.rolerepo = role.NewRoleRepository(s.DB)
 }
 
 func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
@@ -61,6 +64,39 @@ func (s *resourceTypeBlackBoxTest) TestCreateResourceType() {
 	require.Equal(t, resourceTypeRef.Name, rt.Name)
 	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
 
+}
+
+func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithDefaultRoleID() {
+	t := s.T()
+
+	resourceTypeRef := resourcetype.ResourceType{
+		ResourceTypeID: uuid.NewV4(),
+		Name:           uuid.NewV4().String(),
+	}
+	err := s.repo.Create(s.Ctx, &resourceTypeRef)
+	require.NoError(t, err)
+
+	rt, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
+	require.NoError(t, err)
+	require.Equal(t, resourceTypeRef.Name, rt.Name)
+	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
+	require.Nil(t, rt.DefaultRoleID)
+
+	someRole := role.Role{
+		RoleID:         uuid.NewV4(),
+		ResourceTypeID: resourceTypeRef.ResourceTypeID,
+		Name:           uuid.NewV4().String(),
+	}
+	err = s.rolerepo.Create(s.Ctx, &someRole)
+	require.NoError(t, err)
+
+	resourceTypeRef.DefaultRoleID = &someRole.RoleID
+	err = s.repo.Save(s.Ctx, &resourceTypeRef)
+	require.NoError(t, err)
+
+	returnedRTRef, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
+	require.NoError(t, err)
+	require.Equal(t, someRole.RoleID, *returnedRTRef.DefaultRoleID)
 }
 
 func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithoutID() {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authorization"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -114,7 +115,7 @@ func (s *resourceServiceImpl) CheckExists(ctx context.Context, resourceID string
 
 // Register registers/creates a new resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error) {
+func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string, managerIdentityID *uuid.UUID) (*resource.Resource, error) {
 
 	var res *resource.Resource
 
@@ -175,6 +176,29 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 			err = s.Repositories().RoleMappingRepository().Create(ctx, roleMapping)
 			if err != nil {
 				return err
+			}
+		}
+
+		if managerIdentityID != nil {
+			if resourceType.DefaultRoleID != nil {
+				defaultRole, err := s.Repositories().RoleRepository().Load(ctx, *resourceType.DefaultRoleID)
+				if err != nil {
+					return err
+				}
+				if defaultRole != nil {
+					err = s.Services().RoleManagementService().ForceAssign(ctx, *managerIdentityID, defaultRole.Name, *res)
+					if err != nil {
+						return err
+					}
+				}
+
+			} else {
+				// legacy
+				defaultRoleName := authorization.ScopeForManagingRolesInResourceType(resourceType.Name)
+				err = s.Services().RoleManagementService().ForceAssign(ctx, *managerIdentityID, defaultRoleName, *res)
+				if err != nil {
+					return err
+				}
 			}
 		}
 

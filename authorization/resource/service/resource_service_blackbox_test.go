@@ -34,14 +34,14 @@ func (s *resourceServiceBlackBoxTest) SetupSuite() {
 func (s *resourceServiceBlackBoxTest) TestRegisterResourceUnknownResourceTypeFails() {
 	resourceID := uuid.NewV4().String()
 	unknownResourceType := uuid.NewV4().String()
-	_, err := s.resourceService.Register(context.Background(), unknownResourceType, &resourceID, nil)
+	_, err := s.resourceService.Register(context.Background(), unknownResourceType, &resourceID, nil, nil)
 	require.EqualError(s.T(), err, fmt.Sprintf("Bad value for parameter 'type': '%s' - resource_type with name '%s' not found", unknownResourceType, unknownResourceType))
 }
 
 func (s *resourceServiceBlackBoxTest) TestRegisterResourceUnknownParentResourceFails() {
 	resourceID := uuid.NewV4().String()
 	unknownParentID := uuid.NewV4().String()
-	_, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &unknownParentID)
+	_, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &unknownParentID, nil)
 	require.EqualError(s.T(), err, fmt.Sprintf("Bad value for parameter 'parent resource ID': '%s' - resource with id '%s' not found", unknownParentID, unknownParentID))
 }
 
@@ -49,7 +49,7 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithoutParen
 	resourceID := uuid.NewV4().String()
 
 	// Register. No parent
-	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, nil)
+	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, nil, nil)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), resourceID, resource.ResourceID)
 	assert.Equal(s.T(), "", resource.Name)
@@ -78,7 +78,7 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK
 	g := s.DBTestSuite.NewTestGraph(s.T())
 	g.CreateResource(g.ID("myparentresource"))
 	parent := g.ResourceByID("myparentresource").Resource()
-	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &parent.ResourceID)
+	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &parent.ResourceID, nil)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), resourceID, resource.ResourceID)
 	assert.Equal(s.T(), "", resource.Name)
@@ -241,7 +241,7 @@ func (s *resourceServiceBlackBoxTest) TestRoleMappingsCreated() {
 	g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID(rtID2.String())))
 
 	// Register a resource with the same resource type as the default role mapping
-	r, err := s.resourceService.Register(s.Ctx, g.ResourceTypeByID(rtID).ResourceType().Name, nil, nil)
+	r, err := s.resourceService.Register(s.Ctx, g.ResourceTypeByID(rtID).ResourceType().Name, nil, nil, nil)
 	require.NoError(s.T(), err)
 
 	// Find the mappings for the new resource
