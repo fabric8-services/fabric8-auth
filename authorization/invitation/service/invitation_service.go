@@ -90,8 +90,8 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			if identityResource.ResourceType.Name != authorization.IdentityResourceTypeTeam {
 				return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "Invitation is not for a team identity")
 			}
-		} else if inviteToResource != nil && inviteToResource.ResourceType.Name != authorization.ResourceTypeSpace && inviteToResource.ResourceType.Name != authorization.ResourceTypeSystem {
-			return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "Invitation is not for a space or system")
+		} else if inviteToResource != nil && inviteToResource.ResourceType.Name != authorization.ResourceTypeSpace {
+			return errors.NewBadParameterErrorFromString("inviteTo", inviteTo, "Invitation is not for a space")
 		}
 
 		// Create the permission service
