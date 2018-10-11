@@ -37,17 +37,22 @@ const (
 	// ResourceTypeSystem defines the string constant for the system resource type
 	ResourceTypeSystem = "openshift.io/resource/system"
 
-	// SystemAdminRole is the constant used to denote the name of the system resource's administrator role
-	SystemAdminRole = adminRole
+	manageUserScope      = "manage_user"
+	accessScope          = "access"
+	userAdminRole        = "user_admin"
+	adminConsoleUserRole = "admin_console_user"
 
-	// SystemViewerRole is the constant used to denote the name of the system resource's viewer role
-	SystemViewerRole = viewerRole
+	// SystemUserAdminRole is the constant used to denote the name of the system resource's user administrator role
+	SystemUserAdminRole = userAdminRole
 
-	// ViewSystemScope is a general scope required to perform read-only operations on a resource of type system
-	ViewSystemScope = viewerRole
+	// SystemAdminConsoleUser is the constant used to denote the name of the role which allows a user access to the admin console
+	SystemAdminConsoleUser = adminConsoleUserRole
 
-	// ManageSystemScope is a general scope required to perform operations for managing a resource of type system
-	ManageSystemScope = manageScope
+	// AccessSystemScope is a general scope required to access a resource of type system
+	AccessSystemScope = accessScope
+
+	// ManageUserSystemScope is a general scope required to perform operations for managing users in a resource of type system
+	ManageUserSystemScope = manageUserScope
 
 	// OrganizationAdminRole is the constant used to denote the name of the organization resource's administrator role
 	OrganizationAdminRole = adminRole
@@ -135,7 +140,7 @@ func ScopeForManagingRolesInResourceType(resourceType string) string {
 	case IdentityResourceTypeGroup:
 		return ManageSecurityGroupMembersScope
 	case ResourceTypeSystem:
-		return ManageSystemScope
+		return ManageUserSystemScope
 	}
 	// a default which we can choose to change later
 	return ManageRoleAssignmentsInSpaceScope
