@@ -119,6 +119,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration31", testMigration31)
 	t.Run("TestMigration33", testMigration33)
 	t.Run("TestMigration36", testMigration36)
+	t.Run("TestMigration38", testMigration38)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -274,6 +275,21 @@ func testMigration29(t *testing.T) {
 	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ab95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
 	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '07da9f1a-081e-479e-b070-495b3108f027' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
 	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '431c4790-c86f-4937-9223-ac054f6e1251' and role_id = '2d993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
+}
+
+func testMigration38(t *testing.T) {
+
+	migrateToVersion(sqlDB, migrations[:(39)], (39))
+
+	countRows(t, "SELECT count(1) FROM role where  ( name = 'admin_console_user' or name = 'user_admin' ) and resource_type_id = 'f5dd9ef5-1bf6-4222-a844-9247ed961a1d' group by resource_type_id", 2)
+	countRows(t, "SELECT count(1) FROM resource_type_scope where ( name = 'manage_user' or name = 'access' ) and resource_type_id = 'f5dd9ef5-1bf6-4222-a844-9247ed961a1d' group by resource_type_id", 2)
+
+	// for viewer
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ac95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = 'c558b66f-f71c-4614-8109-c9fa8e30f559' )", 1)
+
+	// for admin
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = 'ac95b9d7-755a-4c25-8f78-ac1d613b59c9' and role_id = '2c993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
+	countRows(t, "SELECT count(1) from role_scope where ( scope_id = '4c1c4790-c86c-4937-9223-ac054f6e1251' and role_id = '2c993cbd-83f5-4e8c-858f-ca11bcf718b0' )", 1)
 }
 
 func countRows(t *testing.T, sql string, expectedCount int) {

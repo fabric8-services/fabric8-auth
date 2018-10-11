@@ -220,6 +220,8 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 
 	m = append(m, steps{ExecuteSQLFile("037-invitation-redirect-url.sql")})
 
+	m = append(m, steps{ExecuteSQLFile("038-admin-console-resource.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
