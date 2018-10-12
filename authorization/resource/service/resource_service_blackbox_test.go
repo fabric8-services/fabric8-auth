@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,6 +67,47 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithoutParen
 	assert.Equal(s.T(), resourceID, *r.ResourceID)
 	assert.Equal(s.T(), authorization.ResourceTypeSpace, *r.Type)
 	assert.Equal(s.T(), []string{"view", "contribute", "manage"}, r.ResourceScopes)
+
+	// Delete
+	s.checkDeleteResource(resource.ResourceID)
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterResourceWithDefaultRoleOK() {
+	resourceID := uuid.NewV4().String()
+	identityID := s.Graph.CreateUser().IdentityID()
+
+	rtRef := s.Graph.LoadResourceType(authorization.ResourceTypeSystem).ResourceType()
+	resource, err := s.resourceService.Register(context.Background(), rtRef.Name, &resourceID, nil, &identityID)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), resourceID, resource.ResourceID)
+	assert.Equal(s.T(), "", resource.Name)
+	assert.Equal(s.T(), rtRef.ResourceTypeID, resource.ResourceTypeID)
+	assert.Equal(s.T(), rtRef.Name, resource.ResourceType.Name)
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterResourceWithIncorrectIdentityIDFails() {
+	resourceID := uuid.NewV4().String()
+	identityID := uuid.NewV4()
+
+	rtRef := s.Graph.LoadResourceType(authorization.ResourceTypeSystem).ResourceType()
+	_, err := s.resourceService.Register(context.Background(), rtRef.Name, &resourceID, nil, &identityID)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterResourceForNoDefaultRoleOK() {
+	resourceID := uuid.NewV4().String()
+	identityID := s.Graph.CreateUser().IdentityID()
+
+	resourceTypeRef := s.Graph.CreateResourceType(uuid.NewV4().String()).ResourceType()
+
+	// Register. If there wasn't any default role, we'll just move on.
+	resource, err := s.resourceService.Register(context.Background(), resourceTypeRef.Name, &resourceID, nil, &identityID)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), resourceID, resource.ResourceID)
+	assert.Equal(s.T(), "", resource.Name)
+	assert.Equal(s.T(), resourceTypeRef.ResourceTypeID, resource.ResourceTypeID)
+	assert.Equal(s.T(), resourceTypeRef.Name, resource.ResourceType.Name)
 
 	// Delete
 	s.checkDeleteResource(resource.ResourceID)

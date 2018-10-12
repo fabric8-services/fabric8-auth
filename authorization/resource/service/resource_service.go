@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authorization"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -180,6 +178,10 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 		}
 
 		if managerIdentityID != nil {
+			err = s.Repositories().Identities().CheckExists(ctx, (*managerIdentityID).String())
+			if err != nil {
+				return err
+			}
 			if resourceType.DefaultRoleID != nil {
 				defaultRole, err := s.Repositories().RoleRepository().Load(ctx, *resourceType.DefaultRoleID)
 				if err != nil {
@@ -192,7 +194,10 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 					}
 				}
 
-			} else {
+			}
+		}
+
+		/*else {
 				// legacy
 				defaultRoleName := authorization.ScopeForManagingRolesInResourceType(resourceType.Name)
 				err = s.Services().RoleManagementService().ForceAssign(ctx, *managerIdentityID, defaultRoleName, *res)
@@ -200,7 +205,7 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 					return err
 				}
 			}
-		}
+		}*/
 
 		return nil
 	})
