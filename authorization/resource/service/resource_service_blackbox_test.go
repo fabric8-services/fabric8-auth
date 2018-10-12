@@ -72,17 +72,33 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithoutParen
 	s.checkDeleteResource(resource.ResourceID)
 }
 
-func (s *resourceServiceBlackBoxTest) TestRegisterResourceWithDefaultRoleOK() {
+func (s *resourceServiceBlackBoxTest) TestRegisterSystemWithDefaultRoleOK() {
+	s.registerResourceWithDefaultRoleOK(authorization.ResourceTypeSystem, authorization.ManageUserSystemScope)
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterSpaceWithDefaultRoleOK() {
+	s.registerResourceWithDefaultRoleOK(authorization.ResourceTypeSpace, authorization.ManageSpaceScope)
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterIdentityOrgWithDefaultRoleOK() {
+	s.registerResourceWithDefaultRoleOK(authorization.IdentityResourceTypeOrganization, authorization.ManageOrganizationMembersScope)
+}
+
+func (s *resourceServiceBlackBoxTest) registerResourceWithDefaultRoleOK(resourceType string, scopeToBeValidated string) {
 	resourceID := uuid.NewV4().String()
 	identityID := s.Graph.CreateUser().IdentityID()
 
-	rtRef := s.Graph.LoadResourceType(authorization.ResourceTypeSystem).ResourceType()
+	rtRef := s.Graph.LoadResourceType(resourceType).ResourceType()
 	resource, err := s.resourceService.Register(context.Background(), rtRef.Name, &resourceID, nil, &identityID)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), resourceID, resource.ResourceID)
 	assert.Equal(s.T(), "", resource.Name)
 	assert.Equal(s.T(), rtRef.ResourceTypeID, resource.ResourceTypeID)
 	assert.Equal(s.T(), rtRef.Name, resource.ResourceType.Name)
+
+	scopes, err := s.Application.IdentityRoleRepository().FindScopesByIdentityAndResource(s.Ctx, identityID, resource.ResourceID)
+	require.NoError(s.T(), err)
+	require.Contains(s.T(), scopes, scopeToBeValidated)
 }
 
 func (s *resourceServiceBlackBoxTest) TestRegisterResourceWithIncorrectIdentityIDFails() {

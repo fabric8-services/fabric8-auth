@@ -6,6 +6,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	authorization "github.com/fabric8-services/fabric8-auth/authorization"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -101,6 +102,62 @@ func (rest *TestResourceREST) TestRegisterResourceCreated() {
 
 	require.NotNil(rest.T(), created)
 	require.NotNil(rest.T(), created.ResourceID)
+}
+
+func (rest *TestResourceREST) registerResourceCreatedWithAdmin(resourceType string, scopeToBeValidated string) {
+	resourceID := uuid.NewV4().String()
+
+	adminIdentity := rest.Graph.CreateUser().Identity()
+	adminIdentityID := adminIdentity.ID.String()
+	payload := &app.RegisterResourcePayload{
+		ParentResourceID: nil,
+		ResourceID:       &resourceID,
+		Type:             resourceType,
+		IdentityID:       &adminIdentityID,
+	}
+
+	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+
+	require.NotNil(rest.T(), created)
+	require.NotNil(rest.T(), created.ResourceID)
+
+	addedScopes, err := rest.Application.IdentityRoleRepository().FindScopesByIdentityAndResource(rest.Ctx, adminIdentity.ID, resourceID)
+	require.Nil(rest.T(), err)
+	require.Contains(rest.T(), addedScopes, scopeToBeValidated)
+}
+
+func (rest *TestResourceREST) TestRegisterSpaceResourceCreatedWithAdmin() {
+	rest.registerResourceCreatedWithAdmin(authorization.ResourceTypeSpace, authorization.ManageSpaceScope)
+}
+
+func (rest *TestResourceREST) registerSystemResourceCreatedWithUserAdmin() {
+	rest.registerResourceCreatedWithAdmin(authorization.ResourceTypeSystem, authorization.ManageUserSystemScope)
+}
+
+func (rest *TestResourceREST) TestRegisterSystemResourceCreatedWithUserAdmin() {
+	rest.registerResourceCreatedWithAdmin(authorization.IdentityResourceTypeOrganization, authorization.ManageOrganizationMembersScope)
+}
+
+func (rest *TestResourceREST) TestRegisterOrgResourceCreatedWithUserAdmin() {
+	resourceID := uuid.NewV4().String()
+
+	adminIdentity := rest.Graph.CreateUser().Identity()
+	adminIdentityID := adminIdentity.ID.String()
+	payload := &app.RegisterResourcePayload{
+		ParentResourceID: nil,
+		ResourceID:       &resourceID,
+		Type:             "identity/organization",
+		IdentityID:       &adminIdentityID,
+	}
+
+	_, created := test.RegisterResourceCreated(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+
+	require.NotNil(rest.T(), created)
+	require.NotNil(rest.T(), created.ResourceID)
+
+	addedScopes, err := rest.Application.IdentityRoleRepository().FindScopesByIdentityAndResource(rest.Ctx, adminIdentity.ID, resourceID)
+	require.Nil(rest.T(), err)
+	require.Contains(rest.T(), addedScopes, authorization.ManageOrganizationMembersScope)
 }
 
 func (rest *TestResourceREST) TestRegisterResourceWithResourceIDSetCreated() {
