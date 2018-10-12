@@ -196,17 +196,6 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 
 			}
 		}
-
-		/*else {
-				// legacy
-				defaultRoleName := authorization.ScopeForManagingRolesInResourceType(resourceType.Name)
-				err = s.Services().RoleManagementService().ForceAssign(ctx, *managerIdentityID, defaultRoleName, *res)
-				if err != nil {
-					return err
-				}
-			}
-		}*/
-
 		return nil
 	})
 
