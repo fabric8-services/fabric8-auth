@@ -138,6 +138,20 @@ func (rest *TestResourceREST) TestRegisterSystemResourceCreatedWithUserAdmin() {
 	rest.registerResourceCreatedWithAdmin(authorization.IdentityResourceTypeOrganization, authorization.ManageOrganizationMembersScope)
 }
 
+func (rest *TestResourceREST) TestRegisterOrgResourceCreatedWithInvalidIdentity() {
+	resourceID := uuid.NewV4().String()
+
+	adminIdentityID := "xyz"
+	payload := &app.RegisterResourcePayload{
+		ParentResourceID: nil,
+		ResourceID:       &resourceID,
+		Type:             "identity/organization",
+		IdentityID:       &adminIdentityID,
+	}
+
+	test.RegisterResourceBadRequest(rest.T(), rest.service.Context, rest.service, rest.securedController, payload)
+}
+
 func (rest *TestResourceREST) TestRegisterOrgResourceCreatedWithUserAdmin() {
 	resourceID := uuid.NewV4().String()
 
@@ -156,7 +170,7 @@ func (rest *TestResourceREST) TestRegisterOrgResourceCreatedWithUserAdmin() {
 	require.NotNil(rest.T(), created.ResourceID)
 
 	addedScopes, err := rest.Application.IdentityRoleRepository().FindScopesByIdentityAndResource(rest.Ctx, adminIdentity.ID, resourceID)
-	require.Nil(rest.T(), err)
+	require.NoError(rest.T(), err)
 	require.Contains(rest.T(), addedScopes, authorization.ManageOrganizationMembersScope)
 }
 

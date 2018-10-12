@@ -16,8 +16,7 @@ import (
 
 type resourceTypeBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo     resourcetype.ResourceTypeRepository
-	rolerepo role.RoleRepository
+	repo resourcetype.ResourceTypeRepository
 }
 
 var knownResourceTypes = [5]string{
@@ -34,7 +33,6 @@ func TestRunResourceTypeBlackBoxTest(t *testing.T) {
 func (s *resourceTypeBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
 	s.repo = resourcetype.NewResourceTypeRepository(s.DB)
-	s.rolerepo = role.NewRoleRepository(s.DB)
 }
 
 func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
@@ -73,10 +71,10 @@ func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithDefaultRoleID() {
 		ResourceTypeID: uuid.NewV4(),
 		Name:           uuid.NewV4().String(),
 	}
-	err := s.repo.Create(s.Ctx, &resourceTypeRef)
+	err := s.Application.ResourceTypeRepository().Create(s.Ctx, &resourceTypeRef)
 	require.NoError(t, err)
 
-	rt, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
+	rt, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, resourceTypeRef.Name)
 	require.NoError(t, err)
 	require.Equal(t, resourceTypeRef.Name, rt.Name)
 	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
@@ -87,7 +85,7 @@ func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithDefaultRoleID() {
 		ResourceTypeID: resourceTypeRef.ResourceTypeID,
 		Name:           uuid.NewV4().String(),
 	}
-	err = s.rolerepo.Create(s.Ctx, &someRole)
+	err = s.Application.RoleRepository().Create(s.Ctx, &someRole)
 	require.NoError(t, err)
 
 	resourceTypeRef.DefaultRoleID = &someRole.RoleID

@@ -120,6 +120,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration33", testMigration33)
 	t.Run("TestMigration36", testMigration36)
 	t.Run("TestMigration38", testMigration38)
+	t.Run("TestMigration39", testMigration39)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -473,6 +474,47 @@ func testMigration37(t *testing.T) {
 
 	assert.True(t, dialect.HasColumn("invitation", "success_redirect_url"))
 	assert.True(t, dialect.HasColumn("invitation", "failure_redirect_url"))
+}
+
+func testMigration39(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(40)], (40))
+
+	var userAdminRoleIDForSystem string
+	err := sqlDB.QueryRow("SELECT role_id FROM role WHERE name = 'user_admin' and resource_type_id in (  select resource_type_id from resource_type where name = 'openshift.io/resource/system' )").Scan(&userAdminRoleIDForSystem)
+	require.NoError(t, err)
+
+	var adminRoleIDForSpace string
+	err = sqlDB.QueryRow("SELECT role_id FROM role WHERE name = 'admin' and resource_type_id in (  select resource_type_id from resource_type where name = 'openshift.io/resource/space' )").Scan(&adminRoleIDForSpace)
+	require.NoError(t, err)
+
+	var adminRoleIDForOrg string
+	err = sqlDB.QueryRow("SELECT role_id FROM role WHERE name = 'admin' and resource_type_id in (  select resource_type_id from resource_type where name = 'identity/organization' )").Scan(&adminRoleIDForOrg)
+	require.NoError(t, err)
+
+	var defaultRoleIDForSystem string
+	err = sqlDB.QueryRow("SELECT default_role_id FROM resource_type WHERE  name = 'openshift.io/resource/system'").Scan(&defaultRoleIDForSystem)
+	require.NoError(t, err)
+
+	var defaultRoleIDForSpace string
+	err = sqlDB.QueryRow("SELECT default_role_id FROM resource_type WHERE  name = 'openshift.io/resource/space'").Scan(&defaultRoleIDForSpace)
+	require.NoError(t, err)
+
+	var defaultRoleIDForOrg string
+	err = sqlDB.QueryRow("SELECT default_role_id FROM resource_type WHERE  name = 'identity/organization'").Scan(&defaultRoleIDForOrg)
+	require.NoError(t, err)
+
+	require.Equal(t, userAdminRoleIDForSystem, defaultRoleIDForSystem)
+	require.Equal(t, adminRoleIDForOrg, defaultRoleIDForOrg)
+	require.Equal(t, adminRoleIDForSpace, defaultRoleIDForSpace)
+
+	// ok to insert without default_role_id
+	_, err = sqlDB.Exec("INSERT INTO resource_type (resource_type_id,NAME,created_at) VALUES (uuid_generate_v4(),'openshift.io/resource/somethingelse',Now())")
+	require.NoError(t, err)
+
+	// Not ok to insert with invalid default_role_id - has foreign key constraint
+	_, err = sqlDB.Exec("INSERT INTO resource_type (resource_type_id,NAME,created_at,default_role_id) VALUES (uuid_generate_v4(),'wont-work',Now(),uuid_generate_v4())")
+	require.Error(t, err)
+
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
