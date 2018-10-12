@@ -92,7 +92,7 @@ func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithDefaultRoleID() {
 	err = s.repo.Save(s.Ctx, &resourceTypeRef)
 	require.NoError(t, err)
 
-	returnedRTRef, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
+	returnedRTRef, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, resourceTypeRef.Name)
 	require.NoError(t, err)
 	require.Equal(t, someRole.RoleID, *returnedRTRef.DefaultRoleID)
 }
