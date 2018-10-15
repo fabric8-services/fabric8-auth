@@ -1,4 +1,4 @@
-package login_test
+package service_test
 
 import (
 	"context"
@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+
 	//"github.com/fabric8-services/fabric8-auth/configuration"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa/uuid"

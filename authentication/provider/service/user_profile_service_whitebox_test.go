@@ -1,4 +1,4 @@
-package login
+package service
 
 import (
 	"context"

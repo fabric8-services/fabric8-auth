@@ -1,4 +1,4 @@
-package link_test
+package service_test
 
 import (
 	"context"
@@ -19,8 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	. "github.com/fabric8-services/fabric8-auth/token/link"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
