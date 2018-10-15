@@ -48,8 +48,8 @@ type LinkConfig interface {
 	GetGitHubClientSecret() string
 }
 
-// OauthProviderFactory represents oauth provider factory
-type OauthProviderFactory interface {
+// OAuthProviderFactory represents oauth provider factory
+type OAuthProviderFactory interface {
 	NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (ProviderConfig, error)
 }
 
@@ -71,11 +71,11 @@ type OauthProviderFactoryService struct {
 type LinkService struct {
 	config          LinkConfig
 	app             application.Application
-	providerFactory OauthProviderFactory
+	providerFactory OAuthProviderFactory
 }
 
 // NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
-func NewLinkServiceWithFactory(config LinkConfig, app application.Application, factory OauthProviderFactory) LinkOAuthService {
+func NewLinkServiceWithFactory(config LinkConfig, app application.Application, factory OAuthProviderFactory) LinkOAuthService {
 	service := &LinkService{
 		config: config,
 		app:    app,

@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -12,16 +13,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	providerservice "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/jwk"
-	"github.com/fabric8-services/fabric8-auth/token/link"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
@@ -38,21 +37,17 @@ const (
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
-	app           application.Application
-	Auth          login.KeycloakOAuthService
-	LinkService   link.LinkOAuthService
-	TokenManager  token.Manager
-	Configuration LoginConfiguration
-
-	providerConfigFactory link.OauthProviderFactory
+	app                   application.Application
+	TokenManager          token.TokenManager
+	Configuration         LoginConfiguration
+	providerConfigFactory providerservice.OAuthProviderFactory
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, app application.Application, auth login.KeycloakOAuthService, linkService link.LinkOAuthService, providerConfigFactory link.OauthProviderFactory, tokenManager token.Manager, configuration LoginConfiguration) *TokenController {
+func NewTokenController(service *goa.Service, app application.Application, providerConfigFactory providerservice.OAuthProviderFactory,
+	tokenManager token.TokenManager, configuration LoginConfiguration) *TokenController {
 	return &TokenController{
 		Controller:            service.NewController("token"),
-		Auth:                  auth,
-		LinkService:           linkService,
 		TokenManager:          tokenManager,
 		Configuration:         configuration,
 		providerConfigFactory: providerConfigFactory,
@@ -62,7 +57,7 @@ func NewTokenController(service *goa.Service, app application.Application, auth 
 
 // Keys returns public keys which should be used to verify tokens
 func (c *TokenController) Keys(ctx *app.KeysTokenContext) error {
-	var publicKeys jwk.JSONKeys
+	var publicKeys token.JSONKeys
 	if ctx.Format != nil && *ctx.Format == "pem" {
 		publicKeys = c.TokenManager.PemKeys()
 	} else {
@@ -84,9 +79,9 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	var err error
 	if accessToken != nil {
 		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
-		t, err = c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
+		t, err = c.app.AuthenticationProviderService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
 	} else {
-		t, err = c.Auth.ExchangeRefreshToken(ctx, "", *refreshToken, c.Configuration)
+		t, err = c.app.AuthenticationProviderService().ExchangeRefreshToken(ctx, "", *refreshToken)
 	}
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
@@ -265,7 +260,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 		return nil, nil, err
 	}
 
-	osConfig, ok := providerConfig.(link.OpenShiftIdentityProviderConfig)
+	osConfig, ok := providerConfig.(providerservice.OpenShiftIdentityProviderConfig)
 	if ok && serviceAccount {
 		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
 		return c.retrieveClusterToken(ctx, forResource, forcePull, osConfig)
@@ -290,7 +285,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 
 }
 
-func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, osConfig link.OpenShiftIdentityProviderConfig) (*app.ExternalToken, *string, error) {
+func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, osConfig provider.OpenShiftIdentityProviderConfig) (*app.ExternalToken, *string, error) {
 	username := osConfig.OSOCluster().ServiceAccountUsername
 	if forcePull != nil && *forcePull {
 		userProfile, err := osConfig.Profile(ctx, oauth2.Token{AccessToken: osConfig.OSOCluster().ServiceAccountToken})

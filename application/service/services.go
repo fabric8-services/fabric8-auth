@@ -10,6 +10,7 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -31,10 +32,11 @@ Steps for adding a new Service:
 */
 
 type AuthenticationProviderService interface {
+	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
+	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*token.TokenSet, error)
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)
-	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
 }
 
 type InvitationService interface {

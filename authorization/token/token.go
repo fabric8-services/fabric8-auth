@@ -41,6 +41,11 @@ const (
 	TOKEN_TYPE_REFRESH = "REF"
 )
 
+// JSONKeys the remote keys encoded in a json document
+type JSONKeys struct {
+	Keys []interface{} `json:"keys"`
+}
+
 // ReadManagerFromContext extracts the token manager from the context
 func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
 	tm := ReadTokenManagerFromContext(ctx)
