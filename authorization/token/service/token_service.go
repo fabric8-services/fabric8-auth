@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -19,20 +20,29 @@ import (
 
 // TokenServiceConfiguration the required configuration for the token service implementation
 type TokenServiceConfiguration interface {
+	authtoken.TokenManagerConfiguration
 	GetRPTTokenMaxPermissions() int
-	GetAccessTokenExpiresIn() int64
 }
 
 type tokenServiceImpl struct {
 	base.BaseService
-	config TokenServiceConfiguration
+	config       TokenServiceConfiguration
+	tokenManager authtoken.TokenManager
 }
 
 // NewTokenService returns a new Token Service
-func NewTokenService(context servicecontext.ServiceContext, conf TokenServiceConfiguration) service.TokenService {
+func NewTokenService(context servicecontext.ServiceContext, config TokenServiceConfiguration) service.TokenService {
+	tokenManager, err := authtoken.NewTokenManager(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create token manager")
+	}
+
 	return &tokenServiceImpl{
-		BaseService: base.NewBaseService(context),
-		config:      conf,
+		BaseService:  base.NewBaseService(context),
+		config:       config,
+		tokenManager: tokenManager,
 	}
 }
 
@@ -321,6 +331,62 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *account.Identity
 	}
 
 	return &signedToken, nil
+}
+
+// ExchangeRefreshToken exchanges refreshToken for OauthToken
+// TODO investigate merging this with the Refresh() method
+func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*authtoken.TokenSet, error) {
+
+	// Load identity for the refresh token
+	var identity *account.Identity
+	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, refreshToken)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+	sub := claims["sub"]
+	if sub == nil {
+		return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+	}
+	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+
+	err = s.ExecuteInTransaction(func() error {
+		identity, err = s.Repositories().Identities().LoadWithUser(ctx, identityID)
+		return err
+	})
+
+	if err != nil {
+		// That's OK if we didn't find the identity if the token was issued for an API client
+		// Just log it and proceed.
+		log.Warn(ctx, map[string]interface{}{
+			"err": err,
+		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
+	}
+
+	if identity != nil && identity.User.Deprovisioned {
+		log.Warn(ctx, map[string]interface{}{
+			"identity_id": identity.ID,
+			"user_name":   identity.Username,
+		}, "deprovisioned user tried to refresh token")
+		return nil, errors.NewUnauthorizedError("unauthorized access")
+	}
+
+	generatedToken, err := s.tokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity)
+	if err != nil {
+		return nil, err
+	}
+	// if an RPT token is provided, then use it to obtain a new token with updated permission claims
+	if identity != nil && accessToken != "" {
+		refreshedAccessToken, err := s.Services().TokenService().Refresh(ctx, identity, accessToken)
+		if err != nil {
+			return nil, err
+		}
+		log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
+		generatedToken.AccessToken = refreshedAccessToken
+	}
+	return s.tokenManager.ConvertToken(*generatedToken)
 }
 
 // Refresh checks the resource permissions in the given tokenString for the given user, and returns a

@@ -2,6 +2,7 @@ package token
 
 import (
 	"context"
+	"crypto/rsa"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/log"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -40,6 +41,18 @@ const (
 	TOKEN_TYPE_ACCESS  = "ACC"
 	TOKEN_TYPE_REFRESH = "REF"
 )
+
+// PrivateKey represents an RSA private key with a Key ID
+type PrivateKey struct {
+	KeyID string
+	Key   *rsa.PrivateKey
+}
+
+// PublicKey represents an RSA public key with a Key ID
+type PublicKey struct {
+	KeyID string
+	Key   *rsa.PublicKey
+}
 
 // JSONKeys the remote keys encoded in a json document
 type JSONKeys struct {
