@@ -1,8 +1,9 @@
-package login_test
+package provider_test
 
 import (
 	"context"
 	"encoding/json"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherror "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -54,7 +55,7 @@ func (s *loginIDPTestSuite) getCustomConfig() *configuration.ConfigurationData {
 
 func (s *loginIDPTestSuite) TestProfileOK() {
 	loginIDP := login.NewIdentityProvider(s.getCustomConfig())
-	data, err := loginIDP.Profile(context.Background(), oauth2.Token{})
+	data, err := provider.Profile(context.Background(), oauth2.Token{})
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), data)
 	s.compareResponse(loginIDPResponseSample, *data)

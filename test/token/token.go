@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,8 +14,6 @@ import (
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -216,8 +216,8 @@ func configurationData() *configuration.ConfigurationData {
 	return config
 }
 
-func newManager() token.Manager {
-	tm, err := token.NewManager(config)
+func newManager() token.TokenManager {
+	tm, err := token.NewTokenManager(config)
 	if err != nil {
 		panic("failed to create token manager: " + err.Error())
 	}

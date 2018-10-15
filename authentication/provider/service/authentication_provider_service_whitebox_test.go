@@ -1,4 +1,4 @@
-package login
+package service
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"testing"
 
-	name "github.com/fabric8-services/fabric8-auth/account"
+	name "github.com/fabric8-services/fabric8-auth/authentication/account"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/token"

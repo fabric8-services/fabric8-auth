@@ -3,10 +3,10 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
@@ -16,7 +16,7 @@ import (
 type ResourceController struct {
 	*goa.Controller
 	app          application.Application
-	TokenManager token.Manager
+	TokenManager token.TokenManager
 }
 
 // NewResourceController creates a resource controller.

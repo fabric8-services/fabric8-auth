@@ -17,7 +17,6 @@ import (
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
@@ -94,8 +93,8 @@ func (g *GormBase) OauthStates() auth.OauthStateReferenceRepository {
 }
 
 // ExternalTokens returns an ExternalTokens repository
-func (g *GormBase) ExternalTokens() provider.ExternalTokenRepository {
-	return provider.NewExternalTokenRepository(g.db)
+func (g *GormBase) ExternalTokens() token.ExternalTokenRepository {
+	return token.NewExternalTokenRepository(g.db)
 }
 
 // VerificationCodes returns an VerificationCodes repository

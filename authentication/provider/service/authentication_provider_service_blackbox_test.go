@@ -1,4 +1,4 @@
-package login_test
+package service_test
 
 import (
 	"context"
@@ -41,9 +41,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type serviceTestSuite struct {
+type authenticationProviderServiceTestSuite struct {
 	gormtestsupport.DBTestSuite
-	loginService           *login.KeycloakOAuthProvider
 	oauth                  oauth.IdentityProvider
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
@@ -56,7 +55,7 @@ func TestServiceBlackBox(t *testing.T) {
 // SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
 // The SetupSuite method will run before the tests in the suite are run.
 // It sets up a database connection for all the tests in this suite without polluting global space.
-func (s *serviceTestSuite) SetupSuite() {
+func (s *authenticationProviderServiceTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
 	s.oauth = login.NewIdentityProvider(s.Configuration)
@@ -74,7 +73,7 @@ func (s *serviceTestSuite) SetupSuite() {
 	s.loginService = login.NewKeycloakOAuthProvider(identityRepository, userRepository, testtoken.TokenManager, s.Application, userProfileClient, s.osoSubscriptionManager)
 }
 
-func (s *serviceTestSuite) TestKeycloakAuthorizationRedirect() {
+func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedirect() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -105,7 +104,7 @@ func (s *serviceTestSuite) TestKeycloakAuthorizationRedirect() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceTestSuite) TestUnapprovedUserUnauthorized() {
+func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserUnauthorized() {
 	claims := make(map[string]interface{})
 	claims["username"] = "something-that-doesn-not-exist-in-db" + uuid.NewV4().String()
 	token, err := testtoken.GenerateTokenWithClaims(claims)
@@ -122,7 +121,7 @@ func (s *serviceTestSuite) TestUnapprovedUserUnauthorized() {
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
-func (s *serviceTestSuite) TestUnapprovedUserRedirected() {
+func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserRedirected() {
 	env := os.Getenv("AUTH_NOTAPPROVED_REDIRECT")
 	defer func() {
 		os.Setenv("AUTH_NOTAPPROVED_REDIRECT", env)
@@ -145,7 +144,7 @@ func (s *serviceTestSuite) TestUnapprovedUserRedirected() {
 	require.Equal(s.T(), "https://xyz.io?status=", *redirect)
 }
 
-func (s *serviceTestSuite) unapprovedUserRedirected() (*string, error) {
+func (s *authenticationProviderServiceTestSuite) unapprovedUserRedirected() (*string, error) {
 	redirect, err := url.Parse("https://openshift.io/_home")
 	require.Nil(s.T(), err)
 
@@ -170,13 +169,13 @@ func (s *serviceTestSuite) unapprovedUserRedirected() (*string, error) {
 	return redirectURL, err
 }
 
-func (s *serviceTestSuite) resetConfiguration() {
+func (s *authenticationProviderServiceTestSuite) resetConfiguration() {
 	var err error
 	s.Configuration, err = configuration.GetConfigurationData()
 	require.Nil(s.T(), err)
 }
 
-func (s *serviceTestSuite) TestKeycloakAuthorizationRedirectsToRedirectParam() {
+func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedirectsToRedirectParam() {
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
 	u := &url.URL{
@@ -208,7 +207,7 @@ func (s *serviceTestSuite) TestKeycloakAuthorizationRedirectsToRedirectParam() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceTestSuite) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
+func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -231,7 +230,7 @@ func (s *serviceTestSuite) TestKeycloakAuthorizationWithNoRefererAndRedirectPara
 	assert.Equal(s.T(), 400, rw.Code)
 }
 
-func (s *serviceTestSuite) TestKeycloakAuthorizationWithNoValidRefererFails() {
+func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationWithNoValidRefererFails() {
 
 	// since we no longer pass the valid redirect urls as a parameter,
 	existingValidRedirects := os.Getenv("AUTH_REDIRECT_VALID")
@@ -302,7 +301,7 @@ func (s *serviceTestSuite) TestKeycloakAuthorizationWithNoValidRefererFails() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 
 }
-func (s *serviceTestSuite) TestKeycloakAuthorizationDevModePasses() {
+func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationDevModePasses() {
 	// Any redirects pass in Dev mode.
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -328,7 +327,7 @@ func (s *serviceTestSuite) TestKeycloakAuthorizationDevModePasses() {
 	assert.NotEqual(s.T(), rw.Header().Get("Location"), "")
 }
 
-func (s *serviceTestSuite) TestInvalidState() {
+func (s *authenticationProviderServiceTestSuite) TestInvalidState() {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -357,7 +356,7 @@ func (s *serviceTestSuite) TestInvalidState() {
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceTestSuite) TestInvalidOAuthAuthorizationCode() {
+func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCode() {
 
 	// When a valid referrer talks to our system and provides
 	// an invalid OAuth2.0 code, the access token exchange
@@ -440,7 +439,7 @@ func (s *serviceTestSuite) TestInvalidOAuthAuthorizationCode() {
 	assert.Contains(s.T(), locationString, refererUrl)
 }
 
-func (s *serviceTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOauthService {
+func (s *authenticationProviderServiceTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOauthService {
 	g := s.NewTestGraph(s.T())
 	newIdentity := g.CreateUser().Identity()
 	claims := make(map[string]interface{})
@@ -464,7 +463,7 @@ func (s *serviceTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyI
 	return dummyOauth
 }
 
-func (s *serviceTestSuite) TestValidOAuthAuthorizationCode() {
+func (s *authenticationProviderServiceTestSuite) TestValidOAuthAuthorizationCode() {
 	rw, authorizeCtx := s.loginCallback(make(map[string]string))
 	dummyOauth := s.getDummyOauthIDPService(true)
 	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "token_json")
@@ -484,11 +483,11 @@ func (s *serviceTestSuite) TestUnapprovedUserLoginUnauthorized() {
 	assert.Equal(s.T(), 1, len(rw.HeaderMap["Location"]))
 }
 
-func (s *serviceTestSuite) TestAPIClientForApprovedUsersReturnOK() {
+func (s *authenticationProviderServiceTestSuite) TestAPIClientForApprovedUsersReturnOK() {
 	s.checkAPIClientForUsersReturnOK(true)
 }
 
-func (s *serviceTestSuite) TestAPIClientForUnapprovedUsersReturnOK() {
+func (s *authenticationProviderServiceTestSuite) TestAPIClientForUnapprovedUsersReturnOK() {
 	s.checkAPIClientForUsersReturnOK(false)
 }
 
@@ -534,7 +533,7 @@ func (c *dummyIDPOauthService) Profile(ctx context.Context, jwtToken oauth2.Toke
 	}, nil
 }
 
-func (s *serviceTestSuite) checkAPIClientForUsersReturnOK(approved bool) {
+func (s *authenticationProviderServiceTestSuite) checkAPIClientForUsersReturnOK(approved bool) {
 	extra := make(map[string]string)
 	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
@@ -543,7 +542,7 @@ func (s *serviceTestSuite) checkAPIClientForUsersReturnOK(approved bool) {
 	s.checkLoginCallback(dummyIDPOauthServiceRef, rw, authorizeCtx, "api_token")
 }
 
-func (s *serviceTestSuite) TestDeprovisionedUserLoginUnauthorized() {
+func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnauthorized() {
 	extra := make(map[string]string)
 	rw, authorizeCtx := s.loginCallback(extra)
 
@@ -571,7 +570,7 @@ func (s *serviceTestSuite) TestDeprovisionedUserLoginUnauthorized() {
 	assert.Equal(s.T(), 1, len(rw.HeaderMap["Location"]))
 }
 
-func (s *serviceTestSuite) TestNotDeprovisionedUserLoginOK() {
+func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK() {
 	extra := make(map[string]string)
 	rw, authorizeCtx := s.loginCallback(extra)
 
@@ -600,7 +599,7 @@ func (s *serviceTestSuite) TestNotDeprovisionedUserLoginOK() {
 	assert.Equal(s.T(), 307, rw.Code)
 }
 
-func (s *serviceTestSuite) TestExchangeRefreshToken() {
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 
 	tm, err := token.NewManager(s.Configuration)
 	require.NoError(s.T(), err)
@@ -732,7 +731,7 @@ func (s *serviceTestSuite) TestExchangeRefreshToken() {
 
 }
 
-func (s *serviceTestSuite) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
+func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.LoginLoginContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{
@@ -793,7 +792,7 @@ func (s *serviceTestSuite) loginCallback(extraParams map[string]string) (*httpte
 	return rw, authorizeCtx
 }
 
-func (s *serviceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOauthService, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
+func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOauthService, rw *httptest.ResponseRecorder, authorizeCtx *app.LoginLoginContext, tokenParam string) {
 
 	err := s.loginService.Login(authorizeCtx, dummyOauth, s.Configuration)
 	require.Nil(s.T(), err)
@@ -845,7 +844,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 	return token, nil
 }
 
-func (s *serviceTestSuite) TestKeycloakAuthorizationRedirectForAuthorize() {
+func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedirectForAuthorize() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
@@ -890,7 +889,7 @@ func (s *serviceTestSuite) TestKeycloakAuthorizationRedirectForAuthorize() {
 	require.NotNil(s.T(), redirectTo)
 }
 
-func (s *serviceTestSuite) TestValidOAuthAuthorizationCodeForAuthorize() {
+func (s *authenticationProviderServiceTestSuite) TestValidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("valid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -903,7 +902,7 @@ func (s *serviceTestSuite) TestValidOAuthAuthorizationCodeForAuthorize() {
 	require.NotNil(s.T(), keycloakToken)
 }
 
-func (s *serviceTestSuite) TestInvalidOAuthAuthorizationCodeForAuthorize() {
+func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("invalid_code")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -935,7 +934,7 @@ func (s *serviceTestSuite) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 
 }
 
-func (s *serviceTestSuite) TestInvalidOAuthStateForAuthorize() {
+func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthStateForAuthorize() {
 
 	rw, callbackCtx := s.authorizeCallback("invalid_state")
 	_, err := s.loginService.AuthCodeCallback(callbackCtx)
@@ -944,7 +943,7 @@ func (s *serviceTestSuite) TestInvalidOAuthStateForAuthorize() {
 	assert.Equal(s.T(), 401, rw.Code)
 }
 
-func (s *serviceTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
+func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
 	// given
 	g := s.NewTestGraph(s.T())
 	config := s.Configuration
@@ -990,7 +989,7 @@ func (s *serviceTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
 
 }
 
-func (s *serviceTestSuite) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
+func (s *authenticationProviderServiceTestSuite) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
 	u := &url.URL{

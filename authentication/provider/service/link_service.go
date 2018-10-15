@@ -10,11 +10,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"

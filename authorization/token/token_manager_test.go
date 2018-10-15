@@ -2,18 +2,18 @@ package token_test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/errors"

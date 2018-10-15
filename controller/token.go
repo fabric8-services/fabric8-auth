@@ -12,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -21,7 +22,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/token/jwk"
 	"github.com/fabric8-services/fabric8-auth/token/link"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	errs "github.com/pkg/errors"
@@ -574,7 +574,7 @@ func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.Exchan
 
 // updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
 // loads the user profile from the identity provider and saves the username in the external token
-func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource string, req *goa.RequestData, providerConfig link.ProviderConfig, token *provider.ExternalToken, forcePull *bool) (provider.ExternalToken, *string, error) {
+func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource string, req *goa.RequestData, providerConfig link.ProviderConfig, token *tokenrepo.ExternalToken, forcePull *bool) (tokenrepo.ExternalToken, *string, error) {
 	externalToken := *token
 	if externalToken.Username == "" || (forcePull != nil && *forcePull) {
 		userProfile, err := providerConfig.Profile(ctx, oauth2.Token{AccessToken: token.Token})
@@ -597,8 +597,8 @@ func (c *TokenController) updateProfileIfEmpty(ctx context.Context, forResource 
 	return externalToken, nil, nil
 }
 
-func (c *TokenController) loadToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*provider.ExternalToken, error) {
-	var externalToken *provider.ExternalToken
+func (c *TokenController) loadToken(ctx context.Context, providerConfig link.ProviderConfig, currentIdentity uuid.UUID) (*tokenrepo.ExternalToken, error) {
+	var externalToken *tokenrepo.ExternalToken
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		err := tr.Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
@@ -616,7 +616,7 @@ func (c *TokenController) loadToken(ctx context.Context, providerConfig link.Pro
 	return externalToken, err
 }
 
-func modelToAppExternalToken(externalToken provider.ExternalToken, providerAPIURL string) app.ExternalToken {
+func modelToAppExternalToken(externalToken tokenrepo.ExternalToken, providerAPIURL string) app.ExternalToken {
 	return app.ExternalToken{
 		Scope:          externalToken.Scope,
 		AccessToken:    externalToken.Token,
@@ -624,48 +624,6 @@ func modelToAppExternalToken(externalToken provider.ExternalToken, providerAPIUR
 		Username:       externalToken.Username,
 		ProviderAPIURL: providerAPIURL,
 	}
-}
-
-// ObtainKeycloakUserToken obtains the access token from Keycloak for the user
-func ObtainKeycloakUserToken(ctx context.Context, tokenEndpoint string, configuration LoginConfiguration, username string, userSecret string) (*app.AuthToken, error) {
-	if !configuration.IsPostgresDeveloperModeEnabled() {
-		log.Error(ctx, map[string]interface{}{
-			"method": "Generate",
-		}, "Postgres developer mode not enabled")
-		return nil, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled"))
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	res, err := client.PostForm(tokenEndpoint, url.Values{
-		"client_id":     {configuration.GetKeycloakClientID()},
-		"client_secret": {configuration.GetKeycloakSecret()},
-		"username":      {username},
-		"password":      {userSecret},
-		"grant_type":    {"password"},
-	})
-	if err != nil {
-		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "error when obtaining token"))
-	}
-	defer rest.CloseResponse(res)
-	if res.StatusCode != http.StatusOK {
-		bodyString := rest.ReadBody(res.Body)
-		log.Error(ctx, map[string]interface{}{
-			"response_status": res.Status,
-			"response_body":   bodyString,
-		}, "unable to obtain token")
-		return nil, errors.NewInternalError(ctx, errs.Errorf("unable to obtain token. Response status: %s. Response body: %s", res.Status, bodyString))
-	}
-	t, err := token.ReadTokenSet(ctx, res)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"token_endpoint": res,
-			"err":            err,
-		}, "Error when unmarshal json with access token")
-		return nil, errors.NewInternalError(ctx, errs.Wrap(err, "error when unmarshal json with access token"))
-	}
-
-	return convertToken(*t), nil
 }
 
 // Link links the user account to an external resource provider such as GitHub
