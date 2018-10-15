@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
 )
 
@@ -86,7 +85,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 // Scopes runs the scopes action, which returns the available scopes for the specified resource
 func (c *ResourceController) Scopes(ctx *app.ScopesResourceContext) error {
 	// Load the identity from the context
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

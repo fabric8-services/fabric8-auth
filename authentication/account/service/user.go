@@ -3,16 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"github.com/fabric8-services/fabric8-auth/application/service"
 
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/satori/go.uuid"
 )
 
@@ -26,12 +25,12 @@ func NewUserService(ctx servicecontext.ServiceContext) service.UserService {
 // userServiceImpl implements the UserService to manage users
 type userServiceImpl struct {
 	base.BaseService
-	tokenManager token.Manager
+	tokenManager token.TokenManager
 }
 
 // UserInfo gets user information given a context containing access_token
-func (s *userServiceImpl) UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error) {
-	var identity *account.Identity
+func (s *userServiceImpl) UserInfo(ctx context.Context, identityID uuid.UUID) (*repository.User, *repository.Identity, error) {
+	var identity *repository.Identity
 	err := s.ExecuteInTransaction(func() error {
 		var err error
 		identity, err = s.Repositories().Identities().LoadWithUser(ctx, identityID)
@@ -73,5 +72,57 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 		return s.Repositories().Users().Save(ctx, &identity.User)
 	})
 
+	return identity, err
+}
+
+// ContextIdentityIfExists returns the identity's ID found in given context if the identity exists in the Auth DB
+// If it doesn't exist then an Unauthorized error is returned
+func (s *userServiceImpl) ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error) {
+	identity, err := account.ContextIdentity(ctx)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	// Check if the identity exists
+	err = s.ExecuteInTransaction(func() error {
+		err := s.Repositories().Identities().CheckExists(ctx, identity.String())
+		if err != nil {
+			return errors.NewUnauthorizedError(err.Error())
+		}
+		return nil
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return *identity, nil
+}
+
+// LoadContextIdentityAndUser returns the identity found in given context if the identity exists in the Auth DB
+// If no token present in the context then an Unauthorized error is returned
+// If the identity represented by the token doesn't exist in the DB or not associated with any User then an Unauthorized error is returned
+func (s *userServiceImpl) LoadContextIdentityAndUser(ctx context.Context) (*repository.Identity, error) {
+	var identity *repository.Identity
+	identityID, err := account.ContextIdentity(ctx)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+	// Check if the identity exists
+	identity, err = s.Repositories().Identities().LoadWithUser(ctx, *identityID)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+
+	return identity, err
+}
+
+// LoadContextIdentityIfNotDeprovisioned returns the same identity as LoadContextIdentityAndUser()
+// if the user is not deprovisioned. Returns an Unauthorized error if the user is deprovisioned.
+func (s *userServiceImpl) LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*repository.Identity, error) {
+	identity, err := s.LoadContextIdentityAndUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if identity.User.Deprovisioned {
+		return nil, errors.NewUnauthorizedError("user deprovisioned")
+	}
 	return identity, err
 }

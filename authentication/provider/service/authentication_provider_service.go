@@ -214,61 +214,6 @@ func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code s
 	return token, nil
 }
 
-// ExchangeRefreshToken exchanges refreshToken for OauthToken
-func (s *authenticationProviderServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*token.TokenSet, error) {
-
-	// Load identity for the refresh token
-	var identity *account.Identity
-	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, refreshToken)
-	if err != nil {
-		return nil, autherrors.NewUnauthorizedError(err.Error())
-	}
-	sub := claims["sub"]
-	if sub == nil {
-		return nil, autherrors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
-	}
-	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
-	if err != nil {
-		return nil, autherrors.NewUnauthorizedError(err.Error())
-	}
-
-	err = s.ExecuteInTransaction(func() error {
-		identity, err = s.Repositories().Identities().LoadWithUser(ctx, identityID)
-		return err
-	})
-
-	if err != nil {
-		// That's OK if we didn't find the identity if the token was issued for an API client
-		// Just log it and proceed.
-		log.Warn(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
-	}
-
-	if identity != nil && identity.User.Deprovisioned {
-		log.Warn(ctx, map[string]interface{}{
-			"identity_id": identity.ID,
-			"user_name":   identity.Username,
-		}, "deprovisioned user tried to refresh token")
-		return nil, autherrors.NewUnauthorizedError("unauthorized access")
-	}
-
-	generatedToken, err := s.tokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity)
-	if err != nil {
-		return nil, err
-	}
-	// if an RPT token is provided, then use it to obtain a new token with updated permission claims
-	if identity != nil && accessToken != "" {
-		refreshedAccessToken, err := s.Services().TokenService().Refresh(ctx, identity, accessToken)
-		if err != nil {
-			return nil, err
-		}
-		log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
-		generatedToken.AccessToken = refreshedAccessToken
-	}
-	return s.tokenManager.ConvertToken(*generatedToken)
-}
-
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,

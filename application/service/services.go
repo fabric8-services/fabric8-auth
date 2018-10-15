@@ -33,7 +33,6 @@ Steps for adding a new Service:
 
 type AuthenticationProviderService interface {
 	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
-	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*token.TokenSet, error)
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)
@@ -95,6 +94,7 @@ type TeamService interface {
 
 type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
+	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*token.TokenSet, error)
 	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
 }
 
@@ -106,6 +106,7 @@ type SpaceService interface {
 type UserService interface {
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
+	LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*account.Identity, error)
 }
 
 type NotificationService interface {

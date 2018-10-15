@@ -4,38 +4,23 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 )
 
-type LoginConfiguration interface {
-	login.Configuration
-	GetKeycloakEndpointAuth(*goa.RequestData) (string, error)
-	GetKeycloakURL() string
-	GetKeycloakRealm() string
-	GetPublicOauthClientID() string
-	GetServiceAccounts() map[string]configuration.ServiceAccount
-}
-
 // AuthorizeController implements the authorize resource.
 type AuthorizeController struct {
 	*goa.Controller
-	app           application.Application
-	Auth          login.KeycloakOAuthService
-	TokenManager  token.Manager
-	Configuration LoginConfiguration
+	app application.Application
 }
 
 // NewAuthorizeController returns a new AuthorizeController
-func NewAuthorizeController(service *goa.Service, app application.Application, auth *login.KeycloakOAuthProvider, tokenManager token.Manager, configuration LoginConfiguration) *AuthorizeController {
-	return &AuthorizeController{Controller: service.NewController("AuthorizeController"), app: app, Auth: auth, TokenManager: tokenManager, Configuration: configuration}
+func NewAuthorizeController(service *goa.Service, app application.Application) *AuthorizeController {
+	return &AuthorizeController{Controller: service.NewController("AuthorizeController"), app: app}
 }
 
 // Authorize runs the authorize action of /api/authorize endpoint.

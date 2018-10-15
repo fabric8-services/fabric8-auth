@@ -12,7 +12,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
+	accountrepo "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	providerservice "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
@@ -79,9 +80,9 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	var err error
 	if accessToken != nil {
 		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
-		t, err = c.app.AuthenticationProviderService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
+		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
 	} else {
-		t, err = c.app.AuthenticationProviderService().ExchangeRefreshToken(ctx, "", *refreshToken)
+		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, "", *refreshToken)
 	}
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
@@ -109,29 +110,29 @@ func (c *TokenController) Generate(ctx *app.GenerateTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, errs.New("postgres developer mode is not enabled")))
 	}
 
-	var identities []account.Identity
+	var identities []accountrepo.Identity
 	err := transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
 		var err error
-		identities, err = tr.Identities().Query(account.IdentityWithUser(), account.IdentityFilterByUsername(DevUsername), account.IdentityFilterByProviderType(account.KeycloakIDP))
+		identities, err = tr.Identities().Query(accountrepo.IdentityWithUser(), accountrepo.IdentityFilterByUsername(DevUsername), accountrepo.IdentityFilterByProviderType(accountrepo.KeycloakIDP))
 		return err
 	})
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	var devIdentity account.Identity
+	var devIdentity accountrepo.Identity
 	if len(identities) == 0 {
 		// Dev user doesn't exist yet. Let's create it.
-		devUser := account.User{
+		devUser := accountrepo.User{
 			EmailVerified: true,
 			FullName:      "OSIO Developer",
 			Email:         DevEmail,
 			Cluster:       "openshift.developer.osio",
 		}
-		devIdentity = account.Identity{
+		devIdentity = accountrepo.Identity{
 			User:                  devUser,
 			Username:              DevUsername,
-			ProviderType:          account.KeycloakIDP,
+			ProviderType:          accountrepo.KeycloakIDP,
 			RegistrationCompleted: true,
 		}
 
@@ -239,14 +240,14 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 	serviceAccount := token.IsSpecificServiceAccount(ctx, token.OsoProxy, token.Tenant, token.JenkinsIdler, token.JenkinsProxy)
 	if serviceAccount {
 		// Extract SA ID
-		id, err := login.ContextIdentity(ctx)
+		id, err := account.ContextIdentity(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
 		currentIdentityID = *id
 	} else {
 		// Extract user ID
-		currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+		currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -322,7 +323,7 @@ func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource 
 
 // Delete deletes the stored external provider token.
 func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
-	currentIdentity, err := login.ContextIdentity(ctx)
+	currentIdentity, err := account.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -425,7 +426,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 	// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
-	t, err := c.Auth.ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken, c.Configuration)
+	t, err := c.app.TokenService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err
@@ -666,7 +667,7 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("no token in request"))
 	}
 
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
