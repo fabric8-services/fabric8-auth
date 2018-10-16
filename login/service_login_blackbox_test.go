@@ -227,7 +227,7 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd(redirectURL string, re
 	authorizeCtx, _ := s.createNewAuthCodeURLContext("/api/authorize", prms)
 	service := s.createNewLoginService()
 
-	// ############ STEP 1 CreateOrUpdateIdentityAndUserall /api/authorize without state or code
+	// ############ STEP 1 Call /api/authorize without state or code
 	// ############
 	oauthConfig := login.NewIdentityProvider(s.Configuration)
 	oauthCodeRedirectURL := "http://auth.openshift.io/authorize/callback"
