@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,14 +35,14 @@ func (s *resourceServiceBlackBoxTest) SetupSuite() {
 func (s *resourceServiceBlackBoxTest) TestRegisterResourceUnknownResourceTypeFails() {
 	resourceID := uuid.NewV4().String()
 	unknownResourceType := uuid.NewV4().String()
-	_, err := s.resourceService.Register(context.Background(), unknownResourceType, &resourceID, nil)
+	_, err := s.resourceService.Register(context.Background(), unknownResourceType, &resourceID, nil, nil)
 	require.EqualError(s.T(), err, fmt.Sprintf("Bad value for parameter 'type': '%s' - resource_type with name '%s' not found", unknownResourceType, unknownResourceType))
 }
 
 func (s *resourceServiceBlackBoxTest) TestRegisterResourceUnknownParentResourceFails() {
 	resourceID := uuid.NewV4().String()
 	unknownParentID := uuid.NewV4().String()
-	_, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &unknownParentID)
+	_, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &unknownParentID, nil)
 	require.EqualError(s.T(), err, fmt.Sprintf("Bad value for parameter 'parent resource ID': '%s' - resource with id '%s' not found", unknownParentID, unknownParentID))
 }
 
@@ -49,7 +50,7 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithoutParen
 	resourceID := uuid.NewV4().String()
 
 	// Register. No parent
-	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, nil)
+	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, nil, nil)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), resourceID, resource.ResourceID)
 	assert.Equal(s.T(), "", resource.Name)
@@ -71,6 +72,63 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithoutParen
 	s.checkDeleteResource(resource.ResourceID)
 }
 
+func (s *resourceServiceBlackBoxTest) TestRegisterSystemWithDefaultRoleOK() {
+	s.registerResourceWithDefaultRoleOK(authorization.ResourceTypeSystem, authorization.ManageUserSystemScope)
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterSpaceWithDefaultRoleOK() {
+	s.registerResourceWithDefaultRoleOK(authorization.ResourceTypeSpace, authorization.ManageSpaceScope)
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterIdentityOrgWithDefaultRoleOK() {
+	s.registerResourceWithDefaultRoleOK(authorization.IdentityResourceTypeOrganization, authorization.ManageOrganizationMembersScope)
+}
+
+func (s *resourceServiceBlackBoxTest) registerResourceWithDefaultRoleOK(resourceType string, scopeToBeValidated string) {
+	resourceID := uuid.NewV4().String()
+	identityID := s.Graph.CreateUser().IdentityID()
+
+	rtRef := s.Graph.LoadResourceType(resourceType).ResourceType()
+	resource, err := s.resourceService.Register(context.Background(), rtRef.Name, &resourceID, nil, &identityID)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), resourceID, resource.ResourceID)
+	assert.Equal(s.T(), "", resource.Name)
+	assert.Equal(s.T(), rtRef.ResourceTypeID, resource.ResourceTypeID)
+	assert.Equal(s.T(), rtRef.Name, resource.ResourceType.Name)
+
+	scopes, err := s.Application.IdentityRoleRepository().FindScopesByIdentityAndResource(s.Ctx, identityID, resource.ResourceID)
+	require.NoError(s.T(), err)
+	require.Contains(s.T(), scopes, scopeToBeValidated)
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterResourceWithIncorrectIdentityIDFails() {
+	resourceID := uuid.NewV4().String()
+	identityID := uuid.NewV4()
+
+	rtRef := s.Graph.LoadResourceType(authorization.ResourceTypeSystem).ResourceType()
+	_, err := s.resourceService.Register(context.Background(), rtRef.Name, &resourceID, nil, &identityID)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
+}
+
+func (s *resourceServiceBlackBoxTest) TestRegisterResourceForNoDefaultRoleOK() {
+	resourceID := uuid.NewV4().String()
+	identityID := s.Graph.CreateUser().IdentityID()
+
+	resourceTypeRef := s.Graph.CreateResourceType(uuid.NewV4().String()).ResourceType()
+
+	// Register. If there wasn't any default role, we'll just move on.
+	resource, err := s.resourceService.Register(context.Background(), resourceTypeRef.Name, &resourceID, nil, &identityID)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), resourceID, resource.ResourceID)
+	assert.Equal(s.T(), "", resource.Name)
+	assert.Equal(s.T(), resourceTypeRef.ResourceTypeID, resource.ResourceTypeID)
+	assert.Equal(s.T(), resourceTypeRef.Name, resource.ResourceType.Name)
+
+	// Delete
+	s.checkDeleteResource(resource.ResourceID)
+}
+
 func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK() {
 	resourceID := uuid.NewV4().String()
 
@@ -78,7 +136,7 @@ func (s *resourceServiceBlackBoxTest) TestRegisterReadDeleteResourceWithParentOK
 	g := s.DBTestSuite.NewTestGraph(s.T())
 	g.CreateResource(g.ID("myparentresource"))
 	parent := g.ResourceByID("myparentresource").Resource()
-	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &parent.ResourceID)
+	resource, err := s.resourceService.Register(context.Background(), authorization.ResourceTypeSpace, &resourceID, &parent.ResourceID, nil)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), resourceID, resource.ResourceID)
 	assert.Equal(s.T(), "", resource.Name)
@@ -241,7 +299,7 @@ func (s *resourceServiceBlackBoxTest) TestRoleMappingsCreated() {
 	g.CreateDefaultRoleMapping(g.CreateResourceType(g.ID(rtID2.String())))
 
 	// Register a resource with the same resource type as the default role mapping
-	r, err := s.resourceService.Register(s.Ctx, g.ResourceTypeByID(rtID).ResourceType().Name, nil, nil)
+	r, err := s.resourceService.Register(s.Ctx, g.ResourceTypeByID(rtID).ResourceType().Name, nil, nil, nil)
 	require.NoError(s.T(), err)
 
 	// Find the mappings for the new resource

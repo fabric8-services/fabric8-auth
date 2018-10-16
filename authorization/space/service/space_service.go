@@ -29,12 +29,11 @@ func NewSpaceService(context servicecontext.ServiceContext) service.SpaceService
 func (s *spaceService) CreateSpace(ctx context.Context, spaceCreatorIdentityID uuid.UUID, spaceID string) error {
 
 	err := s.ExecuteInTransaction(func() error {
-		res, err := s.Services().ResourceService().Register(ctx, authorization.ResourceTypeSpace, &spaceID, nil)
+		_, err := s.Services().ResourceService().Register(ctx, authorization.ResourceTypeSpace, &spaceID, nil, &spaceCreatorIdentityID)
 		if err != nil {
 			return err
 		}
-
-		return s.Services().RoleManagementService().ForceAssign(ctx, spaceCreatorIdentityID, authorization.SpaceAdminRole, *res)
+		return nil
 	})
 
 	return err
