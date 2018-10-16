@@ -362,7 +362,12 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthori
 	parameters.Add("state", ctx.State)
 
 	if responseMode != nil && *responseMode == "fragment" {
-		referrerURL.Fragment = parameters.Encode()
+		if referrerURL.Fragment != "" {
+			referrerURL.Fragment = referrerURL.Fragment + "&" + parameters.Encode()
+		} else {
+			referrerURL.Fragment = parameters.Encode()
+		}
+
 	} else {
 		referrerURL.RawQuery = parameters.Encode()
 	}
