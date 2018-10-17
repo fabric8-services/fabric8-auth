@@ -357,23 +357,25 @@ func (keycloak *KeycloakOAuthProvider) AuthCodeCallback(ctx *app.CallbackAuthori
 		return nil, err
 	}
 	var redirectTo string
-	existingParameters := referrerURL.Query()
-	newParameters := url.Values{}
+
+	var parameters url.Values
 
 	if responseMode != nil && *responseMode == "fragment" {
 
-		newParameters.Add("code", ctx.Code)
-		newParameters.Add("state", ctx.State)
+		parameters = url.Values{}
+		parameters.Add("code", ctx.Code)
+		parameters.Add("state", ctx.State)
 		if referrerURL.Fragment != "" {
-			referrerURL.Fragment = referrerURL.Fragment + "&" + newParameters.Encode()
+			referrerURL.Fragment = referrerURL.Fragment + "&" + parameters.Encode()
 		} else {
-			referrerURL.Fragment = newParameters.Encode()
+			referrerURL.Fragment = parameters.Encode()
 		}
 
 	} else {
-		existingParameters.Add("code", ctx.Code)
-		existingParameters.Add("state", ctx.State)
-		referrerURL.RawQuery = existingParameters.Encode()
+		parameters = referrerURL.Query()
+		parameters.Add("code", ctx.Code)
+		parameters.Add("state", ctx.State)
+		referrerURL.RawQuery = parameters.Encode()
 	}
 	redirectTo = referrerURL.String()
 
