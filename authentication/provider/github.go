@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -19,7 +18,7 @@ const (
 )
 
 type GitHubIdentityProvider struct {
-	oauth.OAuthIdentityProvider
+	BaseIdentityProvider
 }
 
 type gitHubUser struct {
@@ -56,7 +55,7 @@ func (provider *GitHubIdentityProvider) URL() string {
 }
 
 // Profile fetches a user profile from the Identity Provider
-func (provider *GitHubIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
+func (provider *GitHubIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error) {
 	body, err := provider.UserProfilePayload(ctx, token)
 	if err != nil {
 		return nil, err
@@ -66,7 +65,7 @@ func (provider *GitHubIdentityProvider) Profile(ctx context.Context, token oauth
 	if err != nil {
 		return nil, err
 	}
-	userProfile := &oauth.UserProfile{
+	userProfile := &UserProfile{
 		Username: u.Login,
 	}
 	return userProfile, nil

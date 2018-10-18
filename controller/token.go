@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -35,18 +36,24 @@ const (
 	DevEmail    = "osio-developer@email.com"
 )
 
+type TokenControllerConfiguration interface {
+	IsPostgresDeveloperModeEnabled() bool
+	GetKeycloakURL() string
+	GetKeycloakRealm() string
+}
+
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
 	app                   application.Application
 	TokenManager          token.TokenManager
-	Configuration         LoginConfiguration
+	Configuration         TokenControllerConfiguration
 	providerConfigFactory providerservice.OAuthProviderFactory
 }
 
 // NewTokenController creates a token controller.
 func NewTokenController(service *goa.Service, app application.Application, providerConfigFactory providerservice.OAuthProviderFactory,
-	tokenManager token.TokenManager, configuration LoginConfiguration) *TokenController {
+	tokenManager token.TokenManager, configuration TokenControllerConfiguration) *TokenController {
 	return &TokenController{
 		Controller:            service.NewController("token"),
 		TokenManager:          tokenManager,
@@ -261,7 +268,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 		return nil, nil, err
 	}
 
-	osConfig, ok := providerConfig.(providerservice.OpenShiftIdentityProviderConfig)
+	osConfig, ok := providerConfig.(provider.OpenShiftIdentityProviderConfig)
 	if ok && serviceAccount {
 		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
 		return c.retrieveClusterToken(ctx, forResource, forcePull, osConfig)

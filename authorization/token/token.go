@@ -90,6 +90,21 @@ func ContextWithTokenManager(ctx context.Context, tm interface{}) context.Contex
 	return context.WithValue(ctx, contextTokenManagerKey, tm)
 }
 
+// IsSpecificServiceAccount checks if the request is done by a service account listed in the names param
+// based on the JWT Token provided in context
+func IsSpecificServiceAccount(ctx context.Context, names ...string) bool {
+	accountName, ok := extractServiceAccountName(ctx)
+	if !ok {
+		return false
+	}
+	for _, name := range names {
+		if accountName == name {
+			return true
+		}
+	}
+	return false
+}
+
 // IsServiceAccount checks if the request is done by a
 // Service account based on the JWT Token provided in context
 func IsServiceAccount(ctx context.Context) bool {

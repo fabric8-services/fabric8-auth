@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
@@ -15,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/wit"
+	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 )
@@ -36,6 +38,9 @@ type AuthenticationProviderService interface {
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)
+	LoadReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error)
+	SaveReferrer(ctx context.Context, state string, referrer string,
+		responseMode *string, validReferrerURL string) error
 }
 
 type InvitationService interface {
@@ -45,6 +50,16 @@ type InvitationService interface {
 	Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error
 	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
 	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
+}
+
+type LinkingProviderFactory interface {
+	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error)
+}
+
+// LinkService provides the ability to link 3rd party oauth accounts, such as Github and Openshift
+type LinkService interface {
+	ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error)
+	Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error)
 }
 
 type LogoutService interface {
@@ -129,6 +144,8 @@ type ClusterService interface {
 type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
 	InvitationService() InvitationService
+	LinkService() LinkService
+	LinkingProviderFactory() LinkingProviderFactory
 	LogoutService() LogoutService
 	NotificationService() NotificationService
 	OSOSubscriptionService() OSOSubscriptionService

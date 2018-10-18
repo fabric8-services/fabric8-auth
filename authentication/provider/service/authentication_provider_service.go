@@ -65,8 +65,8 @@ func NewAuthenticationProviderService(context servicecontext.ServiceContext, con
 	}
 }
 
-func (s *authenticationProviderServiceImpl) newIdentityProvider() *provider.OAuthIdentityProvider {
-	provider := &provider.OAuthIdentityProvider{}
+func (s *authenticationProviderServiceImpl) newIdentityProvider() *provider.BaseIdentityProvider {
+	provider := &provider.BaseIdentityProvider{}
 	provider.ProfileURL = s.config.GetUserInfoEndpoint()
 	provider.ClientID = s.config.GetOAuthClientID()
 	provider.ClientSecret = s.config.GetOAuthSecret()
@@ -104,7 +104,7 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 		return nil, err
 	}
 
-	err = s.saveReferrer(ctx, *state, *redirect, responseMode, validRedirectURL)
+	err = s.SaveReferrer(ctx, *state, *redirect, responseMode, validRedirectURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state":         state,
@@ -217,7 +217,7 @@ func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code s
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
-	token *oauth2.Token, idpProvider provider.OAuthIdentityProvider) (*string, *oauth2.Token, error) {
+	token *oauth2.Token, idpProvider provider.BaseIdentityProvider) (*string, *oauth2.Token, error) {
 	apiClient := referrerURL.Query().Get(apiClientParam)
 	identity, newUser, err := s.GetExistingIdentityInfo(ctx, token.AccessToken, idpProvider)
 	if err != nil {
@@ -326,7 +326,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 // GetExistingIdentityInfo creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
 func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string,
-	idpProvider provider.OAuthIdentityProvider) (*account.Identity, bool, error) {
+	idpProvider provider.BaseIdentityProvider) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	userProfile, err := idpProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
@@ -408,7 +408,7 @@ func (s *authenticationProviderServiceImpl) saveParams(ctx context.Context, redi
 }
 
 // SaveReferrer validates referrer and saves it in DB
-func (s *authenticationProviderServiceImpl) saveReferrer(ctx context.Context, state string, referrer string,
+func (s *authenticationProviderServiceImpl) SaveReferrer(ctx context.Context, state string, referrer string,
 	responseMode *string, validReferrerURL string) error {
 
 	matched, err := regexp.MatchString(validReferrerURL, referrer)
@@ -452,39 +452,8 @@ func (s *authenticationProviderServiceImpl) saveReferrer(ctx context.Context, st
 	return nil
 }
 
-// reclaimReferrer reclaims referrerURL and verifies the state
-func (s *authenticationProviderServiceImpl) reclaimReferrerAndResponseMode(ctx context.Context, state string, code string) (*url.URL, *string, error) {
-	knownReferrer, responseMode, err := s.loadReferrerAndResponseMode(ctx, state)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"state": state,
-			"err":   err,
-		}, "unknown state")
-		return nil, nil, autherrors.NewUnauthorizedError("unknown state: " + err.Error())
-	}
-	referrerURL, err := url.Parse(knownReferrer)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"code":           code,
-			"state":          state,
-			"known_referrer": knownReferrer,
-			"err":            err,
-		}, "failed to parse referrer")
-		return nil, nil, autherrors.NewInternalError(ctx, err)
-	}
-
-	log.Debug(ctx, map[string]interface{}{
-		"code":           code,
-		"state":          state,
-		"known_referrer": knownReferrer,
-		"response_mode":  responseMode,
-	}, "referrer found")
-
-	return referrerURL, responseMode, nil
-}
-
-// loadReferrerAndResponseMode loads referrer and responseMode from DB
-func (s *authenticationProviderServiceImpl) loadReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error) {
+// LoadReferrerAndResponseMode loads referrer and responseMode from DB
+func (s *authenticationProviderServiceImpl) LoadReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error) {
 	var referrer string
 	var responseMode *string
 
@@ -514,6 +483,37 @@ func (s *authenticationProviderServiceImpl) loadReferrerAndResponseMode(ctx cont
 		return "", nil, err
 	}
 	return referrer, responseMode, nil
+}
+
+// reclaimReferrer reclaims referrerURL and verifies the state
+func (s *authenticationProviderServiceImpl) reclaimReferrerAndResponseMode(ctx context.Context, state string, code string) (*url.URL, *string, error) {
+	knownReferrer, responseMode, err := s.LoadReferrerAndResponseMode(ctx, state)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"state": state,
+			"err":   err,
+		}, "unknown state")
+		return nil, nil, autherrors.NewUnauthorizedError("unknown state: " + err.Error())
+	}
+	referrerURL, err := url.Parse(knownReferrer)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"code":           code,
+			"state":          state,
+			"known_referrer": knownReferrer,
+			"err":            err,
+		}, "failed to parse referrer")
+		return nil, nil, autherrors.NewInternalError(ctx, err)
+	}
+
+	log.Debug(ctx, map[string]interface{}{
+		"code":           code,
+		"state":          state,
+		"known_referrer": knownReferrer,
+		"response_mode":  responseMode,
+	}, "referrer found")
+
+	return referrerURL, responseMode, nil
 }
 
 // encodeToken

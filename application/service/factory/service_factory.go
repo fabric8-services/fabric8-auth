@@ -197,6 +197,10 @@ func (f *ServiceFactory) InvitationService() service.InvitationService {
 	return invitationservice.NewInvitationService(f.getContext(), f.config)
 }
 
+func (f *ServiceFactory) LinkService() service.LinkService {
+	return providerservice.NewLinkService(f.getContext(), f.config)
+}
+
 func (f *ServiceFactory) LogoutService() service.LogoutService {
 	return logoutservice.NewLogoutService(f.getContext(), f.config)
 }

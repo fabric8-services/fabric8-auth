@@ -3,18 +3,15 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/url"
 	"strings"
 
-	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/rest"
-
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -26,66 +23,26 @@ const (
 	nextParam       = "link_next"
 )
 
-// ProviderConfig represents OAuth2 config for linking accounts
-type ProviderConfig interface {
-	oauth.IdentityProvider
-	ID() uuid.UUID
-	Scopes() string
-	TypeName() string
-	URL() string
-}
-
-// LinkOAuthService represents OAuth service interface for linking accounts
-type LinkOAuthService interface {
-	ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error)
-	Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error)
-}
-
-type LinkConfig interface {
+type LinkServiceConfiguration interface {
 	GetValidRedirectURLs() string
-	GetGitHubClientID() string
-	GetGitHubClientDefaultScopes() string
-	GetGitHubClientSecret() string
-}
-
-// OAuthProviderFactory represents oauth provider factory
-type OAuthProviderFactory interface {
-	NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (ProviderConfig, error)
-}
-
-// NewOauthProviderFactory returns the default Oauth provider factory.
-func NewOauthProviderFactory(config LinkConfig, app application.Application) *OauthProviderFactoryService {
-	service := &OauthProviderFactoryService{
-		config: config,
-		app:    app,
-	}
-	return service
-}
-
-type OauthProviderFactoryService struct {
-	config LinkConfig
-	app    application.Application
-}
-
-// LinkService represents service for linking accounts
-type LinkService struct {
-	config          LinkConfig
-	app             application.Application
-	providerFactory OAuthProviderFactory
 }
 
 // NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
-func NewLinkServiceWithFactory(config LinkConfig, app application.Application, factory OAuthProviderFactory) LinkOAuthService {
-	service := &LinkService{
-		config: config,
-		app:    app,
+func NewLinkService(context servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
+	return &linkServiceImpl{
+		BaseService: base.NewBaseService(context),
+		config:      config,
 	}
-	service.providerFactory = factory
-	return service
+}
+
+type linkServiceImpl struct {
+	base.BaseService
+	config LinkServiceConfiguration
 }
 
 // ProviderLocation returns a URL to OAuth 2.0 provider's consent page to be used to initiate account linking
-func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error) {
+func (s *linkServiceImpl) ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string,
+	forResource string, redirectURL string) (string, error) {
 	// We need to save the "identityID" and "for" as params in the redirect location URL so we don't lose them when redirect to the provider for auth and back to auth.
 	linkURL, err := url.Parse(redirectURL)
 	if err != nil {
@@ -113,12 +70,12 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 	if err != nil {
 		return "", err
 	}
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, identityUUID, req, forResources[0])
+	oauthProvider, err := s.Services().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResources[0])
 	if err != nil {
 		return "", err
 	}
 	state := uuid.NewV4().String()
-	err = oauth.SaveReferrer(ctx, service.app, state, redirectURL, nil, service.config.GetValidRedirectURLs())
+	err = s.Services().AuthenticationProviderService().SaveReferrer(ctx, state, redirectURL, nil, s.config.GetValidRedirectURLs())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url": redirectURL,
@@ -132,9 +89,9 @@ func (service *LinkService) ProviderLocation(ctx context.Context, req *goa.Reque
 }
 
 // Callback returns a redirect URL after callback from an external oauth2 resource provider such as GitHub during user's account linking
-func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error) {
+func (s *linkServiceImpl) Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error) {
 	// validate known state
-	knownReferrer, _, err := oauth.LoadReferrerAndResponseMode(ctx, service.app, state)
+	knownReferrer, _, err := s.Services().AuthenticationProviderService().LoadReferrerAndResponseMode(ctx, state)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"state": state,
@@ -162,7 +119,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	oauthProvider, err := service.providerFactory.NewOauthProvider(ctx, identityUUID, req, forResource)
+	oauthProvider, err := s.Services().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResource)
 	if err != nil {
 		return "", err
 	}
@@ -189,8 +146,8 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 	if err != nil {
 		return "", err
 	}
-	err = transaction.Transactional(service.app, func(tr transaction.TransactionalResources) error {
-		tokens, err := tr.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, oauthProvider.ID(), identityUUID)
+	s.ExecuteInTransaction(func() error {
+		tokens, err := s.Repositories().ExternalTokens().LoadByProviderIDAndIdentityID(ctx, oauthProvider.ID(), identityUUID)
 		if err != nil {
 			return err
 		}
@@ -199,7 +156,7 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			externalToken := tokens[0]
 			externalToken.Token = providerToken.AccessToken
 			externalToken.Username = userProfile.Username
-			err = tr.ExternalTokens().Save(ctx, &externalToken)
+			err = s.Repositories().ExternalTokens().Save(ctx, &externalToken)
 			if err == nil {
 				log.Info(ctx, map[string]interface{}{
 					"provider_id":       oauthProvider.ID(),
@@ -209,14 +166,14 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 			}
 			return err
 		}
-		externalToken := provider.ExternalToken{
+		externalToken := token.ExternalToken{
 			Token:      providerToken.AccessToken,
 			IdentityID: identityUUID,
 			Scope:      oauthProvider.Scopes(),
 			ProviderID: oauthProvider.ID(),
 			Username:   userProfile.Username,
 		}
-		err = tr.ExternalTokens().Create(ctx, &externalToken)
+		err = s.Repositories().ExternalTokens().Create(ctx, &externalToken)
 		if err == nil {
 			log.Info(ctx, map[string]interface{}{
 				"provider_id":       oauthProvider.ID(),
@@ -238,75 +195,8 @@ func (service *LinkService) Callback(ctx context.Context, req *goa.RequestData, 
 
 	nextResource := referrerURL.Query().Get(nextParam)
 	if nextResource != "" {
-		return service.ProviderLocation(ctx, req, identityID, nextResource, knownReferrer)
+		return s.ProviderLocation(ctx, req, identityID, nextResource, knownReferrer)
 	}
 
 	return knownReferrer, nil
-}
-
-// NewOauthProvider creates a new oauth provider for the given resource URL or provider alias
-func (service *OauthProviderFactoryService) NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (ProviderConfig, error) {
-	authURL := rest.AbsoluteURL(req, "", nil)
-	// Check if the forResource is actually a provider alias like "github" or "openshift"
-	if forResource == GitHubProviderAlias {
-		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
-	}
-	if forResource == OpenShiftProviderAlias {
-		// Look up the user's OpenShift cluster
-		var clusterURL string
-		err := transaction.Transactional(service.app, func(tr transaction.TransactionalResources) error {
-			identities, err := tr.Identities().Query(account.IdentityFilterByID(identityID), account.IdentityWithUser())
-			if err != nil {
-				return err
-			}
-			if len(identities) == 0 {
-				return errors.New("identity not found")
-			}
-			if identities[0].User.ID == uuid.Nil {
-				return errors.New("unable to load user for identity")
-			}
-			clusterURL = identities[0].User.Cluster
-			return nil
-		})
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"identity_id": identityID,
-				"err":         err,
-			}, "unable to lookup user's cluster URL for identity %s", identityID)
-			return nil, errs.NewUnauthorizedError(err.Error())
-		}
-
-		cluster, err := service.app.ClusterService().ClusterByURL(ctx, clusterURL)
-		if err != nil {
-			return nil, errs.NewInternalError(ctx, err)
-		}
-		if cluster == nil {
-			log.Error(ctx, map[string]interface{}{
-				"for":         forResource,
-				"cluster_url": clusterURL,
-			}, "unable to find oauth config for provider alias")
-			return nil, errs.NewInternalErrorFromString(ctx, fmt.Sprintf("unable to load provider for cluster URL %s", clusterURL))
-		}
-		return NewOpenShiftIdentityProvider(*cluster, authURL)
-	}
-
-	// Check if the forResource is some known resource URL like "https://github.com" or "https://api.starter-us-east-2.openshift.com"
-	resourceURL, err := url.Parse(forResource)
-	if err != nil {
-		return nil, err
-	}
-	if resourceURL.Host == "github.com" {
-		return NewGitHubIdentityProvider(service.config.GetGitHubClientID(), service.config.GetGitHubClientSecret(), service.config.GetGitHubClientDefaultScopes(), authURL), nil
-	}
-	cluster, err := service.app.ClusterService().ClusterByURL(ctx, forResource)
-	if err != nil {
-		return nil, errs.NewInternalError(ctx, err)
-	}
-	if cluster != nil {
-		return NewOpenShiftIdentityProvider(*cluster, authURL)
-	}
-	log.Error(ctx, map[string]interface{}{
-		"for": forResource,
-	}, "unable to find oauth config for resource")
-	return nil, errs.NewBadParameterError("for", forResource).Expected("URL to a github.com or openshift.com resource")
 }

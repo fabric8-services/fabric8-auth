@@ -12,7 +12,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/cluster"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -24,12 +23,12 @@ const (
 
 // OpenShiftIdentityProviderConfig represents an OpenShift Identity Provider
 type OpenShiftIdentityProviderConfig interface {
-	oauth.IdentityProvider
+	//oauth.IdentityProvider
 	OSOCluster() cluster.Cluster
 }
 
 type OpenShiftIdentityProvider struct {
-	oauth.OAuthIdentityProvider
+	BaseIdentityProvider
 	Cluster cluster.Cluster
 }
 
@@ -83,7 +82,7 @@ func (provider *OpenShiftIdentityProvider) URL() string {
 }
 
 // Profile fetches a user profile from the Identity Provider
-func (provider *OpenShiftIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
+func (provider *OpenShiftIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error) {
 	body, err := provider.UserProfilePayload(ctx, token)
 	if err != nil {
 		return nil, err
@@ -93,7 +92,7 @@ func (provider *OpenShiftIdentityProvider) Profile(ctx context.Context, token oa
 	if err != nil {
 		return nil, err
 	}
-	userProfile := &oauth.UserProfile{
+	userProfile := &UserProfile{
 		Username: u.Metadata.Name,
 	}
 	return userProfile, nil
