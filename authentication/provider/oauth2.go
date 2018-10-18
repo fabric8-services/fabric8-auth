@@ -13,6 +13,12 @@ import (
 	"net/http"
 )
 
+// #####################################################################################################################
+//
+// Types
+//
+// #####################################################################################################################
+
 // UserProfile represents a user profile fetched from Identity Provider
 type UserProfile struct {
 	Name          string
@@ -44,10 +50,15 @@ type IdentityProviderResponse struct {
 //
 // #####################################################################################################################
 
-// IdentityProvider represents OAuth2 functions
+// IdentityProvider defines OAuth2 functions which can be used to generate an authorization code, and exchange an
+// authorization code for a token.  The same function signatures (AuthCodeURL and Exchange) are provided by the
+// oauth2.Config object which means an object that implements IdentityProvider (such as BaseIdentityProvider) can also
+// serve in place of an oauth2.Config object.
+//
+// The Profile function is an additional feature, used to obtain a user's profile information from an identity provider.
 type IdentityProvider interface {
-	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
 	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
+	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
 	Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error)
 }
 
@@ -108,7 +119,8 @@ func (provider *BaseIdentityProvider) Profile(ctx context.Context, token oauth2.
 	return &u, nil
 }
 
-// UserProfilePayload fetches user profile payload from Identity Provider
+// UserProfilePayload fetches user profile payload from Identity Provider.  It is used by the Profile function to do
+// the actual work of talking to the identity provider
 func (provider *BaseIdentityProvider) UserProfilePayload(ctx context.Context, token oauth2.Token) ([]byte, error) {
 	req, err := http.NewRequest("GET", provider.ProfileURL, nil)
 	if err != nil {
