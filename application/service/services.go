@@ -19,6 +19,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
+	"net/url"
 )
 
 /*
@@ -35,6 +36,8 @@ Steps for adding a new Service:
 
 type AuthenticationProviderService interface {
 	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
+	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
+		token *oauth2.Token, idpProvider provider.IdentityProvider) (*string, *oauth2.Token, error)
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)
@@ -122,6 +125,7 @@ type UserService interface {
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
 	LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*account.Identity, error)
+	ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error)
 }
 
 type NotificationService interface {

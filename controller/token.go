@@ -293,7 +293,7 @@ func (c *TokenController) retrieveToken(ctx context.Context, forResource string,
 
 }
 
-func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, osConfig provider.OpenShiftIdentityProviderConfig) (*app.ExternalToken, *string, error) {
+func (c *TokenController) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, osConfig provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
 	username := osConfig.OSOCluster().ServiceAccountUsername
 	if forcePull != nil && *forcePull {
 		userProfile, err := osConfig.Profile(ctx, oauth2.Token{AccessToken: osConfig.OSOCluster().ServiceAccountToken})
@@ -507,8 +507,8 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		return nil, nil, errors.NewInternalError(ctx, err)
 	}
 
-	idpService := login.NewIdentityProvider(c.Configuration)
-	notApprovedRedirectURL, userToken, err := c.Auth.CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, idpService, c.Configuration)
+	idpService := provider.NewIdentityProvider(c.Configuration)
+	notApprovedRedirectURL, userToken, err := c.app.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(ctx, redirectURL, keycloakToken, ctx.RequestData, idpService)
 
 	if err != nil {
 		return nil, nil, err
@@ -634,7 +634,7 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
-	currentIdentity, err := login.ContextIdentityIfExists(ctx, c.app)
+	currentIdentity, err := c.app.UserService().ContextIdentityIfExists(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -649,7 +649,7 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 		redirectURL = *ctx.Redirect
 	}
 
-	redirectLocation, err := c.LinkService.ProviderLocation(ctx, ctx.RequestData, currentIdentity.String(), ctx.For, redirectURL)
+	redirectLocation, err := c.app.LinkService().ProviderLocation(ctx, ctx.RequestData, currentIdentity.String(), ctx.For, redirectURL)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -660,7 +660,7 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 
 // Callback is called by an external oauth2 resource provider such as GitHub as part of user's account linking flow
 func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
-	redirectLocation, err := c.LinkService.Callback(ctx, ctx.RequestData, ctx.State, ctx.Code)
+	redirectLocation, err := c.app.LinkService().Callback(ctx, ctx.RequestData, ctx.State, ctx.Code)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

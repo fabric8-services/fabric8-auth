@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 	_ "github.com/lib/pq"
