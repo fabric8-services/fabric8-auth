@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,6 +15,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
@@ -21,14 +24,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	testoauth "github.com/fabric8-services/fabric8-auth/test/token/oauth"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -43,7 +42,7 @@ import (
 
 type authenticationProviderServiceTestSuite struct {
 	gormtestsupport.DBTestSuite
-	oauth                  oauth.IdentityProvider
+	oauth                  provider.IdentityProvider
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
@@ -58,7 +57,7 @@ func TestServiceBlackBox(t *testing.T) {
 func (s *authenticationProviderServiceTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
-	s.oauth = login.NewIdentityProvider(s.Configuration)
+	s.oauth = provider.NewIdentityProvider(s.Configuration)
 
 	claims := make(map[string]interface{})
 	claims["sub"] = uuid.NewV4().String()
@@ -112,7 +111,7 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserUnauthorized(
 
 	dummyOauthIDPRef := s.getDummyOauthIDPService(true)
 
-	_, _, err = s.loginService.CreateOrUpdateIdentityInDB(context.Background(), token, dummyOauthIDPRef, s.Configuration)
+	_, _, err = s.Application.AuthenticationProviderService().CreateOrUpdateIdentityInDB(context.Background(), token, dummyOauthIDPRef, s.Configuration)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 

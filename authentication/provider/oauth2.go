@@ -19,6 +19,18 @@ import (
 //
 // #####################################################################################################################
 
+// IdentityProviderConfiguration
+type IdentityProviderConfiguration interface {
+	GetValidRedirectURLs() string
+	GetUserInfoEndpoint() string
+	GetOAuthEndpointAuth() string
+	GetOAuthEndpointToken() string
+	GetOAuthClientID() string
+	GetOAuthSecret() string
+	GetNotApprovedRedirect() string
+	GetWITURL() (string, error)
+}
+
 // UserProfile represents a user profile fetched from Identity Provider
 type UserProfile struct {
 	Name          string
@@ -52,7 +64,7 @@ type IdentityProviderResponse struct {
 
 // IdentityProvider defines OAuth2 functions which can be used to generate an authorization code, and exchange an
 // authorization code for a token.  The same function signatures (AuthCodeURL and Exchange) are provided by the
-// oauth2.Config object which means an object that implements IdentityProvider (such as BaseIdentityProvider) can also
+// oauth2.Config object which means an object that implements IdentityProvider (such as DefaultIdentityProvider) can also
 // serve in place of an oauth2.Config object.
 //
 // The Profile function is an additional feature, used to obtain a user's profile information from an identity provider.
@@ -81,20 +93,31 @@ type LinkingProvider interface {
 
 // #####################################################################################################################
 //
-// Base implementation
+// Default implementation
 //
 // #####################################################################################################################
 
+// NewIdentityProvider creates a new default OAuth identity provider
+func NewIdentityProvider(config IdentityProviderConfiguration) *DefaultIdentityProvider {
+	provider := &DefaultIdentityProvider{}
+	provider.ProfileURL = config.GetUserInfoEndpoint()
+	provider.ClientID = config.GetOAuthClientID()
+	provider.ClientSecret = config.GetOAuthSecret()
+	provider.Scopes = []string{"user:email"}
+	provider.Endpoint = oauth2.Endpoint{AuthURL: config.GetOAuthEndpointAuth(), TokenURL: config.GetOAuthEndpointToken()}
+	return provider
+}
+
 // BaseIdentityProvider is the base implementation of the IdentityProvider interface
-type BaseIdentityProvider struct {
-	oauth2.Config
+type DefaultIdentityProvider struct {
+	*oauth2.Config
 	ProviderID uuid.UUID
 	ScopeStr   string
 	ProfileURL string
 }
 
 // Profile fetches a user profile from the Identity Provider
-func (provider *BaseIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error) {
+func (provider *DefaultIdentityProvider) Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error) {
 	body, err := provider.UserProfilePayload(ctx, token)
 	if err != nil {
 		return nil, err
@@ -121,7 +144,7 @@ func (provider *BaseIdentityProvider) Profile(ctx context.Context, token oauth2.
 
 // UserProfilePayload fetches user profile payload from Identity Provider.  It is used by the Profile function to do
 // the actual work of talking to the identity provider
-func (provider *BaseIdentityProvider) UserProfilePayload(ctx context.Context, token oauth2.Token) ([]byte, error) {
+func (provider *DefaultIdentityProvider) UserProfilePayload(ctx context.Context, token oauth2.Token) ([]byte, error) {
 	req, err := http.NewRequest("GET", provider.ProfileURL, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

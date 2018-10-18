@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -28,7 +30,6 @@ import (
 
 type LinkTestSuite struct {
 	gormtestsupport.DBTestSuite
-	linkService        LinkOAuthService
 	testIdentity       account.Identity
 	requestData        *goa.RequestData
 	clusterServiceMock service.ClusterService
@@ -44,9 +45,6 @@ func (s *LinkTestSuite) SetupSuite() {
 
 	s.clusterServiceMock = testsupport.NewClusterServiceMock(s.T())
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithClusterService(s.clusterServiceMock))
-
-	providerFactory := NewOauthProviderFactory(s.Configuration, s.Application)
-	s.linkService = NewLinkServiceWithFactory(s.Configuration, s.Application, providerFactory)
 	s.requestData = &goa.RequestData{Request: &http.Request{
 		URL: &url.URL{Scheme: "https", Host: "auth.openshift.io"},
 	}}
@@ -69,17 +67,17 @@ func (s *LinkTestSuite) TestInvalidRedirectFails() {
 	}()
 	os.Setenv("AUTH_REDIRECT_VALID", configuration.DefaultValidRedirectURLs)
 
-	_, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://some.host.com")
+	_, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://some.host.com")
 	require.NotNil(s.T(), err)
 }
 
 func (s *LinkTestSuite) TestUnknownProviderFails() {
-	_, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://unknown.provider.com/org/repo", "https://openshift.io/home")
+	_, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://unknown.provider.com/org/repo", "https://openshift.io/home")
 	require.NotNil(s.T(), err)
 }
 
 func (s *LinkTestSuite) TestCallbackWithUnknownStateFails() {
-	_, err := s.linkService.Callback(context.Background(), s.requestData, "randomState", "randomCode")
+	_, err := s.Application.LinkService().Callback(context.Background(), s.requestData, "randomState", "randomCode")
 	require.NotNil(s.T(), err)
 }
 
@@ -92,7 +90,7 @@ func (s *LinkTestSuite) TestGitHubProviderRedirectsToAuthorize() {
 }
 
 func (s *LinkTestSuite) checkGitHubProviderRedirectsToAuthorize(for_ string) {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	require.True(s.T(), strings.HasPrefix(location, "https://github.com/login/oauth/authorize"))
 	require.NotEmpty(s.T(), s.stateParam(location))
@@ -108,33 +106,33 @@ func (s *LinkTestSuite) TestOSOProviderRedirectsToAuthorize() {
 	s.checkOSOProviderRedirectsToAuthorize("openshift")
 
 	// Check another cluster
-	testIdentityCluster2a, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "testOSOProviderRedirectsToAuthorizeUser")
+	testIdentityCluster2a, err := test.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "testOSOProviderRedirectsToAuthoentication/account/repositoryrizeUser")
 	require.Nil(s.T(), err)
 	s.checkOSO2aProviderRedirectsToAuthorize(testIdentityCluster2a, "openshift")
 }
 
 func (s *LinkTestSuite) checkOSOProviderRedirectsToAuthorize(for_ string) {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), for_, "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), location, fmt.Sprintf("%s/oauth/authorize", s.Configuration.GetOpenShiftClientApiUrl()))
 	require.NotEmpty(s.T(), s.stateParam(location))
 }
 
 func (s *LinkTestSuite) checkOSO2aProviderRedirectsToAuthorize(identity account.Identity, for_ string) {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, identity.ID.String(), for_, "https://openshift.io/home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, identity.ID.String(), for_, "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), location, "https://api.starter-us-east-2a.openshift.com/oauth/authorize")
 	require.NotEmpty(s.T(), s.stateParam(location))
 }
 
 func (s *LinkTestSuite) TestMultipleProvidersRedirectsToAuthorize() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo,https://openshift.io/home", "https://openshift.io/_home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo,https://openshift.io/home", "https://openshift.io/_home")
 	require.Nil(s.T(), err)
 	require.True(s.T(), strings.HasPrefix(location, "https://github.com/login/oauth/authorize"))
 	require.NotEmpty(s.T(), s.stateParam(location))
 
 	// Aliases
-	location, err = s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "github,openshift", "https://openshift.io/_home")
+	location, err = s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "github,openshift", "https://openshift.io/_home")
 	require.Nil(s.T(), err)
 	require.True(s.T(), strings.HasPrefix(location, "https://github.com/login/oauth/authorize"))
 	require.NotEmpty(s.T(), s.stateParam(location))
@@ -151,7 +149,7 @@ func (s *LinkTestSuite) stateParam(location string) string {
 }
 
 func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, uuid.NewV4().String(), "https://github.com/org/repo", "https://openshift.io/home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, uuid.NewV4().String(), "https://github.com/org/repo", "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
@@ -163,7 +161,7 @@ func (s *LinkTestSuite) TestCallbackFailsForUnknownIdentity() {
 }
 
 func (s *LinkTestSuite) TestProviderSavesTokenOK() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
@@ -175,11 +173,11 @@ func (s *LinkTestSuite) TestProviderSavesTokenOK() {
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), callbackLocation, "https://openshift.io/home")
 
-	s.checkToken(GitHubProviderID, token)
+	s.checkToken(provider.GitHubProviderID, token)
 }
 
 func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://openshift.io/home")
 	require.Nil(s.T(), err)
 	state := s.stateParam(location)
 
@@ -193,7 +191,7 @@ func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
 
 func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 	// Redirect to GitHub first
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo,https://api.starter-us-east-2.openshift.com", "https://openshift.io/_home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo,https://api.starter-us-east-2.openshift.com", "https://openshift.io/_home")
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(location)
 	require.Nil(s.T(), err)
@@ -202,7 +200,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 	require.Equal(s.T(), "/login/oauth/authorize", locationURL.Path)
 
 	// Callback from GitHub should redirect to OSO
-	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
+	callbackLocation := s.checkCallback(provider.GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
 	cls, err := s.clusterServiceMock.ClusterByURL(context.Background(), "https://api.starter-us-east-2.openshift.com")
@@ -213,7 +211,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleResources() {
 
 func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
 	// Redirect to GitHub first
-	location, err := s.linkService.ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "github,openshift", "https://openshift.io/_home")
+	location, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "github,openshift", "https://openshift.io/_home")
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(location)
 	require.Nil(s.T(), err)
@@ -222,7 +220,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
 	require.Equal(s.T(), "/login/oauth/authorize", locationURL.Path)
 
 	// Callback from GitHub should redirect to OSO
-	callbackLocation := s.checkCallback(GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
+	callbackLocation := s.checkCallback(provider.GitHubProviderID, s.stateParam(location), url.URL{Scheme: "https", Host: "api.starter-us-east-2.openshift.com", Path: "/oauth/authorize"})
 
 	// Callback from OSO should redirect back to the original redirect URL
 	cls, err := s.clusterServiceMock.ClusterByURL(context.Background(), "https://api.starter-us-east-2.openshift.com")
@@ -249,7 +247,7 @@ func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedU
 func (s *LinkTestSuite) checkToken(providerID string, expectedToken string) {
 	id, err := uuid.FromString(providerID)
 	require.Nil(s.T(), err)
-	var tokens []provider.ExternalToken
+	var tokens []token.ExternalToken
 	err = transaction.Transactional(s.Application, func(tr transaction.TransactionalResources) error {
 		tokens, err = tr.ExternalTokens().LoadByProviderIDAndIdentityID(context.Background(), id, s.testIdentity.ID)
 		return err

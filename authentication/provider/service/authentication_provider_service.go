@@ -26,21 +26,14 @@ import (
 	"regexp"
 )
 
-type AuthenticationProviderConfiguration interface {
+type AuthenticationProviderServiceConfig interface {
+	provider.IdentityProviderConfiguration
 	token.TokenManagerConfiguration
-	GetValidRedirectURLs() string
-	GetUserInfoEndpoint() string
-	GetOAuthEndpointAuth() string
-	GetOAuthEndpointToken() string
-	GetOAuthClientID() string
-	GetOAuthSecret() string
-	GetNotApprovedRedirect() string
-	GetWITURL() (string, error)
 }
 
 type authenticationProviderServiceImpl struct {
 	base.BaseService
-	config       AuthenticationProviderConfiguration
+	config       provider.IdentityProviderConfiguration
 	tokenManager token.TokenManager
 }
 
@@ -50,7 +43,7 @@ const (
 	tokenJSONParam = "token_json"
 )
 
-func NewAuthenticationProviderService(context servicecontext.ServiceContext, config AuthenticationProviderConfiguration) service.AuthenticationProviderService {
+func NewAuthenticationProviderService(context servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
 	tokenManager, err := token.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -63,16 +56,6 @@ func NewAuthenticationProviderService(context servicecontext.ServiceContext, con
 		config:       config,
 		tokenManager: tokenManager,
 	}
-}
-
-func (s *authenticationProviderServiceImpl) newIdentityProvider() *provider.BaseIdentityProvider {
-	provider := &provider.BaseIdentityProvider{}
-	provider.ProfileURL = s.config.GetUserInfoEndpoint()
-	provider.ClientID = s.config.GetOAuthClientID()
-	provider.ClientSecret = s.config.GetOAuthSecret()
-	provider.Scopes = []string{"user:email"}
-	provider.Endpoint = oauth2.Endpoint{AuthURL: s.config.GetOAuthEndpointAuth(), TokenURL: s.config.GetOAuthEndpointToken()}
-	return provider
 }
 
 // GenerateAuthCodeURL is used by both the login and authorize endpoints to generate a URL to which the client will be
@@ -117,7 +100,7 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 	}
 
 	// Create a new identity provider / configuration
-	provider := s.newIdentityProvider()
+	provider := provider.NewIdentityProvider(s.config)
 
 	// Override the redirect URL, setting it to the callback URL that was passed in
 	provider.RedirectURL = callbackURL
@@ -155,7 +138,7 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 		return &redirect, err
 	}
 
-	redirectTo, _, err := s.CreateOrUpdateIdentityAndUser(ctx, referrerURL, token, *s.newIdentityProvider())
+	redirectTo, _, err := s.CreateOrUpdateIdentityAndUser(ctx, referrerURL, token, provider.NewIdentityProvider(s.config))
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +178,7 @@ func (s *authenticationProviderServiceImpl) AuthorizeCallback(ctx context.Contex
 func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
 
 	// Create a new identity provider / configuration
-	provider := s.newIdentityProvider()
+	provider := provider.NewIdentityProvider(s.config)
 
 	// Exchange the code for an access token
 	token, err := provider.Exchange(ctx, code)
@@ -217,7 +200,7 @@ func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code s
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
-	token *oauth2.Token, idpProvider provider.BaseIdentityProvider) (*string, *oauth2.Token, error) {
+	token *oauth2.Token, idpProvider provider.IdentityProvider) (*string, *oauth2.Token, error) {
 	apiClient := referrerURL.Query().Get(apiClientParam)
 	identity, newUser, err := s.GetExistingIdentityInfo(ctx, token.AccessToken, idpProvider)
 	if err != nil {
@@ -326,7 +309,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 // GetExistingIdentityInfo creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
 func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string,
-	idpProvider provider.BaseIdentityProvider) (*account.Identity, bool, error) {
+	idpProvider provider.IdentityProvider) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
 	userProfile, err := idpProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})

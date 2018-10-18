@@ -7,9 +7,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherror "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 	"github.com/goadesign/goa/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -54,8 +52,8 @@ func (s *loginIDPTestSuite) getCustomConfig() *configuration.ConfigurationData {
 }
 
 func (s *loginIDPTestSuite) TestProfileOK() {
-	loginIDP := login.NewIdentityProvider(s.getCustomConfig())
-	data, err := provider.Profile(context.Background(), oauth2.Token{})
+	p := provider.NewIdentityProvider(s.getCustomConfig())
+	data, err := p.Profile(context.Background(), oauth2.Token{})
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), data)
 	s.compareResponse(loginIDPResponseSample, *data)
@@ -63,14 +61,14 @@ func (s *loginIDPTestSuite) TestProfileOK() {
 
 func (s *loginIDPTestSuite) TestProfileInternalError() {
 	// this will try reaching keycloak
-	loginIDP := login.NewIdentityProvider(s.Configuration)
+	loginIDP := provider.NewIdentityProvider(s.Configuration)
 	data, err := loginIDP.Profile(context.Background(), oauth2.Token{})
 	require.Error(s.T(), err)
 	require.Nil(s.T(), data)
 	require.IsType(s.T(), autherror.InternalError{}, errors.Cause(err))
 }
 
-func (s *loginIDPTestSuite) compareResponse(response login.IdentityProviderResponse, profile oauth.UserProfile) {
+func (s *loginIDPTestSuite) compareResponse(response provider.IdentityProviderResponse, profile provider.UserProfile) {
 	assert.Equal(s.T(), profile.Username, response.Username)
 	assert.Equal(s.T(), profile.Company, response.Company)
 	assert.Equal(s.T(), profile.Email, response.Email)
@@ -80,7 +78,7 @@ func (s *loginIDPTestSuite) compareResponse(response login.IdentityProviderRespo
 
 // Run a mocked IDP server
 
-var loginIDPResponseSample login.IdentityProviderResponse = login.IdentityProviderResponse{
+var loginIDPResponseSample provider.IdentityProviderResponse = provider.IdentityProviderResponse{
 	Username:      "username",
 	GivenName:     "gname",
 	FamilyName:    "fname",

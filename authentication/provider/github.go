@@ -18,7 +18,7 @@ const (
 )
 
 type GitHubIdentityProvider struct {
-	BaseIdentityProvider
+	DefaultIdentityProvider
 }
 
 type gitHubUser struct {

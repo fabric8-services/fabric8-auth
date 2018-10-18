@@ -28,7 +28,7 @@ type OpenShiftIdentityProviderConfig interface {
 }
 
 type OpenShiftIdentityProvider struct {
-	BaseIdentityProvider
+	DefaultIdentityProvider
 	Cluster cluster.Cluster
 }
 
