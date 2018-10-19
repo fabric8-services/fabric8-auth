@@ -242,14 +242,24 @@ func TestBuildRedirectURL(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
-	referralURL, _ := url.Parse("http://mysite?x=123")
 	responseMode := "fragment"
-	require.Equal(t, "http://mysite?x=123#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
 
-	referralURL, _ = url.Parse("http://mysite/")
-	require.Equal(t, "http://mysite/#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
+	t.Run("with parameter and fragment", func(t *testing.T) {
 
-	referralURL, _ = url.Parse("http://mysite?x=123")
-	require.Equal(t, "http://mysite?code=thecode&state=thestate&x=123", buildRedirectURL("thecode", "thestate", referralURL, nil))
+		referralURL, _ := url.Parse("http://mysite?x=123")
+		require.Equal(t, "http://mysite?x=123#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
+	})
 
+	t.Run("without parameter", func(t *testing.T) {
+
+		referralURL, _ := url.Parse("http://mysite/")
+		require.Equal(t, "http://mysite/#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
+
+	})
+
+	t.Run("with parameter, no response mode specified", func(t *testing.T) {
+
+		referralURL, _ := url.Parse("http://mysite?x=123")
+		require.Equal(t, "http://mysite?code=thecode&state=thestate&x=123", buildRedirectURL("thecode", "thestate", referralURL, nil))
+	})
 }
