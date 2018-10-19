@@ -178,7 +178,7 @@ var _ = a.Resource("token", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
 
-	a.Action("callback", func() {
+	a.Action("LinkCallback", func() {
 		a.Routing(
 			a.GET("/link/callback"),
 		)

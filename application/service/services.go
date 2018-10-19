@@ -38,6 +38,7 @@ type AuthenticationProviderService interface {
 	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
 		token *oauth2.Token, idpProvider provider.IdentityProvider) (*string, *oauth2.Token, error)
+	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)
@@ -114,6 +115,7 @@ type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
 	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*token.TokenSet, error)
 	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
+	RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
 }
 
 type SpaceService interface {
