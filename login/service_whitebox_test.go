@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	"net/url"
 	"testing"
 
 	name "github.com/fabric8-services/fabric8-auth/account"
@@ -235,4 +236,20 @@ func TestFillUserDoesntOverwritesEmailVerified(t *testing.T) {
 	claims := oauth.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email", EmailVerified: true}
 	fillUserFromUserInfo(claims, identity)
 	assert.Equal(t, false, identity.User.EmailVerified)
+}
+
+func TestBuildRedirectURL(t *testing.T) {
+	t.Parallel()
+	resource.Require(t, resource.UnitTest)
+
+	referralURL, _ := url.Parse("http://mysite?x=123")
+	responseMode := "fragment"
+	require.Equal(t, "http://mysite?x=123#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
+
+	referralURL, _ = url.Parse("http://mysite/")
+	require.Equal(t, "http://mysite/#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
+
+	referralURL, _ = url.Parse("http://mysite?x=123")
+	require.Equal(t, "http://mysite?code=thecode&state=thestate&x=123", buildRedirectURL("thecode", "thestate", referralURL, nil))
+
 }
