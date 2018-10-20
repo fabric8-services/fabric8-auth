@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testjwt "github.com/fabric8-services/fabric8-auth/test/jwt"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +54,7 @@ func (s *tokenServiceBlackboxTest) TestSimpleAuditAccessToken() {
 	s.Graph.CreateIdentityRole(u, r, echoRole)
 
 	// Audit the user token for the new resource ID
-	rptToken, err := s.Application.TokenService().Audit(tokencontext.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, r.ResourceID())
+	rptToken, err := s.Application.TokenService().Audit(token.ContextWithTokenManager(s.Ctx, tm), u.Identity(), at.AccessToken, r.ResourceID())
 	require.NoError(s.T(), err)
 
 	require.NotNil(s.T(), rptToken)

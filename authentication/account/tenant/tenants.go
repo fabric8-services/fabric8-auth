@@ -6,7 +6,7 @@
 // $ goagen
 // --design=github.com/fabric8-services/fabric8-tenant/design
 // --notool=true
-// --out=$(GOPATH)/src/github.com/fabric8-services/fabric8-auth/account
+// --out=$(GOPATH)/src/github.com/fabric8-services/fabric8-auth/authentication/account
 // --pkg=tenant
 // --version=v1.3.0
 

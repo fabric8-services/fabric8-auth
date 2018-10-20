@@ -20,7 +20,6 @@ import (
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/oauth2"
 )
 
 const (
@@ -214,7 +213,24 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	case "client_credentials":
 		token, err = c.exchangeWithGrantTypeClientCredentials(ctx)
 	case "authorization_code":
-		notApprovedRedirect, token, err = c.exchangeWithGrantTypeAuthorizationCode(ctx)
+		//notApprovedRedirect, token, err = c.exchangeWithGrantTypeAuthorizationCode(ctx)
+		if payload.Code == nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("code", "nil").Expected("authorization code"))
+		}
+
+		redirectURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"redirectURL": rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
+				"err":         err,
+			}, "failed to parse referrer")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
+
+		c.app.AuthenticationProviderService().ExchangeAuthorizationCodeForUserToken(ctx, *payload.Code, payload.ClientID, redirectURL)
+
+		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
+
 	case "refresh_token":
 		token, err = c.exchangeWithGrantTypeRefreshToken(ctx)
 	default:
@@ -284,49 +300,25 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		}, "unknown oauth client id")
 		return nil, nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
-	authEndpoint, err := c.Configuration.GetKeycloakEndpointAuth(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get keycloak auth endpoint url")
-		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak auth endpoint url")
-	}
-
-	tokenEndpoint, err := c.Configuration.GetKeycloakEndpointToken(ctx.RequestData)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "unable to get keycloak token endpoint url")
-		return nil, nil, errors.NewInternalErrorFromString(ctx, "unable to get keycloak token endpoint url")
-	}
-
-	oauth := &oauth2.Config{
-		ClientID:     c.Configuration.GetKeycloakClientID(),
-		ClientSecret: c.Configuration.GetKeycloakSecret(),
-		Endpoint:     oauth2.Endpoint{AuthURL: authEndpoint, TokenURL: tokenEndpoint},
-		RedirectURL:  rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
-	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 
+	// Exchange the authorization code for an access token with the identity provider
 	accessToken, err := c.app.AuthenticationProviderService().Exchange(ctx, *payload.Code)
-
 	if err != nil {
 		return nil, nil, err
 	}
 
-	redirectURL, err := url.Parse(oauth.RedirectURL)
+	redirectURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"redirectURL": oauth.RedirectURL,
+			"redirectURL": rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
 			"err":         err,
 		}, "failed to parse referrer")
 		return nil, nil, errors.NewInternalError(ctx, err)
 	}
 
-	idpService := provider.NewIdentityProvider(c.Configuration)
-	notApprovedRedirectURL, userToken, err := c.app.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(ctx, redirectURL, accessToken, idpService)
-
+	notApprovedRedirectURL, userToken, err := c.app.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(ctx, redirectURL, accessToken)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -421,8 +413,8 @@ func (c *TokenController) Link(ctx *app.LinkTokenContext) error {
 	return ctx.OK(locationPayload)
 }
 
-// Callback is called by an external oauth2 resource provider such as GitHub as part of user's account linking flow
-func (c *TokenController) Callback(ctx *app.CallbackTokenContext) error {
+// LinkCallback is called by an external oauth2 resource provider such as GitHub as part of user's account linking flow
+func (c *TokenController) LinkCallback(ctx *app.LinkCallbackTokenContext) error {
 	redirectLocation, err := c.app.LinkService().Callback(ctx, ctx.RequestData, ctx.State, ctx.Code)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)

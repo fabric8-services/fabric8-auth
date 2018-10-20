@@ -34,7 +34,7 @@ type TestWhiteboxTokenSuite struct {
 
 func (s *TestWhiteboxTokenSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
-	m, err := NewManager(s.Config)
+	m, err := NewTokenManager(s.Config)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), m)
 	tm, ok := m.(*tokenManager)
@@ -53,7 +53,7 @@ func (c *authURLConfig) GetAuthServiceURL() string {
 
 func (s *TestWhiteboxTokenSuite) tokenManagerWithAuthURL() (*tokenManager, string) {
 	authURL := uuid.NewV4().String()
-	m, err := NewManager(&authURLConfig{
+	m, err := NewTokenManager(&authURLConfig{
 		ConfigurationData: s.Config,
 		authURL:           authURL,
 	})
@@ -232,7 +232,7 @@ func (s *TestWhiteboxTokenSuite) checkPrivateKeyLoaded(keyEnvVarName, keyEnvVarV
 	c, err := config.GetConfigurationData()
 	require.NoError(s.T(), err)
 
-	m, err := NewManager(c)
+	m, err := NewTokenManager(c)
 	require.NoError(s.T(), err)
 	tm, ok := m.(*tokenManager)
 	require.True(s.T(), ok)

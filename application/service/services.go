@@ -37,8 +37,9 @@ Steps for adding a new Service:
 type AuthenticationProviderService interface {
 	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
 	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
-		token *oauth2.Token, idpProvider provider.IdentityProvider) (*string, *oauth2.Token, error)
-	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
+		token *oauth2.Token) (*string, *oauth2.Token, error)
+	ExchangeAuthorizationCodeForUserToken(ctx context.Context, code string, clientID string, redirectURL *url.URL) (*string, *app.OauthToken, error)
+	ExchangeCodeWithProvider(ctx context.Context, code string) (*oauth2.Token, error)
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)

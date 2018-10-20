@@ -2,6 +2,7 @@ package controller_test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -16,16 +17,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/login"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testlogin "github.com/fabric8-services/fabric8-auth/test/login"
+	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -54,27 +53,25 @@ func (s *TokenControllerTestSuite) SetupSuite() {
 
 func (s *TokenControllerTestSuite) UnsecuredController() (*goa.Service, *TokenController) {
 	svc := goa.New("Token-Service")
-	manager, err := token.NewManager(s.Configuration)
+	manager, err := token.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
-	return svc, NewTokenController(svc, s.Application, loginService, nil, nil, manager, s.Configuration)
+	return svc, NewTokenController(svc, s.Application, manager, s.Configuration)
 }
 
-func (s *TokenControllerTestSuite) SecuredControllerWithNonExistentIdentity(loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
-	return s.SecuredControllerWithIdentity(testsupport.TestIdentity, loginService)
+func (s *TokenControllerTestSuite) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController) {
+	return s.SecuredControllerWithIdentity(testsupport.TestIdentity)
 }
 
-func (s *TokenControllerTestSuite) SecuredController(loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
+func (s *TokenControllerTestSuite) SecuredController() (*goa.Service, *TokenController) {
 	identity, err := testsupport.CreateTestIdentity(s.DB, uuid.NewV4().String(), "KC")
 	require.Nil(s.T(), err)
-	return s.SecuredControllerWithIdentity(identity, loginService)
+	return s.SecuredControllerWithIdentity(identity)
 }
 
-func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity, loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
+func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
 	newTestKeycloakOAuthProvider(s.Application)
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
-	linkService := &DummyLinkService{}
-	return svc, NewTokenController(svc, s.Application, loginService, linkService, nil, testtoken.TokenManager, s.Configuration)
+	return svc, NewTokenController(svc, s.Application, testtoken.TokenManager, s.Configuration)
 }
 
 func (s *TokenControllerTestSuite) TestPublicKeys() {
@@ -114,8 +111,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 	s.T().Run("using correct refresh token", func(t *testing.T) {
 
 		// given
-		loginService := testlogin.NewKeycloakOAuthServiceMock(t)
-		svc, ctrl := s.SecuredController(loginService)
+		svc, ctrl := s.SecuredController()
 		tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), testsupport.TestIdentity, false)
 		require.Nil(t, err)
 		payload := &app.RefreshToken{
@@ -123,18 +119,6 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 		}
 
 		t.Run("without authorization token", func(t *testing.T) {
-			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				var thirtyDays int64
-				thirtyDays = 60 * 60 * 24 * 30
-				bearer := "Bearer"
-				return &token.TokenSet{
-					TokenType:    &bearer,
-					AccessToken:  &tokenSet.AccessToken,
-					RefreshToken: &tokenSet.RefreshToken,
-					ExpiresIn:    &thirtyDays,
-				}, nil
-			}
 			// when
 			_, authToken := test.RefreshTokenOK(t, svc.Context, svc, ctrl, payload)
 			// then
@@ -152,19 +136,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("with valid authorization token", func(t *testing.T) {
 			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				var thirtyDays int64
-				thirtyDays = 60 * 60 * 24 * 30
-				bearer := "Bearer"
-				// configure the mock behaviour to return an refresh token only
-				return &token.TokenSet{
-					TokenType:    &bearer,
-					AccessToken:  &tokenSet.AccessToken,
-					RefreshToken: &refreshToken,
-					ExpiresIn:    &thirtyDays,
-				}, nil
-			}
-			manager, err := token.NewManager(s.Configuration)
+			manager, err := token.NewTokenManager(s.Configuration)
 			require.NoError(s.T(), err)
 			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
@@ -186,10 +158,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("with invalid authorization token", func(t *testing.T) {
 			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
-			}
-			manager, err := token.NewManager(s.Configuration)
+			manager, err := token.NewTokenManager(s.Configuration)
 			require.NoError(s.T(), err)
 			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
@@ -204,8 +173,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("using nil refresh token", func(t *testing.T) {
 			// given
-			loginService, _, _ := newKeycloakOAuthMockService(t, testsupport.TestIdentity)
-			svc, ctrl := s.SecuredController(loginService)
+			svc, ctrl := s.SecuredController()
 			payload := &app.RefreshToken{}
 			// when
 			_, err := test.RefreshTokenBadRequest(t, svc.Context, svc, ctrl, payload)
@@ -215,11 +183,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("using wrong refresh token", func(t *testing.T) {
 			// given
-			loginService := testlogin.NewKeycloakOAuthServiceMock(t)
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
-			}
-			svc, ctrl := s.SecuredController(loginService)
+			svc, ctrl := s.SecuredController()
 			refreshToken := "WRONG_REFRESH_TOKEN"
 			payload := &app.RefreshToken{
 				RefreshToken: &refreshToken,
@@ -235,8 +199,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 func (s *TokenControllerTestSuite) TestLinkForNonExistentUserFails() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredControllerWithNonExistentIdentity(loginService)
+	svc, ctrl := s.SecuredControllerWithNonExistentIdentity()
 	redirect := "https://openshift.io"
 	// when/then
 	test.LinkTokenUnauthorized(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", &redirect)
@@ -244,16 +207,14 @@ func (s *TokenControllerTestSuite) TestLinkForNonExistentUserFails() {
 
 func (s *TokenControllerTestSuite) TestLinkNoRedirectNoReferrerFails() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	// when/then
 	test.LinkTokenBadRequest(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", nil)
 }
 
 func (s *TokenControllerTestSuite) TestLinkOK() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	redirect := "https://openshift.io"
 	_, redirectLocation := test.LinkTokenOK(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", &redirect)
 	require.NotNil(s.T(), redirectLocation)
@@ -267,10 +228,9 @@ func (s *TokenControllerTestSuite) TestLinkOK() {
 
 func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	// when
-	response := test.CallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "")
+	response := test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "")
 	// then
 	require.NotNil(s.T(), response)
 	location := response.Header()["Location"]
@@ -280,8 +240,7 @@ func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithIncompletePayload() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	someRandomString := "someString"
 	// when/then
 	test.ExchangeTokenBadRequest(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
@@ -292,8 +251,7 @@ func (s *TokenControllerTestSuite) TestExchangeFailsWithIncompletePayload() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongCredentialsFails() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	someRandomString := "someString"
 	witID := "fabric8-wit"
 	// when/then
@@ -309,11 +267,11 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCredentialsOK() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
 	// given
-	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
-	loginService.ExchangeFunc = func(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+	authProviderService := testservice.NewAuthenticationProviderServiceMock(s.T())
+	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string) (*oauth2.Token, error) {
 		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
 	}
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	someRandomString := "someString"
 	clientID := ctrl.Configuration.GetPublicOauthClientID()
 	code := "INVALID_OAUTH2.0_CODE"
@@ -323,9 +281,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
-	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	someRandomString := "someString"
 	clientID := "someString"
 	code := "doesnt_matter"
@@ -335,12 +291,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
 }
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
-	// given
-	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
-	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
-	}
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	clientID := ctrl.Configuration.GetPublicOauthClientID()
 	refreshToken := "INVALID_REFRESH_TOKEN"
 
@@ -350,26 +301,16 @@ func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeOK() {
 	// given
-	loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController()
 	s.checkAuthorizationCode(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE", expectedAccessToken, expectedRefreshToken)
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectRefreshTokenOK() {
 	// given
-	loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), testsupport.TestIdentity)
+	svc, ctrl := s.SecuredController()
 	s.checkExchangeWithRefreshToken(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN", expectedAccessToken, expectedRefreshToken)
-}
-
-func (s *TokenControllerTestSuite) TestGenerateOK() {
-	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
-	_, result := test.GenerateTokenOK(s.T(), svc.Context, svc, ctrl)
-	require.Len(s.T(), result, 1)
-	validateToken(s.T(), result[0])
-	validateUserAndIdentity(s.T(), s.Application)
 }
 
 func (s *TokenControllerTestSuite) TestTokenAuditOK() {
@@ -387,9 +328,9 @@ func (s *TokenControllerTestSuite) TestTokenAuditOK() {
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, limaRole)
 	// seup controller with mock KeycloakOAuthService behind
-	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
-	manager, err := token.NewManager(s.Configuration)
+	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
+	manager, err := token.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
 	tk, err := manager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
@@ -419,9 +360,9 @@ func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
 	res := s.Graph.CreateResource(rt)
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, role)
-	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
-	manager, err := token.NewManager(s.Configuration)
+	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
+	manager, err := token.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
 	tk, err := manager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
@@ -467,9 +408,9 @@ func (s *TokenControllerTestSuite) TestAuditRevokedToken() {
 	res := s.Graph.CreateResource(rt)
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, role)
-	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
-	manager, err := token.NewManager(s.Configuration)
+	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
+	manager, err := token.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
 	tk, err := manager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
@@ -524,8 +465,7 @@ func validateUserAndIdentity(t *testing.T, app application.Application) {
 }
 
 func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, id string, secret string) {
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl := s.SecuredController()
 	_, saToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
 	assert.NotNil(s.T(), saToken.TokenType)
 	assert.Equal(s.T(), "bearer", *saToken.TokenType)
@@ -571,10 +511,10 @@ func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Servic
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
 	// setup the service and ctrl for this specific usecase
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	tokenManager, err := token.NewManager(s.Configuration)
+	tokenManager, err := token.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
 	oauthService := &NotApprovedOAuthService{}
-	ctrl := NewTokenController(svc, s.Application, oauthService, &DummyLinkService{}, nil, tokenManager, s.Configuration)
+	ctrl := NewTokenController(svc, s.Application, tokenManager, s.Configuration)
 
 	code := "XYZ"
 	_, errResp := test.ExchangeTokenForbidden(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
@@ -582,7 +522,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUser
 
 	oauthService = &NotApprovedOAuthService{}
 	oauthService.Scenario = "approved"
-	ctrl = NewTokenController(svc, s.Application, oauthService, &DummyLinkService{}, nil, tokenManager, s.Configuration)
+	ctrl = NewTokenController(svc, s.Application, tokenManager, s.Configuration)
 
 	code = "XYZ"
 	_, returnedToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
@@ -600,11 +540,11 @@ func (s *DummyLinkService) Callback(ctx context.Context, req *goa.RequestData, s
 	return "originalLocation", nil
 }
 
-func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login.KeycloakOAuthService, string, string) {
-	loginService := testlogin.NewKeycloakOAuthServiceMock(t)
+func newOAuthMockService(t *testing.T, identity account.Identity) (service.AuthenticationProviderService, string, string) {
+	authProviderService := testservice.NewAuthenticationProviderServiceMock(t)
 	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 	require.Nil(t, err)
-	loginService.ExchangeFunc = func(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string) (*oauth2.Token, error) {
 		var thirtyDays, nbf int64
 		thirtyDays = 60 * 60 * 24 * 30
 		token := &oauth2.Token{
@@ -620,19 +560,7 @@ func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login
 		token = token.WithExtra(extra)
 		return token, nil
 	}
-	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-		var thirtyDays int64
-		thirtyDays = 60 * 60 * 24 * 30
-		bearer := "Bearer"
-		token := &token.TokenSet{
-			TokenType:    &bearer,
-			AccessToken:  &tokenSet.AccessToken,
-			RefreshToken: &tokenSet.RefreshToken,
-			ExpiresIn:    &thirtyDays,
-		}
-		return token, nil
-	}
-	loginService.CreateOrUpdateIdentityAndUserFunc = func(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+	authProviderService.CreateOrUpdateIdentityAndUserFunc = func(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token) (*string, *oauth2.Token, error) {
 		var thirtyDays, nbf int64
 		thirtyDays = 60 * 60 * 24 * 30
 		token := &oauth2.Token{
@@ -650,15 +578,15 @@ func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login
 
 		return nil, token, nil
 	}
-	return loginService, tokenSet.AccessToken, tokenSet.RefreshToken
+	return authProviderService, tokenSet.AccessToken, tokenSet.RefreshToken
 }
 
 type NotApprovedOAuthService struct {
-	login.KeycloakOAuthProvider
+	service.AuthenticationProviderService
 	Scenario string
 }
 
-func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
 	bearer := "Bearer"
 	token := &oauth2.Token{
 		TokenType:    bearer,
@@ -668,10 +596,10 @@ func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string, con
 	return token, nil
 }
 
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration login.Configuration) (*account.Identity, bool, error) {
+func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
 	return nil, false, errors.NewUnauthorizedError("user is absent")
 }
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token) (*string, *oauth2.Token, error) {
 
 	/* This mocked method simulates the contract
 	where redir url is always returned, but token is returned when there is not error

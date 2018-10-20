@@ -131,18 +131,6 @@ var _ = a.Resource("token", func() {
 		})
 	})
 
-	a.Action("generate", func() {
-		a.Routing(
-			a.GET("generate"),
-		)
-		a.Description("Generate a set of Tokens for different Auth levels. NOT FOR PRODUCTION. Only available if server is running in dev mode")
-		a.Response(d.OK, func() {
-			a.Media(a.CollectionOf(AuthToken))
-		})
-		a.Response(d.Unauthorized, JSONAPIErrors)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-	})
-
 	a.Action("refresh", func() {
 		a.Routing(
 			a.POST("refresh"),

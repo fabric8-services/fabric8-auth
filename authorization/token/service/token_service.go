@@ -398,7 +398,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 }
 
 // Refresh checks the resource permissions in the given tokenString for the given user, and returns a
-// new RPToken (with a new expiry time and updated permissions if needed)
+// new RPT Token (with a new expiry time and updated permissions if needed)
 func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Identity, accessToken string) (string, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "refreshing a user token...")
 	// Get the token manager from the context
@@ -624,7 +624,7 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 func (c *tokenServiceImpl) updateProfileIfEmpty(ctx context.Context, forResource string, req *goa.RequestData,
 	prov provider.LinkingProvider, token *tokenrepo.ExternalToken, forcePull *bool) (tokenrepo.ExternalToken, *string, error) {
 	externalToken := *token
-	if externalToken.Username == "" || (forcePull != nil && *forcePull) {
+	if forcePull != nil && *forcePull {
 		userProfile, err := prov.Profile(ctx, oauth2.Token{AccessToken: token.Token})
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{

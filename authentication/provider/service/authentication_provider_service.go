@@ -24,17 +24,21 @@ import (
 	"golang.org/x/oauth2"
 	"net/url"
 	"regexp"
+	"strconv"
+	"time"
 )
 
 type AuthenticationProviderServiceConfig interface {
 	provider.IdentityProviderConfiguration
 	token.TokenManagerConfiguration
+	GetPublicOAuthClientID() string
 }
 
 type authenticationProviderServiceImpl struct {
 	base.BaseService
-	config       provider.IdentityProviderConfiguration
-	tokenManager token.TokenManager
+	config             AuthenticationProviderServiceConfig
+	tokenManager       token.TokenManager
+	configuredProvider provider.IdentityProvider
 }
 
 const (
@@ -51,10 +55,13 @@ func NewAuthenticationProviderService(context servicecontext.ServiceContext, con
 		}, "failed to create token manager")
 	}
 
+	provider := provider.NewIdentityProvider(config)
+
 	return &authenticationProviderServiceImpl{
-		BaseService:  base.NewBaseService(context),
-		config:       config,
-		tokenManager: tokenManager,
+		BaseService:        base.NewBaseService(context),
+		config:             config,
+		tokenManager:       tokenManager,
+		configuredProvider: provider,
 	}
 }
 
@@ -132,13 +139,13 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 		return nil, err
 	}
 
-	token, err := s.Exchange(ctx, code)
+	providerToken, err := s.ExchangeCodeWithProvider(ctx, code)
 	if err != nil {
 		redirect := referrerURL.String() + "?error=" + err.Error()
 		return &redirect, err
 	}
 
-	redirectTo, _, err := s.CreateOrUpdateIdentityAndUser(ctx, referrerURL, token, provider.NewIdentityProvider(s.config))
+	redirectTo, _, err := s.CreateOrUpdateIdentityAndUser(ctx, referrerURL, providerToken)
 	if err != nil {
 		return nil, err
 	}
@@ -174,14 +181,57 @@ func (s *authenticationProviderServiceImpl) AuthorizeCallback(ctx context.Contex
 	return &redirectTo, nil
 }
 
-// Exchange exchanges the given code for OAuth2 token with the Authentication provider
-func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
+// ExchangeAuthorizationCodeForUserToken
+func (s *authenticationProviderServiceImpl) ExchangeAuthorizationCodeForUserToken(ctx context.Context, code string, clientID string, redirectURL *url.URL) (*string, *app.OauthToken, error) {
+	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+	if clientID != s.config.GetPublicOAuthClientID() {
+		log.Error(ctx, map[string]interface{}{
+			"client_id": clientID,
+		}, "unknown oauth client id")
+		return nil, nil, autherrors.NewUnauthorizedError("invalid oauth client id")
+	}
 
-	// Create a new identity provider / configuration
-	provider := provider.NewIdentityProvider(s.config)
+	// Exchange the authorization code for an access token with the identity provider
+	accessToken, err := s.ExchangeCodeWithProvider(ctx, code)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	notApprovedRedirectURL, userToken, err := s.CreateOrUpdateIdentityAndUser(ctx, redirectURL, accessToken)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var token *app.OauthToken
+
+	if userToken != nil {
+		// Convert expiry to expire_in
+		expiry := userToken.Expiry
+		var expireIn *string
+		if expiry != *new(time.Time) {
+			exp := expiry.Sub(time.Now())
+			if exp > 0 {
+				seconds := strconv.FormatInt(int64(exp/time.Second), 10)
+				expireIn = &seconds
+			}
+		}
+
+		token = &app.OauthToken{
+			AccessToken:  &userToken.AccessToken,
+			ExpiresIn:    expireIn,
+			RefreshToken: &userToken.RefreshToken,
+			TokenType:    &userToken.TokenType,
+		}
+	}
+
+	return notApprovedRedirectURL, token, nil
+}
+
+// Exchange exchanges the given code for OAuth2 token with the Authentication provider
+func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context.Context, code string) (*oauth2.Token, error) {
 
 	// Exchange the code for an access token
-	token, err := provider.Exchange(ctx, code)
+	token, err := s.configuredProvider.Exchange(ctx, code)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"code": code,
@@ -200,9 +250,9 @@ func (s *authenticationProviderServiceImpl) Exchange(ctx context.Context, code s
 // CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
 // encodes the token and returns final URL to which we are supposed to redirect
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
-	token *oauth2.Token, idpProvider provider.IdentityProvider) (*string, *oauth2.Token, error) {
+	token *oauth2.Token) (*string, *oauth2.Token, error) {
 	apiClient := referrerURL.Query().Get(apiClientParam)
-	identity, newUser, err := s.GetExistingIdentityInfo(ctx, token.AccessToken, idpProvider)
+	identity, newUser, err := s.GetExistingIdentityInfo(ctx, token.AccessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -264,7 +314,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		"user_name":   identity.Username,
 	}, "local user created/updated")
 
-	// Generate a new token instead of using the original Keycloak token
+	// Generate a new user token instead of using the original oauth provider token
 	userToken, err := s.tokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token")
@@ -308,11 +358,10 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 
 // GetExistingIdentityInfo creates a user and a keycloak identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
-func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string,
-	idpProvider provider.IdentityProvider) (*account.Identity, bool, error) {
+func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
-	userProfile, err := idpProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
+	userProfile, err := s.configuredProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
