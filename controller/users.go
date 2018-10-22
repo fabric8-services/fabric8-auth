@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"regexp"
 	"strings"
 	"time"
@@ -15,13 +16,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	accountrepo "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -33,35 +32,33 @@ type UsersController struct {
 	*goa.Controller
 	app                      application.Application
 	config                   UsersControllerConfiguration
-	userProfileService       login.UserProfileService
 	EmailVerificationService service.EmailVerificationService
-	keycloakLinkService      link.KeycloakIDPService
 }
 
 // UsersControllerConfiguration the Configuration for the UsersController
 type UsersControllerConfiguration interface {
 	GetCacheControlUsers() string
 	GetCacheControlUser() string
-	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
 	GetWITURL() (string, error)
-	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
-	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
-	GetKeycloakClientID() string
-	GetKeycloakSecret() string
-	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
 	GetEmailVerifiedRedirectURL() string
 	GetInternalUsersEmailAddressSuffix() string
 	GetIgnoreEmailInProd() string
+	GetOAuthClientID() string
+	GetOAuthSecret() string
+
+	// TODO remove these
+	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
+	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
+	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
+	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
 }
 
 // NewUsersController creates a users controller.
-func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, userProfileService login.UserProfileService, linkService link.KeycloakIDPService) *UsersController {
+func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration) *UsersController {
 	return &UsersController{
 		Controller:          service.NewController("UsersController"),
 		app:                 app,
 		config:              config,
-		userProfileService:  userProfileService,
-		keycloakLinkService: linkService,
 	}
 }
 
@@ -167,7 +164,7 @@ func (c *UsersController) checkPreviewUser(email string) (bool, error) {
 
 func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
 	idpName := "rhd"
-	linkRequest := link.KeycloakLinkIDPRequest{
+	linkRequest := provider.c.app.LinkService().KeycloakLinkIDPRequest{
 		UserID:           &rhdUserID,
 		Username:         &rhdUsername,
 		IdentityProvider: &idpName,
@@ -177,7 +174,7 @@ func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID 
 	if err != nil {
 		return err
 	}
-	return c.keycloakLinkService.Create(ctx, &linkRequest, protectedAccessToken, linkURL)
+	return c.app.LinkService().Create(ctx, &linkRequest, protectedAccessToken, linkURL)
 }
 
 func rhdUserName(userAttributes app.CreateIdentityDataAttributes) string {
@@ -283,13 +280,13 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 // Update updates the authorized user based on the provided Token
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
-	loggedInIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	loggedInIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	keycloakUserProfile := &login.KeycloakUserProfile{}
-	keycloakUserProfile.Attributes = &login.KeycloakUserProfileAttributes{}
+	userProfile := &provider.OAuthUserProfile{}
+	userProfile.Attributes = &provider.OAuthUserProfileAttributes{}
 
 	var isEmailVerificationNeeded bool
 
@@ -328,10 +325,10 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			isEmailVerificationNeeded = true
 			user.EmailVerified = false
 
-			keycloakUserProfile.Email = updatedEmail
+			userProfile.Email = updatedEmail
 		}
 		// ensure that the default value is not picked up by setting it explicitly.
-		keycloakUserProfile.EmailVerified = &user.EmailVerified
+		userProfile.EmailVerified = &user.EmailVerified
 
 		updatedUserName := ctx.Payload.Data.Attributes.Username
 		if updatedUserName != nil && *updatedUserName != identity.Username {
@@ -351,7 +348,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 				return errs.Wrap(errors.NewBadParameterError("username", *updatedUserName).Expected("unique username"), fmt.Sprintf("username : %s is already in use", *updatedUserName))
 			}
 			identity.Username = *updatedUserName
-			keycloakUserProfile.Username = updatedUserName
+			userProfile.Username = updatedUserName
 		}
 
 		updatedRegistratedCompleted := ctx.Payload.Data.Attributes.RegistrationCompleted
@@ -371,7 +368,7 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedBio := ctx.Payload.Data.Attributes.Bio
 		if updatedBio != nil && *updatedBio != user.Bio {
 			user.Bio = *updatedBio
-			(*keycloakUserProfile.Attributes)[login.BioAttributeName] = []string{*updatedBio}
+			(*userProfile.Attributes)[provider.BioAttributeName] = []string{*updatedBio}
 		}
 		updatedFullName := ctx.Payload.Data.Attributes.FullName
 		if updatedFullName != nil && *updatedFullName != user.FullName {
@@ -384,19 +381,19 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 			if len(nameComponents) > 1 {
 				lastName = strings.Join(nameComponents[1:], " ")
 			}
-			keycloakUserProfile.FirstName = &firstName
-			keycloakUserProfile.LastName = &lastName
+			userProfile.FirstName = &firstName
+			userProfile.LastName = &lastName
 		}
 		updatedImageURL := ctx.Payload.Data.Attributes.ImageURL
 		if updatedImageURL != nil && *updatedImageURL != user.ImageURL {
 			user.ImageURL = *updatedImageURL
-			(*keycloakUserProfile.Attributes)[login.ImageURLAttributeName] = []string{*updatedImageURL}
+			(*userProfile.Attributes)[provider.ImageURLAttributeName] = []string{*updatedImageURL}
 
 		}
 		updateURL := ctx.Payload.Data.Attributes.URL
 		if updateURL != nil && *updateURL != user.URL {
 			user.URL = *updateURL
-			(*keycloakUserProfile.Attributes)[login.URLAttributeName] = []string{*updateURL}
+			(*userProfile.Attributes)[provider.URLAttributeName] = []string{*updateURL}
 		}
 
 		updatedEmailPrivate := ctx.Payload.Data.Attributes.EmailPrivate
@@ -407,14 +404,14 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		updatedCompany := ctx.Payload.Data.Attributes.Company
 		if updatedCompany != nil && *updatedCompany != user.Company {
 			user.Company = *updatedCompany
-			(*keycloakUserProfile.Attributes)[login.CompanyAttributeName] = []string{*updatedCompany}
+			(*userProfile.Attributes)[provider.CompanyAttributeName] = []string{*updatedCompany}
 		}
 
 		// If none of the 'extra' attributes were present, we better make that section nil
 		// so that the Attributes section is omitted in the payload sent to KC
 
-		if updatedBio == nil && updatedImageURL == nil && updateURL == nil && keycloakUserProfile != nil {
-			keycloakUserProfile.Attributes = nil
+		if updatedBio == nil && updatedImageURL == nil && updateURL == nil && userProfile != nil {
+			userProfile.Attributes = nil
 		}
 
 		updatedContextInformation := ctx.Payload.Data.Attributes.ContextInformation
@@ -643,7 +640,7 @@ func (c *UsersController) List(ctx *app.ListUsersContext) error {
 
 // SendEmailVerificationCode sends out a verification code to the user's email address
 func (c *UsersController) SendEmailVerificationCode(ctx *app.SendEmailVerificationCodeUsersContext) error {
-	identity, err := login.LoadContextIdentityAndUser(ctx, c.app)
+	identity, err := c.app.UserService().LoadContextIdentityAndUser(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err}, "unable to load identity or user")
 		return jsonapi.JSONErrorResponse(ctx, err)
@@ -691,10 +688,10 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
-		protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, c.config.GetKeycloakClientID(), c.config.GetKeycloakSecret())
+		protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, c.config.GetOAuthClientID(), c.config.GetOAuthSecret())
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
-				"keycloak_client_id": c.config.GetKeycloakClientID(),
+				"oauth_client_id": c.config.GetOAuthClientID(),
 				"token_endpoint":     tokenEndpoint,
 				"err":                err,
 			}, "error generating PAT")
@@ -716,7 +713,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 			}
 
-			keycloakUser := login.KeycloakUserRequest{
+			oauthUser := provider.OAuthUserRequest{
 				Username:      &identity.Username,
 				Email:         &verfiedUser.Email,
 				EmailVerified: &isVerified,
@@ -724,7 +721,7 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 
 			// not using userProfileService.Update() because it needs a user token
 			// and here we don't have one.
-			keycloakUserID, _, err := c.userProfileService.CreateOrUpdate(ctx.Context, &keycloakUser, protectedAccessToken, usersEndpoint)
+			keycloakUserID, _, err := c.app.UserProfileService().CreateOrUpdate(ctx.Context, &oauthUser, protectedAccessToken, usersEndpoint)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
 					"err": err,

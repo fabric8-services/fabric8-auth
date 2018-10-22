@@ -1,10 +1,9 @@
-package token
+package token_test
 
 import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	manager "github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 
 	"github.com/dgrijalva/jwt-go"
@@ -153,7 +153,7 @@ func UpdateToken(tokenString string, claims map[string]interface{}) (string, err
 	for key, value := range oldTokenClaims {
 		switch value.(type) {
 		case float64:
-			number, err := token.NumberToInt(value)
+			number, err := manager.NumberToInt(value)
 			if err != nil {
 				return "", err
 			}
@@ -216,8 +216,8 @@ func configurationData() *configuration.ConfigurationData {
 	return config
 }
 
-func newManager() token.TokenManager {
-	tm, err := token.NewTokenManager(config)
+func newManager() manager.TokenManager {
+	tm, err := manager.NewTokenManager(config)
 	if err != nil {
 		panic("failed to create token manager: " + err.Error())
 	}

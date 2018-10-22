@@ -11,7 +11,7 @@ import (
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -114,7 +114,7 @@ type TeamService interface {
 
 type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
-	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*token.TokenSet, error)
+	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error)
 	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
 	RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
 }
@@ -127,8 +127,15 @@ type SpaceService interface {
 type UserService interface {
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
+	LoadContextIdentityAndUser(ctx context.Context) (*account.Identity, error)
 	LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*account.Identity, error)
 	ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error)
+}
+
+type UserProfileService interface {
+	CreateOrUpdate(ctx context.Context, userRequest *provider.OAuthUserRequest, protectedAccessToken string, adminUserAPIURL string) (*string, bool, error)
+	Get(ctx context.Context, accessToken string, profileURL string) (*provider.OAuthUserProfileResponse, error)
+	Update(ctx context.Context, userProfile *provider.OAuthUserProfile, accessToken string, profileURL string) error
 }
 
 type NotificationService interface {
@@ -165,6 +172,7 @@ type Services interface {
 	TeamService() TeamService
 	TokenService() TokenService
 	UserService() UserService
+	UserProfileService() UserProfileService
 	WITService() WITService
 	ClusterService() ClusterService
 }

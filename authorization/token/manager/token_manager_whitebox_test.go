@@ -1,9 +1,10 @@
-package token
+package manager
 
 import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"os"
 	"sync"
 	"testing"
@@ -117,7 +118,7 @@ func (s *TestWhiteboxTokenSuite) assertDefaultManager() {
 func (s *TestWhiteboxTokenSuite) TestAuthServiceAccountGeneratedOK() {
 	m, authURL := s.tokenManagerWithAuthURL()
 	tokenString := m.AuthServiceAccountToken()
-	s.checkServiceAccountToken(tokenString, AuthServiceAccountID, "fabric8-auth", authURL)
+	s.checkServiceAccountToken(tokenString, token.AuthServiceAccountID, "fabric8-auth", authURL)
 
 }
 
@@ -131,16 +132,16 @@ func (s *TestWhiteboxTokenSuite) TestServiceAccountGeneratedOK() {
 
 func (s *TestWhiteboxTokenSuite) TestNotAServiceAccountFails() {
 	ctx := createInvalidSAContext()
-	assert.False(s.T(), IsSpecificServiceAccount(ctx, "someName"))
+	assert.False(s.T(), token.IsSpecificServiceAccount(ctx, "someName"))
 }
 
 func (s *TestWhiteboxTokenSuite) TestIsServiceAccountFails() {
 	ctx := createInvalidSAContext()
-	assert.False(s.T(), IsServiceAccount(ctx))
+	assert.False(s.T(), token.IsServiceAccount(ctx))
 }
 
 func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken, saID, saName, iss string) {
-	token, err := jwt.Parse(rawToken, func(token *jwt.Token) (interface{}, error) {
+	tkn, err := jwt.Parse(rawToken, func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
 			return nil, errors.New("There is no 'kid' header in the token")
@@ -156,7 +157,7 @@ func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken, saID, saName
 	})
 	require.Nil(s.T(), err)
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims := tkn.Claims.(jwt.MapClaims)
 	require.Equal(s.T(), saID, claims["sub"])
 	require.Equal(s.T(), saName, claims["service_accountname"])
 	require.Equal(s.T(), []interface{}{"uma_protection"}, claims["scopes"])
@@ -167,12 +168,12 @@ func (s *TestWhiteboxTokenSuite) checkServiceAccountToken(rawToken, saID, saName
 	require.NotEmpty(s.T(), claims["iat"])
 	require.Equal(s.T(), iss, claims["iss"])
 
-	ctx := goajwt.WithJWT(context.Background(), token)
-	assert.True(s.T(), IsSpecificServiceAccount(ctx, saName))
-	assert.True(s.T(), IsSpecificServiceAccount(ctx, saName+"wrongName", saName))
-	assert.True(s.T(), IsSpecificServiceAccount(ctx, saName, saName+"wrongName"))
-	assert.False(s.T(), IsSpecificServiceAccount(ctx, saName+"wrongName"))
-	assert.False(s.T(), IsSpecificServiceAccount(ctx, saName+"wrongName", saName+"wrongName"))
+	ctx := goajwt.WithJWT(context.Background(), tkn)
+	assert.True(s.T(), token.IsSpecificServiceAccount(ctx, saName))
+	assert.True(s.T(), token.IsSpecificServiceAccount(ctx, saName+"wrongName", saName))
+	assert.True(s.T(), token.IsSpecificServiceAccount(ctx, saName, saName+"wrongName"))
+	assert.False(s.T(), token.IsSpecificServiceAccount(ctx, saName+"wrongName"))
+	assert.False(s.T(), token.IsSpecificServiceAccount(ctx, saName+"wrongName", saName+"wrongName"))
 }
 
 func createInvalidSAContext() context.Context {
@@ -248,7 +249,7 @@ func (s *TestWhiteboxTokenSuite) checkPrivateKeyLoaded(keyEnvVarName, keyEnvVarV
 func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 	tokenString := s.tokenManager.AuthServiceAccountToken()
 
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	tkn, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		kid := token.Header["kid"]
 		if kid == nil {
 			return nil, errors.New("There is no 'kid' header in the token")
@@ -264,8 +265,8 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 	})
 	require.Nil(s.T(), err)
 
-	claims := token.Claims.(jwt.MapClaims)
-	require.Equal(s.T(), AuthServiceAccountID, claims["sub"])
+	claims := tkn.Claims.(jwt.MapClaims)
+	require.Equal(s.T(), token.AuthServiceAccountID, claims["sub"])
 	require.Equal(s.T(), "fabric8-auth", claims["service_accountname"])
 	require.Equal(s.T(), []interface{}{"uma_protection"}, claims["scopes"])
 	jti, ok := claims["jti"].(string)

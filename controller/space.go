@@ -4,10 +4,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 
 	"github.com/goadesign/goa"
 )
@@ -25,7 +25,7 @@ func NewSpaceController(service *goa.Service, app application.Application) *Spac
 
 // Create runs the create action.
 func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -47,7 +47,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 
 // Delete runs the delete action.
 func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -66,7 +66,7 @@ func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
 
 // ListTeams runs the listTeams action.
 func (c *SpaceController) ListTeams(ctx *app.ListTeamsSpaceContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentUser, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}

@@ -7,7 +7,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -36,7 +35,7 @@ func NewInvitationController(service *goa.Service, app application.Application, 
 
 // CreateInvite runs the create action.
 func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -96,7 +95,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 
 // RescindInvite runs the revoke action.
 func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

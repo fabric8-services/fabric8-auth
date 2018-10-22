@@ -201,6 +201,10 @@ func (f *ServiceFactory) LinkService() service.LinkService {
 	return providerservice.NewLinkService(f.getContext(), f.config)
 }
 
+func (f *ServiceFactory) LinkingProviderFactory() service.LinkingProviderFactory {
+	return providerservice.NewLinkingProviderFactory(f.getContext(), f.config)
+}
+
 func (f *ServiceFactory) LogoutService() service.LogoutService {
 	return logoutservice.NewLogoutService(f.getContext(), f.config)
 }
@@ -243,6 +247,10 @@ func (f *ServiceFactory) SpaceService() service.SpaceService {
 
 func (f *ServiceFactory) UserService() service.UserService {
 	return userservice.NewUserService(f.getContext())
+}
+
+func (f *ServiceFactory) UserProfileService() service.UserProfileService {
+	return providerservice.NewUserProfileService(f.getContext())
 }
 
 func (f *ServiceFactory) NotificationService() service.NotificationService {

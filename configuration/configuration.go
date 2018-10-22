@@ -68,17 +68,12 @@ const (
 	varPostgresConnectionMaxOpen    = "postgres.connection.maxopen"
 
 	// Public Client ID for logging into Auth service via OAuth2
-	varPublicOauthClientID = "public.oauth.client.id"
+	varPublicOAuthClientID = "public.oauth.client.id"
 
 	// Keycloak
-	varKeycloakSecret           = "keycloak.secret"
-	varKeycloakClientID         = "keycloak.client.id"
-	varKeycloakDomainPrefix     = "keycloak.domain.prefix"
-	varKeycloakRealm            = "keycloak.realm"
-	varKeycloakTesUserName      = "keycloak.testuser.name"
-	varKeycloakTesUserSecret    = "keycloak.testuser.secret"
-	varKeycloakTesUser2Name     = "keycloak.testuser2.name"
-	varKeycloakTesUser2Secret   = "keycloak.testuser2.secret"
+	varKeycloakDomainPrefix = "keycloak.domain.prefix"
+	varKeycloakRealm        = "keycloak.realm"
+
 	varKeycloakURL              = "keycloak.url"
 	varKeycloakEndpointAdmin    = "keycloak.endpoint.admin"
 	varKeycloakEndpointAuth     = "keycloak.endpoint.auth"
@@ -236,8 +231,8 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetPostgresPassword() == defaultDBPassword {
 		c.appendDefaultConfigErrorMessage("default DB password is used")
 	}
-	if c.GetKeycloakSecret() == defaultKeycloakSecret {
-		c.appendDefaultConfigErrorMessage("default Keycloak client secret is used")
+	if c.GetOAuthSecret() == defaultOAuthSecret {
+		c.appendDefaultConfigErrorMessage("default oauth client secret is used")
 	}
 	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
 		c.appendDefaultConfigErrorMessage("default GitHub client secret is used")
@@ -523,12 +518,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 	in30Days = 30 * 24 * 60 * 60
 	c.v.SetDefault(varAccessTokenExpiresIn, in30Days)
 	c.v.SetDefault(varRefreshTokenExpiresIn, in30Days)
-	c.v.SetDefault(varKeycloakClientID, defaultKeycloakClientID)
-	c.v.SetDefault(varKeycloakSecret, defaultKeycloakSecret)
-	c.v.SetDefault(varPublicOauthClientID, defaultPublicOauthClientID)
+	c.v.SetDefault(varPublicOAuthClientID, defaultPublicOAuthClientID)
 	c.v.SetDefault(varKeycloakDomainPrefix, defaultKeycloakDomainPrefix)
-	c.v.SetDefault(varKeycloakTesUserName, defaultKeycloakTesUserName)
-	c.v.SetDefault(varKeycloakTesUserSecret, defaultKeycloakTesUserSecret)
 	c.v.SetDefault(varGitHubClientID, "c6a3a6280e9650ba27d8")
 	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org public_repo read:user")
@@ -543,9 +534,6 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// data returned from '/api/user' must not be cached by intermediate proxies,
 	// but can only be kept in the client's local cache.
 	c.v.SetDefault(varCacheControlUser, "private,max-age=10")
-
-	c.v.SetDefault(varKeycloakTesUser2Name, defaultKeycloakTesUser2Name)
-	c.v.SetDefault(varKeycloakTesUser2Secret, defaultKeycloakTesUser2Secret)
 
 	// Keycloak Tests are disabled by default
 	c.v.SetDefault(varKeycloakTestsDisabled, true)
@@ -782,24 +770,10 @@ func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
 }
 
-// TODO remove this (replace by GetOAuthSecret)
-// GetKeycloakSecret returns the keycloak client secret (as set via config file or environment variable)
-// that is used to make authorized Keycloak API Calls.
-func (c *ConfigurationData) GetKeycloakSecret() string {
-	return c.v.GetString(varKeycloakSecret)
-}
-
 // GetOAuthSecret returns the oauth client secret (as set via config file or environment variable)
 // that is used to make authorized API Calls to the OAuth authentication provider.
 func (c *ConfigurationData) GetOAuthSecret() string {
 	return c.v.GetString(varOAuthSecret)
-}
-
-// TODO remove this (replaced by GetOAuthClientID)
-// GetKeycloakClientID returns the keycloak client ID (as set via config file or environment variable)
-// that is used to make authorized Keycloak API Calls.
-func (c *ConfigurationData) GetKeycloakClientID() string {
-	return c.v.GetString(varKeycloakClientID)
 }
 
 // GetOAuthClientID returns the oauth client ID (as set via config file or environment variable)
@@ -808,9 +782,9 @@ func (c *ConfigurationData) GetOAuthClientID() string {
 	return c.v.GetString(varOAuthClientID)
 }
 
-// GetPublicOauthClientID returns the public clientID
-func (c *ConfigurationData) GetPublicOauthClientID() string {
-	return c.v.GetString(varPublicOauthClientID)
+// GetPublicOAuthClientID returns the public clientID
+func (c *ConfigurationData) GetPublicOAuthClientID() string {
+	return c.v.GetString(varPublicOAuthClientID)
 }
 
 // GetKeycloakDomainPrefix returns the domain prefix which should be used in all Keycloak requests
@@ -831,26 +805,6 @@ func (c *ConfigurationData) GetKeycloakRealm() string {
 
 func (c *ConfigurationData) IsKeycloakTestsDisabled() bool {
 	return c.v.GetBool(varKeycloakTestsDisabled)
-}
-
-// GetKeycloakTestUserName returns the keycloak test user name used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUserName() string {
-	return c.v.GetString(varKeycloakTesUserName)
-}
-
-// GetKeycloakTestUserSecret returns the keycloak test user password used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUserSecret() string {
-	return c.v.GetString(varKeycloakTesUserSecret)
-}
-
-// GetKeycloakTestUser2Name returns the keycloak test user name used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUser2Name() string {
-	return c.v.GetString(varKeycloakTesUser2Name)
-}
-
-// GetKeycloakTestUser2Secret returns the keycloak test user password used to obtain a test token (as set via config file or environment variable)
-func (c *ConfigurationData) GetKeycloakTestUser2Secret() string {
-	return c.v.GetString(varKeycloakTesUser2Secret)
 }
 
 // GetKeycloakEndpointAuth returns the keycloak auth endpoint set via config file or environment variable.

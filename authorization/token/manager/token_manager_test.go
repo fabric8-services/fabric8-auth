@@ -1,8 +1,9 @@
-package token_test
+package manager_test
 
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
@@ -150,9 +151,9 @@ func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
 	claims, err := testtoken.TokenManager.ParseToken(ctx, userToken.AccessToken)
 	require.NoError(s.T(), err)
 
-	perms := []token.Permissions{}
+	perms := []manager.Permissions{}
 	resourceID := uuid.NewV4().String()
-	perms = append(perms, token.Permissions{
+	perms = append(perms, manager.Permissions{
 		ResourceSetID: &resourceID,
 		Scopes:        []string{"foo", "bar"},
 	})
@@ -327,7 +328,7 @@ func (s *TestTokenSuite) assertHeaders(tokenString string) {
 func (s *TestTokenSuite) assertExpiresIn(actualValue interface{}) {
 	require.NotNil(s.T(), actualValue)
 	now := time.Now().Unix()
-	expInt, err := token.NumberToInt(actualValue)
+	expInt, err := manager.NumberToInt(actualValue)
 	require.NoError(s.T(), err)
 	assert.True(s.T(), expInt >= now+30*24*60*60-60 && expInt < now+30*24*60*60+60, "expiration claim is not in 30 days (%d +/- 1m): %d", now+30*24*60*60, expInt) // Between 30 days from now and 30 days + 1 minute
 }
@@ -351,7 +352,7 @@ func (s *TestTokenSuite) assertSessionState(claims jwt.MapClaims) {
 func (s *TestTokenSuite) assertIat(claims jwt.MapClaims) interface{} {
 	iat := claims["iat"]
 	require.NotNil(s.T(), iat)
-	iatInt, err := token.NumberToInt(iat)
+	iatInt, err := manager.NumberToInt(iat)
 	require.NoError(s.T(), err)
 	now := time.Now().Unix()
 	assert.True(s.T(), iatInt <= now && iatInt > now-60, "'issued at' claim is not within one minute interval from now (%d): %d", now, iatInt) // Between now and 1 minute ago
@@ -367,17 +368,17 @@ func (s *TestTokenSuite) assertClaim(claims jwt.MapClaims, claimName string, exp
 func (s *TestTokenSuite) assertIntClaim(claims jwt.MapClaims, claimName string, expectedValue interface{}) {
 	clm := claims[claimName]
 	require.NotNil(s.T(), clm)
-	clmInt, err := token.NumberToInt(clm)
-	expectedInt, err := token.NumberToInt(expectedValue)
+	clmInt, err := manager.NumberToInt(clm)
+	expectedInt, err := manager.NumberToInt(expectedValue)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), expectedInt, clmInt)
 }
 
 func (s *TestTokenSuite) assertInt(expectedValue, actualValue interface{}) {
 	require.NotNil(s.T(), actualValue)
-	actInt, err := token.NumberToInt(actualValue)
+	actInt, err := manager.NumberToInt(actualValue)
 	require.NoError(s.T(), err)
-	expInt, err := token.NumberToInt(expectedValue)
+	expInt, err := manager.NumberToInt(expectedValue)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), actInt, expInt)
 }
@@ -481,7 +482,7 @@ func (s *TestTokenSuite) checkInvalidToken(token string) {
 }
 
 func (s *TestTokenSuite) TestCheckClaimsOK() {
-	claims := &token.TokenClaims{
+	claims := &manager.TokenClaims{
 		Email:    "somemail@domain.com",
 		Username: "testuser",
 	}
@@ -491,19 +492,19 @@ func (s *TestTokenSuite) TestCheckClaimsOK() {
 }
 
 func (s *TestTokenSuite) TestCheckClaimsFails() {
-	claimsNoEmail := &token.TokenClaims{
+	claimsNoEmail := &manager.TokenClaims{
 		Username: "testuser",
 	}
 	claimsNoEmail.Subject = uuid.NewV4().String()
 	assert.NotNil(s.T(), token.CheckClaims(claimsNoEmail))
 
-	claimsNoUsername := &token.TokenClaims{
+	claimsNoUsername := &manager.TokenClaims{
 		Email: "somemail@domain.com",
 	}
 	claimsNoUsername.Subject = uuid.NewV4().String()
 	assert.NotNil(s.T(), token.CheckClaims(claimsNoUsername))
 
-	claimsNoSubject := &token.TokenClaims{
+	claimsNoSubject := &manager.TokenClaims{
 		Email:    "somemail@domain.com",
 		Username: "testuser",
 	}
@@ -565,7 +566,7 @@ func (s *TestTokenSuite) TestLocateInvalidUUIDInTokenInContext() {
 func (s *TestTokenSuite) TestInt32ToInt64OK() {
 	var i32 int32
 	i32 = 60
-	i, err := token.NumberToInt(i32)
+	i, err := manager.NumberToInt(i32)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int64(i32), i)
 }
@@ -573,7 +574,7 @@ func (s *TestTokenSuite) TestInt32ToInt64OK() {
 func (s *TestTokenSuite) TestInt64ToInt64OK() {
 	var i64 int64
 	i64 = 6000000000000000000
-	i, err := token.NumberToInt(i64)
+	i, err := manager.NumberToInt(i64)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), i64, i)
 }
@@ -581,7 +582,7 @@ func (s *TestTokenSuite) TestInt64ToInt64OK() {
 func (s *TestTokenSuite) TestFloat32ToInt64OK() {
 	var f32 float32
 	f32 = 0.1e1
-	i, err := token.NumberToInt(f32)
+	i, err := manager.NumberToInt(f32)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int64(f32), i)
 }
@@ -589,14 +590,14 @@ func (s *TestTokenSuite) TestFloat32ToInt64OK() {
 func (s *TestTokenSuite) TestFloat64ToInt64OK() {
 	var f64 float64
 	f64 = 0.1e10
-	i, err := token.NumberToInt(f64)
+	i, err := manager.NumberToInt(f64)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int64(f64), i)
 }
 
 func (s *TestTokenSuite) TestStringToInt64OK() {
 	str := "2590000"
-	i, err := token.NumberToInt(str)
+	i, err := manager.NumberToInt(str)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int64(2590000), i)
 }

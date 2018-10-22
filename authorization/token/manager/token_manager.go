@@ -1,4 +1,4 @@
-package token
+package manager
 
 import (
 	"bytes"
@@ -11,11 +11,13 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	authclient "github.com/fabric8-services/fabric8-auth/client"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
@@ -35,6 +37,11 @@ import (
 var defaultManager TokenManager
 var defaultOnce sync.Once
 var defaultErr error
+
+const (
+	//contextTokenManagerKey is a key that will be used to put and to get `tokenManager` from goa.context
+	contextTokenManagerKey = iota
+)
 
 // DefaultManager creates the default manager if it has not created yet.
 // This function must be called in main to make sure the default manager is created during service startup.
@@ -82,6 +89,12 @@ type Permissions struct {
 	Expiry          int64    `json:"exp"`
 }
 
+// #####################################################################################################################
+//
+// Token sets
+//
+// #####################################################################################################################
+
 // TokenSet represents a set of Access and Refresh tokens
 type TokenSet struct {
 	AccessToken      *string `json:"access_token,omitempty"`
@@ -111,7 +124,80 @@ func ReadTokenSetFromJson(ctx context.Context, jsonString string) (*TokenSet, er
 	return &token, nil
 }
 
-// Manager generate and find auth token information
+// #####################################################################################################################
+//
+// Context management
+//
+// #####################################################################################################################
+
+// ContextIdentity returns the identity's ID found in given context
+// Uses tokenManager.Locate to fetch the identity of currently logged in user
+func ContextIdentity(ctx context.Context) (*uuid.UUID, error) {
+	tm, err := ReadTokenManagerFromContext(ctx)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{}, "error reading token manager")
+
+		return nil, errors.New("Error reading token manager")
+	}
+	if tm == nil {
+		log.Error(ctx, map[string]interface{}{
+			"token": tm,
+		}, "missing token manager")
+
+		return nil, errors.New("Missing token manager")
+	}
+	// As mentioned in token.go, we can now safely convert tm to a token.Manager
+	manager := tm.(TokenManager)
+	uuid, err := manager.Locate(ctx)
+	if err != nil {
+		// TODO : need a way to define user as Guest
+		log.Error(ctx, map[string]interface{}{
+			"uuid": uuid,
+			"err":  err,
+		}, "identity belongs to a Guest User")
+
+		return nil, errors.WithStack(err)
+	}
+	return &uuid, nil
+}
+
+// ContextWithTokenManager injects tokenManager in the context for every incoming request
+// Accepts Token.Manager in order to make sure that correct object is set in the context.
+// Only other possible value is nil
+func ContextWithTokenManager(ctx context.Context, tm interface{}) context.Context {
+	return context.WithValue(ctx, contextTokenManagerKey, tm)
+}
+
+// ReadManagerFromContext extracts the token manager from the context and returns it
+func ReadTokenManagerFromContext(ctx context.Context) (TokenManager, error) {
+	tm := ctx.Value(contextTokenManagerKey)
+	if tm == nil {
+		log.Error(ctx, map[string]interface{}{
+			"token": tm,
+		}, "missing token manager")
+
+		return nil, errors.New("missing token manager")
+	}
+	return tm.(*tokenManager), nil
+}
+
+// InjectTokenManager is a middleware responsible for setting up tokenManager in the context for every request.
+func InjectTokenManager(tokenManager TokenManager) goa.Middleware {
+	return func(h goa.Handler) goa.Handler {
+		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) error {
+			ctxWithTM := tokencontext.ContextWithTokenManager(ctx, tokenManager)
+			return h(ctxWithTM, rw, req)
+		}
+	}
+}
+
+// #####################################################################################################################
+//
+// Token Manager types and constructor
+//
+// #####################################################################################################################
+
+// TokenManager generates and manages auth tokens
 type TokenManager interface {
 	Parse(ctx context.Context, tokenString string) (*jwt.Token, error)
 	PublicKeys() []*rsa.PublicKey
@@ -119,8 +205,8 @@ type TokenManager interface {
 	ParseToken(ctx context.Context, tokenString string) (*TokenClaims, error)
 	ParseTokenWithMapClaims(ctx context.Context, tokenString string) (jwt.MapClaims, error)
 	PublicKey(keyID string) *rsa.PublicKey
-	JSONWebKeys() JSONKeys
-	PemKeys() JSONKeys
+	JSONWebKeys() token.JSONKeys
+	PemKeys() token.JSONKeys
 	KeyFunction(context.Context) jwt.Keyfunc
 	AuthServiceAccountToken() string
 	GenerateServiceAccountToken(saID string, saName string) (string, error)
@@ -139,11 +225,11 @@ type TokenManager interface {
 
 type tokenManager struct {
 	publicKeysMap            map[string]*rsa.PublicKey
-	publicKeys               []*PublicKey
-	serviceAccountPrivateKey *PrivateKey
-	userAccountPrivateKey    *PrivateKey
-	jsonWebKeys              JSONKeys
-	pemKeys                  JSONKeys
+	publicKeys               []*token.PublicKey
+	serviceAccountPrivateKey *token.PrivateKey
+	userAccountPrivateKey    *token.PrivateKey
+	jsonWebKeys              token.JSONKeys
+	pemKeys                  token.JSONKeys
 	serviceAccountToken      string
 	config                   TokenManagerConfiguration
 }
@@ -184,7 +270,7 @@ func NewTokenManager(config TokenManagerConfiguration) (TokenManager, error) {
 			return nil, err
 		}
 		tm.publicKeysMap[kid] = rsaKey
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: rsaKey})
+		tm.publicKeys = append(tm.publicKeys, &token.PublicKey{KeyID: kid, Key: rsaKey})
 		log.Info(nil, map[string]interface{}{"kid": kid}, "dev mode public key added")
 	}
 
@@ -862,7 +948,7 @@ func (m *tokenManager) GenerateUnsignedUserRefreshTokenForAPIClient(ctx context.
 // #####################################################################################################################
 
 // JSONWebKeys returns all the public keys in JSON Web Keys format
-func (mgm *tokenManager) JSONWebKeys() JSONKeys {
+func (mgm *tokenManager) JSONWebKeys() token.JSONKeys {
 	return mgm.jsonWebKeys
 }
 
@@ -944,7 +1030,7 @@ func (m *tokenManager) ParseTokenWithMapClaims(ctx context.Context, tokenString 
 }
 
 // PemKeys returns all the public keys in PEM-like format (PEM without header and footer)
-func (m *tokenManager) PemKeys() JSONKeys {
+func (m *tokenManager) PemKeys() token.JSONKeys {
 	return m.pemKeys
 }
 
@@ -1061,7 +1147,7 @@ func (m *tokenManager) extraInt(oauthToken oauth2.Token, claimName string) (*int
 // LoadPrivateKey loads a private key and a deprecated private key.
 // Extracts public keys from them and adds them to the manager
 // Returns the loaded private key.
-func (m *tokenManager) loadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*PrivateKey, error) {
+func (m *tokenManager) loadPrivateKey(tm *tokenManager, key []byte, kid string, deprecatedKey []byte, deprecatedKid string) (*token.PrivateKey, error) {
 	if len(key) == 0 || kid == "" {
 		log.Error(nil, map[string]interface{}{
 			"kid":        kid,
@@ -1076,10 +1162,10 @@ func (m *tokenManager) loadPrivateKey(tm *tokenManager, key []byte, kid string, 
 		log.Error(nil, map[string]interface{}{"err": err}, "unable to parse private key")
 		return nil, err
 	}
-	privateKey := &PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
+	privateKey := &token.PrivateKey{KeyID: kid, Key: rsaServiceAccountKey}
 	pk := &rsaServiceAccountKey.PublicKey
 	tm.publicKeysMap[kid] = pk
-	tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: kid, Key: pk})
+	tm.publicKeys = append(tm.publicKeys, &token.PublicKey{KeyID: kid, Key: pk})
 	log.Info(nil, map[string]interface{}{"kid": kid}, "public key added")
 
 	// Extract public key from the deprecated key if any and add it to the manager
@@ -1096,41 +1182,41 @@ func (m *tokenManager) loadPrivateKey(tm *tokenManager, key []byte, kid string, 
 		}
 		pk := &rsaServiceAccountKey.PublicKey
 		tm.publicKeysMap[deprecatedKid] = pk
-		tm.publicKeys = append(tm.publicKeys, &PublicKey{KeyID: deprecatedKid, Key: pk})
+		tm.publicKeys = append(tm.publicKeys, &token.PublicKey{KeyID: deprecatedKid, Key: pk})
 		log.Info(nil, map[string]interface{}{"kid": deprecatedKid}, "deprecated public key added")
 	}
 	return privateKey, nil
 }
 
-func (m *tokenManager) toJSONWebKeys(publicKeys []*PublicKey) (JSONKeys, error) {
+func (m *tokenManager) toJSONWebKeys(publicKeys []*token.PublicKey) (token.JSONKeys, error) {
 	var result []interface{}
 	for _, key := range publicKeys {
 		jwkey := jose.JSONWebKey{Key: key.Key, KeyID: key.KeyID, Algorithm: "RS256", Use: "sig"}
 		keyData, err := jwkey.MarshalJSON()
 		if err != nil {
-			return JSONKeys{}, err
+			return token.JSONKeys{}, err
 		}
 		var raw interface{}
 		err = json.Unmarshal(keyData, &raw)
 		if err != nil {
-			return JSONKeys{}, err
+			return token.JSONKeys{}, err
 		}
 		result = append(result, raw)
 	}
-	return JSONKeys{Keys: result}, nil
+	return token.JSONKeys{Keys: result}, nil
 }
 
-func (m *tokenManager) toPemKeys(publicKeys []*PublicKey) (JSONKeys, error) {
+func (m *tokenManager) toPemKeys(publicKeys []*token.PublicKey) (token.JSONKeys, error) {
 	var pemKeys []interface{}
 	for _, key := range publicKeys {
 		keyData, err := m.toPem(key.Key)
 		if err != nil {
-			return JSONKeys{}, err
+			return token.JSONKeys{}, err
 		}
 		rawPemKey := map[string]interface{}{"kid": key.KeyID, "key": keyData}
 		pemKeys = append(pemKeys, rawPemKey)
 	}
-	return JSONKeys{Keys: pemKeys}, nil
+	return token.JSONKeys{Keys: pemKeys}, nil
 }
 
 func (m *tokenManager) toPem(key *rsa.PublicKey) (string, error) {
@@ -1142,7 +1228,7 @@ func (m *tokenManager) toPem(key *rsa.PublicKey) (string, error) {
 }
 
 func (m *tokenManager) initServiceAccountToken() (string, error) {
-	tokenStr, err := m.GenerateServiceAccountToken(AuthServiceAccountID, Auth)
+	tokenStr, err := m.GenerateServiceAccountToken(token.AuthServiceAccountID, token.Auth)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -1168,4 +1254,31 @@ func NumberToInt(number interface{}) (int64, error) {
 		return 0, err
 	}
 	return result, nil
+}
+
+// CheckClaims checks if all the required claims are present in the access token
+func CheckClaims(claims *TokenClaims) error {
+	if claims.Subject == "" {
+		return errors.New("subject claim not found in token")
+	}
+	_, err := uuid.FromString(claims.Subject)
+	if err != nil {
+		return errors.New("subject claim from token is not UUID " + err.Error())
+	}
+	if claims.Username == "" {
+		return errors.New("username claim not found in token")
+	}
+	if claims.Email == "" {
+		return errors.New("email claim not found in token")
+	}
+	return nil
+}
+
+// AuthServiceAccountSigner returns a new JWT signer which uses the Auth Service Account token
+func AuthServiceAccountSigner(ctx context.Context) (client.Signer, error) {
+	tm, err := ReadTokenManagerFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return tm.AuthServiceAccountSigner(), nil
 }

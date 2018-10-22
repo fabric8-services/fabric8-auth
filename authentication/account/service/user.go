@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/satori/go.uuid"
@@ -25,7 +24,7 @@ func NewUserService(ctx servicecontext.ServiceContext) service.UserService {
 // userServiceImpl implements the UserService to manage users
 type userServiceImpl struct {
 	base.BaseService
-	tokenManager token.TokenManager
+	tokenManager manager.TokenManager
 }
 
 // UserInfo gets user information given a context containing access_token
@@ -78,7 +77,7 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 // ContextIdentityIfExists returns the identity's ID found in given context if the identity exists in the Auth DB
 // If it doesn't exist then an Unauthorized error is returned
 func (s *userServiceImpl) ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error) {
-	identity, err := account.ContextIdentity(ctx)
+	identity, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -101,7 +100,7 @@ func (s *userServiceImpl) ContextIdentityIfExists(ctx context.Context) (uuid.UUI
 // If the identity represented by the token doesn't exist in the DB or not associated with any User then an Unauthorized error is returned
 func (s *userServiceImpl) LoadContextIdentityAndUser(ctx context.Context) (*repository.Identity, error) {
 	var identity *repository.Identity
-	identityID, err := account.ContextIdentity(ctx)
+	identityID, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return nil, errors.NewUnauthorizedError(err.Error())
 	}

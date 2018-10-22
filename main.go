@@ -13,6 +13,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	provider "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
@@ -20,12 +22,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/link"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -148,7 +146,7 @@ func main() {
 
 	appDB := gormapplication.NewGormDB(db, config)
 
-	tokenManager, err := token.DefaultManager(config)
+	tokenManager, err := manager.DefaultManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -158,7 +156,7 @@ func main() {
 	jwtMiddlewareTokenContext := goamiddleware.TokenContext(tokenManager, app.NewJWTSecurity())
 	service.Use(jwtMiddlewareTokenContext)
 
-	service.Use(login.InjectTokenManager(tokenManager))
+	service.Use(manager.InjectTokenManager(tokenManager))
 	service.Use(log.LogRequest(config.IsPostgresDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 
@@ -169,8 +167,6 @@ func main() {
 	} else {
 		log.Logger().Warn("Tenant service is not enabled")
 	}
-
-	keycloakProfileService := login.NewKeycloakUserProfileClient()
 
 	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
 	err = clusterservice.Start(context.Background(), config)
@@ -186,9 +182,7 @@ func main() {
 	}
 
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, login.NewOSORegistrationApp(appDB))
 	loginCtrl := controller.NewLoginController(service, appDB)
-
 	app.MountLoginController(service, loginCtrl)
 
 	// Mount "resource-roles" controller
@@ -200,18 +194,15 @@ func main() {
 	app.MountRolesController(service, rolesCtrl)
 
 	// Mount "authorize" controller
-	authorizeCtrl := controller.NewAuthorizeController(service, loginService, tokenManager, config)
+	authorizeCtrl := controller.NewAuthorizeController(service, appDB)
 	app.MountAuthorizeController(service, authorizeCtrl)
 
 	// Mount "logout" controller
 	logoutCtrl := controller.NewLogoutController(service, appDB)
 	app.MountLogoutController(service, logoutCtrl)
 
-	providerFactory := link.NewOauthProviderFactory(config, appDB)
-	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
-
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, config)
+	tokenCtrl := controller.NewTokenController(service, appDB, tokenManager, config)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "status" controller
@@ -235,10 +226,8 @@ func main() {
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
-	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
-
 	emailVerificationService := accountservice.NewEmailVerificationClient(appDB)
-	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
+	usersCtrl := controller.NewUsersController(service, appDB, config)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 

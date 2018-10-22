@@ -85,20 +85,15 @@ vwIDAQAB
 
 	defaultLogLevel = "info"
 
-	defaultKeycloakClientID     = "fabric8-online-platform"
-	defaultKeycloakSecret       = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
-	defaultPublicOauthClientID  = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+	// OAuth Provider defaults
+
+	defaultOAuthClientID = "fabric8-online-platform"
+	defaultOAuthSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+
+	defaultPublicOAuthClientID  = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	defaultKeycloakDomainPrefix = "sso"
 	defaultKeycloakRealm        = "fabric8"
 	defaultWITDomainPrefix      = "api"
-
-	// Github does not allow committing actual OAuth tokens no matter how less privilege the token has
-	camouflagedAccessToken = "751e16a8b39c0985066-AccessToken-4871777f2c13b32be8550"
-
-	defaultKeycloakTesUserName    = "testuser"
-	defaultKeycloakTesUserSecret  = "testuser"
-	defaultKeycloakTesUser2Name   = "testuser2"
-	defaultKeycloakTesUser2Secret = "testuser2"
 
 	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
 	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"

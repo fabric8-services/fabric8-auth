@@ -15,7 +15,7 @@ import (
 	name "github.com/fabric8-services/fabric8-auth/authentication/account"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -30,14 +30,14 @@ import (
 
 type AuthenticationProviderServiceConfig interface {
 	provider.IdentityProviderConfiguration
-	token.TokenManagerConfiguration
+	manager.TokenManagerConfiguration
 	GetPublicOAuthClientID() string
 }
 
 type authenticationProviderServiceImpl struct {
 	base.BaseService
 	config             AuthenticationProviderServiceConfig
-	tokenManager       token.TokenManager
+	tokenManager       manager.TokenManager
 	configuredProvider provider.IdentityProvider
 }
 
@@ -48,7 +48,7 @@ const (
 )
 
 func NewAuthenticationProviderService(context servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
-	tokenManager, err := token.NewTokenManager(config)
+	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -571,7 +571,7 @@ func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
 	var expiresIn interface{}
 	var refreshExpiresIn interface{}
 	var err error
-	expiresIn, err = token.NumberToInt(str)
+	expiresIn, err = manager.NumberToInt(str)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"expires_in": str,
@@ -580,7 +580,7 @@ func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
 		return "", errs.WithStack(err)
 	}
 	str = outhToken.Extra("refresh_expires_in")
-	refreshExpiresIn, err = token.NumberToInt(str)
+	refreshExpiresIn, err = manager.NumberToInt(str)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"refresh_expires_in": str,

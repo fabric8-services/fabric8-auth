@@ -4,9 +4,8 @@ import (
 	"context"
 	"crypto/rsa"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/fabric8-services/fabric8-auth/log"
+
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -26,9 +25,6 @@ const (
 	GeminiServer       = "fabric8-gemini-server"
 
 	_ = iota
-
-	//contextTokenManagerKey is a key that will be used to put and to get `tokenManager` from goa.context
-	contextTokenManagerKey contextTMKey = iota
 
 	// Token Statuses
 
@@ -57,37 +53,6 @@ type PublicKey struct {
 // JSONKeys the remote keys encoded in a json document
 type JSONKeys struct {
 	Keys []interface{} `json:"keys"`
-}
-
-// ReadManagerFromContext extracts the token manager from the context
-func ReadManagerFromContext(ctx context.Context) (*tokenManager, error) {
-	tm := ReadTokenManagerFromContext(ctx)
-	if tm == nil {
-		log.Error(ctx, map[string]interface{}{
-			"token": tm,
-		}, "missing token manager")
-
-		return nil, errors.New("missing token manager")
-	}
-	return tm.(*tokenManager), nil
-}
-
-type contextTMKey int
-
-const ()
-
-// ReadTokenManagerFromContext returns an interface that encapsulates the
-// tokenManager extracted from context. This interface can be safely converted.
-// Must have been set by ContextWithTokenManager ONLY.
-func ReadTokenManagerFromContext(ctx context.Context) interface{} {
-	return ctx.Value(contextTokenManagerKey)
-}
-
-// ContextWithTokenManager injects tokenManager in the context for every incoming request
-// Accepts Token.Manager in order to make sure that correct object is set in the context.
-// Only other possible value is nil
-func ContextWithTokenManager(ctx context.Context, tm interface{}) context.Context {
-	return context.WithValue(ctx, contextTokenManagerKey, tm)
 }
 
 // IsSpecificServiceAccount checks if the request is done by a service account listed in the names param

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"net/url"
 	"strconv"
 	"time"
@@ -8,11 +9,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -30,27 +30,20 @@ const (
 type TokenControllerConfiguration interface {
 	provider.IdentityProviderConfiguration
 	IsPostgresDeveloperModeEnabled() bool
-	GetKeycloakURL() string
-	GetKeycloakRealm() string
-	GetPublicOauthClientID() string
-
-	GetKeycloakClientID() string
-	GetKeycloakSecret() string
 	GetServiceAccounts() map[string]configuration.ServiceAccount
-	GetKeycloakEndpointAuth(req *goa.RequestData) (string, error)
-	GetKeycloakEndpointToken(req *goa.RequestData) (string, error)
+	GetPublicOAuthClientID() string
 }
 
 // TokenController implements the login resource.
 type TokenController struct {
 	*goa.Controller
 	app           application.Application
-	TokenManager  token.TokenManager
+	TokenManager  manager.TokenManager
 	Configuration TokenControllerConfiguration
 }
 
 // NewTokenController creates a token controller.
-func NewTokenController(service *goa.Service, app application.Application, tokenManager token.TokenManager,
+func NewTokenController(service *goa.Service, app application.Application, tokenManager manager.TokenManager,
 	configuration TokenControllerConfiguration) *TokenController {
 	return &TokenController{
 		Controller:    service.NewController("token"),
@@ -80,7 +73,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	if refreshToken == nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("refresh_token", nil).Expected("not nil"))
 	}
-	var t *token.TokenSet
+	var t *manager.TokenSet
 	var err error
 	if accessToken != nil {
 		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
@@ -96,7 +89,7 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	return ctx.OK(convertToken(*t))
 }
 
-func convertToken(t token.TokenSet) *app.AuthToken {
+func convertToken(t manager.TokenSet) *app.AuthToken {
 	return &app.AuthToken{Token: &app.TokenData{
 		AccessToken:      t.AccessToken,
 		ExpiresIn:        t.ExpiresIn,
@@ -146,7 +139,7 @@ func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
 
 // Delete deletes the stored external provider token.
 func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
-	currentIdentity, err := account.ContextIdentity(ctx)
+	currentIdentity, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -259,7 +252,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 	}
 
 	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	if payload.ClientID != c.Configuration.GetPublicOauthClientID() {
+	if payload.ClientID != c.Configuration.GetPublicOAuthClientID() {
 		log.Error(ctx, map[string]interface{}{
 			"client_id": payload.ClientID,
 		}, "unknown oauth client id")
@@ -294,7 +287,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 		return nil, nil, errors.NewBadParameterError("code", "nil").Expected("authorization code")
 	}
 	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	if payload.ClientID != c.Configuration.GetPublicOauthClientID() {
+	if payload.ClientID != c.Configuration.GetPublicOAuthClientID() {
 		log.Error(ctx, map[string]interface{}{
 			"client_id": payload.ClientID,
 		}, "unknown oauth client id")
@@ -304,7 +297,7 @@ func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.Exchan
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 
 	// Exchange the authorization code for an access token with the identity provider
-	accessToken, err := c.app.AuthenticationProviderService().Exchange(ctx, *payload.Code)
+	accessToken, err := c.app.AuthenticationProviderService().ExchangeCodeWithProvider(ctx, *payload.Code)
 	if err != nil {
 		return nil, nil, err
 	}

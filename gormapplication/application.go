@@ -150,6 +150,14 @@ func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
 }
 
+func (g *GormDB) LinkService() service.LinkService {
+	return g.serviceFactory.LinkService()
+}
+
+func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
+	return g.serviceFactory.LinkingProviderFactory()
+}
+
 func (g *GormDB) LogoutService() service.LogoutService {
 	return g.serviceFactory.LogoutService()
 }
@@ -192,6 +200,10 @@ func (g *GormDB) TokenService() service.TokenService {
 
 func (g *GormDB) UserService() service.UserService {
 	return g.serviceFactory.UserService()
+}
+
+func (g *GormDB) UserProfileService() service.UserProfileService {
+	return g.serviceFactory.UserProfileService()
 }
 
 func (g *GormDB) NotificationService() service.NotificationService {

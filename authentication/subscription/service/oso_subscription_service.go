@@ -8,9 +8,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"golang.org/x/oauth2"
 	"net/http"
 
@@ -20,7 +20,7 @@ import (
 const signUpNeededStatus = "signup_needed"
 
 type OSOSubscriptionServiceConfiguration interface {
-	token.TokenConfiguration
+	manager.TokenManagerConfiguration
 	GetOSORegistrationAppURL() string
 	GetOSORegistrationAppAdminUsername() string
 	GetOSORegistrationAppAdminToken() string
@@ -46,12 +46,12 @@ type Service struct {
 type osoSubscriptionServiceImpl struct {
 	base.BaseService
 	config       OSOSubscriptionServiceConfiguration
-	tokenManager token.Manager
+	tokenManager manager.TokenManager
 	httpClient   rest.HttpClient
 }
 
 func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
-	tokenManager, err := token.NewManager(config)
+	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -67,7 +67,7 @@ func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSO
 }
 
 func NewOSOSubscriptionServiceWithClient(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration, httpClient rest.HttpClient) service.OSOSubscriptionService {
-	tokenManager, err := token.NewManager(config)
+	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,

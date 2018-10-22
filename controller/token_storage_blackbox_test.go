@@ -3,6 +3,7 @@ package controller_test
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,12 +14,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/token/link"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -30,10 +30,10 @@ import (
 type TestTokenStorageREST struct {
 	gormtestsupport.DBTestSuite
 	identityRepository      account.IdentityRepository
-	externalTokenRepository provider.ExternalTokenRepository
+	externalTokenRepository tokenrepo.ExternalTokenRepository
 	userRepository          account.UserRepository
 
-	providerConfigFactory      link.OauthProviderFactory
+	providerConfigFactory      provider.OauthProviderFactory
 	dummyProviderConfigFactory *testsupport.DummyProviderFactory
 	clusterServiceMock         service.ClusterService
 }
@@ -51,7 +51,7 @@ func (rest *TestTokenStorageREST) SetupSuite() {
 func (rest *TestTokenStorageREST) SetupTest() {
 	rest.DBTestSuite.SetupTest()
 	rest.identityRepository = account.NewIdentityRepository(rest.DB)
-	rest.externalTokenRepository = provider.NewExternalTokenRepository(rest.DB)
+	rest.externalTokenRepository = tokenrepo.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
 	rest.providerConfigFactory = link.NewOauthProviderFactory(rest.Configuration, rest.Application)
 	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.NewV4().String(), Config: rest.Configuration, App: rest.Application}
@@ -60,35 +60,35 @@ func (rest *TestTokenStorageREST) SetupTest() {
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
 	loginService := newTestKeycloakOAuthProvider(rest.Application)
-	return svc, &TokenController{Controller: svc.NewController("token"), Auth: loginService, Configuration: rest.Configuration}
+	return svc, &TokenController{Controller: svc.NewController("token"), Configuration: rest.Configuration}
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
 	loginService := newTestKeycloakOAuthProvider(rest.Application)
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
-	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, manager.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithIdentityAndDummyProviderFactory(identity account.Identity) (*goa.Service, *TokenController) {
 	loginService := newTestKeycloakOAuthProvider(rest.Application)
 
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
-	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.dummyProviderConfigFactory, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
 	loginService := newTestKeycloakOAuthProvider(rest.Application)
 
 	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
-	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccountAndDummyProviderFactory(serviceAccount account.Identity) (*goa.Service, *TokenController) {
 	loginService := newTestKeycloakOAuthProvider(rest.Application)
 
 	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
-	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.dummyProviderConfigFactory, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, loginService.TokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
@@ -253,7 +253,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenPresentInDB() {
 	rest.retrieveExternalOSOTokenFromDBSuccess()
 }
 
-func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess() (account.Identity, provider.ExternalToken) {
+func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess() (account.Identity, tokenrepo.ExternalToken) {
 	identity, err := testsupport.CreateTestIdentity(rest.DB, uuid.NewV4().String(), "KC")
 	require.Nil(rest.T(), err)
 
@@ -265,7 +265,7 @@ func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess() (ac
 	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, "https://github.com/a/b")
 	require.Nil(rest.T(), err)
 
-	expectedToken := provider.ExternalToken{
+	expectedToken := tokenrepo.ExternalToken{
 		ProviderID: providerConfig.ID(),
 		Scope:      providerConfig.Scopes(),
 		IdentityID: identity.ID,
@@ -293,7 +293,7 @@ func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess() (ac
 	return identity, expectedToken
 }
 
-func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (account.Identity, provider.ExternalToken) {
+func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (account.Identity, tokenrepo.ExternalToken) {
 	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(rest.DB, uuid.NewV4().String())
 	require.Nil(rest.T(), err)
 
@@ -305,7 +305,7 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (accou
 	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, "https://api.starter-us-east-2a.openshift.com")
 	require.Nil(rest.T(), err)
 
-	expectedToken := provider.ExternalToken{
+	expectedToken := tokenrepo.ExternalToken{
 		ProviderID: providerConfig.ID(),
 		Scope:      providerConfig.Scopes(),
 		IdentityID: identity.ID,
@@ -345,7 +345,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenForDeprovisionedUserU
 	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, "https://github.com/a/b")
 	require.Nil(rest.T(), err)
 
-	storedToken := provider.ExternalToken{
+	storedToken := tokenrepo.ExternalToken{
 		ProviderID: providerConfig.ID(),
 		Scope:      providerConfig.Scopes(),
 		IdentityID: identity.ID,
@@ -410,7 +410,7 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenValidOnForcePullInte
 	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, for_)
 	require.Nil(rest.T(), err)
 
-	expectedToken := provider.ExternalToken{
+	expectedToken := tokenrepo.ExternalToken{
 		ProviderID: providerConfig.ID(),
 		Scope:      providerConfig.Scopes(),
 		IdentityID: identity.ID,
@@ -554,7 +554,7 @@ func (rest *TestTokenStorageREST) checkStatusExternalTokenValidOnForcePullIntern
 	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, for_)
 	require.Nil(rest.T(), err)
 
-	expectedToken := provider.ExternalToken{
+	expectedToken := tokenrepo.ExternalToken{
 		ProviderID: providerConfig.ID(),
 		Scope:      providerConfig.Scopes(),
 		IdentityID: identity.ID,
@@ -619,7 +619,7 @@ func (rest *TestTokenStorageREST) deleteExternalToken(forResource string, number
 	test.DeleteTokenOK(rest.T(), service.Context, service, controller, forResource)
 
 	for i := 0; i < numberOfTokens; i++ {
-		expectedToken := provider.ExternalToken{
+		expectedToken := tokenrepo.ExternalToken{
 			ProviderID: providerConfig.ID(),
 			Scope:      providerConfig.Scopes(),
 			IdentityID: identity.ID,
