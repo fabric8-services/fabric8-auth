@@ -164,7 +164,7 @@ func (c *UsersController) checkPreviewUser(email string) (bool, error) {
 
 func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
 	idpName := "rhd"
-	linkRequest := provider.c.app.LinkService().KeycloakLinkIDPRequest{
+	linkRequest := c.app.LinkService().KeycloakLinkIDPRequest{
 		UserID:           &rhdUserID,
 		Username:         &rhdUsername,
 		IdentityProvider: &idpName,

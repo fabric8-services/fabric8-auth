@@ -9,13 +9,13 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/notification/client"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token/signer"
 
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/goadesign/goa/uuid"
@@ -128,7 +128,7 @@ func (s *notificationServiceImpl) createClientWithContextSigner(ctx context.Cont
 	if err != nil {
 		return nil, err
 	}
-	sgn := signer.NewSATokenSigner(ctx)
+	sgn := token.NewSATokenSigner(ctx)
 	saTokenSigner, err := sgn.Signer()
 	if err != nil {
 		return nil, err

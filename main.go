@@ -11,9 +11,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
-	provider "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -141,9 +139,6 @@ func main() {
 	service.WithLogger(goalogrus.New(log.Logger()))
 
 	// Setup Account/Login/Security
-	identityRepository := account.NewIdentityRepository(db)
-	userRepository := account.NewUserRepository(db)
-
 	appDB := gormapplication.NewGormDB(db, config)
 
 	tokenManager, err := manager.DefaultManager(config)

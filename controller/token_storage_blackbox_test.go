@@ -33,9 +33,9 @@ type TestTokenStorageREST struct {
 	externalTokenRepository tokenrepo.ExternalTokenRepository
 	userRepository          account.UserRepository
 
-	providerConfigFactory      provider.OauthProviderFactory
 	dummyProviderConfigFactory *testsupport.DummyProviderFactory
 	clusterServiceMock         service.ClusterService
+	tokenManager               manager.TokenManager
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
@@ -46,6 +46,9 @@ func (rest *TestTokenStorageREST) SetupSuite() {
 	rest.DBTestSuite.SetupSuite()
 	rest.clusterServiceMock = testsupport.NewClusterServiceMock(rest.T())
 	rest.Application = gormapplication.NewGormDB(rest.DB, rest.Configuration, factory.WithClusterService(rest.clusterServiceMock))
+	tm, err := manager.DefaultManager(rest.Configuration)
+	require.NoError(rest.T(), err)
+	rest.tokenManager = tm
 }
 
 func (rest *TestTokenStorageREST) SetupTest() {
@@ -53,42 +56,32 @@ func (rest *TestTokenStorageREST) SetupTest() {
 	rest.identityRepository = account.NewIdentityRepository(rest.DB)
 	rest.externalTokenRepository = tokenrepo.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
-	rest.providerConfigFactory = link.NewOauthProviderFactory(rest.Configuration, rest.Application)
 	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.NewV4().String(), Config: rest.Configuration, App: rest.Application}
 }
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
 	return svc, &TokenController{Controller: svc.NewController("token"), Configuration: rest.Configuration}
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
-
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
-	return svc, NewTokenController(svc, rest.Application, loginService, &DummyLinkService{}, rest.providerConfigFactory, manager.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, rest.tokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithIdentityAndDummyProviderFactory(identity account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
-
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
-	return svc, NewTokenController(svc, rest.Application, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, rest.tokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccount(serviceAccount account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
-
 	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
-	return svc, NewTokenController(svc, rest.Application, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, rest.tokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) SecuredControllerWithServiceAccountAndDummyProviderFactory(serviceAccount account.Identity) (*goa.Service, *TokenController) {
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
-
 	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", serviceAccount)
-	return svc, NewTokenController(svc, rest.Application, loginService.TokenManager, rest.Configuration)
+	return svc, NewTokenController(svc, rest.Application, rest.tokenManager, rest.Configuration)
 }
 
 func (rest *TestTokenStorageREST) TestRetrieveOSOServiceAccountTokenOK() {
@@ -262,7 +255,7 @@ func (rest *TestTokenStorageREST) retrieveExternalGitHubTokenFromDBSuccess() (ac
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, "https://github.com/a/b")
+	providerConfig, err := rest.Application.LinkingProviderFactory().NewLinkingProvider(context.Background(), identity.ID, r, "https://github.com/a/b")
 	require.Nil(rest.T(), err)
 
 	expectedToken := tokenrepo.ExternalToken{
@@ -302,7 +295,8 @@ func (rest *TestTokenStorageREST) retrieveExternalOSOTokenFromDBSuccess() (accou
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, "https://api.starter-us-east-2a.openshift.com")
+	providerConfig, err := rest.Application.LinkingProviderFactory().NewLinkingProvider(context.Background(),
+		identity.ID, r, "https://api.starter-us-east-2a.openshift.com")
 	require.Nil(rest.T(), err)
 
 	expectedToken := tokenrepo.ExternalToken{
@@ -342,7 +336,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenForDeprovisionedUserU
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, "https://github.com/a/b")
+	providerConfig, err := rest.Application.LinkingProviderFactory().NewLinkingProvider(context.Background(), identity.ID, r, "https://github.com/a/b")
 	require.Nil(rest.T(), err)
 
 	storedToken := tokenrepo.ExternalToken{
@@ -407,7 +401,7 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenValidOnForcePullInte
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, for_)
+	providerConfig, err := rest.Application.LinkingProviderFactory().NewLinkingProvider(context.Background(), identity.ID, r, for_)
 	require.Nil(rest.T(), err)
 
 	expectedToken := tokenrepo.ExternalToken{
@@ -551,7 +545,7 @@ func (rest *TestTokenStorageREST) checkStatusExternalTokenValidOnForcePullIntern
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, for_)
+	providerConfig, err := rest.Application.LinkingProviderFactory().NewLinkingProvider(context.Background(), identity.ID, r, for_)
 	require.Nil(rest.T(), err)
 
 	expectedToken := tokenrepo.ExternalToken{
@@ -612,7 +606,7 @@ func (rest *TestTokenStorageREST) deleteExternalToken(forResource string, number
 	r := &goa.RequestData{
 		Request: &http.Request{Host: "api.example.org"},
 	}
-	providerConfig, err := rest.providerConfigFactory.NewOauthProvider(context.Background(), identity.ID, r, forResource)
+	providerConfig, err := rest.Application.LinkingProviderFactory().NewLinkingProvider(context.Background(), identity.ID, r, forResource)
 	require.Nil(rest.T(), err)
 
 	// OK is returned even if there is nothing to delete

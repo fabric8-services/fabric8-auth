@@ -7,10 +7,10 @@ import (
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/satori/go.uuid"
@@ -99,7 +99,7 @@ func (t *tenantServiceImpl) createClientWithServiceAccountSigner(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-	signer, err := token.AuthServiceAccountSigner(ctx)
+	signer, err := manager.AuthServiceAccountSigner(ctx)
 	if err != nil {
 		return nil, err
 	}

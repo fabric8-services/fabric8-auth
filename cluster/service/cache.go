@@ -7,19 +7,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/cluster/client"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
 
 type clusterConfig interface {
-	token.TokenConfiguration
+	manager.TokenManagerConfiguration
 	GetClusterServiceURL() string
 	GetClusterCacheRefreshInterval() time.Duration
 }
@@ -144,7 +144,7 @@ func (c *cache) createClientWithServiceAccountSigner(ctx context.Context) (*clie
 	if err != nil {
 		return nil, err
 	}
-	manager, err := token.DefaultManager(c.config)
+	manager, err := manager.DefaultManager(c.config)
 	if err != nil {
 		return nil, err
 	}
