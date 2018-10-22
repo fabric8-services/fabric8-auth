@@ -119,6 +119,7 @@ func (s *UsersControllerTestSuite) TestCreateRandomUser() {
 		assert.Equal(t, identity.Username, *result.Data.Attributes.Username)
 		assert.Equal(t, user.Company, *result.Data.Attributes.Company)
 		assert.Equal(t, accountrepo.DefaultFeatureLevel, *result.Data.Attributes.FeatureLevel)
+		assert.Equal(t, false, *result.Data.Attributes.Deprovisioned)
 	})
 }
 
@@ -143,11 +144,13 @@ func (s *UsersControllerTestSuite) updateDeprovisionedAttribute(deprovisioned bo
 		// in this case, the existing state is that the user is not deprovisioned.
 		test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
 		s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+
 	} else {
 		// in this case, the existing state is that the user is deprovisioned.
 		test.UpdateUsersUnauthorized(s.T(), secureController.Context, secureService, secureController, updateUsersPayload)
 		s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
 	}
+
 }
 
 func (s *UsersControllerTestSuite) TestUpdateUser() {
@@ -854,6 +857,10 @@ func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expect
 	identity, err := identityRepository.LoadWithUser(context.Background(), id)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), expected, identity.User.Deprovisioned)
+
+	_, result := test.ShowUsersOK(s.T(), nil, nil, s.controller, id.String(), nil, nil)
+	require.Equal(s.T(), expected, *result.Data.Attributes.Deprovisioned)
+
 }
 
 func (s *UsersControllerTestSuite) TestSendEmailVerificationCode() {

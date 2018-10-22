@@ -115,6 +115,7 @@ var userDataAttributes = a.Type("UserDataAttributes", func() {
 	a.Attribute("providerType", d.String, "The IDP provided this identity")
 	a.Attribute("cluster", d.String, "The OpenShift API URL of the cluster where the user is provisioned to")
 	a.Attribute("featureLevel", d.String, "The level of features that the user wants to use (for unreleased features)")
+	a.Attribute("deprovisioned", d.Boolean, "Whether the user has been deprovisioned")
 	a.Attribute("contextInformation", a.HashOf(d.String, d.Any), "User context information of any type as a json", func() {
 		a.Example(map[string]interface{}{"last_visited_url": "https://a.openshift.io", "space": "3d6dab8d-f204-42e8-ab29-cdb1c93130ad"})
 	})

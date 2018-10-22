@@ -852,6 +852,7 @@ func ConvertToAppUser(request *goa.RequestData, user *accountrepo.User, identity
 	var userURL string
 	var email string
 	var isEmailPrivate bool
+	var isUserDeprovisioned bool
 	var createdAt time.Time
 	var updatedAt time.Time
 	var company string
@@ -880,6 +881,7 @@ func ConvertToAppUser(request *goa.RequestData, user *accountrepo.User, identity
 		createdAt = user.CreatedAt
 		updatedAt = user.UpdatedAt
 		emailVerified = user.EmailVerified
+		isUserDeprovisioned = user.Deprovisioned
 	}
 
 	converted := app.User{
@@ -905,6 +907,7 @@ func ConvertToAppUser(request *goa.RequestData, user *accountrepo.User, identity
 				EmailVerified:         &emailVerified,
 				ContextInformation:    make(map[string]interface{}),
 				RegistrationCompleted: &registrationCompleted,
+				Deprovisioned:         &isUserDeprovisioned,
 			},
 			Links: createUserLinks(request, &identity.ID),
 		},
