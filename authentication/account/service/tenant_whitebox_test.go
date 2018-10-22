@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"errors"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -11,9 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	authtest "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
-	"github.com/fabric8-services/fabric8-auth/test/token"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +51,7 @@ func (s *TestTenantServiceSuite) TestDefaultDoer() {
 }
 
 func (s *TestTenantServiceSuite) TestInit() {
-	ctx, token, reqID := token.ContextWithTokenAndRequestID(s.T())
+	ctx, token, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
 
 	s.doer.Client.Error = nil
 	body := ioutil.NopCloser(bytes.NewReader([]byte{}))
@@ -90,8 +89,8 @@ func (s *TestTenantServiceSuite) TestInit() {
 }
 
 func (s *TestTenantServiceSuite) TestDelete() {
-	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
-	ctx = tokencontext.ContextWithTokenManager(ctx, testtoken.TokenManager)
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx = manager.ContextWithTokenManager(ctx, testtoken.TokenManager)
 
 	token := testtoken.TokenManager.AuthServiceAccountToken()
 	s.doer.Client.Error = nil
