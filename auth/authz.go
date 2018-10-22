@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -119,7 +119,7 @@ func GetProtectedAPIToken(ctx context.Context, openidConnectTokenURL string, cli
 		return "", errors.NewInternalError(ctx, errs.New(res.Status+" "+rest.ReadBody(res.Body)))
 	}
 
-	t, err := token.ReadTokenSet(ctx, res)
+	t, err := manager.ReadTokenSet(ctx, res)
 	if err != nil {
 		return "", err
 	}

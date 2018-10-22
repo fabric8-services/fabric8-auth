@@ -8,16 +8,15 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	account "github.com/fabric8-services/fabric8-auth/authentication/account"
 	accountrepo "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	authtoken "github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-common/token"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -28,19 +27,19 @@ import (
 
 // TokenServiceConfiguration the required configuration for the token service implementation
 type TokenServiceConfiguration interface {
-	authtoken.TokenManagerConfiguration
+	manager.TokenManagerConfiguration
 	GetRPTTokenMaxPermissions() int
 }
 
 type tokenServiceImpl struct {
 	base.BaseService
 	config       TokenServiceConfiguration
-	tokenManager authtoken.TokenManager
+	tokenManager manager.TokenManager
 }
 
 // NewTokenService returns a new Token Service
 func NewTokenService(context servicecontext.ServiceContext, config TokenServiceConfiguration) service.TokenService {
-	tokenManager, err := authtoken.NewTokenManager(config)
+	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -71,13 +70,13 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 	}
 
 	// Get the token manager from the context
-	manager, err := authtoken.ReadManagerFromContext(ctx)
+	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}
 
 	// Now parse the token string that was passed in
-	tokenClaims, err := manager.ParseToken(ctx, tokenString)
+	tokenClaims, err := tokenManager.ParseToken(ctx, tokenString)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"error": err}, "invalid token string could not be parsed")
 		return nil, errors.NewBadParameterErrorFromString("tokenString", tokenString, "invalid token string could not be parsed")
@@ -201,7 +200,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 	err = s.ExecuteInTransaction(func() error {
 
 		// Initialize an array of permission objects that will be included in the token
-		perms := []authtoken.Permissions{}
+		perms := []manager.Permissions{}
 
 		// Initialize an array of TokenPrivilege objects so that we can persist a record of the token's privileges to the database
 		tokenPrivs := []tokenrepo.TokenPrivilege{}
@@ -212,7 +211,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			return errors.NewInternalError(ctx, err)
 		}
 
-		perm := &authtoken.Permissions{
+		perm := &manager.Permissions{
 			ResourceSetID: &resourceID,
 			Scopes:        privilegeCache.ScopesAsArray(),
 			Expiry:        privilegeCache.ExpiryTime.Unix(),
@@ -262,13 +261,13 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 						return err
 					}
 					// Create a new permissions object for the RPT token and store it in the array
-					perms = append(perms, authtoken.Permissions{
+					perms = append(perms, manager.Permissions{
 						ResourceSetID: &oldPrivResourceID,
 						Scopes:        privilegeCache.ScopesAsArray(),
 						Expiry:        privilegeCache.ExpiryTime.Unix(),
 					})
 				} else {
-					perms = append(perms, authtoken.Permissions{
+					perms = append(perms, manager.Permissions{
 						ResourceSetID: &oldPrivResourceID,
 						Scopes:        oldPriv.ScopesAsArray(),
 						Expiry:        oldPriv.ExpiryTime.Unix(),
@@ -285,7 +284,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 		}
 
 		// Generate a new RPT token
-		generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
+		generatedToken, err := tokenManager.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -326,7 +325,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 		}
 
 		// Sign the token
-		signedToken, err = manager.SignRPTToken(ctx, generatedToken)
+		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -343,7 +342,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
 // TODO investigate merging this with the Refresh() method
-func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*authtoken.TokenSet, error) {
+func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error) {
 
 	// Load identity for the refresh token
 	var identity *accountrepo.Identity
@@ -402,12 +401,12 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Identity, accessToken string) (string, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "refreshing a user token...")
 	// Get the token manager from the context
-	manager, err := authtoken.ReadManagerFromContext(ctx)
+	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
 	if err != nil {
 		return "", errors.NewInternalError(ctx, err)
 	}
 	// Now parse the token string that was passed in
-	accessTokenClaims, err := manager.ParseToken(ctx, accessToken)
+	accessTokenClaims, err := tokenManager.ParseToken(ctx, accessToken)
 	if err != nil {
 		return "", errors.NewUnauthorizedError("failed to parse the request's access token")
 	}
@@ -445,7 +444,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 	signedToken := ""
 	err = s.ExecuteInTransaction(func() error {
 		// Initialize an array of permission objects that will be included in the token
-		perms := []authtoken.Permissions{}
+		perms := []manager.Permissions{}
 		// Initialize an array of TokenPrivilege objects so that we can persist a record of the token's privileges to the database
 		tokenPrivs := []tokenrepo.TokenPrivilege{}
 		// If an existing RPT token is being replaced with a new token, then populate it with the privileges from the
@@ -473,7 +472,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 						return errors.NewInternalError(ctx, err)
 					}
 					log.Debug(ctx, map[string]interface{}{"resource_id": oldPrivResourceID, "new_scopes": privilegeCache.ScopesAsArray(), "old_scopes": oldPriv.ScopesAsArray()}, "old privileges are stale")
-					perm := &authtoken.Permissions{
+					perm := &manager.Permissions{
 						ResourceSetID: &oldPrivResourceID,
 						Scopes:        privilegeCache.ScopesAsArray(),
 						Expiry:        privilegeCache.ExpiryTime.Unix(),
@@ -481,7 +480,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 					perms = append(perms, *perm)
 				} else {
 					// Create a new permissions object for the RPT token and store it in the array
-					perm := &authtoken.Permissions{
+					perm := &manager.Permissions{
 						ResourceSetID: &oldPrivResourceID,
 						Scopes:        oldPriv.ScopesAsArray(),
 						Expiry:        oldPriv.ExpiryTime.Unix(),
@@ -499,7 +498,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 		now := time.Now().Unix()
 		accessTokenClaims.ExpiresAt = time.Unix(now+s.config.GetAccessTokenExpiresIn(), 0).Unix()
 		// Generate a new RPT token
-		generatedToken, err := manager.GenerateUnsignedRPTTokenForIdentity(ctx, accessTokenClaims, *identity, &perms)
+		generatedToken, err := tokenManager.GenerateUnsignedRPTTokenForIdentity(ctx, accessTokenClaims, *identity, &perms)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -540,7 +539,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 		}
 
 		// Sign the token
-		signedToken, err = manager.SignRPTToken(ctx, generatedToken)
+		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -562,10 +561,10 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 	}
 
 	var currentIdentityID uuid.UUID
-	serviceAccount := token.IsSpecificServiceAccount(ctx, authtoken.OsoProxy, authtoken.Tenant, authtoken.JenkinsIdler, authtoken.JenkinsProxy)
+	serviceAccount := authtoken.IsSpecificServiceAccount(ctx, authtoken.OsoProxy, authtoken.Tenant, authtoken.JenkinsIdler, authtoken.JenkinsProxy)
 	if serviceAccount {
 		// Extract SA ID
-		id, err := account.ContextIdentity(ctx)
+		id, err := manager.ContextIdentity(ctx)
 		if err != nil {
 			return nil, nil, err
 		}

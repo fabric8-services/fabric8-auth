@@ -30,7 +30,7 @@ func NewGitHubIdentityProvider(clientID string, clientSecret string, scopes stri
 	provider.ClientID = clientID
 	provider.ClientSecret = clientSecret
 	provider.Endpoint = github.Endpoint
-	provider.RedirectURL = authURL + client.CallbackTokenPath()
+	provider.RedirectURL = authURL + client.LinkCallbackTokenPath()
 	provider.ScopeStr = scopes
 	provider.Config.Scopes = strings.Split(scopes, " ")
 	provider.ProviderID, _ = uuid.FromString(GitHubProviderID)

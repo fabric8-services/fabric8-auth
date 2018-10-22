@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -53,7 +52,7 @@ func EmbedIdentityInContext(identity account.Identity) (context.Context, error) 
 		return nil, err
 	}
 	ctx = ContextWithRequest(ctx)
-	return tokencontext.ContextWithTokenManager(ctx, TokenManager), nil
+	return manager.ContextWithTokenManager(ctx, TokenManager), nil
 }
 
 // GenerateToken generates a JWT token and signs it using the default private key
@@ -195,7 +194,7 @@ func ContextWithRequest(ctx context.Context) context.Context {
 
 func ContextWithTokenAndRequestID(t *testing.T) (context.Context, string, string) {
 	ctx, ctxToken, err := EmbedTokenInContext(uuid.NewV4().String(), uuid.NewV4().String())
-	ctx = tokencontext.ContextWithTokenManager(ctx, TokenManager)
+	ctx = manager.ContextWithTokenManager(ctx, TokenManager)
 	require.NoError(t, err)
 
 	reqID := uuid.NewV4().String()
@@ -205,7 +204,7 @@ func ContextWithTokenAndRequestID(t *testing.T) (context.Context, string, string
 }
 
 func ContextWithTokenManager() context.Context {
-	return tokencontext.ContextWithTokenManager(context.Background(), TokenManager)
+	return manager.ContextWithTokenManager(context.Background(), TokenManager)
 }
 
 func configurationData() *configuration.ConfigurationData {

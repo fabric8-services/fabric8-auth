@@ -56,9 +56,9 @@ type UsersControllerConfiguration interface {
 // NewUsersController creates a users controller.
 func NewUsersController(service *goa.Service, app application.Application, config UsersControllerConfiguration) *UsersController {
 	return &UsersController{
-		Controller:          service.NewController("UsersController"),
-		app:                 app,
-		config:              config,
+		Controller: service.NewController("UsersController"),
+		app:        app,
+		config:     config,
 	}
 }
 
@@ -164,7 +164,7 @@ func (c *UsersController) checkPreviewUser(email string) (bool, error) {
 
 func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
 	idpName := "rhd"
-	linkRequest := c.app.LinkService().KeycloakLinkIDPRequest{
+	linkRequest := provider.KeycloakLinkIDPRequest{
 		UserID:           &rhdUserID,
 		Username:         &rhdUsername,
 		IdentityProvider: &idpName,
@@ -174,7 +174,7 @@ func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID 
 	if err != nil {
 		return err
 	}
-	return c.app.LinkService().Create(ctx, &linkRequest, protectedAccessToken, linkURL)
+	return provider.NewKeycloakIDPServiceClient().Create(ctx, &linkRequest, protectedAccessToken, linkURL)
 }
 
 func rhdUserName(userAttributes app.CreateIdentityDataAttributes) string {
@@ -692,8 +692,8 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"oauth_client_id": c.config.GetOAuthClientID(),
-				"token_endpoint":     tokenEndpoint,
-				"err":                err,
+				"token_endpoint":  tokenEndpoint,
+				"err":             err,
 			}, "error generating PAT")
 			// if there's an error, we are not gonna bother the user
 		}

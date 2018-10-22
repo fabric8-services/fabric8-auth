@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
@@ -512,7 +511,7 @@ func (s *TestTokenSuite) TestCheckClaimsFails() {
 }
 
 func (s *TestTokenSuite) TestAuthServiceAccountSigner() {
-	ctx := tokencontext.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
+	ctx := manager.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
 	signer, err := token.AuthServiceAccountSigner(ctx)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), signer)

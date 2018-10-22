@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/signer"
 	"net/http"
 	"net/url"
 
@@ -15,7 +16,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/goadesign/goa/uuid"
 	"github.com/pkg/errors"
@@ -167,7 +167,7 @@ func (s *witServiceImpl) createClientWithContextSigner(ctx context.Context) (*wi
 	if err != nil {
 		return nil, err
 	}
-	sgn := token.NewSATokenSigner(ctx)
+	sgn := signer.NewSATokenSigner(ctx)
 	saTokenSigner, err := sgn.Signer()
 	if err != nil {
 		return nil, err

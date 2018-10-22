@@ -189,7 +189,7 @@ func main() {
 	app.MountRolesController(service, rolesCtrl)
 
 	// Mount "authorize" controller
-	authorizeCtrl := controller.NewAuthorizeController(service, appDB)
+	authorizeCtrl := controller.NewAuthorizeController(service, appDB, config)
 	app.MountAuthorizeController(service, authorizeCtrl)
 
 	// Mount "logout" controller

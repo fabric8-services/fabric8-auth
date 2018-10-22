@@ -12,15 +12,20 @@ import (
 	"github.com/goadesign/goa"
 )
 
+type AuthorizeControllerConfiguration interface {
+	GetPublicOAuthClientID() string
+}
+
 // AuthorizeController implements the authorize resource.
 type AuthorizeController struct {
 	*goa.Controller
-	app application.Application
+	app    application.Application
+	config AuthorizeControllerConfiguration
 }
 
 // NewAuthorizeController returns a new AuthorizeController
-func NewAuthorizeController(service *goa.Service, app application.Application) *AuthorizeController {
-	return &AuthorizeController{Controller: service.NewController("AuthorizeController"), app: app}
+func NewAuthorizeController(service *goa.Service, app application.Application, config AuthorizeControllerConfiguration) *AuthorizeController {
+	return &AuthorizeController{Controller: service.NewController("AuthorizeController"), app: app, config: config}
 }
 
 // Authorize runs the authorize action of /api/authorize endpoint.
@@ -33,7 +38,7 @@ func (c *AuthorizeController) Authorize(ctx *app.AuthorizeAuthorizeContext) erro
 	}
 
 	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	if ctx.ClientID != c.Configuration.GetPublicOauthClientID() {
+	if ctx.ClientID != c.config.GetPublicOAuthClientID() {
 		log.Error(ctx, map[string]interface{}{
 			"client_id": ctx.ClientID,
 		}, "unknown oauth client id")

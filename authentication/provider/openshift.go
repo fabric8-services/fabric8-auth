@@ -49,7 +49,7 @@ func NewOpenShiftIdentityProvider(cluster cluster.Cluster, authURL string) (*Ope
 		AuthURL:  fmt.Sprintf("%soauth/authorize", rest.AddTrailingSlashToURL(cluster.APIURL)),
 		TokenURL: fmt.Sprintf("%soauth/token", rest.AddTrailingSlashToURL(cluster.APIURL)),
 	}
-	provider.RedirectURL = authURL + client.CallbackTokenPath()
+	provider.RedirectURL = authURL + client.LinkCallbackTokenPath()
 	provider.ScopeStr = cluster.AuthClientDefaultScope
 	provider.Config.Scopes = strings.Split(cluster.AuthClientDefaultScope, " ")
 	prID, err := uuid.FromString(cluster.TokenProviderID)

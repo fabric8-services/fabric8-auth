@@ -1,7 +1,8 @@
-package token_test
+package signer_test
 
 import (
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/signer"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/stretchr/testify/require"
@@ -23,14 +24,14 @@ func (s *TestSignerSuite) TestServiceAccountSigner() {
 
 	// create a context
 	ctx := tokentestsupport.ContextWithTokenManager()
-	manager, err := token.ReadManagerFromContext(ctx)
+	manager, err := manager.ReadTokenManagerFromContext(ctx)
 	require.Nil(t, err)
 
 	// extract the token
-	saToken := (*manager).AuthServiceAccountToken()
+	saToken := manager.AuthServiceAccountToken()
 
 	// Generate signer with the context
-	tokenSigner := token.NewSATokenSigner(ctx)
+	tokenSigner := signer.NewSATokenSigner(ctx)
 	signer, err := tokenSigner.Signer()
 
 	// Use the signer to add auth headers to a request

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -17,6 +16,7 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
@@ -616,7 +616,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 			require.NoError(t, err)
 			// when
-			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			result, err := s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, s.Configuration)
 			// then
 			require.NoError(t, err)
@@ -635,7 +635,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 			// given
 			g := s.NewTestGraph(t)
 			user := g.CreateUser()
-			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			claims := make(map[string]interface{})
 			claims["sub"] = user.IdentityID().String()
 			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
@@ -664,7 +664,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 			// given
 			g := s.NewTestGraph(t)
 			user := g.CreateUser()
-			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			claims := make(map[string]interface{})
 			claims["sub"] = user.IdentityID().String()
 			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
@@ -700,7 +700,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 
 		t.Run("invalid format", func(t *testing.T) { // Fails if invalid format of refresh token
 			// given
-			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			// when
 			_, err := s.loginService.ExchangeRefreshToken(ctx, "", "", s.Configuration)
 			// then
@@ -719,7 +719,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 			require.NoError(t, err)
 			// when
-			ctx := tokencontext.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 			_, err = s.loginService.ExchangeRefreshToken(ctx, "", refreshToken, s.Configuration)
 			// then
 			require.EqualError(t, err, "Token is expired")

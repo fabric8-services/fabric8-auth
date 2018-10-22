@@ -17,7 +17,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
@@ -81,7 +80,7 @@ type TokenClaims struct {
 	jwt.StandardClaims
 }
 
-// Permissions represents a "permissions" in the AuthorizationPayload
+// Permissions represents a "permissions" claim in the AuthorizationPayload
 type Permissions struct {
 	ResourceSetName *string  `json:"resource_set_name"`
 	ResourceSetID   *string  `json:"resource_set_id"`
@@ -185,7 +184,7 @@ func ReadTokenManagerFromContext(ctx context.Context) (TokenManager, error) {
 func InjectTokenManager(tokenManager TokenManager) goa.Middleware {
 	return func(h goa.Handler) goa.Handler {
 		return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) error {
-			ctxWithTM := tokencontext.ContextWithTokenManager(ctx, tokenManager)
+			ctxWithTM := ContextWithTokenManager(ctx, tokenManager)
 			return h(ctxWithTM, rw, req)
 		}
 	}

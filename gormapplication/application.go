@@ -8,8 +8,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	provider "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
@@ -88,8 +88,8 @@ func (g *GormBase) Users() account.UserRepository {
 }
 
 // OauthStates returns an oauth state reference repository
-func (g *GormBase) OauthStates() auth.OauthStateReferenceRepository {
-	return auth.NewOauthStateReferenceRepository(g.db)
+func (g *GormBase) OauthStates() provider.OauthStateReferenceRepository {
+	return provider.NewOauthStateReferenceRepository(g.db)
 }
 
 // ExternalTokens returns an ExternalTokens repository

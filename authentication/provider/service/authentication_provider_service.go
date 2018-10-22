@@ -11,10 +11,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	name "github.com/fabric8-services/fabric8-auth/authentication/account"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	providerrepo "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -461,7 +461,7 @@ func (s *authenticationProviderServiceImpl) SaveReferrer(ctx context.Context, st
 	}
 	// TODO The state reference table will be collecting dead states left from some failed login attempts.
 	// We need to clean up the old states from time to time.
-	ref := auth.OauthStateReference{
+	ref := providerrepo.OauthStateReference{
 		State:        state,
 		Referrer:     referrer,
 		ResponseMode: responseMode,
