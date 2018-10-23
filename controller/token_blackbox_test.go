@@ -2,7 +2,6 @@ package controller_test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/application/service"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -16,9 +15,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -53,7 +54,7 @@ func (s *TokenControllerTestSuite) SetupSuite() {
 
 func (s *TokenControllerTestSuite) UnsecuredController() (*goa.Service, *TokenController) {
 	svc := goa.New("Token-Service")
-	manager, err := token.NewTokenManager(s.Configuration)
+	manager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
 	return svc, NewTokenController(svc, s.Application, manager, s.Configuration)
 }

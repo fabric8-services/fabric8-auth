@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test/recorder"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/dnaeon/go-vcr/cassette"
 	"github.com/stretchr/testify/assert"
@@ -24,14 +24,14 @@ func TestCluster(t *testing.T) {
 type TestClusterSuite struct {
 	testsuite.UnitTestSuite
 	cs      service.ClusterService
-	tm      token.Manager
+	tm      manager.TokenManager
 	saToken string
 }
 
 func (s *TestClusterSuite) SetupSuite() {
 	s.UnitTestSuite.SetupSuite()
 	var err error
-	s.tm, err = token.DefaultManager(s.Config)
+	s.tm, err = manager.DefaultManager(s.Config)
 	require.NoError(s.T(), err)
 	s.saToken = s.tm.AuthServiceAccountToken()
 }

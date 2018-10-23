@@ -3,7 +3,7 @@ package repository_test
 import (
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/auth"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
@@ -15,7 +15,7 @@ import (
 
 type stateBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo auth.OauthStateReferenceRepository
+	repo repository.OauthStateReferenceRepository
 }
 
 func TestRunStateBlackBoxTest(t *testing.T) {
@@ -24,18 +24,18 @@ func TestRunStateBlackBoxTest(t *testing.T) {
 
 func (s *stateBlackBoxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = auth.NewOauthStateReferenceRepository(s.DB)
+	s.repo = repository.NewOauthStateReferenceRepository(s.DB)
 }
 
 func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 	// given
-	state := &auth.OauthStateReference{
+	state := &repository.OauthStateReference{
 		State:    uuid.NewV4().String(),
 		Referrer: "domain.org",
 	}
 
 	responseMode := "fragment"
-	state2 := &auth.OauthStateReference{
+	state2 := &repository.OauthStateReference{
 		State:        uuid.NewV4().String(),
 		Referrer:     "anotherdomain.com",
 		ResponseMode: &responseMode,

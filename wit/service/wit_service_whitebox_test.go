@@ -5,14 +5,13 @@ import (
 	"testing"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
-	"github.com/fabric8-services/fabric8-auth/test/token"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
-	tokenutil "github.com/fabric8-services/fabric8-auth/token"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,6 @@ import (
 	"io/ioutil"
 
 	"github.com/fabric8-services/fabric8-auth/app"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 	goauuid "github.com/goadesign/goa/uuid"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -53,8 +51,8 @@ func (s *TestWITSuite) SetupSuite() {
 }
 
 func (s *TestWITSuite) TestCreateWITUser() {
-	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
-	ctx = tokencontext.ContextWithTokenManager(ctx, testtoken.TokenManager)
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx = manager.ContextWithTokenManager(ctx, testtoken.TokenManager)
 
 	saToken := testtoken.TokenManager.AuthServiceAccountToken()
 
@@ -73,7 +71,7 @@ func (s *TestWITSuite) TestCreateWITUser() {
 	testIdentity := account.Identity{
 		User:                  testUser,
 		Username:              "test",
-		ProviderType:          account.KeycloakIDP,
+		ProviderType:          account.DefaultIDP,
 		RegistrationCompleted: true}
 	identityId := uuid.NewV4().String()
 
@@ -115,8 +113,8 @@ func (s *TestWITSuite) TestCreateWITUser() {
 }
 
 func (s *TestWITSuite) TestUpdateWITUser() {
-	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
-	ctx = tokencontext.ContextWithTokenManager(ctx, testtoken.TokenManager)
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx = manager.ContextWithTokenManager(ctx, testtoken.TokenManager)
 
 	saToken := testtoken.TokenManager.AuthServiceAccountToken()
 
@@ -178,7 +176,7 @@ func (s *TestWITSuite) TestUpdateWITUser() {
 }
 
 func (s *TestWITSuite) TestGetSpace() {
-	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
 
 	// test data
 	spaceId := "00000000-0000-0000-0000-000000000002"
@@ -239,11 +237,11 @@ func (c *witURLConfig) GetWITURL() (string, error) {
 func (s *TestWITSuite) TestCreateClientWithServiceAccountToken() {
 	// create a context
 	ctx := tokentestsupport.ContextWithTokenManager()
-	manager, err := tokenutil.ReadManagerFromContext(ctx)
+	manager, err := manager.ReadTokenManagerFromContext(ctx)
 	require.Nil(s.T(), err)
 
 	// extract the token
-	saToken := (*manager).AuthServiceAccountToken()
+	saToken := manager.AuthServiceAccountToken()
 
 	// create the client
 	cl, err := s.ws.createClientWithContextSigner(ctx)

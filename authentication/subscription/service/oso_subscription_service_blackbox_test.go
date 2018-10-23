@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-	"github.com/fabric8-services/fabric8-common/test/token"
 	"golang.org/x/oauth2"
 	"io/ioutil"
 	"net/http"
@@ -69,7 +67,7 @@ func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
 
 	// Should return an error if the client failed
 	s.client.Error = errors.New("something went wrong")
-	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(manager.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.Error(s.T(), err)
 	assert.IsType(s.T(), autherrors.InternalError{}, err)
 

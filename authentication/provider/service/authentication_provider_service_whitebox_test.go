@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-common/token"
 	"testing"
 
 	name "github.com/fabric8-services/fabric8-auth/authentication/account"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	_ "github.com/lib/pq"
 	"github.com/satori/go.uuid"
@@ -48,7 +49,7 @@ func TestEncodeTokenOK(t *testing.T) {
 	tokenJson, err := TokenToJson(context.Background(), outhToken.WithExtra(extra))
 	assert.Nil(t, err)
 	b := []byte(tokenJson)
-	tokenData := &token.TokenSet{}
+	tokenData := &manager.TokenSet{}
 	err = json.Unmarshal(b, tokenData)
 	assert.Nil(t, err)
 
@@ -108,7 +109,7 @@ func TestEqualsKeycloakAttributes(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
-	keycloakAttributes := KeycloakUserProfileAttributes{
+	keycloakAttributes := UserProfileAttributes{
 		"bio":      []string{"hello", "hi"},
 		"image":    []string{},
 		"approved": []string{"true"},
@@ -124,7 +125,7 @@ func TestEqualsKeycloakUserProfileAttributes(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
-	service := KeycloakOAuthProvider{}
+	service := provider.IdentityProvider{}
 	username := "username"
 	emailVerified := true
 	firstName := "john"

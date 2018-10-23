@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -19,7 +19,7 @@ import (
 
 type externalTokenBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo *provider.GormExternalTokenRepository
+	repo *repository.GormExternalTokenRepository
 }
 
 func TestRunExternalTokenBlackboxTest(t *testing.T) {
@@ -28,7 +28,7 @@ func TestRunExternalTokenBlackboxTest(t *testing.T) {
 
 func (s *externalTokenBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = provider.NewExternalTokenRepository(s.DB)
+	s.repo = repository.NewExternalTokenRepository(s.DB)
 }
 
 func (s *externalTokenBlackboxTest) TestOKToDelete() {
@@ -48,7 +48,7 @@ func (s *externalTokenBlackboxTest) TestTokenIsHardDeleted() {
 	externalToken := createAndLoadExternalToken(s)
 
 	// check token exists
-	var native provider.ExternalToken
+	var native repository.ExternalToken
 	err := s.DB.Unscoped().Table(s.repo.TableName()).Where("id = ?", externalToken.ID).Find(&native).Error
 	require.Nil(s.T(), err)
 
@@ -107,7 +107,7 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityID()
 	// given
 	externalToken := createAndLoadExternalToken(s)
 	// when
-	tokens, err := s.repo.Query(provider.ExternalTokenFilterByIdentityID(externalToken.IdentityID))
+	tokens, err := s.repo.Query(repository.ExternalTokenFilterByIdentityID(externalToken.IdentityID))
 
 	// then
 	require.Nil(s.T(), err, "Could not filter out externalTokens")
@@ -125,7 +125,7 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByProviderID()
 	// given
 	externalToken := createAndLoadExternalToken(s)
 	// when
-	tokens, err := s.repo.Query(provider.ExternalTokenFilterByProviderID(externalToken.ProviderID))
+	tokens, err := s.repo.Query(repository.ExternalTokenFilterByProviderID(externalToken.ProviderID))
 
 	// then
 	require.Nil(s.T(), err, "Could not filter out externalTokens")
@@ -161,7 +161,7 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAn
 
 	lastTokenID := externalToken.ID // initialize
 	for i := 0; i < 10; i++ {
-		anotherExternalToken := provider.ExternalToken{
+		anotherExternalToken := repository.ExternalToken{
 			ID:         uuid.NewV4(),
 			ProviderID: externalToken.ProviderID,
 			Token:      uuid.NewV4().String(),
@@ -191,12 +191,12 @@ func (s *externalTokenBlackboxTest) TestExternalProviderOKToFilterByIdentityIDAn
 
 }
 
-func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.ExternalToken {
+func createAndLoadExternalToken(s *externalTokenBlackboxTest) *repository.ExternalToken {
 
 	identity, err := test.CreateTestIdentity(s.DB, uuid.NewV4().String(), "kc")
 	require.Nil(s.T(), err)
 
-	externalToken := provider.ExternalToken{
+	externalToken := repository.ExternalToken{
 		ID:         uuid.NewV4(),
 		ProviderID: uuid.NewV4(),
 		Token:      uuid.NewV4().String(),
@@ -216,7 +216,7 @@ func createAndLoadExternalToken(s *externalTokenBlackboxTest) *provider.External
 	return externalTokenRetrieved
 }
 
-func createExternalToken(s *externalTokenBlackboxTest, externalToken provider.ExternalToken) *provider.ExternalToken {
+func createExternalToken(s *externalTokenBlackboxTest, externalToken repository.ExternalToken) *repository.ExternalToken {
 
 	err := s.repo.Create(s.Ctx, &externalToken)
 	require.Nil(s.T(), err, "Could not create externalToken")
@@ -228,7 +228,7 @@ func createExternalToken(s *externalTokenBlackboxTest, externalToken provider.Ex
 	return externalTokenRetrieved
 }
 
-func (s *externalTokenBlackboxTest) assertToken(expected provider.ExternalToken, actual provider.ExternalToken) {
+func (s *externalTokenBlackboxTest) assertToken(expected repository.ExternalToken, actual repository.ExternalToken) {
 	assert.Equal(s.T(), expected.ID, actual.ID)
 	assert.Equal(s.T(), expected.IdentityID, actual.IdentityID)
 	assert.Equal(s.T(), expected.ProviderID, actual.ProviderID)
