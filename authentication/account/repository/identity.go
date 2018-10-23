@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	// KeycloakIDP is the name of the main Keycloak Identity Provider
-	KeycloakIDP = "kc"
+	// DefaultIDP is the name of the main authentication / identity provider
+	// TODO update the value to something other than "kc" - requires db migration
+	DefaultIDP = "kc"
 )
 
 // NullUUID can be used with the standard sql package to represent a

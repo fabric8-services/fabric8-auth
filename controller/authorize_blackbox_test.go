@@ -227,7 +227,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	state := uuid.NewV4().String()
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
-	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
+	prms.Add("client_id", rest.Configuration.GetPublicOAuthClientID())
 	prms.Add("state", state)
 
 	ctx := context.Background()
@@ -241,7 +241,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
 
 	locationString := rw.HeaderMap["Location"][0]
-	authEndpoint, _ := rest.Configuration.GetKeycloakEndpointAuth(authorizeCtx.RequestData)
+	authEndpoint, _ := rest.Configuration.GetAuthProviderEndpointAuth(authorizeCtx.RequestData)
 	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)

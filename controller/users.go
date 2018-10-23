@@ -12,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/auth"
 	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	accountrepo "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/service"
@@ -43,14 +42,8 @@ type UsersControllerConfiguration interface {
 	GetEmailVerifiedRedirectURL() string
 	GetInternalUsersEmailAddressSuffix() string
 	GetIgnoreEmailInProd() string
-	GetOAuthClientID() string
-	GetOAuthSecret() string
-
-	// TODO remove these
-	GetKeycloakAccountEndpoint(*goa.RequestData) (string, error)
-	GetKeycloakEndpointToken(*goa.RequestData) (string, error)
-	GetKeycloakEndpointUsers(*goa.RequestData) (string, error)
-	GetKeycloakEndpointLinkIDP(req *goa.RequestData, id string, idp string) (string, error)
+	GetAuthProviderClientID() string
+	GetAuthProviderClientSecret() string
 }
 
 // NewUsersController creates a users controller.
@@ -115,7 +108,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	if preview {
 		log.Info(ctx, map[string]interface{}{"email": ctx.Payload.Data.Attributes.Email}, "ignoring preview user")
 		user := &accountrepo.User{Email: ctx.Payload.Data.Attributes.Email, Cluster: ctx.Payload.Data.Attributes.Cluster}
-		identity := &accountrepo.Identity{Username: ctx.Payload.Data.Attributes.Username, ProviderType: accountrepo.KeycloakIDP}
+		identity := &accountrepo.Identity{Username: ctx.Payload.Data.Attributes.Username, ProviderType: accountrepo.DefaultIDP}
 		return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 	}
 	// -----
@@ -162,29 +155,6 @@ func (c *UsersController) checkPreviewUser(email string) (bool, error) {
 	return regexp.MatchString(c.config.GetIgnoreEmailInProd(), strings.ToLower(email))
 }
 
-func (c *UsersController) linkUserToRHD(ctx *app.CreateUsersContext, identityID string, rhdUsername string, rhdUserID string, protectedAccessToken string) error {
-	idpName := "rhd"
-	linkRequest := provider.KeycloakLinkIDPRequest{
-		UserID:           &rhdUserID,
-		Username:         &rhdUsername,
-		IdentityProvider: &idpName,
-	}
-
-	linkURL, err := c.config.GetKeycloakEndpointLinkIDP(ctx.RequestData, identityID, idpName)
-	if err != nil {
-		return err
-	}
-	return provider.NewKeycloakIDPServiceClient().Create(ctx, &linkRequest, protectedAccessToken, linkURL)
-}
-
-func rhdUserName(userAttributes app.CreateIdentityDataAttributes) string {
-	rhdUsername := userAttributes.Username // Use username as RHD username by default
-	if userAttributes.RhdUsername != nil {
-		rhdUsername = *userAttributes.RhdUsername
-	}
-	return rhdUsername
-}
-
 func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID uuid.UUID) (*accountrepo.Identity, *accountrepo.User, error) {
 	log.Debug(ctx, map[string]interface{}{"identity_id": identityID, "user attributes": ctx.Payload.Data.Attributes}, "creating a new user in DB...")
 	userID := uuid.NewV4()
@@ -207,7 +177,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	identity = &accountrepo.Identity{
 		ID:           identityID,
 		Username:     ctx.Payload.Data.Attributes.Username,
-		ProviderType: accountrepo.KeycloakIDP, // Ignore Provider Type passed in the payload. We should always use "kc".
+		ProviderType: accountrepo.DefaultIDP, // Ignore Provider Type passed in the payload. We should always use the default
 	}
 
 	// associate foreign key
@@ -546,7 +516,7 @@ func isUsernameValid(username string) bool {
 }
 
 func isUsernameUnique(ctx context.Context, repos repository.Repositories, username string, identity accountrepo.Identity) (bool, error) {
-	usersWithSameUserName, err := repos.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.KeycloakIDP))
+	usersWithSameUserName, err := repos.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.DefaultIDP))
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"user_name": username,
@@ -591,7 +561,7 @@ func (c *UsersController) userExistsInDB(ctx context.Context, email string, user
 			exists = true
 			return nil
 		}
-		identities, err := tr.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.KeycloakIDP))
+		identities, err := tr.Identities().Query(accountrepo.IdentityFilterByUsername(username), accountrepo.IdentityFilterByProviderType(accountrepo.DefaultIDP))
 		if err != nil {
 			return err
 		}
@@ -682,58 +652,6 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 		}
 	}
 
-	if isVerified {
-		verfiedUser := verifiedCode.User
-		tokenEndpoint, err := c.config.GetKeycloakEndpointToken(ctx.RequestData)
-		if err != nil {
-			return errors.NewInternalError(ctx, err)
-		}
-		protectedAccessToken, err := auth.GetProtectedAPIToken(ctx, tokenEndpoint, c.config.GetOAuthClientID(), c.config.GetOAuthSecret())
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"oauth_client_id": c.config.GetOAuthClientID(),
-				"token_endpoint":  tokenEndpoint,
-				"err":             err,
-			}, "error generating PAT")
-			// if there's an error, we are not gonna bother the user
-		}
-
-		if protectedAccessToken != "" {
-			// try hitting the admin user endpoint only if getting a PAT
-			// was successful.
-
-			usersEndpoint, err := c.config.GetKeycloakEndpointUsers(ctx.RequestData)
-
-			identity, err := loadKeyCloakIdentity(c.app, verfiedUser)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":     err,
-					"user_id": verfiedUser.ID,
-				}, "failed to fetch identity for a specific user")
-				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-			}
-
-			oauthUser := provider.OAuthUserRequest{
-				Username:      &identity.Username,
-				Email:         &verfiedUser.Email,
-				EmailVerified: &isVerified,
-			}
-
-			// not using userProfileService.Update() because it needs a user token
-			// and here we don't have one.
-			keycloakUserID, _, err := c.app.UserProfileService().CreateOrUpdate(ctx.Context, &oauthUser, protectedAccessToken, usersEndpoint)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err": err,
-				}, "failed to update user's emailVerified attribute in keycloak")
-				// we are not gonna bother the user with keycloak errors
-			} else {
-				log.Info(ctx, map[string]interface{}{
-					"keycloak_user_id": *keycloakUserID,
-				}, "successfully updated user's emailVerified attribute in keycloak")
-			}
-		}
-	}
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
 }
@@ -755,7 +673,7 @@ func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]ac
 	}
 	// Add more filters when needed , here. ..
 	if len(identityFilters) != 0 {
-		identityFilters = append(identityFilters, accountrepo.IdentityFilterByProviderType(accountrepo.KeycloakIDP))
+		identityFilters = append(identityFilters, accountrepo.IdentityFilterByProviderType(accountrepo.DefaultIDP))
 		identityFilters = append(identityFilters, accountrepo.IdentityWithUser())
 		// From a data model perspective, we are querying by identity ( and not user )
 		filteredIdentities, err := repos.Identities().Query(identityFilters...)
@@ -825,7 +743,7 @@ func loadKeyCloakIdentity(repos repository.Repositories, user accountrepo.User) 
 		return nil, err
 	}
 	for _, identity := range identities {
-		if identity.ProviderType == accountrepo.KeycloakIDP {
+		if identity.ProviderType == accountrepo.DefaultIDP {
 			return &identity, nil
 		}
 	}

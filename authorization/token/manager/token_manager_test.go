@@ -2,7 +2,6 @@ package manager_test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"net/http"
 	"net/http/httptest"
@@ -487,7 +486,7 @@ func (s *TestTokenSuite) TestCheckClaimsOK() {
 	}
 	claims.Subject = uuid.NewV4().String()
 
-	assert.Nil(s.T(), token.CheckClaims(claims))
+	assert.Nil(s.T(), manager.CheckClaims(claims))
 }
 
 func (s *TestTokenSuite) TestCheckClaimsFails() {
@@ -495,24 +494,24 @@ func (s *TestTokenSuite) TestCheckClaimsFails() {
 		Username: "testuser",
 	}
 	claimsNoEmail.Subject = uuid.NewV4().String()
-	assert.NotNil(s.T(), token.CheckClaims(claimsNoEmail))
+	assert.NotNil(s.T(), manager.CheckClaims(claimsNoEmail))
 
 	claimsNoUsername := &manager.TokenClaims{
 		Email: "somemail@domain.com",
 	}
 	claimsNoUsername.Subject = uuid.NewV4().String()
-	assert.NotNil(s.T(), token.CheckClaims(claimsNoUsername))
+	assert.NotNil(s.T(), manager.CheckClaims(claimsNoUsername))
 
 	claimsNoSubject := &manager.TokenClaims{
 		Email:    "somemail@domain.com",
 		Username: "testuser",
 	}
-	assert.NotNil(s.T(), token.CheckClaims(claimsNoSubject))
+	assert.NotNil(s.T(), manager.CheckClaims(claimsNoSubject))
 }
 
 func (s *TestTokenSuite) TestAuthServiceAccountSigner() {
 	ctx := manager.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
-	signer, err := token.AuthServiceAccountSigner(ctx)
+	signer, err := manager.AuthServiceAccountSigner(ctx)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), signer)
 

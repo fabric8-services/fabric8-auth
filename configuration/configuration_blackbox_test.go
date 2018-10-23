@@ -48,134 +48,6 @@ func resetConfiguration() {
 	}
 }
 
-func TestGetKeycloakEndpointSetByUrlEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	env := os.Getenv("AUTH_KEYCLOAK_URL")
-	defer func() {
-		os.Setenv("AUTH_KEYCLOAK_URL", env)
-		resetConfiguration()
-	}()
-
-	os.Setenv("AUTH_KEYCLOAK_URL", "http://xyz.io")
-	resetConfiguration()
-
-	url, err := config.GetKeycloakEndpointAuth(reqLong)
-	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/auth", url)
-
-	url, err = config.GetKeycloakEndpointLogout(reqLong)
-	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/logout", url)
-
-	url, err = config.GetKeycloakEndpointToken(reqLong)
-	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/token", url)
-
-	url, err = config.GetKeycloakEndpointUserInfo(reqLong)
-	require.Nil(t, err)
-	require.Equal(t, "http://xyz.io/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", url)
-}
-
-func TestGetKeycloakEndpointAdminDevModeOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm(), config.GetKeycloakEndpointAdmin)
-}
-
-func TestGetKeycloakEndpointAdminSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ADMIN", config.GetKeycloakEndpointAdmin)
-}
-
-func TestGetKeycloakEndpointAuthDevModeOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/auth", config.GetKeycloakEndpointAuth)
-}
-
-func TestGetKeycloakEndpointAuthSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_AUTH", config.GetKeycloakEndpointAuth)
-}
-
-func TestGetKeycloakEndpointLogoutDevModeOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/logout", config.GetKeycloakEndpointLogout)
-}
-
-func TestGetKeycloakEndpointLogoutSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_LOGOUT", config.GetKeycloakEndpointLogout)
-}
-
-func TestGetKeycloakEndpointTokenOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/token", config.GetKeycloakEndpointToken)
-}
-
-func TestGetKeycloakEndpointTokenSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_TOKEN", config.GetKeycloakEndpointToken)
-}
-
-func TestGetKeycloakEndpointUserInfoOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/protocol/openid-connect/userinfo", config.GetKeycloakEndpointUserInfo)
-}
-
-func TestGetKeycloakEndpointLinkIDPOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	sampleID := "1234"
-	idp := "openshift-v3"
-	expectedEndpoint := config.GetKeycloakDevModeURL() + "/auth/admin/realms/" + config.GetKeycloakRealm() + "/users/" + sampleID + "/federated-identity/" + idp
-	url, err := config.GetKeycloakEndpointLinkIDP(reqLong, sampleID, idp)
-	assert.Nil(t, err)
-	// In dev mode it's always the default value regardless of the request
-	assert.Equal(t, expectedEndpoint, url)
-
-	url, err = config.GetKeycloakEndpointLinkIDP(reqShort, sampleID, idp)
-	assert.Nil(t, err)
-	// In dev mode it's always the default value regardless of the request
-	assert.Equal(t, expectedEndpoint, url)
-}
-
-func TestGetKeycloakEndpointUsersOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/admin/realms/"+config.GetKeycloakRealm()+"/users", config.GetKeycloakEndpointUsers)
-}
-
-func TestGetKeycloakEndpointUserInfoSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_USERINFO", config.GetKeycloakEndpointUserInfo)
-}
-
-func TestGetKeycloakEndpointBrokerOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/broker", config.GetKeycloakEndpointBroker)
-}
-
-func TestGetKeycloakEndpointBrokerSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_BROKER", config.GetKeycloakEndpointBroker)
-}
-
-func TestGetKeycloakUserInfoEndpointOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	t.Parallel()
-	checkGetKeycloakEndpointOK(t, config.GetKeycloakDevModeURL()+"/auth/realms/"+config.GetKeycloakRealm()+"/account", config.GetKeycloakAccountEndpoint)
-}
-
-func TestGetKeycloakUserInfoEndpointOKrSetByEnvVariableOK(t *testing.T) {
-	resource.Require(t, resource.UnitTest)
-	checkGetKeycloakEndpointSetByEnvVariableOK(t, "AUTH_KEYCLOAK_ENDPOINT_ACCOUNT", config.GetKeycloakAccountEndpoint)
-}
-
 func TestGetWITURLNotDevModeOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	existingWITprefix := os.Getenv("AUTH_WIT_DOMAIN_PREFIX")
@@ -404,7 +276,7 @@ func TestLoadServiceAccountConfigurationWithMissingExpectedSAReportsError(t *tes
 }
 
 func TestGetPublicClientID(t *testing.T) {
-	require.Equal(t, "740650a2-9c44-4db5-b067-a3d1b2cd2d01", config.GetPublicOauthClientID())
+	require.Equal(t, "740650a2-9c44-4db5-b067-a3d1b2cd2d01", config.GetPublicOAuthClientID())
 }
 
 func checkServiceAccountConfiguration(t *testing.T, accounts map[string]configuration.ServiceAccount) {

@@ -85,10 +85,9 @@ vwIDAQAB
 
 	defaultLogLevel = "info"
 
-	// OAuth Provider defaults
-
-	defaultOAuthClientID = "fabric8-online-platform"
-	defaultOAuthSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+	// Auth Provider defaults
+	defaultAuthProviderClientID = "fabric8-online-platform"
+	defaultAuthProviderSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
 
 	defaultPublicOAuthClientID  = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	defaultKeycloakDomainPrefix = "sso"
