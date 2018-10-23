@@ -81,7 +81,7 @@ const (
 	//
 	//------------------------------------------------------------------------------------------------------------------
 
-	varAuthProviderMode             = "auth.provider.mode"
+	varAuthProviderType             = "auth.provider.type"
 	varAuthProviderClientID         = "auth.provider.client.id"
 	varAuthProviderClientSecret     = "auth.provider.client.secret"
 	varAuthProviderEndpointAuth     = "auth.provider.endpoint.auth"
