@@ -10,7 +10,7 @@ import (
 	resourceTypeRepo "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/models"
-	"github.com/fabric8-services/fabric8-auth/test/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
@@ -58,7 +58,7 @@ var TestIdentity = account.Identity{
 	ID:           uuid.NewV4(),
 	Username:     "TestDeveloper" + uuid.NewV4().String(),
 	User:         TestUser,
-	ProviderType: account.KeycloakIDP,
+	ProviderType: account.DefaultIDP,
 }
 
 // TestObserverIdentity only creates in memory obj for testing purposes
@@ -73,7 +73,7 @@ var TestIdentity2 = account.Identity{
 	ID:           uuid.NewV4(),
 	Username:     "TestDeveloper2" + uuid.NewV4().String(),
 	User:         TestUser2,
-	ProviderType: account.KeycloakIDP,
+	ProviderType: account.DefaultIDP,
 }
 
 var TestOnlineRegistrationAppIdentity = account.Identity{
@@ -181,7 +181,7 @@ func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (accou
 	}
 	testIdentity := account.Identity{
 		Username:     username,
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.DefaultIDP,
 		User:         testUser,
 	}
 	err := CreateTestIdentityAndUserInDB(db, &testIdentity)
@@ -190,7 +190,7 @@ func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (accou
 
 // CreateTestIdentityAndUserWithDefaultProviderType creates an identity & user with the given `username` in the database. For testing purpose only.
 func CreateTestIdentityAndUserWithDefaultProviderType(db *gorm.DB, username string) (account.Identity, error) {
-	return CreateTestIdentityAndUser(db, username, account.KeycloakIDP)
+	return CreateTestIdentityAndUser(db, username, account.DefaultIDP)
 }
 
 // EmbedTestIdentityTokenInContext creates an identity & user with the given `username` in the database.
@@ -203,7 +203,7 @@ func EmbedTestIdentityTokenInContext(db *gorm.DB, username string) (account.Iden
 	}
 
 	// Embed Token in the context
-	ctx, _, err := token.EmbedTokenInContext(identity.ID.String(), identity.Username)
+	ctx, _, err := testtoken.EmbedTokenInContext(identity.ID.String(), identity.Username)
 
 	return identity, ctx, err
 }
@@ -214,7 +214,7 @@ func CreateTestUser(db *gorm.DB, user *account.User) (account.Identity, error) {
 	identityRepository := account.NewIdentityRepository(db)
 	identity := account.Identity{
 		Username:     uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.DefaultIDP,
 	}
 	err := models.Transactional(db, func(tx *gorm.DB) error {
 		err := userRepository.Create(context.Background(), user)

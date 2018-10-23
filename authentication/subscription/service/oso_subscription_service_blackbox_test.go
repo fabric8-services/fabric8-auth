@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	service2 "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	"github.com/fabric8-services/fabric8-common/test/token"
 	"golang.org/x/oauth2"
 	"io/ioutil"
 	"net/http"
@@ -16,10 +17,9 @@ import (
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/fabric8-services/fabric8-auth/test"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	"github.com/fabric8-services/fabric8-auth/test/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -29,9 +29,7 @@ import (
 
 type osoSubscriptionServiceTestSuite struct {
 	gormtestsupport.DBTestSuite
-	service            service.OSOSubscriptionService
 	client             *test.DummyHttpClient
-	loginConfig        login.Configuration
 	clusterServiceMock service.ClusterService
 }
 
@@ -50,8 +48,7 @@ func (s *osoSubscriptionServiceTestSuite) SetupSuite() {
 		assert.Equal(s.T(), "https://some.osourl.io/api/accounts/test-oso-registration-app-user/subscriptions?authorization_username=test-oso-admin-user", req.URL.String())
 		assert.Equal(s.T(), "Bearer test-oso-admin-token", req.Header.Get("Authorization"))
 	}}
-	s.loginConfig = &dummyConfig{s.Configuration}
-	s.service = service2.NewOSOSubscriptionServiceWithClient()
+
 }
 
 // Fails if there is no token manager in the context
@@ -62,17 +59,17 @@ func (s *osoSubscriptionServiceTestSuite) TestNoTokenManagerInContextFails() {
 
 // Fails if the token is invalid
 func (s *osoSubscriptionServiceTestSuite) TestInvalidTokeFails() {
-	_, err := s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{})
+	_, err := s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{})
 	require.Error(s.T(), err)
 }
 
 func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
-	accessToken, err := token.GenerateToken(uuid.NewV4().String(), "test-oso-registration-app-user")
+	accessToken, err := testtoken.GenerateToken(uuid.NewV4().String(), "test-oso-registration-app-user")
 	require.NoError(s.T(), err)
 
 	// Should return an error if the client failed
 	s.client.Error = errors.New("something went wrong")
-	_, err = s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
+	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(manager.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.Error(s.T(), err)
 	assert.IsType(s.T(), autherrors.InternalError{}, err)
 
@@ -80,41 +77,41 @@ func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
 	s.client.Error = nil
 	body := ioutil.NopCloser(bytes.NewReader([]byte{}))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError}
-	_, err = s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
+	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.Error(s.T(), err)
 	assert.IsType(s.T(), autherrors.InternalError{}, err)
 
 	// Should return "signup_needed" if the client returns 404
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
-	status, err := s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
+	status, err := s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "signup_needed", status)
 
 	// Should return an error if the client returns invalid payload
 	body = ioutil.NopCloser(bytes.NewReader([]byte("foo")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	_, err = s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
+	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.Error(s.T(), err)
 	assert.IsType(s.T(), autherrors.InternalError{}, err)
 
 	// Should return "signup_needed" if no subscription found
 	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}}]}")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	status, err = s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
+	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "signup_needed", status)
 
 	// Subscription found
 	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status-for2\",\"plan\":{\"service\":{\"api_url\":\"https://api.starter-us-east-2a.openshift.com/\"}}}]}")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	status, err = s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
+	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "some-test-status-for2", status)
 
 	// Multiple subscriptions
 	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}},{\"status\":\"some-test-status-for2\",\"plan\":{\"service\":{\"api_url\":\"https://api.starter-us-east-2a.openshift.com/\"}}},{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}}]}")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	status, err = s.osoApp.LoadOSOSubscriptionStatus(token.ContextWithTokenManager(), s.loginConfig, oauth2.Token{AccessToken: accessToken})
+	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "some-test-status-for2", status)
 }

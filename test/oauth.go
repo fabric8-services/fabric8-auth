@@ -2,13 +2,10 @@ package test
 
 import (
 	"context"
-	"errors"
-
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/token/link"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
@@ -23,49 +20,46 @@ type DummyProviderFactory struct {
 	App             application.Application
 }
 
-func (factory *DummyProviderFactory) NewOauthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (link.ProviderConfig, error) {
-	providerFactory := link.NewOauthProviderFactory(factory.Config, factory.App)
+func (factory *DummyProviderFactory) NewOAuthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error) {
+	providerFactory := provider.NewOAuthProviderFactory(factory.Config, factory.App)
 	provider, err := providerFactory.NewOauthProvider(ctx, identityID, req, forResource)
 	if err != nil {
 		return nil, err
 	}
-	return &DummyProvider{factory: factory, providerConfig: provider}, nil
+	return &DummyProvider{factory: factory, linkingProvider: linkingProvider}, nil
 }
 
 type DummyProvider struct {
-	factory        *DummyProviderFactory
-	providerConfig link.ProviderConfig
+	factory         *DummyProviderFactory
+	linkingProvider provider.LinkingProvider
 }
 
-func (provider *DummyProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
-	return &oauth2.Token{AccessToken: provider.factory.Token}, nil
+func (p *DummyProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+	return &oauth2.Token{AccessToken: p.factory.Token}, nil
 }
 
-func (provider *DummyProvider) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
-	return provider.providerConfig.AuthCodeURL(state)
+func (p *DummyProvider) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
+	return p.linkingProvider.AuthCodeURL(state)
 }
 
-func (provider *DummyProvider) ID() uuid.UUID {
-	return provider.providerConfig.ID()
+func (p *DummyProvider) ID() uuid.UUID {
+	return p.linkingProvider.ID()
 }
 
-func (provider *DummyProvider) Scopes() string {
-	return provider.providerConfig.Scopes()
+func (p *DummyProvider) Scopes() string {
+	return p.linkingProvider.Scopes()
 }
 
-func (provider *DummyProvider) TypeName() string {
-	return provider.providerConfig.TypeName()
+func (p *DummyProvider) TypeName() string {
+	return p.linkingProvider.TypeName()
 }
 
-func (provider *DummyProvider) URL() string {
-	return provider.providerConfig.URL()
+func (p *DummyProvider) URL() string {
+	return p.linkingProvider.URL()
 }
 
-func (provider *DummyProvider) Profile(ctx context.Context, token oauth2.Token) (*oauth.UserProfile, error) {
-	if provider.factory.LoadProfileFail {
-		return nil, errors.New("unable to load profile")
-	}
-	return &oauth.UserProfile{
+func (p *DummyProvider) Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error) {
+	return &provider.UserProfile{
 		Username: token.AccessToken + "testuser",
 	}, nil
 }

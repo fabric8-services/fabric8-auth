@@ -72,7 +72,7 @@ func newTeamWrapper(g *TestGraph, params []interface{}) interface{} {
 	w.resource.ParentResource = space
 
 	w.identity = &account.Identity{
-		ProviderType:       account.KeycloakIDP,
+		ProviderType:       account.DefaultIDP,
 		IdentityResourceID: sql.NullString{String: w.resource.ResourceID, Valid: true},
 		IdentityResource:   *w.resource,
 	}

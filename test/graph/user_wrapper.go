@@ -55,7 +55,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.identity = &account.Identity{
 		Username:     fmt.Sprintf("TestUserIdentity-%s", id),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.DefaultIDP,
 		User:         *w.user,
 		UserID: account.NullUUID{
 			UUID:  w.user.ID,

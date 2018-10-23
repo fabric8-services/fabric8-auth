@@ -2,14 +2,13 @@ package test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-common/login/tokencontext"
 	"golang.org/x/oauth2"
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/fabric8-services/fabric8-auth/login"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -51,7 +50,7 @@ func fillIncompleteClaimsWithIdentity(ident account.Identity) *jwt.Token {
 func service(serviceName string, key interface{}, u account.Identity) *goa.Service {
 	svc := goa.New(serviceName)
 	svc.Context = WithIdentity(svc.Context, u)
-	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
+	svc.Context = manager.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
 	return svc
 }
 
@@ -84,7 +83,7 @@ func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Se
 
 // WithServiceAccountAuthz fills the context with token
 // Token is filled using input Identity object and resource authorization information
-func WithServiceAccountAuthz(ctx context.Context, tokenManager token.Manager, ident account.Identity) context.Context {
+func WithServiceAccountAuthz(ctx context.Context, tokenManager manager.TokenManager, ident account.Identity) context.Context {
 	if ident.ID == uuid.Nil {
 		ident.ID = uuid.NewV4()
 	}
@@ -98,6 +97,6 @@ type DummyOSORegistrationApp struct {
 	Err    error
 }
 
-func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, config login.Configuration, keycloakToken oauth2.Token) (string, error) {
+func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error) {
 	return regApp.Status, regApp.Err
 }

@@ -18,7 +18,7 @@ func CreateTestIdentityRole(ctx context.Context, db *gorm.DB, resourceRef resour
 	assignedIdentity := &account.Identity{
 		ID:           uuid.NewV4(),
 		Username:     uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.DefaultIDP,
 	}
 	identityRepository := account.NewIdentityRepository(db)
 
