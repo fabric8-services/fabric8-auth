@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/rest"
 
-	//"github.com/fabric8-services/fabric8-auth/configuration"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +18,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
-	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/goadesign/goa/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -103,22 +104,23 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	prms := url.Values{}
 
 	authorizeCtx, rw := s.createNewLoginContext("/api/login", prms)
-	service := s.createNewLoginService()
 
 	// ############ STEP 1 Call /api/login without state or code
 	// ############
-	err := service.Login(authorizeCtx, login.NewIdentityProvider(s.Configuration), s.Configuration)
+
+	callbackUrl := rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
+	generatedState := uuid.NewV4().String()
+	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, authorizeCtx.Redirect, authorizeCtx.APIClient,
+		&generatedState, nil, nil, "", callbackUrl)
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
-	require.Equal(s.T(), 307, rw.Code)
-	redirectURL := rw.Header().Get("location")
-	require.Contains(s.T(), redirectURL, idpServerURL)
+	require.Contains(s.T(), redirectUrl, idpServerURL)
 
 	// ############ STEP 2: Simulate what happens in the front-end
 	// ############ redirect to the oauth server login page.
 
-	reqToOauthServer, err := http.NewRequest("GET", redirectURL, nil)
+	reqToOauthServer, err := http.NewRequest("GET", *redirectUrl, nil)
 	if err != nil {
 		panic("invalid test " + err.Error()) // bug
 	}
@@ -147,17 +149,21 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	rw = httptest.NewRecorder()
 	authorizeCtx, rw = s.createNewLoginContext("/api/login", prms)
-	err = service.Login(authorizeCtx, login.NewIdentityProvider(s.Configuration), s.Configuration)
+
+	callbackUrl = rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
+	generatedState = uuid.NewV4().String()
+	redirectUrl, err = s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, authorizeCtx.Redirect, authorizeCtx.APIClient,
+		&generatedState, nil, nil, "", callbackUrl)
+	require.Nil(s.T(), err)
 
 	//  ############ STEP 4: Token generated and recieved as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
 	if s.approved {
 		require.Nil(s.T(), err)
-		require.NotEmpty(s.T(), rw.Header().Get("Location"))
-		require.Equal(s.T(), 307, rw.Code)
+		require.NotEmpty(s.T(), redirectUrl)
 
 		// From the redirect pick up the token_json param
-		successURL, err := url.Parse((rw.Header().Get("Location")))
+		successURL, err := url.Parse(*redirectUrl)
 		require.Nil(s.T(), err)
 		allQueryParameters := successURL.Query()
 		require.NotNil(s.T(), allQueryParameters)
@@ -167,7 +173,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 
 		// Validate the token returned contains the identity details for which the oauth server had
 		// returned the token.
-		returnedToken, err := token.ReadTokenSetFromJson(context.Background(), tokenJson[0])
+		returnedToken, err := manager.ReadTokenSetFromJson(context.Background(), tokenJson[0])
 		require.NoError(s.T(), err)
 
 		updatedIdentity := s.Graph.LoadUser(s.identity.ID).Identity()
@@ -208,32 +214,32 @@ func (s *serviceLoginBlackBoxTest) TestOauth2LoginEndToEndNotApproved() {
 func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 
 	redirectURL := "https://auth.openshift.io/api/status"
-	apiClient := s.Configuration.GetPublicOauthClientID()
+	apiClient := s.Configuration.GetPublicOAuthClientID()
 	state := uuid.NewV4().String()
 	resonseType := "code"
 
 	prms := url.Values{"response_type": []string{resonseType}, "client_id": []string{apiClient}, "state": []string{state}, "redirect_uri": []string{redirectURL}}
 
 	authorizeCtx, _ := s.createNewAuthCodeURLContext("/api/authorize", prms)
-	service := s.createNewLoginService()
 
 	// ############ STEP 1 Call /api/authorize without state or code
 	// ############
-	oauthConfig := login.NewIdentityProvider(s.Configuration)
+	oauthConfig := provider.NewIdentityProvider(s.Configuration)
 	oauthCodeRedirectURL := "http://auth.openshift.io/authorize/callback"
 	oauthConfig.RedirectURL = oauthCodeRedirectURL
-	redirectedTo, err := service.AuthCodeURL(authorizeCtx, &redirectURL, &apiClient, &state, nil, authorizeCtx.RequestData, oauthConfig, s.Configuration)
+	redirectedTo, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, &redirectURL,
+		&apiClient, &state, nil, nil, "", "")
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
-	require.Contains(s.T(), *redirectedTo, s.Configuration.GetOAuthEndpointAuth())
+	require.Contains(s.T(), *redirectedTo, s.Configuration.GetAuthProviderEndpointAuth())
 
 	redirectedToURLRef, err := url.Parse(*redirectedTo)
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), state, redirectedToURLRef.Query()["state"][0])
 	require.Equal(s.T(), resonseType, redirectedToURLRef.Query()["response_type"][0])
-	require.Equal(s.T(), s.Configuration.GetKeycloakClientID(), redirectedToURLRef.Query()["client_id"][0])
+	require.Equal(s.T(), s.Configuration.GetAuthProviderClientID(), redirectedToURLRef.Query()["client_id"][0])
 
 	// This is what the OAuth server calls after the user puts in her credentials.
 	require.Equal(s.T(), oauthCodeRedirectURL, redirectedToURLRef.Query()["redirect_uri"][0])
@@ -267,27 +273,27 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	authorizeCallbackCtx, _ := s.createNewAuthCallbackContext("/api/authorize/callback", prms)
-	redirectedTo, err = service.AuthCodeCallback(authorizeCallbackCtx)
+	redirectedTo, err = s.Application.AuthenticationProviderService().AuthorizeCallback(s.Ctx, authorizeCallbackCtx.State, authorizeCallbackCtx.Code)
 	require.NotNil(s.T(), redirectedTo)
 	require.NoError(s.T(), err)
 
 	redirectedToURLRef, err = url.Parse(*redirectedTo)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), redirectURL, redirectedToURLRef.Scheme+"://"+redirectedToURLRef.Host+redirectedToURLRef.Path)
-	require.Equal(s.T(), s.Configuration.GetPublicOauthClientID(), redirectedToURLRef.Query()["api_client"][0])
+	require.Equal(s.T(), s.Configuration.GetPublicOAuthClientID(), redirectedToURLRef.Query()["api_client"][0])
 	require.Equal(s.T(), state, redirectedToURLRef.Query()["state"][0])
 	require.Equal(s.T(), returnedCode, redirectedToURLRef.Query()["code"][0])
 
 	//  ############ STEP 4: Ask for a token ( the way it would be asked using POST /api/token )
 	//  ############ Validate that there was redirect recieved.
 
-	returnedToken, err := service.Exchange(context.Background(), returnedCode, oauthConfig)
+	returnedToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(context.Background(), returnedCode)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), returnedToken)
 	require.NotEmpty(s.T(), returnedToken.AccessToken)
 
 	tokenContext, _ := s.createNewTokenContext("/api/token", prms)
-	_, authToken, err := service.CreateOrUpdateIdentityAndUser(tokenContext, redirectedToURLRef, returnedToken, tokenContext.RequestData, oauthConfig, s.Configuration)
+	_, authToken, err := s.Application.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(tokenContext, redirectedToURLRef, returnedToken)
 
 	if s.approved {
 		require.NoError(s.T(), err)
@@ -380,17 +386,6 @@ func (s *serviceLoginBlackBoxTest) createNewAuthCodeURLContext(path string, prms
 	return loginCtx, rw
 }
 
-func (s *serviceLoginBlackBoxTest) createNewLoginService() *login.KeycloakOAuthProvider {
-	return login.NewKeycloakOAuthProvider(
-		s.Application.Identities(),
-		s.Application.Users(),
-		testtoken.TokenManager,
-		s.Application,
-		nil,
-		&testsupport.DummyOSORegistrationApp{},
-	)
-}
-
 func checkIfTokenMatchesIdentity(t *testing.T, tokenString string, identity account.Identity) {
 	claims, err := testtoken.TokenManager.ParseToken(context.Background(), tokenString)
 	require.Nil(t, err)
@@ -476,7 +471,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 
 	} else if req.URL.Path == "/api/profile" {
 		require.NotEqual(s.T(), "Bearer", req.Header.Get("authorization"))
-		userResponse := login.IdentityProviderResponse{
+		userResponse := provider.IdentityProviderResponse{
 			Username:   s.identity.Username,
 			Subject:    s.identity.ID.String(),
 			Company:    uuid.NewV4().String(),
