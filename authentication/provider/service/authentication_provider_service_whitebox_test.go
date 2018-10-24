@@ -4,18 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
-	"github.com/fabric8-services/fabric8-common/token"
 	"testing"
 
-	name "github.com/fabric8-services/fabric8-auth/authentication/account"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
 	_ "github.com/lib/pq"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
 
@@ -60,166 +56,12 @@ func TestEncodeTokenOK(t *testing.T) {
 	assert.Equal(t, int64(refreshExpiresIn), *tokenData.RefreshExpiresIn)
 }
 
-func TestEqualsTokenClaimsNotEqual(t *testing.T) {
-	claims := token.TokenClaims{
-		GivenName:  "testfirstname",
-		FamilyName: "testlastname",
-		Username:   "test",
-		Company:    "test",
-	}
-
-	identity := account.Identity{
-		Username: claims.Username + "noise",
-		User: account.User{
-			FullName:      name.GenerateFullName(&claims.GivenName, &claims.FamilyName),
-			Email:         claims.Email + "noise",
-			EmailVerified: !claims.EmailVerified,
-		},
-	}
-
-	keycloakOAuthProvider := KeycloakOAuthProvider{}
-	assert.Equal(t, false, keycloakOAuthProvider.equalsTokenClaims(context.Background(), &claims, identity))
-}
-
-func TestEqualsTokenClaimsEqual(t *testing.T) {
-	claims := token.TokenClaims{
-		GivenName:     "testfirstname",
-		FamilyName:    "testlastname",
-		Username:      "test",
-		Company:       "test",
-		EmailVerified: false,
-		Email:         "test",
-	}
-
-	identity := account.Identity{
-		Username: claims.Username,
-		User: account.User{
-			FullName:      name.GenerateFullName(&claims.GivenName, &claims.FamilyName),
-			Email:         claims.Email,
-			Company:       claims.Company,
-			EmailVerified: false,
-		},
-	}
-
-	keycloakOAuthProvider := KeycloakOAuthProvider{}
-	assert.Equal(t, true, keycloakOAuthProvider.equalsTokenClaims(context.Background(), &claims, identity))
-}
-
-func TestEqualsKeycloakAttributes(t *testing.T) {
-	t.Parallel()
-	resource.Require(t, resource.UnitTest)
-
-	keycloakAttributes := UserProfileAttributes{
-		"bio":      []string{"hello", "hi"},
-		"image":    []string{},
-		"approved": []string{"true"},
-	}
-
-	assert.Equal(t, true, equalsKeycloakAttribute(keycloakAttributes, "bio", "hello"))
-	assert.Equal(t, false, equalsKeycloakAttribute(keycloakAttributes, "bio", "hi"))
-	assert.Equal(t, false, equalsKeycloakAttribute(keycloakAttributes, "image", "no image"))
-	assert.Equal(t, true, equalsKeycloakAttribute(keycloakAttributes, "approved", "true"))
-}
-
-func TestEqualsKeycloakUserProfileAttributes(t *testing.T) {
-	t.Parallel()
-	resource.Require(t, resource.UnitTest)
-
-	service := provider.IdentityProvider{}
-	username := "username"
-	emailVerified := true
-	firstName := "john"
-	lastName := "doe"
-	email := "a@a.com"
-
-	dummyUserProfileResponse := KeycloakUserProfileResponse{
-		Username:      &username,
-		EmailVerified: &emailVerified,
-		FirstName:     &firstName,
-		LastName:      &lastName,
-		Email:         &email,
-		Attributes: &KeycloakUserProfileAttributes{
-			BioAttributeName:      []string{"mybio"},
-			ImageURLAttributeName: []string{"myurl"},
-			CompanyAttributeName:  []string{"redhat"},
-			ClusterAttribute:      []string{"cluster"},
-		},
-	}
-
-	identity := account.Identity{
-		Username: username,
-		User: account.User{
-			FullName:      "john doe",
-			Email:         email,
-			Bio:           "mybio",
-			ImageURL:      "myurl",
-			Company:       "redhat",
-			Cluster:       "cluster",
-			EmailVerified: emailVerified,
-		},
-	}
-
-	service.keycloakProfileService = newDummyUserProfileService(&dummyUserProfileResponse)
-	isEqual, err := service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
-	require.NoError(t, err)
-	assert.Equal(t, true, isEqual)
-
-	identity.User.Bio = ""
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
-	require.NoError(t, err)
-	assert.Equal(t, false, isEqual)
-
-	identity.User.EmailVerified = false
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
-	require.NoError(t, err)
-	assert.Equal(t, false, isEqual)
-
-	identity.User.Email = "some other unverified email"
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
-	require.NoError(t, err)
-	assert.Equal(t, false, isEqual)
-
-	identity.Username = "some other unverified username"
-	isEqual, err = service.equalsKeycloakUserProfileAttributes(context.Background(), "doesnt matter", identity, "doesn't matter")
-	require.NoError(t, err)
-	assert.Equal(t, false, isEqual)
-}
-
-// a mock keycloak user profile service specific to our use case.
-
-type dummyUserProfileService struct {
-	dummyGetResponse *KeycloakUserProfileResponse
-}
-
-func newDummyUserProfileService(dummyGetResponse *KeycloakUserProfileResponse) *dummyUserProfileService {
-	return &dummyUserProfileService{
-		dummyGetResponse: dummyGetResponse,
-	}
-}
-
-func (d *dummyUserProfileService) Update(ctx context.Context, keycloakUserProfile *KeycloakUserProfile, accessToken string, keycloakProfileURL string) error {
-	return nil
-}
-
-func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*KeycloakUserProfileResponse, error) {
-	return d.dummyGetResponse, nil
-}
-
-func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *KeycloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
-	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
-	return &url, true, nil
-}
-
-func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *KeycloakUserProfileResponse) {
-	d.dummyGetResponse = dummyGetResponse
-}
-
 func TestFillUserDoesntOverwriteExistingImageURL(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
 
 	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", ImageURL: "http://vpupkin.io/image.jpg"}}
-	claims := oauth.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email"}
+	claims := provider.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email"}
 	fillUserFromUserInfo(claims, identity)
 	assert.Equal(t, "new name", identity.User.FullName)
 	assert.Equal(t, "new company", identity.User.Company)
@@ -233,7 +75,7 @@ func TestFillUserDoesntOverwritesEmailVerified(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 
 	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", EmailVerified: false, ImageURL: "http://vpupkin.io/image.jpg"}}
-	claims := oauth.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email", EmailVerified: true}
+	claims := provider.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email", EmailVerified: true}
 	fillUserFromUserInfo(claims, identity)
 	assert.Equal(t, false, identity.User.EmailVerified)
 }
