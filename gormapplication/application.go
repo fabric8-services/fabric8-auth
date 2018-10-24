@@ -245,6 +245,10 @@ func (g *GormDB) ReplaceFactory(identifier string, factory interface{}) {
 	g.factoryManager.ReplaceFactory(identifier, factory)
 }
 
+func (g *GormDB) OverrideFactoryConfig(identifier string, config interface{}) {
+	g.factoryManager.OverrideFactoryConfig(identifier, config)
+}
+
 func (g *GormDB) ResetFactories() {
 	g.factoryManager.ResetFactories()
 }

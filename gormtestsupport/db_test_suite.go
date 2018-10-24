@@ -72,6 +72,7 @@ func (s *DBTestSuite) SetupTest() {
 	s.CleanTest = cleaner.DeleteCreatedEntities(s.DB)
 	g := s.NewTestGraph(s.T())
 	s.Graph = &g
+	s.ResetFactories()
 }
 
 // TearDownTest implements suite.TearDownTest
@@ -125,10 +126,18 @@ func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
 	return graph.NewTestGraph(t, s.Application, s.Ctx, s.DB)
 }
 
+// ReplaceFactory replaces a default factory with the specified factory.  This function is recommended to be used
+// during tests where the default behaviour of a factory needs to be overridden
 func (s *DBTestSuite) ReplaceFactory(identifier string, factory interface{}) {
 	s.Application.(*gormapplication.GormDB).ReplaceFactory(identifier, factory)
 }
 
+// OverrideFactoryConfig overrides the configuration used when constructing a new factory with the specified identifier type
+func (s *DBTestSuite) OverrideFactoryConfig(identifier string, config interface{}) {
+	s.Application.(*gormapplication.GormDB).OverrideFactoryConfig(identifier, config)
+}
+
+// ResetFactories resets all factories to default, and resets all overridden factory configurations.
 func (s *DBTestSuite) ResetFactories() {
 	s.Application.(*gormapplication.GormDB).ResetFactories()
 }
