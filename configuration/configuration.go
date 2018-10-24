@@ -281,7 +281,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetPostgresPassword() == defaultDBPassword {
 		c.appendDefaultConfigErrorMessage("default DB password is used")
 	}
-	if c.GetAuthProviderClientSecret() == defaultAuthProviderSecret {
+	if c.GetAuthProviderClientSecret() == defaultAuthProviderClientSecret {
 		c.appendDefaultConfigErrorMessage("default auth provider client secret is used")
 	}
 	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
@@ -506,9 +506,12 @@ func GetConfigurationData() (*ConfigurationData, error) {
 }
 
 func (c *ConfigurationData) setConfigDefaults() {
-	//---------
+
+	//------------------------------------------------------------------------------------------------------------------
+	//
 	// Postgres
-	//---------
+	//
+	//------------------------------------------------------------------------------------------------------------------
 
 	// We already call this in NewConfigurationData() - do we need it again??
 	c.v.SetTypeByDefaultValue(true)
@@ -529,16 +532,35 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Timeout of a transaction in minutes
 	c.v.SetDefault(varPostgresTransactionTimeout, time.Duration(5*time.Minute))
 
-	//-----
-	// HTTP
-	//-----
+	//------------------------------------------------------------------------------------------------------------------
+	//
+	// Authentication Provider Defaults
+	//
+	//------------------------------------------------------------------------------------------------------------------
+
+	c.v.SetDefault(varAuthProviderType, defaultAuthProviderType)
+	c.v.SetDefault(varAuthProviderClientID, defaultAuthProviderClientID)
+	c.v.SetDefault(varAuthProviderClientSecret, defaultAuthProviderClientSecret)
+	c.v.SetDefault(varAuthProviderEndpointAuth, defaultAuthProviderEndpointAuth)
+	c.v.SetDefault(varAuthProviderEndpointToken, defaultAuthProviderEndpointToken)
+	c.v.SetDefault(varAuthProviderEndpointUserInfo, defaultAuthProviderEndpointUserInfo)
+	c.v.SetDefault(varAuthProviderEndpointLogout, defaultAuthProviderEndpointLogout)
+
+	//------------------------------------------------------------------------------------------------------------------
+	//
+	// Http
+	//
+	//------------------------------------------------------------------------------------------------------------------
+
 	c.v.SetDefault(varHTTPAddress, "0.0.0.0:8089")
 	c.v.SetDefault(varMetricsHTTPAddress, "0.0.0.0:8089")
 	c.v.SetDefault(varHeaderMaxLength, defaultHeaderMaxLength)
 
-	//-----
+	//------------------------------------------------------------------------------------------------------------------
+	//
 	// Misc
-	//-----
+	//
+	//------------------------------------------------------------------------------------------------------------------
 
 	// Enable development related features, e.g. token generation endpoint
 	c.v.SetDefault(varDeveloperModeEnabled, false)
@@ -832,8 +854,8 @@ func (c *ConfigurationData) GetPublicOAuthClientID() string {
 	return c.v.GetString(varPublicOAuthClientID)
 }
 
-func (c *ConfigurationData) GetAuthProviderMode() string {
-	return c.v.GetString(varAuthProviderMode)
+func (c *ConfigurationData) GetAuthProviderType() string {
+	return c.v.GetString(varAuthProviderType)
 }
 
 // GetAuthProviderEndpointAuth returns the auth provider endpoint set via config file or environment variable.

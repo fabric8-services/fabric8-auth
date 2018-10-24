@@ -86,18 +86,17 @@ vwIDAQAB
 	defaultLogLevel = "info"
 
 	// Auth Provider defaults
-	defaultAuthProviderClientID = "fabric8-online-platform"
-	defaultAuthProviderSecret   = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+	defaultAuthProviderType             = "keycloak"
+	defaultAuthProviderClientID         = "fabric8-online-platform"
+	defaultAuthProviderClientSecret     = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+	defaultAuthProviderEndpointAuth     = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/auth"
+	defaultAuthProviderEndpointToken    = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/token"
+	defaultAuthProviderEndpointUserInfo = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/userinfo"
+	defaultAuthProviderEndpointLogout   = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/logout"
 
-	defaultPublicOAuthClientID  = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	defaultKeycloakDomainPrefix = "sso"
-	defaultKeycloakRealm        = "fabric8"
-	defaultWITDomainPrefix      = "api"
-
-	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
-	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
-	devModeKeycloakRealm = "fabric8-test"
-	devModeWITURL        = "http://localhost:8080"
+	defaultPublicOAuthClientID = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+	defaultWITDomainPrefix     = "api"
+	devModeWITURL              = "http://localhost:8080"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
