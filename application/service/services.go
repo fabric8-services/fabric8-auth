@@ -68,7 +68,7 @@ type LinkService interface {
 }
 
 type LogoutService interface {
-	Logout(ctx context.Context, redirectURL string) error
+	Logout(ctx context.Context, redirectURL string) (string, error)
 }
 
 type OrganizationService interface {

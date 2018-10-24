@@ -45,16 +45,16 @@ func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest(err.Error()))
 	}
 
-	err = c.app.LogoutService().Logout(ctx, redirectURL.String())
+	logoutRedirect, err := c.app.LogoutService().Logout(ctx, redirectURL.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"redirect_url": redirectURL,
+			"redirect_url": redirectURL.String(),
 			"err":          err,
 		}, "Failed to logout.")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
 	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	ctx.ResponseData.Header().Set("Location", redirectURL.String())
+	ctx.ResponseData.Header().Set("Location", logoutRedirect)
 	return ctx.TemporaryRedirect()
 }
