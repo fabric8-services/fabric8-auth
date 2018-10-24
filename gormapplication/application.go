@@ -241,8 +241,8 @@ func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
 	return g.factoryManager.LinkingProviderFactory()
 }
 
-func (g *GormDB) ReplaceFactory(factory string, constructor func() interface{}) {
-	g.factoryManager.ReplaceFactory(factory, constructor)
+func (g *GormDB) ReplaceFactory(identifier string, factory interface{}) {
+	g.factoryManager.ReplaceFactory(identifier, factory)
 }
 
 func (g *GormDB) ResetFactories() {

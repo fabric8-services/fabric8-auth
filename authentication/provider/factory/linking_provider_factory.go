@@ -17,13 +17,11 @@ import (
 	"net/url"
 )
 
-// TODO This is probably a great candidate for a new class of "thing" (factories?) that sits alongside services, however
-// can be overridden during testing to provide mock objects that don't actually communicate with 3rd party services.
-
 // NewOauthProviderFactory returns the default Oauth provider factory.
 func NewLinkingProviderFactory(context servicecontext.ServiceContext, config provider.LinkingProviderConfig) service.LinkingProviderFactory {
 	factory := &linkingProviderFactoryImpl{
-		config: config,
+		BaseService: base.NewBaseService(context),
+		config:      config,
 	}
 	return factory
 }

@@ -124,3 +124,11 @@ func (s *DBTestSuite) DisableGormCallbacks() func() {
 func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
 	return graph.NewTestGraph(t, s.Application, s.Ctx, s.DB)
 }
+
+func (s *DBTestSuite) ReplaceFactory(identifier string, factory interface{}) {
+	s.Application.(gormapplication.GormDB).ReplaceFactory(identifier, factory)
+}
+
+func (s *DBTestSuite) ResetFactories() {
+	s.Application.(gormapplication.GormDB).ResetFactories()
+}

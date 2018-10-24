@@ -70,7 +70,7 @@ func (s *linkServiceImpl) ProviderLocation(ctx context.Context, req *goa.Request
 	if err != nil {
 		return "", err
 	}
-	oauthProvider, err := s.Services().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResources[0])
+	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResources[0])
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +119,7 @@ func (s *linkServiceImpl) Callback(ctx context.Context, req *goa.RequestData, st
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	oauthProvider, err := s.Services().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResource)
+	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResource)
 	if err != nil {
 		return "", err
 	}

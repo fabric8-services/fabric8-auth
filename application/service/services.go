@@ -188,7 +188,5 @@ type LinkingProviderFactory interface {
 }
 
 type Factories interface {
-	ReplaceFactory(string, func() interface{})
-	ResetFactories()
 	LinkingProviderFactory() LinkingProviderFactory
 }

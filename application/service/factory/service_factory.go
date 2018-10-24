@@ -35,6 +35,7 @@ type serviceContextImpl struct {
 	transactionManager        transaction.TransactionManager
 	inTransaction             bool
 	services                  service.Services
+	factories                 service.Factories
 }
 
 func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData, options ...Option) context.ServiceContext {
@@ -45,6 +46,7 @@ func NewServiceContext(repos repository.Repositories, tm transaction.Transaction
 
 	var sc context.ServiceContext
 	sc = ctx
+	ctx.factories = NewFactoryManager(func() context.ServiceContext { return sc }, config)
 	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config, options...)
 	return ctx
 }
@@ -55,6 +57,10 @@ func (s *serviceContextImpl) Repositories() repository.Repositories {
 	} else {
 		return s.repositories
 	}
+}
+
+func (s *serviceContextImpl) Factories() service.Factories {
+	return s.factories
 }
 
 func (s *serviceContextImpl) Services() service.Services {

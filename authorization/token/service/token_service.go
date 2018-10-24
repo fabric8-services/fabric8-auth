@@ -580,7 +580,7 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 
 	var appResponse app.ExternalToken
 
-	linkingProvider, err := c.Services().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID, req, forResource)
+	linkingProvider, err := c.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID, req, forResource)
 	if err != nil {
 		return nil, nil, err
 	}
