@@ -13,24 +13,23 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type DummyProviderFactory struct {
+type DummyLinkingProviderFactory struct {
 	Token           string
 	Config          *configuration.ConfigurationData
 	LoadProfileFail bool
 	App             application.Application
 }
 
-func (factory *DummyProviderFactory) NewOAuthProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error) {
-	providerFactory := provider.NewOAuthProviderFactory(factory.Config, factory.App)
-	provider, err := providerFactory.NewOauthProvider(ctx, identityID, req, forResource)
+func (factory *DummyLinkingProviderFactory) NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error) {
+	provider, err := factory.App.LinkingProviderFactory().NewLinkingProvider(ctx, identityID, req, forResource)
 	if err != nil {
 		return nil, err
 	}
-	return &DummyProvider{factory: factory, linkingProvider: linkingProvider}, nil
+	return &DummyProvider{factory: factory, linkingProvider: provider}, nil
 }
 
 type DummyProvider struct {
-	factory         *DummyProviderFactory
+	factory         *DummyLinkingProviderFactory
 	linkingProvider provider.LinkingProvider
 }
 

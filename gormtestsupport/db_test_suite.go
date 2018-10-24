@@ -126,9 +126,9 @@ func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
 }
 
 func (s *DBTestSuite) ReplaceFactory(identifier string, factory interface{}) {
-	s.Application.(gormapplication.GormDB).ReplaceFactory(identifier, factory)
+	s.Application.(*gormapplication.GormDB).ReplaceFactory(identifier, factory)
 }
 
 func (s *DBTestSuite) ResetFactories() {
-	s.Application.(gormapplication.GormDB).ResetFactories()
+	s.Application.(*gormapplication.GormDB).ResetFactories()
 }
