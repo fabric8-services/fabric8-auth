@@ -2,6 +2,7 @@ package gormapplication
 
 import (
 	"fmt"
+
 	"strconv"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -57,6 +58,9 @@ func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, options ...
 	g.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
 		return factory.NewServiceContext(g, g, config, options...)
 	}, config, options...)
+	g.factoryManager = factory.NewFactoryManager(func() context.ServiceContext {
+		return factory.NewServiceContext(g, g, config)
+	}, config)
 	return g
 }
 
@@ -75,7 +79,14 @@ type GormDB struct {
 	GormBase
 	txIsoLevel     string
 	serviceFactory *factory.ServiceFactory
+	factoryManager *factory.FactoryManager
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Repositories
+//
+//----------------------------------------------------------------------------------------------------------------------
 
 // Identities creates new Identity repository
 func (g *GormBase) Identities() account.IdentityRepository {
@@ -142,6 +153,12 @@ func (g *GormBase) PrivilegeCacheRepository() permission.PrivilegeCacheRepositor
 	return permission.NewPrivilegeCacheRepository(g.db)
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Services
+//
+//----------------------------------------------------------------------------------------------------------------------
+
 func (g *GormDB) AuthenticationProviderService() service.AuthenticationProviderService {
 	return g.serviceFactory.AuthenticationProviderService()
 }
@@ -152,10 +169,6 @@ func (g *GormDB) InvitationService() service.InvitationService {
 
 func (g *GormDB) LinkService() service.LinkService {
 	return g.serviceFactory.LinkService()
-}
-
-func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
-	return g.serviceFactory.LinkingProviderFactory()
 }
 
 func (g *GormDB) LogoutService() service.LogoutService {
@@ -217,6 +230,30 @@ func (g *GormDB) WITService() service.WITService {
 func (g *GormDB) ClusterService() service.ClusterService {
 	return g.serviceFactory.ClusterService()
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Factories
+//
+//----------------------------------------------------------------------------------------------------------------------
+
+func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
+	return g.factoryManager.LinkingProviderFactory()
+}
+
+func (g *GormDB) ReplaceFactory(factory string, constructor func() interface{}) {
+	g.factoryManager.ReplaceFactory(factory, constructor)
+}
+
+func (g *GormDB) ResetFactories() {
+	g.factoryManager.ResetFactories()
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Misc
+//
+//----------------------------------------------------------------------------------------------------------------------
 
 func (g *GormBase) DB() *gorm.DB {
 	return g.db

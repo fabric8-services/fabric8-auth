@@ -22,6 +22,10 @@ import (
 	"net/url"
 )
 
+const (
+	FACTORY_TYPE_LINKING_PROVIDER = "factory.type.linking.provider"
+)
+
 /*
 Steps for adding a new Service:
 1. Add a new service interface to application/service/services.go
@@ -56,10 +60,6 @@ type InvitationService interface {
 	Rescind(ctx context.Context, rescindingUserID, invitationID uuid.UUID) error
 	// Accept processes the invitation acceptance action from the user, converting the invitation into real memberships/roles
 	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
-}
-
-type LinkingProviderFactory interface {
-	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error)
 }
 
 // LinkService provides the ability to link 3rd party oauth accounts, such as Github and Openshift
@@ -160,7 +160,6 @@ type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
 	InvitationService() InvitationService
 	LinkService() LinkService
-	LinkingProviderFactory() LinkingProviderFactory
 	LogoutService() LogoutService
 	NotificationService() NotificationService
 	OSOSubscriptionService() OSOSubscriptionService
@@ -176,4 +175,20 @@ type Services interface {
 	UserProfileService() UserProfileService
 	WITService() WITService
 	ClusterService() ClusterService
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Factories are a special type of service that can be replaced during testing, in order to produce mock / dummy factories
+//
+//----------------------------------------------------------------------------------------------------------------------
+
+type LinkingProviderFactory interface {
+	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error)
+}
+
+type Factories interface {
+	ReplaceFactory(string, func() interface{})
+	ResetFactories()
+	LinkingProviderFactory() LinkingProviderFactory
 }
