@@ -190,21 +190,12 @@ func (s *serviceLoginBlackBoxTest) TestOauth2LoginEndToEnd() {
 	s.alreadyLoggedIn = false
 	modeFragment := "fragment"
 	s.runOauth2LoginEndToEnd("https://che.openshift.io/dashboard/#/factories", modeFragment)
-
-	s.alreadyLoggedIn = true
-	s.runOauth2LoginEndToEnd("https://che.openshift.io/dashboard/#/factories", modeFragment)
-
-	s.alreadyLoggedIn = false
 	s.runOauth2LoginEndToEnd("https://randomurl/with/#fragment", modeFragment)
-
-	s.alreadyLoggedIn = false
 	s.runOauth2LoginEndToEnd("https://randomurl/with", modeFragment)
-
-	s.alreadyLoggedIn = false
 	s.runOauth2LoginEndToEnd("https://randomurl/with/", modeFragment)
+	s.runOauth2LoginEndToEnd("https://randomurl/with/?test", modeFragment)
 
 	modeQuery := "query"
-	s.alreadyLoggedIn = false
 	s.runOauth2LoginEndToEnd("https://randomurl/with/#fragment", modeQuery)
 
 }
@@ -284,19 +275,33 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd(redirectURL string, re
 	redirectedToURLRef, err = url.Parse(*redirectedTo)
 	require.NoError(s.T(), err)
 
+	// All existing params should be carried over as is
+	originalRedirectURLRef, err := url.Parse(redirectURL)
+	require.NoError(s.T(), err)
+
+	for i := range originalRedirectURLRef.Query() {
+		require.Contains(s.T(), redirectedToURLRef.Query(), i)
+	}
+
 	if responseMode == "fragment" {
 
 		require.Contains(s.T(), *redirectedTo, redirectURL)
-
 		require.Contains(s.T(), redirectedToURLRef.Fragment, fmt.Sprintf("state=%s", returnedState))
 		require.Contains(s.T(), redirectedToURLRef.Fragment, fmt.Sprintf("code=%s", returnedCode))
+
+		// Ensure that existing params are NOT being carried over as fragments
+		for i := range originalRedirectURLRef.Query() {
+			require.NotContains(s.T(), redirectedToURLRef.Fragment, fmt.Sprintf("%s=", i))
+		}
 
 		// ensures that the initial fragment is in the right position
 		require.Contains(s.T(), *redirectedTo, redirectURL)
 
 	} else {
+
 		require.Equal(s.T(), returnedCode, redirectedToURLRef.Query()["code"][0])
 		require.Equal(s.T(), returnedState, redirectedToURLRef.Query()["state"][0])
+
 	}
 
 	//  ############ STEP 4: Ask for a token ( the way it would be asked using POST /api/token )
