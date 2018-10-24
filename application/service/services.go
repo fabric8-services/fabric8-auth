@@ -42,6 +42,7 @@ type AuthenticationProviderService interface {
 	ExchangeCodeWithProvider(ctx context.Context, code string) (*oauth2.Token, error)
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
+	GetExistingIdentityInfo(ctx context.Context, accessToken string) (*account.Identity, bool, error)
 	LoginCallback(ctx context.Context, state string, code string) (*string, error)
 	LoadReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error)
 	SaveReferrer(ctx context.Context, state string, referrer string,

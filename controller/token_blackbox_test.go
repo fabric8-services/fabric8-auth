@@ -137,9 +137,9 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("with valid authorization token", func(t *testing.T) {
 			// given
-			manager, err := token.NewTokenManager(s.Configuration)
+			tokenManager, err := manager.NewTokenManager(s.Configuration)
 			require.NoError(s.T(), err)
-			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
+			tk, err := tokenManager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
 			ctx := goajwt.WithJWT(svc.Context, tk)
 			// when
@@ -159,9 +159,9 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("with invalid authorization token", func(t *testing.T) {
 			// given
-			manager, err := token.NewTokenManager(s.Configuration)
+			tokenManager, err := manager.NewTokenManager(s.Configuration)
 			require.NoError(s.T(), err)
-			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
+			tk, err := tokenManager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
 			ctx := goajwt.WithJWT(svc.Context, tk)
 			// when/then
@@ -274,7 +274,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
 	}
 	svc, ctrl := s.SecuredController()
 	someRandomString := "someString"
-	clientID := ctrl.Configuration.GetPublicOauthClientID()
+	clientID := ctrl.Configuration.GetPublicOAuthClientID()
 	code := "INVALID_OAUTH2.0_CODE"
 	// when/then
 	test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
@@ -293,7 +293,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
 	svc, ctrl := s.SecuredController()
-	clientID := ctrl.Configuration.GetPublicOauthClientID()
+	clientID := ctrl.Configuration.GetPublicOAuthClientID()
 	refreshToken := "INVALID_REFRESH_TOKEN"
 
 	rw, _ := test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
@@ -304,14 +304,14 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeOK() {
 	// given
 	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), testsupport.TestIdentity)
 	svc, ctrl := s.SecuredController()
-	s.checkAuthorizationCode(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE", expectedAccessToken, expectedRefreshToken)
+	s.checkAuthorizationCode(svc, ctrl, ctrl.Configuration.GetPublicOAuthClientID(), "SOME_OAUTH2.0_CODE", expectedAccessToken, expectedRefreshToken)
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectRefreshTokenOK() {
 	// given
 	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), testsupport.TestIdentity)
 	svc, ctrl := s.SecuredController()
-	s.checkExchangeWithRefreshToken(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN", expectedAccessToken, expectedRefreshToken)
+	s.checkExchangeWithRefreshToken(svc, ctrl, ctrl.Configuration.GetPublicOAuthClientID(), "SOME_REFRESH_TOKEN", expectedAccessToken, expectedRefreshToken)
 }
 
 func (s *TokenControllerTestSuite) TestTokenAuditOK() {
@@ -331,14 +331,14 @@ func (s *TokenControllerTestSuite) TestTokenAuditOK() {
 	// seup controller with mock KeycloakOAuthService behind
 	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
 	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
-	manager, err := token.NewTokenManager(s.Configuration)
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	tk, err := manager.Parse(s.Ctx, accessToken)
+	tk, err := tokenManager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
 	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
 	// then
-	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	tokenClaims, err := tokenManager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
@@ -363,14 +363,14 @@ func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
 	s.Graph.CreateIdentityRole(user, res, role)
 	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
 	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
-	manager, err := token.NewTokenManager(s.Configuration)
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	tk, err := manager.Parse(s.Ctx, accessToken)
+	tk, err := tokenManager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
 	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
 	// then
-	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	tokenClaims, err := tokenManager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
@@ -386,7 +386,7 @@ func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
 	t.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, true)
 	err = s.Application.TokenRepository().Save(s.Ctx, t)
 	require.NoError(s.T(), err)
-	rptToken, err := manager.Parse(s.Ctx, *response.RptToken)
+	rptToken, err := tokenManager.Parse(s.Ctx, *response.RptToken)
 	require.NoError(s.T(), err)
 	// when
 	response2, _ := test.AuditTokenUnauthorized(s.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
@@ -411,14 +411,14 @@ func (s *TokenControllerTestSuite) TestAuditRevokedToken() {
 	s.Graph.CreateIdentityRole(user, res, role)
 	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
 	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
-	manager, err := token.NewTokenManager(s.Configuration)
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	tk, err := manager.Parse(s.Ctx, accessToken)
+	tk, err := tokenManager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
 	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
 	// then
-	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	tokenClaims, err := tokenManager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
@@ -434,7 +434,7 @@ func (s *TokenControllerTestSuite) TestAuditRevokedToken() {
 	t.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, true)
 	err = s.Application.TokenRepository().Save(s.Ctx, t)
 	require.NoError(s.T(), err)
-	rptToken, err := manager.Parse(s.Ctx, *response.RptToken)
+	rptToken, err := tokenManager.Parse(s.Ctx, *response.RptToken)
 	require.NoError(s.T(), err)
 	// when
 	response2, _ := test.AuditTokenUnauthorized(s.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
@@ -481,7 +481,7 @@ func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, i
 }
 
 func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl *TokenController, name string, code string, expectedAccessToken string, expectedRefreshToken string) {
-	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
+	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 
 	require.NotNil(s.T(), token)
 	require.NotNil(s.T(), token.TokenType)
@@ -496,7 +496,7 @@ func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl
 }
 
 func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Service, ctrl *TokenController, name string, refreshToken string, expectedAccessToken, expectedRefreshToken string) {
-	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOauthClientID(), RefreshToken: &refreshToken})
+	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOAuthClientID(), RefreshToken: &refreshToken})
 
 	require.NotNil(s.T(), token.TokenType)
 	require.Equal(s.T(), "Bearer", *token.TokenType)
@@ -512,13 +512,13 @@ func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Servic
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
 	// setup the service and ctrl for this specific usecase
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	tokenManager, err := token.NewTokenManager(s.Configuration)
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
 	oauthService := &NotApprovedOAuthService{}
 	ctrl := NewTokenController(svc, s.Application, tokenManager, s.Configuration)
 
 	code := "XYZ"
-	_, errResp := test.ExchangeTokenForbidden(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
+	_, errResp := test.ExchangeTokenForbidden(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 	require.Equal(s.T(), "user is not authorized to access OpenShift", errResp.Errors[0].Detail)
 
 	oauthService = &NotApprovedOAuthService{}
@@ -526,7 +526,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUser
 	ctrl = NewTokenController(svc, s.Application, tokenManager, s.Configuration)
 
 	code = "XYZ"
-	_, returnedToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
+	_, returnedToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 	require.NotNil(s.T(), returnedToken.AccessToken)
 }
 

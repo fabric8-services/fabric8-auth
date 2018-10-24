@@ -4,12 +4,9 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/app/test"
-	"github.com/fabric8-services/fabric8-auth/application"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/login"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -26,12 +23,7 @@ func TestRunLoginREST(t *testing.T) {
 
 func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController) {
 	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
-	return svc, &LoginController{Controller: svc.NewController("login"), Auth: loginService, Configuration: rest.Configuration}
-}
-
-func newTestKeycloakOAuthProvider(app application.Application) *login.KeycloakOAuthProvider {
-	return login.NewKeycloakOAuthProvider(app.Identities(), app.Users(), testtoken.TokenManager, app, login.NewKeycloakUserProfileClient(), &testsupport.DummyOSORegistrationApp{})
+	return svc, &LoginController{Controller: svc.NewController("login")}
 }
 
 func (rest *TestLoginREST) TestLoginOK() {

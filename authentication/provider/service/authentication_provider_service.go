@@ -356,7 +356,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	return &redirectTo, userToken, nil
 }
 
-// GetExistingIdentityInfo creates a user and a keycloak identity. If the user and identity already exist then update them.
+// GetExistingIdentityInfo creates a user and an oauth identity. If the user and identity already exist then update them.
 // Returns the user, identity and true if a new user and identity have been created
 func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
 

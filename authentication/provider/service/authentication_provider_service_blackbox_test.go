@@ -96,7 +96,7 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedire
 		&generatedState, nil, nil, refererUrl, callbackUrl)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 }
 
@@ -106,9 +106,7 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserUnauthorized(
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauthIDPRef := s.getDummyOauthIDPService(true)
-
-	_, _, err = s.Application.AuthenticationProviderService().CreateOrUpdateIdentityInDB(context.Background(), token, dummyOauthIDPRef, s.Configuration)
+	_, _, err = s.Application.AuthenticationProviderService().GetExistingIdentityInfo(context.Background(), token)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
@@ -197,7 +195,7 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedire
 		&generatedState, nil, nil, "", callbackUrl)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 }
 
@@ -287,7 +285,7 @@ func (s *authenticationProviderServiceTestSuite) TestProviderAuthorizationWithNo
 	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(ctx, authorizeCtx.Redirect, authorizeCtx.APIClient,
 		&generatedState, nil, nil, "", callbackUrl)
 
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 
 	// devcluster valid referrer passes
@@ -306,7 +304,7 @@ func (s *authenticationProviderServiceTestSuite) TestProviderAuthorizationWithNo
 		&generatedState, nil, nil, "", callbackUrl)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 
 }
@@ -335,7 +333,7 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationDevMod
 	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(ctx, authorizeCtx.Redirect, authorizeCtx.APIClient,
 		&generatedState, nil, nil, "", callbackUrl)
 
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 }
 
