@@ -5,7 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"github.com/fabric8-services/fabric8-common/http/proxy"
+	"github.com/fabric8-services/fabric8-common/httpsupport"
 
 	"github.com/goadesign/goa"
 )
@@ -30,7 +30,7 @@ func NewClustersController(service *goa.Service, config clusterConfiguration) *C
 
 // Show runs the list of available OSO clusters.
 func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
-	err := proxy.RouteHTTP(ctx, c.config.GetClusterServiceURL())
+	err := httpsupport.RouteHTTP(ctx, c.config.GetClusterServiceURL())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
