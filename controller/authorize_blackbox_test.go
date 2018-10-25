@@ -3,7 +3,7 @@ package controller_test
 import (
 	"context"
 	"fmt"
-	rand "math/rand"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,7 +18,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/require"
@@ -35,7 +35,7 @@ func TestRunAuthorizeREST(t *testing.T) {
 
 func (rest *TestAuthorizeREST) UnSecuredController() (*goa.Service, *AuthorizeController) {
 	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
-	return svc, &AuthorizeController{Controller: svc.NewController("AuthorizeController")}
+	return svc, NewAuthorizeController(svc, rest.Application, rest.Configuration)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeOK() {

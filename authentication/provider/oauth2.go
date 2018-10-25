@@ -110,7 +110,7 @@ func NewIdentityProvider(config IdentityProviderConfiguration) *DefaultIdentityP
 
 // BaseIdentityProvider is the base implementation of the IdentityProvider interface
 type DefaultIdentityProvider struct {
-	*oauth2.Config
+	oauth2.Config
 	ProviderID uuid.UUID
 	ScopeStr   string
 	ProfileURL string
