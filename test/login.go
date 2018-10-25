@@ -2,7 +2,9 @@ package test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-common/token/tokencontext"
+	"github.com/fabric8-services/fabric8-common/login/tokencontext"
+
+	//"github.com/fabric8-services/fabric8-common/token/tokencontext"
 	"golang.org/x/oauth2"
 	"time"
 

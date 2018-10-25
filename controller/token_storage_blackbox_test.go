@@ -33,9 +33,8 @@ type TestTokenStorageREST struct {
 	externalTokenRepository tokenrepo.ExternalTokenRepository
 	userRepository          account.UserRepository
 
-	dummyProviderConfigFactory *testsupport.DummyProviderFactory
-	clusterServiceMock         service.ClusterService
-	tokenManager               manager.TokenManager
+	clusterServiceMock service.ClusterService
+	tokenManager       manager.TokenManager
 }
 
 func TestRunTokenStorageREST(t *testing.T) {
@@ -56,7 +55,6 @@ func (rest *TestTokenStorageREST) SetupTest() {
 	rest.identityRepository = account.NewIdentityRepository(rest.DB)
 	rest.externalTokenRepository = tokenrepo.NewExternalTokenRepository(rest.DB)
 	rest.userRepository = account.NewUserRepository(rest.DB)
-	rest.dummyProviderConfigFactory = &testsupport.DummyProviderFactory{Token: uuid.NewV4().String(), Config: rest.Configuration, App: rest.Application}
 }
 
 func (rest *TestTokenStorageREST) UnSecuredController() (*goa.Service, *TokenController) {
@@ -121,7 +119,7 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenValidOnForc
 		Username: saName,
 	}
 
-	rest.dummyProviderConfigFactory.LoadProfileFail = false
+	testsupport.ActivateDummyLinkingProviderFactory(rest, rest.Configuration, uuid.NewV4().String())
 	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 
 	clusters, err := rest.clusterServiceMock.Clusters(nil)
@@ -150,8 +148,7 @@ func (rest *TestTokenStorageREST) checkRetrieveOSOServiceAccountTokenInvalidOnFo
 	sa := account.Identity{
 		Username: saName,
 	}
-	rest.dummyProviderConfigFactory.LoadProfileFail = true
-
+	testsupport.ActivateDummyLinkingProviderFactory(rest, rest.Configuration, uuid.NewV4().String())
 	service, controller := rest.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 	forcePull := true
 	clusters, err := rest.clusterServiceMock.Clusters(nil)
@@ -373,7 +370,7 @@ func (rest *TestTokenStorageREST) TestRetrieveExternalTokenInvalidOnForcePullInt
 func (rest *TestTokenStorageREST) checkRetrieveExternalTokenInvalidOnForcePullInternalError(identity account.Identity, for_, providerName string) {
 	// Token status is OK, but when tested with provider it's invalid.
 	forcePull := true
-	rest.dummyProviderConfigFactory.LoadProfileFail = true
+	testsupport.ActivateDummyLinkingProviderFactory(rest, rest.Configuration, uuid.NewV4().String())
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, for_, nil)
 	rw, _ := test.RetrieveTokenUnauthorized(rest.T(), service.Context, service, controller, for_, &forcePull)
@@ -417,7 +414,7 @@ func (rest *TestTokenStorageREST) checkRetrieveExternalTokenValidOnForcePullInte
 
 	// Token retrieved from database is successful and when tested with github it's valid.
 	forcePull := true
-	rest.dummyProviderConfigFactory.LoadProfileFail = false
+	testsupport.ActivateDummyLinkingProviderFactory(rest, rest.Configuration, uuid.NewV4().String())
 	service, controller = rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, for_, &forcePull)
 }
@@ -519,7 +516,7 @@ func (rest *TestTokenStorageREST) TestStatusExternalTokenInvalidOnForcePullInter
 func (rest *TestTokenStorageREST) checkStatusExternalTokenInvalidOnForcePullInternalError(identity account.Identity, for_, providerName string) {
 	// Token status is OK, but when tested with provider it's invalid.
 	forcePull := true
-	rest.dummyProviderConfigFactory.LoadProfileFail = true
+	testsupport.ActivateDummyLinkingProviderFactory(rest, rest.Configuration, uuid.NewV4().String())
 	service, controller := rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(rest.T(), service.Context, service, controller, for_, nil)
 	rw, _ := test.StatusTokenUnauthorized(rest.T(), service.Context, service, controller, for_, &forcePull)
@@ -561,7 +558,7 @@ func (rest *TestTokenStorageREST) checkStatusExternalTokenValidOnForcePullIntern
 
 	// Token status is OK and when tested with provider it's valid.
 	forcePull := true
-	rest.dummyProviderConfigFactory.LoadProfileFail = false
+	testsupport.ActivateDummyLinkingProviderFactory(rest, rest.Configuration, uuid.NewV4().String())
 	service, controller = rest.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	_, tokenStatus := test.StatusTokenOK(rest.T(), service.Context, service, controller, for_, &forcePull)
 	rest.assertTokenStatus(expectedToken.Username, expectedProviderURL, tokenStatus)
