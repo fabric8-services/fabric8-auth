@@ -86,13 +86,13 @@ vwIDAQAB
 	defaultLogLevel = "info"
 
 	// Auth Provider defaults
-	defaultAuthProviderType             = "keycloak"
-	defaultAuthProviderClientID         = "fabric8-online-platform"
-	defaultAuthProviderClientSecret     = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
-	defaultAuthProviderEndpointAuth     = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/auth"
-	defaultAuthProviderEndpointToken    = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/token"
-	defaultAuthProviderEndpointUserInfo = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/userinfo"
-	defaultAuthProviderEndpointLogout   = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/logout"
+	defaultOAuthProviderType             = "keycloak"
+	defaultOAuthProviderClientID         = "fabric8-online-platform"
+	defaultOAuthProviderClientSecret     = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+	defaultOAuthProviderEndpointAuth     = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/auth"
+	defaultOAuthProviderEndpointToken    = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/token"
+	defaultOAuthProviderEndpointUserInfo = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/userinfo"
+	defaultOAuthProviderEndpointLogout   = "https://sso.prod-preview.openshift.io/auth/realms/fabric8/protocol/openid-connect/logout"
 
 	defaultPublicOAuthClientID = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	defaultWITDomainPrefix     = "api"

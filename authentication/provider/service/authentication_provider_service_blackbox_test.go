@@ -96,7 +96,7 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedire
 		&generatedState, nil, nil, refererUrl, callbackUrl)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 }
 
@@ -195,7 +195,7 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedire
 		&generatedState, nil, nil, "", callbackUrl)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 }
 
@@ -285,7 +285,7 @@ func (s *authenticationProviderServiceTestSuite) TestProviderAuthorizationWithNo
 	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(ctx, authorizeCtx.Redirect, authorizeCtx.APIClient,
 		&generatedState, nil, nil, "", callbackUrl)
 
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 
 	// devcluster valid referrer passes
@@ -304,7 +304,7 @@ func (s *authenticationProviderServiceTestSuite) TestProviderAuthorizationWithNo
 		&generatedState, nil, nil, "", callbackUrl)
 
 	assert.Equal(s.T(), 307, rw.Code)
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 
 }
@@ -333,7 +333,7 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationDevMod
 	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(ctx, authorizeCtx.Redirect, authorizeCtx.APIClient,
 		&generatedState, nil, nil, "", callbackUrl)
 
-	assert.Contains(s.T(), redirectUrl, s.Configuration.GetAuthProviderEndpointAuth())
+	assert.Contains(s.T(), redirectUrl, s.Configuration.GetOAuthProviderEndpointAuth())
 	assert.NotEqual(s.T(), redirectUrl, "")
 }
 

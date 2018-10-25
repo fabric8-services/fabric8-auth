@@ -131,7 +131,7 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
 
 	locationString := rw.HeaderMap["Location"][0]
-	authEndpoint := rest.Configuration.GetAuthProviderEndpointAuth()
+	authEndpoint := rest.Configuration.GetOAuthProviderEndpointAuth()
 	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)
@@ -240,7 +240,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
 
 	locationString := rw.HeaderMap["Location"][0]
-	authEndpoint := rest.Configuration.GetAuthProviderEndpointAuth()
+	authEndpoint := rest.Configuration.GetOAuthProviderEndpointAuth()
 	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)

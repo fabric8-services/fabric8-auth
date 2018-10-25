@@ -13,7 +13,7 @@ import (
 
 type LogoutServiceConfiguration interface {
 	GetValidRedirectURLs() string
-	GetAuthProviderEndpointLogout() string
+	GetOAuthProviderEndpointLogout() string
 }
 
 type logoutServiceImpl struct {
@@ -46,10 +46,10 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 		}, "Redirect URL is not valid")
 		return "", errors.NewBadParameterErrorFromString("redirect", redirectURL, "not valid redirect URL")
 	}
-	logoutURL, err := url.Parse(s.config.GetAuthProviderEndpointLogout())
+	logoutURL, err := url.Parse(s.config.GetOAuthProviderEndpointLogout())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"logout_endpoint": s.config.GetAuthProviderEndpointLogout(),
+			"logout_endpoint": s.config.GetOAuthProviderEndpointLogout(),
 			"err":             err,
 		}, "Failed to logout. Unable to parse logout url.")
 		return "", errors.NewInternalError(ctx, err)
