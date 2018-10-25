@@ -2,9 +2,9 @@ package test
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/application/service/wrapper"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -22,13 +22,12 @@ type dummyLinkingProviderFactory interface {
 
 type dummyLinkingProviderFactoryImpl struct {
 	wrapper.BaseFactoryWrapper
-	config          *configuration.ConfigurationData
-	Token           string
-	LoadProfileFail bool
+	config *configuration.ConfigurationData
+	Token  string
 }
 
-// NewDummyLinkingProviderFactory can be used to create a mock linking provider factory
-func NewDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string, loadProfileFail bool) {
+// ActivateDummyLinkingProviderFactory can be used to create a mock linking provider factory
+func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string) {
 	w.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER,
 		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
 			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
@@ -39,7 +38,6 @@ func NewDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.Con
 		func(w wrapper.FactoryWrapper) {
 			w.(dummyLinkingProviderFactory).setConfig(config)
 			w.(dummyLinkingProviderFactory).setToken(token)
-			w.(dummyLinkingProviderFactory).setLoadProfileFail(loadProfileFail)
 		})
 }
 
@@ -56,10 +54,6 @@ func (f *dummyLinkingProviderFactoryImpl) Configuration() *configuration.Configu
 		return f.config
 	}
 	return f.BaseFactoryWrapper.Configuration()
-}
-
-func (f *dummyLinkingProviderFactoryImpl) setLoadProfileFail(value bool) {
-	f.LoadProfileFail = value
 }
 
 func (f *dummyLinkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error) {

@@ -2,13 +2,14 @@ package gormapplication
 
 import (
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 
 	"strconv"
 
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-	"github.com/fabric8-services/fabric8-auth/application/service/wrapper"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	provider "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
@@ -59,7 +60,7 @@ func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, options ...
 	g.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
 		return factory.NewServiceContext(g, g, config, options...)
 	}, config, options...)
-	g.factoryManager = factory.NewFactoryManager(func() context.ServiceContext {
+	g.factoryManager = factorymanager.NewManager(func() context.ServiceContext {
 		return factory.NewServiceContext(g, g, config)
 	}, config)
 	return g
@@ -80,7 +81,7 @@ type GormDB struct {
 	GormBase
 	txIsoLevel     string
 	serviceFactory *factory.ServiceFactory
-	factoryManager *factory.FactoryManager
+	factoryManager *factorymanager.Manager
 }
 
 //----------------------------------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/application/service/wrapper"
+	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"

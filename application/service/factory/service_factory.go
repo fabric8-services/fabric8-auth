@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -46,7 +47,7 @@ func NewServiceContext(repos repository.Repositories, tm transaction.Transaction
 
 	var sc context.ServiceContext
 	sc = ctx
-	ctx.factories = NewFactoryManager(func() context.ServiceContext { return sc }, config)
+	ctx.factories = factorymanager.NewManager(func() context.ServiceContext { return sc }, config)
 	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config, options...)
 	return ctx
 }
@@ -132,10 +133,8 @@ func (s *serviceContextImpl) endTransaction() {
 	s.inTransaction = false
 }
 
-type ServiceContextProducer func() context.ServiceContext
-
 type ServiceFactory struct {
-	contextProducer         ServiceContextProducer
+	contextProducer         context.ServiceContextProducer
 	config                  *configuration.ConfigurationData
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
@@ -169,7 +168,7 @@ func WithClusterService(s service.ClusterService) Option {
 	}
 }
 
-func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
+func NewServiceFactory(producer context.ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
 	f.witServiceFunc = func() service.WITService {

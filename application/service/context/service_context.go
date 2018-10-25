@@ -5,6 +5,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 )
 
+type ServiceContextProducer func() ServiceContext
+
 type ServiceContext interface {
 	Repositories() repository.Repositories
 	Factories() service.Factories
