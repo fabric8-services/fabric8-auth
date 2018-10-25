@@ -31,8 +31,14 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	// Get the URL of the callback endpoint, the client will be redirected here after being redirected to the authentication provider
 	callbackURL := rest.AbsoluteURL(ctx.RequestData, client.CallbackLoginPath(), nil)
 
+	// Remove this: once we remove support for offline token completely
+	var scopes []string
+	if ctx.Scope != nil {
+		scopes = append(scopes, *ctx.Scope)
+	}
+
 	redirectURL, err := c.app.AuthenticationProviderService().GenerateAuthCodeURL(ctx, ctx.Redirect, ctx.APIClient,
-		&state, nil, nil, ctx.RequestData.Header.Get("Referer"), callbackURL)
+		&state, scopes, nil, ctx.RequestData.Header.Get("Referer"), callbackURL)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

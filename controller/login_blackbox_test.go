@@ -23,7 +23,7 @@ func TestRunLoginREST(t *testing.T) {
 
 func (rest *TestLoginREST) UnSecuredController() (*goa.Service, *LoginController) {
 	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
-	return svc, &LoginController{Controller: svc.NewController("login")}
+	return svc, NewLoginController(svc, rest.Application)
 }
 
 func (rest *TestLoginREST) TestLoginOK() {
