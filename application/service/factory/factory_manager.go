@@ -3,58 +3,20 @@ package factory
 import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/application/service/wrapper"
 	providerfactory "github.com/fabric8-services/fabric8-auth/authentication/provider/factory"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 )
 
-type FactoryWrapperConstructor = func(context.ServiceContext, *configuration.ConfigurationData) FactoryWrapper
-type FactoryWrapperInitializer = func(FactoryWrapper)
-
 type wrapperDef struct {
-	constructor FactoryWrapperConstructor
-	initializer FactoryWrapperInitializer
+	constructor wrapper.FactoryWrapperConstructor
+	initializer wrapper.FactoryWrapperInitializer
 }
 
 type FactoryManager struct {
 	contextProducer ServiceContextProducer
 	config          *configuration.ConfigurationData
 	wrappers        map[string]wrapperDef
-}
-
-type FactoryWrapper interface {
-	Configuration() *configuration.ConfigurationData
-	ServiceContext() context.ServiceContext
-	SetFactory(factory interface{})
-	Factory() interface{}
-}
-
-type BaseFactoryWrapper struct {
-	context context.ServiceContext
-	config  *configuration.ConfigurationData
-	factory interface{}
-}
-
-func NewBaseFactoryWrapper(context context.ServiceContext, config *configuration.ConfigurationData) *BaseFactoryWrapper {
-	return &BaseFactoryWrapper{
-		context: context,
-		config:  config,
-	}
-}
-
-func (w *BaseFactoryWrapper) Configuration() *configuration.ConfigurationData {
-	return w.config
-}
-
-func (w *BaseFactoryWrapper) ServiceContext() context.ServiceContext {
-	return w.context
-}
-
-func (w *BaseFactoryWrapper) SetFactory(factory interface{}) {
-	w.factory = factory
-}
-
-func (w *BaseFactoryWrapper) Factory() interface{} {
-	return w.factory
 }
 
 func NewFactoryManager(producer ServiceContextProducer, config *configuration.ConfigurationData) *FactoryManager {
@@ -65,7 +27,7 @@ func (f *FactoryManager) getContext() context.ServiceContext {
 	return f.contextProducer()
 }
 
-func (f *FactoryManager) WrapFactory(identifier string, constructor FactoryWrapperConstructor, initializer FactoryWrapperInitializer) {
+func (f *FactoryManager) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
 	f.wrappers[identifier] = wrapperDef{
 		constructor: constructor,
 		initializer: initializer,
@@ -79,7 +41,7 @@ func (f *FactoryManager) ResetFactories() {
 }
 
 func (f *FactoryManager) LinkingProviderFactory() service.LinkingProviderFactory {
-	var wrapper FactoryWrapper
+	var wrapper wrapper.FactoryWrapper
 
 	if def, ok := f.wrappers[service.FACTORY_TYPE_LINKING_PROVIDER]; ok {
 		// Create the wrapper first

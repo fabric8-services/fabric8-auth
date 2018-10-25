@@ -4,11 +4,10 @@ import (
 	"context"
 	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+	"github.com/fabric8-services/fabric8-auth/application/service/wrapper"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	netcontext "golang.org/x/net/context"
@@ -22,24 +21,25 @@ type dummyLinkingProviderFactory interface {
 }
 
 type dummyLinkingProviderFactoryImpl struct {
-	factory.BaseFactoryWrapper
+	wrapper.BaseFactoryWrapper
 	config          *configuration.ConfigurationData
 	Token           string
 	LoadProfileFail bool
 }
 
-func NewDummyLinkingProviderFactory(testsuite *gormtestsupport.DBTestSuite, config *configuration.ConfigurationData, token string, loadProfileFail bool) {
-	testsuite.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER,
-		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) factory.FactoryWrapper {
-			baseFactoryWrapper := factory.NewBaseFactoryWrapper(ctx, config)
+// NewDummyLinkingProviderFactory can be used to create a mock linking provider factory
+func NewDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string, loadProfileFail bool) {
+	w.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER,
+		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
+			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
 			return &dummyLinkingProviderFactoryImpl{
 				BaseFactoryWrapper: *baseFactoryWrapper,
 			}
 		},
-		func(wrapper factory.FactoryWrapper) {
-			wrapper.(dummyLinkingProviderFactory).setConfig(config)
-			wrapper.(dummyLinkingProviderFactory).setToken(token)
-			wrapper.(dummyLinkingProviderFactory).setLoadProfileFail(loadProfileFail)
+		func(w wrapper.FactoryWrapper) {
+			w.(dummyLinkingProviderFactory).setConfig(config)
+			w.(dummyLinkingProviderFactory).setToken(token)
+			w.(dummyLinkingProviderFactory).setLoadProfileFail(loadProfileFail)
 		})
 }
 
@@ -52,7 +52,10 @@ func (f *dummyLinkingProviderFactoryImpl) setToken(token string) {
 }
 
 func (f *dummyLinkingProviderFactoryImpl) Configuration() *configuration.ConfigurationData {
-	return f.config
+	if f.config != nil {
+		return f.config
+	}
+	return f.BaseFactoryWrapper.Configuration()
 }
 
 func (f *dummyLinkingProviderFactoryImpl) setLoadProfileFail(value bool) {

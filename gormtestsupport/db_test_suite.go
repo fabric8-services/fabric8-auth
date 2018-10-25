@@ -2,11 +2,11 @@ package gormtestsupport
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"os"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/service/wrapper"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
@@ -129,7 +129,7 @@ func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
 
 // ReplaceFactory replaces a default factory with the specified factory.  This function is recommended to be used
 // during tests where the default behaviour of a factory needs to be overridden
-func (s *DBTestSuite) WrapFactory(identifier string, constructor factory.FactoryWrapperConstructor, initializer factory.FactoryWrapperInitializer) {
+func (s *DBTestSuite) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
 	s.Application.(*gormapplication.GormDB).WrapFactory(identifier, constructor, initializer)
 }
 

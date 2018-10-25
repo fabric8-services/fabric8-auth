@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+	"github.com/fabric8-services/fabric8-auth/application/service/wrapper"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	provider "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
@@ -241,7 +242,7 @@ func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
 	return g.factoryManager.LinkingProviderFactory()
 }
 
-func (g *GormDB) WrapFactory(identifier string, constructor factory.FactoryWrapperConstructor, initializer factory.FactoryWrapperInitializer) {
+func (g *GormDB) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
 	g.factoryManager.WrapFactory(identifier, constructor, initializer)
 }
 
