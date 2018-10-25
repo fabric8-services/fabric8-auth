@@ -2,6 +2,7 @@ package gormtestsupport
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"os"
 	"testing"
 
@@ -128,13 +129,8 @@ func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
 
 // ReplaceFactory replaces a default factory with the specified factory.  This function is recommended to be used
 // during tests where the default behaviour of a factory needs to be overridden
-func (s *DBTestSuite) ReplaceFactory(identifier string, factory interface{}) {
-	s.Application.(*gormapplication.GormDB).ReplaceFactory(identifier, factory)
-}
-
-// OverrideFactoryConfig overrides the configuration used when constructing a new factory with the specified identifier type
-func (s *DBTestSuite) OverrideFactoryConfig(identifier string, config interface{}) {
-	s.Application.(*gormapplication.GormDB).OverrideFactoryConfig(identifier, config)
+func (s *DBTestSuite) WrapFactory(identifier string, constructor factory.FactoryWrapperConstructor, initializer factory.FactoryWrapperInitializer) {
+	s.Application.(*gormapplication.GormDB).WrapFactory(identifier, constructor, initializer)
 }
 
 // ResetFactories resets all factories to default, and resets all overridden factory configurations.
