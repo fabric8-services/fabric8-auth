@@ -29,18 +29,18 @@ type dummyLinkingProviderFactoryImpl struct {
 }
 
 func NewDummyLinkingProviderFactory(testsuite *gormtestsupport.DBTestSuite, config *configuration.ConfigurationData, token string, loadProfileFail bool) {
-	testsuite.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER, dummyLinkingProviderFactoryConstructor, func(wrapper factory.FactoryWrapper) {
-		wrapper.(dummyLinkingProviderFactory).setConfig(config)
-		wrapper.(dummyLinkingProviderFactory).setToken(token)
-		wrapper.(dummyLinkingProviderFactory).setLoadProfileFail(loadProfileFail)
-	})
-}
-
-func dummyLinkingProviderFactoryConstructor(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) factory.FactoryWrapper {
-	baseFactoryWrapper := factory.NewBaseFactoryWrapper(ctx, config)
-	return &dummyLinkingProviderFactoryImpl{
-		BaseFactoryWrapper: *baseFactoryWrapper,
-	}
+	testsuite.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER,
+		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) factory.FactoryWrapper {
+			baseFactoryWrapper := factory.NewBaseFactoryWrapper(ctx, config)
+			return &dummyLinkingProviderFactoryImpl{
+				BaseFactoryWrapper: *baseFactoryWrapper,
+			}
+		},
+		func(wrapper factory.FactoryWrapper) {
+			wrapper.(dummyLinkingProviderFactory).setConfig(config)
+			wrapper.(dummyLinkingProviderFactory).setToken(token)
+			wrapper.(dummyLinkingProviderFactory).setLoadProfileFail(loadProfileFail)
+		})
 }
 
 func (f *dummyLinkingProviderFactoryImpl) setConfig(config *configuration.ConfigurationData) {
