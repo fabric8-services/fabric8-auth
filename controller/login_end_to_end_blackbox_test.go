@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
@@ -11,16 +12,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"strings"
+
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
-	"strings"
 
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/goadesign/goa/uuid"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -28,6 +25,12 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/goadesign/goa/uuid"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestServiceLoginBlackboxTest(t *testing.T) {
@@ -470,7 +473,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 		rw.Write([]byte(tokenResponse))
 
 	} else if req.URL.Path == "/api/profile" {
-		require.NotEqual(s.T(), "Bearer", req.Header.Get("authorization"))
+		require.NotEqual(s.T(), "bearer", req.Header.Get("authorization"))
 		userResponse := provider.IdentityProviderResponse{
 			Username:   s.identity.Username,
 			Subject:    s.identity.ID.String(),

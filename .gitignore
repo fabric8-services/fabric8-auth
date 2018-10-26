@@ -81,6 +81,7 @@ migration/sqlbindata_test.go
 configuration/confbindata.go
 wit/witservice
 account/tenant
+test/generated
 test/service
 test/token/oauth
 test/login

@@ -2,12 +2,13 @@ package manager_test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
 	"time"
+
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 
 	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
@@ -175,7 +176,7 @@ func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
 	s.assertIntClaim(rptClaims, "nbf", 0)
 	s.assertClaim(rptClaims, "iss", "https://auth.openshift.io")
 	s.assertClaim(rptClaims, "aud", "https://openshift.io")
-	s.assertClaim(rptClaims, "typ", "Bearer")
+	s.assertClaim(rptClaims, "typ", "bearer")
 	s.assertClaim(rptClaims, "auth_time", iat)
 	s.assertClaim(rptClaims, "approved", !identity.User.Deprovisioned)
 	s.assertClaim(rptClaims, "sub", identity.ID.String())
@@ -219,7 +220,7 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	s.assertIntClaim(accessToken, "nbf", 0)
 	s.assertClaim(accessToken, "iss", "https://auth.openshift.io")
 	s.assertClaim(accessToken, "aud", "https://openshift.io")
-	s.assertClaim(accessToken, "typ", "Bearer")
+	s.assertClaim(accessToken, "typ", "bearer")
 	s.assertClaim(accessToken, "auth_time", iat)
 	s.assertClaim(accessToken, "approved", !identity.User.Deprovisioned)
 	s.assertClaim(accessToken, "sub", identity.ID.String())
