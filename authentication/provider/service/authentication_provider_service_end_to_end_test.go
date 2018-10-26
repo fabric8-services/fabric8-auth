@@ -1,4 +1,4 @@
-package controller_test
+package service_test
 
 import (
 	"context"
@@ -53,12 +53,9 @@ func (s *serviceLoginBlackBoxTest) SetupSuite() {
 	s.state = uuid.NewV4().String()
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
 
-	/*
-		auth.provider.endpoint.auth
-	*/
-	os.Setenv("AUTH_AUTH_PROVIDER_ENDPOINT_USERINFO", idpServerURL+"profile")
-	os.Setenv("AUTH_AUTH_PROVIDER_ENDPOINT_AUTH", idpServerURL+"code")
-	os.Setenv("AUTH_AUTH_PROVIDER_ENDPOINT_TOKEN", idpServerURL+"token")
+	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_USERINFO", idpServerURL+"profile")
+	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_AUTH", idpServerURL+"code")
+	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_TOKEN", idpServerURL+"token")
 
 	s.WITServer = s.createMockHTTPServer(s.serveWITServer)
 	witServerURL := "http://" + s.WITServer.Listener.Addr().String()
@@ -90,7 +87,6 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEnd() {
 	}
 }
 
-/*
 func (s *serviceLoginBlackBoxTest) TestLoginEndToEndNotApproved() {
 	s.approved = false
 	s.alreadyLoggedIn = false
@@ -102,14 +98,14 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEndNotApproved() {
 		s.runLoginEndToEnd()
 	}
 }
-*/
+
 func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
-	//idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
+
 	prms := url.Values{
 		"redirect": []string{"http://api.openshift.io/api/status"},
 	}
 
-	authorizeCtx, rw := s.createNewLoginContext("/api/login", prms)
+	authorizeCtx, _ := s.createNewLoginContext("/api/login", prms)
 
 	// ############ STEP 1 Call /api/login without state or code
 	// ############
@@ -119,7 +115,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, authorizeCtx.Redirect, authorizeCtx.APIClient,
 		&generatedState, nil, nil, "", callbackUrl)
 	require.Nil(s.T(), err)
-	//assert.Empty(s.T(), *redirectUrl)
+
 	// Ensure you get a redirect with a 'state'
 	unescapedRedirectURL, _ := url.PathUnescape(*redirectUrl)
 	require.Contains(s.T(), unescapedRedirectURL, callbackUrl)
@@ -152,16 +148,11 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 
 	// Call /api/login?code=X&state=Y
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
-	rw = httptest.NewRecorder()
-	callbackLoginCtx, rw := s.createLoginCallbackContext("/api/login/callback", prms)
+	callbackLoginCtx, _ := s.createLoginCallbackContext("/api/login/callback", prms)
 
 	callbackUrl = rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
 	generatedState = uuid.NewV4().String()
 	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(callbackLoginCtx, returnedState, returnedCode)
-	require.Nil(s.T(), err)
-
-	//require.Empty(s.T(), *redirectUrl)
-	require.NotNil(s.T(), rw)
 
 	//  ############ STEP 4: Token generated and recieved as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
@@ -193,13 +184,12 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 			require.True(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
 		}
 	} else {
-		require.Equal(s.T(), 401, rw.Code)
+		require.Error(s.T(), err)
 		require.False(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
 	}
 
 }
 
-/*
 // ############################
 // Tests for oauth2
 // ############################
@@ -236,8 +226,9 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 	oauthCodeRedirectURL := "http://auth.openshift.io/authorize/callback"
 	oauthConfig.RedirectURL = oauthCodeRedirectURL
 	redirectedTo, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, &redirectURL,
-		&apiClient, &state, nil, nil, "", "")
-	require.Nil(s.T(), err)
+		&apiClient, &state, nil, nil, "", oauthCodeRedirectURL)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), redirectedTo)
 
 	// Ensure you get a redirect with a 'state'
 	require.Contains(s.T(), *redirectedTo, s.Configuration.GetOAuthProviderEndpointAuth())
@@ -256,7 +247,7 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 	// ############
 
 	reqToOauthServer, err := http.NewRequest("GET", *redirectedTo, nil)
-	reqToOauthServer.Header.Add("referrer", "http://notimportant")
+	reqToOauthServer.Header.Add("referer", "http://notimportant")
 	reqToOauthServer.Header.Add("Accept-Encoding", "identity")
 
 	if err != nil {
@@ -313,8 +304,6 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 		require.Nil(s.T(), authToken)
 	}
 }
-
-*/
 
 func (s *serviceLoginBlackBoxTest) createNewLoginContext(path string, prms url.Values) (*app.LoginLoginContext, *httptest.ResponseRecorder) {
 	rw := httptest.NewRecorder()
@@ -458,7 +447,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 		if !s.alreadyLoggedIn {
 			// new user only if user is logging in for the first time.
 			// This bit comes handy to determine outcome of multiple logins by the same user
-			s.identity = s.Graph.CreateUser(s.Graph.ID(uuid.NewV4().String())).Identity()
+			s.identity = s.Graph.CreateUser(s.Graph.ID("username-" + uuid.NewV4().String())).Identity()
 			require.NotEmpty(s.T(), s.identity.Username)
 		}
 
