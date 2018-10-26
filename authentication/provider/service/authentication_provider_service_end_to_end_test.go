@@ -509,6 +509,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 
 		// This randomization is to test that even if RHD userinfo returns different profile data
 		// on every login, we wouldn't be updating that in the db - except on the first login.
+
 		if !s.alreadyLoggedIn {
 			userResponse.FamilyName = "FAMILY_NAME_OVERRIDE"
 			userResponse.GivenName = "GIVEN_NAME_OVERRIDE"
