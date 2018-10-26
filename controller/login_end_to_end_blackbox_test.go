@@ -240,14 +240,14 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
-	require.Contains(s.T(), *redirectedTo, s.Configuration.GetAuthProviderEndpointAuth())
+	require.Contains(s.T(), *redirectedTo, s.Configuration.GetOAuthProviderEndpointAuth())
 
 	redirectedToURLRef, err := url.Parse(*redirectedTo)
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), state, redirectedToURLRef.Query()["state"][0])
 	require.Equal(s.T(), resonseType, redirectedToURLRef.Query()["response_type"][0])
-	require.Equal(s.T(), s.Configuration.GetAuthProviderClientID(), redirectedToURLRef.Query()["client_id"][0])
+	require.Equal(s.T(), s.Configuration.GetOAuthProviderClientID(), redirectedToURLRef.Query()["client_id"][0])
 
 	// This is what the OAuth server calls after the user puts in her credentials.
 	require.Equal(s.T(), oauthCodeRedirectURL, redirectedToURLRef.Query()["redirect_uri"][0])

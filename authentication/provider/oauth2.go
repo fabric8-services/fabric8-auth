@@ -21,11 +21,11 @@ import (
 
 // IdentityProviderConfiguration
 type IdentityProviderConfiguration interface {
-	GetAuthProviderClientID() string
-	GetAuthProviderClientSecret() string
-	GetAuthProviderEndpointAuth() string
-	GetAuthProviderEndpointToken() string
-	GetAuthProviderEndpointUserInfo() string
+	GetOAuthProviderClientID() string
+	GetOAuthProviderClientSecret() string
+	GetOAuthProviderEndpointAuth() string
+	GetOAuthProviderEndpointToken() string
+	GetOAuthProviderEndpointUserInfo() string
 	GetValidRedirectURLs() string
 	GetNotApprovedRedirect() string
 	GetWITURL() (string, error)
@@ -100,11 +100,11 @@ type LinkingProvider interface {
 // NewIdentityProvider creates a new default OAuth identity provider
 func NewIdentityProvider(config IdentityProviderConfiguration) *DefaultIdentityProvider {
 	provider := &DefaultIdentityProvider{}
-	provider.ProfileURL = config.GetAuthProviderEndpointUserInfo()
-	provider.ClientID = config.GetAuthProviderClientID()
-	provider.ClientSecret = config.GetAuthProviderClientSecret()
+	provider.ProfileURL = config.GetOAuthProviderEndpointUserInfo()
+	provider.ClientID = config.GetOAuthProviderClientID()
+	provider.ClientSecret = config.GetOAuthProviderClientSecret()
 	provider.Scopes = []string{"user:email"}
-	provider.Endpoint = oauth2.Endpoint{AuthURL: config.GetAuthProviderEndpointAuth(), TokenURL: config.GetAuthProviderEndpointToken()}
+	provider.Endpoint = oauth2.Endpoint{AuthURL: config.GetOAuthProviderEndpointAuth(), TokenURL: config.GetOAuthProviderEndpointToken()}
 	return provider
 }
 

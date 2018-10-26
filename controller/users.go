@@ -41,8 +41,8 @@ type UsersControllerConfiguration interface {
 	GetEmailVerifiedRedirectURL() string
 	GetInternalUsersEmailAddressSuffix() string
 	GetIgnoreEmailInProd() string
-	GetAuthProviderClientID() string
-	GetAuthProviderClientSecret() string
+	GetOAuthProviderClientID() string
+	GetOAuthProviderClientSecret() string
 }
 
 // NewUsersController creates a users controller.

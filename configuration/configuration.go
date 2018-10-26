@@ -81,13 +81,13 @@ const (
 	//
 	//------------------------------------------------------------------------------------------------------------------
 
-	varAuthProviderType             = "auth.provider.type"
-	varAuthProviderClientID         = "auth.provider.client.id"
-	varAuthProviderClientSecret     = "auth.provider.client.secret"
-	varAuthProviderEndpointAuth     = "auth.provider.endpoint.auth"
-	varAuthProviderEndpointUserInfo = "auth.provider.endpoint.userinfo"
-	varAuthProviderEndpointToken    = "auth.provider.endpoint.token"
-	varAuthProviderEndpointLogout   = "auth.provider.endpoint.logout"
+	varOAuthProviderType             = "oauth.provider.type"
+	varOAuthProviderClientID         = "oauth.provider.client.id"
+	varOAuthProviderClientSecret     = "oauth.provider.client.secret"
+	varOAuthProviderEndpointAuth     = "oauth.provider.endpoint.auth"
+	varOAuthProviderEndpointUserInfo = "oauth.provider.endpoint.userinfo"
+	varOAuthProviderEndpointToken    = "oauth.provider.endpoint.token"
+	varOAuthProviderEndpointLogout   = "oauth.provider.endpoint.logout"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -281,7 +281,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if c.GetPostgresPassword() == defaultDBPassword {
 		c.appendDefaultConfigErrorMessage("default DB password is used")
 	}
-	if c.GetAuthProviderClientSecret() == defaultAuthProviderClientSecret {
+	if c.GetOAuthProviderClientSecret() == defaultOAuthProviderClientSecret {
 		c.appendDefaultConfigErrorMessage("default auth provider client secret is used")
 	}
 	if c.GetGitHubClientSecret() == defaultGitHubClientSecret {
@@ -538,13 +538,13 @@ func (c *ConfigurationData) setConfigDefaults() {
 	//
 	//------------------------------------------------------------------------------------------------------------------
 
-	c.v.SetDefault(varAuthProviderType, defaultAuthProviderType)
-	c.v.SetDefault(varAuthProviderClientID, defaultAuthProviderClientID)
-	c.v.SetDefault(varAuthProviderClientSecret, defaultAuthProviderClientSecret)
-	c.v.SetDefault(varAuthProviderEndpointAuth, defaultAuthProviderEndpointAuth)
-	c.v.SetDefault(varAuthProviderEndpointToken, defaultAuthProviderEndpointToken)
-	c.v.SetDefault(varAuthProviderEndpointUserInfo, defaultAuthProviderEndpointUserInfo)
-	c.v.SetDefault(varAuthProviderEndpointLogout, defaultAuthProviderEndpointLogout)
+	c.v.SetDefault(varOAuthProviderType, defaultOAuthProviderType)
+	c.v.SetDefault(varOAuthProviderClientID, defaultOAuthProviderClientID)
+	c.v.SetDefault(varOAuthProviderClientSecret, defaultOAuthProviderClientSecret)
+	c.v.SetDefault(varOAuthProviderEndpointAuth, defaultOAuthProviderEndpointAuth)
+	c.v.SetDefault(varOAuthProviderEndpointToken, defaultOAuthProviderEndpointToken)
+	c.v.SetDefault(varOAuthProviderEndpointUserInfo, defaultOAuthProviderEndpointUserInfo)
+	c.v.SetDefault(varOAuthProviderEndpointLogout, defaultOAuthProviderEndpointLogout)
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -837,16 +837,16 @@ func (c *ConfigurationData) GetNotApprovedRedirect() string {
 	return c.v.GetString(varNotApprovedRedirect)
 }
 
-// GetAuthProviderClientSecret returns the oauth client secret (as set via config file or environment variable)
+// GetOAuthProviderClientSecret returns the oauth client secret (as set via config file or environment variable)
 // that is used to make authorized API Calls to the OAuth authentication provider.
-func (c *ConfigurationData) GetAuthProviderClientSecret() string {
-	return c.v.GetString(varAuthProviderClientSecret)
+func (c *ConfigurationData) GetOAuthProviderClientSecret() string {
+	return c.v.GetString(varOAuthProviderClientSecret)
 }
 
 // GetOAuthClientID returns the oauth client ID (as set via config file or environment variable)
 // that is used to make authorized API Calls to the OAuth authentication provider.
-func (c *ConfigurationData) GetAuthProviderClientID() string {
-	return c.v.GetString(varAuthProviderClientID)
+func (c *ConfigurationData) GetOAuthProviderClientID() string {
+	return c.v.GetString(varOAuthProviderClientID)
 }
 
 // GetPublicOAuthClientID returns the public clientID
@@ -854,44 +854,44 @@ func (c *ConfigurationData) GetPublicOAuthClientID() string {
 	return c.v.GetString(varPublicOAuthClientID)
 }
 
-func (c *ConfigurationData) GetAuthProviderType() string {
-	return c.v.GetString(varAuthProviderType)
+func (c *ConfigurationData) GetOAuthProviderType() string {
+	return c.v.GetString(varOAuthProviderType)
 }
 
-// GetAuthProviderEndpointAuth returns the auth provider endpoint set via config file or environment variable.
+// GetOAuthProviderEndpointAuth returns the auth provider endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetAuthProviderEndpointAuth() string {
-	return c.v.GetString(varAuthProviderEndpointAuth)
+func (c *ConfigurationData) GetOAuthProviderEndpointAuth() string {
+	return c.v.GetString(varOAuthProviderEndpointAuth)
 }
 
-// GetAuthProviderEndpointToken returns the auth provider token endpoint set via config file or environment variable.
+// GetOAuthProviderEndpointToken returns the auth provider token endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetAuthProviderEndpointToken() string {
-	return c.v.GetString(varAuthProviderEndpointToken)
+func (c *ConfigurationData) GetOAuthProviderEndpointToken() string {
+	return c.v.GetString(varOAuthProviderEndpointToken)
 }
 
-// GetAuthProviderEndpointUserInfo returns the auth provider userinfo endpoint set via config file or environment variable.
+// GetOAuthProviderEndpointUserInfo returns the auth provider userinfo endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetAuthProviderEndpointUserInfo() string {
-	return c.v.GetString(varAuthProviderEndpointUserInfo)
+func (c *ConfigurationData) GetOAuthProviderEndpointUserInfo() string {
+	return c.v.GetString(varOAuthProviderEndpointUserInfo)
 }
 
-// GetAuthProviderEndpointLogout returns the auth provider logout endpoint set via config file or environment variable.
+// GetOAuthProviderEndpointLogout returns the auth provider logout endpoint set via config file or environment variable.
 // If nothing set then in Dev environment the default endpoint will be returned.
 // In producion the endpoint will be calculated from the request by replacing the last domain/host name in the full host name.
 // Example: api.service.domain.org -> sso.service.domain.org
 // or api.domain.org -> sso.domain.org
-func (c *ConfigurationData) GetAuthProviderEndpointLogout() string {
-	return c.v.GetString(varAuthProviderEndpointLogout)
+func (c *ConfigurationData) GetOAuthProviderEndpointLogout() string {
+	return c.v.GetString(varOAuthProviderEndpointLogout)
 }
 
 // GetNotificationServiceURL returns the URL for the Notification service used for event notification

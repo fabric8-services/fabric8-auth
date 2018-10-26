@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"fmt"
+	"net/url"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
-	"net/url"
 )
 
 // LogoutController implements the logout resource.
@@ -45,6 +47,8 @@ func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest(err.Error()))
 	}
 
+	fmt.Printf("c.app=%v\n", c.app)
+	fmt.Printf("c.app.LogoutService()=%v\n", c.app.LogoutService())
 	logoutRedirect, err := c.app.LogoutService().Logout(ctx, redirectURL.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

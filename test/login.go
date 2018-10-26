@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 
-	tokencontext "github.com/fabric8-services/fabric8-common/token"
 	"golang.org/x/oauth2"
 	"time"
 
@@ -70,7 +69,7 @@ func ServiceAsUserWithIncompleteClaims(serviceName string, u account.Identity) *
 // UnsecuredService creates a new service with token manager injected by without any identity in context
 func UnsecuredService(serviceName string) *goa.Service {
 	svc := goa.New(serviceName)
-	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
+	svc.Context = manager.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
 	return svc
 }
 
@@ -78,7 +77,7 @@ func UnsecuredService(serviceName string) *goa.Service {
 func ServiceAsServiceAccountUser(serviceName string, u account.Identity) *goa.Service {
 	svc := goa.New(serviceName)
 	svc.Context = WithServiceAccountAuthz(svc.Context, testtoken.TokenManager, u)
-	svc.Context = tokencontext.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
+	svc.Context = manager.ContextWithTokenManager(svc.Context, testtoken.TokenManager)
 	return svc
 }
 
