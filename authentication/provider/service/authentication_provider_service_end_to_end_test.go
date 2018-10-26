@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+
 	"encoding/json"
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -16,11 +17,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"strings"
 
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa/uuid"
+	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -184,7 +188,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 			require.True(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
 		}
 	} else {
-		require.Error(s.T(), err)
+		require.IsType(s.T(), errors.UnauthorizedError{}, errs.Cause(err))
 		require.False(s.T(), s.witCreateUserAPICalled(s.identity.ID.String()))
 	}
 
@@ -300,7 +304,6 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 
 		checkIfTokenMatchesIdentity(s.T(), authToken.AccessToken, *s.identity)
 	} else {
-		require.Error(s.T(), err)
 		require.Nil(s.T(), authToken)
 	}
 }
