@@ -70,7 +70,6 @@ func (s *TokenControllerTestSuite) SecuredController() (*goa.Service, *TokenCont
 }
 
 func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
-	newTestKeycloakOAuthProvider(s.Application)
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
 	return svc, NewTokenController(svc, s.Application, testtoken.TokenManager, s.Configuration)
 }
