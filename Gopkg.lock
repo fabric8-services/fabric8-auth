@@ -65,8 +65,7 @@
     "configuration",
     "errors",
     "httpsupport",
-    "log",
-    "token/tokencontext"
+    "log"
   ]
   revision = "7a49685a8135c385898dff8f46277a508eaf6cc5"
 
@@ -492,6 +491,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a1e118cce48e22ff54b1a60a49f61fcb46b0d14ef2a6de91ea9832d797768ddf"
+  inputs-digest = "5952b9272cd3997453d2ff653df0b99501939da09b7da22e67ddf17f56a6ac79"
   solver-name = "gps-cdcl"
   solver-version = 1
