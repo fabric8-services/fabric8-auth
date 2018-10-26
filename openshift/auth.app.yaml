@@ -53,32 +53,32 @@ objects:
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: auth.provider.client.id
-          - name: AUTH_AUTH_PROVIDER_CLIENT_SECRET
+                key: oauth.provider.client.id
+          - name: AUTH_OAUTH_PROVIDER_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: auth.provider.client.secret
-          - name: AUTH_AUTH_PROVIDER_ENDPOINT_AUTH
+                key: oauth.provider.client.secret
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_AUTH
             valueFrom:
 	            configMapKeyRef:
 	                name: auth
-	                key: auth.provider.endpoint.auth
-          - name: AUTH_AUTH_PROVIDER_ENDPOINT_USERINFO
+	                key: oauth.provider.endpoint.auth
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_USERINFO
             valueFrom:
 	            configMapKeyRef:
 	                name: auth
-	                key: auth.provider.endpoint.userinfo
-          - name: AUTH_AUTH_PROVIDER_ENDPOINT_TOKEN
+	                key: oauth.provider.endpoint.userinfo
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_TOKEN
             valueFrom:
 	            configMapKeyRef:
 	                name: auth
-	                key: auth.provider.endpoint.token
-          - name: AUTH_AUTH_PROVIDER_ENDPOINT_LOGOUT
+	                key: oauth.provider.endpoint.token
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_LOGOUT
             valueFrom:
 	            configMapKeyRef:
 	                name: auth
-	                key: auth.provider.endpoint.logout	                                
+	                key: oauth.provider.endpoint.logout	                                
           - name: AUTH_SERVICEACCOUNT_PRIVATEKEY
             valueFrom:
               secretKeyRef:
