@@ -386,6 +386,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 	}
 	// if an RPT token is provided, then use it to obtain a new token with updated permission claims
 	if identity != nil && accessToken != "" {
+		// TODO: can't we just call s.Refresh(...) now?
 		refreshedAccessToken, err := s.Services().TokenService().Refresh(ctx, identity, accessToken)
 		if err != nil {
 			return nil, err
