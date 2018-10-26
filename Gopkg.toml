@@ -42,6 +42,9 @@ required = [
   "github.com/fabric8-services/fabric8-notification/design",
   "github.com/fabric8-services/fabric8-tenant/design",
   "github.com/fabric8-services/fabric8-cluster/design",
+  "github.com/fabric8-services/fabric8-common/token",
+  "github.com/fabric8-services/fabric8-common/errors",
+  "github.com/fabric8-services/fabric8-common/httpsupport",
   "github.com/jteeuwen/go-bindata/go-bindata",
   "github.com/jstemmer/go-junit-report",
   "github.com/wadey/gocovmerge",
@@ -111,7 +114,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-common"
-  revision = "7a49685a8135c385898dff8f46277a508eaf6cc5"
+  revision = "2b6ded8f8650db8c287d40ad49a3ac2edcaf9afb"
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"
