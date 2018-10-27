@@ -32,6 +32,7 @@ type AuthenticationProviderServiceConfig interface {
 	provider.IdentityProviderConfiguration
 	manager.TokenManagerConfiguration
 	GetPublicOAuthClientID() string
+	GetWITURL() (string, error)
 }
 
 type authenticationProviderServiceImpl struct {
@@ -47,7 +48,7 @@ const (
 	tokenJSONParam = "token_json"
 )
 
-func NewAuthenticationProviderService(context servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
+func NewAuthenticationProviderService(ctx servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -55,10 +56,10 @@ func NewAuthenticationProviderService(context servicecontext.ServiceContext, con
 		}, "failed to create token manager")
 	}
 
-	provider := provider.NewIdentityProvider(config)
+	provider := ctx.Factories().IdentityProviderFactory().NewIdentityProvider(context.Background(), config)
 
 	return &authenticationProviderServiceImpl{
-		BaseService:        base.NewBaseService(context),
+		BaseService:        base.NewBaseService(ctx),
 		config:             config,
 		tokenManager:       tokenManager,
 		configuredProvider: provider,
@@ -107,14 +108,14 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 	}
 
 	// Create a new identity provider / configuration
-	provider := provider.NewIdentityProvider(s.config)
+	provider := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config)
 
 	// Override the redirect URL, setting it to the callback URL that was passed in
-	provider.RedirectURL = callbackURL
+	provider.SetRedirectURL(callbackURL)
 
 	// Override the scopes if a value is passed in
 	if scopes != nil {
-		provider.Scopes = scopes
+		provider.SetScopes(scopes)
 	}
 
 	// Generate the Authorization Code URL

@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	FACTORY_TYPE_LINKING_PROVIDER = "factory.type.linking.provider"
+	FACTORY_TYPE_LINKING_PROVIDER  = "factory.type.linking.provider"
+	FACTORY_TYPE_IDENTITY_PROVIDER = "factory.type.identity.provider"
 )
 
 /*
@@ -183,10 +184,15 @@ type Services interface {
 //
 //----------------------------------------------------------------------------------------------------------------------
 
+type IdentityProviderFactory interface {
+	NewIdentityProvider(ctx context.Context, config provider.IdentityProviderConfiguration) provider.IdentityProvider
+}
+
 type LinkingProviderFactory interface {
 	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error)
 }
 
 type Factories interface {
+	IdentityProviderFactory() IdentityProviderFactory
 	LinkingProviderFactory() LinkingProviderFactory
 }

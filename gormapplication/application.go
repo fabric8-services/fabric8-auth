@@ -239,6 +239,10 @@ func (g *GormDB) ClusterService() service.ClusterService {
 //
 //----------------------------------------------------------------------------------------------------------------------
 
+func (g *GormDB) IdentityProviderFactory() service.IdentityProviderFactory {
+	return g.factoryManager.IdentityProviderFactory()
+}
+
 func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
 	return g.factoryManager.LinkingProviderFactory()
 }

@@ -17,8 +17,8 @@ import (
 	"net/url"
 )
 
-// NewOauthProviderFactory returns the default Oauth provider factory.
-func NewLinkingProviderFactory(context servicecontext.ServiceContext, config provider.LinkingProviderConfig) service.LinkingProviderFactory {
+// NewLinkingProviderFactory returns the default Linking provider factory.
+func NewLinkingProviderFactory(context servicecontext.ServiceContext, config provider.LinkingProviderConfiguration) service.LinkingProviderFactory {
 	factory := &linkingProviderFactoryImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,
@@ -28,7 +28,7 @@ func NewLinkingProviderFactory(context servicecontext.ServiceContext, config pro
 
 type linkingProviderFactoryImpl struct {
 	base.BaseService
-	config provider.LinkingProviderConfig
+	config provider.LinkingProviderConfiguration
 }
 
 // NewLinkingProvider creates a new linking provider for the given resource URL or provider alias

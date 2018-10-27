@@ -23,7 +23,6 @@ import (
 func TestLoginIDP(t *testing.T) {
 	resource.Require(t, resource.Database)
 	suite.Run(t, &loginIDPTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
-
 }
 
 type loginIDPTestSuite struct {
@@ -52,6 +51,7 @@ func (s *loginIDPTestSuite) getCustomConfig() *configuration.ConfigurationData {
 }
 
 func (s *loginIDPTestSuite) TestProfileOK() {
+	test.Activate
 	p := provider.NewIdentityProvider(s.getCustomConfig())
 	data, err := p.Profile(context.Background(), oauth2.Token{})
 	require.Nil(s.T(), err)

@@ -28,7 +28,6 @@ type IdentityProviderConfiguration interface {
 	GetOAuthProviderEndpointUserInfo() string
 	GetValidRedirectURLs() string
 	GetNotApprovedRedirect() string
-	GetWITURL() (string, error)
 }
 
 // UserProfile represents a user profile fetched from Identity Provider
@@ -72,10 +71,12 @@ type IdentityProvider interface {
 	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
 	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
 	Profile(ctx context.Context, token oauth2.Token) (*UserProfile, error)
+	SetRedirectURL(redirectURL string)
+	SetScopes(scopes []string)
 }
 
-// LinkingProviderConfig is a shared configuration for all OAuth2 providers that provide account linking
-type LinkingProviderConfig interface {
+// LinkingProviderConfiguration is a shared configuration for all OAuth2 providers that provide account linking
+type LinkingProviderConfiguration interface {
 	GetValidRedirectURLs() string
 	GetGitHubClientID() string
 	GetGitHubClientDefaultScopes() string
@@ -140,6 +141,14 @@ func (provider *DefaultIdentityProvider) Profile(ctx context.Context, token oaut
 		Subject:       idpResponse.Subject,
 	}
 	return &u, nil
+}
+
+func (provider *DefaultIdentityProvider) SetRedirectURL(redirectURL string) {
+	provider.RedirectURL = redirectURL
+}
+
+func (provider *DefaultIdentityProvider) SetScopes(scopes []string) {
+	provider.Scopes = scopes
 }
 
 // UserProfilePayload fetches user profile payload from Identity Provider.  It is used by the Profile function to do
