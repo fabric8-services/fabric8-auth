@@ -50,7 +50,7 @@ type osoSubscriptionServiceImpl struct {
 	httpClient   rest.HttpClient
 }
 
-func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
+func NewOSOSubscriptionService(context *servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -66,7 +66,7 @@ func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSO
 	}
 }
 
-func NewOSOSubscriptionServiceWithClient(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration, httpClient rest.HttpClient) service.OSOSubscriptionService {
+func NewOSOSubscriptionServiceWithClient(context *servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration, httpClient rest.HttpClient) service.OSOSubscriptionService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{

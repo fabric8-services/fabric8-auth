@@ -2,11 +2,11 @@ package gormapplication
 
 import (
 	"fmt"
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 
 	"strconv"
 
-	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
@@ -57,12 +57,7 @@ func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, options ...
 	g := new(GormDB)
 	g.db = db.Set("gorm:save_associations", false)
 	g.txIsoLevel = ""
-	g.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
-		return factory.NewServiceContext(g, g, config, options...)
-	}, config, options...)
-	g.factoryManager = factorymanager.NewManager(func() context.ServiceContext {
-		return factory.NewServiceContext(g, g, config)
-	}, config)
+	g.serviceContext = factory.NewServiceContext(g, g, config, options...)
 	return g
 }
 
@@ -80,8 +75,7 @@ type GormTransaction struct {
 type GormDB struct {
 	GormBase
 	txIsoLevel     string
-	serviceFactory *factory.ServiceFactory
-	factoryManager *factorymanager.Manager
+	serviceContext context.ServiceContext
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -162,75 +156,75 @@ func (g *GormBase) PrivilegeCacheRepository() permission.PrivilegeCacheRepositor
 //----------------------------------------------------------------------------------------------------------------------
 
 func (g *GormDB) AuthenticationProviderService() service.AuthenticationProviderService {
-	return g.serviceFactory.AuthenticationProviderService()
+	return g.serviceContext.Services().AuthenticationProviderService()
 }
 
 func (g *GormDB) InvitationService() service.InvitationService {
-	return g.serviceFactory.InvitationService()
+	return g.serviceContext.Services().InvitationService()
 }
 
 func (g *GormDB) LinkService() service.LinkService {
-	return g.serviceFactory.LinkService()
+	return g.serviceContext.Services().LinkService()
 }
 
 func (g *GormDB) LogoutService() service.LogoutService {
-	return g.serviceFactory.LogoutService()
+	return g.serviceContext.Services().LogoutService()
 }
 
 func (g *GormDB) OSOSubscriptionService() service.OSOSubscriptionService {
-	return g.serviceFactory.OSOSubscriptionService()
+	return g.serviceContext.Services().OSOSubscriptionService()
 }
 
 func (g *GormDB) OrganizationService() service.OrganizationService {
-	return g.serviceFactory.OrganizationService()
+	return g.serviceContext.Services().OrganizationService()
 }
 
 func (g *GormDB) PermissionService() service.PermissionService {
-	return g.serviceFactory.PermissionService()
+	return g.serviceContext.Services().PermissionService()
 }
 
 func (g *GormDB) PrivilegeCacheService() service.PrivilegeCacheService {
-	return g.serviceFactory.PrivilegeCacheService()
+	return g.serviceContext.Services().PrivilegeCacheService()
 }
 
 func (g *GormDB) RoleManagementService() service.RoleManagementService {
-	return g.serviceFactory.RoleManagementService()
+	return g.serviceContext.Services().RoleManagementService()
 }
 
 func (g *GormDB) TeamService() service.TeamService {
-	return g.serviceFactory.TeamService()
+	return g.serviceContext.Services().TeamService()
 }
 
 func (g *GormDB) ResourceService() service.ResourceService {
-	return g.serviceFactory.ResourceService()
+	return g.serviceContext.Services().ResourceService()
 }
 
 func (g *GormDB) SpaceService() service.SpaceService {
-	return g.serviceFactory.SpaceService()
+	return g.serviceContext.Services().SpaceService()
 }
 
 func (g *GormDB) TokenService() service.TokenService {
-	return g.serviceFactory.TokenService()
+	return g.serviceContext.Services().TokenService()
 }
 
 func (g *GormDB) UserService() service.UserService {
-	return g.serviceFactory.UserService()
+	return g.serviceContext.Services().UserService()
 }
 
 func (g *GormDB) UserProfileService() service.UserProfileService {
-	return g.serviceFactory.UserProfileService()
+	return g.serviceContext.Services().UserProfileService()
 }
 
 func (g *GormDB) NotificationService() service.NotificationService {
-	return g.serviceFactory.NotificationService()
+	return g.serviceContext.Services().NotificationService()
 }
 
 func (g *GormDB) WITService() service.WITService {
-	return g.serviceFactory.WITService()
+	return g.serviceContext.Services().WITService()
 }
 
 func (g *GormDB) ClusterService() service.ClusterService {
-	return g.serviceFactory.ClusterService()
+	return g.serviceContext.Services().ClusterService()
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -240,19 +234,19 @@ func (g *GormDB) ClusterService() service.ClusterService {
 //----------------------------------------------------------------------------------------------------------------------
 
 func (g *GormDB) IdentityProviderFactory() service.IdentityProviderFactory {
-	return g.factoryManager.IdentityProviderFactory()
+	return g.serviceContext.Factories().IdentityProviderFactory()
 }
 
 func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
-	return g.factoryManager.LinkingProviderFactory()
+	return g.serviceContext.Factories().LinkingProviderFactory()
 }
 
 func (g *GormDB) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
-	g.factoryManager.WrapFactory(identifier, constructor, initializer)
+	g.serviceContext.Factories().(factorymanager.FactoryManager).WrapFactory(identifier, constructor, initializer)
 }
 
 func (g *GormDB) ResetFactories() {
-	g.factoryManager.ResetFactories()
+	g.serviceContext.Factories().(factorymanager.FactoryManager).ResetFactories()
 }
 
 //----------------------------------------------------------------------------------------------------------------------

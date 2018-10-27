@@ -18,7 +18,7 @@ import (
 )
 
 // NewLinkingProviderFactory returns the default Linking provider factory.
-func NewLinkingProviderFactory(context servicecontext.ServiceContext, config provider.LinkingProviderConfiguration) service.LinkingProviderFactory {
+func NewLinkingProviderFactory(context *servicecontext.ServiceContext, config provider.LinkingProviderConfiguration) service.LinkingProviderFactory {
 	factory := &linkingProviderFactoryImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

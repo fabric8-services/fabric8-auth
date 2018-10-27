@@ -24,7 +24,7 @@ type clusterService struct {
 }
 
 // NewClusterService creates a new cluster service
-func NewClusterService(context servicectx.ServiceContext, config clusterConfig) service.ClusterService {
+func NewClusterService(context *servicectx.ServiceContext, config clusterConfig) service.ClusterService {
 	return &clusterService{
 		BaseService: base.NewBaseService(context),
 		config:      config,

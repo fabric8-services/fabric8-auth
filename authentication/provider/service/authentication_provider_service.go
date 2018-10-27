@@ -37,9 +37,8 @@ type AuthenticationProviderServiceConfig interface {
 
 type authenticationProviderServiceImpl struct {
 	base.BaseService
-	config             AuthenticationProviderServiceConfig
-	tokenManager       manager.TokenManager
-	configuredProvider provider.IdentityProvider
+	config       AuthenticationProviderServiceConfig
+	tokenManager manager.TokenManager
 }
 
 const (
@@ -48,7 +47,7 @@ const (
 	tokenJSONParam = "token_json"
 )
 
-func NewAuthenticationProviderService(ctx servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
+func NewAuthenticationProviderService(ctx *servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -56,13 +55,10 @@ func NewAuthenticationProviderService(ctx servicecontext.ServiceContext, config 
 		}, "failed to create token manager")
 	}
 
-	provider := ctx.Factories().IdentityProviderFactory().NewIdentityProvider(context.Background(), config)
-
 	return &authenticationProviderServiceImpl{
-		BaseService:        base.NewBaseService(ctx),
-		config:             config,
-		tokenManager:       tokenManager,
-		configuredProvider: provider,
+		BaseService:  base.NewBaseService(ctx),
+		config:       config,
+		tokenManager: tokenManager,
 	}
 }
 
@@ -232,7 +228,7 @@ func (s *authenticationProviderServiceImpl) ExchangeAuthorizationCodeForUserToke
 func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context.Context, code string) (*oauth2.Token, error) {
 
 	// Exchange the code for an access token
-	token, err := s.configuredProvider.Exchange(ctx, code)
+	token, err := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config).Exchange(ctx, code)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"code": code,
@@ -362,7 +358,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 func (s *authenticationProviderServiceImpl) GetExistingIdentityInfo(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
 
 	newIdentityCreated := false
-	userProfile, err := s.configuredProvider.Profile(ctx, oauth2.Token{AccessToken: accessToken})
+	userProfile, err := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config).Profile(ctx, oauth2.Token{AccessToken: accessToken})
 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

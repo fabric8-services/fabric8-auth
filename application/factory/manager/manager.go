@@ -8,6 +8,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 )
 
+type FactoryManager interface {
+	WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer)
+	ResetFactories()
+}
+
 type wrapperDef struct {
 	constructor wrapper.FactoryWrapperConstructor
 	initializer wrapper.FactoryWrapperInitializer
@@ -23,7 +28,7 @@ func NewManager(producer context.ServiceContextProducer, config *configuration.C
 	return &Manager{contextProducer: producer, config: config, wrappers: make(map[string]wrapperDef)}
 }
 
-func (f *Manager) getContext() context.ServiceContext {
+func (f *Manager) getContext() *context.ServiceContext {
 	return f.contextProducer()
 }
 
@@ -38,6 +43,28 @@ func (f *Manager) ResetFactories() {
 	for k := range f.wrappers {
 		delete(f.wrappers, k)
 	}
+}
+
+func (f *Manager) IdentityProviderFactory() service.IdentityProviderFactory {
+	var wrapper wrapper.FactoryWrapper
+
+	if def, ok := f.wrappers[service.FACTORY_TYPE_IDENTITY_PROVIDER]; ok {
+		// Create the wrapper first
+		wrapper = def.constructor(f.getContext(), f.config)
+
+		// Initialize the wrapper
+		if def.initializer != nil {
+			def.initializer(wrapper)
+		}
+
+		// Create the factory and set it in the wrapper
+		wrapper.SetFactory(providerfactory.NewIdentityProviderFactory(wrapper.ServiceContext()))
+
+		// Return the wrapper as the factory
+		return wrapper.(service.IdentityProviderFactory)
+	}
+
+	return providerfactory.NewIdentityProviderFactory(f.getContext())
 }
 
 func (f *Manager) LinkingProviderFactory() service.LinkingProviderFactory {
@@ -60,26 +87,4 @@ func (f *Manager) LinkingProviderFactory() service.LinkingProviderFactory {
 	}
 
 	return providerfactory.NewLinkingProviderFactory(f.getContext(), f.config)
-}
-
-func (f *Manager) IdentityProviderFactory() service.IdentityProviderFactory {
-	var wrapper wrapper.FactoryWrapper
-
-	if def, ok := f.wrappers[service.FACTORY_TYPE_LINKING_PROVIDER]; ok {
-		// Create the wrapper first
-		wrapper = def.constructor(f.getContext(), f.config)
-
-		// Initialize the wrapper
-		if def.initializer != nil {
-			def.initializer(wrapper)
-		}
-
-		// Create the factory and set it in the wrapper
-		wrapper.SetFactory(providerfactory.NewIdentityProviderFactory(wrapper.ServiceContext()))
-
-		// Return the wrapper as the factory
-		return wrapper.(service.IdentityProviderFactory)
-	}
-
-	return providerfactory.NewIdentityProviderFactory(f.getContext())
 }

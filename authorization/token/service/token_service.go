@@ -38,7 +38,7 @@ type tokenServiceImpl struct {
 }
 
 // NewTokenService returns a new Token Service
-func NewTokenService(context servicecontext.ServiceContext, config TokenServiceConfiguration) service.TokenService {
+func NewTokenService(context *servicecontext.ServiceContext, config TokenServiceConfiguration) service.TokenService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{

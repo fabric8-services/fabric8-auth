@@ -33,7 +33,7 @@ type invitationServiceImpl struct {
 	config InvitationConfiguration
 }
 
-func NewInvitationService(context servicecontext.ServiceContext, config InvitationConfiguration) service.InvitationService {
+func NewInvitationService(context *servicecontext.ServiceContext, config InvitationConfiguration) service.InvitationService {
 	return &invitationServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config}

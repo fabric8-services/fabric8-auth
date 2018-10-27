@@ -10,7 +10,7 @@ import (
 )
 
 // NewIdentityProviderFactory returns the default Oauth provider factory.
-func NewIdentityProviderFactory(context servicecontext.ServiceContext) service.IdentityProviderFactory {
+func NewIdentityProviderFactory(context *servicecontext.ServiceContext) service.IdentityProviderFactory {
 	factory := &identityProviderFactoryImpl{
 		BaseService: base.NewBaseService(context),
 	}

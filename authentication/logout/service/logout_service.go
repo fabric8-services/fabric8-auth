@@ -21,7 +21,7 @@ type logoutServiceImpl struct {
 	config LogoutServiceConfiguration
 }
 
-func NewLogoutService(context servicecontext.ServiceContext, config LogoutServiceConfiguration) service.LogoutService {
+func NewLogoutService(context *servicecontext.ServiceContext, config LogoutServiceConfiguration) service.LogoutService {
 	return &logoutServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

@@ -28,7 +28,7 @@ type LinkServiceConfiguration interface {
 }
 
 // NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
-func NewLinkService(context servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
+func NewLinkService(context *servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
 	return &linkServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

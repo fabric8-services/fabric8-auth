@@ -18,7 +18,7 @@ type spaceService struct {
 }
 
 // NewSpaceService creates a new space service.
-func NewSpaceService(context servicecontext.ServiceContext) service.SpaceService {
+func NewSpaceService(context *servicecontext.ServiceContext) service.SpaceService {
 	return &spaceService{base.NewBaseService(context)}
 }
 

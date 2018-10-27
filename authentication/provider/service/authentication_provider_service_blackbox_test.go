@@ -46,7 +46,7 @@ type authenticationProviderServiceTestSuite struct {
 	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
 }
 
-func TestServiceBlackBox(t *testing.T) {
+func TestAuthenticationProviderServiceBlackBox(t *testing.T) {
 	resource.Require(t, resource.Database)
 	suite.Run(t, &authenticationProviderServiceTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
@@ -67,7 +67,7 @@ func (s *authenticationProviderServiceTestSuite) SetupSuite() {
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
 }
 
-func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedirect() {
+func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationRedirect() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -77,8 +77,8 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedire
 		panic("invalid test " + err.Error()) // bug
 	}
 
-	// The user clicks login while on ALM UI.
-	// Therefore the referer would be an ALM URL.
+	// The user clicks login while on OSIO UI.
+	// Therefore the referer would be an OSIO URL.
 	refererUrl := "https://alm-url.example.org/path"
 	req.Header.Add("referer", refererUrl)
 
@@ -165,7 +165,7 @@ func (s *authenticationProviderServiceTestSuite) resetConfiguration() {
 	require.Nil(s.T(), err)
 }
 
-func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedirectsToRedirectParam() {
+func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationRedirectsToRedirectParam() {
 	rw := httptest.NewRecorder()
 	redirect := "https://url.example.org/pathredirect"
 	u := &url.URL{
@@ -200,7 +200,7 @@ func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedire
 	assert.NotEqual(s.T(), redirectUrl, "")
 }
 
-func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationWithNoRefererAndRedirectParamFails() {
+func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationWithNoRefererAndRedirectParamFails() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -309,7 +309,7 @@ func (s *authenticationProviderServiceTestSuite) TestProviderAuthorizationWithNo
 	assert.NotEqual(s.T(), redirectUrl, "")
 
 }
-func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationDevModePasses() {
+func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationDevModePasses() {
 	// Any redirects pass in Dev mode.
 	u := &url.URL{
 		Path: fmt.Sprintf("/api/login"),
@@ -350,10 +350,10 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidState() {
 	}
 
 	// The OAuth 'state' is sent as a query parameter by calling /api/login/authorize?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
+	// The request originates from the OAuth provider after a valid authorization by the end user.
 	// This is not where the redirection should happen on failure.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	refererOAuthUrl := "https://oauth-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthUrl)
 
 	prms := url.Values{
 		"state": {},
@@ -405,9 +405,9 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	callbackUrl := rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
 	generatedState := uuid.NewV4().String()
 	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(ctx, authorizeCtx.Redirect, authorizeCtx.APIClient,
-		&generatedState, nil, nil, "", callbackUrl)
+		&generatedState, nil, nil, refererUrl, callbackUrl)
 
-	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
+	assert.Equal(s.T(), 307, rw.Code) // redirect to oauth provider login page.
 
 	locationUrl, err := url.Parse(*redirectUrl)
 	require.Nil(s.T(), err)
@@ -430,24 +430,22 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	req, err = http.NewRequest("GET", u.String(), nil)
 
 	// The OAuth code is sent as a query parameter by calling /api/login/authorize?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
+	// The request originates from the OAuth provider after a valid authorization by the end user.
 	// This is not where the redirection should happen on failure.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	refererOAuthUrl := "https://oauth-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthUrl)
 	require.Nil(s.T(), err)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
-	authorizeCtx, err = app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
+	callbackCtx, err := app.NewCallbackLoginContext(goaCtx, req, goa.New("LoginService"))
 
-	generatedState = uuid.NewV4().String()
-	redirectUrl, err = s.Application.AuthenticationProviderService().GenerateAuthCodeURL(ctx, authorizeCtx.Redirect, authorizeCtx.APIClient,
-		&generatedState, nil, nil, "", callbackUrl)
+	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State, *callbackCtx.Code)
 
 	locationUrl, err = url.Parse(*redirectUrl)
 	require.Nil(s.T(), err)
 
 	allQueryParameters = locationUrl.Query()
-	assert.Equal(s.T(), 401, rw.Code) // redirect to ALM page where login was clicked.
+	assert.Equal(s.T(), 401, rw.Code) // redirect to page where login was clicked.
 	// Avoiding panics.
 	assert.NotNil(s.T(), allQueryParameters)
 	assert.NotNil(s.T(), allQueryParameters["error"])
@@ -455,7 +453,7 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 
 	returnedErrorReason := allQueryParameters["error"][0]
 	assert.NotEmpty(s.T(), returnedErrorReason)
-	assert.NotContains(s.T(), redirectUrl, refererKeycloakUrl)
+	assert.NotContains(s.T(), redirectUrl, refererOAuthUrl)
 	assert.Contains(s.T(), redirectUrl, refererUrl)
 }
 
@@ -743,8 +741,6 @@ func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[s
 
 	require.NoError(s.T(), err)
 
-	assert.Equal(s.T(), 307, rw.Code) // redirect to keycloak login page.
-
 	locationUrl, err := url.Parse(*redirectUrl)
 	require.NoError(s.T(), err)
 
@@ -766,9 +762,9 @@ func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[s
 	require.NoError(s.T(), err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from the oauth provider after a valid authorization by the end user.
+	refererOAuthUrl := "https://oauth-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthUrl)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	loginCallbackCtx, err := app.NewCallbackLoginContext(goaCtx, req, goa.New("LoginService"))
@@ -779,6 +775,7 @@ func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[s
 
 func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOauthService, rw *httptest.ResponseRecorder, callbackCtx *app.CallbackLoginContext, tokenParam string) {
 
+	testsupport.ActivateDummyIdentityProviderFactory(s, dummyOauth)
 	redirectUrl, err := s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code)
 	require.Nil(s.T(), err)
 
@@ -786,8 +783,6 @@ func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *
 	require.Nil(s.T(), err)
 
 	allQueryParameters := locationUrl.Query()
-
-	assert.Equal(s.T(), 307, rw.Code) // redirect to the original redirect page
 
 	assert.NotNil(s.T(), allQueryParameters)
 	tokenJson := allQueryParameters[tokenParam]
@@ -800,8 +795,8 @@ func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *
 	//assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), dummyOauth.accessToken, *tokenSet.AccessToken))
 	//assert.NoError(s.T(), testtoken.EqualRefreshTokens(context.Background(), dummyOauth.refreshToken, *tokenSet.RefreshToken))
 
-	assert.NotContains(s.T(), redirectUrl, "https://keycloak-url.example.org/path-of-login")
-	assert.Contains(s.T(), redirectUrl, "https://openshift.io/somepath")
+	assert.NotContains(s.T(), *redirectUrl, "https://oauth-url.example.org/path-of-login")
+	assert.Contains(s.T(), *redirectUrl, "https://openshift.io/somepath")
 }
 
 type dummyOauth2Config struct {
@@ -828,7 +823,7 @@ func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oaut
 	return token, nil
 }
 
-func (s *authenticationProviderServiceTestSuite) TestKeycloakAuthorizationRedirectForAuthorize() {
+func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationRedirectForAuthorize() {
 	rw := httptest.NewRecorder()
 	u := &url.URL{
 		Path: fmt.Sprintf(client.AuthorizeAuthorizePath()),
@@ -901,16 +896,16 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	prms := url.Values{}
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from the OAuth provider after a valid authorization by the end user.
+	refererOAuthUrl := "https://oauth-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthUrl)
 
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "TokenTest"), rw, req, prms)
 	tokenCtx, err := app.NewExchangeTokenContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
-	keycloakToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(tokenCtx, "INVALID_OAUTH2.0_CODE")
+	userToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(tokenCtx, "INVALID_OAUTH2.0_CODE")
 	require.NotNil(s.T(), err)
-	require.Nil(s.T(), keycloakToken)
+	require.Nil(s.T(), userToken)
 	jsonapi.JSONErrorResponse(tokenCtx, err)
 	require.Equal(s.T(), 401, rw.Code)
 
@@ -1038,9 +1033,9 @@ func (s *authenticationProviderServiceTestSuite) authorizeCallback(testType stri
 	require.Nil(s.T(), err)
 
 	// The OAuth code is sent as a query parameter by calling /api/login?code=_SOME_CODE_&state=_SOME_STATE_
-	// The request originates from Keycloak after a valid authorization by the end user.
-	refererKeycloakUrl := "https://keycloak-url.example.org/path-of-login"
-	req.Header.Add("referer", refererKeycloakUrl)
+	// The request originates from the OAuth provider after a valid authorization by the end user.
+	refererOAuthUrl := "https://oauth-url.example.org/path-of-login"
+	req.Header.Add("referer", refererOAuthUrl)
 
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "AuthorizecallbackTest"), rw, req, prms)
 	callbackCtx, err := app.NewCallbackAuthorizeContext(goaCtx, req, goa.New("LoginService"))
