@@ -14,6 +14,48 @@ import (
 	"golang.org/x/oauth2"
 )
 
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Dummy Identity Provider
+//
+//----------------------------------------------------------------------------------------------------------------------
+
+type dummyIdentityProviderFactory interface {
+	setIdentityProvider(provider provider.IdentityProvider)
+}
+
+type dummyIdentityProviderFactoryImpl struct {
+	wrapper.BaseFactoryWrapper
+	provider provider.IdentityProvider
+}
+
+func ActivateDummyIdentityProviderFactory(w wrapper.Wrapper, provider provider.IdentityProvider) {
+	w.WrapFactory(svc.FACTORY_TYPE_IDENTITY_PROVIDER,
+		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
+			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
+			return &dummyIdentityProviderFactoryImpl{
+				BaseFactoryWrapper: *baseFactoryWrapper,
+			}
+		},
+		func(w wrapper.FactoryWrapper) {
+			w.(dummyIdentityProviderFactory).setIdentityProvider(provider)
+		})
+}
+
+func (f *dummyIdentityProviderFactoryImpl) setIdentityProvider(provider provider.IdentityProvider) {
+	f.provider = provider
+}
+
+func (f *dummyIdentityProviderFactoryImpl) NewIdentityProvider(ctx context.Context, config provider.IdentityProviderConfiguration) provider.IdentityProvider {
+	return f.provider
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Dummy Linking Provider
+//
+//----------------------------------------------------------------------------------------------------------------------
+
 type dummyLinkingProviderFactory interface {
 	setConfig(config *configuration.ConfigurationData)
 	setToken(token string)
@@ -91,6 +133,14 @@ func (p *DummyProvider) TypeName() string {
 
 func (p *DummyProvider) URL() string {
 	return p.linkingProvider.URL()
+}
+
+func (p *DummyProvider) SetRedirectURL(redirectURL string) {
+	p.linkingProvider.SetRedirectURL(redirectURL)
+}
+
+func (p *DummyProvider) SetScopes(scopes []string) {
+	p.linkingProvider.SetScopes(scopes)
 }
 
 func (p *DummyProvider) Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error) {
