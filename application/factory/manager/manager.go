@@ -8,9 +8,15 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 )
 
-type FactoryManager interface {
-	WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer)
-	ResetFactories()
+type WrapperDefinition interface {
+	GetConstructor() wrapper.FactoryWrapperConstructor
+	GetInitializer() wrapper.FactoryWrapperInitializer
+}
+
+type FactoryWrappers interface {
+	RegisterWrapper(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer)
+	GetWrapper(identifier string) WrapperDefinition
+	ResetWrappers()
 }
 
 type wrapperDef struct {
@@ -18,72 +24,95 @@ type wrapperDef struct {
 	initializer wrapper.FactoryWrapperInitializer
 }
 
+func (d wrapperDef) GetConstructor() wrapper.FactoryWrapperConstructor {
+	return d.constructor
+}
+
+func (d wrapperDef) GetInitializer() wrapper.FactoryWrapperInitializer {
+	return d.initializer
+}
+
+type factoryWrappersImpl struct {
+	wrappers map[string]wrapperDef
+}
+
+func NewFactoryWrappers() FactoryWrappers {
+	return &factoryWrappersImpl{wrappers: make(map[string]wrapperDef)}
+}
+
+func (w *factoryWrappersImpl) RegisterWrapper(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
+	w.wrappers[identifier] = wrapperDef{
+		constructor: constructor,
+		initializer: initializer,
+	}
+}
+
+func (w *factoryWrappersImpl) GetWrapper(identifier string) WrapperDefinition {
+	if def, ok := w.wrappers[identifier]; ok {
+		return def
+	}
+	return nil
+}
+
+func (w *factoryWrappersImpl) ResetWrappers() {
+	for k := range w.wrappers {
+		delete(w.wrappers, k)
+	}
+}
+
 type Manager struct {
 	contextProducer context.ServiceContextProducer
 	config          *configuration.ConfigurationData
-	wrappers        map[string]wrapperDef
+	wrappers        FactoryWrappers
 }
 
-func NewManager(producer context.ServiceContextProducer, config *configuration.ConfigurationData) *Manager {
-	return &Manager{contextProducer: producer, config: config, wrappers: make(map[string]wrapperDef)}
+func NewManager(producer context.ServiceContextProducer, config *configuration.ConfigurationData, wrappers FactoryWrappers) *Manager {
+	return &Manager{contextProducer: producer, config: config, wrappers: wrappers}
 }
 
 func (f *Manager) getContext() *context.ServiceContext {
 	return f.contextProducer()
 }
 
-func (f *Manager) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
-	f.wrappers[identifier] = wrapperDef{
-		constructor: constructor,
-		initializer: initializer,
-	}
-}
-
-func (f *Manager) ResetFactories() {
-	for k := range f.wrappers {
-		delete(f.wrappers, k)
-	}
-}
-
 func (f *Manager) IdentityProviderFactory() service.IdentityProviderFactory {
-	var wrapper wrapper.FactoryWrapper
+	def := f.wrappers.GetWrapper(service.FACTORY_TYPE_IDENTITY_PROVIDER)
 
-	if def, ok := f.wrappers[service.FACTORY_TYPE_IDENTITY_PROVIDER]; ok {
+	if def != nil {
 		// Create the wrapper first
-		wrapper = def.constructor(f.getContext(), f.config)
+		w := def.GetConstructor()(f.getContext(), f.config)
 
 		// Initialize the wrapper
-		if def.initializer != nil {
-			def.initializer(wrapper)
+		if def.GetInitializer() != nil {
+			def.GetInitializer()(w)
 		}
 
 		// Create the factory and set it in the wrapper
-		wrapper.SetFactory(providerfactory.NewIdentityProviderFactory(wrapper.ServiceContext()))
+		w.SetFactory(providerfactory.NewIdentityProviderFactory(w.ServiceContext()))
 
 		// Return the wrapper as the factory
-		return wrapper.(service.IdentityProviderFactory)
+		return w.(service.IdentityProviderFactory)
 	}
 
 	return providerfactory.NewIdentityProviderFactory(f.getContext())
 }
 
 func (f *Manager) LinkingProviderFactory() service.LinkingProviderFactory {
-	var wrapper wrapper.FactoryWrapper
+	def := f.wrappers.GetWrapper(service.FACTORY_TYPE_LINKING_PROVIDER)
 
-	if def, ok := f.wrappers[service.FACTORY_TYPE_LINKING_PROVIDER]; ok {
+	if def != nil {
 		// Create the wrapper first
-		wrapper = def.constructor(f.getContext(), f.config)
+		w := def.GetConstructor()(f.getContext(), f.config)
 
 		// Initialize the wrapper
-		if def.initializer != nil {
-			def.initializer(wrapper)
+		if def.GetInitializer() != nil {
+			def.GetInitializer()(w)
 		}
 
 		// Create the factory and set it in the wrapper
-		wrapper.SetFactory(providerfactory.NewLinkingProviderFactory(wrapper.ServiceContext(), wrapper.Configuration()))
+		w.SetFactory(providerfactory.NewLinkingProviderFactory(w.ServiceContext(), w.Configuration()))
 
 		// Return the wrapper as the factory
-		return wrapper.(service.LinkingProviderFactory)
+		return w.(service.LinkingProviderFactory)
 	}
 
 	return providerfactory.NewLinkingProviderFactory(f.getContext(), f.config)

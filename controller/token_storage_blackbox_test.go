@@ -44,7 +44,7 @@ func TestRunTokenStorageREST(t *testing.T) {
 func (rest *TestTokenStorageREST) SetupSuite() {
 	rest.DBTestSuite.SetupSuite()
 	rest.clusterServiceMock = testsupport.NewClusterServiceMock(rest.T())
-	rest.Application = gormapplication.NewGormDB(rest.DB, rest.Configuration, factory.WithClusterService(rest.clusterServiceMock))
+	rest.Application = gormapplication.NewGormDB(rest.DB, rest.Configuration, rest.Wrappers, factory.WithClusterService(rest.clusterServiceMock))
 	tm, err := manager.DefaultManager(rest.Configuration)
 	require.NoError(rest.T(), err)
 	rest.tokenManager = tm

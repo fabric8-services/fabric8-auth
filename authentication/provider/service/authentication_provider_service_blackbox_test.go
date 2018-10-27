@@ -64,7 +64,7 @@ func (s *authenticationProviderServiceTestSuite) SetupSuite() {
 
 	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
 	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(witServiceMock))
 }
 
 func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationRedirect() {
@@ -945,6 +945,7 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 		}, nil
 	}
 	// when
+	testsupport.ActivateDummyIdentityProviderFactory(s, identityProvider)
 	resultURL, userToken, err := s.Application.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(
 		testtoken.ContextWithRequest(context.Background()),
 		&url.URL{Path: redirectURL},

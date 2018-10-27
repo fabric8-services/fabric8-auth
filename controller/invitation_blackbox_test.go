@@ -52,7 +52,7 @@ func (s *InvitationControllerTestSuite) SetupSuite() {
 	s.invService = s.Application.InvitationService()
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.witServiceMock = testservice.NewWITServiceMock(s.T())
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(s.witServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(s.witServiceMock))
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,

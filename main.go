@@ -139,7 +139,7 @@ func main() {
 	service.WithLogger(goalogrus.New(log.Logger()))
 
 	// Setup Account/Login/Security
-	appDB := gormapplication.NewGormDB(db, config)
+	appDB := gormapplication.NewGormDB(db, config, nil)
 
 	tokenManager, err := manager.DefaultManager(config)
 	if err != nil {

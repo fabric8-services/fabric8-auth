@@ -39,7 +39,7 @@ func (s *osoSubscriptionServiceTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
 	s.clusterServiceMock = testsupport.NewClusterServiceMock(s.T())
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithClusterService(s.clusterServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithClusterService(s.clusterServiceMock))
 
 	s.client = &test.DummyHttpClient{AssertRequest: func(req *http.Request) {
 		assert.Equal(s.T(), "GET", req.Method)

@@ -39,7 +39,8 @@ type serviceContextImpl struct {
 	factories                 service.Factories
 }
 
-func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData, options ...Option) context.ServiceContext {
+func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData,
+	wrappers factorymanager.FactoryWrappers, options ...Option) context.ServiceContext {
 	ctx := &serviceContextImpl{}
 	ctx.repositories = repos
 	ctx.transactionManager = tm
@@ -47,7 +48,7 @@ func NewServiceContext(repos repository.Repositories, tm transaction.Transaction
 
 	var sc context.ServiceContext
 	sc = ctx
-	ctx.factories = factorymanager.NewManager(func() *context.ServiceContext { return &sc }, config)
+	ctx.factories = factorymanager.NewManager(func() *context.ServiceContext { return &sc }, config, wrappers)
 	ctx.services = NewServiceFactory(func() *context.ServiceContext { return &sc }, config, options...)
 	return sc
 }

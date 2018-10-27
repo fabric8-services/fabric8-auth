@@ -44,7 +44,7 @@ func (s *LinkTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 
 	s.clusterServiceMock = testsupport.NewClusterServiceMock(s.T())
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithClusterService(s.clusterServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithClusterService(s.clusterServiceMock))
 	s.requestData = &goa.RequestData{Request: &http.Request{
 		URL: &url.URL{Scheme: "https", Host: "auth.openshift.io"},
 	}}
