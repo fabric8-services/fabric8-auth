@@ -93,7 +93,8 @@ func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Conte
 	username := tokenClaims.Username
 
 	// Load status from OSO
-	regAppURL := fmt.Sprintf("%s/api/accounts/%s/subscriptions?authorization_username=%s", s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
+	regAppURL := fmt.Sprintf("%s/api/accounts/%s/subscriptions?authorization_username=%s",
+		s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
 
 	req, err := http.NewRequest("GET", regAppURL, nil)
 	if err != nil {
