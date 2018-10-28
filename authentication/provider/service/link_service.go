@@ -41,6 +41,7 @@ type linkServiceImpl struct {
 	config LinkServiceConfiguration
 }
 
+// TODO remove goa parameters
 // ProviderLocation returns a URL to OAuth 2.0 provider's consent page to be used to initiate account linking
 func (s *linkServiceImpl) ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string,
 	forResource string, redirectURL string) (string, error) {

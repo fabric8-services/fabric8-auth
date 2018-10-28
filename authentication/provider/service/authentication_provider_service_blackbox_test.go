@@ -14,6 +14,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 
 	"github.com/fabric8-services/fabric8-auth/app"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
@@ -407,8 +408,6 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	redirectUrl, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(ctx, authorizeCtx.Redirect, authorizeCtx.APIClient,
 		&generatedState, nil, nil, refererUrl, callbackUrl)
 
-	assert.Equal(s.T(), 307, rw.Code) // redirect to oauth provider login page.
-
 	locationUrl, err := url.Parse(*redirectUrl)
 	require.Nil(s.T(), err)
 
@@ -439,13 +438,15 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	callbackCtx, err := app.NewCallbackLoginContext(goaCtx, req, goa.New("LoginService"))
 
+	testsupport.ActivateDummyIdentityProviderFactory(s, s.oauth)
 	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State, *callbackCtx.Code)
+	require.Error(s.T(), err)
 
 	locationUrl, err = url.Parse(*redirectUrl)
 	require.Nil(s.T(), err)
 
 	allQueryParameters = locationUrl.Query()
-	assert.Equal(s.T(), 401, rw.Code) // redirect to page where login was clicked.
+
 	// Avoiding panics.
 	assert.NotNil(s.T(), allQueryParameters)
 	assert.NotNil(s.T(), allQueryParameters["error"])
@@ -559,13 +560,25 @@ func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnaut
 	_, callbackCtx := s.loginCallback(extra)
 
 	// Fails if identity is deprovisioned
-	_, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
+	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
-	redirectUrl, err := s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, *callbackCtx.State, *callbackCtx.Code)
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	claims["preferred_username"] = identity.Username
+	claims["email"] = identity.User.Email
+	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
 
-	require.NoError(s.T(), err)
-	require.NotEmpty(s.T(), redirectUrl)
+	testsupport.ActivateDummyIdentityProviderFactory(s, &dummyIDPOauthService{
+		IdentityProvider: s.Application.AuthenticationProviderService().(servicecontext.ServiceContext).Factories().
+			IdentityProviderFactory().NewIdentityProvider(s.Ctx, s.Configuration),
+		accessToken: accessToken,
+	})
+
+	_, err = s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, autherrors.UnauthorizedError{})
 }
 
 func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK() {
