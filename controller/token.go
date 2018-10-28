@@ -8,7 +8,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
@@ -146,31 +145,8 @@ func (c *TokenController) Delete(ctx *app.DeleteTokenContext) error {
 	if ctx.For == "" {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL"))
 	}
-	providerConfig, err := c.app.LinkingProviderFactory().NewLinkingProvider(ctx, *currentIdentity, ctx.RequestData, ctx.For)
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
 
-	// Delete from local DB
-	err = transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
-		err := tr.Identities().CheckExists(ctx, currentIdentity.String())
-		if err != nil {
-			return errors.NewUnauthorizedError(err.Error())
-		}
-		tokens, err := tr.ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), *currentIdentity)
-		if err != nil {
-			return err
-		}
-		if len(tokens) > 0 {
-			for _, token := range tokens {
-				err = tr.ExternalTokens().Delete(ctx, token.ID)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
+	err = c.app.TokenService().DeleteExternalToken(ctx, *currentIdentity, rest.AbsoluteURL(ctx.RequestData, "", nil), ctx.For)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

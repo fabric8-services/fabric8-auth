@@ -9,7 +9,6 @@ import (
 //Application stands for a particular implementation of the business logic of our application, and provides access to the transaction management API
 type Application interface {
 	repository.Repositories
-	service.Factories
 	service.Services
 	transaction.TransactionManager
 }

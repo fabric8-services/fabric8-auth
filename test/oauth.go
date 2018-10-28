@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -98,8 +97,8 @@ func (f *dummyLinkingProviderFactoryImpl) Configuration() *configuration.Configu
 	return f.BaseFactoryWrapper.Configuration()
 }
 
-func (f *dummyLinkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error) {
-	provider, err := f.Factory().(svc.LinkingProviderFactory).NewLinkingProvider(ctx, identityID, req, forResource)
+func (f *dummyLinkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, identityID uuid.UUID, authURL string, forResource string) (provider.LinkingProvider, error) {
+	provider, err := f.Factory().(svc.LinkingProviderFactory).NewLinkingProvider(ctx, identityID, authURL, forResource)
 	if err != nil {
 		return nil, err
 	}

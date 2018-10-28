@@ -11,8 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"net/url"
 )
@@ -32,8 +30,7 @@ type linkingProviderFactoryImpl struct {
 }
 
 // NewLinkingProvider creates a new linking provider for the given resource URL or provider alias
-func (f *linkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error) {
-	authURL := rest.AbsoluteURL(req, "", nil)
+func (f *linkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, identityID uuid.UUID, authURL string, forResource string) (provider.LinkingProvider, error) {
 	// Check if the forResource is actually a provider alias like "github" or "openshift"
 	if forResource == provider.GitHubProviderAlias {
 		return provider.NewGitHubIdentityProvider(f.config.GetGitHubClientID(), f.config.GetGitHubClientSecret(), f.config.GetGitHubClientDefaultScopes(), authURL), nil

@@ -555,6 +555,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 	return signedToken, nil
 }
 
+// TODO remove the goa.RequestData param from here
 // RetrieveToken
 func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
 	if forResource == "" {
@@ -581,7 +582,8 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 
 	var appResponse app.ExternalToken
 
-	linkingProvider, err := c.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID, req, forResource)
+	linkingProvider, err := c.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID,
+		rest.AbsoluteURL(req, "", nil), forResource)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -616,7 +618,39 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 	linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
 	errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is missing. Link %s account\"", linkURL, providerName, providerName)
 	return nil, &errorResponse, errors.NewUnauthorizedError("token is missing")
+}
 
+func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdentity uuid.UUID, authURL string, forResource string) error {
+
+	providerConfig, err := c.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentity, authURL, forResource)
+	if err != nil {
+		return errors.NewInternalError(ctx, err)
+	}
+
+	// Delete from local DB
+	c.ExecuteInTransaction(func() error {
+		err := c.Repositories().Identities().CheckExists(ctx, currentIdentity.String())
+		if err != nil {
+			return errors.NewUnauthorizedError(err.Error())
+		}
+		tokens, err := c.Repositories().ExternalTokens().LoadByProviderIDAndIdentityID(ctx, providerConfig.ID(), currentIdentity)
+		if err != nil {
+			return err
+		}
+		if len(tokens) > 0 {
+			for _, token := range tokens {
+				err = c.Repositories().ExternalTokens().Delete(ctx, token.ID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return errors.NewInternalError(ctx, err)
+	}
+	return nil
 }
 
 // updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)

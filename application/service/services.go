@@ -119,6 +119,7 @@ type TokenService interface {
 	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error)
 	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
 	RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
+	DeleteExternalToken(ctx context.Context, currentIdentity uuid.UUID, authURL string, forResource string) error
 }
 
 type SpaceService interface {
@@ -180,7 +181,8 @@ type Services interface {
 
 //----------------------------------------------------------------------------------------------------------------------
 //
-// Factories are a special type of service that can be replaced during testing, in order to produce mock / dummy factories
+// Factories are a special type of service only accessible from other services, that can be replaced during testing,
+// in order to produce mock / dummy factories
 //
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -189,7 +191,7 @@ type IdentityProviderFactory interface {
 }
 
 type LinkingProviderFactory interface {
-	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, req *goa.RequestData, forResource string) (provider.LinkingProvider, error)
+	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, authURL string, forResource string) (provider.LinkingProvider, error)
 }
 
 type Factories interface {

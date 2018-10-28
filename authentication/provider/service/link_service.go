@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"net/url"
 	"strings"
 
@@ -70,7 +71,8 @@ func (s *linkServiceImpl) ProviderLocation(ctx context.Context, req *goa.Request
 	if err != nil {
 		return "", err
 	}
-	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResources[0])
+	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID,
+		rest.AbsoluteURL(req, "", nil), forResources[0])
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +121,7 @@ func (s *linkServiceImpl) Callback(ctx context.Context, req *goa.RequestData, st
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResource)
+	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, rest.AbsoluteURL(req, "", nil), forResource)
 	if err != nil {
 		return "", err
 	}

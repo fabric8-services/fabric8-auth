@@ -59,10 +59,6 @@ func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, wrappers fa
 		ctx := factory.NewServiceContext(g, g, config, wrappers, options...)
 		return &ctx
 	}, config, options...)
-	g.factoryManager = factorymanager.NewManager(func() *context.ServiceContext {
-		ctx := factory.NewServiceContext(g, g, config, wrappers, options...)
-		return &ctx
-	}, config, wrappers)
 	return g
 }
 
@@ -81,7 +77,6 @@ type GormDB struct {
 	GormBase
 	txIsoLevel     string
 	serviceFactory *factory.ServiceFactory
-	factoryManager *factorymanager.Manager
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -231,20 +226,6 @@ func (g *GormDB) WITService() service.WITService {
 
 func (g *GormDB) ClusterService() service.ClusterService {
 	return g.serviceFactory.ClusterService()
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-//
-// Factories
-//
-//----------------------------------------------------------------------------------------------------------------------
-
-func (g *GormDB) IdentityProviderFactory() service.IdentityProviderFactory {
-	return g.factoryManager.IdentityProviderFactory()
-}
-
-func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
-	return g.factoryManager.LinkingProviderFactory()
 }
 
 //----------------------------------------------------------------------------------------------------------------------
