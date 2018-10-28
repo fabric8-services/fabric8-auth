@@ -438,7 +438,7 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	callbackCtx, err := app.NewCallbackLoginContext(goaCtx, req, goa.New("LoginService"))
 
-	testsupport.ActivateDummyIdentityProviderFactory(s, s.oauth)
+	//testsupport.ActivateDummyIdentityProviderFactory(s, s.oauth)
 	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State, *callbackCtx.Code)
 	require.Error(s.T(), err)
 
