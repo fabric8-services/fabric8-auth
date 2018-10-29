@@ -525,7 +525,7 @@ func (s *TokenStorageTestSuite) TestStatusExternalTokenInvalidOnForcePullInterna
 func (s *TokenStorageTestSuite) checkStatusExternalTokenInvalidOnForcePullInternalError(identity account.Identity, for_, providerName string) {
 	// Token status is OK, but when tested with provider it's invalid.
 	forcePull := true
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), false)
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), true)
 	service, controller := s.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(s.T(), service.Context, service, controller, for_, nil)
 	rw, _ := test.StatusTokenUnauthorized(s.T(), service.Context, service, controller, for_, &forcePull)
