@@ -1,17 +1,19 @@
 package service
 
 import (
+	"context"
+	"github.com/fabric8-services/fabric8-auth/cluster"
+	"github.com/fabric8-services/fabric8-auth/cluster/factory"
 	"net/http"
 	"testing"
 
+	"github.com/dnaeon/go-vcr/cassette"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test/recorder"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
-
-	"github.com/dnaeon/go-vcr/cassette"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -44,7 +46,7 @@ func (s *TestClusterSuite) SetupTest() {
 
 func (s *TestClusterSuite) TearDownTest() {
 	if clusterCache != nil {
-		clusterCache.stop()
+		clusterCache.Stop()
 	}
 }
 
@@ -73,6 +75,15 @@ func (s *TestClusterSuite) TestClustersFail() {
 	})
 }
 
+type dummyFactory struct {
+	config factory.ClusterCacheFactoryConfiguration
+	option rest.HTTPClientOption
+}
+
+func (f *dummyFactory) NewClusterCache(ctx context.Context, options ...rest.HTTPClientOption) cluster.ClusterCache {
+	return cluster.NewCache(f.config, f.option)
+}
+
 func (s *TestClusterSuite) TestStart() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
@@ -81,7 +92,7 @@ func (s *TestClusterSuite) TestStart() {
 		require.NoError(s.T(), err)
 		defer r.Stop()
 
-		err = Start(ctx, s.Config, rest.WithRoundTripper(r.Transport))
+		err = Start(ctx, &dummyFactory{config: s.Config, option: rest.WithRoundTripper(r.Transport)}, s.Config, rest.WithRoundTripper(r.Transport))
 		assert.EqualError(s.T(), err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
 
 		assert.Nil(s.T(), clusterCache)
@@ -100,7 +111,7 @@ func (s *TestClusterSuite) TestStart() {
 		defer r.Stop()
 
 		// It starts fine if there is no errors
-		err = Start(ctx, s.Config, rest.WithRoundTripper(r.Transport))
+		err = Start(ctx, &dummyFactory{config: s.Config, option: rest.WithRoundTripper(r.Transport)}, s.Config, rest.WithRoundTripper(r.Transport))
 		require.NoError(s.T(), err)
 
 		assert.NotNil(s.T(), clusterCache)

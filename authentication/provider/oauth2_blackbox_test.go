@@ -23,7 +23,6 @@ import (
 func TestLoginIDP(t *testing.T) {
 	resource.Require(t, resource.Database)
 	suite.Run(t, &loginIDPTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
-
 }
 
 type loginIDPTestSuite struct {
@@ -45,7 +44,7 @@ func (s *loginIDPTestSuite) TearDownSuite() {
 
 func (s *loginIDPTestSuite) getCustomConfig() *configuration.ConfigurationData {
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/"
-	os.Setenv("AUTH_OAUTH_ENDPOINT_USERINFO", idpServerURL)
+	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_USERINFO", idpServerURL)
 	config, err := configuration.GetConfigurationData()
 	require.Nil(s.T(), err)
 	return config
@@ -62,6 +61,7 @@ func (s *loginIDPTestSuite) TestProfileOK() {
 func (s *loginIDPTestSuite) TestProfileInternalError() {
 	// this will try reaching keycloak
 	loginIDP := provider.NewIdentityProvider(s.Configuration)
+
 	data, err := loginIDP.Profile(context.Background(), oauth2.Token{})
 	require.Error(s.T(), err)
 	require.Nil(s.T(), data)

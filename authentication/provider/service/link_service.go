@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	"net/url"
 	"strings"
 
@@ -28,7 +29,7 @@ type LinkServiceConfiguration interface {
 }
 
 // NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
-func NewLinkService(context servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
+func NewLinkService(context *servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
 	return &linkServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,
@@ -40,6 +41,7 @@ type linkServiceImpl struct {
 	config LinkServiceConfiguration
 }
 
+// TODO remove goa parameters
 // ProviderLocation returns a URL to OAuth 2.0 provider's consent page to be used to initiate account linking
 func (s *linkServiceImpl) ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string,
 	forResource string, redirectURL string) (string, error) {
@@ -70,7 +72,8 @@ func (s *linkServiceImpl) ProviderLocation(ctx context.Context, req *goa.Request
 	if err != nil {
 		return "", err
 	}
-	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResources[0])
+	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID,
+		rest.AbsoluteURL(req, "", nil), forResources[0])
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +122,7 @@ func (s *linkServiceImpl) Callback(ctx context.Context, req *goa.RequestData, st
 
 	forResource := referrerURL.Query().Get(forParam)
 
-	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, req, forResource)
+	oauthProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, identityUUID, rest.AbsoluteURL(req, "", nil), forResource)
 	if err != nil {
 		return "", err
 	}

@@ -23,7 +23,7 @@ type teamServiceImpl struct {
 }
 
 // NewTeamService creates a new service.
-func NewTeamService(context servicecontext.ServiceContext) service.TeamService {
+func NewTeamService(context *servicecontext.ServiceContext) service.TeamService {
 	return &teamServiceImpl{base.NewBaseService(context)}
 }
 

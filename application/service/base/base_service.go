@@ -9,6 +9,6 @@ type BaseService struct {
 	context.ServiceContext
 }
 
-func NewBaseService(context context.ServiceContext) BaseService {
-	return BaseService{context}
+func NewBaseService(context *context.ServiceContext) BaseService {
+	return BaseService{*context}
 }

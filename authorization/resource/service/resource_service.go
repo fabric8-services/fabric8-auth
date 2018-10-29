@@ -22,7 +22,7 @@ type resourceServiceImpl struct {
 }
 
 // NewResourceService creates a new service.
-func NewResourceService(context servicecontext.ServiceContext) service.ResourceService {
+func NewResourceService(context *servicecontext.ServiceContext) service.ResourceService {
 	return &resourceServiceImpl{base.NewBaseService(context)}
 }
 

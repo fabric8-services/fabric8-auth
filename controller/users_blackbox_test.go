@@ -48,7 +48,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.svc = goa.New("test")
 	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(witServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(witServiceMock))
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()

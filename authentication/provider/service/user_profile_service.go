@@ -28,7 +28,7 @@ type userProfileService struct {
 }
 
 // NewUserProfileService creates a new UserProfileService
-func NewUserProfileService(context servicecontext.ServiceContext) service.UserProfileService {
+func NewUserProfileService(context *servicecontext.ServiceContext) service.UserProfileService {
 	return &userProfileService{
 		client: http.DefaultClient,
 	}

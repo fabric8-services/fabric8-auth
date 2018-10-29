@@ -27,7 +27,7 @@ type notificationServiceImpl struct {
 }
 
 // NewNotificationService creates a new service.
-func NewNotificationService(context servicecontext.ServiceContext, config notification.Configuration) service.NotificationService {
+func NewNotificationService(context *servicecontext.ServiceContext, config notification.Configuration) service.NotificationService {
 	return &notificationServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

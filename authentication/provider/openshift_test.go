@@ -1,8 +1,9 @@
-package provider
+package provider_test
 
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/resource"
 
@@ -25,7 +26,7 @@ func TestOpenShiftProviderID(t *testing.T) {
 		AuthClientID:           id,
 		AuthClientSecret:       secret,
 	}
-	p, err := NewOpenShiftIdentityProvider(cluster, "https://test-auth")
+	p, err := provider.NewOpenShiftIdentityProvider(cluster, "https://test-auth")
 	require.NoError(t, err)
 	assert.Equal(t, p.Cluster, cluster)
 	assert.Equal(t, p.ProfileURL, "https://api.starter-us-east-2.openshift.com/oapi/v1/users/~")

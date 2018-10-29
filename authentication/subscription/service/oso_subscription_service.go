@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authentication/subscription"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -26,23 +24,6 @@ type OSOSubscriptionServiceConfiguration interface {
 	GetOSORegistrationAppAdminToken() string
 }
 
-type subscriptions struct {
-	Subscriptions []Subscription `json:"subscriptions"`
-}
-
-type Subscription struct {
-	Status string `json:"status"`
-	Plan   Plan   `json:"plan"`
-}
-
-type Plan struct {
-	Service Service `json:"service"`
-}
-
-type Service struct {
-	APIURL string `json:"api_url"`
-}
-
 type osoSubscriptionServiceImpl struct {
 	base.BaseService
 	config       OSOSubscriptionServiceConfiguration
@@ -50,7 +31,7 @@ type osoSubscriptionServiceImpl struct {
 	httpClient   rest.HttpClient
 }
 
-func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
+func NewOSOSubscriptionService(context *servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -66,7 +47,7 @@ func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSO
 	}
 }
 
-func NewOSOSubscriptionServiceWithClient(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration, httpClient rest.HttpClient) service.OSOSubscriptionService {
+func NewOSOSubscriptionServiceWithClient(context *servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration, httpClient rest.HttpClient) service.OSOSubscriptionService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
@@ -92,61 +73,21 @@ func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Conte
 	}
 	username := tokenClaims.Username
 
-	// Load status from OSO
-	regAppURL := fmt.Sprintf("%s/api/accounts/%s/subscriptions?authorization_username=%s", s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
-
-	req, err := http.NewRequest("GET", regAppURL, nil)
+	subs, err := s.Factories().SubscriptionLoaderFactory().NewSubscriptionLoader(ctx).LoadSubscriptions(ctx, username)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err.Error(),
-			"reg_app_url": regAppURL,
-		}, "unable to create http request")
-		return "", autherrors.NewInternalError(ctx, err)
-	}
-	req.Header.Add("Authorization", "Bearer "+s.config.GetOSORegistrationAppAdminToken())
-	res, err := s.httpClient.Do(req)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err.Error(),
-			"reg_app_url": regAppURL,
-		}, "unable to load OSO subscription status")
-		return "", autherrors.NewInternalError(ctx, err)
-	}
-	defer rest.CloseResponse(res)
-	bodyString := rest.ReadBody(res.Body)
-
-	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusNotFound {
-			// User does not exist
+		if subscription.IsSignUpNeededError(err) {
 			return signUpNeededStatus, nil
 		}
-
-		log.Error(ctx, map[string]interface{}{
-			"reg_app_url":     regAppURL,
-			"response_status": res.Status,
-			"response_body":   bodyString,
-		}, "unable to load OSO subscription status")
-		return "", autherrors.NewInternalError(ctx, errors.New("unable to load OSO subscription status"))
-	}
-
-	var sbs subscriptions
-	err = json.Unmarshal([]byte(bodyString), &sbs)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":         err,
-			"reg_app_url": regAppURL,
-			"body":        bodyString,
-		}, "unable to unmarshal json with subscription status")
 		return "", autherrors.NewInternalError(ctx, err)
 	}
 
-	for _, subscription := range sbs.Subscriptions {
-		cluster, err := s.Services().ClusterService().ClusterByURL(ctx, subscription.Plan.Service.APIURL)
+	for _, sub := range subs.Subscriptions {
+		cluster, err := s.Services().ClusterService().ClusterByURL(ctx, sub.Plan.Service.APIURL)
 		if err != nil {
 			return "", autherrors.NewInternalError(ctx, err)
 		}
 		if cluster != nil {
-			return subscription.Status, nil
+			return sub.Status, nil
 		}
 	}
 	// Didn't find subscription for OSIO clusters. OSIO sign up is required.

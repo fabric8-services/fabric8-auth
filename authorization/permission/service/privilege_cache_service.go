@@ -24,7 +24,7 @@ type privilegeCacheServiceImpl struct {
 }
 
 // NewPrivilegeCacheService creates a new service.
-func NewPrivilegeCacheService(context servicecontext.ServiceContext, config PrivilegeCacheServiceConfiguration) service.PrivilegeCacheService {
+func NewPrivilegeCacheService(context *servicecontext.ServiceContext, config PrivilegeCacheServiceConfiguration) service.PrivilegeCacheService {
 	return &privilegeCacheServiceImpl{
 		BaseService: base.NewBaseService(context),
 		conf:        config,

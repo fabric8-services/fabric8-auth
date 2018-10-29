@@ -25,7 +25,7 @@ type organizationServiceImpl struct {
 }
 
 // NewOrganizationService creates a new service.
-func NewOrganizationService(context servicecontext.ServiceContext) service.OrganizationService {
+func NewOrganizationService(context *servicecontext.ServiceContext) service.OrganizationService {
 	return &organizationServiceImpl{base.NewBaseService(context)}
 }
 

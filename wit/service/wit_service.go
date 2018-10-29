@@ -29,7 +29,7 @@ type witServiceImpl struct {
 }
 
 // NewWITService creates a new WIT service.
-func NewWITService(context servicecontext.ServiceContext, config wit.Configuration) service.WITService {
+func NewWITService(context *servicecontext.ServiceContext, config wit.Configuration) service.WITService {
 	return &witServiceImpl{base.NewBaseService(context), config, rest.DefaultHttpDoer()}
 }
 

@@ -50,7 +50,7 @@ func (s *invitationServiceBlackBoxTest) SetupTest() {
 	s.orgService = s.Application.OrganizationService()
 	s.notificationServiceMock = testservice.NewNotificationServiceMock(s.T())
 	s.witServiceMock = testservice.NewWITServiceMock(s.T())
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(s.witServiceMock), factory.WithNotificationService(s.notificationServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(s.witServiceMock), factory.WithNotificationService(s.notificationServiceMock))
 }
 
 func (s *invitationServiceBlackBoxTest) TestIssueInvitation() {

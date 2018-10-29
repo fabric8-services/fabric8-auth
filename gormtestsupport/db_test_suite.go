@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/application"
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
@@ -39,6 +40,7 @@ type DBTestSuite struct {
 	CleanSuite    func()
 	Ctx           context.Context
 	Graph         *graph.TestGraph
+	Wrappers      factorymanager.FactoryWrappers
 }
 
 // SetupSuite implements suite.SetupAllSuite
@@ -62,7 +64,8 @@ func (s *DBTestSuite) SetupSuite() {
 	}
 	// configures the log mode for the SQL queries (by default, disabled)
 	s.DB.LogMode(s.Configuration.IsDBLogsEnabled())
-	s.Application = gormapplication.NewGormDB(s.DB, configuration)
+	s.Wrappers = factorymanager.NewFactoryWrappers()
+	s.Application = gormapplication.NewGormDB(s.DB, configuration, s.Wrappers)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
 	s.CleanSuite = cleaner.DeleteCreatedEntities(s.DB)
@@ -73,7 +76,7 @@ func (s *DBTestSuite) SetupTest() {
 	s.CleanTest = cleaner.DeleteCreatedEntities(s.DB)
 	g := s.NewTestGraph(s.T())
 	s.Graph = &g
-	s.ResetFactories()
+	s.Wrappers.ResetWrappers()
 }
 
 // TearDownTest implements suite.TearDownTest
@@ -130,10 +133,10 @@ func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
 // ReplaceFactory replaces a default factory with the specified factory.  This function is recommended to be used
 // during tests where the default behaviour of a factory needs to be overridden
 func (s *DBTestSuite) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
-	s.Application.(*gormapplication.GormDB).WrapFactory(identifier, constructor, initializer)
+	s.Wrappers.RegisterWrapper(identifier, constructor, initializer)
 }
 
 // ResetFactories resets all factories to default, and resets all overridden factory configurations.
 func (s *DBTestSuite) ResetFactories() {
-	s.Application.(*gormapplication.GormDB).ResetFactories()
+	s.Wrappers.ResetWrappers()
 }

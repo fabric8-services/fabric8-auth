@@ -39,17 +39,18 @@ type serviceContextImpl struct {
 	factories                 service.Factories
 }
 
-func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData, options ...Option) context.ServiceContext {
-	ctx := new(serviceContextImpl)
+func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData,
+	wrappers factorymanager.FactoryWrappers, options ...Option) context.ServiceContext {
+	ctx := &serviceContextImpl{}
 	ctx.repositories = repos
 	ctx.transactionManager = tm
 	ctx.inTransaction = false
 
 	var sc context.ServiceContext
 	sc = ctx
-	ctx.factories = factorymanager.NewManager(func() context.ServiceContext { return sc }, config)
-	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config, options...)
-	return ctx
+	ctx.factories = factorymanager.NewManager(func() *context.ServiceContext { return &sc }, config, wrappers)
+	ctx.services = NewServiceFactory(func() *context.ServiceContext { return &sc }, config, options...)
+	return sc
 }
 
 func (s *serviceContextImpl) Repositories() repository.Repositories {
@@ -190,7 +191,7 @@ func NewServiceFactory(producer context.ServiceContextProducer, config *configur
 	return f
 }
 
-func (f *ServiceFactory) getContext() context.ServiceContext {
+func (f *ServiceFactory) getContext() *context.ServiceContext {
 	return f.contextProducer()
 }
 

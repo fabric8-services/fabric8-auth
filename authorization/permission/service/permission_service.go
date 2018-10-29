@@ -17,7 +17,7 @@ type permissionServiceImpl struct {
 }
 
 // NewPermissionModelService creates a new service.
-func NewPermissionService(context servicecontext.ServiceContext) service.PermissionService {
+func NewPermissionService(context *servicecontext.ServiceContext) service.PermissionService {
 	return &permissionServiceImpl{base.NewBaseService(context)}
 }
 

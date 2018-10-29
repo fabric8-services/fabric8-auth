@@ -2,8 +2,6 @@ package gormapplication
 
 import (
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
-
 	"strconv"
 
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
@@ -53,16 +51,14 @@ const (
 
 //var y application.Application = &GormTransaction{}
 
-func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, options ...factory.Option) *GormDB {
+func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, wrappers factorymanager.FactoryWrappers, options ...factory.Option) *GormDB {
 	g := new(GormDB)
 	g.db = db.Set("gorm:save_associations", false)
 	g.txIsoLevel = ""
-	g.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
-		return factory.NewServiceContext(g, g, config, options...)
+	g.serviceFactory = factory.NewServiceFactory(func() *context.ServiceContext {
+		ctx := factory.NewServiceContext(g, g, config, wrappers, options...)
+		return &ctx
 	}, config, options...)
-	g.factoryManager = factorymanager.NewManager(func() context.ServiceContext {
-		return factory.NewServiceContext(g, g, config)
-	}, config)
 	return g
 }
 
@@ -81,7 +77,6 @@ type GormDB struct {
 	GormBase
 	txIsoLevel     string
 	serviceFactory *factory.ServiceFactory
-	factoryManager *factorymanager.Manager
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -231,24 +226,6 @@ func (g *GormDB) WITService() service.WITService {
 
 func (g *GormDB) ClusterService() service.ClusterService {
 	return g.serviceFactory.ClusterService()
-}
-
-//----------------------------------------------------------------------------------------------------------------------
-//
-// Factories
-//
-//----------------------------------------------------------------------------------------------------------------------
-
-func (g *GormDB) LinkingProviderFactory() service.LinkingProviderFactory {
-	return g.factoryManager.LinkingProviderFactory()
-}
-
-func (g *GormDB) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
-	g.factoryManager.WrapFactory(identifier, constructor, initializer)
-}
-
-func (g *GormDB) ResetFactories() {
-	g.factoryManager.ResetFactories()
 }
 
 //----------------------------------------------------------------------------------------------------------------------

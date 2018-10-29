@@ -1,4 +1,4 @@
-package service
+package cluster
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/cluster/client"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -24,6 +23,14 @@ type clusterConfig interface {
 	GetClusterCacheRefreshInterval() time.Duration
 }
 
+type ClusterCache interface {
+	RLock()
+	RUnlock()
+	Clusters() map[string]Cluster
+	Start(ctx context.Context) error
+	Stop()
+}
+
 type cache struct {
 	sync.RWMutex
 
@@ -31,10 +38,10 @@ type cache struct {
 	options   []rest.HTTPClientOption
 	refresher *time.Ticker
 	stopCh    chan bool
-	clusters  map[string]cluster.Cluster
+	clusters  map[string]Cluster
 }
 
-func newCache(config clusterConfig, options ...rest.HTTPClientOption) *cache {
+func NewCache(config clusterConfig, options ...rest.HTTPClientOption) ClusterCache {
 	return &cache{
 		config:    config,
 		refresher: time.NewTicker(config.GetClusterCacheRefreshInterval()),
@@ -43,7 +50,7 @@ func newCache(config clusterConfig, options ...rest.HTTPClientOption) *cache {
 }
 
 // start loads the list of clusters from Cluster Management Service into the cluster cache and initializes regular cache refreshing
-func (c *cache) start(ctx context.Context) error {
+func (c *cache) Start(ctx context.Context) error {
 	err := c.refreshCache(ctx)
 	if err != nil {
 		return err
@@ -68,10 +75,14 @@ func (c *cache) start(ctx context.Context) error {
 	return nil
 }
 
-func (c *cache) stop() {
+func (c *cache) Stop() {
 	if c.stopCh != nil {
 		c.stopCh <- true
 	}
+}
+
+func (c *cache) Clusters() map[string]Cluster {
+	return c.clusters
 }
 
 func (c *cache) refreshCache(ctx context.Context) error {
@@ -88,7 +99,7 @@ func (c *cache) refreshCache(ctx context.Context) error {
 }
 
 // fetchClusters fetches a new list of clusters from Cluster Management Service
-func (c *cache) fetchClusters(ctx context.Context) (map[string]cluster.Cluster, error) {
+func (c *cache) fetchClusters(ctx context.Context) (map[string]Cluster, error) {
 	cln, err := c.createClientWithServiceAccountSigner(ctx)
 	if err != nil {
 		return nil, err
@@ -114,10 +125,10 @@ func (c *cache) fetchClusters(ctx context.Context) (map[string]cluster.Cluster, 
 		return nil, err
 	}
 
-	clusterMap := map[string]cluster.Cluster{}
+	clusterMap := map[string]Cluster{}
 	if clusters.Data != nil {
 		for _, d := range clusters.Data {
-			cls := cluster.Cluster{
+			cls := Cluster{
 				Name:                   d.Name,
 				APIURL:                 d.APIURL,
 				AppDNS:                 d.AppDNS,

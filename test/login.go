@@ -91,6 +91,7 @@ func WithServiceAccountAuthz(ctx context.Context, tokenManager manager.TokenMana
 	return goajwt.WithJWT(ctx, token)
 }
 
+// TODO remove this
 // DummyOSORegistrationApp represents a mock OSOSubscriptionManager implementation
 type DummyOSORegistrationApp struct {
 	Status string

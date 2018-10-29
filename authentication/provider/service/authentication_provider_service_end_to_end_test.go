@@ -2,36 +2,34 @@ package service_test
 
 import (
 	"context"
-
 	"encoding/json"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/app"
-	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/fabric8-services/fabric8-auth/authentication/provider"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/rest"
-
-	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/goadesign/goa"
-	"github.com/stretchr/testify/assert"
-	"strings"
-
-	"github.com/fabric8-services/fabric8-auth/errors"
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/resource"
-	"github.com/goadesign/goa/uuid"
-	errs "github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/fabric8-services/fabric8-auth/app"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/rest"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+
+	"github.com/goadesign/goa"
+	"github.com/goadesign/goa/uuid"
+	errs "github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestServiceLoginBlackboxTest(t *testing.T) {

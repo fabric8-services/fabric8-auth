@@ -13,7 +13,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -139,7 +138,7 @@ func main() {
 	service.WithLogger(goalogrus.New(log.Logger()))
 
 	// Setup Account/Login/Security
-	appDB := gormapplication.NewGormDB(db, config)
+	appDB := gormapplication.NewGormDB(db, config, nil)
 
 	tokenManager, err := manager.DefaultManager(config)
 	if err != nil {
@@ -164,7 +163,7 @@ func main() {
 	}
 
 	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
-	err = clusterservice.Start(context.Background(), config)
+	err = appDB.ClusterService().Status(context.Background())
 	if err != nil {
 		// It's not a critical error. Cluster management service can be offline during Auth service startup.
 		// Cluster service during startup requires Auth service to be ready to fetch public keys.
