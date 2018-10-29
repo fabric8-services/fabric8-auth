@@ -81,6 +81,8 @@ func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
 
 	// Should return "signup_needed" if the client returns 404
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
+	loader := testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
+	test.ActivateDummySubscriptionLoaderFactory(s, loader)
 	status, err := s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "signup_needed", status)
@@ -88,6 +90,8 @@ func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
 	// Should return an error if the client returns invalid payload
 	body = ioutil.NopCloser(bytes.NewReader([]byte("foo")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
+	test.ActivateDummySubscriptionLoaderFactory(s, loader)
 	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.Error(s.T(), err)
 	assert.IsType(s.T(), autherrors.InternalError{}, err)
@@ -95,6 +99,8 @@ func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
 	// Should return "signup_needed" if no subscription found
 	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}}]}")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
+	test.ActivateDummySubscriptionLoaderFactory(s, loader)
 	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "signup_needed", status)
@@ -102,6 +108,8 @@ func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
 	// Subscription found
 	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status-for2\",\"plan\":{\"service\":{\"api_url\":\"https://api.starter-us-east-2a.openshift.com/\"}}}]}")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
+	test.ActivateDummySubscriptionLoaderFactory(s, loader)
 	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "some-test-status-for2", status)
@@ -109,6 +117,8 @@ func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
 	// Multiple subscriptions
 	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}},{\"status\":\"some-test-status-for2\",\"plan\":{\"service\":{\"api_url\":\"https://api.starter-us-east-2a.openshift.com/\"}}},{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}}]}")))
 	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
+	test.ActivateDummySubscriptionLoaderFactory(s, loader)
 	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), "some-test-status-for2", status)

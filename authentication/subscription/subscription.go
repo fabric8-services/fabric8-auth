@@ -62,13 +62,20 @@ type RemoteSubscriptionLoaderConfiguration interface {
 
 type remoteSubscriptionLoader struct {
 	config     RemoteSubscriptionLoaderConfiguration
-	httpClient *http.Client
+	httpClient rest.HttpClient
 }
 
 func NewRemoteSubscriptionLoader(config RemoteSubscriptionLoaderConfiguration) SubscriptionLoader {
 	return &remoteSubscriptionLoader{
 		config:     config,
 		httpClient: http.DefaultClient,
+	}
+}
+
+func NewRemoteSubscriptionLoaderWithClient(config RemoteSubscriptionLoaderConfiguration, client rest.HttpClient) SubscriptionLoader {
+	return &remoteSubscriptionLoader{
+		config:     config,
+		httpClient: client,
 	}
 }
 

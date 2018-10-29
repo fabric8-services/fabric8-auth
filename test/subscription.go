@@ -7,6 +7,7 @@ import (
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authentication/subscription"
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	"github.com/fabric8-services/fabric8-auth/rest"
 )
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -74,4 +75,8 @@ func (l *DummySubscriptionLoader) LoadSubscriptions(ctx context.Context, usernam
 	}
 
 	return subs, nil
+}
+
+func NewDummyRemoteSubscriptionLoader(config subscription.RemoteSubscriptionLoaderConfiguration, client rest.HttpClient) subscription.SubscriptionLoader {
+	return subscription.NewRemoteSubscriptionLoaderWithClient(config, client)
 }
