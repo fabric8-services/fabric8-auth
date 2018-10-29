@@ -150,7 +150,7 @@ func (s *TokenStorageTestSuite) checkRetrieveOSOServiceAccountTokenInvalidOnForc
 	sa := account.Identity{
 		Username: saName,
 	}
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), false)
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), true)
 	service, controller := s.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 	forcePull := true
 	clusters, err := s.clusterServiceMock.Clusters(nil)
