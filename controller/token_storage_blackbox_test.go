@@ -104,7 +104,7 @@ func (s *TokenStorageTestSuite) checkRetrieveOSOServiceAccountToken(saName strin
 
 		assert.Equal(s.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
 		assert.Equal(s.T(), "<unknown>", tokenResponse.Scope)
-		assert.Equal(s.T(), "bearer", tokenResponse.TokenType)
+		assert.Equal(s.T(), "Bearer", tokenResponse.TokenType)
 		require.NotNil(s.T(), tokenResponse.Username)
 		assert.Equal(s.T(), "dsaas", tokenResponse.Username)
 		assert.Equal(s.T(), cluster.APIURL, tokenResponse.ProviderAPIURL)
@@ -134,7 +134,7 @@ func (s *TokenStorageTestSuite) checkRetrieveOSOServiceAccountTokenValidOnForceP
 
 		assert.Equal(s.T(), cluster.ServiceAccountToken, tokenResponse.AccessToken)
 		assert.Equal(s.T(), "<unknown>", tokenResponse.Scope)
-		assert.Equal(s.T(), "bearer", tokenResponse.TokenType)
+		assert.Equal(s.T(), "Bearer", tokenResponse.TokenType)
 		require.NotNil(s.T(), tokenResponse.Username)
 		assert.Equal(s.T(), tokenResponse.AccessToken+"testuser", tokenResponse.Username)
 		assert.Equal(s.T(), cluster.APIURL, tokenResponse.ProviderAPIURL)
@@ -275,7 +275,7 @@ func (s *TokenStorageTestSuite) retrieveExternalGitHubTokenFromDBSuccess() (acco
 	require.Equal(s.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(s.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(s.T(), expectedToken.Username, tokenResponse.Username)
-	require.Equal(s.T(), "bearer", tokenResponse.TokenType)
+	require.Equal(s.T(), "Bearer", tokenResponse.TokenType)
 	require.Equal(s.T(), "https://github.com", tokenResponse.ProviderAPIURL)
 
 	// Alias
@@ -283,7 +283,7 @@ func (s *TokenStorageTestSuite) retrieveExternalGitHubTokenFromDBSuccess() (acco
 	require.Equal(s.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(s.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(s.T(), expectedToken.Username, tokenResponse.Username)
-	require.Equal(s.T(), "bearer", tokenResponse.TokenType)
+	require.Equal(s.T(), "Bearer", tokenResponse.TokenType)
 	require.Equal(s.T(), "https://github.com", tokenResponse.ProviderAPIURL)
 
 	return identity, expectedToken
@@ -317,7 +317,7 @@ func (s *TokenStorageTestSuite) retrieveExternalOSOTokenFromDBSuccess() (account
 	require.Equal(s.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(s.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(s.T(), expectedToken.Username, tokenResponse.Username)
-	require.Equal(s.T(), "bearer", tokenResponse.TokenType)
+	require.Equal(s.T(), "Bearer", tokenResponse.TokenType)
 	require.Equal(s.T(), "https://api.starter-us-east-2a.openshift.com/", tokenResponse.ProviderAPIURL)
 
 	// Alias
@@ -325,7 +325,7 @@ func (s *TokenStorageTestSuite) retrieveExternalOSOTokenFromDBSuccess() (account
 	require.Equal(s.T(), expectedToken.Token, tokenResponse.AccessToken)
 	require.Equal(s.T(), expectedToken.Scope, tokenResponse.Scope)
 	require.Equal(s.T(), expectedToken.Username, tokenResponse.Username)
-	require.Equal(s.T(), "bearer", tokenResponse.TokenType)
+	require.Equal(s.T(), "Bearer", tokenResponse.TokenType)
 	require.Equal(s.T(), "https://api.starter-us-east-2a.openshift.com/", tokenResponse.ProviderAPIURL)
 
 	return identity, expectedToken

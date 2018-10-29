@@ -528,7 +528,7 @@ func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*o
 	thirtyDays = 60 * 60 * 24 * 30
 
 	token := &oauth2.Token{
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		AccessToken:  c.accessToken,
 		RefreshToken: c.refreshToken,
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
@@ -846,7 +846,7 @@ const thirtyDays = 60 * 60 * 24 * 30
 func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	token := &oauth2.Token{
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		AccessToken:  c.accessToken,
 		RefreshToken: c.refreshToken,
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
@@ -972,7 +972,7 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 	require.NoError(s.T(), err)
 
 	oauth2Token := &oauth2.Token{
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),

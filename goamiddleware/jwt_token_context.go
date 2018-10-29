@@ -32,7 +32,7 @@ func handler(tokenManager manager.TokenManager, scheme *goa.JWTSecurity, nextHan
 			return fmt.Errorf("whoops, security scheme with location (in) %q not supported", scheme.In)
 		}
 		val := req.Header.Get(scheme.Name)
-		if val != "" && strings.HasPrefix(strings.ToLower(val), "bearer ") {
+		if val != "" && strings.HasPrefix(strings.ToLower(val), "Bearer ") {
 			log.Debug(ctx, nil, "found header 'Authorization: Bearer JWT-token...'")
 			incomingToken := strings.Split(val, " ")[1]
 			log.Debug(ctx, nil, "extracted the incoming token %v ", incomingToken)

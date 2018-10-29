@@ -127,7 +127,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 			// then
 			token := authToken.Token
 			require.NotNil(t, token.TokenType)
-			assert.Equal(t, "bearer", *token.TokenType)
+			assert.Equal(t, "Bearer", *token.TokenType)
 			require.NotNil(t, token.AccessToken)
 			assert.NotEqual(t, tokenSet.AccessToken, *token.AccessToken) // access_token was renewed
 			require.NotNil(t, token.RefreshToken)
@@ -149,7 +149,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 			// then
 			token := authToken.Token
 			require.NotNil(t, token.TokenType)
-			assert.Equal(t, "bearer", *token.TokenType)
+			assert.Equal(t, "Bearer", *token.TokenType)
 			require.NotNil(t, token.AccessToken)
 			assert.NotEqual(t, tokenSet.AccessToken, *token.AccessToken) // access_token was renewed
 			require.NotNil(t, token.RefreshToken)
@@ -482,7 +482,7 @@ func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, i
 	svc, ctrl, _ := s.SecuredController()
 	_, saToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
 	assert.NotNil(s.T(), saToken.TokenType)
-	assert.Equal(s.T(), "bearer", *saToken.TokenType)
+	assert.Equal(s.T(), "Bearer", *saToken.TokenType)
 	assert.NotNil(s.T(), saToken.AccessToken)
 	claims, err := testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), *saToken.AccessToken)
 	require.Nil(s.T(), err)
@@ -498,7 +498,7 @@ func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl
 
 	require.NotNil(s.T(), token)
 	require.NotNil(s.T(), token.TokenType)
-	require.Equal(s.T(), "bearer", *token.TokenType)
+	require.Equal(s.T(), "Bearer", *token.TokenType)
 	require.NotNil(s.T(), token.AccessToken)
 	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), expectedAccessToken, *token.AccessToken))
 	require.NotNil(s.T(), token.RefreshToken)
@@ -512,7 +512,7 @@ func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Servic
 	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOAuthClientID(), RefreshToken: &refreshToken})
 
 	require.NotNil(s.T(), token.TokenType)
-	require.Equal(s.T(), "bearer", *token.TokenType)
+	require.Equal(s.T(), "Bearer", *token.TokenType)
 	require.NotNil(s.T(), token.AccessToken)
 	require.Equal(s.T(), expectedAccessToken, *token.AccessToken)
 	require.NotNil(s.T(), token.RefreshToken)
@@ -578,7 +578,7 @@ func newOAuthMockService(t *testing.T, identity account.Identity) (service.Authe
 		var thirtyDays, nbf int64
 		thirtyDays = 60 * 60 * 24 * 30
 		token := &oauth2.Token{
-			TokenType:    "bearer",
+			TokenType:    "Bearer",
 			Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
 			AccessToken:  keycloakToken.AccessToken,
 			RefreshToken: keycloakToken.RefreshToken,

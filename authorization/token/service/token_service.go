@@ -608,7 +608,7 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 		appResponse = app.ExternalToken{
 			Scope:          updatedToken.Scope,
 			AccessToken:    updatedToken.Token,
-			TokenType:      "bearer", // We aren't saving the token_type in the database
+			TokenType:      "Bearer", // We aren't saving the token_type in the database
 			Username:       updatedToken.Username,
 			ProviderAPIURL: linkingProvider.URL(),
 		}
@@ -712,7 +712,7 @@ func (c *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource
 	clusterToken := app.ExternalToken{
 		Scope:          "<unknown>",
 		AccessToken:    provider.OSOCluster().ServiceAccountToken,
-		TokenType:      "bearer",
+		TokenType:      "Bearer",
 		Username:       username,
 		ProviderAPIURL: provider.OSOCluster().APIURL,
 	}

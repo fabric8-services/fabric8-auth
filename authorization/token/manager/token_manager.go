@@ -366,7 +366,7 @@ func (m *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identit
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Expiry:       time.Unix(nowTime+m.config.GetAccessTokenExpiresIn(), 0),
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 	}
 
 	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
@@ -749,7 +749,7 @@ func (m *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context, r
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Expiry:       time.Unix(nowTime+m.config.GetAccessTokenExpiresIn(), 0),
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 	}
 
 	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
@@ -791,7 +791,7 @@ func (m *tokenManager) GenerateUserTokenForAPIClient(ctx context.Context, keyclo
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Expiry:       keycloakToken.Expiry,
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 	}
 
 	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"

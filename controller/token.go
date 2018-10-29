@@ -334,7 +334,7 @@ func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.Exchan
 	secret := []byte(*payload.ClientSecret)
 	for _, hash := range sa.Secrets {
 		if bcrypt.CompareHashAndPassword([]byte(hash), secret) == nil {
-			tokenType := "bearer"
+			tokenType := "Bearer"
 			accessToken, err := c.TokenManager.GenerateServiceAccountToken(sa.ID, sa.Name)
 			if err != nil {
 				return nil, err
