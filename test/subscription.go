@@ -62,7 +62,7 @@ func (l *DummySubscriptionLoader) LoadSubscriptions(ctx context.Context, usernam
 
 	subs := &subscription.Subscriptions{
 		Subscriptions: []subscription.Subscription{
-			subscription.Subscription{
+			{
 				Status: l.Status,
 				Plan: subscription.Plan{
 					Service: subscription.Service{

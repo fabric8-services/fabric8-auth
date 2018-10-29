@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"errors"
 	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -63,12 +64,13 @@ type dummyLinkingProviderFactory interface {
 
 type dummyLinkingProviderFactoryImpl struct {
 	wrapper.BaseFactoryWrapper
-	config *configuration.ConfigurationData
-	Token  string
+	config          *configuration.ConfigurationData
+	token           string
+	loadProfileFail bool
 }
 
 // ActivateDummyLinkingProviderFactory can be used to create a mock linking provider factory
-func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string) {
+func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string, loadProfileFail bool) {
 	w.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER,
 		func(ctx *servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
 			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
@@ -79,6 +81,7 @@ func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuratio
 		func(w wrapper.FactoryWrapper) {
 			w.(dummyLinkingProviderFactory).setConfig(config)
 			w.(dummyLinkingProviderFactory).setToken(token)
+			w.(dummyLinkingProviderFactory).setLoadProfileFail(loadProfileFail)
 		})
 }
 
@@ -87,7 +90,11 @@ func (f *dummyLinkingProviderFactoryImpl) setConfig(config *configuration.Config
 }
 
 func (f *dummyLinkingProviderFactoryImpl) setToken(token string) {
-	f.Token = token
+	f.token = token
+}
+
+func (f *dummyLinkingProviderFactoryImpl) setLoadProfileFail(loadProfileFail bool) {
+	f.loadProfileFail = loadProfileFail
 }
 
 func (f *dummyLinkingProviderFactoryImpl) Configuration() *configuration.ConfigurationData {
@@ -111,7 +118,7 @@ type DummyProvider struct {
 }
 
 func (p *DummyProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
-	return &oauth2.Token{AccessToken: p.factory.Token}, nil
+	return &oauth2.Token{AccessToken: p.factory.token}, nil
 }
 
 func (p *DummyProvider) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
@@ -143,6 +150,9 @@ func (p *DummyProvider) SetScopes(scopes []string) {
 }
 
 func (p *DummyProvider) Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error) {
+	if p.factory.loadProfileFail {
+		return nil, errors.New("unable to load profile")
+	}
 	return &provider.UserProfile{
 		Username: token.AccessToken + "testuser",
 	}, nil
