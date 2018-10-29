@@ -25,30 +25,33 @@ func NewLogoutController(service *goa.Service, app application.Application) *Log
 // Logout runs the logout action.
 func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
 	redirect := ctx.Redirect
-	referrer := ctx.RequestData.Header.Get("Referer")
+	referrer := ctx.Referer
 	if redirect == nil {
-		if referrer == "" {
+		if referrer == nil {
 			log.Error(ctx, nil, "Failed to logout. Referer Header and redirect param are both empty.")
 			return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("referer Header and redirect param are both empty (at least one should be specified)"))
 		}
-		redirect = &referrer
+		redirect = referrer
 	}
-	log.Info(ctx, map[string]interface{}{
+	log.Debug(ctx, map[string]interface{}{
 		"referrer": referrer,
-		"redirect": redirect,
+		"redirect": *redirect,
 	}, "Got Request to logout!")
 
+	fmt.Printf("*redirect='%s'\n", *redirect)
 	redirectURL, err := url.Parse(*redirect)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"redirect_url": redirectURL,
+			"redirect_url": *redirect,
 			"err":          err,
-		}, "Failed to logout. Unable to parse redirect url.")
+		}, "Failed to logout. Unable to parse provided redirect url.")
 		return jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest(err.Error()))
 	}
+	log.Debug(ctx, map[string]interface{}{
+		"redirect_url": *redirectURL,
+		"err":          err,
+	}, "parsed provided redirect url.")
 
-	fmt.Printf("c.app=%v\n", c.app)
-	fmt.Printf("c.app.LogoutService()=%v\n", c.app.LogoutService())
 	logoutRedirect, err := c.app.LogoutService().Logout(ctx, redirectURL.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

@@ -100,6 +100,9 @@ var _ = a.Resource("logout", func() {
 		a.Routing(
 			a.GET(""),
 		)
+		a.Headers(func() {
+			a.Header("Referer", d.String)
+		})
 		a.Params(func() {
 			a.Param("redirect", d.String, "URL to be redirected to after successful logout. If not set then will redirect to the referrer instead.")
 		})

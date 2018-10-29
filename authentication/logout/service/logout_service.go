@@ -30,8 +30,20 @@ func NewLogoutService(context servicecontext.ServiceContext, config LogoutServic
 }
 
 func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (string, error) {
-
+	if redirectURL == "" {
+		log.Error(ctx, map[string]interface{}{
+			"redirect_url":       redirectURL,
+			"valid_redirect_url": s.config.GetValidRedirectURLs(),
+		}, "Redirect URL is not valid")
+		return "", errors.NewBadParameterErrorFromString("redirect", redirectURL, "not valid redirect URL")
+	}
 	matched, err := regexp.MatchString(s.config.GetValidRedirectURLs(), redirectURL)
+	log.Debug(ctx, map[string]interface{}{
+		"redirect_url":        redirectURL,
+		"valid_redirect_urls": s.config.GetValidRedirectURLs(),
+		"matched":             matched,
+		"error":               err,
+	}, "matched redirect URL and whitelist regex")
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url":        redirectURL,

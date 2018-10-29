@@ -4,14 +4,15 @@ import (
 	"testing"
 
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/stretchr/testify/require"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -35,45 +36,101 @@ func (s *LogoutControllerTestSuite) UnSecuredController() (*goa.Service, *contro
 	return svc, controller.NewLogoutController(svc, s.Application)
 }
 
-func (s *LogoutControllerTestSuite) TestLogoutRedirects() {
-	// given
-	svc, ctrl := s.UnSecuredController()
-	redirect := "http://domain.com"
-	// when
-	resp := test.LogoutLogoutTemporaryRedirect(s.T(), svc.Context, svc, ctrl, &redirect)
-	// then
-	assert.Equal(s.T(), resp.Header().Get("Cache-Control"), "no-cache")
-}
+func (s *LogoutControllerTestSuite) TestLogout() {
 
-func (s *LogoutControllerTestSuite) TestLogoutWithoutReffererAndRedirectParamsBadRequest() {
-	// given
-	svc, ctrl := s.UnSecuredController()
-	// when/then
-	test.LogoutLogoutBadRequest(s.T(), svc.Context, svc, ctrl, nil)
-}
+	s.T().Run("redirect", func(t *testing.T) {
 
-func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithRedirectParam() {
-	s.checkRedirects("https://openshift.io/home", "", "https%3A%2F%2Fopenshift.io%2Fhome")
-}
+		t.Run("with redirect param only", func(t *testing.T) {
+			// given
+			svc, ctrl := s.UnSecuredController()
+			redirect := "https://openshift.io/home"
+			// when
+			resp := test.LogoutLogoutTemporaryRedirect(s.T(), svc.Context, svc, ctrl, &redirect, nil)
+			// then
+			assert.Equal(t, resp.Header().Get("Cache-Control"), "no-cache")
+			assert.Equal(t, "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/logout?redirect_uri=https%3A%2F%2Fopenshift.io%2Fhome", resp.Header().Get("Location"))
+		})
 
-func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithReferrer() {
-	s.checkRedirects("", "https://openshift.io/home", "https%3A%2F%2Fopenshift.io%2Fhome")
-}
+		t.Run("with referer header only", func(t *testing.T) {
+			// given
+			svc, ctrl := s.UnSecuredController()
+			referer := "https://openshift.io/home"
+			// when
+			resp := test.LogoutLogoutTemporaryRedirect(s.T(), svc.Context, svc, ctrl, nil, &referer)
+			// then
+			assert.Equal(t, resp.Header().Get("Cache-Control"), "no-cache")
+			assert.Contains(t, resp.Header().Get("Location"), "?redirect_uri=https%3A%2F%2Fopenshift.io%2Fhome")
+		})
 
-func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithReferrerAndRedirect() {
-	s.checkRedirects("https://prod-preview.openshift.io/home", "https://url.example.org/path", "https%3A%2F%2Fprod-preview.openshift.io%2Fhome")
+		t.Run("with redirect param and referer header", func(t *testing.T) {
+			// given
+			svc, ctrl := s.UnSecuredController()
+			redirect := "https://prod-preview.openshift.io/home"
+			referer := "https://url.example.org/path"
+			// when
+			resp := test.LogoutLogoutTemporaryRedirect(s.T(), svc.Context, svc, ctrl, &redirect, &referer)
+			// then
+			assert.Equal(t, resp.Header().Get("Cache-Control"), "no-cache")
+			assert.Contains(t, resp.Header().Get("Location"), "?redirect_uri=https%3A%2F%2Fprod-preview.openshift.io%2Fhome")
+		})
+	})
+
+	s.T().Run("bad request", func(t *testing.T) {
+
+		t.Run("with missing referer and redirect", func(t *testing.T) {
+			// given
+			svc, ctrl := s.UnSecuredController()
+			// when/then
+			test.LogoutLogoutBadRequest(t, svc.Context, svc, ctrl, nil, nil)
+		})
+
+		t.Run("with missing referer header and redirect param", func(t *testing.T) {
+			// given
+			svc, ctrl := s.UnSecuredController()
+			// when/then
+			test.LogoutLogoutBadRequest(t, svc.Context, svc, ctrl, nil, nil)
+		})
+
+		t.Run("with invalid redirect param", func(t *testing.T) {
+			// given
+			svc, ctrl := s.UnSecuredController()
+			redirect := "://url.example.org/path" // invalid/unparseable URL
+			referer := ""
+			// when/then
+			test.LogoutLogoutBadRequest(t, svc.Context, svc, ctrl, &redirect, &referer)
+		})
+
+		t.Run("with invalid referer header", func(t *testing.T) {
+			// given
+			svc, ctrl := s.UnSecuredController()
+			redirect := ""
+			referer := "://url.example.org/path" // invalid/unparseable URL
+			// when/then
+			test.LogoutLogoutBadRequest(t, svc.Context, svc, ctrl, &redirect, &referer)
+		})
+
+		t.Run("with redirect param and invalid referer header", func(t *testing.T) {
+			t.Skipf("if redirect param is valid, then referer URL is not used")
+			// given
+			svc, ctrl := s.UnSecuredController()
+			redirect := "https://url.example.org/path"
+			referer := "://url.example.org/path" // invalid/unparseable URL
+			// when/then
+			test.LogoutLogoutBadRequest(t, svc.Context, svc, ctrl, &redirect, &referer)
+		})
+	})
 }
 
 func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithInvalidRedirectParamBadRequest() {
-	s.checkRedirects("https://url.example.org/path", "", "")
+
 }
 
 func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithInvalidReferrerParamBadRequest() {
-	s.checkRedirects("", "https://url.example.org/path", "")
+
 }
 
 func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithReferrerAndInvalidRedirectBadRequest() {
-	s.checkRedirects("https://url.example.org/path", "https://openshift.io/home", "")
+
 }
 
 func (s *LogoutControllerTestSuite) checkRedirects(redirectParam string, referrerURL string, expectedRedirectParam string) {
@@ -98,7 +155,7 @@ func (s *LogoutControllerTestSuite) checkRedirects(redirectParam string, referre
 
 	svc, ctrl := s.UnSecuredController()
 
-	test.LogoutLogoutTemporaryRedirect(s.T(), logoutCtx, svc, ctrl, &expectedRedirectParam)
+	test.LogoutLogoutTemporaryRedirect(s.T(), logoutCtx, svc, ctrl, &expectedRedirectParam, nil)
 
 	if expectedRedirectParam == "" {
 		assert.Equal(s.T(), 400, rw.Code)
