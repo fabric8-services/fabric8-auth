@@ -2,6 +2,7 @@ package factory
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -15,7 +16,7 @@ type SubscriptionLoaderFactoryConfiguration interface {
 }
 
 // NewSubscriptionLoaderFactory returns the default subscription loader factory.
-func NewSubscriptionLoaderFactory(context *servicecontext.ServiceContext, config SubscriptionLoaderFactoryConfiguration) service.SubscriptionLoaderFactory {
+func NewSubscriptionLoaderFactory(context servicecontext.ServiceContext, config SubscriptionLoaderFactoryConfiguration) service.SubscriptionLoaderFactory {
 	factory := &subscriptionLoaderFactoryImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

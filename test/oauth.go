@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"errors"
+
 	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -31,7 +32,7 @@ type dummyIdentityProviderFactoryImpl struct {
 
 func ActivateDummyIdentityProviderFactory(w wrapper.Wrapper, provider provider.IdentityProvider) {
 	w.WrapFactory(svc.FACTORY_TYPE_IDENTITY_PROVIDER,
-		func(ctx *servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
+		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
 			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
 			return &dummyIdentityProviderFactoryImpl{
 				BaseFactoryWrapper: *baseFactoryWrapper,
@@ -72,7 +73,7 @@ type dummyLinkingProviderFactoryImpl struct {
 // ActivateDummyLinkingProviderFactory can be used to create a mock linking provider factory
 func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string, loadProfileFail bool) {
 	w.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER,
-		func(ctx *servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
+		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
 			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
 			return &dummyLinkingProviderFactoryImpl{
 				BaseFactoryWrapper: *baseFactoryWrapper,

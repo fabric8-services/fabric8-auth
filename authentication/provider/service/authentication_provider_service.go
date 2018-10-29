@@ -7,6 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
+	"strconv"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -22,10 +27,6 @@ import (
 	errs "github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"net/url"
-	"regexp"
-	"strconv"
-	"time"
 )
 
 type AuthenticationProviderServiceConfig interface {
@@ -47,7 +48,7 @@ const (
 	tokenJSONParam = "token_json"
 )
 
-func NewAuthenticationProviderService(ctx *servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
+func NewAuthenticationProviderService(ctx servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{

@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/signer"
 	"net/http"
 	"net/url"
+
+	"github.com/fabric8-services/fabric8-auth/authorization/token/signer"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -29,7 +30,7 @@ type witServiceImpl struct {
 }
 
 // NewWITService creates a new WIT service.
-func NewWITService(context *servicecontext.ServiceContext, config wit.Configuration) service.WITService {
+func NewWITService(context servicecontext.ServiceContext, config wit.Configuration) service.WITService {
 	return &witServiceImpl{base.NewBaseService(context), config, rest.DefaultHttpDoer()}
 }
 

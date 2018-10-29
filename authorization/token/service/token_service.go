@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -38,7 +39,7 @@ type tokenServiceImpl struct {
 }
 
 // NewTokenService returns a new Token Service
-func NewTokenService(context *servicecontext.ServiceContext, config TokenServiceConfiguration) service.TokenService {
+func NewTokenService(context servicecontext.ServiceContext, config TokenServiceConfiguration) service.TokenService {
 	tokenManager, err := manager.NewTokenManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{

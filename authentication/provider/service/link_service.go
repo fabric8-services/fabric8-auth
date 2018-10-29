@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/fabric8-services/fabric8-auth/rest"
 	"net/url"
 	"strings"
+
+	"github.com/fabric8-services/fabric8-auth/rest"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -29,7 +30,7 @@ type LinkServiceConfiguration interface {
 }
 
 // NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
-func NewLinkService(context *servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
+func NewLinkService(context servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
 	return &linkServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

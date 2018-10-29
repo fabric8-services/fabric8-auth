@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
-	"io/ioutil"
-	"net/http"
 
 	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
@@ -28,7 +29,7 @@ type userProfileService struct {
 }
 
 // NewUserProfileService creates a new UserProfileService
-func NewUserProfileService(context *servicecontext.ServiceContext) service.UserProfileService {
+func NewUserProfileService(context servicecontext.ServiceContext) service.UserProfileService {
 	return &userProfileService{
 		client: http.DefaultClient,
 	}

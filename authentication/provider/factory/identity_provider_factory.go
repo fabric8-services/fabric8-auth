@@ -2,6 +2,7 @@ package factory
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -9,7 +10,7 @@ import (
 )
 
 // NewIdentityProviderFactory returns the default Oauth provider factory.
-func NewIdentityProviderFactory(context *servicecontext.ServiceContext) service.IdentityProviderFactory {
+func NewIdentityProviderFactory(context servicecontext.ServiceContext) service.IdentityProviderFactory {
 	factory := &identityProviderFactoryImpl{
 		BaseService: base.NewBaseService(context),
 	}

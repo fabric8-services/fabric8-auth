@@ -6,7 +6,7 @@ import (
 
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/context"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
@@ -55,9 +55,8 @@ func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, wrappers fa
 	g := new(GormDB)
 	g.db = db.Set("gorm:save_associations", false)
 	g.txIsoLevel = ""
-	g.serviceFactory = factory.NewServiceFactory(func() *context.ServiceContext {
-		ctx := factory.NewServiceContext(g, g, config, wrappers, options...)
-		return &ctx
+	g.serviceFactory = factory.NewServiceFactory(func() servicecontext.ServiceContext {
+		return factory.NewServiceContext(g, g, config, wrappers, options...)
 	}, config, options...)
 	return g
 }

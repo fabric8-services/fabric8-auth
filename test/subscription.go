@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -26,7 +27,7 @@ type dummySubscriptionLoaderFactoryImpl struct {
 
 func ActivateDummySubscriptionLoaderFactory(w wrapper.Wrapper, loader subscription.SubscriptionLoader) {
 	w.WrapFactory(svc.FACTORY_TYPE_SUBSCRIPTION_LOADER,
-		func(ctx *servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
+		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
 			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
 			return &dummySubscriptionLoaderFactoryImpl{
 				BaseFactoryWrapper: *baseFactoryWrapper,

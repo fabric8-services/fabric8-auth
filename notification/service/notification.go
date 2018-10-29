@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/signer"
 	"net/http"
 	"net/url"
+
+	"github.com/fabric8-services/fabric8-auth/authorization/token/signer"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -27,7 +28,7 @@ type notificationServiceImpl struct {
 }
 
 // NewNotificationService creates a new service.
-func NewNotificationService(context *servicecontext.ServiceContext, config notification.Configuration) service.NotificationService {
+func NewNotificationService(context servicecontext.ServiceContext, config notification.Configuration) service.NotificationService {
 	return &notificationServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,
