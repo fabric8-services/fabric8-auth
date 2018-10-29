@@ -17,7 +17,7 @@ import (
 )
 
 // NewRoleManagementService creates a new service to manage role assignments
-func NewRoleManagementService(context *servicecontext.ServiceContext) *roleManagementServiceImpl {
+func NewRoleManagementService(context servicecontext.ServiceContext) *roleManagementServiceImpl {
 	return &roleManagementServiceImpl{base.NewBaseService(context)}
 }
 

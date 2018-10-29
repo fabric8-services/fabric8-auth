@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
+	"net/url"
+	"regexp"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"net/url"
-	"regexp"
 )
 
 type LogoutServiceConfiguration interface {
@@ -21,7 +22,7 @@ type logoutServiceImpl struct {
 	config LogoutServiceConfiguration
 }
 
-func NewLogoutService(context *servicecontext.ServiceContext, config LogoutServiceConfiguration) service.LogoutService {
+func NewLogoutService(context servicecontext.ServiceContext, config LogoutServiceConfiguration) service.LogoutService {
 	return &logoutServiceImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

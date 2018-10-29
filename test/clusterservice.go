@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+
 	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	svc "github.com/fabric8-services/fabric8-auth/application/service"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -29,8 +30,8 @@ func NewClusterServiceMock(t minimock.Tester) *testservice.ClusterServiceMock {
 	clusterServiceMock.ClustersFunc = func(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error) {
 		return clusterservice.Clusters(clusters), nil
 	}
-	clusterServiceMock.StatusFunc = func(ctx context.Context) error {
-		return nil
+	clusterServiceMock.StatusFunc = func(ctx context.Context) (bool, error) {
+		return false, nil
 	}
 
 	return clusterServiceMock
@@ -74,7 +75,7 @@ type dummyClusterCacheFactoryImpl struct {
 
 func ActivateDummyClusterCacheFactory(w wrapper.Wrapper, cache cluster.ClusterCache) {
 	w.WrapFactory(svc.FACTORY_TYPE_CLUSTER_CACHE,
-		func(ctx *servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
+		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
 			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
 			return &dummyClusterCacheFactoryImpl{
 				BaseFactoryWrapper: *baseFactoryWrapper,

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 
@@ -15,7 +16,7 @@ import (
 )
 
 // NewUserService creates a new service to manage users
-func NewUserService(ctx *servicecontext.ServiceContext) service.UserService {
+func NewUserService(ctx servicecontext.ServiceContext) service.UserService {
 	return &userServiceImpl{
 		BaseService: base.NewBaseService(ctx),
 	}

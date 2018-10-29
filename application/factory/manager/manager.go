@@ -72,7 +72,7 @@ func NewManager(producer context.ServiceContextProducer, config *configuration.C
 	return &Manager{contextProducer: producer, config: config, wrappers: wrappers}
 }
 
-func (f *Manager) getContext() *context.ServiceContext {
+func (f *Manager) getContext() context.ServiceContext {
 	return f.contextProducer()
 }
 

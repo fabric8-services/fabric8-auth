@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -12,11 +14,10 @@ import (
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/satori/go.uuid"
-	"net/url"
 )
 
 // NewLinkingProviderFactory returns the default Linking provider factory.
-func NewLinkingProviderFactory(context *servicecontext.ServiceContext, config provider.LinkingProviderConfiguration) service.LinkingProviderFactory {
+func NewLinkingProviderFactory(context servicecontext.ServiceContext, config provider.LinkingProviderConfiguration) service.LinkingProviderFactory {
 	factory := &linkingProviderFactoryImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

@@ -2,13 +2,14 @@ package factory
 
 import (
 	"context"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"time"
 )
 
 type ClusterCacheFactoryConfiguration interface {
@@ -18,7 +19,7 @@ type ClusterCacheFactoryConfiguration interface {
 }
 
 // NewClusterCacheFactory returns the default cluster cache factory.
-func NewClusterCacheFactory(context *servicecontext.ServiceContext, config ClusterCacheFactoryConfiguration) service.ClusterCacheFactory {
+func NewClusterCacheFactory(context servicecontext.ServiceContext, config ClusterCacheFactoryConfiguration) service.ClusterCacheFactory {
 	factory := &clusterCacheFactoryImpl{
 		BaseService: base.NewBaseService(context),
 		config:      config,

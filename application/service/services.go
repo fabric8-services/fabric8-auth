@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"net/url"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
@@ -20,7 +22,6 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"net/url"
 )
 
 const (
@@ -60,7 +61,8 @@ type AuthenticationProviderService interface {
 type ClusterService interface {
 	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
 	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
-	Status(ctx context.Context) error
+	Status(ctx context.Context) (bool, error)
+	Stop()
 }
 
 type InvitationService interface {

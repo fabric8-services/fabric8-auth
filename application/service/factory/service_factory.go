@@ -1,13 +1,12 @@
 package factory
 
 import (
-	"fmt"
 	"time"
 
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/context"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	logoutservice "github.com/fabric8-services/fabric8-auth/authentication/logout/service"
@@ -40,25 +39,24 @@ type serviceContextImpl struct {
 }
 
 func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData,
-	wrappers factorymanager.FactoryWrappers, options ...Option) context.ServiceContext {
+	wrappers factorymanager.FactoryWrappers, options ...Option) servicecontext.ServiceContext {
 	ctx := &serviceContextImpl{}
 	ctx.repositories = repos
 	ctx.transactionManager = tm
 	ctx.inTransaction = false
 
-	var sc context.ServiceContext
+	var sc servicecontext.ServiceContext
 	sc = ctx
-	ctx.factories = factorymanager.NewManager(func() *context.ServiceContext { return &sc }, config, wrappers)
-	ctx.services = NewServiceFactory(func() *context.ServiceContext { return &sc }, config, options...)
+	ctx.factories = factorymanager.NewManager(func() servicecontext.ServiceContext { return sc }, config, wrappers)
+	ctx.services = NewServiceFactory(func() servicecontext.ServiceContext { return sc }, config, options...)
 	return sc
 }
 
 func (s *serviceContextImpl) Repositories() repository.Repositories {
 	if s.inTransaction {
 		return s.transactionalRepositories
-	} else {
-		return s.repositories
 	}
+	return s.repositories
 }
 
 func (s *serviceContextImpl) Factories() service.Factories {
@@ -97,7 +95,7 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 			go func() {
 				defer func() {
 					if err := recover(); err != nil {
-						errorChan <- errors.New(fmt.Sprintf("Unknown error: %v", err))
+						errorChan <- errors.Errorf("Unknown error: %v", err)
 					}
 				}()
 				errorChan <- todo()
@@ -121,7 +119,7 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 				log.Debug(nil, nil, "Rolling back the transaction...")
 				tx.Rollback()
 				log.Error(nil, nil, "database transaction timeout!")
-				return errors.New("database transaction timeout!")
+				return errors.New("database transaction timeout")
 			}
 		}()
 	} else {
@@ -135,7 +133,7 @@ func (s *serviceContextImpl) endTransaction() {
 }
 
 type ServiceFactory struct {
-	contextProducer         context.ServiceContextProducer
+	contextProducer         servicecontext.ServiceContextProducer
 	config                  *configuration.ConfigurationData
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
@@ -169,7 +167,7 @@ func WithClusterService(s service.ClusterService) Option {
 	}
 }
 
-func NewServiceFactory(producer context.ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
+func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
 	f.witServiceFunc = func() service.WITService {
@@ -191,7 +189,7 @@ func NewServiceFactory(producer context.ServiceContextProducer, config *configur
 	return f
 }
 
-func (f *ServiceFactory) getContext() *context.ServiceContext {
+func (f *ServiceFactory) getContext() servicecontext.ServiceContext {
 	return f.contextProducer()
 }
 
