@@ -1,34 +1,31 @@
-package controller_test
+package service_test
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/rest"
-
-	"strings"
-
-	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/goadesign/goa"
-	"github.com/stretchr/testify/assert"
-
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"os"
-	"strconv"
-	"testing"
-	"time"
-
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/rest"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+
+	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -56,9 +53,9 @@ func (s *serviceLoginBlackBoxTest) SetupSuite() {
 	s.state = uuid.NewV4().String()
 	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
 
-	os.Setenv("AUTH_OAUTH_ENDPOINT_USERINFO", idpServerURL+"profile")
-	os.Setenv("AUTH_OAUTH_ENDPOINT_AUTH", idpServerURL+"code")
-	os.Setenv("AUTH_OAUTH_ENDPOINT_TOKEN", idpServerURL+"token")
+	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_USERINFO", idpServerURL+"profile")
+	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_AUTH", idpServerURL+"code")
+	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_TOKEN", idpServerURL+"token")
 
 	s.WITServer = s.createMockHTTPServer(s.serveWITServer)
 	witServerURL := "http://" + s.WITServer.Listener.Addr().String()
@@ -72,9 +69,9 @@ func (s *serviceLoginBlackBoxTest) TearDownSuite() {
 	s.IDPServer.Close()
 	s.WITServer.CloseClientConnections()
 	s.WITServer.Close()
-	os.Unsetenv("AUTH_ENDPOINT_USERINFO")
-	os.Unsetenv("AUTH_OAUTH_ENDPOINT_AUTH")
-	os.Unsetenv("AUTH_OAUTH_ENDPOINT_TOKEN")
+	os.Unsetenv("AUTH_AUTH_PROVIDER_ENDPOINT_AUTH")
+	os.Unsetenv("AUTH_AUTH_PROVIDER_ENDPOINT_TOKEN")
+	os.Unsetenv("AUTH_AUTH_PROVIDER_ENDPOINT_USERINFO")
 	os.Unsetenv("AUTH_WIT_URL")
 }
 
@@ -103,10 +100,12 @@ func (s *serviceLoginBlackBoxTest) TestLoginEndToEndNotApproved() {
 }
 
 func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
-	idpServerURL := "http://" + s.IDPServer.Listener.Addr().String() + "/api/"
-	prms := url.Values{}
 
-	authorizeCtx, rw := s.createNewLoginContext("/api/login", prms)
+	prms := url.Values{
+		"redirect": []string{"http://api.openshift.io/api/status"},
+	}
+
+	authorizeCtx, _ := s.createNewLoginContext("/api/login", prms)
 
 	// ############ STEP 1 Call /api/login without state or code
 	// ############
@@ -118,7 +117,8 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	require.Nil(s.T(), err)
 
 	// Ensure you get a redirect with a 'state'
-	require.Contains(s.T(), redirectUrl, idpServerURL)
+	unescapedRedirectURL, _ := url.PathUnescape(*redirectUrl)
+	require.Contains(s.T(), unescapedRedirectURL, callbackUrl)
 
 	// ############ STEP 2: Simulate what happens in the front-end
 	// ############ redirect to the oauth server login page.
@@ -129,15 +129,13 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	}
 
 	// set a referrer so that our simulation can bring us back
-	refererUrl := "auth.openshift.io/api/login"
-	reqToOauthServer.Header.Add("referer", refererUrl)
 	resp, err := http.DefaultClient.Do(reqToOauthServer)
 
 	require.NoError(s.T(), err)
-	require.Contains(s.T(), resp.Header.Get("Location"), refererUrl)
+	require.Contains(s.T(), resp.Header.Get("Location"), callbackUrl)
 
 	// ########### Step 3: Use the same state to
-	// ########### make a call to /api/login?code=XXXX&state=XXXXYYY
+	// ########### make a call to /api/login/callback?code=XXXX&state=XXXXYYY
 
 	successRedirectURL, err := url.Parse(resp.Header.Get("Location"))
 	require.Nil(s.T(), err)
@@ -150,14 +148,11 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 
 	// Call /api/login?code=X&state=Y
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
-	rw = httptest.NewRecorder()
-	authorizeCtx, rw = s.createNewLoginContext("/api/login", prms)
+	callbackLoginCtx, _ := s.createLoginCallbackContext("/api/login/callback", prms)
 
 	callbackUrl = rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
 	generatedState = uuid.NewV4().String()
-	redirectUrl, err = s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, authorizeCtx.Redirect, authorizeCtx.APIClient,
-		&generatedState, nil, nil, "", callbackUrl)
-	require.Nil(s.T(), err)
+	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(callbackLoginCtx, returnedState, returnedCode)
 
 	//  ############ STEP 4: Token generated and received as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
@@ -185,7 +180,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 		checkIfTokenMatchesIdentity(s.T(), *returnedToken.AccessToken, *updatedIdentity)
 		require.True(s.T(), s.identity.RegistrationCompleted)
 	} else {
-		require.Equal(s.T(), 401, rw.Code)
+		require.Equal(s.T(), 401, returnedCode)
 	}
 
 }
@@ -226,8 +221,9 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 	oauthCodeRedirectURL := "http://auth.openshift.io/authorize/callback"
 	oauthConfig.RedirectURL = oauthCodeRedirectURL
 	redirectedTo, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, &redirectURL,
-		&apiClient, &state, nil, nil, "", "")
-	require.Nil(s.T(), err)
+		&apiClient, &state, nil, nil, "", oauthCodeRedirectURL)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), redirectedTo)
 
 	// Ensure you get a redirect with a 'state'
 	require.Contains(s.T(), *redirectedTo, s.Configuration.GetOAuthProviderEndpointAuth())
@@ -246,7 +242,7 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 	// ############
 
 	reqToOauthServer, err := http.NewRequest("GET", *redirectedTo, nil)
-	reqToOauthServer.Header.Add("referrer", "http://notimportant")
+	reqToOauthServer.Header.Add("referer", "http://notimportant")
 	reqToOauthServer.Header.Add("Accept-Encoding", "identity")
 
 	if err != nil {
@@ -299,7 +295,6 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 
 		checkIfTokenMatchesIdentity(s.T(), authToken.AccessToken, *s.identity)
 	} else {
-		require.Error(s.T(), err)
 		require.Nil(s.T(), authToken)
 	}
 }
@@ -320,6 +315,26 @@ func (s *serviceLoginBlackBoxTest) createNewLoginContext(path string, prms url.V
 	ctx := testtoken.ContextWithTokenManager()
 	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	loginCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
+	require.NoError(s.T(), err)
+	return loginCtx, rw
+}
+
+func (s *serviceLoginBlackBoxTest) createLoginCallbackContext(path string, prms url.Values) (*app.CallbackLoginContext, *httptest.ResponseRecorder) {
+	rw := httptest.NewRecorder()
+	u := &url.URL{
+		Path: fmt.Sprintf(path),
+	}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		panic("invalid test " + err.Error()) // bug
+	}
+
+	refererUrl := "https://alm-url.example.org/path/oauth2/callback"
+	req.Header.Add("referer", refererUrl)
+
+	ctx := testtoken.ContextWithTokenManager()
+	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginCallbackContext"), rw, req, prms)
+	loginCtx, err := app.NewCallbackLoginContext(goaCtx, req, goa.New("LoginCallbackService"))
 	require.NoError(s.T(), err)
 	return loginCtx, rw
 }
@@ -417,7 +432,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 		if !s.alreadyLoggedIn {
 			// new user only if user is logging in for the first time.
 			// This bit comes handy to determine outcome of multiple logins by the same user
-			s.identity = s.Graph.CreateUser(s.Graph.ID(uuid.NewV4().String())).Identity()
+			s.identity = s.Graph.CreateUser(s.Graph.ID("username-" + uuid.NewV4().String())).Identity()
 			require.NotEmpty(s.T(), s.identity.Username)
 		}
 
@@ -459,7 +474,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 		rw.Write([]byte(tokenResponse))
 
 	} else if req.URL.Path == "/api/profile" {
-		require.NotEqual(s.T(), "bearer", req.Header.Get("authorization"))
+		require.NotEqual(s.T(), "Bearer", req.Header.Get("authorization"))
 		userResponse := provider.IdentityProviderResponse{
 			Username:   s.identity.Username,
 			Subject:    s.identity.ID.String(),
@@ -479,6 +494,7 @@ func (s *serviceLoginBlackBoxTest) serveOauthServer(rw http.ResponseWriter, req 
 
 		// This randomization is to test that even if RHD userinfo returns different profile data
 		// on every login, we wouldn't be updating that in the db - except on the first login.
+
 		if !s.alreadyLoggedIn {
 			userResponse.FamilyName = "FAMILY_NAME_OVERRIDE"
 			userResponse.GivenName = "GIVEN_NAME_OVERRIDE"
