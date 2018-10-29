@@ -65,7 +65,7 @@ type dummyLinkingProviderFactory interface {
 type dummyLinkingProviderFactoryImpl struct {
 	wrapper.BaseFactoryWrapper
 	config          *configuration.ConfigurationData
-	Token           string
+	token           string
 	loadProfileFail bool
 }
 
@@ -90,7 +90,7 @@ func (f *dummyLinkingProviderFactoryImpl) setConfig(config *configuration.Config
 }
 
 func (f *dummyLinkingProviderFactoryImpl) setToken(token string) {
-	f.Token = token
+	f.token = token
 }
 
 func (f *dummyLinkingProviderFactoryImpl) setLoadProfileFail(value bool) {
@@ -118,7 +118,7 @@ type DummyProvider struct {
 }
 
 func (p *DummyProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
-	return &oauth2.Token{AccessToken: p.factory.Token}, nil
+	return &oauth2.Token{AccessToken: p.factory.token}, nil
 }
 
 func (p *DummyProvider) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
