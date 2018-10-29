@@ -5,6 +5,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-auth/authentication/subscription"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
@@ -23,8 +24,10 @@ import (
 )
 
 const (
-	FACTORY_TYPE_LINKING_PROVIDER  = "factory.type.linking.provider"
-	FACTORY_TYPE_IDENTITY_PROVIDER = "factory.type.identity.provider"
+	FACTORY_TYPE_CLUSTER_CACHE       = "factory.type.cluster.cache"
+	FACTORY_TYPE_LINKING_PROVIDER    = "factory.type.linking.provider"
+	FACTORY_TYPE_IDENTITY_PROVIDER   = "factory.type.identity.provider"
+	FACTORY_TYPE_SUBSCRIPTION_LOADER = "factory.type.subscription.loader"
 )
 
 /*
@@ -52,6 +55,12 @@ type AuthenticationProviderService interface {
 	LoadReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error)
 	SaveReferrer(ctx context.Context, state string, referrer string,
 		responseMode *string, validReferrerURL string) error
+}
+
+type ClusterService interface {
+	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
+	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
+	Status(ctx context.Context) error
 }
 
 type InvitationService interface {
@@ -152,11 +161,6 @@ type WITService interface {
 	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
 }
 
-type ClusterService interface {
-	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
-	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
-}
-
 //Services creates instances of service layer objects
 type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
@@ -186,6 +190,10 @@ type Services interface {
 //
 //----------------------------------------------------------------------------------------------------------------------
 
+type ClusterCacheFactory interface {
+	NewClusterCache(ctx context.Context, options ...rest.HTTPClientOption) cluster.ClusterCache
+}
+
 type IdentityProviderFactory interface {
 	NewIdentityProvider(ctx context.Context, config provider.IdentityProviderConfiguration) provider.IdentityProvider
 }
@@ -194,7 +202,13 @@ type LinkingProviderFactory interface {
 	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, authURL string, forResource string) (provider.LinkingProvider, error)
 }
 
+type SubscriptionLoaderFactory interface {
+	NewSubscriptionLoader(ctx context.Context) subscription.SubscriptionLoader
+}
+
 type Factories interface {
+	ClusterCacheFactory() ClusterCacheFactory
 	IdentityProviderFactory() IdentityProviderFactory
 	LinkingProviderFactory() LinkingProviderFactory
+	SubscriptionLoaderFactory() SubscriptionLoaderFactory
 }

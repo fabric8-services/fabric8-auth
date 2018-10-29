@@ -5,6 +5,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/context"
 	providerfactory "github.com/fabric8-services/fabric8-auth/authentication/provider/factory"
+	subscriptionfactory "github.com/fabric8-services/fabric8-auth/authentication/subscription/factory"
+	clusterfactory "github.com/fabric8-services/fabric8-auth/cluster/factory"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 )
 
@@ -74,6 +76,28 @@ func (f *Manager) getContext() *context.ServiceContext {
 	return f.contextProducer()
 }
 
+func (f *Manager) ClusterCacheFactory() service.ClusterCacheFactory {
+	def := f.wrappers.GetWrapper(service.FACTORY_TYPE_CLUSTER_CACHE)
+
+	if def != nil {
+		// Create the wrapper first
+		w := def.GetConstructor()(f.getContext(), f.config)
+
+		// Initialize the wrapper
+		if def.GetInitializer() != nil {
+			def.GetInitializer()(w)
+		}
+
+		// Create the factory and set it in the wrapper
+		w.SetFactory(clusterfactory.NewClusterCacheFactory(w.ServiceContext(), w.Configuration()))
+
+		// Return the wrapper as the factory
+		return w.(service.ClusterCacheFactory)
+	}
+
+	return clusterfactory.NewClusterCacheFactory(f.getContext(), f.config)
+}
+
 func (f *Manager) IdentityProviderFactory() service.IdentityProviderFactory {
 	def := f.wrappers.GetWrapper(service.FACTORY_TYPE_IDENTITY_PROVIDER)
 
@@ -116,4 +140,26 @@ func (f *Manager) LinkingProviderFactory() service.LinkingProviderFactory {
 	}
 
 	return providerfactory.NewLinkingProviderFactory(f.getContext(), f.config)
+}
+
+func (f *Manager) SubscriptionLoaderFactory() service.SubscriptionLoaderFactory {
+	def := f.wrappers.GetWrapper(service.FACTORY_TYPE_SUBSCRIPTION_LOADER)
+
+	if def != nil {
+		// Create the wrapper first
+		w := def.GetConstructor()(f.getContext(), f.config)
+
+		// Initialize the wrapper
+		if def.GetInitializer() != nil {
+			def.GetInitializer()(w)
+		}
+
+		// Create the factory and set it in the wrapper
+		w.SetFactory(subscriptionfactory.NewSubscriptionLoaderFactory(w.ServiceContext(), w.Configuration()))
+
+		// Return the wrapper as the factory
+		return w.(service.SubscriptionLoaderFactory)
+	}
+
+	return subscriptionfactory.NewSubscriptionLoaderFactory(f.getContext(), f.config)
 }

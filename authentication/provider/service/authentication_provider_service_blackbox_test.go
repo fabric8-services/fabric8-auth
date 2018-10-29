@@ -43,8 +43,7 @@ import (
 
 type authenticationProviderServiceTestSuite struct {
 	gormtestsupport.DBTestSuite
-	oauth                  provider.IdentityProvider
-	osoSubscriptionManager *testsupport.DummyOSORegistrationApp
+	oauth provider.IdentityProvider
 }
 
 func TestAuthenticationProviderServiceBlackBox(t *testing.T) {
@@ -63,7 +62,7 @@ func (s *authenticationProviderServiceTestSuite) SetupSuite() {
 	claims := make(map[string]interface{})
 	claims["sub"] = uuid.NewV4().String()
 
-	s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
+	//s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
 	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(witServiceMock))
 }
@@ -107,6 +106,7 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserUnauthorized(
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
+	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(true))
 	_, _, err = s.Application.AuthenticationProviderService().GetExistingIdentityInfo(context.Background(), token)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
@@ -126,14 +126,20 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserRedirected() 
 	os.Setenv("AUTH_NOTAPPROVED_REDIRECT", "https://xyz.io")
 	s.resetConfiguration()
 
-	s.osoSubscriptionManager.Status = uuid.NewV4().String()
+	loader := testsupport.NewDummySubscriptionLoader()
+	loader.Status = uuid.NewV4().String()
+	loader.APIURL = "https://api.starter-us-east-2.openshift.com"
+
+	testsupport.ActivateDummySubscriptionLoaderFactory(s, loader)
+	testsupport.ActivateDummyClusterCacheFactory(s, testsupport.NewDummyClusterCache())
+
 	redirect, err := s.unapprovedUserRedirected()
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), "https://xyz.io?status="+s.osoSubscriptionManager.Status, *redirect)
+	require.Equal(s.T(), "https://xyz.io?status="+loader.Status, *redirect)
 
 	// If OSO subscription status loading failed we still should redirect
-	s.osoSubscriptionManager.Status = ""
-	s.osoSubscriptionManager.Err = autherrors.NewInternalError(context.Background(), errors.New(""))
+	loader.Status = ""
+	loader.Err = autherrors.NewInternalError(context.Background(), errors.New(""))
 	redirect, err = s.unapprovedUserRedirected()
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), "https://xyz.io?status=", *redirect)
@@ -900,9 +906,10 @@ func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationRedirectF
 func (s *authenticationProviderServiceTestSuite) TestValidOAuthAuthorizationCodeForAuthorize() {
 
 	_, callbackCtx := s.authorizeCallback("valid_code")
-	_, err := s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, callbackCtx.State, callbackCtx.Code)
+	_, err := s.Application.AuthenticationProviderService().AuthorizeCallback(callbackCtx, callbackCtx.State, callbackCtx.Code)
 	require.Nil(s.T(), err)
 
+	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(true))
 	userToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(callbackCtx, callbackCtx.Code)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), userToken)
