@@ -624,6 +624,9 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 
 	providerConfig, err := c.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentity, authURL, forResource)
 	if err != nil {
+		if val, _ := errors.IsUnauthorizedError(err); val {
+			return err
+		}
 		return errors.NewInternalError(ctx, err)
 	}
 
