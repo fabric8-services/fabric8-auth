@@ -628,7 +628,7 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 	}
 
 	// Delete from local DB
-	c.ExecuteInTransaction(func() error {
+	err = c.ExecuteInTransaction(func() error {
 		err := c.Repositories().Identities().CheckExists(ctx, currentIdentity.String())
 		if err != nil {
 			return errors.NewUnauthorizedError(err.Error())
@@ -648,6 +648,9 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 		return nil
 	})
 	if err != nil {
+		if val, _ := errors.IsUnauthorizedError(err); val {
+			return err
+		}
 		return errors.NewInternalError(ctx, err)
 	}
 	return nil

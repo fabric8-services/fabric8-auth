@@ -121,7 +121,7 @@ func (s *TokenStorageTestSuite) checkRetrieveOSOServiceAccountTokenValidOnForceP
 		Username: saName,
 	}
 
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String())
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), false)
 	service, controller := s.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 
 	clusters, err := s.clusterServiceMock.Clusters(nil)
@@ -150,7 +150,7 @@ func (s *TokenStorageTestSuite) checkRetrieveOSOServiceAccountTokenInvalidOnForc
 	sa := account.Identity{
 		Username: saName,
 	}
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String())
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), true)
 	service, controller := s.SecuredControllerWithServiceAccountAndDummyProviderFactory(sa)
 	forcePull := true
 	clusters, err := s.clusterServiceMock.Clusters(nil)
@@ -378,7 +378,7 @@ func (s *TokenStorageTestSuite) TestRetrieveExternalTokenInvalidOnForcePullInter
 func (s *TokenStorageTestSuite) checkRetrieveExternalTokenInvalidOnForcePullInternalError(identity account.Identity, for_, providerName string) {
 	// Token status is OK, but when tested with provider it's invalid.
 	forcePull := true
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String())
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), true)
 	service, controller := s.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(s.T(), service.Context, service, controller, for_, nil)
 	rw, _ := test.RetrieveTokenUnauthorized(s.T(), service.Context, service, controller, for_, &forcePull)
@@ -423,7 +423,7 @@ func (s *TokenStorageTestSuite) checkRetrieveExternalTokenValidOnForcePullIntern
 
 	// Token retrieved from database is successful and when tested with github it's valid.
 	forcePull := true
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String())
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), false)
 	service, controller = s.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(s.T(), service.Context, service, controller, for_, &forcePull)
 }
@@ -525,12 +525,12 @@ func (s *TokenStorageTestSuite) TestStatusExternalTokenInvalidOnForcePullInterna
 func (s *TokenStorageTestSuite) checkStatusExternalTokenInvalidOnForcePullInternalError(identity account.Identity, for_, providerName string) {
 	// Token status is OK, but when tested with provider it's invalid.
 	forcePull := true
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String())
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), true)
 	service, controller := s.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	test.RetrieveTokenOK(s.T(), service.Context, service, controller, for_, nil)
 	rw, _ := test.StatusTokenUnauthorized(s.T(), service.Context, service, controller, for_, &forcePull)
-	assert.Equal(s.T(), fmt.Sprintf("LINK url=http:///api/token/link?for=%s, description=\"%s token is not valid or expired. Relink %s account\"", for_, providerName, providerName), rw.Header().Get("WWW-Authenticate"))
-	assert.Contains(s.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
+	require.Equal(s.T(), fmt.Sprintf("LINK url=http:///api/token/link?for=%s, description=\"%s token is not valid or expired. Relink %s account\"", for_, providerName, providerName), rw.Header().Get("WWW-Authenticate"))
+	require.Contains(s.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 
 // This test demonstrates that the token status works successfully without the ForcePull option
@@ -568,7 +568,7 @@ func (s *TokenStorageTestSuite) checkStatusExternalTokenValidOnForcePullInternal
 
 	// Token status is OK and when tested with provider it's valid.
 	forcePull := true
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String())
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), false)
 	service, controller = s.SecuredControllerWithIdentityAndDummyProviderFactory(identity)
 	_, tokenStatus := test.StatusTokenOK(s.T(), service.Context, service, controller, for_, &forcePull)
 	s.assertTokenStatus(expectedToken.Username, expectedProviderURL, tokenStatus)
