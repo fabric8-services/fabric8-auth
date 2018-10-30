@@ -537,7 +537,7 @@ func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Servic
 	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 
-func (s *TokenControllerTestSuite) getDummyOauthIDPService(forApprovedUser bool) (*dummyIDPOauthService, account.Identity) {
+func (s *TokenControllerTestSuite) getDummyOauthIDPService(forApprovedUser bool) (*dummyIDPOAuthService, account.Identity) {
 	g := s.NewTestGraph(s.T())
 	user := g.CreateUser()
 	identity := user.Identity()
@@ -555,7 +555,7 @@ func (s *TokenControllerTestSuite) getDummyOauthIDPService(forApprovedUser bool)
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauth := &dummyIDPOauthService{
+	dummyOauth := &dummyIDPOAuthService{
 		IdentityProvider: provider.NewIdentityProvider(s.Configuration),
 		accessToken:      accessToken,
 		refreshToken:     refreshToken,
@@ -569,13 +569,13 @@ type dummyIDPOauth interface {
 	Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error)
 }
 
-type dummyIDPOauthService struct {
+type dummyIDPOAuthService struct {
 	provider.IdentityProvider
 	accessToken  string
 	refreshToken string
 }
 
-func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+func (c *dummyIDPOAuthService) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 
@@ -593,7 +593,7 @@ func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*o
 	return token, nil
 }
 
-func (c *dummyIDPOauthService) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
+func (c *dummyIDPOAuthService) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
 	jwt, _ := testtoken.TokenManager.ParseToken(ctx, jwtToken.AccessToken)
 	return &provider.UserProfile{
 		Company:    jwt.Company,

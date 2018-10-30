@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"testing"
+
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
@@ -42,9 +43,9 @@ func TestEncodeTokenOK(t *testing.T) {
 		"refresh_expires_in": refreshExpiresIn,
 		"not_before_policy":  nbf,
 	}
-	tokenJson, err := TokenToJson(context.Background(), outhToken.WithExtra(extra))
+	tokenJSON, err := TokenToJSON(context.Background(), outhToken.WithExtra(extra))
 	assert.Nil(t, err)
-	b := []byte(tokenJson)
+	b := []byte(tokenJSON)
 	tokenData := &manager.TokenSet{}
 	err = json.Unmarshal(b, tokenData)
 	assert.Nil(t, err)

@@ -465,7 +465,7 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	require.Contains(s.T(), *redirectUrl, refererUrl)
 }
 
-func (s *authenticationProviderServiceTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOauthService {
+func (s *authenticationProviderServiceTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOAuthProvider {
 	g := s.NewTestGraph(s.T())
 	newIdentity := g.CreateUser().Identity()
 	claims := make(map[string]interface{})
@@ -481,7 +481,7 @@ func (s *authenticationProviderServiceTestSuite) getDummyOauthIDPService(forAppr
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauth := &dummyIDPOauthService{
+	dummyOauth := &dummyIDPOAuthProvider{
 		IdentityProvider: provider.NewIdentityProvider(s.Configuration),
 		accessToken:      accessToken,
 		refreshToken:     refreshToken,
@@ -517,13 +517,13 @@ type dummyIDPOauth interface {
 	Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error)
 }
 
-type dummyIDPOauthService struct {
+type dummyIDPOAuthProvider struct {
 	provider.IdentityProvider
 	accessToken  string
 	refreshToken string
 }
 
-func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+func (c *dummyIDPOAuthProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 
@@ -541,7 +541,7 @@ func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*o
 	return token, nil
 }
 
-func (c *dummyIDPOauthService) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
+func (c *dummyIDPOAuthProvider) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
 	jwt, _ := testtoken.TokenManager.ParseToken(ctx, jwtToken.AccessToken)
 	return &provider.UserProfile{
 		Company:    jwt.Company,
@@ -558,8 +558,8 @@ func (s *authenticationProviderServiceTestSuite) checkAPIClientForUsersReturnOK(
 	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
 
-	dummyIDPOauthServiceRef := s.getDummyOauthIDPService(false)
-	s.checkLoginCallback(dummyIDPOauthServiceRef, rw, authorizeCtx, "api_token")
+	dummyIDPOAuthProviderRef := s.getDummyOauthIDPService(false)
+	s.checkLoginCallback(dummyIDPOAuthProviderRef, rw, authorizeCtx, "api_token")
 }
 
 func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnauthorized() {
@@ -577,7 +577,7 @@ func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnaut
 	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	testsupport.ActivateDummyIdentityProviderFactory(s, &dummyIDPOauthService{
+	testsupport.ActivateDummyIdentityProviderFactory(s, &dummyIDPOAuthProvider{
 		IdentityProvider: s.Application.AuthenticationProviderService().(servicecontext.ServiceContext).Factories().
 			IdentityProviderFactory().NewIdentityProvider(s.Ctx, s.Configuration),
 		accessToken: accessToken,
@@ -605,7 +605,7 @@ func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyIDPConfigRef := &dummyIDPOauthService{
+	dummyIDPConfigRef := &dummyIDPOAuthProvider{
 		IdentityProvider: provider.NewIdentityProvider(s.Configuration),
 		accessToken:      accessToken,
 		refreshToken:     refreshToken,
@@ -809,7 +809,7 @@ func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[s
 	return rw, loginCallbackCtx
 }
 
-func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOauthService, rw *httptest.ResponseRecorder, callbackCtx *app.CallbackLoginContext, tokenParam string) {
+func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOAuthProvider, rw *httptest.ResponseRecorder, callbackCtx *app.CallbackLoginContext, tokenParam string) {
 
 	testsupport.ActivateDummyIdentityProviderFactory(s, dummyOauth)
 	redirectUrl, err := s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code)

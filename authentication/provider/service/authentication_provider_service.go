@@ -526,7 +526,7 @@ func (s *authenticationProviderServiceImpl) reclaimReferrerAndResponseMode(ctx c
 
 // encodeToken
 func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token, apiClient string) error {
-	tokenJSON, err := TokenToJson(ctx, outhToken)
+	tokenJSON, err := TokenToJSON(ctx, outhToken)
 
 	if err != nil {
 		return err
@@ -541,8 +541,8 @@ func encodeToken(ctx context.Context, referrer *url.URL, outhToken *oauth2.Token
 	return nil
 }
 
-// TokenToJson marshals an oauth2 token to a json string
-func TokenToJson(ctx context.Context, outhToken *oauth2.Token) (string, error) {
+// TokenToJSON marshals an oauth2 token to a json string
+func TokenToJSON(ctx context.Context, outhToken *oauth2.Token) (string, error) {
 	str := outhToken.Extra("expires_in")
 	var expiresIn interface{}
 	var refreshExpiresIn interface{}
