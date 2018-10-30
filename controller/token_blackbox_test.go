@@ -342,9 +342,31 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeOK() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectRefreshTokenOK() {
 	// given
-	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), testsupport.TestIdentity)
+	provider, _ := s.getDummyOAuthIDPProvider(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
+
+	tm := testtoken.TokenManager
+
+	ctx := testtoken.ContextWithRequest(context.Background())
+	// Create a user
+	user := s.Graph.CreateUser()
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+	require.NoError(s.T(), err)
+	ctx = manager.ContextWithTokenManager(ctx, tm)
+	accessToken, err := tm.Parse(ctx, at.AccessToken)
+	require.NoError(s.T(), err)
+
 	svc, ctrl, _ := s.SecuredController()
-	s.checkExchangeWithRefreshToken(svc, ctrl, ctrl.Configuration.GetPublicOAuthClientID(), "SOME_REFRESH_TOKEN", expectedAccessToken, expectedRefreshToken)
+
+	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOAuthClientID(), RefreshToken: &accessToken.Raw})
+	require.NotNil(s.T(), token.TokenType)
+	require.Equal(s.T(), "Bearer", *token.TokenType)
+	require.NotNil(s.T(), token.AccessToken)
+	require.NotNil(s.T(), token.RefreshToken)
+	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
+	require.Nil(s.T(), err)
+	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 
 func (s *TokenControllerTestSuite) TestTokenAuditOK() {
@@ -522,20 +544,6 @@ func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl
 	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), expectedAccessToken, *token.AccessToken))
 	require.NotNil(s.T(), token.RefreshToken)
 	assert.NoError(s.T(), testtoken.EqualRefreshTokens(context.Background(), expectedRefreshToken, *token.RefreshToken))
-	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
-	require.Nil(s.T(), err)
-	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
-}
-
-func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Service, ctrl *TokenController, name string, refreshToken string, expectedAccessToken, expectedRefreshToken string) {
-	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOAuthClientID(), RefreshToken: &refreshToken})
-
-	require.NotNil(s.T(), token.TokenType)
-	require.Equal(s.T(), "Bearer", *token.TokenType)
-	require.NotNil(s.T(), token.AccessToken)
-	require.Equal(s.T(), expectedAccessToken, *token.AccessToken)
-	require.NotNil(s.T(), token.RefreshToken)
-	require.Equal(s.T(), expectedRefreshToken, *token.RefreshToken)
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(s.T(), err)
 	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
