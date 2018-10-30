@@ -610,7 +610,7 @@ func (c *dummyIDPOAuthProvider) Profile(ctx context.Context, jwtToken oauth2.Tok
 	return &provider.UserProfile{
 		Company:    jwt.Company,
 		Subject:    jwt.Subject,
-		GivenName:  "Test",
+		GivenName:  "Test", // will override the user's full_name in the database when updating from the access token
 		FamilyName: "User",
 		Username:   jwt.Username,
 		Email:      jwt.Email,
@@ -645,6 +645,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUser
 
 func newOAuthMockService(t *testing.T, identity account.Identity) (service.AuthenticationProviderService, string, string) {
 	authProviderService := testservice.NewAuthenticationProviderServiceMock(t)
+	identity.User.FullName = "Test User" // origin 'fullname' will be updated by the token returned by the dummyIDPOAuthProvider.Profile function call
 	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 	require.Nil(t, err)
 	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string) (*oauth2.Token, error) {
