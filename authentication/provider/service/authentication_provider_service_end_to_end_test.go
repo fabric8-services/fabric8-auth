@@ -18,6 +18,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/client"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
+	errs "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -180,7 +182,8 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 		checkIfTokenMatchesIdentity(s.T(), *returnedToken.AccessToken, *updatedIdentity)
 		require.True(s.T(), s.identity.RegistrationCompleted)
 	} else {
-		require.Equal(s.T(), 401, returnedCode)
+		require.Error(s.T(), err)
+		require.IsType(s.T(), autherrors.UnauthorizedError{}, errs.Cause(err))
 	}
 
 }
