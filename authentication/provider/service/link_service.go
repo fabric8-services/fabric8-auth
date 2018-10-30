@@ -25,11 +25,12 @@ const (
 	nextParam       = "link_next"
 )
 
+// LinkServiceConfiguration the LinkService configuration
 type LinkServiceConfiguration interface {
 	GetValidRedirectURLs() string
 }
 
-// NewLinkServiceWithFactory creates a new service for linking accounts using a specific provider factory
+// NewLinkService creates a new service for linking accounts
 func NewLinkService(context servicecontext.ServiceContext, config LinkServiceConfiguration) service.LinkService {
 	return &linkServiceImpl{
 		BaseService: base.NewBaseService(context),

@@ -37,7 +37,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -512,7 +511,7 @@ func (s *authenticationProviderServiceTestSuite) TestAPIClientForUnapprovedUsers
 }
 
 type dummyIDPOauth interface {
-	Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error)
+	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
 	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
 	Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error)
 }
@@ -523,7 +522,7 @@ type dummyIDPOauthService struct {
 	refreshToken string
 }
 
-func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+func (c *dummyIDPOauthService) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 
@@ -843,7 +842,7 @@ type dummyOauth2Config struct {
 
 const thirtyDays = 60 * 60 * 24 * 30
 
-func (c *dummyOauth2Config) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+func (c *dummyOauth2Config) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	token := &oauth2.Token{
 		TokenType:    "Bearer",

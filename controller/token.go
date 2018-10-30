@@ -1,10 +1,11 @@
 package controller
 
 import (
-	"github.com/fabric8-services/fabric8-auth/configuration"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/fabric8-services/fabric8-auth/configuration"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -186,7 +187,6 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		if payload.Code == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("code", "nil").Expected("authorization code"))
 		}
-
 		redirectURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil))
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -195,9 +195,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			}, "failed to parse referrer")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
-
-		c.app.AuthenticationProviderService().ExchangeAuthorizationCodeForUserToken(ctx, *payload.Code, payload.ClientID, redirectURL)
-
+		notApprovedRedirect, token, err = c.app.AuthenticationProviderService().ExchangeAuthorizationCodeForUserToken(ctx, *payload.Code, payload.ClientID, redirectURL)
 		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 
 	case "refresh_token":

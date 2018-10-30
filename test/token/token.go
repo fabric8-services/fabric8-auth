@@ -111,6 +111,7 @@ func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
+	l
 	return tokenStr, nil
 }
 

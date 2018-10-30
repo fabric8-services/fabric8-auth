@@ -2,14 +2,14 @@ package controller_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -17,6 +17,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	providerrepo "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
@@ -34,6 +36,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -242,14 +245,25 @@ func (s *TokenControllerTestSuite) TestLinkOK() {
 
 func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	// given
+	identityID := uuid.NewV4()
+	responseMode := "fragment"
+	referrer := fmt.Sprintf("http://foo.com?identity_id=%s&for=github", identityID.String())
+	state := providerrepo.OauthStateReference{
+		State:        "foo",
+		Referrer:     referrer,
+		ResponseMode: &responseMode,
+	}
+	s.Application.OauthStates().Create(context.Background(), &state)
+	token := uuid.NewV4().String()
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false)
 	svc, ctrl, _ := s.SecuredController()
 	// when
-	response := test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "")
+	response := test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "foo")
 	// then
 	require.NotNil(s.T(), response)
 	location := response.Header()["Location"]
 	require.Equal(s.T(), 1, len(location))
-	require.Equal(s.T(), "originalLocation", location[0])
+	require.Equal(s.T(), referrer, location[0])
 }
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithIncompletePayload() {
@@ -315,7 +329,9 @@ func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeOK() {
 	// given
-	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), testsupport.TestIdentity)
+	provider, identity := s.getDummyOauthIDPService(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
+	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), identity)
 	svc, ctrl, _ := s.SecuredController()
 	s.checkAuthorizationCode(svc, ctrl, ctrl.Configuration.GetPublicOAuthClientID(), "SOME_OAUTH2.0_CODE", expectedAccessToken, expectedRefreshToken)
 }
@@ -495,7 +511,6 @@ func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, i
 
 func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl *TokenController, name string, code string, expectedAccessToken string, expectedRefreshToken string) {
 	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
-
 	require.NotNil(s.T(), token)
 	require.NotNil(s.T(), token.TokenType)
 	require.Equal(s.T(), "Bearer", *token.TokenType)
@@ -520,6 +535,74 @@ func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Servic
 	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
 	require.Nil(s.T(), err)
 	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+}
+
+func (s *TokenControllerTestSuite) getDummyOauthIDPService(forApprovedUser bool) (*dummyIDPOauthService, account.Identity) {
+	g := s.NewTestGraph(s.T())
+	user := g.CreateUser()
+	identity := user.Identity()
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	claims["name"] = user.User().FullName
+	if forApprovedUser {
+		claims["preferred_username"] = identity.Username
+		claims["email"] = identity.User.Email
+		claims["company"] = identity.User.Company
+	}
+	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	dummyOauth := &dummyIDPOauthService{
+		IdentityProvider: provider.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
+		refreshToken:     refreshToken,
+	}
+	return dummyOauth, *identity
+}
+
+type dummyIDPOauth interface {
+	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
+	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
+	Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error)
+}
+
+type dummyIDPOauthService struct {
+	provider.IdentityProvider
+	accessToken  string
+	refreshToken string
+}
+
+func (c *dummyIDPOauthService) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+	var thirtyDays, nbf int64
+	thirtyDays = 60 * 60 * 24 * 30
+
+	token := &oauth2.Token{
+		TokenType:    "Bearer",
+		AccessToken:  c.accessToken,
+		RefreshToken: c.refreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	extra := make(map[string]interface{})
+	extra["expires_in"] = time.Now().Unix() + thirtyDays
+	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
+	extra["not_before_policy"] = nbf
+	token = token.WithExtra(extra)
+	return token, nil
+}
+
+func (c *dummyIDPOauthService) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
+	jwt, _ := testtoken.TokenManager.ParseToken(ctx, jwtToken.AccessToken)
+	return &provider.UserProfile{
+		Company:    jwt.Company,
+		Subject:    jwt.Subject,
+		GivenName:  "Test",
+		FamilyName: "User",
+		Username:   jwt.Username,
+		Email:      jwt.Email,
+	}, nil
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
