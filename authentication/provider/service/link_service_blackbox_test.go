@@ -3,12 +3,13 @@ package service_test
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
@@ -164,7 +165,7 @@ func (s *LinkTestSuite) TestProviderSavesTokenOK() {
 	state := s.stateParam(location)
 
 	token := uuid.NewV4().String()
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false)
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false, "")
 
 	code := uuid.NewV4().String()
 	callbackLocation, err := s.Application.LinkService().Callback(context.Background(), s.requestData, state, code)
@@ -180,7 +181,7 @@ func (s *LinkTestSuite) TestProviderSavesTokenWithUnavailableProfileFails() {
 	state := s.stateParam(location)
 
 	code := uuid.NewV4().String()
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), true)
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), true, "")
 	_, err = s.Application.LinkService().Callback(context.Background(), s.requestData, state, code)
 	require.NotNil(s.T(), err)
 	require.Contains(s.T(), err.Error(), "unable to load profile")
@@ -228,7 +229,7 @@ func (s *LinkTestSuite) TestProviderSavesTokensForMultipleAliases() {
 
 func (s *LinkTestSuite) checkCallback(providerID string, state string, expectedURL url.URL) string {
 	token := uuid.NewV4().String()
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false)
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false, "")
 	callbackLocation, err := s.Application.LinkService().Callback(context.Background(), s.requestData, state, uuid.NewV4().String())
 	require.Nil(s.T(), err)
 	locationURL, err := url.Parse(callbackLocation)
