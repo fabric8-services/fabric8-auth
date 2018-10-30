@@ -233,6 +233,8 @@ func (s *TokenControllerTestSuite) TestLinkOK() {
 	// given
 	svc, ctrl, _ := s.SecuredController()
 	redirect := "https://openshift.io"
+
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), false, "providerLocation")
 	_, redirectLocation := test.LinkTokenOK(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", &redirect)
 	require.NotNil(s.T(), redirectLocation)
 	require.Equal(s.T(), "providerLocation", redirectLocation.RedirectLocation)
@@ -255,7 +257,7 @@ func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	}
 	s.Application.OauthStates().Create(context.Background(), &state)
 	token := uuid.NewV4().String()
-	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false)
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false, "")
 	svc, ctrl, _ := s.SecuredController()
 	// when
 	response := test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "foo")

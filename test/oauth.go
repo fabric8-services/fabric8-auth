@@ -65,6 +65,7 @@ type dummyLinkingProviderFactory interface {
 	setConfig(config *configuration.ConfigurationData)
 	setToken(token string)
 	setLoadProfileFail(value bool)
+	setAuthCodeURL(url string)
 }
 
 type dummyLinkingProviderFactoryImpl struct {
@@ -72,14 +73,16 @@ type dummyLinkingProviderFactoryImpl struct {
 	config          *configuration.ConfigurationData
 	token           string
 	loadProfileFail bool
+	authCodeURL     string
 }
 
 // verify that dummyLinkingProviderFactoryImpl implements all required interfaces
 var _ dummyLinkingProviderFactory = &dummyLinkingProviderFactoryImpl{}
 var _ svc.LinkingProviderFactory = &dummyLinkingProviderFactoryImpl{}
 
+// TODO this is getting a little out of hand, look into other ways to initialize the factory
 // ActivateDummyLinkingProviderFactory can be used to create a mock linking provider factory
-func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string, loadProfileFail bool) {
+func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuration.ConfigurationData, token string, loadProfileFail bool, authCodeURL string) {
 	w.WrapFactory(svc.FACTORY_TYPE_LINKING_PROVIDER,
 		func(ctx servicecontext.ServiceContext, config *configuration.ConfigurationData) wrapper.FactoryWrapper {
 			baseFactoryWrapper := wrapper.NewBaseFactoryWrapper(ctx, config)
@@ -91,6 +94,7 @@ func ActivateDummyLinkingProviderFactory(w wrapper.Wrapper, config *configuratio
 			w.(dummyLinkingProviderFactory).setConfig(config)
 			w.(dummyLinkingProviderFactory).setToken(token)
 			w.(dummyLinkingProviderFactory).setLoadProfileFail(loadProfileFail)
+			w.(dummyLinkingProviderFactory).setAuthCodeURL(authCodeURL)
 		})
 }
 
@@ -104,6 +108,10 @@ func (f *dummyLinkingProviderFactoryImpl) setToken(token string) {
 
 func (f *dummyLinkingProviderFactoryImpl) setLoadProfileFail(value bool) {
 	f.loadProfileFail = value
+}
+
+func (f *dummyLinkingProviderFactoryImpl) setAuthCodeURL(url string) {
+	f.authCodeURL = url
 }
 
 func (f *dummyLinkingProviderFactoryImpl) Configuration() *configuration.ConfigurationData {
@@ -131,6 +139,9 @@ func (p *DummyLinkingProvider) Exchange(ctx netcontext.Context, code string) (*o
 }
 
 func (p *DummyLinkingProvider) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
+	if p.factory.authCodeURL != "" {
+		return p.factory.authCodeURL
+	}
 	return p.linkingProvider.AuthCodeURL(state)
 }
 
