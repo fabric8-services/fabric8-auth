@@ -311,6 +311,8 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
+	provider, _ := s.getDummyOAuthIDPProvider(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
 	svc, ctrl, _ := s.SecuredController()
 	someRandomString := "someString"
 	clientID := "someString"

@@ -198,6 +198,10 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 		notApprovedRedirect, token, err = c.app.AuthenticationProviderService().ExchangeAuthorizationCodeForUserToken(ctx, *payload.Code, payload.ClientID, redirectURL)
 		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 
+		if err != nil {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+
 	case "refresh_token":
 		token, err = c.exchangeWithGrantTypeRefreshToken(ctx)
 	default:
