@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -41,13 +40,11 @@ func TestServiceLoginBlackboxTest(t *testing.T) {
 type serviceLoginBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
 	//configuration      *configuration.ConfigurationData
-	IDPServer          *httptest.Server
-	WITServer          *httptest.Server
-	witIdentityIDCache []string
-	state              string
-	approved           bool
-	identity           *account.Identity
-	alreadyLoggedIn    bool
+	IDPServer       *httptest.Server
+	state           string
+	approved        bool
+	identity        *account.Identity
+	alreadyLoggedIn bool
 }
 
 func (s *serviceLoginBlackBoxTest) SetupSuite() {
@@ -59,18 +56,12 @@ func (s *serviceLoginBlackBoxTest) SetupSuite() {
 	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_AUTH", idpServerURL+"code")
 	os.Setenv("AUTH_OAUTH_PROVIDER_ENDPOINT_TOKEN", idpServerURL+"token")
 
-	s.WITServer = s.createMockHTTPServer(s.serveWITServer)
-	witServerURL := "http://" + s.WITServer.Listener.Addr().String()
-	os.Setenv("AUTH_WIT_URL", witServerURL)
-
 	s.DBTestSuite.SetupSuite()
 }
 
 func (s *serviceLoginBlackBoxTest) TearDownSuite() {
 	s.IDPServer.CloseClientConnections()
 	s.IDPServer.Close()
-	s.WITServer.CloseClientConnections()
-	s.WITServer.Close()
 	os.Unsetenv("AUTH_AUTH_PROVIDER_ENDPOINT_AUTH")
 	os.Unsetenv("AUTH_AUTH_PROVIDER_ENDPOINT_TOKEN")
 	os.Unsetenv("AUTH_AUTH_PROVIDER_ENDPOINT_USERINFO")
@@ -513,10 +504,4 @@ func (s *serviceLoginBlackBoxTest) createMockHTTPServer(handle func(http.Respons
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handle)
 	return httptest.NewServer(mux)
-}
-func (s *serviceLoginBlackBoxTest) serveWITServer(rw http.ResponseWriter, req *http.Request) {
-	// keep an eye on calls going to POST /api/users/:identityID
-	if strings.Contains(req.URL.Path, "users") && req.Method == "POST" {
-		s.witIdentityIDCache = append(s.witIdentityIDCache, strings.Split(req.URL.Path, "/users/")[1])
-	}
 }

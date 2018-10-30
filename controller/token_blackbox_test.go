@@ -610,9 +610,6 @@ func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string) (*o
 	return token, nil
 }
 
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string) (*account.Identity, bool, error) {
-	return nil, false, errors.NewUnauthorizedError("user is absent")
-}
 func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token) (*string, *oauth2.Token, error) {
 
 	/* This mocked method simulates the contract
