@@ -2,6 +2,7 @@ package gormtestsupport
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 
@@ -33,14 +34,15 @@ func NewDBTestSuite() DBTestSuite {
 // DBTestSuite is a base for tests using a gorm db
 type DBTestSuite struct {
 	suite.Suite
-	Configuration *config.ConfigurationData
-	DB            *gorm.DB
-	Application   application.Application
-	CleanTest     func()
-	CleanSuite    func()
-	Ctx           context.Context
-	Graph         *graph.TestGraph
-	Wrappers      factorymanager.FactoryWrappers
+	Configuration   *config.ConfigurationData
+	DB              *gorm.DB
+	Application     application.Application
+	CleanTest       func()
+	CleanSuite      func()
+	Ctx             context.Context
+	Graph           *graph.TestGraph
+	Wrappers        factorymanager.FactoryWrappers
+	savedConfigVars map[string]string
 }
 
 // SetupSuite implements suite.SetupAllSuite
@@ -69,6 +71,27 @@ func (s *DBTestSuite) SetupSuite() {
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
 	s.CleanSuite = cleaner.DeleteCreatedEntities(s.DB)
+	s.savedConfigVars = make(map[string]string)
+}
+
+// OverrideConfig allows the temporary overriding of a configuration value for the duration of a single test
+func (s *DBTestSuite) OverrideConfig(envVar string, value string) {
+	s.savedConfigVars[envVar] = os.Getenv(envVar)
+
+	os.Setenv(envVar, value)
+
+	config, err := config.GetConfigurationData()
+	require.NoError(s.T(), err)
+	s.Configuration = config
+}
+
+func (s *DBTestSuite) resetConfig() {
+	for k, v := range s.savedConfigVars {
+		os.Setenv(k, v)
+	}
+	config, err := config.GetConfigurationData()
+	require.NoError(s.T(), err)
+	s.Configuration = config
 }
 
 // SetupTest implements suite.SetupTest
@@ -88,6 +111,7 @@ func (s *DBTestSuite) TearDownTest() {
 		s.CleanTest()
 	}
 	s.Graph = nil
+	s.resetConfig()
 }
 
 // PopulateDBTestSuite populates the DB with common values

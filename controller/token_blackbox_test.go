@@ -329,7 +329,7 @@ func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeOK() {
 	// given
-	provider, identity := s.getDummyOauthIDPService(true)
+	provider, identity := s.getDummyOAuthIDPProvider(true)
 	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
 	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), identity)
 	svc, ctrl, _ := s.SecuredController()
@@ -537,7 +537,7 @@ func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Servic
 	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 
-func (s *TokenControllerTestSuite) getDummyOauthIDPService(forApprovedUser bool) (*dummyIDPOAuthService, account.Identity) {
+func (s *TokenControllerTestSuite) getDummyOAuthIDPProvider(forApprovedUser bool) (*dummyIDPOAuthProvider, account.Identity) {
 	g := s.NewTestGraph(s.T())
 	user := g.CreateUser()
 	identity := user.Identity()
@@ -555,7 +555,7 @@ func (s *TokenControllerTestSuite) getDummyOauthIDPService(forApprovedUser bool)
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauth := &dummyIDPOAuthService{
+	dummyOauth := &dummyIDPOAuthProvider{
 		IdentityProvider: provider.NewIdentityProvider(s.Configuration),
 		accessToken:      accessToken,
 		refreshToken:     refreshToken,
@@ -569,13 +569,13 @@ type dummyIDPOauth interface {
 	Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error)
 }
 
-type dummyIDPOAuthService struct {
+type dummyIDPOAuthProvider struct {
 	provider.IdentityProvider
 	accessToken  string
 	refreshToken string
 }
 
-func (c *dummyIDPOAuthService) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+func (c *dummyIDPOAuthProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
 	var thirtyDays, nbf int64
 	thirtyDays = 60 * 60 * 24 * 30
 
@@ -593,7 +593,7 @@ func (c *dummyIDPOAuthService) Exchange(ctx netcontext.Context, code string) (*o
 	return token, nil
 }
 
-func (c *dummyIDPOAuthService) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
+func (c *dummyIDPOAuthProvider) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
 	jwt, _ := testtoken.TokenManager.ParseToken(ctx, jwtToken.AccessToken)
 	return &provider.UserProfile{
 		Company:    jwt.Company,
@@ -606,35 +606,29 @@ func (c *dummyIDPOAuthService) Profile(ctx context.Context, jwtToken oauth2.Toke
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
+	s.OverrideConfig("AUTH_NOTAPPROVED_REDIRECT", "http://not-approved")
 	// setup the service and ctrl for this specific usecase
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
 	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	oauthService := &NotApprovedOAuthService{}
+
 	ctrl := NewTokenController(svc, s.Application, tokenManager, s.Configuration)
+
+	provider, _ := s.getDummyOAuthIDPProvider(false)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
 
 	code := "XYZ"
 	_, errResp := test.ExchangeTokenForbidden(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 	require.Equal(s.T(), "user is not authorized to access OpenShift", errResp.Errors[0].Detail)
 
-	oauthService = &NotApprovedOAuthService{}
-	oauthService.Scenario = "approved"
+	provider, _ = s.getDummyOAuthIDPProvider(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
+
 	ctrl = NewTokenController(svc, s.Application, tokenManager, s.Configuration)
 
 	code = "XYZ"
 	_, returnedToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 	require.NotNil(s.T(), returnedToken.AccessToken)
-}
-
-type DummyLinkService struct {
-}
-
-func (s *DummyLinkService) ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error) {
-	return "providerLocation", nil
-}
-
-func (s *DummyLinkService) Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error) {
-	return "originalLocation", nil
 }
 
 func newOAuthMockService(t *testing.T, identity account.Identity) (service.AuthenticationProviderService, string, string) {
@@ -676,39 +670,4 @@ func newOAuthMockService(t *testing.T, identity account.Identity) (service.Authe
 		return nil, token, nil
 	}
 	return authProviderService, tokenSet.AccessToken, tokenSet.RefreshToken
-}
-
-type NotApprovedOAuthService struct {
-	service.AuthenticationProviderService
-	Scenario string
-}
-
-func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
-	bearer := "Bearer"
-	token := &oauth2.Token{
-		TokenType:    bearer,
-		AccessToken:  "sometoken",
-		RefreshToken: "sometoken",
-	}
-	return token, nil
-}
-
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token) (*string, *oauth2.Token, error) {
-
-	/* This mocked method simulates the contract
-	where redir url is always returned, but token is returned when there is not error
-	*/
-
-	redirURLNotApproved := "http://not-approved"
-	redirURLApproved := "http://approved"
-	bearer := "Bearer"
-	token := &oauth2.Token{
-		TokenType:    bearer,
-		AccessToken:  "sometoken",
-		RefreshToken: "sometoken",
-	}
-	if s.Scenario == "approved" {
-		return &redirURLApproved, token, nil
-	}
-	return &redirURLNotApproved, nil, nil
 }
