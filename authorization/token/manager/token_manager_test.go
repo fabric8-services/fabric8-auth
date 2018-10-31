@@ -368,6 +368,7 @@ func (s *TestTokenSuite) assertIntClaim(claims jwt.MapClaims, claimName string, 
 	clm := claims[claimName]
 	require.NotNil(s.T(), clm)
 	clmInt, err := manager.NumberToInt(clm)
+	require.NoError(s.T(), err)
 	expectedInt, err := manager.NumberToInt(expectedValue)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), expectedInt, clmInt)

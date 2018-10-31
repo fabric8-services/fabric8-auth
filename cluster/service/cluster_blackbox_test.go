@@ -49,7 +49,7 @@ func (s *ClusterServiceTestSuite) TestClustersFail() {
 	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
 		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer r.Stop()
+		defer func() { require.NoError(s.T(), r.Stop()) }()
 
 		_, err = s.Application.ClusterService().Clusters(ctx, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
@@ -57,7 +57,7 @@ func (s *ClusterServiceTestSuite) TestClustersFail() {
 	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
 		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer r.Stop()
+		defer func() { require.NoError(s.T(), r.Stop()) }()
 
 		_, err = s.Application.ClusterService().ClusterByURL(ctx, "https://api.starter-us-east-2.openshift.com/")
 		assert.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
@@ -79,7 +79,7 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	s.T().Run("start fails if can't get clusters", func(t *testing.T) {
 		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer r.Stop()
+		defer func() { require.NoError(s.T(), r.Stop()) }()
 
 		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, s.Configuration, rest.WithRoundTripper(r.Transport))
 		assert.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
@@ -95,7 +95,7 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	s.T().Run("start OK", func(t *testing.T) {
 		r, err := recorder.New("../../test/data/cluster/cluster_get_ok", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer r.Stop()
+		defer func() { require.NoError(s.T(), r.Stop()) }()
 
 		// It starts fine if there is no errors
 		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, s.Configuration, rest.WithRoundTripper(r.Transport))

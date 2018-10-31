@@ -143,7 +143,7 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	callbackLoginCtx, _ := s.createLoginCallbackContext("/api/login/callback", prms)
 
-	callbackUrl = rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
+	_ = rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
 	generatedState = uuid.NewV4().String()
 	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(callbackLoginCtx, returnedState, returnedCode)
 
