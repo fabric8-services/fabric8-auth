@@ -164,19 +164,30 @@ func (s *authenticationProviderServiceImpl) AuthorizeCallback(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	var redirectTo string
-	parameters := referrerURL.Query()
-	parameters.Add("code", code)
-	parameters.Add("state", state)
+
+	redirectTo := buildRedirectURL(code, state, referrerURL, responseMode)
+	return &redirectTo, nil
+}
+
+func buildRedirectURL(code string, state string, referrerURL *url.URL, responseMode *string) string {
+	var parameters url.Values
 
 	if responseMode != nil && *responseMode == "fragment" {
-		referrerURL.Fragment = parameters.Encode()
+		parameters = url.Values{}
+		parameters.Add("code", code)
+		parameters.Add("state", state)
+		if referrerURL.Fragment != "" {
+			referrerURL.Fragment = referrerURL.Fragment + "&" + parameters.Encode()
+		} else {
+			referrerURL.Fragment = parameters.Encode()
+		}
 	} else {
+		parameters = referrerURL.Query()
+		parameters.Add("code", code)
+		parameters.Add("state", state)
 		referrerURL.RawQuery = parameters.Encode()
 	}
-	redirectTo = referrerURL.String()
-
-	return &redirectTo, nil
+	return referrerURL.String()
 }
 
 // ExchangeAuthorizationCodeForUserToken
