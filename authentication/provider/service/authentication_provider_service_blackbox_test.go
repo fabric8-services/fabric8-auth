@@ -616,38 +616,40 @@ func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK
 	require.NoError(s.T(), err)
 }
 
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenValidNoAccessToken() {
+	// given
+	tm, err := manager.NewTokenManager(s.Configuration)
+	require.NoError(s.T(), err)
+
+	user := s.Graph.CreateUser()
+	claims := make(map[string]interface{})
+	claims["sub"] = user.IdentityID().String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	// when
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+	result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, "", refreshToken)
+	// then
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), result)
+	// verify that the refresh token is valid
+	require.NotNil(s.T(), result.RefreshToken)
+	_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
+	assert.NoError(s.T(), err)
+	// verify that the access token is valid
+	require.NotNil(s.T(), result.AccessToken)
+	_, err = jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
+	assert.NoError(s.T(), err)
+}
+
 func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 
 	tm, err := manager.NewTokenManager(s.Configuration)
 	require.NoError(s.T(), err)
 
 	s.T().Run("valid refresh token", func(t *testing.T) {
-
-		t.Run("without access token", func(t *testing.T) { // just expect a regular access token
-			// given
-			g := s.NewTestGraph(t)
-			user := g.CreateUser()
-			claims := make(map[string]interface{})
-			claims["sub"] = user.IdentityID().String()
-			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
-			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
-			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-			require.NoError(t, err)
-			// when
-			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, "", refreshToken)
-			// then
-			require.NoError(t, err)
-			require.NotNil(t, result)
-			// verify that the refresh token is valid
-			require.NotNil(t, result.RefreshToken)
-			_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
-			assert.NoError(t, err)
-			// verify that the access token is valid
-			require.NotNil(t, result.AccessToken)
-			_, err = jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
-			assert.NoError(t, err)
-		})
 
 		t.Run("with access token", func(t *testing.T) { // just expect a regular access token
 			// given
