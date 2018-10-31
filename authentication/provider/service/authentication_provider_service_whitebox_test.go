@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
@@ -13,6 +14,7 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
 
@@ -79,4 +81,22 @@ func TestFillUserDoesntOverwritesEmailVerified(t *testing.T) {
 	claims := provider.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email", EmailVerified: true}
 	fillUserFromUserInfo(claims, identity)
 	assert.Equal(t, false, identity.User.EmailVerified)
+}
+
+func TestBuildRedirectURL(t *testing.T) {
+	t.Parallel()
+	resource.Require(t, resource.UnitTest)
+	responseMode := "fragment"
+	t.Run("with parameter and fragment", func(t *testing.T) {
+		referralURL, _ := url.Parse("http://mysite?x=123")
+		require.Equal(t, "http://mysite?x=123#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
+	})
+	t.Run("without parameter", func(t *testing.T) {
+		referralURL, _ := url.Parse("http://mysite/")
+		require.Equal(t, "http://mysite/#code=thecode&state=thestate", buildRedirectURL("thecode", "thestate", referralURL, &responseMode))
+	})
+	t.Run("with parameter, no response mode specified", func(t *testing.T) {
+		referralURL, _ := url.Parse("http://mysite?x=123")
+		require.Equal(t, "http://mysite?code=thecode&state=thestate&x=123", buildRedirectURL("thecode", "thestate", referralURL, nil))
+	})
 }
