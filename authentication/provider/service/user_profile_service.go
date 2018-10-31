@@ -22,7 +22,7 @@ import (
 	errs "github.com/pkg/errors"
 )
 
-// OAuthUserProfileClient describes the interface between platform and oauth User profile service.
+// userProfileService is the default implementation for UserProfileService
 type userProfileService struct {
 	base.BaseService
 	client *http.Client
