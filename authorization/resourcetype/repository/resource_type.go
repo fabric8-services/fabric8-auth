@@ -20,6 +20,8 @@ type ResourceType struct {
 	ResourceTypeID uuid.UUID `sql:"type:uuid default uuid_generate_v4()" gorm:"primary_key;column:resource_type_id"`
 	// The resource type name
 	Name string
+
+	DefaultRoleID *uuid.UUID `sql:"type:string" gorm:"column:default_role_id"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name

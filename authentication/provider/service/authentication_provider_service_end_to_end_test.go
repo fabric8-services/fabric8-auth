@@ -186,26 +186,33 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 func (s *serviceLoginBlackBoxTest) TestOauth2LoginEndToEnd() {
 	s.approved = true
 	s.alreadyLoggedIn = false
-	s.runOauth2LoginEndToEnd()
+	modeFragment := "fragment"
+	s.runOauth2LoginEndToEnd("https://che.openshift.io/dashboard/#/factories", modeFragment)
+	s.runOauth2LoginEndToEnd("https://randomurl/with/#fragment", modeFragment)
+	s.runOauth2LoginEndToEnd("https://randomurl/with", modeFragment)
+	s.runOauth2LoginEndToEnd("https://randomurl/with/", modeFragment)
+	s.runOauth2LoginEndToEnd("https://randomurl/with/?test", modeFragment)
 
-	s.alreadyLoggedIn = true
-	s.runOauth2LoginEndToEnd()
+	modeQuery := "query"
+	s.runOauth2LoginEndToEnd("https://randomurl/with/#fragment", modeQuery)
+
 }
 
 func (s *serviceLoginBlackBoxTest) TestOauth2LoginEndToEndNotApproved() {
 	s.approved = false
 	s.alreadyLoggedIn = false
-	s.runOauth2LoginEndToEnd()
+	modeFragment := "fragment"
+	s.runOauth2LoginEndToEnd("https://che.openshift.io/dashboard/#/factories", modeFragment)
 }
 
-func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
+func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd(redirectURL string, responseMode string) {
 
-	redirectURL := "https://auth.openshift.io/api/status"
-	apiClient := s.Configuration.GetPublicOAuthClientID()
+	clientID := s.Configuration.GetPublicOAuthClientID()
+
 	state := uuid.NewV4().String()
 	resonseType := "code"
 
-	prms := url.Values{"response_type": []string{resonseType}, "client_id": []string{apiClient}, "state": []string{state}, "redirect_uri": []string{redirectURL}}
+	prms := url.Values{"response_mode": []string{responseMode}, "response_type": []string{resonseType}, "client_id": []string{clientID}, "state": []string{state}, "redirect_uri": []string{redirectURL}}
 
 	authorizeCtx, _ := s.createNewAuthCodeURLContext("/api/authorize", prms)
 
@@ -214,8 +221,9 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 	oauthConfig := provider.NewIdentityProvider(s.Configuration)
 	oauthCodeRedirectURL := "http://auth.openshift.io/authorize/callback"
 	oauthConfig.RedirectURL = oauthCodeRedirectURL
+
 	redirectedTo, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx, &redirectURL,
-		&apiClient, &state, nil, nil, "", oauthCodeRedirectURL)
+		&clientID, &state, nil, nil, "", oauthCodeRedirectURL)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), redirectedTo)
 
@@ -267,10 +275,40 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 
 	redirectedToURLRef, err = url.Parse(*redirectedTo)
 	require.NoError(s.T(), err)
+
 	require.Equal(s.T(), redirectURL, redirectedToURLRef.Scheme+"://"+redirectedToURLRef.Host+redirectedToURLRef.Path)
 	require.Equal(s.T(), s.Configuration.GetPublicOAuthClientID(), redirectedToURLRef.Query()["api_client"][0])
 	require.Equal(s.T(), state, redirectedToURLRef.Query()["state"][0])
 	require.Equal(s.T(), returnedCode, redirectedToURLRef.Query()["code"][0])
+
+	// All existing params should be carried over as is
+	originalRedirectURLRef, err := url.Parse(redirectURL)
+	require.NoError(s.T(), err)
+
+	for i := range originalRedirectURLRef.Query() {
+		require.Contains(s.T(), redirectedToURLRef.Query(), i)
+	}
+
+	if responseMode == "fragment" {
+
+		require.Contains(s.T(), *redirectedTo, redirectURL)
+		require.Contains(s.T(), redirectedToURLRef.Fragment, fmt.Sprintf("state=%s", returnedState))
+		require.Contains(s.T(), redirectedToURLRef.Fragment, fmt.Sprintf("code=%s", returnedCode))
+
+		// Ensure that existing params are NOT being carried over as fragments
+		for i := range originalRedirectURLRef.Query() {
+			require.NotContains(s.T(), redirectedToURLRef.Fragment, fmt.Sprintf("%s=", i))
+		}
+
+		// ensures that the initial fragment is in the right position
+		require.Contains(s.T(), *redirectedTo, redirectURL)
+
+	} else {
+
+		require.Equal(s.T(), returnedCode, redirectedToURLRef.Query()["code"][0])
+		require.Equal(s.T(), returnedState, redirectedToURLRef.Query()["state"][0])
+
+	}
 
 	//  ############ STEP 4: Ask for a token ( the way it would be asked using POST /api/token )
 	//  ############ Validate that there was redirect recieved.
@@ -281,6 +319,7 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd() {
 	require.NotEmpty(s.T(), returnedToken.AccessToken)
 
 	tokenContext, _ := s.createNewTokenContext("/api/token", prms)
+
 	_, authToken, err := s.Application.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(tokenContext, redirectedToURLRef, returnedToken)
 
 	if s.approved {

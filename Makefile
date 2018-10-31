@@ -159,6 +159,10 @@ generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only neces
 	@-mkdir -p test/generated/authorization/token/manager
 	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authorization/token/manager.TokenManagerConfiguration -o ./test/generated/authorization/token/manager/ -s ".go"
 
+.PHONY: generate-client
+generate-client: $(GOAGEN_BIN)
+	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-auth/design --pkg auth
+
 .PHONY: build
 ## Build server and client.
 build: prebuild-check deps generate $(BINARY_SERVER_BIN) $(BINARY_CLIENT_BIN) # do the build

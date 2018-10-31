@@ -25,7 +25,7 @@ func TestRunSpaceServiceBlackBoxTest(t *testing.T) {
 func (s *spaceServiceBlackBoxTest) TestCreateByUnknownUserFails() {
 	id := uuid.NewV4()
 	err := s.Application.SpaceService().CreateSpace(s.Ctx, id, uuid.NewV4().String())
-	test.AssertError(s.T(), err, errors.NotFoundError{}, "identity with id '%s' not found", id.String())
+	test.AssertError(s.T(), err, errors.NotFoundError{}, "identities with id '%s' not found", id.String())
 }
 
 func (s *spaceServiceBlackBoxTest) TestCreateOK() {

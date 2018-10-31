@@ -121,6 +121,7 @@ var RegisterResourceMedia = a.MediaType("application/vnd.register_resource+json"
 		a.Attribute("type", d.String, "The type of resource")
 		a.Attribute("parent_resource_id", d.String, "The parent resource (of the same type) to which this resource belongs")
 		a.Attribute("resource_id", d.String, "The identifier for this resource. If left blank, one will be generated")
+		a.Attribute("identity_id", d.String, "The identity who would be provided the scope to manage this resource, If left blank, nobody would be assigned the scope to manage this resource")
 		a.Required("type")
 	})
 	a.View("default", func() {

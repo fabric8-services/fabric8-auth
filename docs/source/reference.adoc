@@ -469,6 +469,129 @@ The "exp" (expiration time) claim identifies the expiration time on or after whi
 - Import `github.com/fabric8-services/fabric8-auth/token/jwk` to make use of `FetchKeys(endpointURL)` from https://github.com/fabric8-services/fabric8-auth/blob/master/token/jwk/fetch_keys.go to get the currently in-use public keys.
 - Use the `ParseToken(..)` function of `github.com/fabric8-services/fabric8-common/token` from https://github.com/fabric8-services/fabric8-common/blob/master/token/token.go#L133 to validate & parse the token.
 
+== Authorization support
+
+To validate what a user can do in a space or an arbitrary resource, the resource server or the client needs to determine
+the actions ( `scopes` ) the the user is permitted to undertake.
+
+=== Determining the scope using RPT tokens
+
+The Auth service wraps the permission information in the user's token. Such user's tokens which also have permission information 
+are known as RPT tokens.
+
+The content of the `permissions` claim in the user's token indicates if the user has the required scope for a specific resource.
+```
+permissions: [
+    {
+      resource_set_name: null,
+      resource_set_id: "c0ee2b94-aee3-4c41-9e15-6fa330ce8e0b",
+      scopes: [
+        "view","contribute","manage"
+      ],
+      exp: 1535500572
+    },
+    {
+      resource_set_name: null,
+      resource_set_id: "d0ee5b94-aee3-4c41-9e15-6fa330ce8e0e",
+      scopes: [
+        "view","contribute"
+      ],
+      exp: 1535500572
+    }
+  ],
+```
+
+However, it is possible that the content of the token would be stale because of changes in permission associations since the time the token was issued. 
+To accurately determine the permission scope a user has, for a resource, here's what the resource server should be doing, before making an authorization decision.
+
+1. Call the link:http://swagger.goa.design/?url=github.com%2Ffabric8-services%2Ffabric8-auth%2Fdesign#!/token/token_audit[Audit token API]
+
+2. If no token is returned, it implies that the existing token has the latest permission information. 
+
+3. If the call to the Audit API returns a token, the resource server should introspect the `permissions` claim in the new token. the resource server should return the updated token to the client/UI 
+in the `Authorization: Bearer UPDATED_RPT_TOKEN` response header so that the UI can start using it in subsequent requests.
+
+
+[source]
+POST /api/token/audit
+
+|===
+| *Request Parameter* | *Description*
+| resource_id | The ID of the resource associated with the business entity. For spaces, use the space ID.
+|===
+
+__Request:__
+
+[source]
+
+POST /api/token/audit?resource_id=c0ee2b94-aee3-4c41-9e15-6fa330ce8e0b
+Authorization: Bearer eyJh___token___8HlA
+
+__Response:__
+
+The response body would be empty with a status of 200 OK if a newer token is not needed. 
+If the authorization service deems it necessary to return an RPT token with more recent information, 
+the response would be as follows.
+
+[source,json]
+{
+  rpt_token: eyJh___token___OeibQ
+}
+
+__Decoded RPT token:__
+[source,json]
+
+{
+  acr: "0",
+  allowed-origins: [
+    "http://auth.openshift.io",
+    "http://openshift.io"
+  ],
+  approved: true,
+  aud: "http://openshift.io",
+  auth_time: 1535414160,
+  azp: "http://openshift.io",
+  email: "TestUser-50edff18-6c86-4910-b069-37d68f1c02c1@test.com",
+  exp: 1538006160,
+  family_name: "",
+  given_name: "TestUser-50edff18-6c86-4910-b069-37d68f1c02c1",
+  iat: 1535414160,
+  iss: "http://auth.openshift.io",
+  jti: "109d09ed-91cc-4393-8fa1-bc3187aa40ba",
+  name: "TestUser-50edff18-6c86-4910-b069-37d68f1c02c1",
+  nbf: 0,
+  permissions: [
+    {
+      resource_set_name: null,
+      resource_set_id: "c0ee2b94-aee3-4c41-9e15-6fa330ce8e0b",
+      scopes: [
+        "view","contribute","manage"
+      ],
+      exp: 1535500572
+    },
+    {
+      resource_set_name: null,
+      resource_set_id: "d0ee5b94-aee3-4c41-9e15-6fa330ce8e0e",
+      scopes: [
+        "view","contribute"
+      ],
+      exp: 1535500572
+    }
+  ],
+  preferred_username: "TestUserIdentity-50edff18-6c86-4910-b069-37d68f1c02c1",
+  session_state: "eaca58df-b6e1-4a58-8d3a-600dfdfdfdf40",
+  sub: "7aca58df-b6e1-4a58-8d3a-600df382dd40",
+  typ: "Bearer"
+}
+
+=== Pre-configured Authorization Scopes
+
+|===
+| *Business Resource Entity* | *Scopes*
+| system | `access`,`manage_user`
+| space | `view`,`contribute`,`manage`
+|===
+
 
 == Configuration
 This section describes the configuration options available for the fabric8-auth service.

@@ -1549,6 +1549,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized
 	// given
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 
 	//*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")

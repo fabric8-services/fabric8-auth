@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
+	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -61,6 +62,39 @@ func (s *resourceTypeBlackBoxTest) TestCreateResourceType() {
 	require.Equal(t, resourceTypeRef.Name, rt.Name)
 	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
 
+}
+
+func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithDefaultRoleID() {
+	t := s.T()
+
+	resourceTypeRef := resourcetype.ResourceType{
+		ResourceTypeID: uuid.NewV4(),
+		Name:           uuid.NewV4().String(),
+	}
+	err := s.Application.ResourceTypeRepository().Create(s.Ctx, &resourceTypeRef)
+	require.NoError(t, err)
+
+	rt, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, resourceTypeRef.Name)
+	require.NoError(t, err)
+	require.Equal(t, resourceTypeRef.Name, rt.Name)
+	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
+	require.Nil(t, rt.DefaultRoleID)
+
+	someRole := role.Role{
+		RoleID:         uuid.NewV4(),
+		ResourceTypeID: resourceTypeRef.ResourceTypeID,
+		Name:           uuid.NewV4().String(),
+	}
+	err = s.Application.RoleRepository().Create(s.Ctx, &someRole)
+	require.NoError(t, err)
+
+	resourceTypeRef.DefaultRoleID = &someRole.RoleID
+	err = s.repo.Save(s.Ctx, &resourceTypeRef)
+	require.NoError(t, err)
+
+	returnedRTRef, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, resourceTypeRef.Name)
+	require.NoError(t, err)
+	require.Equal(t, someRole.RoleID, *returnedRTRef.DefaultRoleID)
 }
 
 func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithoutID() {

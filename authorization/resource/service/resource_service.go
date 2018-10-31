@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -114,7 +113,7 @@ func (s *resourceServiceImpl) CheckExists(ctx context.Context, resourceID string
 
 // Register registers/creates a new resource
 // IMPORTANT: This is a transactional method, which manages its own transaction/s internally
-func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string) (*resource.Resource, error) {
+func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName string, resourceID, parentResourceID *string, identityID *uuid.UUID) (*resource.Resource, error) {
 
 	var res *resource.Resource
 
@@ -178,6 +177,25 @@ func (s *resourceServiceImpl) Register(ctx context.Context, resourceTypeName str
 			}
 		}
 
+		if identityID != nil {
+			err = s.Repositories().Identities().CheckExists(ctx, (*identityID).String())
+			if err != nil {
+				return err
+			}
+			if resourceType.DefaultRoleID != nil {
+				defaultRole, err := s.Repositories().RoleRepository().Load(ctx, *resourceType.DefaultRoleID)
+				if err != nil {
+					return err
+				}
+				if defaultRole != nil {
+					err = s.Services().RoleManagementService().ForceAssign(ctx, *identityID, defaultRole.Name, *res)
+					if err != nil {
+						return err
+					}
+				}
+
+			}
+		}
 		return nil
 	})
 
