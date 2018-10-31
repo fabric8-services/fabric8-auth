@@ -207,14 +207,8 @@ func (s *serviceLoginBlackBoxTest) TestOauth2LoginEndToEndNotApproved() {
 
 func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd(redirectURL string, responseMode string) {
 
-	clientID := s.Configuration.GetPublicOAuthClientID()
-
 	state := uuid.NewV4().String()
 	responseType := "code"
-
-	prms := url.Values{"response_mode": []string{responseMode}, "response_type": []string{responseType}, "client_id": []string{clientID}, "state": []string{state}, "redirect_uri": []string{redirectURL}}
-
-	//authorizeCtx, _ := s.createNewAuthCodeURLContext("/api/authorize", prms)
 
 	// ############ STEP 1 Call /api/authorize without state or code
 	// ############
@@ -267,7 +261,7 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd(redirectURL string, re
 	// ########### Step 3 : Let's call /api/authorize/callback?code=XXXX&state=YYYYY
 	// ########### as if it was called by the oauth server.
 
-	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
+	prms := url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	authorizeCallbackCtx, _ := s.createNewAuthCallbackContext("/api/authorize/callback", prms)
 	redirectedTo, err = s.Application.AuthenticationProviderService().AuthorizeCallback(s.Ctx, authorizeCallbackCtx.State, authorizeCallbackCtx.Code)
 	require.NotNil(s.T(), redirectedTo)
@@ -275,11 +269,6 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd(redirectURL string, re
 
 	redirectedToURLRef, err = url.Parse(*redirectedTo)
 	require.NoError(s.T(), err)
-
-	//require.Equal(s.T(), redirectURL, redirectedToURLRef.Scheme+"://"+redirectedToURLRef.Host+redirectedToURLRef.Path)
-	//require.Equal(s.T(), s.Configuration.GetPublicOAuthClientID(), redirectedToURLRef.Query()["api_client"][0])
-	//require.Equal(s.T(), state, redirectedToURLRef.Query()["state"][0])
-	//require.Equal(s.T(), returnedCode, redirectedToURLRef.Query()["code"][0])
 
 	// All existing params should be carried over as is
 	originalRedirectURLRef, err := url.Parse(redirectURL)
