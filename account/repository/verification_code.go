@@ -95,7 +95,7 @@ func (m *GormVerificationCodeRepository) Create(ctx context.Context, model *Veri
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"verification_code_id": model.ID,
-			"err": err,
+			"err":                  err,
 		}, "unable to create the verification_code")
 		return errs.WithStack(err)
 	}
@@ -113,7 +113,7 @@ func (m *GormVerificationCodeRepository) Save(ctx context.Context, model *Verifi
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"verification_code_id": model.ID,
-			"err": err,
+			"err":                  err,
 		}, "unable to update the verification_code")
 		return errs.WithStack(err)
 	}
@@ -136,7 +136,7 @@ func (m *GormVerificationCodeRepository) Delete(ctx context.Context, id uuid.UUI
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"verification_code_id": id,
-			"err": result.Error,
+			"err":                  result.Error,
 		}, "unable to delete the verification_code")
 		return errs.WithStack(result.Error)
 	}
