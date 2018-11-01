@@ -1059,7 +1059,6 @@ func (s *tokenServiceBlackboxTest) TestRefresh() {
 		})
 
 	})
-
 }
 
 func (s *tokenServiceBlackboxTest) setTokenStatus(t *testing.T, rptToken string, status int, resourceIDs ...string) string {

@@ -43,12 +43,12 @@ func (s *BenchTransactional) SetupSuite() {
 func (s *BenchTransactional) SetupBenchmark() {
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 	s.repo = account.NewIdentityRepository(s.DB)
-	s.app = gormapplication.NewGormDB(s.DB, s.Configuration)
+	s.app = gormapplication.NewGormDB(s.DB, s.Configuration, nil)
 
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "BenchmarkTransactionalTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: account.DefaultIDP}
 
 	err := s.repo.Create(s.ctx, s.identity)
 	if err != nil {
