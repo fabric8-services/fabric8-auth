@@ -36,6 +36,8 @@ func TestRunUserProfileServiceBlackBoxTest(t *testing.T) {
 // SetupSuite overrides the RemoteTestSuite's function but calls it before doing anything else
 // The SetupSuite method will run before the tests in the suite are run.
 func (s *UserProfileServiceBlackBoxTest) SetupSuite() {
+	s.DBTestSuite.SetupSuite()
+
 	resource.Require(s.T(), resource.Remote)
 	var err error
 
