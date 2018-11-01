@@ -61,7 +61,7 @@ func (s *userProfileService) CreateOrUpdate(ctx context.Context,
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"oauth_user_profile_url": oauthAdminUserAPIURL,
-			"err": err,
+			"err":                    err,
 		}, "Unable to create oauth user")
 		return nil, false, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
@@ -268,7 +268,7 @@ func (s *userProfileService) Update(ctx context.Context, userProfile *provider.O
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"oauth_user_profile_url": profileURL,
-			"err": err,
+			"err":                    err,
 		}, "Unable to update oauth user profile")
 		return errors.NewInternalError(ctx, err)
 	} else if resp != nil {

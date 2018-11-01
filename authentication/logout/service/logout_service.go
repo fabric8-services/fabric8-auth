@@ -48,7 +48,7 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url":        redirectURL,
 			"valid_redirect_urls": s.config.GetValidRedirectURLs(),
-			"err": err,
+			"err":                 err,
 		}, "Can't match redirect URL and whitelist regex")
 		return "", errors.NewInternalError(ctx, err)
 	}
