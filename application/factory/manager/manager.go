@@ -42,6 +42,17 @@ func NewFactoryWrappers() FactoryWrappers {
 	return &factoryWrappersImpl{wrappers: make(map[string]wrapperDef)}
 }
 
+// disabledFactoryWrappers should be used when no wrapper support is desired, e.g. at normal runtime
+type disabledFactoryWrappers struct {}
+
+func (w *disabledFactoryWrappers) RegisterWrapper(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {}
+func (w *disabledFactoryWrappers) GetWrapper(identifier string) WrapperDefinition { return nil }
+func (w *disabledFactoryWrappers) ResetWrappers() {}
+
+func NewDisabledFactoryWrappers() FactoryWrappers {
+	return &disabledFactoryWrappers{}
+}
+
 func (w *factoryWrappersImpl) RegisterWrapper(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
 	w.wrappers[identifier] = wrapperDef{
 		constructor: constructor,

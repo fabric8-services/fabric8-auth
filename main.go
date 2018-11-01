@@ -11,6 +11,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -138,7 +139,7 @@ func main() {
 	service.WithLogger(goalogrus.New(log.Logger()))
 
 	// Setup Account/Login/Security
-	appDB := gormapplication.NewGormDB(db, config, nil)
+	appDB := gormapplication.NewGormDB(db, config, factorymanager.NewDisabledFactoryWrappers())
 
 	tokenManager, err := manager.DefaultManager(config)
 	if err != nil {
