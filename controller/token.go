@@ -1,11 +1,9 @@
 package controller
 
 import (
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"net/url"
 	"strconv"
-	"time"
-
-	"github.com/fabric8-services/fabric8-auth/configuration"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -257,66 +255,6 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 	}
 
 	return token, nil
-}
-
-func (c *TokenController) exchangeWithGrantTypeAuthorizationCode(ctx *app.ExchangeTokenContext) (*string, *app.OauthToken, error) {
-	payload := ctx.Payload
-	if payload.Code == nil {
-		return nil, nil, errors.NewBadParameterError("code", "nil").Expected("authorization code")
-	}
-	// Default value of this public client id is set to "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	if payload.ClientID != c.Configuration.GetPublicOAuthClientID() {
-		log.Error(ctx, map[string]interface{}{
-			"client_id": payload.ClientID,
-		}, "unknown oauth client id")
-		return nil, nil, errors.NewUnauthorizedError("invalid oauth client id")
-	}
-
-	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-
-	// Exchange the authorization code for an access token with the identity provider
-	accessToken, err := c.app.AuthenticationProviderService().ExchangeCodeWithProvider(ctx, *payload.Code)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	redirectURL, err := url.Parse(rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil))
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"redirectURL": rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
-			"err":         err,
-		}, "failed to parse referrer")
-		return nil, nil, errors.NewInternalError(ctx, err)
-	}
-
-	notApprovedRedirectURL, userToken, err := c.app.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(ctx, redirectURL, accessToken)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var token *app.OauthToken
-
-	if userToken != nil {
-		// Convert expiry to expire_in
-		expiry := userToken.Expiry
-		var expireIn *string
-		if expiry != *new(time.Time) {
-			exp := expiry.Sub(time.Now())
-			if exp > 0 {
-				seconds := strconv.FormatInt(int64(exp/time.Second), 10)
-				expireIn = &seconds
-			}
-		}
-
-		token = &app.OauthToken{
-			AccessToken:  &userToken.AccessToken,
-			ExpiresIn:    expireIn,
-			RefreshToken: &userToken.RefreshToken,
-			TokenType:    &userToken.TokenType,
-		}
-	}
-
-	return notApprovedRedirectURL, token, nil
 }
 
 func (c *TokenController) exchangeWithGrantTypeClientCredentials(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
