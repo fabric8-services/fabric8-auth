@@ -2,6 +2,8 @@
 
 . cico_setup.sh
 
+export USE_GO_VERSION_FROM_WEBSITE=1
+
 load_jenkins_vars
 
 if [ ! -f .cico-prepare ]; then
