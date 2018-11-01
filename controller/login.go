@@ -49,7 +49,7 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 func (c *LoginController) Callback(ctx *app.CallbackLoginContext) error {
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
-	redirectURL := rest.AbsoluteURL(ctx.RequestData, client.LoginLoginPath(), nil)
+	redirectURL := rest.AbsoluteURL(ctx.RequestData, client.CallbackLoginPath(), nil)
 
 	redirectTo, err := c.app.AuthenticationProviderService().LoginCallback(ctx, state, code, redirectURL)
 	if err != nil {
