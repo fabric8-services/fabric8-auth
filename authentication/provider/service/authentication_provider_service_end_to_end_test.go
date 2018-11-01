@@ -143,9 +143,9 @@ func (s *serviceLoginBlackBoxTest) runLoginEndToEnd() {
 	prms = url.Values{"state": []string{returnedState}, "code": []string{returnedCode}}
 	callbackLoginCtx, _ := s.createLoginCallbackContext("/api/login/callback", prms)
 
-	_ = rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
+	redirectURL := rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil)
 	generatedState = uuid.NewV4().String()
-	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(callbackLoginCtx, returnedState, returnedCode)
+	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(callbackLoginCtx, returnedState, returnedCode, redirectURL)
 
 	//  ############ STEP 4: Token generated and received as a param in the redirect
 	//  ############ Validate that there was redirect recieved.
@@ -302,7 +302,9 @@ func (s *serviceLoginBlackBoxTest) runOauth2LoginEndToEnd(redirectURL string, re
 	//  ############ STEP 4: Ask for a token ( the way it would be asked using POST /api/token )
 	//  ############ Validate that there was redirect recieved.
 
-	returnedToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(context.Background(), returnedCode)
+	authorizeCtx, _ := s.createNewLoginContext("/api/login", prms)
+	returnedToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(context.Background(),
+		returnedCode, rest.AbsoluteURL(authorizeCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), returnedToken)
 	require.NotEmpty(s.T(), returnedToken.AccessToken)

@@ -298,7 +298,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCredentialsOK() {
 func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
 	// given
 	authProviderService := testservice.NewAuthenticationProviderServiceMock(s.T())
-	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string) (*oauth2.Token, error) {
+	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error) {
 		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
 	}
 	svc, ctrl, _ := s.SecuredController()
@@ -648,7 +648,7 @@ func newOAuthMockService(t *testing.T, identity account.Identity) (service.Authe
 	identity.User.FullName = "Test User" // origin 'fullname' will be updated by the token returned by the dummyIDPOAuthProvider.Profile function call
 	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 	require.Nil(t, err)
-	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string) (*oauth2.Token, error) {
+	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error) {
 		var thirtyDays, nbf int64
 		thirtyDays = 60 * 60 * 24 * 30
 		token := &oauth2.Token{

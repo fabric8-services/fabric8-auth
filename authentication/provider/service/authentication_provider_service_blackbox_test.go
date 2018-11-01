@@ -446,7 +446,8 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	goaCtx = goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
 	callbackCtx, err := app.NewCallbackLoginContext(goaCtx, req, goa.New("LoginService"))
 
-	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State, *callbackCtx.Code)
+	redirectUrl, err = s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State,
+		*callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Error(s.T(), err)
 
 	locationUrl, err = url.Parse(*redirectUrl)
@@ -499,7 +500,8 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserLoginUnauthor
 	extra := make(map[string]string)
 	_, callbackCtx := s.loginCallback(extra)
 
-	_, err := s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code)
+	_, err := s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code,
+		rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Error(s.T(), err)
 }
 
@@ -583,7 +585,8 @@ func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnaut
 		accessToken: accessToken,
 	})
 
-	_, err = s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code)
+	_, err = s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code,
+		rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Error(s.T(), err)
 	require.IsType(s.T(), err, autherrors.UnauthorizedError{})
 }
@@ -612,8 +615,30 @@ func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK
 	}
 
 	testsupport.ActivateDummyIdentityProviderFactory(s, dummyIDPConfigRef)
-	_, err = s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, *callbackCtx.State, *callbackCtx.Code)
+
+	_, err = s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, *callbackCtx.State,
+		*callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.NoError(s.T(), err)
+}
+
+func (s *authenticationProviderServiceTestSuite) createNewLoginContext(path string, prms url.Values) (*app.LoginLoginContext, *httptest.ResponseRecorder) {
+	rw := httptest.NewRecorder()
+	u := &url.URL{
+		Path: fmt.Sprintf(path),
+	}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		panic("invalid test " + err.Error()) // bug
+	}
+
+	refererUrl := "https://alm-url.example.org/path/oauth2"
+	req.Header.Add("referer", refererUrl)
+
+	ctx := testtoken.ContextWithTokenManager()
+	goaCtx := goa.NewContext(goa.WithAction(ctx, "LoginTest"), rw, req, prms)
+	loginCtx, err := app.NewLoginLoginContext(goaCtx, req, goa.New("LoginService"))
+	require.NoError(s.T(), err)
+	return loginCtx, rw
 }
 
 func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenValidNoAccessToken() {
@@ -814,7 +839,8 @@ func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[s
 func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOAuthProvider, rw *httptest.ResponseRecorder, callbackCtx *app.CallbackLoginContext, tokenParam string) {
 
 	testsupport.ActivateDummyIdentityProviderFactory(s, dummyOauth)
-	redirectUrl, err := s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code)
+	redirectUrl, err := s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State,
+		*callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Nil(s.T(), err)
 
 	locationUrl, err := url.Parse(*redirectUrl)
@@ -913,14 +939,16 @@ func (s *authenticationProviderServiceTestSuite) TestValidOAuthAuthorizationCode
 	require.Nil(s.T(), err)
 
 	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(true))
-	userToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(callbackCtx, callbackCtx.Code)
+	userToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(callbackCtx,
+		callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), userToken)
 }
 
 func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCodeForAuthorize() {
 	_, callbackCtx := s.authorizeCallback("invalid_code")
-	_, err := s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, "", "")
+	_, err := s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, "", "",
+		rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Error(s.T(), err)
 	require.IsType(s.T(), err, autherrors.UnauthorizedError{})
 
@@ -944,7 +972,8 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	tokenCtx, err := app.NewExchangeTokenContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	userToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(tokenCtx, "INVALID_OAUTH2.0_CODE")
+	userToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(tokenCtx,
+		"INVALID_OAUTH2.0_CODE", rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.NotNil(s.T(), err)
 	require.Nil(s.T(), userToken)
 	jsonapi.JSONErrorResponse(tokenCtx, err)
@@ -955,7 +984,8 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthStateForAuthorize() {
 
 	rw, callbackCtx := s.authorizeCallback("invalid_state")
-	_, err := s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, "invalid_state", "")
+	_, err := s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, "invalid_state", "",
+		rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.NotNil(s.T(), err)
 	jsonapi.JSONErrorResponse(callbackCtx, err)
 	assert.Equal(s.T(), 401, rw.Code)

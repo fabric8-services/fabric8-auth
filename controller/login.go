@@ -49,12 +49,13 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 func (c *LoginController) Callback(ctx *app.CallbackLoginContext) error {
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
+	redirectURL := rest.AbsoluteURL(ctx.RequestData, client.LoginLoginPath(), nil)
 
-	redirectURL, err := c.app.AuthenticationProviderService().LoginCallback(ctx, state, code)
+	redirectTo, err := c.app.AuthenticationProviderService().LoginCallback(ctx, state, code, redirectURL)
 	if err != nil {
-		ctx.ResponseData.Header().Set("Location", *redirectURL+"?error="+err.Error())
+		ctx.ResponseData.Header().Set("Location", *redirectTo+"?error="+err.Error())
 		return ctx.TemporaryRedirect()
 	}
-	ctx.ResponseData.Header().Set("Location", *redirectURL)
+	ctx.ResponseData.Header().Set("Location", *redirectTo)
 	return ctx.TemporaryRedirect()
 }

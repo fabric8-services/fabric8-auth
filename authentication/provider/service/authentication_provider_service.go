@@ -124,7 +124,7 @@ func (s *authenticationProviderServiceImpl) GenerateAuthCodeURL(ctx context.Cont
 // LoginCallback is invoked after the client has visited the authentication provider and state and code values are returned.
 // These two parameters will be exchanged with the authentication provider for an access token, which will then be
 // returned to the client.
-func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, state string, code string) (*string, error) {
+func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, state string, code string, redirectURL string) (*string, error) {
 
 	// After redirect from oauth provider
 	log.Debug(ctx, map[string]interface{}{
@@ -137,7 +137,7 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 		return nil, err
 	}
 
-	providerToken, err := s.ExchangeCodeWithProvider(ctx, code)
+	providerToken, err := s.ExchangeCodeWithProvider(ctx, code, redirectURL)
 	if err != nil {
 		redirect := referrerURL.String() + "?error=" + err.Error()
 		return &redirect, err
@@ -201,7 +201,7 @@ func (s *authenticationProviderServiceImpl) ExchangeAuthorizationCodeForUserToke
 	}
 
 	// Exchange the authorization code for an access token with the identity provider
-	accessToken, err := s.ExchangeCodeWithProvider(ctx, code)
+	accessToken, err := s.ExchangeCodeWithProvider(ctx, code, redirectURL.String())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -237,10 +237,12 @@ func (s *authenticationProviderServiceImpl) ExchangeAuthorizationCodeForUserToke
 }
 
 // Exchange exchanges the given code for OAuth2 token with the Authentication provider
-func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context.Context, code string) (*oauth2.Token, error) {
+func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error) {
 
 	// Exchange the code for an access token
-	token, err := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config).Exchange(ctx, code)
+    provider := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config)
+	provider.SetRedirectURL(redirectURL)
+	token, err := provider.Exchange(ctx, code)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"code": code,

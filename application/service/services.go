@@ -49,10 +49,10 @@ type AuthenticationProviderService interface {
 		token *oauth2.Token) (*string, *oauth2.Token, error)
 	UpdateIdentityUsingUserInfoEndPoint(ctx context.Context, accessToken string) (*account.Identity, error)
 	ExchangeAuthorizationCodeForUserToken(ctx context.Context, code string, clientID string, redirectURL *url.URL) (*string, *app.OauthToken, error)
-	ExchangeCodeWithProvider(ctx context.Context, code string) (*oauth2.Token, error)
+	ExchangeCodeWithProvider(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error)
 	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
 		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
-	LoginCallback(ctx context.Context, state string, code string) (*string, error)
+	LoginCallback(ctx context.Context, state string, code string, redirectURL string) (*string, error)
 	LoadReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error)
 	SaveReferrer(ctx context.Context, state string, referrer string,
 		responseMode *string, validReferrerURL string) error
