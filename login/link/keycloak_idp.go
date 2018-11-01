@@ -59,7 +59,7 @@ func (c *KeycloakIDPServiceClient) Create(ctx context.Context, keycloakLinkIDPRe
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_idp_link_url": keycloakIDPLinkURL,
-			"err": err,
+			"err":                   err,
 		}, "Unable to create idp link for RHD")
 		return errors.NewInternalError(ctx, err)
 	} else if resp != nil {
