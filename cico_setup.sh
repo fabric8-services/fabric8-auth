@@ -143,7 +143,7 @@ function cico_setup() {
   prepare;
 }
 
-function cico_setup_covarage() {
+function cico_setup_coverage() {
   load_jenkins_vars;
   install_deps;
 
