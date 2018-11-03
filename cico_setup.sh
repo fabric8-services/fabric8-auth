@@ -142,3 +142,16 @@ function cico_setup() {
   install_deps;
   prepare;
 }
+
+function cico_setup_covarage() {
+  load_jenkins_vars;
+  install_deps;
+
+  # prepare() without check-go-format
+  make docker-start
+  # make docker-check-go-format
+  make docker-deps
+  make docker-generate
+  make docker-build
+  echo 'CICO: Preparation complete'
+}

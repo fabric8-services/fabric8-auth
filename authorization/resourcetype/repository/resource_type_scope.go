@@ -126,7 +126,7 @@ func (m *GormResourceTypeScopeRepository) Create(ctx context.Context, u *Resourc
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": u.ResourceTypeScopeID,
-			"err":                    err,
+			"err": err,
 		}, "unable to create the resource type scope")
 		return errs.WithStack(err)
 	}
@@ -144,7 +144,7 @@ func (m *GormResourceTypeScopeRepository) Save(ctx context.Context, model *Resou
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": model.ResourceTypeScopeID,
-			"err":                    err,
+			"err": err,
 		}, "unable to update resource type scope")
 		return errs.WithStack(err)
 	}
@@ -170,7 +170,7 @@ func (m *GormResourceTypeScopeRepository) Delete(ctx context.Context, id uuid.UU
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_type_scope_id": id,
-			"err":                    result.Error,
+			"err": result.Error,
 		}, "unable to delete the resource type scope")
 		return errs.WithStack(result.Error)
 	}

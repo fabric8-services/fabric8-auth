@@ -60,7 +60,7 @@ func main() {
 		log.Panic(nil, map[string]interface{}{
 			"config_file":                 configFile,
 			"service_account_config_file": serviceAccountConfigFile,
-			"err":                         err,
+			"err": err,
 		}, "failed to setup the configuration")
 	}
 
