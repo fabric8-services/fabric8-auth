@@ -42,7 +42,7 @@ func NewClusterService(context servicecontext.ServiceContext, config clusterServ
 
 // Clusters returns cached map of OpenShift clusters
 func (s *clusterService) Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error) {
-	_, err := Start(ctx, s.Factories().ClusterCacheFactory(), s.config, options...)
+	_, err := Start(ctx, s.Factories().ClusterCacheFactory(), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (s *clusterService) Clusters(ctx context.Context, options ...rest.HTTPClien
 
 // ClusterByURL returns the cached cluster for the given cluster API URL
 func (s *clusterService) ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error) {
-	_, err := Start(ctx, s.Factories().ClusterCacheFactory(), s.config, options...)
+	_, err := Start(ctx, s.Factories().ClusterCacheFactory(), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (s *clusterService) ClusterByURL(ctx context.Context, url string, options .
 }
 
 func (s *clusterService) Status(ctx context.Context) (bool, error) {
-	return Start(ctx, s.Factories().ClusterCacheFactory(), s.config)
+	return Start(ctx, s.Factories().ClusterCacheFactory())
 }
 
 func (s *clusterService) Stop() {
@@ -79,7 +79,7 @@ func (s *clusterService) Stop() {
 
 // Start initializes the default Cluster cache if it's not initialized already
 // Cache initialization loads the list of clusters from the cluster management service and starts regular cache refresher
-func Start(ctx context.Context, factory service.ClusterCacheFactory, config clusterServiceConfig, options ...rest.HTTPClientOption) (bool, error) {
+func Start(ctx context.Context, factory service.ClusterCacheFactory, options ...rest.HTTPClientOption) (bool, error) {
 	if atomic.LoadUint32(&started) == 0 {
 		// Has not started yet.
 		startLock.Lock()
