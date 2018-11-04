@@ -240,7 +240,7 @@ func (s *authenticationProviderServiceImpl) ExchangeAuthorizationCodeForUserToke
 func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error) {
 
 	// Exchange the code for an access token
-    provider := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config)
+	provider := s.Factories().IdentityProviderFactory().NewIdentityProvider(ctx, s.config)
 	provider.SetRedirectURL(redirectURL)
 	token, err := provider.Exchange(ctx, code)
 	if err != nil {
