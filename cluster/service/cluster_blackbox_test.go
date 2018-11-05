@@ -81,7 +81,7 @@ func (s *ClusterServiceTestSuite) TestStart() {
 		require.NoError(t, err)
 		defer func() { require.NoError(s.T(), r.Stop()) }()
 
-		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, s.Configuration, rest.WithRoundTripper(r.Transport))
+		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, rest.WithRoundTripper(r.Transport))
 		assert.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
 		assert.False(t, started)
 
@@ -98,7 +98,7 @@ func (s *ClusterServiceTestSuite) TestStart() {
 		defer func() { require.NoError(s.T(), r.Stop()) }()
 
 		// It starts fine if there is no errors
-		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, s.Configuration, rest.WithRoundTripper(r.Transport))
+		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, rest.WithRoundTripper(r.Transport))
 		require.NoError(t, err)
 		assert.True(t, started)
 
