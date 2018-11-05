@@ -131,7 +131,7 @@ revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
 
 [[constraint]]
   name = "github.com/gojuno/minimock"
-  branch = "master"
+  revision = "a5502dd2746ee6fc3fd58ad83d701d25e14d68d1"
 
 [prune]
   go-tests = true

@@ -140,13 +140,12 @@
   revision = "487ec858da35ab9b34dea233bb8d91c048645add"
 
 [[projects]]
-  branch = "master"
   name = "github.com/gojuno/minimock"
   packages = [
     ".",
     "cmd/minimock"
   ]
-  revision = "79a6ca66b6ac53161df2dfca6cb70e51fd4be8fc"
+  revision = "a5502dd2746ee6fc3fd58ad83d701d25e14d68d1"
 
 [[projects]]
   branch = "travis-1.9"
@@ -491,6 +490,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5952b9272cd3997453d2ff653df0b99501939da09b7da22e67ddf17f56a6ac79"
+  inputs-digest = "a445ea99112a636e11bab7e3c551d1ec3646c7a29ba8136e0c56af24e6363740"
   solver-name = "gps-cdcl"
   solver-version = 1

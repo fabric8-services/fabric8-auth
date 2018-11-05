@@ -112,7 +112,7 @@ func (m *GormDefaultRoleMappingRepository) Create(ctx context.Context, u *Defaul
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"default_role_mapping_id": u.DefaultRoleMappingID,
-			"err":                     err,
+			"err": err,
 		}, "unable to create the default role mapping")
 		return errs.WithStack(err)
 	}
@@ -159,7 +159,7 @@ func (m *GormDefaultRoleMappingRepository) Delete(ctx context.Context, id uuid.U
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"default_role_mapping_id": id,
-			"err":                     result.Error,
+			"err": result.Error,
 		}, "unable to delete the default role mapping")
 		return errs.WithStack(result.Error)
 	}
