@@ -174,6 +174,38 @@ test-integration-benchmark: prebuild-check migrate-database $(SOURCES)
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_LOG_LEVEL=error AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test $(GO_TEST_INTEGRATION_FLAG) -vet off -run=^$$ -bench=. -cpu 1,2,4 -test.benchmem $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
+.PHONY: test-contracts-consumer
+## Runs the consumer part of the contract tests to re-generate the local pact file
+test-contracts-consumer:
+	$(call log-info,"Running test: $@")
+	$(eval TEST_PACKAGES:=$(shell go list ./... | grep 'contracts/consumer'))
+	PACT_DIR=$(PWD)/test/contracts/pacts \
+	PACT_CONSUMER=Fabric8AuthGeneralConsumer \
+	PACT_PROVIDER=Fabric8Auth \
+	PACT_VERSION=1.0.0 \
+	go test -count=1 $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
+
+.PHONY: test-contracts-no-coverage
+## Runs the contract tests WITHOUT producing coverage files for each package.
+## Make sure you ran "make dev" before you run this target.
+## The [chromedriver](http://chromedriver.chromium.org/) is required to be installed for the user login part of the tests.
+## The following env variables needs to be set in environment:
+## - RHD account credentials:
+##   OSIO_USERNAME
+##   OSIO_PASSWORD
+## - Service account credentials (according to https://github.com/fabric8-services/fabric8-auth/blob/master/configuration/conf-files/service-account-secrets.conf#L30)
+##   AUTH_SERVICE_ACCOUNT_CLIENT_ID
+##   AUTH_SERVICE_ACCOUNT_CLIENT_SERCRET
+test-contracts-no-coverage: prebuild-check migrate-database $(SOURCES)
+	$(call log-info,"Running test: $@")
+	$(eval TEST_PACKAGES:=$(shell go list ./... | grep 'contracts/provider'))
+	PACT_DIR=$(PWD)/test/contracts/pacts \
+	PACT_CONSUMER=Fabric8AuthGeneralConsumer \
+	PACT_PROVIDER=Fabric8Auth \
+	PACT_VERSION=1.0.0 \
+	PACT_PROVIDER_BASE_URL=http://localhost:8089 \
+	go test -count=1 $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
+
 .PHONY: test-remote-with-coverage
 ## Runs the remote tests and produces coverage files for each package.
 test-remote-with-coverage: prebuild-check clean-coverage-remote $(COV_PATH_REMOTE)
