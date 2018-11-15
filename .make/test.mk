@@ -188,7 +188,9 @@ test-contracts-consumer:
 .PHONY: test-contracts-no-coverage
 ## Runs the contract tests WITHOUT producing coverage files for each package.
 ## Make sure you ran "make dev" before you run this target.
-## The [chromedriver](http://chromedriver.chromium.org/) is required to be installed for the user login part of the tests.
+## The Chrome or Chromium browser with headless feature 
+## as well as the [chromedriver](http://chromedriver.chromium.org/) is required 
+## to be installed for the user login part of the tests.
 ## The following env variables needs to be set in environment:
 ## - RHD account credentials:
 ##   OSIO_USERNAME
