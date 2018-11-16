@@ -3,10 +3,11 @@ package controller
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -121,11 +122,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	}
 
 	// If it's a new user, Auth service generates an Identity ID for the user.
-	identityID, err := uuid.FromString(uuid.NewV4().String())
-	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
+	identityID := uuid.NewV4()
 	identity, user, err := c.createUserInDB(ctx, identityID)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
