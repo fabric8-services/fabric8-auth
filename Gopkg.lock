@@ -328,7 +328,7 @@
     "config",
     "loginusers"
   ]
-  revision = "a5075e2f6b4e063f3b3eb27eb008d0da844b5b54"
+  revision = "master"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
