@@ -34,7 +34,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestExistsResourceTypeScope() {
 
 	rts := &resourcetype.ResourceTypeScope{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
-		Name: "foo",
+		Name:           "foo",
 	}
 
 	err := s.repo.Create(s.Ctx, rts)
@@ -54,7 +54,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestExistsResourceTypeScope() {
 func (s *resourceTypeScopeBlackBoxTest) TestCreateFailsForInvalidResourceType() {
 	rts := &resourcetype.ResourceTypeScope{
 		ResourceTypeID: uuid.NewV4(),
-		Name: "foo",
+		Name:           "foo",
 	}
 
 	err := s.repo.Create(s.Ctx, rts)
@@ -66,7 +66,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestSaveOK() {
 
 	rts := &resourcetype.ResourceTypeScope{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
-		Name: "foo",
+		Name:           "foo",
 	}
 
 	err := s.repo.Create(s.Ctx, rts)
@@ -88,7 +88,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestSaveNonExistentScopeFails() {
 
 	rts := &resourcetype.ResourceTypeScope{
 		ResourceTypeID: rt.ResourceType().ResourceTypeID,
-		Name: "foo",
+		Name:           "foo",
 	}
 
 	err := s.repo.Save(s.Ctx, rts)
