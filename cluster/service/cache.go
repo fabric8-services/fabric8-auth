@@ -160,7 +160,6 @@ func (c *cache) createClient(ctx context.Context) (*client.Client, error) {
 	}
 
 	httpClient := http.DefaultClient
-	httpClient.Timeout = 10 * time.Second
 
 	if c.options != nil {
 		for _, opt := range c.options {
