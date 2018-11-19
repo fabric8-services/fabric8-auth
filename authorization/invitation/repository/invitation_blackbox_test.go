@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -20,7 +21,7 @@ type invitationBlackBoxTest struct {
 	repo invitationRepo.InvitationRepository
 }
 
-func TestRunInvitationBlackBoxTest(t *testing.T) {
+func TestInvitationBlackBoxTest(t *testing.T) {
 	suite.Run(t, &invitationBlackBoxTest{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
@@ -244,7 +245,7 @@ func (s *invitationBlackBoxTest) CreateTestResourceInvitation() (invitationRepo.
 	resourceType, err := s.Application.ResourceTypeRepository().Lookup(s.Ctx, authorization.IdentityResourceTypeOrganization)
 	require.NoError(s.T(), err)
 
-	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *resourceType, "foo", nil)
+	resource, err := testsupport.CreateTestResource(s.Ctx, s.DB, *resourceType, fmt.Sprintf("foo-%s", uuid.NewV4()), nil)
 	require.NoError(s.T(), err)
 
 	userIdentity, err := testsupport.CreateTestUser(s.DB, &testsupport.TestUser)

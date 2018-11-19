@@ -36,17 +36,14 @@ import (
 // 2017/01/31 12:08:08 Deleting from x 0685068d-4934-4d9a-bac2-91eebbca9575
 // 2017/01/31 12:08:08 Deleting from x 2d20944e-7952-40c1-bd15-f3fa1a70026d
 func DeleteCreatedEntities(db *gorm.DB) func() {
-	hookName := "mighti:record"
 	type entity struct {
 		table string
 		keys  map[string]interface{}
 	}
 	var entities []entity
-	hookRegistered := db.Callback().Create().Get(hookName) != nil
-	if hookRegistered {
-		hookName += "-" + uuid.NewV4().String()
-	}
-	db.Callback().Create().After("gorm:create").Register(hookName, func(scope *gorm.Scope) {
+	// hook to monitor all created entities
+	createHookName := newHookname()
+	db.Callback().Create().After("gorm:create").Register(createHookName, func(scope *gorm.Scope) {
 		fields := scope.PrimaryFields()
 		keys := make(map[string]interface{})
 		for _, field := range fields {
@@ -55,25 +52,48 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 		log.Logger().Debugln(fmt.Sprintf("Inserted entities from %s with keys %v", scope.TableName(), keys))
 		entities = append(entities, entity{table: scope.TableName(), keys: keys})
 	})
+
 	return func() {
-		defer db.Callback().Create().Remove(hookName)
+		// drop all constraints
+
+		defer func() {
+			db.Callback().Create().Remove(createHookName)
+			// re-create all constraints
+		}()
 		// Find out if the current db object is already a transaction
 		_, inTransaction := db.CommonDB().(*sql.Tx)
 		tx := db
 		if !inTransaction {
 			tx = db.Begin()
 		}
+		// defer all DB constraints that can be deferred (see https://www.postgresql.org/docs/8.2/sql-set-constraints.html)
+		_, err := tx.CommonDB().Exec("SET CONSTRAINTS ALL DEFERRED")
+		if err != nil {
+			log.Error(nil, map[string]interface{}{
+				"error": err,
+			}, "failed to defer all constraints before cleaning the test records in the DB")
+		}
+		defer func() {
+			_, err := tx.CommonDB().Exec("SET CONSTRAINTS ALL DEFERRED")
+			if err != nil {
+				log.Error(nil, map[string]interface{}{
+					"error": err,
+				}, "failed to restore all constraints after cleaning the test records in the DB")
+			}
+
+		}()
+
 		for i := len(entities) - 1; i >= 0; i-- {
 			entity := entities[i]
 			log.Debug(nil, map[string]interface{}{
-				"table":     entity.table,
-				"keys":      entity.keys,
-				"hook_name": hookName,
+				"table": entity.table,
+				"keys":  entity.keys,
+				// "hook_name": hookName,
 			}, "Deleting entities from '%s' table with keys %v", entity.table, entity.keys)
 			if len(entity.keys) == 0 {
 				log.Panic(nil, map[string]interface{}{
-					"table":     entity.table,
-					"hook_name": hookName,
+					"table": entity.table,
+					// "hook_name": hookName,
 				}, "no primary keys found!!!")
 			}
 			tx.Table(entity.table).Where(entity.keys).Delete("")
@@ -83,4 +103,8 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 			tx.Commit()
 		}
 	}
+}
+
+func newHookname() string {
+	return fmt.Sprintf("fabric8:record-%s", uuid.NewV4())
 }

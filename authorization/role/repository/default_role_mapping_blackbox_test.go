@@ -154,10 +154,11 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
 	err = s.repo.Save(s.Ctx, rm)
 	require.NoError(s.T(), err)
 
-	updated, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
+	updatedRM, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), rm.ResourceTypeID, updated.ResourceTypeID)
-	require.Equal(s.T(), otherRole.Role().RoleID, updated.ToRoleID)
+	require.Equal(s.T(), rm.ResourceTypeID, updatedRM.ResourceTypeID)
+	require.Equal(s.T(), otherRole.Role().RoleID, updatedRM.ToRoleID)
+	assert.True(s.T(), updatedRM.GetLastModified().After(rm.CreatedAt))
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {
