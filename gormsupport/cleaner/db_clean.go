@@ -42,8 +42,8 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 	}
 	var entities []entity
 	// hook to monitor all created entities
-	createHookName := newHookname()
-	db.Callback().Create().After("gorm:create").Register(createHookName, func(scope *gorm.Scope) {
+	hookName := newHookname()
+	db.Callback().Create().After("gorm:create").Register(hookName, func(scope *gorm.Scope) {
 		fields := scope.PrimaryFields()
 		keys := make(map[string]interface{})
 		for _, field := range fields {
@@ -54,18 +54,23 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 	})
 
 	return func() {
-		// drop all constraints
 
-		defer func() {
-			db.Callback().Create().Remove(createHookName)
-			// re-create all constraints
-		}()
 		// Find out if the current db object is already a transaction
 		_, inTransaction := db.CommonDB().(*sql.Tx)
 		tx := db
 		if !inTransaction {
 			tx = db.Begin()
 		}
+		defer func() {
+			db.Callback().Create().Remove(createHookName)
+			// restore all constraints to IMMEDIATE
+			_, err := tx.CommonDB().Exec("SET CONSTRAINTS ALL IMMEDIATE")
+			if err != nil {
+				log.Error(nil, map[string]interface{}{
+					"error": err,
+				}, "failed to restore all constraints after cleaning the test records in the DB")
+			}
+		}()
 		// defer all DB constraints that can be deferred (see https://www.postgresql.org/docs/8.2/sql-set-constraints.html)
 		_, err := tx.CommonDB().Exec("SET CONSTRAINTS ALL DEFERRED")
 		if err != nil {
@@ -74,26 +79,20 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 			}, "failed to defer all constraints before cleaning the test records in the DB")
 		}
 		defer func() {
-			_, err := tx.CommonDB().Exec("SET CONSTRAINTS ALL DEFERRED")
-			if err != nil {
-				log.Error(nil, map[string]interface{}{
-					"error": err,
-				}, "failed to restore all constraints after cleaning the test records in the DB")
-			}
 
 		}()
 
 		for i := len(entities) - 1; i >= 0; i-- {
 			entity := entities[i]
 			log.Debug(nil, map[string]interface{}{
-				"table": entity.table,
-				"keys":  entity.keys,
-				// "hook_name": hookName,
+				"table":     entity.table,
+				"keys":      entity.keys,
+				"hook_name": hookName,
 			}, "Deleting entities from '%s' table with keys %v", entity.table, entity.keys)
 			if len(entity.keys) == 0 {
 				log.Panic(nil, map[string]interface{}{
-					"table": entity.table,
-					// "hook_name": hookName,
+					"table":     entity.table,
+					"hook_name": hookName,
 				}, "no primary keys found!!!")
 			}
 			tx.Table(entity.table).Where(entity.keys).Delete("")
