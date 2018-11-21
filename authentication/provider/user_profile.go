@@ -10,16 +10,6 @@ const (
 	RHDUsernameAttribute  = "rhd_username"
 )
 
-// NewOAuthUserProfile creates a new OAuthUserProfile instance.
-func NewOAuthUserProfile(firstName *string, lastName *string, email *string, attributes *OAuthUserProfileAttributes) *OAuthUserProfile {
-	return &OAuthUserProfile{
-		FirstName:  firstName,
-		LastName:   lastName,
-		Email:      email,
-		Attributes: attributes,
-	}
-}
-
 // OAuthUserProfile represents standard OAuth User profile api request payload
 type OAuthUserProfile struct {
 	ID            *string                     `json:"id,omitempty"`

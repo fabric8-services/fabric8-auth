@@ -39,7 +39,6 @@ type AuthenticationProviderServiceConfig interface {
 type authenticationProviderServiceImpl struct {
 	base.BaseService
 	config       AuthenticationProviderServiceConfig
-	tokenManager manager.TokenManager
 }
 
 const (
@@ -49,17 +48,9 @@ const (
 )
 
 func NewAuthenticationProviderService(ctx servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
-	tokenManager, err := manager.NewTokenManager(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to create token manager")
-	}
-
 	return &authenticationProviderServiceImpl{
 		BaseService:  base.NewBaseService(ctx),
 		config:       config,
-		tokenManager: tokenManager,
 	}
 }
 
@@ -262,6 +253,15 @@ func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context
 // encodes the token and returns final URL to which we are supposed to redirect
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
 	token *oauth2.Token) (*string, *oauth2.Token, error) {
+
+	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create token manager")
+		return nil, nil, autherrors.NewInternalError(ctx, err)
+	}
+
 	apiClient := referrerURL.Query().Get(apiClientParam)
 	identity, err := s.UpdateIdentityUsingUserInfoEndPoint(ctx, token.AccessToken)
 	if err != nil {
@@ -272,7 +272,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		case autherrors.UnauthorizedError:
 			if apiClient != "" {
 				// Return the api token
-				userToken, err := s.tokenManager.GenerateUserTokenForAPIClient(ctx, *token)
+				userToken, err := tokenManager.GenerateUserTokenForAPIClient(ctx, *token)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to generate token")
 					return nil, nil, err
@@ -326,7 +326,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	}, "local user created/updated")
 
 	// Generate a new user token instead of using the original oauth provider token
-	userToken, err := s.tokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
+	userToken, err := tokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token")
 		return nil, nil, err
