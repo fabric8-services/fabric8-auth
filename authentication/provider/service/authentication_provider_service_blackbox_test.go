@@ -785,6 +785,33 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 
 }
 
+
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForDeprovisionedUser() {
+	tm, err := manager.NewTokenManager(s.Configuration)
+	require.NoError(s.T(), err)
+
+	user := s.Graph.CreateUser()
+	user.Deprovision()
+
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+	claims := make(map[string]interface{})
+	claims["sub"] = user.IdentityID().String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	// obtain an RPT token using the access token
+	space := s.Graph.CreateSpace().AddAdmin(user)
+	rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
+	require.NoError(s.T(), err)
+	// when
+	_, err := s.Application.TokenService().ExchangeRefreshToken(ctx, *rpt, refreshToken)
+	// then
+	require.Error(s.T(), err)
+}
+
 func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.CallbackLoginContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
