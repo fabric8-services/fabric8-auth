@@ -806,7 +806,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsFo
 	rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
 	require.NoError(s.T(), err)
 	// when
-	_, err := s.Application.TokenService().ExchangeRefreshToken(ctx, *rpt, refreshToken)
+	_, err = s.Application.TokenService().ExchangeRefreshToken(ctx, *rpt, refreshToken)
 	// then
 	require.Error(s.T(), err)
 }
