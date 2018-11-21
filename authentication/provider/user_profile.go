@@ -35,17 +35,6 @@ type OAuthUserProfile struct {
 // OAuthUserProfileAttributes represents standard OAuth profile payload Attributes
 type OAuthUserProfileAttributes map[string][]string
 
-func equalsOAuthAttribute(attributes OAuthUserProfileAttributes, attribute string, compareTo string) bool {
-	if v, ok := attributes[attribute]; ok {
-		if len(v) > 0 {
-			if v[0] == compareTo {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 //OAuthUserProfileResponse represents the user profile api response from an oauth provider
 type OAuthUserProfileResponse struct {
 	ID                         *string                     `json:"id"`

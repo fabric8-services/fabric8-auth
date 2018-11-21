@@ -147,9 +147,7 @@ type UserService interface {
 }
 
 type UserProfileService interface {
-	CreateOrUpdate(ctx context.Context, userRequest *provider.OAuthUserRequest, protectedAccessToken string, adminUserAPIURL string) (*string, bool, error)
 	Get(ctx context.Context, accessToken string, profileURL string) (*provider.OAuthUserProfileResponse, error)
-	Update(ctx context.Context, userProfile *provider.OAuthUserProfile, accessToken string, profileURL string) error
 }
 
 type NotificationService interface {

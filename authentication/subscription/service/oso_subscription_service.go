@@ -48,22 +48,6 @@ func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSO
 	}
 }
 
-func NewOSOSubscriptionServiceWithClient(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration, httpClient rest.HttpClient) service.OSOSubscriptionService {
-	tokenManager, err := manager.NewTokenManager(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to create token manager")
-	}
-
-	return &osoSubscriptionServiceImpl{
-		BaseService:  base.NewBaseService(context),
-		config:       config,
-		tokenManager: tokenManager,
-		httpClient:   httpClient,
-	}
-}
-
 // LoadOSOSubscriptionStatus loads a subscription status from OpenShift Online Registration app
 func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error) {
 

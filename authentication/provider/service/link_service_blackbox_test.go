@@ -69,7 +69,10 @@ func (s *LinkTestSuite) TestInvalidRedirectFails() {
 	os.Setenv("AUTH_REDIRECT_VALID", configuration.DefaultValidRedirectURLs)
 
 	_, err := s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "https://some.host.com")
-	require.NotNil(s.T(), err)
+	require.Error(s.T(), err)
+
+	_, err = s.Application.LinkService().ProviderLocation(context.Background(), s.requestData, s.testIdentity.ID.String(), "https://github.com/org/repo", "not_a_url")
+	require.Error(s.T(), err)
 }
 
 func (s *LinkTestSuite) TestUnknownProviderFails() {
