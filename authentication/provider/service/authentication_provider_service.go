@@ -38,7 +38,7 @@ type AuthenticationProviderServiceConfig interface {
 
 type authenticationProviderServiceImpl struct {
 	base.BaseService
-	config       AuthenticationProviderServiceConfig
+	config AuthenticationProviderServiceConfig
 }
 
 const (
@@ -49,8 +49,8 @@ const (
 
 func NewAuthenticationProviderService(ctx servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
 	return &authenticationProviderServiceImpl{
-		BaseService:  base.NewBaseService(ctx),
-		config:       config,
+		BaseService: base.NewBaseService(ctx),
+		config:      config,
 	}
 }
 

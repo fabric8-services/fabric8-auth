@@ -27,15 +27,15 @@ type OSOSubscriptionServiceConfiguration interface {
 
 type osoSubscriptionServiceImpl struct {
 	base.BaseService
-	config       OSOSubscriptionServiceConfiguration
-	httpClient   rest.HttpClient
+	config     OSOSubscriptionServiceConfiguration
+	httpClient rest.HttpClient
 }
 
 func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
 	return &osoSubscriptionServiceImpl{
-		BaseService:  base.NewBaseService(context),
-		config:       config,
-		httpClient:   http.DefaultClient,
+		BaseService: base.NewBaseService(context),
+		config:      config,
+		httpClient:  http.DefaultClient,
 	}
 }
 
@@ -45,7 +45,7 @@ func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Conte
 	tm, err := manager.ReadTokenManagerFromContext(ctx)
 	if err != nil {
 		log.Error(nil, map[string]interface{}{
-				"err": err,
+			"err": err,
 		}, "failed to create token manager")
 		return "", autherrors.NewInternalError(ctx, err)
 	}
