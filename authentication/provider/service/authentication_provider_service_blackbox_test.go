@@ -785,7 +785,6 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 
 }
 
-
 func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForDeprovisionedUser() {
 	tm, err := manager.NewTokenManager(s.Configuration)
 	require.NoError(s.T(), err)
