@@ -62,7 +62,7 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 			tx = db.Begin()
 		}
 		defer func() {
-			db.Callback().Create().Remove(createHookName)
+			db.Callback().Create().Remove(hookName)
 			// restore all constraints to IMMEDIATE
 			_, err := tx.CommonDB().Exec("SET CONSTRAINTS ALL IMMEDIATE")
 			if err != nil {
@@ -78,10 +78,6 @@ func DeleteCreatedEntities(db *gorm.DB) func() {
 				"error": err,
 			}, "failed to defer all constraints before cleaning the test records in the DB")
 		}
-		defer func() {
-
-		}()
-
 		for i := len(entities) - 1; i >= 0; i-- {
 			entity := entities[i]
 			log.Debug(nil, map[string]interface{}{
