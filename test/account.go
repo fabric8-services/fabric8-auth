@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
@@ -119,7 +120,7 @@ func CreateTestOrganizationIdentity(db *gorm.DB) (account.Identity, error) {
 		}
 
 		orgResource := resourceRepo.Resource{
-			Name:           "test-organization",
+			Name:           fmt.Sprintf("test-organization-%s", uuid.NewV4()),
 			ResourceTypeID: resourceType.ResourceTypeID,
 		}
 
