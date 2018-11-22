@@ -8,7 +8,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
@@ -18,6 +24,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -25,12 +32,6 @@ import (
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 var defaultManager TokenManager
@@ -136,14 +137,7 @@ func ContextIdentity(ctx context.Context) (*uuid.UUID, error) {
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{}, "error reading token manager")
 
-		return nil, errors.New("Error reading token manager")
-	}
-	if tm == nil {
-		log.Error(ctx, map[string]interface{}{
-			"token": tm,
-		}, "missing token manager")
-
-		return nil, errors.New("Missing token manager")
+		return nil, errors.Wrapf(err, "error reading token manager")
 	}
 	// As mentioned in token.go, we can now safely convert tm to a token.Manager
 	manager := tm.(TokenManager)
@@ -167,7 +161,7 @@ func ContextWithTokenManager(ctx context.Context, tm interface{}) context.Contex
 	return context.WithValue(ctx, contextTokenManagerKey, tm)
 }
 
-// ReadManagerFromContext extracts the token manager from the context and returns it
+// ReadTokenManagerFromContext extracts the token manager from the context and returns it
 func ReadTokenManagerFromContext(ctx context.Context) (TokenManager, error) {
 	tm := ctx.Value(contextTokenManagerKey)
 	if tm == nil {
@@ -504,7 +498,6 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Co
 	if req == nil {
 		return nil, errors.New("missing request in context")
 	}
-
 	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
 	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
 	if err != nil {

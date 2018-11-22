@@ -138,6 +138,7 @@ type ServiceFactory struct {
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
 	clusterServiceFunc      func() service.ClusterService
+	authProviderServiceFunc func() service.AuthenticationProviderService
 }
 
 // Option an option to configure the Service Factory
@@ -167,6 +168,16 @@ func WithClusterService(s service.ClusterService) Option {
 	}
 }
 
+// WithAuthenticationProviderService overrides the default function that returns the AuthenticationProviderService,
+// so that instead, a mock implementation can be used
+func WithAuthenticationProviderService(s service.AuthenticationProviderService) Option {
+	return func(f *ServiceFactory) {
+		f.authProviderServiceFunc = func() service.AuthenticationProviderService {
+			return s
+		}
+	}
+}
+
 func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
@@ -181,6 +192,10 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *c
 	f.clusterServiceFunc = func() service.ClusterService {
 		return clusterservice.NewClusterService(f.getContext(), f.config)
 	}
+	// default function to return an instance of Cluster Service
+	f.authProviderServiceFunc = func() service.AuthenticationProviderService {
+		return providerservice.NewAuthenticationProviderService(f.getContext(), f.config)
+	}
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
 	// and options
 	for _, opt := range options {
@@ -194,7 +209,7 @@ func (f *ServiceFactory) getContext() servicecontext.ServiceContext {
 }
 
 func (f *ServiceFactory) AuthenticationProviderService() service.AuthenticationProviderService {
-	return providerservice.NewAuthenticationProviderService(f.getContext(), f.config)
+	return f.authProviderServiceFunc()
 }
 
 func (f *ServiceFactory) InvitationService() service.InvitationService {
