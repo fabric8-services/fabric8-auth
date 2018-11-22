@@ -27,48 +27,31 @@ type OSOSubscriptionServiceConfiguration interface {
 
 type osoSubscriptionServiceImpl struct {
 	base.BaseService
-	config       OSOSubscriptionServiceConfiguration
-	tokenManager manager.TokenManager
-	httpClient   rest.HttpClient
+	config     OSOSubscriptionServiceConfiguration
+	httpClient rest.HttpClient
 }
 
 func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
-	tokenManager, err := manager.NewTokenManager(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to create token manager")
-	}
-
 	return &osoSubscriptionServiceImpl{
-		BaseService:  base.NewBaseService(context),
-		config:       config,
-		tokenManager: tokenManager,
-		httpClient:   http.DefaultClient,
-	}
-}
-
-func NewOSOSubscriptionServiceWithClient(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration, httpClient rest.HttpClient) service.OSOSubscriptionService {
-	tokenManager, err := manager.NewTokenManager(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to create token manager")
-	}
-
-	return &osoSubscriptionServiceImpl{
-		BaseService:  base.NewBaseService(context),
-		config:       config,
-		tokenManager: tokenManager,
-		httpClient:   httpClient,
+		BaseService: base.NewBaseService(context),
+		config:      config,
+		httpClient:  http.DefaultClient,
 	}
 }
 
 // LoadOSOSubscriptionStatus loads a subscription status from OpenShift Online Registration app
 func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error) {
 
+	tm, err := manager.ReadTokenManagerFromContext(ctx)
+	if err != nil {
+		log.Error(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create token manager")
+		return "", autherrors.NewInternalError(ctx, err)
+	}
+
 	// Extract username from the token
-	tokenClaims, err := s.tokenManager.ParseToken(ctx, token.AccessToken)
+	tokenClaims, err := tm.ParseToken(ctx, token.AccessToken)
 	if err != nil {
 		return "", err
 	}

@@ -165,8 +165,12 @@ func (s *authenticationProviderServiceTestSuite) unapprovedUserRedirected() (*st
 	dummyOAuth := s.getDummyOauthIDPService(false)
 	testsupport.ActivateDummyIdentityProviderFactory(s, dummyOAuth)
 	defer s.ResetFactories()
+
+	tm := testtoken.TokenManager
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+
 	redirectURL, _, err := s.Application.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(
-		testtoken.ContextWithRequest(context.Background()), redirect, token)
+		ctx, redirect, token)
 	return redirectURL, err
 }
 
@@ -585,7 +589,10 @@ func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnaut
 		accessToken: accessToken,
 	})
 
-	_, err = s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State, *callbackCtx.Code,
+	tm := testtoken.TokenManager
+	ctx := manager.ContextWithTokenManager(s.Ctx, tm)
+
+	_, err = s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State, *callbackCtx.Code,
 		rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Error(s.T(), err)
 	require.IsType(s.T(), err, autherrors.UnauthorizedError{})
@@ -616,7 +623,10 @@ func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK
 
 	testsupport.ActivateDummyIdentityProviderFactory(s, dummyIDPConfigRef)
 
-	_, err = s.Application.AuthenticationProviderService().LoginCallback(callbackCtx, *callbackCtx.State,
+	tm := testtoken.TokenManager
+	ctx := manager.ContextWithTokenManager(callbackCtx, tm)
+
+	_, err = s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State,
 		*callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.NoError(s.T(), err)
 }
@@ -775,6 +785,32 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
 
 }
 
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForDeprovisionedUser() {
+	tm, err := manager.NewTokenManager(s.Configuration)
+	require.NoError(s.T(), err)
+
+	user := s.Graph.CreateUser()
+	user.Deprovision()
+
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+	claims := make(map[string]interface{})
+	claims["sub"] = user.IdentityID().String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	// obtain an RPT token using the access token
+	space := s.Graph.CreateSpace().AddAdmin(user)
+	rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
+	require.NoError(s.T(), err)
+	// when
+	_, err = s.Application.TokenService().ExchangeRefreshToken(ctx, *rpt, refreshToken)
+	// then
+	require.Error(s.T(), err)
+}
+
 func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[string]string) (*httptest.ResponseRecorder, *app.CallbackLoginContext) {
 	// Setup request context
 	rw := httptest.NewRecorder()
@@ -839,7 +875,11 @@ func (s *authenticationProviderServiceTestSuite) loginCallback(extraParams map[s
 func (s *authenticationProviderServiceTestSuite) checkLoginCallback(dummyOauth *dummyIDPOAuthProvider, rw *httptest.ResponseRecorder, callbackCtx *app.CallbackLoginContext, tokenParam string) {
 
 	testsupport.ActivateDummyIdentityProviderFactory(s, dummyOauth)
-	redirectUrl, err := s.Application.AuthenticationProviderService().LoginCallback(s.Ctx, *callbackCtx.State,
+
+	tm := testtoken.TokenManager
+	ctx := manager.ContextWithTokenManager(s.Ctx, tm)
+
+	redirectUrl, err := s.Application.AuthenticationProviderService().LoginCallback(ctx, *callbackCtx.State,
 		*callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Nil(s.T(), err)
 
@@ -1016,9 +1056,13 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 		}, nil
 	}
 	// when
+
+	tm := testtoken.TokenManager
+	ctx := manager.ContextWithTokenManager(context.Background(), tm)
+
 	testsupport.ActivateDummyIdentityProviderFactory(s, identityProvider)
 	resultURL, userToken, err := s.Application.AuthenticationProviderService().CreateOrUpdateIdentityAndUser(
-		testtoken.ContextWithRequest(context.Background()),
+		testtoken.ContextWithRequest(ctx),
 		&url.URL{Path: redirectURL},
 		oauth2Token)
 
