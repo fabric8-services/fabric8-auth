@@ -75,16 +75,21 @@ objects:
               configMapKeyRef:
                 name: ${SERVICE_NAME}
                 key: notification.serviceurl
-          - name: AUTH_NOTAPPROVED_REDIRECT
+          - name: AUTH_IGNORE_EMAIL_PROD
             valueFrom:
               configMapKeyRef:
                 name: ${SERVICE_NAME}
-                key: notapproved.redirect
-          - name: AUTH_ERRORPAGE_REDIRECT
-            valueFrom:
-              configMapKeyRef:
-                name: ${SERVICE_NAME}
-                key: login.errorpage.redirect
+                key: ignore.email.prod
+          # - name: AUTH_NOTAPPROVED_REDIRECT
+          #   valueFrom:
+          #     configMapKeyRef:
+          #       name: ${SERVICE_NAME}
+          #       key: notapproved.redirect
+          # - name: AUTH_ERRORPAGE_REDIRECT
+          #   valueFrom:
+          #     configMapKeyRef:
+          #       name: ${SERVICE_NAME}
+          #       key: login.errorpage.redirect
           name: ${SERVICE_NAME}
           ports:
           - containerPort: 8089
