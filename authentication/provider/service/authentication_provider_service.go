@@ -47,6 +47,7 @@ const (
 	tokenJSONParam = "token_json"
 )
 
+// NewAuthenticationProviderService returns a new AuthenticationProviderService implementation
 func NewAuthenticationProviderService(ctx servicecontext.ServiceContext, config AuthenticationProviderServiceConfig) service.AuthenticationProviderService {
 	return &authenticationProviderServiceImpl{
 		BaseService: base.NewBaseService(ctx),
@@ -258,7 +259,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	if err != nil {
 		log.Error(nil, map[string]interface{}{
 			"err": err,
-		}, "failed to create token manager")
+		}, "failed to retrieve token manager from context")
 		return nil, nil, autherrors.NewInternalError(ctx, err)
 	}
 
@@ -274,7 +275,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 				// Return the api token
 				userToken, err := tokenManager.GenerateUserTokenForAPIClient(ctx, *token)
 				if err != nil {
-					log.Error(ctx, map[string]interface{}{"err": err}, "failed to generate token")
+					log.Error(ctx, map[string]interface{}{"err": err}, "failed to generate token for API client")
 					return nil, nil, err
 				}
 				err = encodeToken(ctx, referrerURL, userToken, apiClient)
@@ -328,7 +329,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	// Generate a new user token instead of using the original oauth provider token
 	userToken, err := tokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token")
+		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token for user")
 		return nil, nil, err
 	}
 

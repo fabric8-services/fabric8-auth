@@ -46,14 +46,14 @@ func (c *LoginController) Login(ctx *app.LoginLoginContext) error {
 	return ctx.TemporaryRedirect()
 }
 
+// Callback implemnents the `GET /api/login/callback` endpoint
 func (c *LoginController) Callback(ctx *app.CallbackLoginContext) error {
 	state := ctx.Params.Get("state")
 	code := ctx.Params.Get("code")
 	redirectURL := rest.AbsoluteURL(ctx.RequestData, client.CallbackLoginPath(), nil)
-
 	redirectTo, err := c.app.AuthenticationProviderService().LoginCallback(ctx, state, code, redirectURL)
 	if err != nil {
-		ctx.ResponseData.Header().Set("Location", *redirectTo+"?error="+err.Error())
+		ctx.ResponseData.Header().Set("Location", redirectURL+"?error="+err.Error())
 		return ctx.TemporaryRedirect()
 	}
 	ctx.ResponseData.Header().Set("Location", *redirectTo)

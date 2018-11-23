@@ -158,6 +158,8 @@ generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only neces
 	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/provider.IdentityProvider -o ./test/token/oauth/ -s ".go"
 	@-mkdir -p test/generated/authorization/token/manager
 	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authorization/token/manager.TokenManagerConfiguration -o ./test/generated/authorization/token/manager/ -s ".go"
+	@-mkdir -p test/generated/application/service
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService -o ./test/generated/application/service/ -s ".go"
 
 .PHONY: generate-client
 generate-client: $(GOAGEN_BIN)
@@ -252,6 +254,7 @@ clean-generated:
 	-rm -rf ./notification/client
 	-rm -rf ./cluster/client
 	-rm -rf ./test/token/oauth
+	-rm -rf ./test/generated
 
 CLEAN_TARGETS += clean-vendor
 .PHONY: clean-vendor
