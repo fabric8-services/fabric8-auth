@@ -33,3 +33,6 @@ objects:
   data:
     wit.url: http://wit
     notification.serviceurl: http://f8notification
+    notapproved.redirect: http://f8ui-fabric8-services.192.168.64.2.nip.io
+    login.errorpage.redirect: http://f8ui-fabric8-services.192.168.64.2.nip.io
+

@@ -75,30 +75,40 @@ objects:
               configMapKeyRef:
                 name: ${SERVICE_NAME}
                 key: notification.serviceurl
+          - name: AUTH_NOTAPPROVED_REDIRECT
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: notapproved.redirect
+          - name: AUTH_ERRORPAGE_REDIRECT
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: login.errorpage.redirect
           name: ${SERVICE_NAME}
           ports:
           - containerPort: 8089
             protocol: TCP
-          livenessProbe:
-            failureThreshold: 3
-            httpGet:
-              path: /api/status
-              port: 8089
-              scheme: HTTP
-            initialDelaySeconds: 1
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 1
-          readinessProbe:
-            failureThreshold: 3
-            httpGet:
-              path: /api/status
-              port: 8089
-              scheme: HTTP
-            initialDelaySeconds: 1
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 1
+          # livenessProbe:
+          #   failureThreshold: 3
+          #   httpGet:
+          #     path: /api/status
+          #     port: 8089
+          #     scheme: HTTP
+          #   initialDelaySeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   timeoutSeconds: 1
+          # readinessProbe:
+          #   failureThreshold: 3
+          #   httpGet:
+          #     path: /api/status
+          #     port: 8089
+          #     scheme: HTTP
+          #   initialDelaySeconds: 1
+          #   periodSeconds: 10
+          #   successThreshold: 1
+          #   timeoutSeconds: 1
           resources:
             requests:
               cpu: 0.1m

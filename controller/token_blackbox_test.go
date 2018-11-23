@@ -85,26 +85,26 @@ func (s *TokenControllerTestSuite) TestPublicKeys() {
 
 	s.T().Run("file not found", func(t *testing.T) {
 		_, keys := test.KeysTokenOK(s.T(), svc.Context, svc, ctrl, nil)
-		s.checkJWK(keys)
+		checkJWK(t, s.testDir, keys)
 	})
 	s.T().Run("file not found", func(t *testing.T) {
 		jwk := "jwk"
 		_, keys := test.KeysTokenOK(s.T(), svc.Context, svc, ctrl, &jwk)
-		s.checkJWK(keys)
+		checkJWK(t, s.testDir, keys)
 	})
 	s.T().Run("file not found", func(t *testing.T) {
 		pem := "pem"
 		_, keys := test.KeysTokenOK(s.T(), svc.Context, svc, ctrl, &pem)
-		s.checkPEM(keys)
+		checkPEM(t, s.testDir, keys)
 	})
 }
 
-func (s *TokenControllerTestSuite) checkPEM(keys *app.PublicKeys) {
-	compareWithGolden(s.T(), filepath.Join(s.testDir, "keys", "ok_pem.golden.json"), keys)
+func checkPEM(t *testing.T, testDir string, keys *app.PublicKeys) {
+	compareWithGolden(t, filepath.Join(testDir, "keys", "ok_pem.golden.json"), keys)
 }
 
-func (s *TokenControllerTestSuite) checkJWK(keys *app.PublicKeys) {
-	compareWithGolden(s.T(), filepath.Join(s.testDir, "keys", "ok_jwk.golden.json"), keys)
+func checkJWK(t *testing.T, testDir string, keys *app.PublicKeys) {
+	compareWithGolden(t, filepath.Join(testDir, "keys", "ok_jwk.golden.json"), keys)
 }
 
 func (s *TokenControllerTestSuite) checkLoginRequiredHeader(rw http.ResponseWriter) {

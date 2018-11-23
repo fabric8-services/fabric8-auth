@@ -8,13 +8,12 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
-
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	provider "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
 	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
@@ -98,7 +97,7 @@ func (s *LoginControllerTestSuite) TestCallbackRedirect() {
 			return &expectedRedirect, nil
 		}
 		// when
-		resp := test.CallbackLoginTemporaryRedirect(s.T(), ctx, svc, ctrl, nil, &state.State)
+		resp := test.CallbackLoginTemporaryRedirect(t, ctx, svc, ctrl, nil, &state.State)
 		// then
 		assert.Equal(t, resp.Header().Get("Location"), expectedRedirect)
 		t.Logf("'Location' response header: %v", resp.Header().Get("Location"))
@@ -109,9 +108,7 @@ func (s *LoginControllerTestSuite) TestCallbackRedirect() {
 		authProviderServiceMock.LoginCallbackFunc = func(ctx context.Context, state string, code string, redirectURL string) (*string, error) {
 			return nil, errs.New("error")
 		}
-		// when
-		resp := test.CallbackLoginTemporaryRedirect(s.T(), ctx, svc, ctrl, nil, &state.State)
-		// then
-		assert.Equal(t, "http:///api/login/callback?error=error", resp.Header().Get("Location")) // host is empty in test request
+		// when/then
+		test.CallbackLoginInternalServerError(t, ctx, svc, ctrl, nil, &state.State)
 	})
 }
