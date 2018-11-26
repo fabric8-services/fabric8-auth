@@ -20,7 +20,8 @@ type LoginController struct {
 func NewLoginController(service *goa.Service, app application.Application) *LoginController {
 	return &LoginController{
 		Controller: service.NewController("login"),
-		app:        app}
+		app:        app,
+	}
 }
 
 // Login runs the login action.
@@ -53,8 +54,7 @@ func (c *LoginController) Callback(ctx *app.CallbackLoginContext) error {
 	redirectURL := rest.AbsoluteURL(ctx.RequestData, client.CallbackLoginPath(), nil)
 	redirectTo, err := c.app.AuthenticationProviderService().LoginCallback(ctx, state, code, redirectURL)
 	if err != nil {
-		ctx.ResponseData.Header().Set("Location", redirectURL+"?error="+err.Error())
-		return ctx.TemporaryRedirect()
+		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	ctx.ResponseData.Header().Set("Location", *redirectTo)
 	return ctx.TemporaryRedirect()

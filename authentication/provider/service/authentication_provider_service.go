@@ -268,7 +268,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
-		}, "failed to create a user and keycloak identity ")
+		}, "failed to create a user and keycloak identity")
 		switch err.(type) {
 		case autherrors.UnauthorizedError:
 			if apiClient != "" {
