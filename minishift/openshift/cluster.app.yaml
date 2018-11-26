@@ -1,0 +1,172 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: f8cluster
+objects:
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    labels:
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+    name: f8cluster
+  spec:
+    replicas: ${{REPLICAS}}
+    selector:
+      service: ${SERVICE_NAME}
+    strategy:
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          service: ${SERVICE_NAME}
+      spec:
+        containers:
+        - image: ${IMAGE}:${IMAGE_TAG}
+          env:
+          - name: F8_POSTGRES_HOST
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: db.host
+          - name: F8_POSTGRES_PORT
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: db.port
+          - name: F8_POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: db.user
+          - name: F8_POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: db.password
+          - name: F8_ENVIRONMENT
+            valueFrom:
+              configMapKeyRef:
+                name: ${SERVICE_NAME}
+                key: environment
+          - name: F8_DEVELOPER_MODE_ENABLED
+            valueFrom:
+              secretKeyRef:
+                name: ${SERVICE_NAME}
+                key: developer.mode.enabled
+          - name: F8_AUTH_URL
+            valueFrom:
+              configMapKeyRef:
+                name: f8cluster
+                key: auth.url
+          name: f8cluster
+          ports:
+          - containerPort: 8087
+            protocol: TCP
+# Should we use livenessProbe or readinessProbe in development mode? If yes then let's wait for https://github.com/fabric8-services/fabric8-auth/issues/713 to fix
+#          livenessProbe:
+#            failureThreshold: 3
+#            httpGet:
+#              path: /api/status
+#              port: 8087
+#              scheme: HTTP
+#            initialDelaySeconds: 1
+#            periodSeconds: 10
+#            successThreshold: 1
+#            timeoutSeconds: 1
+#          readinessProbe:
+#            failureThreshold: 3
+#            httpGet:
+#              path: /api/status
+#              port: 8087
+#              scheme: HTTP
+#            initialDelaySeconds: 1
+#            periodSeconds: 10
+#            successThreshold: 1
+#            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 0.1m
+              memory: 10Mi
+            limits:
+              cpu: 400m
+              memory: 1.5Gi
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /etc/fabric8/
+            name: f8cluster-configs
+            readOnly: true
+        volumes:
+        - name: f8cluster-configs
+          secret:
+            secretName: f8cluster-config-files
+            items:
+            - key: oso.clusters
+              path: oso-clusters.conf
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+  status:
+    details:
+      causes:
+      - type: ConfigChange
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${SERVICE_NAME}
+    labels:
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+  spec:
+    ports:
+      - name: "8087"
+        protocol: TCP
+        port: 80
+        targetPort: 8087
+    selector:
+      service: ${SERVICE_NAME}
+    type: ClusterIP
+    sessionAffinity: null
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      service: ${SERVICE_NAME}
+      belongsTo: ${SERVICE_NAME}
+      env: ${ENVIRONMENT}
+    name: ${SERVICE_NAME}
+  spec:
+    host: ''
+    port:
+      targetPort: "8087"
+    to:
+      kind: Service
+      name: ${SERVICE_NAME}
+      weight: 100
+    wildcardPolicy: None
+  status: {}
+parameters:
+- name: IMAGE
+  value: quay.io/openshiftio/fabric8-services-fabric8-cluster
+- name: IMAGE_TAG
+  value: latest
+- description: Number of deployment replicas
+  displayName: Number of deployment replicas
+  required: true
+  name: REPLICAS
+  value: '1'
+- name: ENVIRONMENT
+  value: dev
+- name: SERVICE_NAME
+  required: true
+  value: f8cluster
