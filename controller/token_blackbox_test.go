@@ -248,7 +248,7 @@ func (s *TokenControllerTestSuite) TestLinkOK() {
 func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	// given
 	user := s.Graph.CreateUser()
-	identityID :=  user.IdentityID()
+	identityID := user.IdentityID()
 	responseMode := "fragment"
 	referrer := fmt.Sprintf("http://foo.com?identity_id=%s&for=github", identityID.String())
 
