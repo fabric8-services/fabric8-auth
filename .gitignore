@@ -84,3 +84,5 @@ account/tenant
 test/service
 test/token/oauth
 test/login
+test/generated
+authentication/account
