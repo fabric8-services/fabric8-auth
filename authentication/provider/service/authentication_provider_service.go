@@ -389,7 +389,10 @@ func (s *authenticationProviderServiceImpl) UpdateIdentityUsingUserInfoEndPoint(
 	}
 
 	if !identity.RegistrationCompleted {
-		fillUserFromUserInfo(*userProfile, identity)
+		err = fillUserFromUserInfo(*userProfile, identity)
+		if err != nil {
+			return nil, autherrors.NewInternalError(ctx, err)
+		}
 		identity.RegistrationCompleted = true
 		err = s.ExecuteInTransaction(func() error {
 			// Using the old-fashioned service
@@ -624,7 +627,10 @@ func generateGravatarURL(email string) (string, error) {
 		return "", errs.WithStack(err)
 	}
 	hash := md5.New()
-	hash.Write([]byte(email))
+	_, err = hash.Write([]byte(email))
+	if err != nil {
+		return "", errs.WithStack(err)
+	}
 	grURL.Path += fmt.Sprintf("%v", hex.EncodeToString(hash.Sum(nil))) + ".jpg"
 
 	// We can use our own default image if there is no gravatar available for this email

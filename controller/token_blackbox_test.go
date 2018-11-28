@@ -247,11 +247,15 @@ func (s *TokenControllerTestSuite) TestLinkOK() {
 
 func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	// given
-	identityID := uuid.NewV4()
+	user := s.Graph.CreateUser()
+	identityID :=  user.IdentityID()
 	responseMode := "fragment"
 	referrer := fmt.Sprintf("http://foo.com?identity_id=%s&for=github", identityID.String())
+
+	stateValue := "foo" + identityID.String()
+
 	state := providerrepo.OauthStateReference{
-		State:        "foo",
+		State:        stateValue,
 		Referrer:     referrer,
 		ResponseMode: &responseMode,
 	}
@@ -260,7 +264,7 @@ func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false, "")
 	svc, ctrl, _ := s.SecuredController()
 	// when
-	response := test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "foo")
+	response := test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", stateValue)
 	// then
 	require.NotNil(s.T(), response)
 	location := response.Header()["Location"]

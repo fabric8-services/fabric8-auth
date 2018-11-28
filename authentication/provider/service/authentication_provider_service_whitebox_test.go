@@ -65,7 +65,8 @@ func TestFillUserDoesntOverwriteExistingImageURL(t *testing.T) {
 
 	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", ImageURL: "http://vpupkin.io/image.jpg"}}
 	claims := provider.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email"}
-	fillUserFromUserInfo(claims, identity)
+	err := fillUserFromUserInfo(claims, identity)
+	require.NoError(t, err)
 	assert.Equal(t, "new name", identity.User.FullName)
 	assert.Equal(t, "new company", identity.User.Company)
 	assert.Equal(t, "new email", identity.User.Email)
@@ -79,7 +80,8 @@ func TestFillUserDoesntOverwritesEmailVerified(t *testing.T) {
 
 	identity := &account.Identity{Username: "vaysa", User: account.User{FullName: "Vasya Pupkin", Company: "Red Hat", Email: "vpupkin@mail.io", EmailVerified: false, ImageURL: "http://vpupkin.io/image.jpg"}}
 	claims := provider.UserProfile{Username: "new username", GivenName: "new", FamilyName: "name", Company: "new company", Email: "new email", EmailVerified: true}
-	fillUserFromUserInfo(claims, identity)
+	err := fillUserFromUserInfo(claims, identity)
+	require.NoError(t, err)
 	assert.Equal(t, false, identity.User.EmailVerified)
 }
 

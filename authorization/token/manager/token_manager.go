@@ -109,7 +109,10 @@ type TokenSet struct {
 func ReadTokenSet(ctx context.Context, res *http.Response) (*TokenSet, error) {
 	// Read the json out of the response body
 	buf := new(bytes.Buffer)
-	io.Copy(buf, res.Body)
+	_, err := io.Copy(buf, res.Body)
+	if err != nil {
+		return nil, err
+	}
 	jsonString := strings.TrimSpace(buf.String())
 	return ReadTokenSetFromJson(ctx, jsonString)
 }

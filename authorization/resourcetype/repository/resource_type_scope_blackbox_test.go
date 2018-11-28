@@ -47,6 +47,7 @@ func (s *resourceTypeScopeBlackBoxTest) TestExistsResourceTypeScope() {
 
 	// Confirm that an invalid scope ID doesn't exist
 	exists, err = s.repo.CheckExists(s.Ctx, uuid.NewV4().String())
+	require.False(s.T(), exists)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), err, errors.NotFoundError{})
 }

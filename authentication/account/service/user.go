@@ -25,7 +25,6 @@ func NewUserService(ctx servicecontext.ServiceContext) service.UserService {
 // userServiceImpl implements the UserService to manage users
 type userServiceImpl struct {
 	base.BaseService
-	tokenManager manager.TokenManager
 }
 
 // UserInfo gets user information given a context containing access_token

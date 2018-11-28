@@ -125,13 +125,15 @@ func (r *GormOauthStateReferenceRepository) Create(ctx context.Context, referenc
 
 // Load loads state reference by state
 func (r *GormOauthStateReferenceRepository) Load(ctx context.Context, state string) (*OauthStateReference, error) {
+
 	ref := OauthStateReference{}
+
 	tx := r.db.Where("state=?", state).First(&ref)
 	if tx.RecordNotFound() {
 		log.Error(ctx, map[string]interface{}{
 			"state": state,
 		}, "Could not find oauth state reference by state")
-		return nil, errors.NewNotFoundError("oauth state reference", state)
+		return nil, errors.NewNotFoundErrorWithKey("oauth_state_references", "state", state)
 	}
 	if tx.Error != nil {
 		return nil, errors.NewInternalError(ctx, tx.Error)

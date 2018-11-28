@@ -151,7 +151,7 @@ func (s *linkServiceImpl) Callback(ctx context.Context, req *goa.RequestData, st
 	if err != nil {
 		return "", err
 	}
-	s.ExecuteInTransaction(func() error {
+	err = s.ExecuteInTransaction(func() error {
 		tokens, err := s.Repositories().ExternalTokens().LoadByProviderIDAndIdentityID(ctx, oauthProvider.ID(), identityUUID)
 		if err != nil {
 			return err
