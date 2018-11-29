@@ -1,11 +1,14 @@
 package service_test
 
 import (
+	"bytes"
 	"context"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"io"
 	"net/http"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +57,18 @@ func (s *UserProfileServiceBlackBoxTest) TearDownTest() {
 	s.clean()
 }
 
+// ReadTokenSet extracts json with token data from the response
+func ReadTokenSet(ctx context.Context, res *http.Response) (*tokenmanager.TokenSet, error) {
+	// Read the json out of the response body
+	buf := new(bytes.Buffer)
+	_, err := io.Copy(buf, res.Body)
+	if err != nil {
+		return nil, err
+	}
+	jsonString := strings.TrimSpace(buf.String())
+	return tokenmanager.ReadTokenSetFromJson(ctx, jsonString)
+}
+
 func (s *UserProfileServiceBlackBoxTest) generateAccessToken() (*string, error) {
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -70,7 +85,7 @@ func (s *UserProfileServiceBlackBoxTest) generateAccessToken() (*string, error) 
 		return nil, errors.NewInternalError(context.Background(), errs.Wrap(err, "error when obtaining token"))
 	}
 
-	t, err := tokenmanager.ReadTokenSet(context.Background(), res)
+	t, err := ReadTokenSet(context.Background(), res)
 	require.Nil(s.T(), err)
 	return t.AccessToken, err
 }
