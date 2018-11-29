@@ -286,7 +286,6 @@ func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	}
 	s.Application.OauthStates().Create(context.Background(), &state)
 
-
 	response = test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", stateValue)
 	// then
 	require.NotNil(s.T(), response)
