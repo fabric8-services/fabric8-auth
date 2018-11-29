@@ -270,6 +270,30 @@ func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	location := response.Header()["Location"]
 	require.Equal(s.T(), 1, len(location))
 	require.Equal(s.T(), referrer, location[0])
+
+	// Now test that relinking also works
+
+	// Generate a new token
+	token = uuid.NewV4().String()
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false, "")
+
+	stateValue = "bar" + identityID.String()
+
+	state = providerrepo.OauthStateReference{
+		State:        stateValue,
+		Referrer:     referrer,
+		ResponseMode: &responseMode,
+	}
+	s.Application.OauthStates().Create(context.Background(), &state)
+
+
+	response = test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", stateValue)
+	// then
+	require.NotNil(s.T(), response)
+	location = response.Header()["Location"]
+	require.Equal(s.T(), 1, len(location))
+	require.Equal(s.T(), referrer, location[0])
+
 }
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithIncompletePayload() {
