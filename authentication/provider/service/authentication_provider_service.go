@@ -237,8 +237,8 @@ func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context
 	token, err := provider.Exchange(ctx, code)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
-			"code": code,
-			"err":  err,
+			"code":         code,
+			"err":          err,
 			"redirect_url": redirectURL,
 		}, "oauth exchange operation failed")
 		return nil, autherrors.NewUnauthorizedError(err.Error())

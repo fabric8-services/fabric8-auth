@@ -233,7 +233,6 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 41
 	m = append(m, steps{ExecuteSQLFile("041-identity-role-index.sql")})
 
-
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
