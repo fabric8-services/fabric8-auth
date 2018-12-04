@@ -487,6 +487,28 @@ func (s *identityRoleBlackBoxTest) TestCreateIdentityExistingAssignmentFails() {
 	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
 }
 
+func (s *identityRoleBlackBoxTest) TestRecreateIdentityExistingAssignmentOK() {
+	// given an identity/role that was created then deleted
+	existingUser := s.Graph.CreateUser()
+	knownRoleID := getKnownRoleIDForSpace(s)
+	newSpace := s.Graph.CreateSpace()
+	ir := role.IdentityRole{
+		IdentityRoleID: uuid.NewV4(),
+		IdentityID:     existingUser.Identity().ID,
+		ResourceID:     newSpace.SpaceID(),
+		RoleID:         knownRoleID,
+	}
+	err := s.repo.Create(context.Background(), &ir)
+	require.NoError(s.T(), err)
+	err = s.repo.Delete(context.Background(), ir.IdentityRoleID)
+	require.NoError(s.T(), err)
+	// when creating it again
+	ir.IdentityRoleID = uuid.NewV4()
+	err = s.repo.Create(context.Background(), &ir)
+	// then it be allowd
+	require.NoError(s.T(), err)
+}
+
 func getKnownRoleIDForSpace(s *identityRoleBlackBoxTest) uuid.UUID {
 	roles, err := s.roleRepo.FindRolesByResourceType(context.Background(), authorization.ResourceTypeSpace)
 	require.Nil(s.T(), err)
