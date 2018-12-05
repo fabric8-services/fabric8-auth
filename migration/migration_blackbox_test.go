@@ -517,9 +517,9 @@ func testMigration39(t *testing.T) {
 	require.Error(t, err)
 }
 
-func testMigration40(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(41)], (41))
-	require.Nil(t, runSQLscript(sqlDB, "040-identity-role-index.sql"))
+func testMigration41(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(42)], (42))
+	require.Nil(t, runSQLscript(sqlDB, "041-identity-role-index.sql"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
