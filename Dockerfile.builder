@@ -23,7 +23,7 @@ RUN if [[ "$USE_GO_VERSION_FROM_WEBSITE" = 1 ]]; then cd /tmp \
     && echo "2871270d8ff0c8c69f161aaae42f9f28739855ff5c5204752a8d92a1c9f63993  go1.11.1.linux-amd64.tar.gz" > checksum \
     && sha256sum -c checksum \
     && tar -C /usr/local -xzf go1.11.1.linux-amd64.tar.gz \
-    && rm -f go1.11.1.linux-amd64.tar.gz \
+    && rm -f go1.11.1.linux-amd64.tar.gz; \
     fi
 ENV PATH=$PATH:/usr/local/go/bin
 
