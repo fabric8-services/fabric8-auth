@@ -2,13 +2,13 @@ FROM centos:7
 LABEL maintainer "Devtools <devtools@redhat.com>"
 LABEL author "Konrad Kleine <kkleine@redhat.com>"
 ENV LANG=en_US.utf8
-ARG USE_GO_VERSION_FROM_WEBSITE=0
+ARG USE_GO_VERSION_FROM_WEBSITE
 
 # Some packages might seem weird but they are required by the RVM installer.
-RUN yum --enablerepo=centosplus install -y --quiet \
+RUN yum --enablerepo=centosplus install -y \
       findutils \
       git \
-      $(test -z $USE_GO_VERSION_FROM_WEBSITE && echo "golang") \
+      $(test -z "$USE_GO_VERSION_FROM_WEBSITE" && echo "golang") \
       make \
       procps-ng \
       tar \
@@ -16,7 +16,7 @@ RUN yum --enablerepo=centosplus install -y --quiet \
       which \
     && yum clean all
 
-RUN test -n $USE_GO_VERSION_FROM_WEBSITE \
+RUN test -n "$USE_GO_VERSION_FROM_WEBSITE" \
     && cd /tmp \
     && wget https://dl.google.com/go/go1.11.1.linux-amd64.tar.gz \
     && echo "2871270d8ff0c8c69f161aaae42f9f28739855ff5c5204752a8d92a1c9f63993  go1.11.1.linux-amd64.tar.gz" > checksum \
