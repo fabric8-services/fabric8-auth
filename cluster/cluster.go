@@ -15,4 +15,5 @@ type Cluster struct {
 	AuthClientSecret       string `mapstructure:"auth-client-secret"`
 	AuthClientDefaultScope string `mapstructure:"auth-client-default-scope"`
 	CapacityExhausted      bool   `mapstructure:"capacity-exhausted"` // Optional in oso-clusters.conf ('false' by default)
+	Type                   string `mapstructure:"type"`               // Optional in oso-clusters.conf
 }
