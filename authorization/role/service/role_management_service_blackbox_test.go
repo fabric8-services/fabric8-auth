@@ -51,18 +51,18 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 
 	// User should have view scope to list roles
 	idnt := s.Graph.CreateUser().IdentityID()
-	identityRoles, err := s.service.ListByResource(s.Ctx, idnt, space.SpaceID())
+	_, err := s.service.ListByResource(s.Ctx, idnt, space.SpaceID())
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope view for resource %s", idnt.String(), space.SpaceID())
 
 	// Check available roles
-	identityRoles, err = s.service.ListByResource(s.Ctx, viewer.IdentityID(), space.SpaceID())
+	identityRoles, err := s.service.ListByResource(s.Ctx, viewer.IdentityID(), space.SpaceID())
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 2)
 	validateAssignee(t, []uuid.UUID{admin.IdentityID(), viewer.IdentityID()}, space.SpaceID(), identityRoles)
 
 	// Fail if resource is unknown
 	id := uuid.NewV4().String()
-	identityRoles, err = s.service.ListByResource(s.Ctx, viewer.IdentityID(), id)
+	_, err = s.service.ListByResource(s.Ctx, viewer.IdentityID(), id)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
@@ -78,11 +78,11 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 
 	// User should have view scope to list roles
 	idnt := s.Graph.CreateUser().IdentityID()
-	identityRoles, err := s.service.ListByResourceAndRoleName(s.Ctx, idnt, space.SpaceID(), authorization.ManageRoleAssignmentsInSpaceScope)
+	_, err := s.service.ListByResourceAndRoleName(s.Ctx, idnt, space.SpaceID(), authorization.ManageRoleAssignmentsInSpaceScope)
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope view for resource %s", idnt.String(), space.SpaceID())
 
 	// Check available roles
-	identityRoles, err = s.service.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), space.SpaceID(), authorization.SpaceAdminRole)
+	identityRoles, err := s.service.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), space.SpaceID(), authorization.SpaceAdminRole)
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 1)
 	assert.Equal(t, authorization.SpaceAdminRole, identityRoles[0].Role.Name)
