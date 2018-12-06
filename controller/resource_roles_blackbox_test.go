@@ -149,32 +149,6 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 
 	s.T().Run("conflict", func(t *testing.T) {
 
-		t.Run("role already assigned", func(t *testing.T) {
-			// given
-			g := s.NewTestGraph(t)
-			res := g.CreateSpace()
-			// Create a user who has the privileges to assign roles
-			adminUser := g.CreateUser("adminuser")
-			res.AddAdmin(adminUser)
-			// create a test user with viewer role, first
-			testUser := g.CreateUser()
-			res.AddViewer(testUser)
-
-			svc, ctrl := s.SecuredControllerWithIdentity(*adminUser.Identity())
-			payload := &app.AssignRoleResourceRolesPayload{
-				Data: []*app.AssignRoleData{
-					{
-						Role: authorization.SpaceContributorRole,
-						Ids:  []string{testUser.Identity().ID.String()},
-					},
-				},
-			}
-			// assign contributor role once: ok
-			test.AssignRoleResourceRolesNoContent(t, svc.Context, svc, ctrl, res.SpaceID(), payload)
-			// assign contributor role twice: fails
-			test.AssignRoleResourceRolesConflict(t, svc.Context, svc, ctrl, res.SpaceID(), payload)
-		})
-
 		t.Run("assign lower role", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
@@ -319,7 +293,31 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 			test.AssignRoleResourceRolesForbidden(t, svc.Context, svc, ctrl, res.SpaceID(), payload)
 		})
 	})
+}
 
+func (s *ResourceRolesControllerTestSuite) TestAssignRoleTwiceOK() {
+	// given
+	res := s.Graph.CreateSpace()
+	// Create a user who has the privileges to assign roles
+	adminUser := s.Graph.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+	// create a test user with viewer role, first
+	testUser := s.Graph.CreateUser()
+	res.AddViewer(testUser)
+
+	svc, ctrl := s.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: []*app.AssignRoleData{
+			{
+				Role: authorization.SpaceContributorRole,
+				Ids:  []string{testUser.Identity().ID.String()},
+			},
+		},
+	}
+	// assign contributor role once: ok
+	test.AssignRoleResourceRolesNoContent(s.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+	// assign contributor role twice: ok
+	test.AssignRoleResourceRolesNoContent(s.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
 }
 
 func (s *ResourceRolesControllerTestSuite) TestListScopes() {

@@ -24,7 +24,7 @@ import (
 
 type roleManagementServiceBlackboxTest struct {
 	gormtestsupport.DBTestSuite
-	repo              service.RoleManagementService
+	service           service.RoleManagementService
 	roleRepo          rolerepo.RoleRepository
 	resourceTypeScope resourcetype.ResourceTypeScopeRepository
 }
@@ -35,7 +35,7 @@ func TestRunRoleManagementServiceBlackboxTest(t *testing.T) {
 
 func (s *roleManagementServiceBlackboxTest) SetupTest() {
 	s.DBTestSuite.SetupTest()
-	s.repo = s.Application.RoleManagementService()
+	s.service = s.Application.RoleManagementService()
 	s.roleRepo = rolerepo.NewRoleRepository(s.DB)
 	s.resourceTypeScope = resourcetype.NewResourceTypeScopeRepository(s.DB)
 }
@@ -51,18 +51,18 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResource() {
 
 	// User should have view scope to list roles
 	idnt := s.Graph.CreateUser().IdentityID()
-	identityRoles, err := s.repo.ListByResource(s.Ctx, idnt, space.SpaceID())
+	identityRoles, err := s.service.ListByResource(s.Ctx, idnt, space.SpaceID())
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope view for resource %s", idnt.String(), space.SpaceID())
 
 	// Check available roles
-	identityRoles, err = s.repo.ListByResource(s.Ctx, viewer.IdentityID(), space.SpaceID())
+	identityRoles, err = s.service.ListByResource(s.Ctx, viewer.IdentityID(), space.SpaceID())
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 2)
 	validateAssignee(t, []uuid.UUID{admin.IdentityID(), viewer.IdentityID()}, space.SpaceID(), identityRoles)
 
 	// Fail if resource is unknown
 	id := uuid.NewV4().String()
-	identityRoles, err = s.repo.ListByResource(s.Ctx, viewer.IdentityID(), id)
+	identityRoles, err = s.service.ListByResource(s.Ctx, viewer.IdentityID(), id)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
@@ -78,11 +78,11 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 
 	// User should have view scope to list roles
 	idnt := s.Graph.CreateUser().IdentityID()
-	identityRoles, err := s.repo.ListByResourceAndRoleName(s.Ctx, idnt, space.SpaceID(), authorization.ManageRoleAssignmentsInSpaceScope)
+	identityRoles, err := s.service.ListByResourceAndRoleName(s.Ctx, idnt, space.SpaceID(), authorization.ManageRoleAssignmentsInSpaceScope)
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope view for resource %s", idnt.String(), space.SpaceID())
 
 	// Check available roles
-	identityRoles, err = s.repo.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), space.SpaceID(), authorization.SpaceAdminRole)
+	identityRoles, err = s.service.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), space.SpaceID(), authorization.SpaceAdminRole)
 	require.NoError(t, err)
 	require.Len(t, identityRoles, 1)
 	assert.Equal(t, authorization.SpaceAdminRole, identityRoles[0].Role.Name)
@@ -90,7 +90,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 
 	// Fail if resource is unknown
 	id := uuid.NewV4().String()
-	identityRoles, err = s.repo.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), id, authorization.ManageRoleAssignmentsInSpaceScope)
+	identityRoles, err = s.service.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), id, authorization.ManageRoleAssignmentsInSpaceScope)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
@@ -115,7 +115,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOK() {
 
 	createdRoleScopes = append(createdRoleScopes, *rs)
 
-	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, resourceType.Name)
+	roleScopesRetrieved, err := s.service.ListAvailableRolesByResourceType(s.Ctx, resourceType.Name)
 	require.NoError(s.T(), err)
 
 	// there might be other 'RoleScopes' returned too.
@@ -147,7 +147,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetRolesByResourceTypeOKEmpty() 
 	_, err = testsupport.CreateTestResourceType(s.Ctx, s.DB, newResourceTypeName)
 	require.NoError(s.T(), err)
 
-	roleScopesRetrieved, err := s.repo.ListAvailableRolesByResourceType(s.Ctx, newResourceTypeName)
+	roleScopesRetrieved, err := s.service.ListAvailableRolesByResourceType(s.Ctx, newResourceTypeName)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), roleScopesRetrieved, 0)
 }
@@ -235,7 +235,7 @@ func (s *roleManagementServiceBlackboxTest) checkAssignRoleOK(appendToExistingRo
 	roleAssignments[authorization.SpaceAdminRole] = usersToBeAssignedAsAdmin
 	roleAssignments[authorization.SpaceContributorRole] = usersToBeAssignedAsContributor
 
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), appendToExistingRoles)
+	err := s.service.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), appendToExistingRoles)
 	require.NoError(s.T(), err)
 
 	s.addNoisyAssignments()
@@ -288,7 +288,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithLackOfPermissionsF
 	roleAssignments := make(map[string][]uuid.UUID)
 	roleAssignments[authorization.SpaceAdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
 
-	err := s.repo.Assign(context.Background(), viewer.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
+	err := s.service.Assign(context.Background(), viewer.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", viewer.Identity().ID.String(), newSpace.SpaceID())
 }
 
@@ -300,10 +300,10 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAlreadyExists() {
 	roleAssignments := make(map[string][]uuid.UUID)
 	userToBeAssigned := g.CreateUser()
 	newSpace.AddContributor(userToBeAssigned).AddAdmin(userToBeAssigned)
-	roleAssignments[authorization.SpaceAdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
 
-	// lets try to add the same role again
-	err := s.repo.Assign(context.Background(), spaceAdmin.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
+	// We've already assigned the contributor and admin roles, lets try to add the admin role again
+	roleAssignments[authorization.SpaceAdminRole] = []uuid.UUID{userToBeAssigned.Identity().ID}
+	err := s.service.Assign(context.Background(), spaceAdmin.Identity().ID, roleAssignments, newSpace.SpaceID(), true)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
 }
@@ -315,7 +315,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleResourceNotFound() {
 	roleAssignments := make(map[string][]uuid.UUID)
 	roleAssignments[authorization.SpaceContributorRole] = userToBeAdded
 
-	err := s.repo.Assign(context.Background(), identityID, roleAssignments, uuid.NewV4().String(), false)
+	err := s.service.Assign(context.Background(), identityID, roleAssignments, uuid.NewV4().String(), false)
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
@@ -327,7 +327,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithRoleNotFound() {
 	roleAssignments := make(map[string][]uuid.UUID)
 	roleAssignments[uuid.NewV4().String()] = userToBeAdded
 
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
+	err := s.service.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	require.IsType(s.T(), errors.NotFoundError{}, errs.Cause(err))
 }
 
@@ -339,7 +339,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleWithIdentityNotFound()
 	roleAssignments := make(map[string][]uuid.UUID)
 	roleAssignments[authorization.SpaceAdminRole] = userToBeAdded
 
-	err := s.repo.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
+	err := s.service.Assign(context.Background(), adminUser.Identity().ID, roleAssignments, newSpace.SpaceID(), false)
 	require.IsType(s.T(), errors.BadParameterError{}, errs.Cause(err))
 }
 
@@ -349,7 +349,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminOK() {
 	spaceCreator := g.CreateUser()
 	s.addNoisyAssignments()
 
-	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
+	err := s.service.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
 	require.NoError(s.T(), err)
 
 	// Check the role was assigned
@@ -361,13 +361,13 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminFailsExistingAs
 	spaceCreator := s.Graph.CreateUser()
 	s.addNoisyAssignments()
 
-	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
+	err := s.service.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
 	require.NoError(s.T(), err)
 
 	// Check the role was assigned
 	s.checkRoleAssignments([]uuid.UUID{spaceCreator.Identity().ID}, "admin", newSpace.SpaceID())
 
-	err = s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
+	err = s.service.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, *newSpace.Resource())
 	require.Error(s.T(), err)
 	require.IsType(s.T(), errors.DataConflictError{}, errs.Cause(err))
 
@@ -378,7 +378,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignUnknownRoleAsAdminFails() 
 	newSpace := g.CreateSpace()
 	spaceCreator := g.CreateUser()
 
-	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, "unknownRole", *newSpace.Resource())
+	err := s.service.ForceAssign(context.Background(), spaceCreator.Identity().ID, "unknownRole", *newSpace.Resource())
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role with name 'unknownRole' not found")
 }
 
@@ -387,7 +387,7 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminToUnknownIdenti
 	newSpace := g.CreateSpace()
 	id := uuid.NewV4()
 
-	err := s.repo.ForceAssign(context.Background(), id, authorization.SpaceAdminRole, *newSpace.Resource())
+	err := s.service.ForceAssign(context.Background(), id, authorization.SpaceAdminRole, *newSpace.Resource())
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity with id '%s' not found", id)
 }
 
@@ -397,11 +397,11 @@ func (s *roleManagementServiceBlackboxTest) TestAssignRoleAsAdminForUnknownResou
 	id := uuid.NewV4().String()
 
 	// Should fail because of there is no "admin" role for an unknown resource type
-	err := s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{})
+	err := s.service.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{})
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "role with name 'admin' not found")
 
 	// Should fail because of unknown resource ID
-	err = s.repo.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{ResourceID: id, ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace}})
+	err = s.service.ForceAssign(context.Background(), spaceCreator.Identity().ID, authorization.SpaceAdminRole, resource.Resource{ResourceID: id, ResourceType: resourcetype.ResourceType{Name: authorization.ResourceTypeSpace}})
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
@@ -411,10 +411,10 @@ func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesForUnknownRes
 	space := s.Graph.CreateSpace().AddAdmin(admin).AddContributor(toDelete)
 	unknownID := uuid.NewV4()
 
-	err := s.repo.RevokeResourceRoles(s.Ctx, admin.IdentityID(), []uuid.UUID{toDelete.IdentityID()}, unknownID.String())
+	err := s.service.RevokeResourceRoles(s.Ctx, admin.IdentityID(), []uuid.UUID{toDelete.IdentityID()}, unknownID.String())
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", unknownID.String())
 
-	err = s.repo.RevokeResourceRoles(s.Ctx, admin.IdentityID(), []uuid.UUID{unknownID}, space.SpaceID())
+	err = s.service.RevokeResourceRoles(s.Ctx, admin.IdentityID(), []uuid.UUID{unknownID}, space.SpaceID())
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "identity_role with resource_id '%s' and identity_id '%s' not found", space.SpaceID(), unknownID.String())
 }
 
@@ -423,11 +423,11 @@ func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesByUserWithLac
 	toDelete := s.Graph.CreateUser()
 	space := s.Graph.CreateSpace().AddContributor(notAdmin).AddContributor(s.Graph.CreateUser(toDelete))
 
-	err := s.repo.RevokeResourceRoles(s.Ctx, notAdmin.IdentityID(), []uuid.UUID{toDelete.IdentityID()}, space.SpaceID())
+	err := s.service.RevokeResourceRoles(s.Ctx, notAdmin.IdentityID(), []uuid.UUID{toDelete.IdentityID()}, space.SpaceID())
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", notAdmin.IdentityID(), space.SpaceID())
 
 	unknownID := uuid.NewV4()
-	err = s.repo.RevokeResourceRoles(s.Ctx, unknownID, []uuid.UUID{toDelete.IdentityID()}, space.SpaceID())
+	err = s.service.RevokeResourceRoles(s.Ctx, unknownID, []uuid.UUID{toDelete.IdentityID()}, space.SpaceID())
 	testsupport.AssertError(s.T(), err, errors.ForbiddenError{}, "identity with ID %s does not have required scope manage for resource %s", unknownID.String(), space.SpaceID())
 }
 
@@ -459,7 +459,7 @@ func (s *roleManagementServiceBlackboxTest) TestRevokeResourceRolesOK() {
 	}
 
 	// Revoke the roles
-	err := s.repo.RevokeResourceRoles(s.Ctx, admin.IdentityID(), usersToDelete, space.SpaceID())
+	err := s.service.RevokeResourceRoles(s.Ctx, admin.IdentityID(), usersToDelete, space.SpaceID())
 	require.NoError(s.T(), err)
 
 	// Check the identity roles for the space and users are gone
