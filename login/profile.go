@@ -139,7 +139,7 @@ func (userProfileClient *KeycloakUserProfileClient) CreateOrUpdate(ctx context.C
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_profile_url": keycloakAdminUserAPIURL,
-			"err": err,
+			"err":                       err,
 		}, "Unable to create Keycloak user")
 		return nil, false, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
@@ -345,7 +345,7 @@ func (userProfileClient *KeycloakUserProfileClient) Update(ctx context.Context, 
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_profile_url": keycloakProfileURL,
-			"err": err,
+			"err":                       err,
 		}, "Unable to update Keycloak user profile")
 		return errors.NewInternalError(ctx, err)
 	} else if resp != nil {
@@ -398,7 +398,7 @@ func (userProfileClient *KeycloakUserProfileClient) Get(ctx context.Context, acc
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"keycloak_user_profile_url": keycloakProfileURL,
-			"err": err,
+			"err":                       err,
 		}, "Unable to fetch Keycloak user profile")
 		return nil, errors.NewInternalError(ctx, err)
 	} else if resp != nil {
