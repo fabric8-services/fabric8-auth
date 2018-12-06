@@ -90,7 +90,7 @@ func (s *roleManagementServiceBlackboxTest) TestGetIdentityRoleByResourceAndRole
 
 	// Fail if resource is unknown
 	id := uuid.NewV4().String()
-	identityRoles, err = s.service.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), id, authorization.ManageRoleAssignmentsInSpaceScope)
+	_, err = s.service.ListByResourceAndRoleName(s.Ctx, viewer.IdentityID(), id, authorization.ManageRoleAssignmentsInSpaceScope)
 	testsupport.AssertError(s.T(), err, errors.NotFoundError{}, "resource with id '%s' not found", id)
 }
 
