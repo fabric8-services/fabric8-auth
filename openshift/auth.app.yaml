@@ -218,8 +218,6 @@ objects:
             items:
             - key: service.account.secrets
               path: service-account-secrets.conf
-            - key: oso.clusters
-              path: oso-clusters.conf
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
