@@ -641,12 +641,10 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 		if err != nil {
 			return err
 		}
-		if len(tokens) > 0 {
-			for _, token := range tokens {
-				err = c.Repositories().ExternalTokens().Delete(ctx, token.ID)
-				if err != nil {
-					return err
-				}
+		for _, token := range tokens {
+			err = c.Repositories().ExternalTokens().Delete(ctx, token.ID)
+			if err != nil {
+				return err
 			}
 		}
 		return nil

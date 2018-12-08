@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -38,7 +37,6 @@ func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
 		"redirect": *redirect,
 	}, "Got Request to logout!")
 
-	fmt.Printf("*redirect='%s'\n", *redirect)
 	redirectURL, err := url.Parse(*redirect)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{

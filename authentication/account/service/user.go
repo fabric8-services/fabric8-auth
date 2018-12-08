@@ -33,7 +33,7 @@ func (s *userServiceImpl) UserInfo(ctx context.Context, identityID uuid.UUID) (*
 	err := s.ExecuteInTransaction(func() error {
 		var err error
 		identity, err = s.Repositories().Identities().LoadWithUser(ctx, identityID)
-		if err != nil || identity == nil {
+		if err != nil {
 			return errors.NewUnauthorizedError(fmt.Sprintf("auth token contains id %s of unknown Identity\n", identityID))
 		}
 		return nil
@@ -99,13 +99,12 @@ func (s *userServiceImpl) ContextIdentityIfExists(ctx context.Context) (uuid.UUI
 // If no token present in the context then an Unauthorized error is returned
 // If the identity represented by the token doesn't exist in the DB or not associated with any User then an Unauthorized error is returned
 func (s *userServiceImpl) LoadContextIdentityAndUser(ctx context.Context) (*repository.Identity, error) {
-	var identity *repository.Identity
 	identityID, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return nil, errors.NewUnauthorizedError(err.Error())
 	}
 	// Check if the identity exists
-	identity, err = s.Repositories().Identities().LoadWithUser(ctx, *identityID)
+	identity, err := s.Repositories().Identities().LoadWithUser(ctx, *identityID)
 	if err != nil {
 		return nil, errors.NewUnauthorizedError(err.Error())
 	}
