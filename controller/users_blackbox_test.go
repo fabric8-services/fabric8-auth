@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/account"
-	accountrepo "github.com/fabric8-services/fabric8-auth/account/repository"
-	"github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
+	accountrepo "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -21,8 +21,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testservice "github.com/fabric8-services/fabric8-auth/test/service"
@@ -40,27 +38,20 @@ func TestUsersController(t *testing.T) {
 
 type UsersControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
-	svc            *goa.Service
-	controller     *UsersController
-	userRepo       accountrepo.UserRepository
-	identityRepo   accountrepo.IdentityRepository
-	profileService login.UserProfileService
-	linkAPIService link.KeycloakIDPService
-	tenantService  *dummyTenantService
-	witService     *testservice.WITServiceMock
+	svc           *goa.Service
+	controller    *UsersController
+	userRepo      accountrepo.UserRepository
+	identityRepo  accountrepo.IdentityRepository
+	tenantService *dummyTenantService
+	witService    *testservice.WITServiceMock
 }
 
 func (s *UsersControllerTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.svc = goa.New("test")
-	testAttributeValue := "a"
-	dummyProfileResponse := createDummyUserProfileResponse(&testAttributeValue, &testAttributeValue, &testAttributeValue)
-	keycloakUserProfileService := newDummyUserProfileService(dummyProfileResponse)
-	s.profileService = keycloakUserProfileService
-	s.linkAPIService = &dummyKeycloakLinkService{}
 	s.witService = testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(s.witService))
-	s.controller = NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(s.witService))
+	s.controller = NewUsersController(s.svc, s.Application, s.Configuration)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
 	s.tenantService = &dummyTenantService{}
@@ -68,7 +59,7 @@ func (s *UsersControllerTestSuite) SetupSuite() {
 
 func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersController) {
 	svc := testsupport.UnsecuredService("Users-Service")
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
 	return svc, controller
 }
@@ -78,28 +69,28 @@ func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.
 	require.Nil(s.T(), err)
 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
 	return svc, controller
 }
 
 func (s *UsersControllerTestSuite) SecuredController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration)
 	controller.EmailVerificationService = service.NewEmailVerificationClient(s.Application)
 	return svc, controller
 }
 
 func (s *UsersControllerTestSuite) SecuredControllerWithDummyEmailService(identity accountrepo.Identity, emailSuccess bool) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration)
 	controller.EmailVerificationService = &DummyEmailVerificationService{success: emailSuccess}
 	return svc, controller
 }
 
 func (s *UsersControllerTestSuite) SecuredServiceAccountController(identity accountrepo.Identity) (*goa.Service, *UsersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Users-ServiceAccount-Service", identity)
-	controller := NewUsersController(s.svc, s.Application, s.Configuration, s.profileService, s.linkAPIService)
+	controller := NewUsersController(s.svc, s.Application, s.Configuration)
 	return svc, controller
 }
 
@@ -1238,7 +1229,7 @@ func assertCreatedUser(t *testing.T, actual *app.UserData, expectedUser accountr
 	require.NotNil(t, actual)
 	assert.Equal(t, expectedIdentity.Username, *actual.Attributes.Username)
 	if expectedIdentity.ProviderType == "" {
-		assert.Equal(t, accountrepo.KeycloakIDP, *actual.Attributes.ProviderType)
+		assert.Equal(t, accountrepo.DefaultIDP, *actual.Attributes.ProviderType)
 	} else {
 		assert.Equal(t, expectedIdentity.ProviderType, *actual.Attributes.ProviderType)
 	}
@@ -1398,58 +1389,13 @@ func (s *UsersControllerTestSuite) generateUsersTag(allUsers app.UserArray) stri
 	return app.GenerateEntitiesTag(entities)
 }
 
-type dummyKeycloakLinkService struct{}
-
-func (d *dummyKeycloakLinkService) Create(ctx context.Context, keycloakLinkIDPRequest *link.KeycloakLinkIDPRequest, protectedAccessToken string, keycloakIDPLinkURL string) error {
-	return nil
-}
-
-type dummyUserProfileService struct {
-	dummyGetResponse *login.KeycloakUserProfileResponse
-}
-
-func newDummyUserProfileService(dummyGetResponse *login.KeycloakUserProfileResponse) *dummyUserProfileService {
-	return &dummyUserProfileService{
-		dummyGetResponse: dummyGetResponse,
-	}
-}
-
-func (d *dummyUserProfileService) Update(ctx context.Context, keycloakUserProfile *login.KeycloakUserProfile, accessToken string, keycloakProfileURL string) error {
-	return nil
-}
-
-func (d *dummyUserProfileService) Get(ctx context.Context, accessToken string, keycloakProfileURL string) (*login.KeycloakUserProfileResponse, error) {
-	return d.dummyGetResponse, nil
-}
-
-func (d *dummyUserProfileService) CreateOrUpdate(ctx context.Context, keycloakUserProfile *login.KeycloakUserRequest, accessToken string, keycloakProfileURL string) (*string, bool, error) {
-	url := "https://someurl/pathinkeycloakurl/" + uuid.NewV4().String()
-	return &url, true, nil
-}
-
-func (d *dummyUserProfileService) SetDummyGetResponse(dummyGetResponse *login.KeycloakUserProfileResponse) {
-	d.dummyGetResponse = dummyGetResponse
-}
-
-func createDummyUserProfileResponse(updatedBio, updatedImageURL, updatedURL *string) *login.KeycloakUserProfileResponse {
-	profile := &login.KeycloakUserProfileResponse{}
-	profile.Attributes = &login.KeycloakUserProfileAttributes{}
-
-	(*profile.Attributes)[login.BioAttributeName] = []string{*updatedBio}
-	(*profile.Attributes)[login.ImageURLAttributeName] = []string{*updatedImageURL}
-	(*profile.Attributes)[login.URLAttributeName] = []string{*updatedURL}
-
-	return profile
-
-}
-
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK() {
 
 	// given
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
 	identity.User = user
-	identity.ProviderType = accountrepo.KeycloakIDP
+	identity.ProviderType = accountrepo.DefaultIDP
 	identity.RegistrationCompleted = true
 
 	user.ContextInformation = map[string]interface{}{
@@ -1603,6 +1549,9 @@ func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized
 	// given
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+
+	//*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 
 	secureService, secureController := s.SecuredController(testsupport.TestIdentity)

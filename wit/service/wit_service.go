@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"net/url"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/signer"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -15,7 +17,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
-	"github.com/fabric8-services/fabric8-auth/token/signer"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/goadesign/goa/uuid"
 	"github.com/pkg/errors"
@@ -46,8 +47,8 @@ func (s *witServiceImpl) UpdateUser(ctx context.Context, updatePayload *app.Upda
 				FullName:              updatePayload.Data.Attributes.FullName,
 				ImageURL:              updatePayload.Data.Attributes.ImageURL,
 				RegistrationCompleted: updatePayload.Data.Attributes.RegistrationCompleted,
-				URL:      updatePayload.Data.Attributes.URL,
-				Username: updatePayload.Data.Attributes.Username,
+				URL:                   updatePayload.Data.Attributes.URL,
+				Username:              updatePayload.Data.Attributes.Username,
 			},
 			Type: updatePayload.Data.Type,
 		},

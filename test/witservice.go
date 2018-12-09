@@ -2,8 +2,8 @@ package test
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	goauuid "github.com/goadesign/goa/uuid"

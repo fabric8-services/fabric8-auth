@@ -13,7 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/migration"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/jinzhu/gorm"
 	uuid "github.com/satori/go.uuid"
 )
@@ -61,7 +61,7 @@ func (s *BenchDbOperations) SetupBenchmark() {
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "BenchmarkTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: account.DefaultIDP}
 
 	err := s.repo.Create(s.ctx, s.identity)
 	if err != nil {

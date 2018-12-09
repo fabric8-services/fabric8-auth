@@ -9,6 +9,7 @@ type BaseService struct {
 	context.ServiceContext
 }
 
+// NewBaseService initializes a new BaseService
 func NewBaseService(context context.ServiceContext) BaseService {
 	return BaseService{context}
 }

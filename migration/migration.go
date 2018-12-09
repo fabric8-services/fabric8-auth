@@ -228,7 +228,10 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("039-resource-type-alter.sql")})
 
 	// Version 40
-	m = append(m, steps{ExecuteSQLFile("040-identity-role-index.sql")})
+	m = append(m, steps{ExecuteSQLFile("040-deferrable-constraints.sql")})
+
+	// Version 41
+	m = append(m, steps{ExecuteSQLFile("041-identity-role-index.sql")})
 
 	// Version N
 	//

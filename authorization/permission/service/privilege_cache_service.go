@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
+	"strings"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/satori/go.uuid"
-	"strings"
-	"time"
 )
 
 // PrivilegeCacheServiceConfiguration represents the configuration options for the privilege cache service

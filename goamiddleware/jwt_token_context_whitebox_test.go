@@ -52,7 +52,7 @@ func (s *TestJWTokenContextSuite) TestHandler() {
 	assert.Equal(s.T(), "next-handler-error", err.Error())
 
 	// Get 401 if token is invalid
-	rq.Header.Set("Authorization", "bearer token")
+	rq.Header.Set("Authorization", "Bearer token")
 	err = h(context.Background(), rw, rq)
 	require.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "401 token_validation_failed: token is invalid", err.Error())
@@ -63,7 +63,7 @@ func (s *TestJWTokenContextSuite) TestHandler() {
 	rw = httptest.NewRecorder()
 	t, err := testtoken.TokenManager.GenerateServiceAccountToken(uuid.NewV4().String(), "sa-name")
 	require.NoError(s.T(), err)
-	rq.Header.Set("Authorization", "bearer "+t)
+	rq.Header.Set("Authorization", "Bearer "+t)
 	err = h(context.Background(), rw, rq)
 	require.Error(s.T(), err)
 	assert.Equal(s.T(), "next-handler-error", err.Error())

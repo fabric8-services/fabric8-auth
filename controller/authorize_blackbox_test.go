@@ -3,7 +3,7 @@ package controller_test
 import (
 	"context"
 	"fmt"
-	rand "math/rand"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,7 +18,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/require"
@@ -35,8 +35,7 @@ func TestRunAuthorizeREST(t *testing.T) {
 
 func (rest *TestAuthorizeREST) UnSecuredController() (*goa.Service, *AuthorizeController) {
 	svc := testsupport.ServiceAsUser("Login-Service", testsupport.TestIdentity)
-	loginService := newTestKeycloakOAuthProvider(rest.Application)
-	return svc, &AuthorizeController{Controller: svc.NewController("AuthorizeController"), Auth: loginService, Configuration: rest.Configuration}
+	return svc, NewAuthorizeController(svc, rest.Application, rest.Configuration)
 }
 
 func (rest *TestAuthorizeREST) TestAuthorizeOK() {
@@ -44,7 +43,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeOK() {
 	svc, ctrl := rest.UnSecuredController()
 
 	redirect := "https://openshift.io"
-	clientID := rest.Configuration.GetPublicOauthClientID()
+	clientID := rest.Configuration.GetPublicOAuthClientID()
 	responseType := "code"
 	state := uuid.NewV4().String()
 	responseMode := "query"
@@ -72,7 +71,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeBadRequest() {
 	prms := url.Values{}
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", "https://openshift.io/somepath")
-	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
+	prms.Add("client_id", rest.Configuration.GetPublicOAuthClientID())
 	prms.Add("state", uuid.NewV4().String())
 
 	rest.checkInvalidRequest("authorize", "response_type", prms, u, t)
@@ -116,7 +115,7 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	prms := url.Values{}
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
-	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
+	prms.Add("client_id", rest.Configuration.GetPublicOAuthClientID())
 	prms.Add("state", uuid.NewV4().String())
 	if responseMode != nil {
 		prms.Add("response_mode", *responseMode)
@@ -132,7 +131,7 @@ func (rest *TestAuthorizeREST) checkAuthorizeCallbackOK(responseMode *string) {
 	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
 
 	locationString := rw.HeaderMap["Location"][0]
-	authEndpoint, _ := rest.Configuration.GetKeycloakEndpointAuth(authorizeCtx.RequestData)
+	authEndpoint := rest.Configuration.GetOAuthProviderEndpointAuth()
 	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)
@@ -227,7 +226,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	state := uuid.NewV4().String()
 	prms.Add("response_type", "code")
 	prms.Add("redirect_uri", redirectURI)
-	prms.Add("client_id", rest.Configuration.GetPublicOauthClientID())
+	prms.Add("client_id", rest.Configuration.GetPublicOAuthClientID())
 	prms.Add("state", state)
 
 	ctx := context.Background()
@@ -241,7 +240,7 @@ func (rest *TestAuthorizeREST) TestAuthorizeCallbackUnauthorizedError() {
 	require.Equal(t, 307, rw.Code) // redirect to keycloak login page.
 
 	locationString := rw.HeaderMap["Location"][0]
-	authEndpoint, _ := rest.Configuration.GetKeycloakEndpointAuth(authorizeCtx.RequestData)
+	authEndpoint := rest.Configuration.GetOAuthProviderEndpointAuth()
 	require.Contains(t, locationString, authEndpoint)
 	locationUrl, err := url.Parse(locationString)
 	require.Nil(t, err)

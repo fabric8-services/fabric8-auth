@@ -3,7 +3,7 @@ package graph
 import (
 	"database/sql"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
@@ -72,7 +72,7 @@ func newTeamWrapper(g *TestGraph, params []interface{}) interface{} {
 	w.resource.ParentResource = space
 
 	w.identity = &account.Identity{
-		ProviderType:       account.KeycloakIDP,
+		ProviderType:       account.DefaultIDP,
 		IdentityResourceID: sql.NullString{String: w.resource.ResourceID, Valid: true},
 		IdentityResource:   *w.resource,
 	}

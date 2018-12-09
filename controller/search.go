@@ -3,13 +3,12 @@ package controller
 import (
 	"regexp"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	"github.com/goadesign/goa"
@@ -35,7 +34,7 @@ func NewSearchController(service *goa.Service, app application.Application, conf
 // Users runs the user search action.
 func (c *SearchController) Users(ctx *app.UsersSearchContext) error {
 
-	_, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	_, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/getsentry/raven-go"
@@ -32,7 +32,7 @@ func (s *TestWhiteboxSentry) TearDownSuite() {
 }
 
 func failOnNoToken(t *testing.T) context.Context {
-	return tokencontext.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
+	return manager.ContextWithTokenManager(context.Background(), testtoken.TokenManager)
 }
 
 func failOnParsingToken(t *testing.T) context.Context {

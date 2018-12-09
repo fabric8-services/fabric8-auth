@@ -153,11 +153,13 @@ $(MINIMOCK_BIN):
 generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only necessary after clean or if changes occurred in interfaces.
 	@echo "Generating mocks..."
 	@-mkdir -p test/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService -o ./test/service/ -s ".go"
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.WITService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService,github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService -o ./test/service/ -s ".go"
 	@-mkdir -p test/token/oauth
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/token/oauth.IdentityProvider -o ./test/token/oauth/ -s ".go"
-	@-mkdir -p test/login
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/login.KeycloakOAuthService -o ./test/login/ -s ".go"
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/provider.IdentityProvider -o ./test/token/oauth/ -s ".go"
+	@-mkdir -p test/generated/authorization/token/manager
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authorization/token/manager.TokenManagerConfiguration -o ./test/generated/authorization/token/manager/ -s ".go"
+	@-mkdir -p test/generated/application/service
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService -o ./test/generated/application/service/ -s ".go"
 
 .PHONY: generate-client
 generate-client: $(GOAGEN_BIN)
@@ -247,11 +249,12 @@ clean-generated:
 	-rm -f ./migration/sqlbindata_test.go
 	-rm -f ./configuration/confbindata.go
 	-rm -rf wit/witservice
-	-rm -rf ./account/tenant
+	-rm -rf ./authentication/account/tenant
 	-rm -rf ./test/service
 	-rm -rf ./notification/client
 	-rm -rf ./cluster/client
 	-rm -rf ./test/token/oauth
+	-rm -rf ./test/generated
 
 CLEAN_TARGETS += clean-vendor
 .PHONY: clean-vendor
@@ -291,7 +294,7 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) client -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) swagger -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-wit/design --notool --pkg witservice -o wit
-	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-tenant/design --notool --pkg tenant -o account
+	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-tenant/design --notool --pkg tenant -o authentication/account
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-notification/design --notool --pkg client -o notification
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-cluster/design --notool --pkg client -o cluster
 

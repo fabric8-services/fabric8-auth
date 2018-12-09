@@ -85,25 +85,18 @@ vwIDAQAB
 
 	defaultLogLevel = "info"
 
-	defaultKeycloakClientID     = "fabric8-online-platform"
-	defaultKeycloakSecret       = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
-	defaultPublicOauthClientID  = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	defaultKeycloakDomainPrefix = "sso"
-	defaultKeycloakRealm        = "fabric8"
-	defaultWITDomainPrefix      = "api"
+	// Auth Provider defaults
+	defaultOAuthProviderType             = "keycloak"
+	defaultOAuthProviderClientID         = "fabric8-online-platform"
+	defaultOAuthProviderClientSecret     = "7a3d5a00-7f80-40cf-8781-b5b6f2dfd1bd"
+	defaultOAuthProviderEndpointAuth     = "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/auth"
+	defaultOAuthProviderEndpointToken    = "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/token"
+	defaultOAuthProviderEndpointUserInfo = "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/userinfo"
+	defaultOAuthProviderEndpointLogout   = "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/logout"
 
-	// Github does not allow committing actual OAuth tokens no matter how less privilege the token has
-	camouflagedAccessToken = "751e16a8b39c0985066-AccessToken-4871777f2c13b32be8550"
-
-	defaultKeycloakTesUserName    = "testuser"
-	defaultKeycloakTesUserSecret  = "testuser"
-	defaultKeycloakTesUser2Name   = "testuser2"
-	defaultKeycloakTesUser2Secret = "testuser2"
-
-	// Keycloak vars to be used in dev mode. Can be overridden by setting up keycloak.url & keycloak.realm
-	devModeKeycloakURL   = "https://sso.prod-preview.openshift.io"
-	devModeKeycloakRealm = "fabric8-test"
-	devModeWITURL        = "http://localhost:8080"
+	defaultPublicOAuthClientID = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+	defaultWITDomainPrefix     = "api"
+	devModeWITURL              = "http://localhost:8080"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
