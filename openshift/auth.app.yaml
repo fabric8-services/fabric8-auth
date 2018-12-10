@@ -61,24 +61,24 @@ objects:
                 key: oauth.provider.client.secret
           - name: AUTH_OAUTH_PROVIDER_ENDPOINT_AUTH
             valueFrom:
-	            configMapKeyRef:
-	                name: auth
-	                key: oauth.provider.endpoint.auth
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.auth
           - name: AUTH_OAUTH_PROVIDER_ENDPOINT_USERINFO
             valueFrom:
-	            configMapKeyRef:
-	                name: auth
-	                key: oauth.provider.endpoint.userinfo
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.userinfo
           - name: AUTH_OAUTH_PROVIDER_ENDPOINT_TOKEN
             valueFrom:
-	            configMapKeyRef:
-	                name: auth
-	                key: oauth.provider.endpoint.token
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.token
           - name: AUTH_OAUTH_PROVIDER_ENDPOINT_LOGOUT
             valueFrom:
-	            configMapKeyRef:
-	                name: auth
-	                key: oauth.provider.endpoint.logout	                                
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.logout
           - name: AUTH_SERVICEACCOUNT_PRIVATEKEY
             valueFrom:
               secretKeyRef:
