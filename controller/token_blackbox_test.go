@@ -2,30 +2,33 @@ package controller_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
-	"strings"
-
 	"github.com/dgrijalva/jwt-go"
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	providerrepo "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/fabric8-services/fabric8-auth/login"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testlogin "github.com/fabric8-services/fabric8-auth/test/login"
+	testjwt "github.com/fabric8-services/fabric8-auth/test/jwt"
+	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/oauth"
 
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -33,6 +36,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
@@ -54,27 +58,26 @@ func (s *TokenControllerTestSuite) SetupSuite() {
 
 func (s *TokenControllerTestSuite) UnsecuredController() (*goa.Service, *TokenController) {
 	svc := goa.New("Token-Service")
-	manager, err := token.NewManager(s.Configuration)
+	manager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
-	return svc, NewTokenController(svc, s.Application, loginService, nil, nil, manager, s.Configuration)
+	return svc, NewTokenController(svc, s.Application, manager, s.Configuration)
 }
 
-func (s *TokenControllerTestSuite) SecuredControllerWithNonExistentIdentity(loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
-	return s.SecuredControllerWithIdentity(testsupport.TestIdentity, loginService)
+func (s *TokenControllerTestSuite) SecuredControllerWithNonExistentIdentity() (*goa.Service, *TokenController, account.Identity) {
+	svc, ctrl := s.SecuredControllerWithIdentity(testsupport.TestIdentity)
+	return svc, ctrl, testsupport.TestIdentity
 }
 
-func (s *TokenControllerTestSuite) SecuredController(loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
+func (s *TokenControllerTestSuite) SecuredController() (*goa.Service, *TokenController, account.Identity) {
 	identity, err := testsupport.CreateTestIdentity(s.DB, uuid.NewV4().String(), "KC")
 	require.Nil(s.T(), err)
-	return s.SecuredControllerWithIdentity(identity, loginService)
+	svc, ctrl := s.SecuredControllerWithIdentity(identity)
+	return svc, ctrl, identity
 }
 
-func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity, loginService login.KeycloakOAuthService) (*goa.Service, *TokenController) {
-	newTestKeycloakOAuthProvider(s.Application)
+func (s *TokenControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *TokenController) {
 	svc := testsupport.ServiceAsUser("Token-Service", identity)
-	linkService := &DummyLinkService{}
-	return svc, NewTokenController(svc, s.Application, loginService, linkService, nil, testtoken.TokenManager, s.Configuration)
+	return svc, NewTokenController(svc, s.Application, testtoken.TokenManager, s.Configuration)
 }
 
 func (s *TokenControllerTestSuite) TestPublicKeys() {
@@ -82,26 +85,26 @@ func (s *TokenControllerTestSuite) TestPublicKeys() {
 
 	s.T().Run("file not found", func(t *testing.T) {
 		_, keys := test.KeysTokenOK(s.T(), svc.Context, svc, ctrl, nil)
-		s.checkJWK(keys)
+		checkJWK(t, s.testDir, keys)
 	})
 	s.T().Run("file not found", func(t *testing.T) {
 		jwk := "jwk"
 		_, keys := test.KeysTokenOK(s.T(), svc.Context, svc, ctrl, &jwk)
-		s.checkJWK(keys)
+		checkJWK(t, s.testDir, keys)
 	})
 	s.T().Run("file not found", func(t *testing.T) {
 		pem := "pem"
 		_, keys := test.KeysTokenOK(s.T(), svc.Context, svc, ctrl, &pem)
-		s.checkPEM(keys)
+		checkPEM(t, s.testDir, keys)
 	})
 }
 
-func (s *TokenControllerTestSuite) checkPEM(keys *app.PublicKeys) {
-	compareWithGolden(s.T(), filepath.Join(s.testDir, "keys", "ok_pem.golden.json"), keys)
+func checkPEM(t *testing.T, testDir string, keys *app.PublicKeys) {
+	compareWithGolden(t, filepath.Join(testDir, "keys", "ok_pem.golden.json"), keys)
 }
 
-func (s *TokenControllerTestSuite) checkJWK(keys *app.PublicKeys) {
-	compareWithGolden(s.T(), filepath.Join(s.testDir, "keys", "ok_jwk.golden.json"), keys)
+func checkJWK(t *testing.T, testDir string, keys *app.PublicKeys) {
+	compareWithGolden(t, filepath.Join(testDir, "keys", "ok_jwk.golden.json"), keys)
 }
 
 func (s *TokenControllerTestSuite) checkLoginRequiredHeader(rw http.ResponseWriter) {
@@ -114,59 +117,34 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 	s.T().Run("using correct refresh token", func(t *testing.T) {
 
 		// given
-		loginService := testlogin.NewKeycloakOAuthServiceMock(t)
-		svc, ctrl := s.SecuredController(loginService)
-		tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), testsupport.TestIdentity, false)
+		svc, ctrl, identity := s.SecuredController()
+		tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 		require.Nil(t, err)
 		payload := &app.RefreshToken{
 			RefreshToken: &tokenSet.RefreshToken,
 		}
 
 		t.Run("without authorization token", func(t *testing.T) {
-			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				var thirtyDays int64
-				thirtyDays = 60 * 60 * 24 * 30
-				bearer := "Bearer"
-				return &token.TokenSet{
-					TokenType:    &bearer,
-					AccessToken:  &tokenSet.AccessToken,
-					RefreshToken: &tokenSet.RefreshToken,
-					ExpiresIn:    &thirtyDays,
-				}, nil
-			}
 			// when
 			_, authToken := test.RefreshTokenOK(t, svc.Context, svc, ctrl, payload)
 			// then
 			token := authToken.Token
 			require.NotNil(t, token.TokenType)
-			require.Equal(t, "Bearer", *token.TokenType)
+			assert.Equal(t, "Bearer", *token.TokenType)
 			require.NotNil(t, token.AccessToken)
-			assert.Equal(t, tokenSet.AccessToken, *token.AccessToken)
+			assert.NotEqual(t, tokenSet.AccessToken, *token.AccessToken) // access_token was renewed
 			require.NotNil(t, token.RefreshToken)
-			assert.Equal(t, tokenSet.RefreshToken, *token.RefreshToken)
+			assert.NotEqual(t, tokenSet.RefreshToken, *token.RefreshToken) // // refresh_token was renewed
 			expiresIn, ok := token.ExpiresIn.(*int64)
 			require.True(t, ok)
-			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+			assert.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 		})
 
 		t.Run("with valid authorization token", func(t *testing.T) {
 			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				var thirtyDays int64
-				thirtyDays = 60 * 60 * 24 * 30
-				bearer := "Bearer"
-				// configure the mock behaviour to return an refresh token only
-				return &token.TokenSet{
-					TokenType:    &bearer,
-					AccessToken:  &tokenSet.AccessToken,
-					RefreshToken: &refreshToken,
-					ExpiresIn:    &thirtyDays,
-				}, nil
-			}
-			manager, err := token.NewManager(s.Configuration)
+			tokenManager, err := manager.NewTokenManager(s.Configuration)
 			require.NoError(s.T(), err)
-			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
+			tk, err := tokenManager.Parse(s.Ctx, tokenSet.AccessToken)
 			require.NoError(s.T(), err)
 			ctx := goajwt.WithJWT(svc.Context, tk)
 			// when
@@ -174,26 +152,34 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 			// then
 			token := authToken.Token
 			require.NotNil(t, token.TokenType)
-			require.Equal(t, "Bearer", *token.TokenType)
+			assert.Equal(t, "Bearer", *token.TokenType)
 			require.NotNil(t, token.AccessToken)
-			require.Equal(t, tokenSet.AccessToken, *token.AccessToken)
+			assert.NotEqual(t, tokenSet.AccessToken, *token.AccessToken) // access_token was renewed
 			require.NotNil(t, token.RefreshToken)
-			require.Equal(t, tokenSet.RefreshToken, *token.RefreshToken)
+			assert.NotEqual(t, tokenSet.RefreshToken, *token.RefreshToken) // refresh_token was renewed
 			expiresIn, ok := token.ExpiresIn.(*int64)
 			require.True(t, ok)
-			require.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+			assert.True(t, *expiresIn > 60*59*24*30 && *expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 		})
 
 		t.Run("with invalid authorization token", func(t *testing.T) {
-			// given
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
-			}
-			manager, err := token.NewManager(s.Configuration)
-			require.NoError(s.T(), err)
-			tk, err := manager.Parse(s.Ctx, tokenSet.AccessToken)
-			require.NoError(s.T(), err)
+			// given a basic token signed with a key that is not loaded in the Token Manager (hence its signature can't be verified/validated)
+			utk := jwt.New(jwt.SigningMethodRS256)
+			utk.Header["kid"] = "another-key"
+			claims := utk.Claims.(jwt.MapClaims)
+			claims["jti"] = identity.ID.String() // must match an indentity
+			privateKey, err := testjwt.PrivateKey("../test/jwt/private_key.pem")
+			require.NoError(t, err)
+			stk, err := utk.SignedString(privateKey)
+			require.NoError(t, err)
+			publicKey, err := testjwt.PublicKey("../test/jwt/public_key.pem")
+			require.NoError(t, err)
+			tk, err := jwt.Parse(stk, func(token *jwt.Token) (interface{}, error) {
+				return publicKey, nil
+			})
+			require.NoError(t, err)
 			ctx := goajwt.WithJWT(svc.Context, tk)
+			t.Logf("token raw: %s", tk.Raw)
 			// when/then
 			test.RefreshTokenUnauthorized(t, ctx, svc, ctrl, payload)
 		})
@@ -204,8 +190,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("using nil refresh token", func(t *testing.T) {
 			// given
-			loginService, _, _ := newKeycloakOAuthMockService(t, testsupport.TestIdentity)
-			svc, ctrl := s.SecuredController(loginService)
+			svc, ctrl, _ := s.SecuredController()
 			payload := &app.RefreshToken{}
 			// when
 			_, err := test.RefreshTokenBadRequest(t, svc.Context, svc, ctrl, payload)
@@ -215,11 +200,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("using wrong refresh token", func(t *testing.T) {
 			// given
-			loginService := testlogin.NewKeycloakOAuthServiceMock(t)
-			loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-				return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
-			}
-			svc, ctrl := s.SecuredController(loginService)
+			svc, ctrl, _ := s.SecuredController()
 			refreshToken := "WRONG_REFRESH_TOKEN"
 			payload := &app.RefreshToken{
 				RefreshToken: &refreshToken,
@@ -235,8 +216,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 func (s *TokenControllerTestSuite) TestLinkForNonExistentUserFails() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredControllerWithNonExistentIdentity(loginService)
+	svc, ctrl, _ := s.SecuredControllerWithNonExistentIdentity()
 	redirect := "https://openshift.io"
 	// when/then
 	test.LinkTokenUnauthorized(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", &redirect)
@@ -244,17 +224,17 @@ func (s *TokenControllerTestSuite) TestLinkForNonExistentUserFails() {
 
 func (s *TokenControllerTestSuite) TestLinkNoRedirectNoReferrerFails() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl, _ := s.SecuredController()
 	// when/then
 	test.LinkTokenBadRequest(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", nil)
 }
 
 func (s *TokenControllerTestSuite) TestLinkOK() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl, _ := s.SecuredController()
 	redirect := "https://openshift.io"
+
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, uuid.NewV4().String(), false, "providerLocation")
 	_, redirectLocation := test.LinkTokenOK(s.T(), svc.Context, svc, ctrl, "https://github.com/org/repo", &redirect)
 	require.NotNil(s.T(), redirectLocation)
 	require.Equal(s.T(), "providerLocation", redirectLocation.RedirectLocation)
@@ -267,21 +247,57 @@ func (s *TokenControllerTestSuite) TestLinkOK() {
 
 func (s *TokenControllerTestSuite) TestLinkCallbackRedirects() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	user := s.Graph.CreateUser()
+	identityID := user.IdentityID()
+	responseMode := "fragment"
+	referrer := fmt.Sprintf("http://foo.com?identity_id=%s&for=github", identityID.String())
+
+	stateValue := "foo" + identityID.String()
+
+	state := providerrepo.OauthStateReference{
+		State:        stateValue,
+		Referrer:     referrer,
+		ResponseMode: &responseMode,
+	}
+	s.Application.OauthStates().Create(context.Background(), &state)
+	token := uuid.NewV4().String()
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false, "")
+	svc, ctrl, _ := s.SecuredController()
 	// when
-	response := test.CallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", "")
+	response := test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", stateValue)
 	// then
 	require.NotNil(s.T(), response)
 	location := response.Header()["Location"]
 	require.Equal(s.T(), 1, len(location))
-	require.Equal(s.T(), "originalLocation", location[0])
+	require.Equal(s.T(), referrer, location[0])
+
+	// Now test that relinking also works
+
+	// Generate a new token
+	token = uuid.NewV4().String()
+	testsupport.ActivateDummyLinkingProviderFactory(s, s.Configuration, token, false, "")
+
+	stateValue = "bar" + identityID.String()
+
+	state = providerrepo.OauthStateReference{
+		State:        stateValue,
+		Referrer:     referrer,
+		ResponseMode: &responseMode,
+	}
+	s.Application.OauthStates().Create(context.Background(), &state)
+
+	response = test.LinkCallbackTokenTemporaryRedirect(s.T(), svc.Context, svc, ctrl, "", stateValue)
+	// then
+	require.NotNil(s.T(), response)
+	location = response.Header()["Location"]
+	require.Equal(s.T(), 1, len(location))
+	require.Equal(s.T(), referrer, location[0])
+
 }
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithIncompletePayload() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl, _ := s.SecuredController()
 	someRandomString := "someString"
 	// when/then
 	test.ExchangeTokenBadRequest(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientID: someRandomString})
@@ -292,8 +308,7 @@ func (s *TokenControllerTestSuite) TestExchangeFailsWithIncompletePayload() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongCredentialsFails() {
 	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl, _ := s.SecuredController()
 	someRandomString := "someString"
 	witID := "fabric8-wit"
 	// when/then
@@ -309,13 +324,13 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCredentialsOK() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
 	// given
-	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
-	loginService.ExchangeFunc = func(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+	authProviderService := testservice.NewAuthenticationProviderServiceMock(s.T())
+	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error) {
 		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
 	}
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl, _ := s.SecuredController()
 	someRandomString := "someString"
-	clientID := ctrl.Configuration.GetPublicOauthClientID()
+	clientID := ctrl.Configuration.GetPublicOAuthClientID()
 	code := "INVALID_OAUTH2.0_CODE"
 	// when/then
 	test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", RedirectURI: &someRandomString, ClientID: clientID, Code: &code})
@@ -323,9 +338,9 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongCodeFails() {
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
-	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	provider, _ := s.getDummyOAuthIDPProvider(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
+	svc, ctrl, _ := s.SecuredController()
 	someRandomString := "someString"
 	clientID := "someString"
 	code := "doesnt_matter"
@@ -335,13 +350,8 @@ func (s *TokenControllerTestSuite) TestExchangeWithWrongClientIDFails() {
 }
 
 func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
-	// given
-	loginService := testlogin.NewKeycloakOAuthServiceMock(s.T())
-	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-		return nil, errors.NewUnauthorizedError("failed") // return an error when `ExchangeRefreshToken` func is called
-	}
-	svc, ctrl := s.SecuredController(loginService)
-	clientID := ctrl.Configuration.GetPublicOauthClientID()
+	svc, ctrl, _ := s.SecuredController()
+	clientID := ctrl.Configuration.GetPublicOAuthClientID()
 	refreshToken := "INVALID_REFRESH_TOKEN"
 
 	rw, _ := test.ExchangeTokenUnauthorized(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: clientID, RefreshToken: &refreshToken})
@@ -350,26 +360,40 @@ func (s *TokenControllerTestSuite) TestExchangeFailsWithWrongRefreshToken() {
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeOK() {
 	// given
-	loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
-	s.checkAuthorizationCode(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_OAUTH2.0_CODE", expectedAccessToken, expectedRefreshToken)
+	provider, identity := s.getDummyOAuthIDPProvider(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
+	_, expectedAccessToken, expectedRefreshToken := newOAuthMockService(s.T(), identity)
+	svc, ctrl, _ := s.SecuredController()
+	s.checkAuthorizationCode(svc, ctrl, ctrl.Configuration.GetPublicOAuthClientID(), "SOME_OAUTH2.0_CODE", expectedAccessToken, expectedRefreshToken)
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectRefreshTokenOK() {
 	// given
-	loginService, expectedAccessToken, expectedRefreshToken := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
-	s.checkExchangeWithRefreshToken(svc, ctrl, ctrl.Configuration.GetPublicOauthClientID(), "SOME_REFRESH_TOKEN", expectedAccessToken, expectedRefreshToken)
-}
+	provider, _ := s.getDummyOAuthIDPProvider(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
 
-func (s *TokenControllerTestSuite) TestGenerateOK() {
-	// given
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
-	_, result := test.GenerateTokenOK(s.T(), svc.Context, svc, ctrl)
-	require.Len(s.T(), result, 1)
-	validateToken(s.T(), result[0])
-	validateUserAndIdentity(s.T(), s.Application)
+	tm := testtoken.TokenManager
+
+	ctx := testtoken.ContextWithRequest(context.Background())
+	// Create a user
+	user := s.Graph.CreateUser()
+	// Create an access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+	require.NoError(s.T(), err)
+	ctx = manager.ContextWithTokenManager(ctx, tm)
+	accessToken, err := tm.Parse(ctx, at.AccessToken)
+	require.NoError(s.T(), err)
+
+	svc, ctrl, _ := s.SecuredController()
+
+	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOAuthClientID(), RefreshToken: &accessToken.Raw})
+	require.NotNil(s.T(), token.TokenType)
+	require.Equal(s.T(), "Bearer", *token.TokenType)
+	require.NotNil(s.T(), token.AccessToken)
+	require.NotNil(s.T(), token.RefreshToken)
+	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
+	require.Nil(s.T(), err)
+	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 
 func (s *TokenControllerTestSuite) TestTokenAuditOK() {
@@ -387,16 +411,16 @@ func (s *TokenControllerTestSuite) TestTokenAuditOK() {
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, limaRole)
 	// seup controller with mock KeycloakOAuthService behind
-	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
-	manager, err := token.NewManager(s.Configuration)
+	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	tk, err := manager.Parse(s.Ctx, accessToken)
+	tk, err := tokenManager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
 	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
 	// then
-	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	tokenClaims, err := tokenManager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
@@ -419,16 +443,16 @@ func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
 	res := s.Graph.CreateResource(rt)
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, role)
-	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
-	manager, err := token.NewManager(s.Configuration)
+	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	tk, err := manager.Parse(s.Ctx, accessToken)
+	tk, err := tokenManager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
 	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
 	// then
-	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	tokenClaims, err := tokenManager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
@@ -444,7 +468,7 @@ func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
 	t.SetStatus(tokenPkg.TOKEN_STATUS_DEPROVISIONED, true)
 	err = s.Application.TokenRepository().Save(s.Ctx, t)
 	require.NoError(s.T(), err)
-	rptToken, err := manager.Parse(s.Ctx, *response.RptToken)
+	rptToken, err := tokenManager.Parse(s.Ctx, *response.RptToken)
 	require.NoError(s.T(), err)
 	// when
 	response2, _ := test.AuditTokenUnauthorized(s.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
@@ -467,16 +491,16 @@ func (s *TokenControllerTestSuite) TestAuditRevokedToken() {
 	res := s.Graph.CreateResource(rt)
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, role)
-	loginService, accessToken, _ := newKeycloakOAuthMockService(s.T(), *user.Identity())
-	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity(), loginService)
-	manager, err := token.NewManager(s.Configuration)
+	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
+	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	tk, err := manager.Parse(s.Ctx, accessToken)
+	tk, err := tokenManager.Parse(s.Ctx, accessToken)
 	require.NoError(s.T(), err)
 	// when
 	_, response := test.AuditTokenOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, res.ResourceID())
 	// then
-	tokenClaims, err := manager.ParseToken(svc.Context, *response.RptToken)
+	tokenClaims, err := tokenManager.ParseToken(svc.Context, *response.RptToken)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), tokenClaims.Permissions)
 	require.Len(s.T(), *tokenClaims.Permissions, 1)
@@ -492,7 +516,7 @@ func (s *TokenControllerTestSuite) TestAuditRevokedToken() {
 	t.SetStatus(tokenPkg.TOKEN_STATUS_REVOKED, true)
 	err = s.Application.TokenRepository().Save(s.Ctx, t)
 	require.NoError(s.T(), err)
-	rptToken, err := manager.Parse(s.Ctx, *response.RptToken)
+	rptToken, err := tokenManager.Parse(s.Ctx, *response.RptToken)
 	require.NoError(s.T(), err)
 	// when
 	response2, _ := test.AuditTokenUnauthorized(s.T(), goajwt.WithJWT(svc.Context, rptToken), svc, ctrl, res.ResourceID())
@@ -524,11 +548,10 @@ func validateUserAndIdentity(t *testing.T, app application.Application) {
 }
 
 func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, id string, secret string) {
-	loginService, _, _ := newKeycloakOAuthMockService(s.T(), testsupport.TestIdentity)
-	svc, ctrl := s.SecuredController(loginService)
+	svc, ctrl, _ := s.SecuredController()
 	_, saToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "client_credentials", ClientSecret: &secret, ClientID: id})
 	assert.NotNil(s.T(), saToken.TokenType)
-	assert.Equal(s.T(), "bearer", *saToken.TokenType)
+	assert.Equal(s.T(), "Bearer", *saToken.TokenType)
 	assert.NotNil(s.T(), saToken.AccessToken)
 	claims, err := testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), *saToken.AccessToken)
 	require.Nil(s.T(), err)
@@ -540,11 +563,10 @@ func (s *TokenControllerTestSuite) checkServiceAccountCredentials(name string, i
 }
 
 func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl *TokenController, name string, code string, expectedAccessToken string, expectedRefreshToken string) {
-	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
-
+	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 	require.NotNil(s.T(), token)
 	require.NotNil(s.T(), token.TokenType)
-	require.Equal(s.T(), "bearer", *token.TokenType)
+	require.Equal(s.T(), "Bearer", *token.TokenType)
 	require.NotNil(s.T(), token.AccessToken)
 	assert.NoError(s.T(), testtoken.EqualAccessTokens(context.Background(), expectedAccessToken, *token.AccessToken))
 	require.NotNil(s.T(), token.RefreshToken)
@@ -554,57 +576,106 @@ func (s *TokenControllerTestSuite) checkAuthorizationCode(svc *goa.Service, ctrl
 	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
 }
 
-func (s *TokenControllerTestSuite) checkExchangeWithRefreshToken(svc *goa.Service, ctrl *TokenController, name string, refreshToken string, expectedAccessToken, expectedRefreshToken string) {
-	_, token := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "refresh_token", ClientID: s.Configuration.GetPublicOauthClientID(), RefreshToken: &refreshToken})
-
-	require.NotNil(s.T(), token.TokenType)
-	require.Equal(s.T(), "Bearer", *token.TokenType)
-	require.NotNil(s.T(), token.AccessToken)
-	require.Equal(s.T(), expectedAccessToken, *token.AccessToken)
-	require.NotNil(s.T(), token.RefreshToken)
-	require.Equal(s.T(), expectedRefreshToken, *token.RefreshToken)
-	expiresIn, err := strconv.Atoi(*token.ExpiresIn)
+func (s *TokenControllerTestSuite) getDummyOAuthIDPProvider(forApprovedUser bool) (*dummyIDPOAuthProvider, account.Identity) {
+	g := s.NewTestGraph(s.T())
+	user := g.CreateUser()
+	identity := user.Identity()
+	claims := make(map[string]interface{})
+	claims["sub"] = identity.ID.String()
+	claims["name"] = user.User().FullName
+	if forApprovedUser {
+		claims["preferred_username"] = identity.Username
+		claims["email"] = identity.User.Email
+		claims["company"] = identity.User.Company
+	}
+	accessToken, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
-	require.True(s.T(), expiresIn > 60*59*24*30 && expiresIn < 60*61*24*30) // The expires_in should be withing a minute range of 30 days.
+
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.Nil(s.T(), err)
+
+	dummyOauth := &dummyIDPOAuthProvider{
+		IdentityProvider: provider.NewIdentityProvider(s.Configuration),
+		accessToken:      accessToken,
+		refreshToken:     refreshToken,
+	}
+	return dummyOauth, *identity
+}
+
+type dummyIDPOauth interface {
+	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
+	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
+	Profile(ctx context.Context, token oauth2.Token) (*provider.UserProfile, error)
+}
+
+type dummyIDPOAuthProvider struct {
+	provider.IdentityProvider
+	accessToken  string
+	refreshToken string
+}
+
+func (c *dummyIDPOAuthProvider) Exchange(ctx netcontext.Context, code string) (*oauth2.Token, error) {
+	var thirtyDays, nbf int64
+	thirtyDays = 60 * 60 * 24 * 30
+
+	token := &oauth2.Token{
+		TokenType:    "Bearer",
+		AccessToken:  c.accessToken,
+		RefreshToken: c.refreshToken,
+		Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
+	}
+	extra := make(map[string]interface{})
+	extra["expires_in"] = time.Now().Unix() + thirtyDays
+	extra["refresh_expires_in"] = time.Now().Unix() + thirtyDays
+	extra["not_before_policy"] = nbf
+	token = token.WithExtra(extra)
+	return token, nil
+}
+
+func (c *dummyIDPOAuthProvider) Profile(ctx context.Context, jwtToken oauth2.Token) (*provider.UserProfile, error) {
+	jwt, _ := testtoken.TokenManager.ParseToken(ctx, jwtToken.AccessToken)
+	return &provider.UserProfile{
+		Company:    jwt.Company,
+		Subject:    jwt.Subject,
+		GivenName:  "Test", // will override the user's full_name in the database when updating from the access token
+		FamilyName: "User",
+		Username:   jwt.Username,
+		Email:      jwt.Email,
+	}, nil
 }
 
 func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUserOK() {
+	s.OverrideConfig("AUTH_NOTAPPROVED_REDIRECT", "http://not-approved")
 	// setup the service and ctrl for this specific usecase
 	svc := testsupport.ServiceAsUser("Token-Service", testsupport.TestIdentity)
-	tokenManager, err := token.NewManager(s.Configuration)
+	tokenManager, err := manager.NewTokenManager(s.Configuration)
 	require.Nil(s.T(), err)
-	oauthService := &NotApprovedOAuthService{}
-	ctrl := NewTokenController(svc, s.Application, oauthService, &DummyLinkService{}, nil, tokenManager, s.Configuration)
+
+	ctrl := NewTokenController(svc, s.Application, tokenManager, s.Configuration)
+
+	provider, _ := s.getDummyOAuthIDPProvider(false)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
 
 	code := "XYZ"
-	_, errResp := test.ExchangeTokenForbidden(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
+	_, errResp := test.ExchangeTokenForbidden(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 	require.Equal(s.T(), "user is not authorized to access OpenShift", errResp.Errors[0].Detail)
 
-	oauthService = &NotApprovedOAuthService{}
-	oauthService.Scenario = "approved"
-	ctrl = NewTokenController(svc, s.Application, oauthService, &DummyLinkService{}, nil, tokenManager, s.Configuration)
+	provider, _ = s.getDummyOAuthIDPProvider(true)
+	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
+
+	ctrl = NewTokenController(svc, s.Application, tokenManager, s.Configuration)
 
 	code = "XYZ"
-	_, returnedToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOauthClientID(), Code: &code})
+	_, returnedToken := test.ExchangeTokenOK(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
 	require.NotNil(s.T(), returnedToken.AccessToken)
 }
 
-type DummyLinkService struct {
-}
-
-func (s *DummyLinkService) ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error) {
-	return "providerLocation", nil
-}
-
-func (s *DummyLinkService) Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error) {
-	return "originalLocation", nil
-}
-
-func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login.KeycloakOAuthService, string, string) {
-	loginService := testlogin.NewKeycloakOAuthServiceMock(t)
+func newOAuthMockService(t *testing.T, identity account.Identity) (service.AuthenticationProviderService, string, string) {
+	authProviderService := testservice.NewAuthenticationProviderServiceMock(t)
+	identity.User.FullName = "Test User" // origin 'fullname' will be updated by the token returned by the dummyIDPOAuthProvider.Profile function call
 	tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 	require.Nil(t, err)
-	loginService.ExchangeFunc = func(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
+	authProviderService.ExchangeCodeWithProviderFunc = func(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error) {
 		var thirtyDays, nbf int64
 		thirtyDays = 60 * 60 * 24 * 30
 		token := &oauth2.Token{
@@ -620,23 +691,11 @@ func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login
 		token = token.WithExtra(extra)
 		return token, nil
 	}
-	loginService.ExchangeRefreshTokenFunc = func(ctx context.Context, accessToken, refreshToken string, serviceConfig login.Configuration) (*token.TokenSet, error) {
-		var thirtyDays int64
-		thirtyDays = 60 * 60 * 24 * 30
-		bearer := "Bearer"
-		token := &token.TokenSet{
-			TokenType:    &bearer,
-			AccessToken:  &tokenSet.AccessToken,
-			RefreshToken: &tokenSet.RefreshToken,
-			ExpiresIn:    &thirtyDays,
-		}
-		return token, nil
-	}
-	loginService.CreateOrUpdateIdentityAndUserFunc = func(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
+	authProviderService.CreateOrUpdateIdentityAndUserFunc = func(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token) (*string, *oauth2.Token, error) {
 		var thirtyDays, nbf int64
 		thirtyDays = 60 * 60 * 24 * 30
 		token := &oauth2.Token{
-			TokenType:    "bearer",
+			TokenType:    "Bearer",
 			Expiry:       time.Unix(time.Now().Unix()+thirtyDays, 0),
 			AccessToken:  keycloakToken.AccessToken,
 			RefreshToken: keycloakToken.RefreshToken,
@@ -650,43 +709,5 @@ func newKeycloakOAuthMockService(t *testing.T, identity account.Identity) (login
 
 		return nil, token, nil
 	}
-	return loginService, tokenSet.AccessToken, tokenSet.RefreshToken
-}
-
-type NotApprovedOAuthService struct {
-	login.KeycloakOAuthProvider
-	Scenario string
-}
-
-func (s *NotApprovedOAuthService) Exchange(ctx context.Context, code string, config oauth.OauthConfig) (*oauth2.Token, error) {
-	bearer := "Bearer"
-	token := &oauth2.Token{
-		TokenType:    bearer,
-		AccessToken:  "sometoken",
-		RefreshToken: "sometoken",
-	}
-	return token, nil
-}
-
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityInDB(ctx context.Context, accessToken string, config oauth.IdentityProvider, configuration login.Configuration) (*account.Identity, bool, error) {
-	return nil, false, errors.NewUnauthorizedError("user is absent")
-}
-func (s *NotApprovedOAuthService) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL, keycloakToken *oauth2.Token, request *goa.RequestData, config oauth.IdentityProvider, serviceConfig login.Configuration) (*string, *oauth2.Token, error) {
-
-	/* This mocked method simulates the contract
-	where redir url is always returned, but token is returned when there is not error
-	*/
-
-	redirURLNotApproved := "http://not-approved"
-	redirURLApproved := "http://approved"
-	bearer := "Bearer"
-	token := &oauth2.Token{
-		TokenType:    bearer,
-		AccessToken:  "sometoken",
-		RefreshToken: "sometoken",
-	}
-	if s.Scenario == "approved" {
-		return &redirURLApproved, token, nil
-	}
-	return &redirURLNotApproved, nil, nil
+	return authProviderService, tokenSet.AccessToken, tokenSet.RefreshToken
 }

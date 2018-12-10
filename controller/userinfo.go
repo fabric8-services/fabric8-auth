@@ -1,13 +1,13 @@
 package controller
 
 import (
-	"github.com/fabric8-services/fabric8-auth/account"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 )
@@ -16,11 +16,11 @@ import (
 type UserinfoController struct {
 	*goa.Controller
 	app          application.Application
-	tokenManager token.Manager
+	tokenManager manager.TokenManager
 }
 
 // NewUserinfoController creates a userinfo controller.
-func NewUserinfoController(service *goa.Service, app application.Application, tokenManager token.Manager) *UserinfoController {
+func NewUserinfoController(service *goa.Service, app application.Application, tokenManager manager.TokenManager) *UserinfoController {
 	return &UserinfoController{
 		Controller:   service.NewController("UserinfoController"),
 		app:          app,

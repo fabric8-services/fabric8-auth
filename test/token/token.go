@@ -1,4 +1,4 @@
-package token
+package token_test
 
 import (
 	"context"
@@ -10,10 +10,9 @@ import (
 	"testing"
 	"time"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	manager "github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/tokencontext"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
@@ -53,7 +52,7 @@ func EmbedIdentityInContext(identity account.Identity) (context.Context, error) 
 		return nil, err
 	}
 	ctx = ContextWithRequest(ctx)
-	return tokencontext.ContextWithTokenManager(ctx, TokenManager), nil
+	return manager.ContextWithTokenManager(ctx, TokenManager), nil
 }
 
 // GenerateToken generates a JWT token and signs it using the default private key
@@ -153,7 +152,7 @@ func UpdateToken(tokenString string, claims map[string]interface{}) (string, err
 	for key, value := range oldTokenClaims {
 		switch value.(type) {
 		case float64:
-			number, err := token.NumberToInt(value)
+			number, err := manager.NumberToInt(value)
 			if err != nil {
 				return "", err
 			}
@@ -195,7 +194,7 @@ func ContextWithRequest(ctx context.Context) context.Context {
 
 func ContextWithTokenAndRequestID(t *testing.T) (context.Context, string, string) {
 	ctx, ctxToken, err := EmbedTokenInContext(uuid.NewV4().String(), uuid.NewV4().String())
-	ctx = tokencontext.ContextWithTokenManager(ctx, TokenManager)
+	ctx = manager.ContextWithTokenManager(ctx, TokenManager)
 	require.NoError(t, err)
 
 	reqID := uuid.NewV4().String()
@@ -205,7 +204,7 @@ func ContextWithTokenAndRequestID(t *testing.T) (context.Context, string, string
 }
 
 func ContextWithTokenManager() context.Context {
-	return tokencontext.ContextWithTokenManager(context.Background(), TokenManager)
+	return manager.ContextWithTokenManager(context.Background(), TokenManager)
 }
 
 func configurationData() *configuration.ConfigurationData {
@@ -216,8 +215,8 @@ func configurationData() *configuration.ConfigurationData {
 	return config
 }
 
-func newManager() token.Manager {
-	tm, err := token.NewManager(config)
+func newManager() manager.TokenManager {
+	tm, err := manager.NewTokenManager(config)
 	if err != nil {
 		panic("failed to create token manager: " + err.Error())
 	}

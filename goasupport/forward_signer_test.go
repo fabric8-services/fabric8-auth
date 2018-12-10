@@ -6,8 +6,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
-	"github.com/fabric8-services/fabric8-auth/test/token"
-
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ type TestForwardSignerSuite struct {
 
 func (s *TestForwardSignerSuite) TestNewForwardSigner() {
 	sub := uuid.NewV4().String()
-	ctx, _, err := token.EmbedTokenInContext(sub, uuid.NewV4().String())
+	ctx, _, err := testtoken.EmbedTokenInContext(sub, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	signer := goasupport.NewForwardSigner(ctx)

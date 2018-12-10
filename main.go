@@ -9,23 +9,19 @@ import (
 	"runtime"
 	"time"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
-	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
+	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	keycloaklink "github.com/fabric8-services/fabric8-auth/login/link"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
-	"github.com/fabric8-services/fabric8-auth/token"
-	"github.com/fabric8-services/fabric8-auth/token/link"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/logging/logrus"
@@ -60,7 +56,7 @@ func main() {
 		log.Panic(nil, map[string]interface{}{
 			"config_file":                 configFile,
 			"service_account_config_file": serviceAccountConfigFile,
-			"err": err,
+			"err":                         err,
 		}, "failed to setup the configuration")
 	}
 
@@ -143,12 +139,9 @@ func main() {
 	service.WithLogger(goalogrus.New(log.Logger()))
 
 	// Setup Account/Login/Security
-	identityRepository := account.NewIdentityRepository(db)
-	userRepository := account.NewUserRepository(db)
+	appDB := gormapplication.NewGormDB(db, config, factorymanager.NewDisabledFactoryWrappers())
 
-	appDB := gormapplication.NewGormDB(db, config)
-
-	tokenManager, err := token.DefaultManager(config)
+	tokenManager, err := manager.DefaultManager(config)
 	if err != nil {
 		log.Panic(nil, map[string]interface{}{
 			"err": err,
@@ -158,7 +151,7 @@ func main() {
 	jwtMiddlewareTokenContext := goamiddleware.TokenContext(tokenManager, app.NewJWTSecurity())
 	service.Use(jwtMiddlewareTokenContext)
 
-	service.Use(login.InjectTokenManager(tokenManager))
+	service.Use(manager.InjectTokenManager(tokenManager))
 	service.Use(log.LogRequest(config.IsPostgresDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 
@@ -170,10 +163,8 @@ func main() {
 		log.Logger().Warn("Tenant service is not enabled")
 	}
 
-	keycloakProfileService := login.NewKeycloakUserProfileClient()
-
 	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
-	err = clusterservice.Start(context.Background(), config, func(c *http.Client) {
+	err = appDB.ClusterService().Start(context.Background(), config, func(c *http.Client) {
 		c.Timeout = 3 * time.Second
 	})
 	if err != nil {
@@ -188,8 +179,7 @@ func main() {
 	}
 
 	// Mount "login" controller
-	loginService := login.NewKeycloakOAuthProvider(identityRepository, userRepository, tokenManager, appDB, keycloakProfileService, login.NewOSORegistrationApp(appDB))
-	loginCtrl := controller.NewLoginController(service, loginService, tokenManager, config)
+	loginCtrl := controller.NewLoginController(service, appDB)
 	app.MountLoginController(service, loginCtrl)
 
 	// Mount "resource-roles" controller
@@ -201,18 +191,15 @@ func main() {
 	app.MountRolesController(service, rolesCtrl)
 
 	// Mount "authorize" controller
-	authorizeCtrl := controller.NewAuthorizeController(service, loginService, tokenManager, config)
+	authorizeCtrl := controller.NewAuthorizeController(service, appDB, config)
 	app.MountAuthorizeController(service, authorizeCtrl)
 
 	// Mount "logout" controller
-	logoutCtrl := controller.NewLogoutController(service, &login.KeycloakLogoutService{}, config)
+	logoutCtrl := controller.NewLogoutController(service, appDB)
 	app.MountLogoutController(service, logoutCtrl)
 
-	providerFactory := link.NewOauthProviderFactory(config, appDB)
-	linkService := link.NewLinkServiceWithFactory(config, appDB, providerFactory)
-
 	// Mount "token" controller
-	tokenCtrl := controller.NewTokenController(service, appDB, loginService, linkService, providerFactory, tokenManager, config)
+	tokenCtrl := controller.NewTokenController(service, appDB, tokenManager, config)
 	app.MountTokenController(service, tokenCtrl)
 
 	// Mount "status" controller
@@ -236,10 +223,8 @@ func main() {
 	app.MountSearchController(service, searchCtrl)
 
 	// Mount "users" controller
-	keycloakLinkAPIService := keycloaklink.NewKeycloakIDPServiceClient()
-
 	emailVerificationService := accountservice.NewEmailVerificationClient(appDB)
-	usersCtrl := controller.NewUsersController(service, appDB, config, keycloakProfileService, keycloakLinkAPIService)
+	usersCtrl := controller.NewUsersController(service, appDB, config)
 	usersCtrl.EmailVerificationService = emailVerificationService
 	app.MountUsersController(service, usersCtrl)
 

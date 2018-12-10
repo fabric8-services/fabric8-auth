@@ -4,10 +4,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	rolerepository "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
@@ -29,7 +29,7 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -53,7 +53,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 
 // ListAssignedByRoleName runs the list action.
 func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedByRoleNameResourceRolesContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -81,7 +81,7 @@ func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedBy
 
 // AssignRole assigns a specific role for a resource, to one or more identities.
 func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesContext) error {
-	currentIdentity, err := login.ContextIdentity(ctx)
+	currentIdentity, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,
@@ -119,7 +119,7 @@ func (c *ResourceRolesController) AssignRole(ctx *app.AssignRoleResourceRolesCon
 // HasScope checks if the user has the given scope in the requested resource
 func (c *ResourceRolesController) HasScope(ctx *app.HasScopeResourceRolesContext) error {
 	// retrieve the current user's identity from the request token
-	currentIdentity, err := login.ContextIdentity(ctx)
+	currentIdentity, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"resource_id": ctx.ResourceID,

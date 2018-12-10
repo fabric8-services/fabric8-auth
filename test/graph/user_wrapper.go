@@ -3,7 +3,7 @@ package graph
 import (
 	"fmt"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -55,7 +55,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.identity = &account.Identity{
 		Username:     fmt.Sprintf("TestUserIdentity-%s", id),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.DefaultIDP,
 		User:         *w.user,
 		UserID: account.NullUUID{
 			UUID:  w.user.ID,
@@ -78,4 +78,10 @@ func (w *userWrapper) Identity() *account.Identity {
 
 func (w *userWrapper) IdentityID() uuid.UUID {
 	return w.identity.ID
+}
+
+func (w *userWrapper) Deprovision() {
+	w.user.Deprovisioned = true
+	err := w.graph.app.Users().Save(w.graph.ctx, w.user)
+	require.NoError(w.graph.t, err)
 }

@@ -3,9 +3,9 @@ package controller_test
 import (
 	"testing"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	authorization "github.com/fabric8-services/fabric8-auth/authorization"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"

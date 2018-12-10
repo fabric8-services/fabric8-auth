@@ -218,11 +218,20 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 36
 	m = append(m, steps{ExecuteSQLFile("036-token-privileges.sql")})
 
+	// Version 37
 	m = append(m, steps{ExecuteSQLFile("037-invitation-redirect-url.sql")})
 
+	// Version 38
 	m = append(m, steps{ExecuteSQLFile("038-admin-console-resource.sql")})
 
+	// Version 39
 	m = append(m, steps{ExecuteSQLFile("039-resource-type-alter.sql")})
+
+	// Version 40
+	m = append(m, steps{ExecuteSQLFile("040-deferrable-constraints.sql")})
+
+	// Version 41
+	m = append(m, steps{ExecuteSQLFile("041-identity-role-index.sql")})
 
 	// Version N
 	//

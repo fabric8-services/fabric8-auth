@@ -3,9 +3,9 @@ package controller_test
 import (
 	"testing"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	. "github.com/fabric8-services/fabric8-auth/controller"
@@ -148,29 +148,34 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 	})
 
 	s.T().Run("conflict", func(t *testing.T) {
-		// given
-		g := s.NewTestGraph(t)
-		res := g.CreateSpace()
 
-		testUser := g.CreateUser()
-		res.AddViewer(testUser)
+		t.Run("assign lower role", func(t *testing.T) {
+			// given
+			g := s.NewTestGraph(t)
+			res := g.CreateSpace()
+			// Create a user who has the privileges to assign roles
+			adminUser := g.CreateUser("adminuser")
+			res.AddAdmin(adminUser)
+			// create a test user with admin role as well
+			testUser := g.CreateUser()
+			res.AddAdmin(testUser)
 
-		// Create a user who has the privileges to assign roles
-		adminUser := g.CreateUser("adminuser")
-		res.AddAdmin(adminUser)
-
-		svc, ctrl := s.SecuredControllerWithIdentity(*adminUser.Identity())
-		payload := &app.AssignRoleResourceRolesPayload{
-			Data: []*app.AssignRoleData{
-				{
-					Role: authorization.SpaceContributorRole,
-					Ids:  []string{testUser.Identity().ID.String()},
+			svc, ctrl := s.SecuredControllerWithIdentity(*adminUser.Identity())
+			payload := &app.AssignRoleResourceRolesPayload{
+				Data: []*app.AssignRoleData{
+					{
+						Role: authorization.SpaceContributorRole,
+						Ids:  []string{testUser.Identity().ID.String()},
+					},
 				},
-			},
-		}
-
-		test.AssignRoleResourceRolesNoContent(t, svc.Context, svc, ctrl, res.SpaceID(), payload)
-		test.AssignRoleResourceRolesConflict(t, svc.Context, svc, ctrl, res.SpaceID(), payload)
+			}
+			// when assign contributor role to user
+			test.AssignRoleResourceRolesNoContent(t, svc.Context, svc, ctrl, res.SpaceID(), payload)
+			// then
+			_, returnedIdentityRoles := test.ListAssignedResourceRolesOK(t, svc.Context, svc, ctrl, res.SpaceID())
+			require.Len(t, returnedIdentityRoles.Data, 2)
+			s.checkExists(t, []uuid.UUID{adminUser.IdentityID(), testUser.IdentityID()}, []string{"admin", "contributor"}, returnedIdentityRoles)
+		})
 	})
 
 	s.T().Run("unauthorized", func(t *testing.T) {
@@ -288,7 +293,31 @@ func (s *ResourceRolesControllerTestSuite) TestAssignRole() {
 			test.AssignRoleResourceRolesForbidden(t, svc.Context, svc, ctrl, res.SpaceID(), payload)
 		})
 	})
+}
 
+func (s *ResourceRolesControllerTestSuite) TestAssignRoleTwiceOK() {
+	// given
+	res := s.Graph.CreateSpace()
+	// Create a user who has the privileges to assign roles
+	adminUser := s.Graph.CreateUser("adminuser")
+	res.AddAdmin(adminUser)
+	// create a test user with viewer role, first
+	testUser := s.Graph.CreateUser()
+	res.AddViewer(testUser)
+
+	svc, ctrl := s.SecuredControllerWithIdentity(*adminUser.Identity())
+	payload := &app.AssignRoleResourceRolesPayload{
+		Data: []*app.AssignRoleData{
+			{
+				Role: authorization.SpaceContributorRole,
+				Ids:  []string{testUser.Identity().ID.String()},
+			},
+		},
+	}
+	// assign contributor role once: ok
+	test.AssignRoleResourceRolesNoContent(s.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
+	// assign contributor role twice: ok
+	test.AssignRoleResourceRolesNoContent(s.T(), svc.Context, svc, ctrl, res.SpaceID(), payload)
 }
 
 func (s *ResourceRolesControllerTestSuite) TestListScopes() {
