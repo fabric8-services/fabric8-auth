@@ -78,7 +78,7 @@ objects:
             valueFrom:
               configMapKeyRef:
                 name: auth
-                key: oauth.provider.endpoint.logout	                                
+                key: oauth.provider.endpoint.logout
           - name: AUTH_SERVICEACCOUNT_PRIVATEKEY
             valueFrom:
               secretKeyRef:
