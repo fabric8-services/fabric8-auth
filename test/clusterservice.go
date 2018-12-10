@@ -30,7 +30,7 @@ func NewClusterServiceMock(t minimock.Tester) *testservice.ClusterServiceMock {
 	clusterServiceMock.ClustersFunc = func(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error) {
 		return clusterservice.Clusters(clusters), nil
 	}
-	clusterServiceMock.StatusFunc = func(ctx context.Context) (bool, error) {
+	clusterServiceMock.StatusFunc = func(ctx context.Context, options ...rest.HTTPClientOption) (bool, error) {
 		return false, nil
 	}
 
