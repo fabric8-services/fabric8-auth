@@ -164,7 +164,7 @@ func main() {
 	}
 
 	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
-	err = appDB.ClusterService().Start(context.Background(), config, func(c *http.Client) {
+	_, err = appDB.ClusterService().Status(context.Background(), func(c *http.Client) {
 		c.Timeout = 3 * time.Second
 	})
 	if err != nil {
