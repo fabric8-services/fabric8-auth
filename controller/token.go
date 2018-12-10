@@ -218,8 +218,8 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 	if notApprovedRedirect != nil && token == nil {
 		// the code enters this block only if the user is not provisioned on OSO.
-		userProfileContext := profileCtx.Value(provider.UserProfileContextKey).(*provider.UserProfileContext)
-		if userProfileContext != nil {
+		userProfileContext, ok := profileCtx.Value(provider.UserProfileContextKey).(*provider.UserProfileContext)
+		if ok {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError(
 				fmt.Sprintf("user is not authorized to access OpenShift: %s", *userProfileContext.Username)))
 		}

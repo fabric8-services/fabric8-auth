@@ -365,8 +365,8 @@ func (s *authenticationProviderServiceImpl) UpdateIdentityUsingUserInfoEndPoint(
 
 	// Set the user profile's username in the context
 	profileCtx := ctx.Value(provider.UserProfileContextKey)
-	if profileCtx != nil {
-		profileCtx.(*provider.UserProfileContext).Username = &userProfile.Username
+	if pCtx, ok := profileCtx.(*provider.UserProfileContext); ok {
+		pCtx.Username = &userProfile.Username
 	}
 
 	identity := &account.Identity{}
