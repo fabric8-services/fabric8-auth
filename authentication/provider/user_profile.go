@@ -8,7 +8,13 @@ const (
 	ApprovedAttributeName = "approved"
 	ClusterAttribute      = "cluster"
 	RHDUsernameAttribute  = "rhd_username"
+	UserProfileContextKey = "user_profile_context"
 )
+
+// UserProfileUsernameContext
+type UserProfileContext struct {
+	Username *string
+}
 
 // OAuthUserProfile represents standard OAuth User profile api request payload
 type OAuthUserProfile struct {

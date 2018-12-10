@@ -658,7 +658,7 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUser
 
 	code := "XYZ"
 	_, errResp := test.ExchangeTokenForbidden(s.T(), svc.Context, svc, ctrl, &app.TokenExchange{GrantType: "authorization_code", ClientID: s.Configuration.GetPublicOAuthClientID(), Code: &code})
-	require.Equal(s.T(), "user is not authorized to access OpenShift", errResp.Errors[0].Detail)
+	require.True(s.T(), strings.HasPrefix(errResp.Errors[0].Detail, "user is not authorized to access OpenShift"))
 
 	provider, _ = s.getDummyOAuthIDPProvider(true)
 	testsupport.ActivateDummyIdentityProviderFactory(s, provider)
