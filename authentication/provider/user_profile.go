@@ -8,7 +8,15 @@ const (
 	ApprovedAttributeName = "approved"
 	ClusterAttribute      = "cluster"
 	RHDUsernameAttribute  = "rhd_username"
+
+	// UserProfileContextKey is the context value key used to carry a UserProfileContext value
+	UserProfileContextKey = "user_profile_context"
 )
+
+// UserProfileUsernameContext is used to pass certain informational state between layers via the context
+type UserProfileContext struct {
+	Username *string
+}
 
 // OAuthUserProfile represents standard OAuth User profile api request payload
 type OAuthUserProfile struct {

@@ -1,7 +1,8 @@
 package controller
 
 import (
-	"github.com/fabric8-services/fabric8-auth/configuration"
+	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -177,6 +179,8 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 	var token *app.OauthToken
 	var notApprovedRedirect *string
 
+	profileCtx := context.WithValue(ctx, provider.UserProfileContextKey, &provider.UserProfileContext{})
+
 	switch payload.GrantType {
 	case "client_credentials":
 		token, err = c.exchangeWithGrantTypeClientCredentials(ctx)
@@ -193,7 +197,9 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 			}, "failed to parse referrer")
 			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 		}
-		notApprovedRedirect, token, err = c.app.AuthenticationProviderService().ExchangeAuthorizationCodeForUserToken(ctx, *payload.Code, payload.ClientID, redirectURL)
+
+		notApprovedRedirect, token, err = c.app.AuthenticationProviderService().ExchangeAuthorizationCodeForUserToken(
+			profileCtx, *payload.Code, payload.ClientID, redirectURL)
 		ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 
 		if err != nil {
@@ -212,6 +218,11 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 
 	if notApprovedRedirect != nil && token == nil {
 		// the code enters this block only if the user is not provisioned on OSO.
+		userProfileContext, ok := profileCtx.Value(provider.UserProfileContextKey).(*provider.UserProfileContext)
+		if ok {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError(
+				fmt.Sprintf("user is not authorized to access OpenShift: %s", *userProfileContext.Username)))
+		}
 		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("user is not authorized to access OpenShift"))
 	}
 
