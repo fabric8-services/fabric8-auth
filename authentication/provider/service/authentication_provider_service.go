@@ -363,6 +363,12 @@ func (s *authenticationProviderServiceImpl) UpdateIdentityUsingUserInfoEndPoint(
 		return nil, errors.New("unable to get user profile " + err.Error())
 	}
 
+	// Set the user profile's username in the context
+	profileCtx := ctx.Value(provider.UserProfileContextKey)
+	if pCtx, ok := profileCtx.(*provider.UserProfileContext); ok {
+		pCtx.Username = &userProfile.Username
+	}
+
 	identity := &account.Identity{}
 
 	identities, err := s.Repositories().Identities().Query(account.IdentityFilterByUsername(userProfile.Username), account.IdentityWithUser())
