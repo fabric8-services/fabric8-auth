@@ -111,7 +111,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-common"
-  revision = "7a49685a8135c385898dff8f46277a508eaf6cc5"
+  revision = "a85e65e22cfc18d7c2004317d340ad328ca8dcd1"
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"
