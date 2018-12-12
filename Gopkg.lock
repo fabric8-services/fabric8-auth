@@ -60,16 +60,14 @@
   revision = "edd01596bbe1dabf0f66b6dc431b4b88b35692b8"
 
 [[projects]]
-  branch = "master"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "configuration",
     "errors",
-    "http/proxy",
     "httpsupport",
     "log"
   ]
-  revision = "41debd6a68ab0999841b3fdc53e3603f16fa76e2"
+  revision = "a85e65e22cfc18d7c2004317d340ad328ca8dcd1"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-notification"
@@ -492,6 +490,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a445ea99112a636e11bab7e3c551d1ec3646c7a29ba8136e0c56af24e6363740"
+  inputs-digest = "5930a234adb8c5be947f709c469f8d4865a647bcf1b6ed50ebc5a6ac47fa641b"
   solver-name = "gps-cdcl"
   solver-version = 1

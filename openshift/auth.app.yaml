@@ -49,16 +49,36 @@ objects:
               secretKeyRef:
                 name: auth
                 key: db.password
-          - name: AUTH_KEYCLOAK_REALM
+          - name: AUTH_AUTH_PROVIDER_CLIENT_ID
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: keycloak.realm
-          - name: AUTH_KEYCLOAK_SECRET
+                key: oauth.provider.client.id
+          - name: AUTH_OAUTH_PROVIDER_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
                 name: auth
-                key: keycloak.secret
+                key: oauth.provider.client.secret
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_AUTH
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.auth
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_USERINFO
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.userinfo
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_TOKEN
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.token
+          - name: AUTH_OAUTH_PROVIDER_ENDPOINT_LOGOUT
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: oauth.provider.endpoint.logout
           - name: AUTH_SERVICEACCOUNT_PRIVATEKEY
             valueFrom:
               secretKeyRef:
@@ -144,11 +164,6 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: redirect.valid
-          - name: AUTH_KEYCLOAK_URL
-            valueFrom:
-              configMapKeyRef:
-                name: auth
-                key: keycloak.url
           - name: AUTH_NOTIFICATION_SERVICEURL
             valueFrom:
               configMapKeyRef:

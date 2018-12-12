@@ -88,6 +88,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestDeleteFailsForNonexistent() {
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToLoad() {
+	// given
 	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
@@ -95,16 +96,15 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToLoad() {
 		FromRoleID:     g.CreateRole(g.ID("from"), rt).Role().RoleID,
 		ToRoleID:       g.CreateRole(g.ID("to")).Role().RoleID,
 	}
-
 	err := s.repo.Create(s.Ctx, rm)
 	require.NoError(s.T(), err)
-
+	// when loading the role mapping
 	mapping, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
 	require.NoError(s.T(), err)
-
-	require.Equal(s.T(), rt.ResourceType().ResourceTypeID, mapping.ResourceTypeID)
-	require.Equal(s.T(), g.RoleByID("from").Role().RoleID, mapping.FromRoleID)
-	require.Equal(s.T(), g.RoleByID("to").Role().RoleID, mapping.ToRoleID)
+	assert.Equal(s.T(), rt.ResourceType().ResourceTypeID, mapping.ResourceTypeID)
+	assert.Equal(s.T(), g.RoleByID("from").Role().RoleID, mapping.FromRoleID)
+	assert.Equal(s.T(), g.RoleByID("to").Role().RoleID, mapping.ToRoleID)
+	assert.Equal(s.T(), mapping.CreatedAt, mapping.GetLastModified())
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestLoadFailsForNonexistent() {
@@ -136,6 +136,7 @@ func (s *defaultRoleMappingBlackBoxTest) TestExistsUnknownDefaultRoleMappingFail
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
+	// given
 	g := s.NewTestGraph(s.T())
 	rt := g.CreateResourceType()
 	rm := &rolerepo.DefaultRoleMapping{
@@ -143,21 +144,20 @@ func (s *defaultRoleMappingBlackBoxTest) TestOKToSave() {
 		FromRoleID:     g.CreateRole(rt).Role().RoleID,
 		ToRoleID:       g.CreateRole().Role().RoleID,
 	}
-
 	otherRole := g.CreateRole()
-
 	err := s.repo.Create(s.Ctx, rm)
 	require.NoError(s.T(), err)
-
 	rm.ResourceTypeID = g.CreateResourceType().ResourceType().ResourceTypeID
 	rm.ToRoleID = otherRole.Role().RoleID
+	// when updating the role mapping with another `To` role
 	err = s.repo.Save(s.Ctx, rm)
+	// then
 	require.NoError(s.T(), err)
-
-	updated, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
+	updatedRM, err := s.repo.Load(s.Ctx, rm.DefaultRoleMappingID)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), rm.ResourceTypeID, updated.ResourceTypeID)
-	require.Equal(s.T(), otherRole.Role().RoleID, updated.ToRoleID)
+	assert.Equal(s.T(), rm.ResourceTypeID, updatedRM.ResourceTypeID)
+	assert.Equal(s.T(), otherRole.Role().RoleID, updatedRM.ToRoleID)
+	assert.True(s.T(), updatedRM.GetLastModified().After(rm.CreatedAt))
 }
 
 func (s *defaultRoleMappingBlackBoxTest) TestFindForResourceType() {

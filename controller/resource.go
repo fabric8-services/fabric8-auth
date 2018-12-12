@@ -3,11 +3,11 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token"
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 )
@@ -16,7 +16,7 @@ import (
 type ResourceController struct {
 	*goa.Controller
 	app          application.Application
-	TokenManager token.Manager
+	TokenManager manager.TokenManager
 }
 
 // NewResourceController creates a resource controller.
@@ -95,7 +95,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 // Scopes runs the scopes action, which returns the available scopes for the specified resource
 func (c *ResourceController) Scopes(ctx *app.ScopesResourceContext) error {
 	// Load the identity from the context
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

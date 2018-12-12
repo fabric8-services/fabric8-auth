@@ -6,10 +6,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 	"github.com/goadesign/goa"
 )
 
@@ -26,7 +26,7 @@ func NewTeamController(service *goa.Service, app application.Application) *TeamC
 
 // Create runs the create action.
 func (c *TeamController) Create(ctx *app.CreateTeamContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentUser, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
@@ -61,7 +61,7 @@ func (c *TeamController) Create(ctx *app.CreateTeamContext) error {
 
 // List runs the list action.
 func (c *TeamController) List(ctx *app.ListTeamContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentUser, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}

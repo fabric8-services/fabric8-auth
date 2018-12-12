@@ -25,7 +25,7 @@ func TestRunTransaction(t *testing.T) {
 
 func (test *TestTransaction) SetupTest() {
 	test.DBTestSuite.SetupTest()
-	test.app = gormapplication.NewGormDB(test.DB, test.Configuration)
+	test.app = gormapplication.NewGormDB(test.DB, test.Configuration, nil)
 }
 
 func (test *TestTransaction) TestTransactionInTime() {

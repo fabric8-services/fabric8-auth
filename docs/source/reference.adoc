@@ -149,7 +149,7 @@ POST /api/token
 __Response:__
 
 [source,json]
-{"access_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13aXQiLCJzdWIiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw","token_type":"bearer"}
+{"access_token":"eyJhbGciOiJSUzI1NiIsImtpZCI6IjlNTG5WaWFSa2hWajFHVDlrcFdVa3dISXdVRC13WmZVeFItM0Nwa0UtWHMiLCJ0eXAiOiJKV1QifQ.eyJpYXQiOjE1MTA0ODg4NTMsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODA4OSIsImp0aSI6IjAzNmE0OTM2LTEwNTEtNDQxMC05MTI1LTg4YWM1ODE5NDc1NiIsInNjb3BlcyI6WyJ1bWFfcHJvdGVjdGlvbiJdLCJzZXJ2aWNlX2FjY291bnRuYW1lIjoiZmFicmljOC13aXQiLCJzdWIiOiI1ZGVjNWZkYi0wOWUzLTQ0NTMtYjczZi01YzgyODgzMmIyOGUifQ.box9XsE5XR1-OaRdAsKneDabeaOAtqZXcAbFDrwSqYNvwm_zoNEUmG1lDvq7DVVTdRXSvm8dASx0nGOBwrC_Iv2DXlOsO2DxO1lSMDfeQwtFLE9jbwFlqW7xmcjtQLkWqgzGr5gpV-bZo7-lxQuHv4A_hZAiWv03K6hU7qD57KfWuGQm71gV5rqP_Rm3Ay2HDzgmEBiaYoh6XGS5jw4tk-8X6wAJF9phJ73qAQ0E8OcbM9JTPQUQnrbTuaHW-CmtQ4_1TYaBP_j1K__C-o0K14BEGJvyj3geU8CvGjFl7EL94YZmGHidOZtCgRGjNR0KbD6yXUlPMALEhT2R2j65qw","token_type":"Bearer"}
 
 == OAuth2.0 login
 
@@ -220,7 +220,7 @@ required fields: all
 [source]
 {
 "access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
-"token_type":"bearer",
+"token_type":"Bearer",
 "refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
 "expires_in":3600
 }
@@ -288,7 +288,7 @@ OpenID Connect compliant UserInfo endpoint (`/api/userinfo`) is to be used for r
 [source]
 GET /api/userinfo
     Accept: application/json
-    Authorization: bearer $TKN
+    Authorization: Bearer $TKN
 // Token used here is access_token of user token
 
 - _Response:_
@@ -320,7 +320,7 @@ required fields: all
 [source]
 {
 "access_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
-"token_type":"bearer",
+"token_type":"Bearer",
 "refresh_token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
 "expires_in":3600
 }

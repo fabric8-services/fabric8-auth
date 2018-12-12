@@ -110,6 +110,10 @@ required = [
   revision = "edd01596bbe1dabf0f66b6dc431b4b88b35692b8"
 
 [[constraint]]
+  name = "github.com/fabric8-services/fabric8-common"
+  revision = "a85e65e22cfc18d7c2004317d340ad328ca8dcd1"
+
+[[constraint]]
   name = "github.com/jstemmer/go-junit-report"
   revision = "1ce4b93a20c6a280a7d5c1ef38c44d0d8c6d80ea"
 

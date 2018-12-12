@@ -3,15 +3,15 @@ package service
 import (
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
-	"github.com/fabric8-services/fabric8-auth/test/token"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
-	tokenutil "github.com/fabric8-services/fabric8-auth/token"
 
 	"net/http"
 
@@ -64,11 +64,11 @@ func (s *TestNotificationSuite) SetupSuite() {
 func (s *TestNotificationSuite) TestCreateClientWithServiceAccountToken() {
 	// create a context
 	ctx := tokentestsupport.ContextWithTokenManager()
-	manager, err := tokenutil.ReadManagerFromContext(ctx)
+	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
 	require.Nil(s.T(), err)
 
 	// extract the token
-	saToken := (*manager).AuthServiceAccountToken()
+	saToken := tokenManager.AuthServiceAccountToken()
 
 	// create the client
 	cl, err := s.ns.createClientWithContextSigner(ctx)
@@ -86,13 +86,13 @@ func (s *TestNotificationSuite) TestCreateClientWithServiceAccountToken() {
 }
 
 func (s *TestNotificationSuite) TestSend() {
-	ctx, _, reqID := token.ContextWithTokenAndRequestID(s.T())
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
 
-	manager, err := tokenutil.ReadManagerFromContext(ctx)
+	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
 	require.Nil(s.T(), err)
 
 	// extract the token
-	saToken := (*manager).AuthServiceAccountToken()
+	saToken := tokenManager.AuthServiceAccountToken()
 
 	msg := s.msg
 	messageID := new(uuid.UUID)
@@ -155,7 +155,7 @@ func (s *TestNotificationSuite) TestSend() {
 
 func (s *TestNotificationSuite) TestSendAsync() {
 	// given
-	ctx, _, _ := token.ContextWithTokenAndRequestID(s.T())
+	ctx, _, _ := testtoken.ContextWithTokenAndRequestID(s.T())
 	config := &notificationURLConfig{
 		ConfigurationData: s.Config,
 		notificationURL:   "::::",

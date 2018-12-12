@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
@@ -17,14 +17,14 @@ import (
 // Authorization header when possible. If the Authorization header is missing in the request,
 // no error is returned. However, if the Authorization header contains a
 // token, it will be stored it in the context.
-func TokenContext(tokenManager token.Manager, scheme *goa.JWTSecurity) goa.Middleware {
+func TokenContext(tokenManager manager.TokenManager, scheme *goa.JWTSecurity) goa.Middleware {
 	errUnauthorized := goa.NewErrorClass("token_validation_failed", 401)
 	return func(nextHandler goa.Handler) goa.Handler {
 		return handler(tokenManager, scheme, nextHandler, errUnauthorized)
 	}
 }
 
-func handler(tokenManager token.Manager, scheme *goa.JWTSecurity, nextHandler goa.Handler, errUnauthorized goa.ErrorClass) goa.Handler {
+func handler(tokenManager manager.TokenManager, scheme *goa.JWTSecurity, nextHandler goa.Handler, errUnauthorized goa.ErrorClass) goa.Handler {
 	return func(ctx context.Context, rw http.ResponseWriter, req *http.Request) error {
 		// TODO: implement the QUERY string handler too
 		if scheme.In != goa.LocHeader {
@@ -32,7 +32,7 @@ func handler(tokenManager token.Manager, scheme *goa.JWTSecurity, nextHandler go
 			return fmt.Errorf("whoops, security scheme with location (in) %q not supported", scheme.In)
 		}
 		val := req.Header.Get(scheme.Name)
-		if val != "" && strings.HasPrefix(strings.ToLower(val), "bearer ") {
+		if val != "" && strings.HasPrefix(strings.ToLower(val), "bearer ") { // let's be more permissive than the spec and not restrict to a (strict) `Bearer` type of authorization
 			log.Debug(ctx, nil, "found header 'Authorization: Bearer JWT-token...'")
 			incomingToken := strings.Split(val, " ")[1]
 			log.Debug(ctx, nil, "extracted the incoming token %v ", incomingToken)

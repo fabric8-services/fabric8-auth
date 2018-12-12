@@ -1,7 +1,7 @@
 package graph
 
 import (
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +29,7 @@ func newIdentityWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.identity = &account.Identity{
 		Username:     "TestUserIdentity-" + uuid.NewV4().String(),
-		ProviderType: account.KeycloakIDP,
+		ProviderType: account.DefaultIDP,
 	}
 
 	err := g.app.Identities().Create(g.ctx, w.identity)

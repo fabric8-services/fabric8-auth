@@ -3,15 +3,15 @@ package controller
 import (
 	"context"
 
-	accountservice "github.com/fabric8-services/fabric8-auth/account/service"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	"github.com/goadesign/goa"
 )
@@ -21,7 +21,7 @@ type UserController struct {
 	*goa.Controller
 	app           application.Application
 	config        UserControllerConfiguration
-	tokenManager  token.Manager
+	tokenManager  manager.TokenManager
 	tenantService accountservice.TenantService
 }
 
@@ -31,7 +31,8 @@ type UserControllerConfiguration interface {
 }
 
 // NewUserController creates a user controller.
-func NewUserController(service *goa.Service, app application.Application, config UserControllerConfiguration, tokenManager token.Manager, tenantService accountservice.TenantService) *UserController {
+func NewUserController(service *goa.Service, app application.Application, config UserControllerConfiguration,
+	tokenManager manager.TokenManager, tenantService accountservice.TenantService) *UserController {
 	return &UserController{
 		Controller:    service.NewController("UserController"),
 		app:           app,

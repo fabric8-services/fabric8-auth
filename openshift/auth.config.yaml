@@ -13,8 +13,12 @@ objects:
     db.port: NTQzMg==
     db.user: cG9zdGdyZXM=
     db.password: bXlzZWNyZXRwYXNzd29yZA==
-    keycloak.realm: ZmFicmljOAo=
-    keycloak.secret: Cg==
+    auth.provider.client.id: Cg==
+    auth.provider.client.secret: Cg==
+    auth.provider.endpoint.auth: Cg==
+    auth.provider.endpoint.userinfo: Cg==
+    auth.provider.endpoint.token: Cg==
+    auth.provider.endpoint.logout: Cg==
     serviceaccount.privatekey: Cg==
     serviceaccount.privatekeyid: Cg==
     useraccount.privatekey: Cg==

@@ -3,9 +3,9 @@ package controller_test
 import (
 	"testing"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
@@ -52,7 +52,7 @@ func (s *InvitationControllerTestSuite) SetupSuite() {
 	s.invService = s.Application.InvitationService()
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
 	s.witServiceMock = testservice.NewWITServiceMock(s.T())
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, factory.WithWITService(s.witServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(s.witServiceMock))
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,

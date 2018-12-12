@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"

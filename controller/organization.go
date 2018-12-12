@@ -5,10 +5,10 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/goadesign/goa"
@@ -27,7 +27,7 @@ func NewOrganizationController(service *goa.Service, app application.Application
 
 // Create runs the create action.
 func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentUser, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}
@@ -65,7 +65,7 @@ func (c *OrganizationController) Create(ctx *app.CreateOrganizationContext) erro
 
 // List runs the list action.
 func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
-	currentUser, err := login.ContextIdentity(ctx)
+	currentUser, err := manager.ContextIdentity(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError(err.Error()))
 	}

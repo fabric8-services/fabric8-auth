@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"strconv"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/context"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/auth"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	provider "github.com/fabric8-services/fabric8-auth/authentication/provider/repository"
 	invitation "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
@@ -17,7 +18,6 @@ import (
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
-	"github.com/fabric8-services/fabric8-auth/token/provider"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
@@ -51,12 +51,12 @@ const (
 
 //var y application.Application = &GormTransaction{}
 
-func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, options ...factory.Option) *GormDB {
+func NewGormDB(db *gorm.DB, config *configuration.ConfigurationData, wrappers factorymanager.FactoryWrappers, options ...factory.Option) *GormDB {
 	g := new(GormDB)
 	g.db = db.Set("gorm:save_associations", false)
 	g.txIsoLevel = ""
-	g.serviceFactory = factory.NewServiceFactory(func() context.ServiceContext {
-		return factory.NewServiceContext(g, g, config, options...)
+	g.serviceFactory = factory.NewServiceFactory(func() servicecontext.ServiceContext {
+		return factory.NewServiceContext(g, g, config, wrappers, options...)
 	}, config, options...)
 	return g
 }
@@ -78,6 +78,12 @@ type GormDB struct {
 	serviceFactory *factory.ServiceFactory
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Repositories
+//
+//----------------------------------------------------------------------------------------------------------------------
+
 // Identities creates new Identity repository
 func (g *GormBase) Identities() account.IdentityRepository {
 	return account.NewIdentityRepository(g.db)
@@ -89,13 +95,13 @@ func (g *GormBase) Users() account.UserRepository {
 }
 
 // OauthStates returns an oauth state reference repository
-func (g *GormBase) OauthStates() auth.OauthStateReferenceRepository {
-	return auth.NewOauthStateReferenceRepository(g.db)
+func (g *GormBase) OauthStates() provider.OauthStateReferenceRepository {
+	return provider.NewOauthStateReferenceRepository(g.db)
 }
 
 // ExternalTokens returns an ExternalTokens repository
-func (g *GormBase) ExternalTokens() provider.ExternalTokenRepository {
-	return provider.NewExternalTokenRepository(g.db)
+func (g *GormBase) ExternalTokens() token.ExternalTokenRepository {
+	return token.NewExternalTokenRepository(g.db)
 }
 
 // VerificationCodes returns an VerificationCodes repository
@@ -143,8 +149,30 @@ func (g *GormBase) PrivilegeCacheRepository() permission.PrivilegeCacheRepositor
 	return permission.NewPrivilegeCacheRepository(g.db)
 }
 
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Services
+//
+//----------------------------------------------------------------------------------------------------------------------
+
+func (g *GormDB) AuthenticationProviderService() service.AuthenticationProviderService {
+	return g.serviceFactory.AuthenticationProviderService()
+}
+
 func (g *GormDB) InvitationService() service.InvitationService {
 	return g.serviceFactory.InvitationService()
+}
+
+func (g *GormDB) LinkService() service.LinkService {
+	return g.serviceFactory.LinkService()
+}
+
+func (g *GormDB) LogoutService() service.LogoutService {
+	return g.serviceFactory.LogoutService()
+}
+
+func (g *GormDB) OSOSubscriptionService() service.OSOSubscriptionService {
+	return g.serviceFactory.OSOSubscriptionService()
 }
 
 func (g *GormDB) OrganizationService() service.OrganizationService {
@@ -183,6 +211,10 @@ func (g *GormDB) UserService() service.UserService {
 	return g.serviceFactory.UserService()
 }
 
+func (g *GormDB) UserProfileService() service.UserProfileService {
+	return g.serviceFactory.UserProfileService()
+}
+
 func (g *GormDB) NotificationService() service.NotificationService {
 	return g.serviceFactory.NotificationService()
 }
@@ -194,6 +226,12 @@ func (g *GormDB) WITService() service.WITService {
 func (g *GormDB) ClusterService() service.ClusterService {
 	return g.serviceFactory.ClusterService()
 }
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Misc
+//
+//----------------------------------------------------------------------------------------------------------------------
 
 func (g *GormBase) DB() *gorm.DB {
 	return g.db

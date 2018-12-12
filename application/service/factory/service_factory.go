@@ -1,14 +1,17 @@
 package factory
 
 import (
-	"fmt"
 	"time"
 
-	userservice "github.com/fabric8-services/fabric8-auth/account/service"
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/context"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	logoutservice "github.com/fabric8-services/fabric8-auth/authentication/logout/service"
+	providerservice "github.com/fabric8-services/fabric8-auth/authentication/provider/service"
+	subscriptionservice "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
 	invitationservice "github.com/fabric8-services/fabric8-auth/authorization/invitation/service"
 	organizationservice "github.com/fabric8-services/fabric8-auth/authorization/organization/service"
 	permissionservice "github.com/fabric8-services/fabric8-auth/authorization/permission/service"
@@ -32,26 +35,32 @@ type serviceContextImpl struct {
 	transactionManager        transaction.TransactionManager
 	inTransaction             bool
 	services                  service.Services
+	factories                 service.Factories
 }
 
-func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData, options ...Option) context.ServiceContext {
-	ctx := new(serviceContextImpl)
+func NewServiceContext(repos repository.Repositories, tm transaction.TransactionManager, config *configuration.ConfigurationData,
+	wrappers factorymanager.FactoryWrappers, options ...Option) servicecontext.ServiceContext {
+	ctx := &serviceContextImpl{}
 	ctx.repositories = repos
 	ctx.transactionManager = tm
 	ctx.inTransaction = false
 
-	var sc context.ServiceContext
+	var sc servicecontext.ServiceContext
 	sc = ctx
-	ctx.services = NewServiceFactory(func() context.ServiceContext { return sc }, config, options...)
-	return ctx
+	ctx.factories = factorymanager.NewManager(func() servicecontext.ServiceContext { return sc }, config, wrappers)
+	ctx.services = NewServiceFactory(func() servicecontext.ServiceContext { return sc }, config, options...)
+	return sc
 }
 
 func (s *serviceContextImpl) Repositories() repository.Repositories {
 	if s.inTransaction {
 		return s.transactionalRepositories
-	} else {
-		return s.repositories
 	}
+	return s.repositories
+}
+
+func (s *serviceContextImpl) Factories() service.Factories {
+	return s.factories
 }
 
 func (s *serviceContextImpl) Services() service.Services {
@@ -86,7 +95,7 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 			go func() {
 				defer func() {
 					if err := recover(); err != nil {
-						errorChan <- errors.New(fmt.Sprintf("Unknown error: %v", err))
+						errorChan <- errors.Errorf("Unknown error: %v", err)
 					}
 				}()
 				errorChan <- todo()
@@ -110,7 +119,7 @@ func (s *serviceContextImpl) ExecuteInTransaction(todo func() error) error {
 				log.Debug(nil, nil, "Rolling back the transaction...")
 				tx.Rollback()
 				log.Error(nil, nil, "database transaction timeout!")
-				return errors.New("database transaction timeout!")
+				return errors.New("database transaction timeout")
 			}
 		}()
 	} else {
@@ -123,14 +132,13 @@ func (s *serviceContextImpl) endTransaction() {
 	s.inTransaction = false
 }
 
-type ServiceContextProducer func() context.ServiceContext
-
 type ServiceFactory struct {
-	contextProducer         ServiceContextProducer
+	contextProducer         servicecontext.ServiceContextProducer
 	config                  *configuration.ConfigurationData
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
 	clusterServiceFunc      func() service.ClusterService
+	authProviderServiceFunc func() service.AuthenticationProviderService
 }
 
 // Option an option to configure the Service Factory
@@ -160,7 +168,17 @@ func WithClusterService(s service.ClusterService) Option {
 	}
 }
 
-func NewServiceFactory(producer ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
+// WithAuthenticationProviderService overrides the default function that returns the AuthenticationProviderService,
+// so that instead, a mock implementation can be used
+func WithAuthenticationProviderService(s service.AuthenticationProviderService) Option {
+	return func(f *ServiceFactory) {
+		f.authProviderServiceFunc = func() service.AuthenticationProviderService {
+			return s
+		}
+	}
+}
+
+func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
 	f.witServiceFunc = func() service.WITService {
@@ -174,6 +192,10 @@ func NewServiceFactory(producer ServiceContextProducer, config *configuration.Co
 	f.clusterServiceFunc = func() service.ClusterService {
 		return clusterservice.NewClusterService(f.getContext(), f.config)
 	}
+	// default function to return an instance of Cluster Service
+	f.authProviderServiceFunc = func() service.AuthenticationProviderService {
+		return providerservice.NewAuthenticationProviderService(f.getContext(), f.config)
+	}
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
 	// and options
 	for _, opt := range options {
@@ -182,16 +204,32 @@ func NewServiceFactory(producer ServiceContextProducer, config *configuration.Co
 	return f
 }
 
-func (f *ServiceFactory) getContext() context.ServiceContext {
+func (f *ServiceFactory) getContext() servicecontext.ServiceContext {
 	return f.contextProducer()
+}
+
+func (f *ServiceFactory) AuthenticationProviderService() service.AuthenticationProviderService {
+	return f.authProviderServiceFunc()
 }
 
 func (f *ServiceFactory) InvitationService() service.InvitationService {
 	return invitationservice.NewInvitationService(f.getContext(), f.config)
 }
 
+func (f *ServiceFactory) LinkService() service.LinkService {
+	return providerservice.NewLinkService(f.getContext(), f.config)
+}
+
+func (f *ServiceFactory) LogoutService() service.LogoutService {
+	return logoutservice.NewLogoutService(f.getContext(), f.config)
+}
+
 func (f *ServiceFactory) OrganizationService() service.OrganizationService {
 	return organizationservice.NewOrganizationService(f.getContext())
+}
+
+func (f *ServiceFactory) OSOSubscriptionService() service.OSOSubscriptionService {
+	return subscriptionservice.NewOSOSubscriptionService(f.getContext(), f.config)
 }
 
 func (f *ServiceFactory) PermissionService() service.PermissionService {
@@ -224,6 +262,10 @@ func (f *ServiceFactory) SpaceService() service.SpaceService {
 
 func (f *ServiceFactory) UserService() service.UserService {
 	return userservice.NewUserService(f.getContext())
+}
+
+func (f *ServiceFactory) UserProfileService() service.UserProfileService {
+	return providerservice.NewUserProfileService(f.getContext())
 }
 
 func (f *ServiceFactory) NotificationService() service.NotificationService {

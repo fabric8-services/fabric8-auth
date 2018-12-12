@@ -9,7 +9,7 @@ import (
 	logger "log"
 	"testing"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
@@ -121,7 +121,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration36", testMigration36)
 	t.Run("TestMigration38", testMigration38)
 	t.Run("TestMigration39", testMigration39)
-	t.Run("TestMigration40", testMigration40)
+	t.Run("TestMigration41", testMigration41)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -517,9 +517,9 @@ func testMigration39(t *testing.T) {
 	require.Error(t, err)
 }
 
-func testMigration40(t *testing.T) {
-	migrateToVersion(sqlDB, migrations[:(41)], (41))
-	require.Nil(t, runSQLscript(sqlDB, "040-identity-role-index.sql"))
+func testMigration41(t *testing.T) {
+	migrateToVersion(sqlDB, migrations[:(42)], (42))
+	require.Nil(t, runSQLscript(sqlDB, "041-identity-role-index.sql"))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

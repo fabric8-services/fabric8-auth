@@ -36,32 +36,25 @@ func (s *resourceTypeBlackBoxTest) SetupTest() {
 }
 
 func (s *resourceTypeBlackBoxTest) TestDefaultResourceTypesExist() {
-	t := s.T()
-
-	t.Run("resource type exists", func(t *testing.T) {
-
-		for _, resourceType := range knownResourceTypes {
-			_, err := s.repo.Lookup(s.Ctx, resourceType)
-			// then
-			require.Nil(t, err)
-		}
-	})
+	for _, resourceType := range knownResourceTypes {
+		_, err := s.repo.Lookup(s.Ctx, resourceType)
+		// then
+		require.Nil(s.T(), err)
+	}
 }
 
 func (s *resourceTypeBlackBoxTest) TestCreateResourceType() {
-	t := s.T()
 	resourceTypeRef := resourcetype.ResourceType{
 		ResourceTypeID: uuid.NewV4(),
 		Name:           uuid.NewV4().String(),
 	}
 	err := s.repo.Create(s.Ctx, &resourceTypeRef)
-	require.NoError(t, err)
+	require.NoError(s.T(), err)
 
 	rt, err := s.repo.Lookup(s.Ctx, resourceTypeRef.Name)
-	require.NoError(t, err)
-	require.Equal(t, resourceTypeRef.Name, rt.Name)
-	require.Equal(t, resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
-
+	require.NoError(s.T(), err)
+	require.Equal(s.T(), resourceTypeRef.Name, rt.Name)
+	require.Equal(s.T(), resourceTypeRef.ResourceTypeID, rt.ResourceTypeID)
 }
 
 func (s *resourceTypeBlackBoxTest) TestCreateResourceTypeWithDefaultRoleID() {

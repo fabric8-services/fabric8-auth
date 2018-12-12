@@ -3,18 +3,17 @@ package controller
 import (
 	"context"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	resourcetype "github.com/fabric8-services/fabric8-auth/authorization/resourcetype/repository"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/login"
-	"github.com/fabric8-services/fabric8-auth/token"
 
 	errs "github.com/pkg/errors"
 
@@ -51,7 +50,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 
 	var currentIdentity *account.Identity
 	if !isServiceAccount {
-		currentIdentity, err = login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+		currentIdentity, err = c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
@@ -141,7 +140,7 @@ func (c *CollaboratorsController) checkSpaceExist(ctx context.Context, spaceID s
 
 // Add user's identity to the list of space collaborators.
 func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -162,7 +161,7 @@ func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 
 // AddMany adds user's identities to the list of space collaborators.
 func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -223,7 +222,7 @@ func (c *CollaboratorsController) addContributors(ctx context.Context, currentId
 
 // Remove user from the list of space collaborators.
 func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -240,7 +239,7 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 
 // RemoveMany removes users from the list of space collaborators.
 func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsContext) error {
-	currentIdentity, err := login.LoadContextIdentityIfNotDeprovisioned(ctx, c.app)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

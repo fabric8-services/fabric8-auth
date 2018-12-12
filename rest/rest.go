@@ -13,6 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 
 	"context"
+
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
 )
@@ -70,6 +71,9 @@ func AbsoluteURL(req *goa.RequestData, relative string, config configuration) st
 // If config is not nil and run in dev mode then "auth.openshift.io" is used as a host
 func ReplaceDomainPrefixInAbsoluteURL(req *goa.RequestData, replaceBy, relative string, config configuration) (string, error) {
 	host := Host(req, config)
+	if host == "" { // this happens for tests. See https://github.com/goadesign/goa/issues/1861
+		return "", nil
+	}
 	newHost, err := ReplaceDomainPrefix(host, replaceBy)
 	if err != nil {
 		return "", err
@@ -94,7 +98,7 @@ func absoluteURLForHost(req *goa.RequestData, host, relative string) string {
 func ReplaceDomainPrefix(host string, replaceBy string) (string, error) {
 	split := strings.SplitN(host, ".", 2)
 	if len(split) < 2 {
-		return host, errors.NewBadParameterError("host", host).Expected("must contain more than one domain")
+		return host, errors.NewBadParameterError("host", host).Expected("must contain more at least one subdomain")
 	}
 	if replaceBy == "" {
 		return split[1], nil

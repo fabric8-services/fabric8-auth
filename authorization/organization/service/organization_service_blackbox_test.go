@@ -3,8 +3,8 @@ package service_test
 import (
 	"testing"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"

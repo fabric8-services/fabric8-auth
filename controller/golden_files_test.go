@@ -27,9 +27,7 @@ var updateGoldenFiles = flag.Bool("update", false, "when set, rewrite the golden
 // flag in order to create an initial golden version.
 func compareWithGolden(t *testing.T, goldenFile string, actualObj interface{}) {
 	err := testableCompareWithGolden(*updateGoldenFiles, goldenFile, actualObj)
-	if err != nil {
-		t.Fatalf("%+v", err)
-	}
+	require.NoError(t, err)
 }
 
 func testableCompareWithGolden(update bool, goldenFile string, actualObj interface{}) error {

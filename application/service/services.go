@@ -2,20 +2,33 @@ package service
 
 import (
 	"context"
+	"net/url"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/app"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	"github.com/fabric8-services/fabric8-auth/authentication/subscription"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/wit"
+	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
+	"golang.org/x/oauth2"
+)
+
+const (
+	FACTORY_TYPE_CLUSTER_CACHE       = "factory.type.cluster.cache"
+	FACTORY_TYPE_LINKING_PROVIDER    = "factory.type.linking.provider"
+	FACTORY_TYPE_IDENTITY_PROVIDER   = "factory.type.identity.provider"
+	FACTORY_TYPE_SUBSCRIPTION_LOADER = "factory.type.subscription.loader"
 )
 
 /*
@@ -30,6 +43,28 @@ Steps for adding a new Service:
    and use the factory method from the step #4
 */
 
+type AuthenticationProviderService interface {
+	AuthorizeCallback(ctx context.Context, state string, code string) (*string, error)
+	CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
+		token *oauth2.Token) (*string, *oauth2.Token, error)
+	UpdateIdentityUsingUserInfoEndPoint(ctx context.Context, accessToken string) (*account.Identity, error)
+	ExchangeAuthorizationCodeForUserToken(ctx context.Context, code string, clientID string, redirectURL *url.URL) (*string, *app.OauthToken, error)
+	ExchangeCodeWithProvider(ctx context.Context, code string, redirectURL string) (*oauth2.Token, error)
+	GenerateAuthCodeURL(ctx context.Context, redirect *string, apiClient *string,
+		state *string, scopes []string, responseMode *string, referrer string, callbackURL string) (*string, error)
+	LoginCallback(ctx context.Context, state string, code string, redirectURL string) (*string, error)
+	LoadReferrerAndResponseMode(ctx context.Context, state string) (string, *string, error)
+	SaveReferrer(ctx context.Context, state string, referrer string,
+		responseMode *string, validReferrerURL string) error
+}
+
+type ClusterService interface {
+	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
+	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
+	Status(ctx context.Context) (bool, error)
+	Stop()
+}
+
 type InvitationService interface {
 	// Issue creates a new invitation for a user.
 	Issue(ctx context.Context, issuingUserID uuid.UUID, inviteTo string, invitations []invitation.Invitation) error
@@ -39,9 +74,23 @@ type InvitationService interface {
 	Accept(ctx context.Context, token uuid.UUID) (string, string, error)
 }
 
+// LinkService provides the ability to link 3rd party oauth accounts, such as Github and Openshift
+type LinkService interface {
+	ProviderLocation(ctx context.Context, req *goa.RequestData, identityID string, forResource string, redirectURL string) (string, error)
+	Callback(ctx context.Context, req *goa.RequestData, state string, code string) (string, error)
+}
+
+type LogoutService interface {
+	Logout(ctx context.Context, redirectURL string) (string, error)
+}
+
 type OrganizationService interface {
 	CreateOrganization(ctx context.Context, creatorIdentityID uuid.UUID, organizationName string) (*uuid.UUID, error)
 	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
+}
+
+type OSOSubscriptionService interface {
+	LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error)
 }
 
 type PermissionService interface {
@@ -78,7 +127,10 @@ type TeamService interface {
 
 type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
+	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error)
 	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
+	RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
+	DeleteExternalToken(ctx context.Context, currentIdentity uuid.UUID, authURL string, forResource string) error
 }
 
 type SpaceService interface {
@@ -89,6 +141,13 @@ type SpaceService interface {
 type UserService interface {
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
+	LoadContextIdentityAndUser(ctx context.Context) (*account.Identity, error)
+	LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*account.Identity, error)
+	ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error)
+}
+
+type UserProfileService interface {
+	Get(ctx context.Context, accessToken string, profileURL string) (*provider.OAuthUserProfileResponse, error)
 }
 
 type NotificationService interface {
@@ -102,15 +161,14 @@ type WITService interface {
 	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
 }
 
-type ClusterService interface {
-	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
-	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
-}
-
 //Services creates instances of service layer objects
 type Services interface {
+	AuthenticationProviderService() AuthenticationProviderService
 	InvitationService() InvitationService
+	LinkService() LinkService
+	LogoutService() LogoutService
 	NotificationService() NotificationService
+	OSOSubscriptionService() OSOSubscriptionService
 	OrganizationService() OrganizationService
 	PermissionService() PermissionService
 	PrivilegeCacheService() PrivilegeCacheService
@@ -120,6 +178,37 @@ type Services interface {
 	TeamService() TeamService
 	TokenService() TokenService
 	UserService() UserService
+	UserProfileService() UserProfileService
 	WITService() WITService
 	ClusterService() ClusterService
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Factories are a special type of service only accessible from other services, that can be replaced during testing,
+// in order to produce mock / dummy factories
+//
+//----------------------------------------------------------------------------------------------------------------------
+
+type ClusterCacheFactory interface {
+	NewClusterCache(ctx context.Context, options ...rest.HTTPClientOption) cluster.ClusterCache
+}
+
+type IdentityProviderFactory interface {
+	NewIdentityProvider(ctx context.Context, config provider.IdentityProviderConfiguration) provider.IdentityProvider
+}
+
+type LinkingProviderFactory interface {
+	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, authURL string, forResource string) (provider.LinkingProvider, error)
+}
+
+type SubscriptionLoaderFactory interface {
+	NewSubscriptionLoader(ctx context.Context) subscription.SubscriptionLoader
+}
+
+type Factories interface {
+	ClusterCacheFactory() ClusterCacheFactory
+	IdentityProviderFactory() IdentityProviderFactory
+	LinkingProviderFactory() LinkingProviderFactory
+	SubscriptionLoaderFactory() SubscriptionLoaderFactory
 }

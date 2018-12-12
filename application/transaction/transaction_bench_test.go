@@ -8,9 +8,9 @@ import (
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/context"
 
-	account "github.com/fabric8-services/fabric8-auth/account/repository"
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
@@ -43,12 +43,12 @@ func (s *BenchTransactional) SetupSuite() {
 func (s *BenchTransactional) SetupBenchmark() {
 	s.clean = cleaner.DeleteCreatedEntities(s.DB)
 	s.repo = account.NewIdentityRepository(s.DB)
-	s.app = gormapplication.NewGormDB(s.DB, s.Configuration)
+	s.app = gormapplication.NewGormDB(s.DB, s.Configuration, nil)
 
 	s.identity = &account.Identity{
 		ID:           uuid.NewV4(),
 		Username:     "BenchmarkTransactionalTestIdentity",
-		ProviderType: account.KeycloakIDP}
+		ProviderType: account.DefaultIDP}
 
 	err := s.repo.Create(s.ctx, s.identity)
 	if err != nil {
