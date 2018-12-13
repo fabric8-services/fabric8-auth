@@ -5,16 +5,17 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/cluster/factory"
-
-	"github.com/dnaeon/go-vcr/cassette"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test/recorder"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
+
+	"github.com/dnaeon/go-vcr/cassette"
+	vcrec "github.com/dnaeon/go-vcr/recorder"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -47,17 +48,17 @@ func (s *ClusterServiceTestSuite) TestClustersFail() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer func() { require.NoError(s.T(), r.Stop()) }()
+		defer func() { require.NoError(t, stopRecorder(r)) }()
 
 		_, err = s.Application.ClusterService().Clusters(ctx, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
 	})
 	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer func() { require.NoError(s.T(), r.Stop()) }()
+		defer func() { require.NoError(t, stopRecorder(r)) }()
 
 		_, err = s.Application.ClusterService().ClusterByURL(ctx, "https://api.starter-us-east-2.openshift.com/")
 		assert.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
@@ -77,9 +78,9 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("start fails if can't get clusters", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer func() { require.NoError(s.T(), r.Stop()) }()
+		defer func() { require.NoError(t, stopRecorder(r)) }()
 
 		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, rest.WithRoundTripper(r.Transport))
 		assert.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
@@ -93,9 +94,9 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	})
 
 	s.T().Run("start OK", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_ok", recorder.WithMatcher(ClusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_ok", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
 		require.NoError(t, err)
-		defer func() { require.NoError(s.T(), r.Stop()) }()
+		defer func() { require.NoError(t, stopRecorder(r)) }()
 
 		// It starts fine if there is no errors
 		started, err := clusterservice.Start(ctx, &dummyFactory{config: s.Configuration, option: rest.WithRoundTripper(r.Transport)}, rest.WithRoundTripper(r.Transport))
@@ -105,10 +106,10 @@ func (s *ClusterServiceTestSuite) TestStart() {
 		clusters, err := s.Application.ClusterService().Clusters(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, 2, len(clusters))
-		s.assertCluster("https://api.starter-us-east-2.openshift.com/")
-		s.assertCluster("https://api.starter-us-east-2.openshift.com")
-		s.assertCluster("https://api.starter-us-east-2a.openshift.com/")
-		s.assertCluster("https://api.starter-us-east-2a.openshift.com")
+		s.assertCluster(t, "https://api.starter-us-east-2.openshift.com/")
+		s.assertCluster(t, "https://api.starter-us-east-2.openshift.com")
+		s.assertCluster(t, "https://api.starter-us-east-2a.openshift.com/")
+		s.assertCluster(t, "https://api.starter-us-east-2a.openshift.com")
 
 		cls, err := s.Application.ClusterService().ClusterByURL(ctx, "https://api.starter-us-east-unknown.openshift.com")
 		require.NoError(t, err)
@@ -116,35 +117,46 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	})
 }
 
-func (s *ClusterServiceTestSuite) assertCluster(apiURL string) {
+func (s *ClusterServiceTestSuite) assertCluster(t *testing.T, apiURL string) {
 	cluster, err := s.Application.ClusterService().ClusterByURL(nil, apiURL)
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), cluster)
+	require.NoError(t, err)
+	require.NotNil(t, cluster)
 
 	clusters, err := s.Application.ClusterService().Clusters(nil)
-	require.NoError(s.T(), err)
+	require.NoError(t, err)
 	for _, c := range clusters {
 		if c.APIURL == rest.AddTrailingSlashToURL(apiURL) {
-			assert.Equal(s.T(), cluster.APIURL, c.APIURL)
-			assert.Equal(s.T(), cluster.AuthClientSecret, c.AuthClientSecret)
-			assert.Equal(s.T(), cluster.AuthClientDefaultScope, c.AuthClientDefaultScope)
-			assert.Equal(s.T(), cluster.AppDNS, c.AppDNS)
-			assert.Equal(s.T(), cluster.AuthClientID, c.AuthClientID)
-			assert.Equal(s.T(), cluster.CapacityExhausted, c.CapacityExhausted)
-			assert.Equal(s.T(), cluster.ConsoleURL, c.ConsoleURL)
-			assert.Equal(s.T(), cluster.LoggingURL, c.LoggingURL)
-			assert.Equal(s.T(), cluster.MetricsURL, c.MetricsURL)
-			assert.Equal(s.T(), cluster.Name, c.Name)
-			assert.Equal(s.T(), cluster.ServiceAccountUsername, c.ServiceAccountUsername)
-			assert.Equal(s.T(), cluster.ServiceAccountToken, c.ServiceAccountToken)
-			assert.Equal(s.T(), cluster.TokenProviderID, c.TokenProviderID)
+			assert.Equal(t, cluster.APIURL, c.APIURL)
+			assert.Equal(t, cluster.AuthClientSecret, c.AuthClientSecret)
+			assert.Equal(t, cluster.AuthClientDefaultScope, c.AuthClientDefaultScope)
+			assert.Equal(t, cluster.AppDNS, c.AppDNS)
+			assert.Equal(t, cluster.AuthClientID, c.AuthClientID)
+			assert.Equal(t, cluster.CapacityExhausted, c.CapacityExhausted)
+			assert.Equal(t, cluster.ConsoleURL, c.ConsoleURL)
+			assert.Equal(t, cluster.LoggingURL, c.LoggingURL)
+			assert.Equal(t, cluster.MetricsURL, c.MetricsURL)
+			assert.Equal(t, cluster.Name, c.Name)
+			assert.Equal(t, cluster.ServiceAccountUsername, c.ServiceAccountUsername)
+			assert.Equal(t, cluster.ServiceAccountToken, c.ServiceAccountToken)
+			assert.Equal(t, cluster.TokenProviderID, c.TokenProviderID)
 			return
 		}
 	}
 	assert.Fail(s.T(), "unable to find %s cluster", apiURL)
 }
 
-func ClusterRequestMatcher(t *testing.T, reqID, token string) cassette.Matcher {
+func stopRecorder(r *vcrec.Recorder) error {
+	err := r.Stop()
+	if err != nil {
+		return err
+	}
+	r.SetMatcher(func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
+		return true
+	})
+	return nil
+}
+
+func clusterRequestMatcher(t *testing.T, reqID, token string) cassette.Matcher {
 	return func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
 		authorization := httpRequest.Header.Get("Authorization")
 		assert.Equal(t, "Bearer "+token, authorization)
