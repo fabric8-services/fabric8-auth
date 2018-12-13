@@ -106,8 +106,8 @@ required = [
   revision = "7e149ee841ea9fe7d439f206781b51cacde5d4d3"
 
 [[constraint]]
-  name = "github.com/fabric8-services/fabric8-cluster"
-  revision = "edd01596bbe1dabf0f66b6dc431b4b88b35692b8"
+  branch = "master"
+  name = "github.com/fabric8-services/fabric8-cluster-client"
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-common"
