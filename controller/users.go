@@ -135,6 +135,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		if idn.User.Deprovisioned {
 			err := c.app.UserService().ResetDeprovision(ctx, idn.User)
 			if err != nil {
+				log.Error(ctx, map[string]interface{}{"err": err, "username": ctx.Payload.Data.Attributes.Username, "email": ctx.Payload.Data.Attributes.Email}, "unable to re-provision user")
 				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 			}
 		}
