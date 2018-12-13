@@ -61,7 +61,7 @@ type AuthenticationProviderService interface {
 type ClusterService interface {
 	Clusters(ctx context.Context, options ...rest.HTTPClientOption) ([]cluster.Cluster, error)
 	ClusterByURL(ctx context.Context, url string, options ...rest.HTTPClientOption) (*cluster.Cluster, error)
-	Status(ctx context.Context) (bool, error)
+	Status(ctx context.Context, options ...rest.HTTPClientOption) (bool, error)
 	Stop()
 }
 
