@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+
 	"github.com/satori/go.uuid"
 )
 
@@ -25,6 +25,29 @@ func NewUserService(ctx servicecontext.ServiceContext) service.UserService {
 // userServiceImpl implements the UserService to manage users
 type userServiceImpl struct {
 	base.BaseService
+}
+
+// ResetDeprovisioned sets User.Deprovisioned to false
+func (s *userServiceImpl) ResetDeprovision(ctx context.Context, user repository.User) error {
+	user.Deprovisioned = false
+	return s.ExecuteInTransaction(func() error {
+		return s.Repositories().Users().Save(ctx, &user)
+	})
+}
+
+// IdentityByUsernameAndEmail returns a an identity by the given username which belongs to the user with the given email
+// Returns nil if no identity/user with such username/email found
+func (s *userServiceImpl) IdentityByUsernameAndEmail(ctx context.Context, username, email string) (*repository.Identity, error) {
+	identities, err := s.Repositories().Identities().Query(repository.IdentityFilterByUsername(username), repository.IdentityFilterByProviderType(repository.DefaultIDP), repository.IdentityWithUser())
+	if err != nil {
+		return nil, err
+	}
+	for _, identity := range identities {
+		if identity.UserID.Valid && identity.User.Email == email {
+			return &identity, nil
+		}
+	}
+	return nil, nil
 }
 
 // UserInfo gets user information given a context containing access_token

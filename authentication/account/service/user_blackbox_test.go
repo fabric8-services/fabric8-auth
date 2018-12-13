@@ -62,6 +62,59 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 	})
 }
 
+func (s *userServiceBlackboxTestSuite) TestResetDeprovision() {
+	userToResetDeprovision := s.Graph.CreateUser()
+	userToStayIntact := s.Graph.CreateUser()
+
+	identity, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToResetDeprovision.Identity().Username)
+	require.NoError(s.T(), err)
+	assert.True(s.T(), identity.User.Deprovisioned)
+
+	identityToStayIntact, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToStayIntact.Identity().Username)
+	require.NoError(s.T(), err)
+	assert.True(s.T(), identityToStayIntact.User.Deprovisioned)
+
+	err = s.Application.UserService().ResetDeprovision(s.Ctx, identity.User)
+	require.NoError(s.T(), err)
+
+	loadedUser := s.Graph.LoadUser(userToResetDeprovision.IdentityID())
+	assert.False(s.T(), loadedUser.User().Deprovisioned)
+
+	loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
+	assert.True(s.T(), loadedUser.User().Deprovisioned)
+}
+
+func (s *userServiceBlackboxTestSuite) TestIdentityByUsernameAndEmail() {
+	s.T().Run("found", func(t *testing.T) {
+		user := s.Graph.CreateUser()
+		s.Graph.CreateUser() // noise
+
+		identity, err := s.Application.UserService().IdentityByUsernameAndEmail(s.Ctx, user.Identity().Username, user.User().Email)
+		require.NoError(t, err)
+		loadedUser := s.Graph.LoadUser(user.IdentityID())
+		testsupport.AssertIdentityEqual(t, identity, loadedUser.Identity())
+	})
+
+	s.T().Run("unknown", func(t *testing.T) {
+		user := s.Graph.CreateUser()
+		s.T().Run("unknown email", func(t *testing.T) {
+			identity, err := s.Application.UserService().IdentityByUsernameAndEmail(s.Ctx, user.Identity().Username, uuid.NewV4().String())
+			require.NoError(t, err)
+			assert.Nil(t, identity)
+		})
+		s.T().Run("unknown username", func(t *testing.T) {
+			identity, err := s.Application.UserService().IdentityByUsernameAndEmail(s.Ctx, uuid.NewV4().String(), user.User().Email)
+			require.NoError(t, err)
+			assert.Nil(t, identity)
+		})
+		s.T().Run("unknown username and email", func(t *testing.T) {
+			identity, err := s.Application.UserService().IdentityByUsernameAndEmail(s.Ctx, uuid.NewV4().String(), uuid.NewV4().String())
+			require.NoError(t, err)
+			assert.Nil(t, identity)
+		})
+	})
+}
+
 func (s *userServiceBlackboxTestSuite) TestShowUserInfoOK() {
 
 	s.T().Run("ok", func(t *testing.T) {
