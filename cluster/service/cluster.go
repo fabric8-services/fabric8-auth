@@ -64,8 +64,8 @@ func (s *clusterService) ClusterByURL(ctx context.Context, url string, options .
 	return ClusterByURL(clusterCache.Clusters(), url), nil
 }
 
-func (s *clusterService) Status(ctx context.Context) (bool, error) {
-	return Start(ctx, s.Factories().ClusterCacheFactory())
+func (s *clusterService) Status(ctx context.Context, options ...rest.HTTPClientOption) (bool, error) {
+	return Start(ctx, s.Factories().ClusterCacheFactory(), options...)
 }
 
 func (s *clusterService) Stop() {

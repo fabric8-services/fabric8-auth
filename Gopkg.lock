@@ -60,6 +60,12 @@
   revision = "edd01596bbe1dabf0f66b6dc431b4b88b35692b8"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/fabric8-services/fabric8-cluster-client"
+  packages = ["cluster"]
+  revision = "3af1516d1d0e6872998e0b5ae4abc25355d314de"
+
+[[projects]]
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "configuration",
@@ -490,6 +496,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5930a234adb8c5be947f709c469f8d4865a647bcf1b6ed50ebc5a6ac47fa641b"
+  inputs-digest = "06a2c22f26b762b576a3b9caca652ee4200d6705ec02827556f40eb104ac111b"
   solver-name = "gps-cdcl"
   solver-version = 1
