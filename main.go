@@ -164,7 +164,9 @@ func main() {
 	}
 
 	// Try to fetch the initial list of clusters and start Cluster Service cache refresher
-	_, err = appDB.ClusterService().Status(context.Background())
+	_, err = appDB.ClusterService().Status(context.Background(), func(c *http.Client) {
+		c.Timeout = 3 * time.Second
+	})
 	if err != nil {
 		// It's not a critical error. Cluster management service can be offline during Auth service startup.
 		// Cluster service during startup requires Auth service to be ready to fetch public keys.
