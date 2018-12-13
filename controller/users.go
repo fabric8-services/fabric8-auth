@@ -118,7 +118,29 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 	if userExists {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewVersionConflictError("user with such email or username already exists"))
+		// This may happen for manually deprovisioned users which are reactivating their account via the registration app
+		// We should re-deprovision such user
+		idn, err := c.app.UserService().IdentityByUsernameAndEmail(ctx, ctx.Payload.Data.Attributes.Username, ctx.Payload.Data.Attributes.Email)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":      err,
+				"username": ctx.Payload.Data.Attributes.Username,
+				"email":    ctx.Payload.Data.Attributes.Email,
+			}, "unable to lookup identity by username and email")
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		}
+		if idn == nil {
+			return jsonapi.JSONErrorResponse(ctx, errors.NewVersionConflictError("user with such email or username already exists"))
+		}
+		if idn.User.Deprovisioned {
+			err := c.app.UserService().ResetDeprovision(ctx, idn.User)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{"err": err, "username": ctx.Payload.Data.Attributes.Username, "email": ctx.Payload.Data.Attributes.Email}, "unable to re-provision user")
+				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+			}
+		}
+		// User/identity already exist. Just return it.
+		return ctx.OK(ConvertToAppUser(ctx.RequestData, &idn.User, idn, true))
 	}
 
 	// If it's a new user, Auth service generates an Identity ID for the user.

@@ -1427,11 +1427,15 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails() {
-	user := testsupport.TestUser
-	identity := testsupport.TestIdentity
-	identity.User = user
-	identity.ProviderType = ""
-	user.Cluster = "https://some.cluster.com"
+	user := accountrepo.User{
+		Email:        uuid.NewV4().String(),
+		Cluster:      "some cluster",
+		FeatureLevel: accountrepo.DefaultFeatureLevel,
+	}
+	identity := accountrepo.Identity{
+		Username: "TestDeveloper" + uuid.NewV4().String(),
+		User:     user,
+	}
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
@@ -1441,10 +1445,19 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	// First attempt should be OK
 	test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
+	// Deprovision created user
+	_, err := s.Application.UserService().DeprovisionUser(s.Ctx, identity.Username)
+	assert.NoError(s.T(), err)
 
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-	// Another call with the same email and username should fail
-	test.CreateUsersConflict(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	// Another call with the same email and username should be OK but user should be re-provisioned
+	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+	assertCreatedUser(s.T(), appUser.Data, user, identity)
+	id, err := uuid.FromString(*appUser.Data.Attributes.IdentityID)
+	require.NoError(s.T(), err)
+	loadedUser := s.Graph.LoadUser(id)
+	assertCreatedUser(s.T(), appUser.Data, *loadedUser.User(), *loadedUser.Identity())
+	assert.False(s.T(), loadedUser.User().Deprovisioned)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")

@@ -144,6 +144,8 @@ type UserService interface {
 	LoadContextIdentityAndUser(ctx context.Context) (*account.Identity, error)
 	LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*account.Identity, error)
 	ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error)
+	IdentityByUsernameAndEmail(ctx context.Context, username, email string) (*account.Identity, error)
+	ResetDeprovision(ctx context.Context, user account.User) error
 }
 
 type UserProfileService interface {
