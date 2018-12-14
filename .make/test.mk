@@ -91,6 +91,9 @@ COVERAGE_MODE ?= set
 # But if you want you can enable that by setting GO_TEST_VERBOSITY_FLAG=-v
 GO_TEST_VERBOSITY_FLAG ?=
 
+# The default `go test` run tests in different packages in parallel if there are more than one CPU available.
+# `-p 1` flag forces packages to be tested in serial.
+GO_TEST_INTEGRATION_FLAG ?= -p 1
 
 # By default use the "localhost" or specify manually during make invocation:
 #
@@ -164,12 +167,12 @@ test-integration-with-coverage: prebuild-check clean-coverage-integration migrat
 test-integration: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
-	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -vet off $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
+	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test $(GO_TEST_INTEGRATION_FLAG) -vet off $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
 test-integration-benchmark: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running benchmarks: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
-	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_LOG_LEVEL=error AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -vet off -run=^$$ -bench=. -cpu 1,2,4 -test.benchmem $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
+	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_LOG_LEVEL=error AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test $(GO_TEST_INTEGRATION_FLAG) -vet off -run=^$$ -bench=. -cpu 1,2,4 -test.benchmem $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
 .PHONY: test-remote-with-coverage
 ## Runs the remote tests and produces coverage files for each package.
@@ -424,6 +427,7 @@ $(eval ALL_PKGS_COMMA_SEPARATED := $(6))
 $(eval COV_OUT_FILE := $(COV_DIR)/$(PACKAGE_NAME)/coverage.$(TEST_NAME).mode-$(COVERAGE_MODE))
 @$(ENV_VAR) AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_POSTGRES_HOST=$(AUTH_POSTGRES_HOST) F8_LOG_LEVEL=$(F8_LOG_LEVEL) \
 	go test -vet off $(PACKAGE_NAME) \
+		$(GO_TEST_INTEGRATION_FLAG) \
 		$(GO_TEST_VERBOSITY_FLAG) \
 		-coverprofile $(COV_OUT_FILE) \
 		-coverpkg $(ALL_PKGS_COMMA_SEPARATED) \
