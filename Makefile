@@ -20,7 +20,7 @@ GIT_BIN := $(shell command -v $(GIT_BIN_NAME) 2> /dev/null)
 DEP_BIN_NAME := dep
 DEP_BIN_DIR := ./tmp/bin
 DEP_BIN := $(DEP_BIN_DIR)/$(DEP_BIN_NAME)
-DEP_VERSION=v0.4.1
+DEP_VERSION=v0.5.0
 GO_BIN := $(shell command -v $(GO_BIN_NAME) 2> /dev/null)
 MINIMOCK_BIN=$(VENDOR_DIR)/github.com/gojuno/minimock/cmd/minimock/minimock
 DOCKER_COMPOSE_BIN := $(shell command -v $(DOCKER_COMPOSE_BIN_NAME) 2> /dev/null)
@@ -272,12 +272,12 @@ $(DEP_BIN):
 ifeq ($(UNAME_S),Darwin)
 	@curl -L -s https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-darwin-amd64 -o $(DEP_BIN)
 	@cd $(DEP_BIN_DIR) && \
-	echo "1544afdd4d543574ef8eabed343d683f7211202a65380f8b32035d07ce0c45ef  dep" > dep-darwin-amd64.sha256 && \
+	echo "b5188a187f98febf711a5318cbfb62fed327809f52a1dcf0e8b8c6b37e1d2849  dep" > dep-darwin-amd64.sha256 && \
 	shasum -a 256 --check dep-darwin-amd64.sha256
 else
 	@curl -L -s https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 -o $(DEP_BIN)
 	@cd $(DEP_BIN_DIR) && \
-	echo "31144e465e52ffbc0035248a10ddea61a09bf28b00784fd3fdd9882c8cbb2315  dep" > dep-linux-amd64.sha256 && \
+	echo "1a7bdb0d6c31ecba8b3fd213a1170adf707657123e89dff234871af9e0498be2  dep" > dep-linux-amd64.sha256 && \
 	sha256sum -c dep-linux-amd64.sha256
 endif
 	@chmod +x $(DEP_BIN)
