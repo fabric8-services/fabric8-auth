@@ -32,7 +32,7 @@ ENV GOPATH /tmp/go
 RUN mkdir -p $GOPATH/bin && chmod a+rwx $GOPATH
 RUN cd $GOPATH/bin \
 	curl -L -s https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 -o dep \
-	echo "1a7bdb0d6c31ecba8b3fd213a1170adf707657123e89dff234871af9e0498be2  dep" > dep-linux-amd64.sha256 \
+	echo "287b08291e14f1fae8ba44374b26a2b12eb941af3497ed0ca649253e21ba2f83  dep" > dep-linux-amd64.sha256 \
 	sha256sum -c dep-linux-amd64.sha256
 
 ENTRYPOINT ["/bin/bash"]

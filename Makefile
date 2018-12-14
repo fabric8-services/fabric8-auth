@@ -272,12 +272,12 @@ $(DEP_BIN):
 ifeq ($(UNAME_S),Darwin)
 	@curl -L -s https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-darwin-amd64 -o $(DEP_BIN)
 	@cd $(DEP_BIN_DIR) && \
-	echo "b5188a187f98febf711a5318cbfb62fed327809f52a1dcf0e8b8c6b37e1d2849  dep" > dep-darwin-amd64.sha256 && \
+	echo "1a7bdb0d6c31ecba8b3fd213a1170adf707657123e89dff234871af9e0498be2  dep" > dep-darwin-amd64.sha256 && \
 	shasum -a 256 --check dep-darwin-amd64.sha256
 else
 	@curl -L -s https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-linux-amd64 -o $(DEP_BIN)
 	@cd $(DEP_BIN_DIR) && \
-	echo "1a7bdb0d6c31ecba8b3fd213a1170adf707657123e89dff234871af9e0498be2  dep" > dep-linux-amd64.sha256 && \
+	echo "287b08291e14f1fae8ba44374b26a2b12eb941af3497ed0ca649253e21ba2f83  dep" > dep-linux-amd64.sha256 && \
 	sha256sum -c dep-linux-amd64.sha256
 endif
 	@chmod +x $(DEP_BIN)
