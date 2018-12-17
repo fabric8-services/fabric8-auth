@@ -38,19 +38,21 @@ func TestUsersController(t *testing.T) {
 
 type UsersControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
-	svc           *goa.Service
-	controller    *UsersController
-	userRepo      accountrepo.UserRepository
-	identityRepo  accountrepo.IdentityRepository
-	tenantService *dummyTenantService
-	witService    *testservice.WITServiceMock
+	svc                *goa.Service
+	controller         *UsersController
+	userRepo           accountrepo.UserRepository
+	identityRepo       accountrepo.IdentityRepository
+	tenantService      *dummyTenantService
+	witService         *testservice.WITServiceMock
+	clusterServiceMock *testservice.ClusterServiceMock
 }
 
 func (s *UsersControllerTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.svc = goa.New("test")
 	s.witService = testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(s.witService))
+	s.clusterServiceMock = testsupport.NewClusterServiceMock(s.T())
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(s.witService), factory.WithClusterService(s.clusterServiceMock))
 	s.controller = NewUsersController(s.svc, s.Application, s.Configuration)
 	s.userRepo = s.Application.Users()
 	s.identityRepo = s.Application.Identities()
@@ -1414,6 +1416,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	approved := false
 
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	*s.clusterServiceMock = *testsupport.NewClusterServiceMock(s.T())
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
@@ -1424,6 +1427,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
+	require.Equal(s.T(), uint64(1), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails() {
@@ -1513,6 +1517,8 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email strin
 	}
 
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	*s.clusterServiceMock = *testsupport.NewClusterServiceMock(s.T())
+
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	createUserPayload := newCreateUsersPayload(&email, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)
@@ -1521,6 +1527,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email strin
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
+	require.Equal(s.T(), uint64(1), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithMissingRequiredFieldsFails() {
@@ -1549,6 +1556,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountUnauthorized() 
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	*s.clusterServiceMock = *testsupport.NewClusterServiceMock(s.T())
 
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestIdentity)
 
@@ -1556,6 +1564,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountUnauthorized() 
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized() {
@@ -1563,9 +1572,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-
-	//*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	*s.clusterServiceMock = *testsupport.NewClusterServiceMock(s.T())
 
 	secureService, secureController := s.SecuredController(testsupport.TestIdentity)
 
@@ -1573,6 +1580,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForPreviewUserIgnored() {
@@ -1588,6 +1596,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForPreviewUserI
 
 func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUserIgnored(email string) {
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	*s.clusterServiceMock = *testsupport.NewClusterServiceMock(s.T())
 	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 	username := "someuser"
@@ -1599,6 +1608,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUser
 	require.NotNil(s.T(), appUser)
 	assertCreatedUser(s.T(), appUser.Data, accountrepo.User{Cluster: cluster, Email: email}, accountrepo.Identity{Username: username})
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserUnauthorized() {
@@ -1606,11 +1616,13 @@ func (s *UsersControllerTestSuite) TestCreateUserUnauthorized() {
 	user := testsupport.TestUser
 	identity := testsupport.TestIdentity
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+	*s.clusterServiceMock = *testsupport.NewClusterServiceMock(s.T())
 
 	// then
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, createUserPayload)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
 }
 
 func newCreateUsersPayload(email, fullName, bio, imageURL, profileURL, company, username, rhdUsername *string, rhdUserID string, cluster *string, registrationCompleted, approved *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {

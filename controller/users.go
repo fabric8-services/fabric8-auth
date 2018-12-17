@@ -155,6 +155,18 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 
+	// we create a identity cluster relationship in cluster management service.
+	clusterURL := ctx.Payload.Data.Attributes.Cluster
+	err = c.app.ClusterService().AddIdentityToClusterLink(ctx.Context, identityID, clusterURL)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": identityID,
+			"cluster_url": clusterURL,
+		}, "failed to link identity to cluster in cluster service")
+		// Not a blocker. Log the error and proceed.
+	}
+
 	// finally, if all works, we create a user in WIT too.
 	err = c.app.WITService().CreateUser(ctx.Context, identity, identityID.String())
 	if err != nil {
@@ -169,7 +181,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 }
 
 func (c *UsersController) checkPreviewUser(email string) (bool, error) {
-	// Any <username>+preview*@redhat.com email matches
+	// Any <username>+preview*@redhat.com email matches. Note that this is set only for production. not in prod-preview
 	return regexp.MatchString(c.config.GetIgnoreEmailInProd(), strings.ToLower(email))
 }
 

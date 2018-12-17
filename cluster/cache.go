@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-cluster-client/cluster"
 
-	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 )
 
@@ -100,7 +98,8 @@ func (c *cache) refreshCache(ctx context.Context) error {
 
 // fetchClusters fetches a new list of clusters from Cluster Management Service
 func (c *cache) fetchClusters(ctx context.Context) (map[string]Cluster, error) {
-	cln, err := c.createClientWithServiceAccountSigner(ctx)
+	signer := NewJWTSASigner(ctx, c.config, c.options...)
+	cln, err := signer.CreateSignedClient()
 	if err != nil {
 		return nil, err
 	}
@@ -147,39 +146,4 @@ func (c *cache) fetchClusters(ctx context.Context) (map[string]Cluster, error) {
 		}
 	}
 	return clusterMap, nil
-}
-
-// createClientWithSASigner creates a client with a JWT signer which uses the Auth Service Account token
-func (c *cache) createClientWithServiceAccountSigner(ctx context.Context) (*cluster.Client, error) {
-	cln, err := c.createClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-	m, err := manager.DefaultManager(c.config)
-	if err != nil {
-		return nil, err
-	}
-	signer := m.AuthServiceAccountSigner()
-	cln.SetJWTSigner(signer)
-	return cln, nil
-}
-
-func (c *cache) createClient(ctx context.Context) (*cluster.Client, error) {
-	u, err := url.Parse(c.config.GetClusterServiceURL())
-	if err != nil {
-		return nil, err
-	}
-
-	httpClient := http.DefaultClient
-
-	if c.options != nil {
-		for _, opt := range c.options {
-			opt(httpClient)
-		}
-	}
-	cln := cluster.New(goaclient.HTTPClientDoer(httpClient))
-
-	cln.Host = u.Host
-	cln.Scheme = u.Scheme
-	return cln, nil
 }

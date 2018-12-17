@@ -33,6 +33,12 @@ func NewClusterServiceMock(t minimock.Tester) *testservice.ClusterServiceMock {
 	clusterServiceMock.StatusFunc = func(ctx context.Context, options ...rest.HTTPClientOption) (bool, error) {
 		return false, nil
 	}
+	clusterServiceMock.AddIdentityToClusterLinkFunc = func(p context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) (r error) {
+		return nil
+	}
+	clusterServiceMock.RemoveIdentityToClusterLinkFunc = func(p context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) (r error) {
+		return nil
+	}
 
 	return clusterServiceMock
 }
