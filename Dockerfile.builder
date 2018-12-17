@@ -5,8 +5,8 @@ ENV LANG=en_US.utf8
 ARG USE_GO_VERSION_FROM_WEBSITE=0
 
 # Some packages might seem weird but they are required by the RVM installer.
-RUN yum install epel-release --enablerepo=extras -y \
-    && yum --enablerepo=centosplus --enablerepo=epel-testing install -y \
+RUN yum install epel-release -y \
+    && yum --enablerepo=centosplus --enablerepo=epel install -y \
       findutils \
       git \
       $(test "$USE_GO_VERSION_FROM_WEBSITE" != 1 && echo "golang") \
@@ -31,8 +31,8 @@ ENV PATH=$PATH:/usr/local/go/bin
 ENV GOPATH /tmp/go
 RUN mkdir -p $GOPATH/bin && chmod a+rwx $GOPATH
 RUN cd $GOPATH/bin \
-	curl -L -s https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 -o dep \
-	echo "31144e465e52ffbc0035248a10ddea61a09bf28b00784fd3fdd9882c8cbb2315  dep" > dep-linux-amd64.sha256 \
+	curl -L -s https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 -o dep \
+	echo "287b08291e14f1fae8ba44374b26a2b12eb941af3497ed0ca649253e21ba2f83  dep" > dep-linux-amd64.sha256 \
 	sha256sum -c dep-linux-amd64.sha256
 
 ENTRYPOINT ["/bin/bash"]
