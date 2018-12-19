@@ -1,19 +1,29 @@
 package controller
 
 import (
+	"context"
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
 // LogoutController implements the logout resource.
 type LogoutController struct {
 	*goa.Controller
 	app application.Application
+}
+
+// Common context interface for both logout endpoints
+type LogoutContext interface {
+	context.Context
+	TemporaryRedirect() error
+	InternalServerError(*app.JSONAPIErrors) error
 }
 
 // NewLogoutController creates a logout controller.
@@ -23,8 +33,23 @@ func NewLogoutController(service *goa.Service, app application.Application) *Log
 
 // Logout runs the logout action.
 func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
-	redirect := ctx.Redirect
-	referrer := ctx.Referer
+	return c.doLogout(ctx, ctx.Redirect, ctx.Referer, ctx.ResponseData, nil)
+}
+
+// Logoutv2 is a secured logout endpoint that also invalidates all of the user's tokens
+func (c *LogoutController) Logoutv2(ctx *app.Logoutv2LogoutContext) error {
+	token := goajwt.ContextJWT(ctx)
+	if token == nil {
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("no token in request"))
+	}
+
+	tokenString := token.Raw
+	return c.doLogout(ctx, ctx.Redirect, ctx.Referer, ctx.ResponseData, &tokenString)
+}
+
+// doLogout performs the logout action, optionally with the user's token string in order to invalidate all the
+// user's tokens
+func (c *LogoutController) doLogout(ctx LogoutContext, redirect *string, referrer *string, responseData *goa.ResponseData, tokenString *string) error {
 	if redirect == nil {
 		if referrer == nil {
 			log.Error(ctx, nil, "Failed to logout. Referer Header and redirect param are both empty.")
@@ -50,7 +75,7 @@ func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
 		"err":          err,
 	}, "parsed provided redirect url.")
 
-	logoutRedirect, err := c.app.LogoutService().Logout(ctx, redirectURL.String())
+	logoutRedirect, err := c.app.LogoutService().Logout(ctx, tokenString, redirectURL.String())
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url": redirectURL.String(),
@@ -59,7 +84,7 @@ func (c *LogoutController) Logout(ctx *app.LogoutLogoutContext) error {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
-	ctx.ResponseData.Header().Set("Location", logoutRedirect)
+	responseData.Header().Set("Cache-Control", "no-cache")
+	responseData.Header().Set("Location", logoutRedirect)
 	return ctx.TemporaryRedirect()
 }

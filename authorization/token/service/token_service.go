@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -345,27 +344,12 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 // TODO investigate merging this with the Refresh() method
 func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error) {
 
-	// Load identity for the refresh token
-	var identity *accountrepo.Identity
-	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, refreshToken)
-	if err != nil {
-		return nil, errors.NewUnauthorizedError(err.Error())
-	}
-	sub := claims["sub"]
-	if sub == nil {
-		return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
-	}
-	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
-	if err != nil {
-		return nil, errors.NewUnauthorizedError(err.Error())
-	}
-
-	err = s.ExecuteInTransaction(func() error {
-		identity, err = s.Repositories().Identities().LoadWithUser(ctx, identityID)
-		return err
-	})
+	identity, err := s.loadIdentityFromSubClaim(ctx, refreshToken)
 
 	if err != nil {
+		if unauth, _ := errors.IsUnauthorizedError(err); unauth {
+			return nil, err
+		}
 		// That's OK if we didn't find the identity if the token was issued for an API client
 		// Just log it and proceed.
 		log.Warn(ctx, map[string]interface{}{
@@ -392,7 +376,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 		if err != nil {
 			return nil, err
 		}
-		log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
+		log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "obtained a new access token")
 		generatedToken.AccessToken = refreshedAccessToken
 	}
 	return s.tokenManager.ConvertToken(*generatedToken)
@@ -558,7 +542,7 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 
 // TODO remove the goa.RequestData param from here
 // RetrieveToken
-func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
+func (s *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
 	if forResource == "" {
 		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
@@ -574,7 +558,7 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 		currentIdentityID = *id
 	} else {
 		// Extract user ID
-		currentIdentity, err := c.Services().UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+		currentIdentity, err := s.Services().UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -583,7 +567,7 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 
 	var appResponse app.ExternalToken
 
-	linkingProvider, err := c.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID,
+	linkingProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID,
 		rest.AbsoluteURL(req, "", nil), forResource)
 	if err != nil {
 		return nil, nil, err
@@ -592,24 +576,58 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 	osProvider, ok := linkingProvider.(provider.OpenShiftIdentityProvider)
 	if ok && serviceAccount {
 		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
-		return c.retrieveClusterToken(ctx, forResource, forcePull, osProvider)
+		return s.retrieveClusterToken(ctx, forResource, forcePull, osProvider)
 	}
 
-	externalToken, err := c.loadToken(ctx, linkingProvider, currentIdentityID)
+	var externalToken *tokenrepo.ExternalToken
+	err = s.ExecuteInTransaction(func() error {
+		err := s.Repositories().Identities().CheckExists(ctx, currentIdentityID.String())
+		if err != nil {
+			return errors.NewUnauthorizedError(err.Error())
+		}
+		tokens, err := s.Repositories().ExternalTokens().LoadByProviderIDAndIdentityID(ctx, linkingProvider.ID(), currentIdentityID)
+		if err != nil {
+			return err
+		}
+		if len(tokens) > 0 {
+			externalToken = &tokens[0]
+		}
+		return nil
+
+	})
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if externalToken != nil {
-		updatedToken, errorResponse, err := c.updateProfileIfEmpty(ctx, forResource, req, linkingProvider, externalToken, forcePull)
-		if err != nil {
-			return nil, errorResponse, err
+		if forcePull != nil && *forcePull {
+			userProfile, err := linkingProvider.Profile(ctx, oauth2.Token{AccessToken: externalToken.Token})
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":           err,
+					"for":           forResource,
+					"provider_name": linkingProvider.TypeName(),
+				}, "Unable to fetch user profile for external token. Account relinking may be required.")
+				linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
+				errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"",
+					linkURL, linkingProvider.TypeName(), linkingProvider.TypeName())
+				return nil, &errorResponse, errors.NewUnauthorizedError(err.Error())
+			}
+
+			externalToken.Username = userProfile.Username
+			err = s.ExecuteInTransaction(func() error {
+				return s.Repositories().ExternalTokens().Save(ctx, externalToken)
+			})
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		appResponse = app.ExternalToken{
-			Scope:          updatedToken.Scope,
-			AccessToken:    updatedToken.Token,
+			Scope:          externalToken.Scope,
+			AccessToken:    externalToken.Token,
 			TokenType:      "Bearer", // We aren't saving the token_type in the database
-			Username:       updatedToken.Username,
+			Username:       externalToken.Username,
 			ProviderAPIURL: linkingProvider.URL(),
 		}
 
@@ -658,34 +676,48 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 	return nil
 }
 
-// updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
-// loads the user profile from the identity provider and saves the username in the external token
-func (c *tokenServiceImpl) updateProfileIfEmpty(ctx context.Context, forResource string, req *goa.RequestData,
-	prov provider.LinkingProvider, token *tokenrepo.ExternalToken, forcePull *bool) (tokenrepo.ExternalToken, *string, error) {
-	externalToken := *token
-	if forcePull != nil && *forcePull {
-		userProfile, err := prov.Profile(ctx, oauth2.Token{AccessToken: token.Token})
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":           err,
-				"for":           forResource,
-				"provider_name": prov.TypeName(),
-			}, "Unable to fetch user profile for external token. Account relinking may be required.")
-			linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
-			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"",
-				linkURL, prov.TypeName(), prov.TypeName())
-			return externalToken, &errorResponse, errors.NewUnauthorizedError(err.Error())
-		}
-		externalToken.Username = userProfile.Username
-		err = c.ExecuteInTransaction(func() error {
-			return c.Repositories().ExternalTokens().Save(ctx, &externalToken)
-		})
-		return externalToken, nil, err
+// SetStatusForAllIdentityTokens parses the specified token string and extracts the sub claim, using it to then load
+// all tokens for that identity and setting their status flag with the specified status value
+func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, tokenstring string, status int) error {
+	// Load the identity using the sub claim of the passed token value
+	identity, err := s.loadIdentityFromSubClaim(ctx, tokenstring)
+	if err != nil {
+		return err
 	}
-	return externalToken, nil, nil
+
+	// Load all tokens for the identity
+	tokens, err := s.Repositories().TokenRepository().ListForIdentity(ctx, identity.ID)
+	if err != nil {
+		return err
+	}
+
+	err = s.ExecuteInTransaction(func() error {
+		// For each token, set the status flag to true for the specified token status
+		for _, tkn := range(tokens) {
+			tkn.SetStatus(status, true)
+			err = s.Repositories().TokenRepository().Save(ctx, &tkn)
+
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":           err,
+					"identity_id":  identity.ID,
+					"token_id": 	tkn.TokenID,
+				}, "Unable to update status for token.")
+				return err
+			}
+		}
+		return nil
+	})
+
+	log.Debug(ctx, map[string]interface{}{
+		"identity_id": identity.ID,
+		"tokens":      len(tokens),
+	}, "Updated all token status values for identity.")
+
+	return err
 }
 
-func (c *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
+func (s *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
 	username := provider.OSOCluster().ServiceAccountUsername
 	if forcePull != nil && *forcePull {
 		userProfile, err := provider.Profile(ctx, oauth2.Token{AccessToken: provider.OSOCluster().ServiceAccountToken})
@@ -720,24 +752,25 @@ func (c *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource
 	return &clusterToken, nil, nil
 }
 
-func (c *tokenServiceImpl) loadToken(ctx context.Context, prov provider.LinkingProvider, currentIdentity uuid.UUID) (*tokenrepo.ExternalToken, error) {
-	var externalToken *tokenrepo.ExternalToken
-	err := c.ExecuteInTransaction(func() error {
-		err := c.Repositories().Identities().CheckExists(ctx, currentIdentity.String())
-		if err != nil {
-			return errors.NewUnauthorizedError(err.Error())
-		}
-		tokens, err := c.Repositories().ExternalTokens().LoadByProviderIDAndIdentityID(ctx, prov.ID(), currentIdentity)
-		if err != nil {
-			return err
-		}
-		if len(tokens) > 0 {
-			externalToken = &tokens[0]
-		}
-		return nil
+// loadIdentityFromSubClaim Parses the specified token string and extracts the sub claim from the resulting token, then
+// uses that value to load the Identity (and corresponding User) record.  If there is no sub claim, a nil identity will
+// be returned along with an unauthorized error
+func (s *tokenServiceImpl) loadIdentityFromSubClaim(ctx context.Context, token string) (*accountrepo.Identity, error) {
+	// Parse the token and extract its claims
+	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, token)
+	if err != nil {
+	return nil, errors.NewUnauthorizedError(err.Error())
+	}
+	sub := claims["sub"]
+	if sub == nil {
+	return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+	}
+	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+	if err != nil {
+	return nil, errors.NewUnauthorizedError(err.Error())
+	}
 
-	})
-	return externalToken, err
+	return s.Repositories().Identities().LoadWithUser(ctx, identityID)
 }
 
 func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {

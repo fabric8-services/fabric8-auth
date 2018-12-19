@@ -111,4 +111,26 @@ var _ = a.Resource("logout", func() {
 		a.Response(d.TemporaryRedirect)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
+
+	// The logoutv2 endpoint performs invalidation of all user tokens managed by the auth service, before redirecting the
+	// client to the oauth provider's logout endpoint.  To enable this, the endpoint must be
+	// secured (i.e. a valid access token is required in the Authorization header) in contrast to the unsecured, original logout endpoint
+	// which simply redirects the user to the oauth provider's logout URL
+	a.Action("logoutv2", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/v2"),
+		)
+		a.Headers(func() {
+			a.Header("Referer", d.String)
+		})
+		a.Params(func() {
+			a.Param("redirect", d.String, "URL to be redirected to after successful logout. If not set then will redirect to the referrer instead.")
+		})
+		a.Description("Logout user")
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.TemporaryRedirect)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+	})
 })
+

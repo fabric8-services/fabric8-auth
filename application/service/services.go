@@ -83,7 +83,12 @@ type LinkService interface {
 }
 
 type LogoutService interface {
-	Logout(ctx context.Context, redirectURL string) (string, error)
+	Logout(ctx context.Context, tokenString *string, redirectURL string) (string, error)
+}
+
+type NotificationService interface {
+	SendMessageAsync(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (chan error, error)
+	SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...rest.HTTPClientOption) (chan error, error)
 }
 
 type OrganizationService interface {
@@ -121,6 +126,11 @@ type RoleManagementService interface {
 	RevokeResourceRoles(ctx context.Context, currentIdentity uuid.UUID, identities []uuid.UUID, resourceID string) error
 }
 
+type SpaceService interface {
+	CreateSpace(ctx context.Context, spaceCreatorIdentityID uuid.UUID, spaceID string) error
+	DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error
+}
+
 type TeamService interface {
 	CreateTeam(ctx context.Context, identityID uuid.UUID, spaceID string, teamName string) (*uuid.UUID, error)
 	ListTeamsInSpace(ctx context.Context, identityID uuid.UUID, spaceID string) ([]account.Identity, error)
@@ -129,15 +139,15 @@ type TeamService interface {
 
 type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
+	DeleteExternalToken(ctx context.Context, currentIdentity uuid.UUID, authURL string, forResource string) error
 	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error)
 	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
 	RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
-	DeleteExternalToken(ctx context.Context, currentIdentity uuid.UUID, authURL string, forResource string) error
+	SetStatusForAllIdentityTokens(ctx context.Context, tokenstring string, status int) error
 }
 
-type SpaceService interface {
-	CreateSpace(ctx context.Context, spaceCreatorIdentityID uuid.UUID, spaceID string) error
-	DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error
+type UserProfileService interface {
+	Get(ctx context.Context, accessToken string, profileURL string) (*provider.OAuthUserProfileResponse, error)
 }
 
 type UserService interface {
@@ -151,15 +161,6 @@ type UserService interface {
 	HardDeleteUser(ctx context.Context, identity account.Identity) error
 }
 
-type UserProfileService interface {
-	Get(ctx context.Context, accessToken string, profileURL string) (*provider.OAuthUserProfileResponse, error)
-}
-
-type NotificationService interface {
-	SendMessageAsync(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (chan error, error)
-	SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...rest.HTTPClientOption) (chan error, error)
-}
-
 type WITService interface {
 	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
 	CreateUser(ctx context.Context, identity *account.Identity, identityID string) error
@@ -169,12 +170,13 @@ type WITService interface {
 //Services creates instances of service layer objects
 type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
+	ClusterService() ClusterService
 	InvitationService() InvitationService
 	LinkService() LinkService
 	LogoutService() LogoutService
 	NotificationService() NotificationService
-	OSOSubscriptionService() OSOSubscriptionService
 	OrganizationService() OrganizationService
+	OSOSubscriptionService() OSOSubscriptionService
 	PermissionService() PermissionService
 	PrivilegeCacheService() PrivilegeCacheService
 	ResourceService() ResourceService
@@ -182,10 +184,9 @@ type Services interface {
 	SpaceService() SpaceService
 	TeamService() TeamService
 	TokenService() TokenService
-	UserService() UserService
 	UserProfileService() UserProfileService
+	UserService() UserService
 	WITService() WITService
-	ClusterService() ClusterService
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -211,6 +212,7 @@ type SubscriptionLoaderFactory interface {
 	NewSubscriptionLoader(ctx context.Context) subscription.SubscriptionLoader
 }
 
+// Factories is the interface responsible for creating instances of factory objects
 type Factories interface {
 	ClusterCacheFactory() ClusterCacheFactory
 	IdentityProviderFactory() IdentityProviderFactory

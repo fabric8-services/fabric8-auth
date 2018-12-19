@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/url"
 	"regexp"
 
@@ -29,7 +30,7 @@ func NewLogoutService(context servicecontext.ServiceContext, config LogoutServic
 	}
 }
 
-func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (string, error) {
+func (s *logoutServiceImpl) Logout(ctx context.Context, tokenString *string, redirectURL string) (string, error) {
 	if redirectURL == "" {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url":       redirectURL,
@@ -72,7 +73,10 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 	parameters.Add("redirect_uri", redirectURL)
 	logoutURL.RawQuery = parameters.Encode()
 
-	// TODO implement logout business logic here, i.e. invalidate all of the user's tokens
+	// If a token string was passed, then logout all tokens for the same identity
+	if tokenString != nil {
+		s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, *tokenString, token.TOKEN_STATUS_LOGGED_OUT)
+	}
 
 	return logoutURL.String(), nil
 }
