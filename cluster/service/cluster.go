@@ -17,9 +17,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	clusterclient "github.com/fabric8-services/fabric8-cluster-client/cluster"
+	goaclient "github.com/goadesign/goa/client"
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"net/http"
+	"net/url"
 )
 
 type clusterServiceConfig interface {
@@ -83,11 +85,12 @@ func (s *clusterService) Stop() {
 	}
 }
 
-func (s *clusterService) AddIdentityToClusterLink(ctx context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) error {
-	signer := cluster.NewJWTSASigner(ctx, s.config, options...)
-	remoteClusterService, err := signer.CreateSignedClient()
+// LinkIdentityToCluster links Identity To Cluster using Cluster URL
+func (s *clusterService) LinkIdentityToCluster(ctx context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) error {
+	signer := newJWTSASigner(ctx, s.config, options...)
+	remoteClusterService, err := signer.createSignedClient()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to create JWT signer for cluster service")
 	}
 	identityToClusterData := &clusterclient.LinkIdentityToClusterData{
 		ClusterURL: clusterURL,
@@ -95,7 +98,7 @@ func (s *clusterService) AddIdentityToClusterLink(ctx context.Context, identityI
 	}
 	res, err := remoteClusterService.LinkIdentityToClusterClusters(goasupport.ForwardContextRequestID(ctx), clusterclient.LinkIdentityToClusterClustersPath(), identityToClusterData)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to link identity %s to cluster having url %s", identityID, clusterURL)
 	}
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
@@ -111,9 +114,10 @@ func (s *clusterService) AddIdentityToClusterLink(ctx context.Context, identityI
 	return nil
 }
 
-func (s *clusterService) RemoveIdentityToClusterLink(ctx context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) error {
-	signer := cluster.NewJWTSASigner(ctx, s.config, options...)
-	remoteClusterService, err := signer.CreateSignedClient()
+// UnlinkIdentityFromCluster removes linked Identity from Cluster using Cluster URL
+func (s *clusterService) UnlinkIdentityFromCluster(ctx context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) error {
+	signer := newJWTSASigner(ctx, s.config, options...)
+	remoteClusterService, err := signer.createSignedClient()
 	if err != nil {
 		return err
 	}
@@ -123,7 +127,7 @@ func (s *clusterService) RemoveIdentityToClusterLink(ctx context.Context, identi
 	}
 	res, err := remoteClusterService.RemoveIdentityToClusterLinkClusters(goasupport.ForwardContextRequestID(ctx), clusterclient.RemoveIdentityToClusterLinkClustersPath(), identityToClusterData)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to unlink identity %s from cluster having url %s", identityID, clusterURL)
 	}
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
@@ -178,4 +182,53 @@ func ClusterByURL(clusters map[string]cluster.Cluster, url string) *cluster.Clus
 	}
 
 	return nil
+}
+
+type saSigner interface {
+	createSignedClient() (*clusterclient.Client, error)
+}
+
+type jwtSASigner struct {
+	ctx     context.Context
+	config  clusterConfig
+	options []rest.HTTPClientOption
+}
+
+func newJWTSASigner(ctx context.Context, config clusterConfig, options ...rest.HTTPClientOption) saSigner {
+	return &jwtSASigner{ctx, config, options}
+}
+
+// CreateSignedClient creates a client with a JWT signer which uses the Auth Service Account token
+func (c jwtSASigner) createSignedClient() (*clusterclient.Client, error) {
+	cln, err := c.createClient(c.ctx)
+	if err != nil {
+		return nil, err
+	}
+	m, err := manager.DefaultManager(c.config)
+	if err != nil {
+		return nil, err
+	}
+	signer := m.AuthServiceAccountSigner()
+	cln.SetJWTSigner(signer)
+	return cln, nil
+}
+
+func (c jwtSASigner) createClient(ctx context.Context) (*clusterclient.Client, error) {
+	u, err := url.Parse(c.config.GetClusterServiceURL())
+	if err != nil {
+		return nil, err
+	}
+
+	httpClient := http.DefaultClient
+
+	if c.options != nil {
+		for _, opt := range c.options {
+			opt(httpClient)
+		}
+	}
+	cln := clusterclient.New(goaclient.HTTPClientDoer(httpClient))
+
+	cln.Host = u.Host
+	cln.Scheme = u.Scheme
+	return cln, nil
 }

@@ -157,7 +157,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	// we create a identity cluster relationship in cluster management service.
 	clusterURL := ctx.Payload.Data.Attributes.Cluster
-	err = c.app.ClusterService().AddIdentityToClusterLink(ctx.Context, identityID, clusterURL)
+	err = c.app.ClusterService().LinkIdentityToCluster(ctx.Context, identityID, clusterURL)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
@@ -165,6 +165,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 			"cluster_url": clusterURL,
 		}, "failed to link identity to cluster in cluster service")
 		// Not a blocker. Log the error and proceed.
+		// TODO  roll back user creation here (hard delete user&identity from DB) if failed and return error See https://github.com/fabric8-services/fabric8-auth/issues/747
 	}
 
 	// finally, if all works, we create a user in WIT too.

@@ -38,13 +38,13 @@ func New(cassetteName string, options ...Option) (*recorder.Recorder, error) {
 	return r, nil
 }
 
+// DefaultRequestMatcher to compare the request method, URL requestID, Service Account Token.
 type DefaultRequestMatcher struct {
 	saToken   string
 	requestID string
 }
 
-// Default Matcher is used when a custom matcher is not defined
-// and compares only the method and URL.
+// RequestMethodAndURLMatch matches request Method and URL
 func (r DefaultRequestMatcher) RequestMethodAndURLMatch(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
 	if httpRequest.Method != cassetteRequest.Method ||
 		(httpRequest.URL != nil && httpRequest.URL.String() != cassetteRequest.URL) {
@@ -59,6 +59,7 @@ func (r DefaultRequestMatcher) RequestMethodAndURLMatch(httpRequest *http.Reques
 	return true
 }
 
+// RequestMethodAndURLMatch matches requestID and Service Account Token
 func (r DefaultRequestMatcher) HeaderMatch(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
 	authorization := httpRequest.Header.Get("Authorization")
 	reqID := httpRequest.Header.Get("X-Request-Id")
@@ -66,7 +67,7 @@ func (r DefaultRequestMatcher) HeaderMatch(httpRequest *http.Request, cassetteRe
 	return "Bearer "+r.saToken == authorization && reqID == r.requestID
 }
 
-// WithLinkIdentityToClusterRequestPayloadMatcher an option to specify the RequestPayload matcher for the recorder
+// WithDefaultMatcher an option to specify the custom matcher with requestID and Service Account Token for the recorder
 func WithDefaultMatcher(requestID, saToken string) Option {
 	matcher := &DefaultRequestMatcher{saToken, requestID}
 

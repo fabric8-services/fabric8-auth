@@ -86,7 +86,7 @@ func WithLinkIdentityToClusterRequestPayloadMatcher(clusterURL, requestID, saTok
 	}
 }
 
-// WithLinkIdentityToClusterRequestPayloadMatcher an option to specify the RequestPayload matcher for the recorder
+// WithUnLinkIdentityToClusterRequestPayloadMatcher an option to specify the RequestPayload matcher for the recorder
 func WithUnLinkIdentityToClusterRequestPayloadMatcher(clusterURL, requestID, saToken string) Option {
 	unLinkIdentityToClusterMatcher := &UnLinkIdentityToClusterMatcher{DefaultRequestMatcher{requestID: requestID, saToken: saToken}}
 

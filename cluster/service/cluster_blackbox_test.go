@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/cluster/factory"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/dnaeon/go-vcr/cassette"
 	vcrec "github.com/dnaeon/go-vcr/recorder"
+	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,7 +76,7 @@ func (s *ClusterServiceTestSuite) TestRemoveIdentityToClusterLinkOK() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().RemoveIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		assert.NoError(t, err)
 	})
 }
@@ -91,7 +91,7 @@ func (s *ClusterServiceTestSuite) TestRemoveIdentityToClusterLinkFail() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().RemoveIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 500 Internal Server Error. Response body: oopsy woopsy")
 	})
 
@@ -101,7 +101,7 @@ func (s *ClusterServiceTestSuite) TestRemoveIdentityToClusterLinkFail() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().RemoveIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 400 Bad Request. Response body: invalid identity-id")
 	})
 
@@ -111,7 +111,7 @@ func (s *ClusterServiceTestSuite) TestRemoveIdentityToClusterLinkFail() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().RemoveIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 401 Unauthorized. Response body: unauthorized")
 	})
 
@@ -121,7 +121,7 @@ func (s *ClusterServiceTestSuite) TestRemoveIdentityToClusterLinkFail() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().RemoveIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 404 Not Found. Response body: not found")
 	})
 }
@@ -136,7 +136,7 @@ func (s *ClusterServiceTestSuite) TestAddIdentityToClusterLinkOK() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().AddIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		assert.NoError(t, err)
 	})
 }
@@ -151,7 +151,7 @@ func (s *ClusterServiceTestSuite) TestAddIdentityToClusterLinkFail() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().AddIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "failed to link identity to cluster in cluster management service. Response status: 500 Internal Server Error. Response body: oopsy woopsy")
 	})
 
@@ -161,7 +161,7 @@ func (s *ClusterServiceTestSuite) TestAddIdentityToClusterLinkFail() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().AddIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "failed to link identity to cluster in cluster management service. Response status: 400 Bad Request. Response body: invalid identity-id")
 	})
 
@@ -171,7 +171,7 @@ func (s *ClusterServiceTestSuite) TestAddIdentityToClusterLinkFail() {
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
-		err = s.Application.ClusterService().AddIdentityToClusterLink(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
 		require.EqualError(t, err, "failed to link identity to cluster in cluster management service. Response status: 401 Unauthorized. Response body: unauthorized")
 	})
 }
@@ -189,7 +189,7 @@ type dummyFactory struct {
 }
 
 func (f *dummyFactory) NewClusterCache(ctx context.Context, options ...rest.HTTPClientOption) cluster.ClusterCache {
-	return cluster.NewCache(f.config, f.option)
+	return clusterservice.NewCache(f.config, f.option)
 }
 
 func (s *ClusterServiceTestSuite) TestStart() {

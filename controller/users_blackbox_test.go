@@ -1427,7 +1427,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
-	require.Equal(s.T(), uint64(1), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
+	require.Equal(s.T(), uint64(1), s.clusterServiceMock.LinkIdentityToClusterCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails() {
@@ -1527,7 +1527,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountOK(email strin
 	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
-	require.Equal(s.T(), uint64(1), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
+	require.Equal(s.T(), uint64(1), s.clusterServiceMock.LinkIdentityToClusterCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithMissingRequiredFieldsFails() {
@@ -1564,7 +1564,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountUnauthorized() 
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
-	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.LinkIdentityToClusterCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized() {
@@ -1580,7 +1580,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsNonServiceAccountUnauthorized
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
-	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.LinkIdentityToClusterCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForPreviewUserIgnored() {
@@ -1608,7 +1608,7 @@ func (s *UsersControllerTestSuite) checkCreateUserAsServiceAccountForPreviewUser
 	require.NotNil(s.T(), appUser)
 	assertCreatedUser(s.T(), appUser.Data, accountrepo.User{Cluster: cluster, Email: email}, accountrepo.Identity{Username: username})
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
-	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.LinkIdentityToClusterCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserUnauthorized() {
@@ -1622,7 +1622,7 @@ func (s *UsersControllerTestSuite) TestCreateUserUnauthorized() {
 	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, nil, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, nil, user.ContextInformation)
 	test.CreateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, createUserPayload)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
-	require.Equal(s.T(), uint64(0), s.clusterServiceMock.AddIdentityToClusterLinkCounter)
+	require.Equal(s.T(), uint64(0), s.clusterServiceMock.LinkIdentityToClusterCounter)
 }
 
 func newCreateUsersPayload(email, fullName, bio, imageURL, profileURL, company, username, rhdUsername *string, rhdUserID string, cluster *string, registrationCompleted, approved *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {
