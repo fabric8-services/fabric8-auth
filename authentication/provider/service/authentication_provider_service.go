@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -193,12 +194,12 @@ func (s *authenticationProviderServiceImpl) ExchangeAuthorizationCodeForUserToke
 	}
 
 	// Exchange the authorization code for an access token with the identity provider
-	accessToken, err := s.ExchangeCodeWithProvider(ctx, code, redirectURL.String())
+	providerToken, err := s.ExchangeCodeWithProvider(ctx, code, redirectURL.String())
 	if err != nil {
 		return nil, nil, err
 	}
 
-	notApprovedRedirectURL, userToken, err := s.CreateOrUpdateIdentityAndUser(ctx, redirectURL, accessToken)
+	notApprovedRedirectURL, userToken, err := s.CreateOrUpdateIdentityAndUser(ctx, redirectURL, providerToken)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -332,6 +333,48 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to generate token for user")
 		return nil, nil, err
+	}
+
+	// Parse the claims from the access token, and use them to persist a token record to the database
+	tokenClaims, err := tokenManager.ParseToken(ctx, userToken.AccessToken)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "invalid access token string could not be parsed")
+		return nil, nil, autherrors.NewBadParameterErrorFromString("tokenString", userToken.AccessToken,
+			"invalid access token string could not be parsed")
+	}
+
+	// Extract the id from the token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	if err != nil {
+		return nil, nil, autherrors.NewInternalError(ctx, err)
+	}
+
+	// Register the access token
+	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, tokenID, token2.TOKEN_TYPE_ACCESS, userToken.Expiry)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not register access token")
+		return nil, nil, autherrors.NewInternalError(ctx, err)
+	}
+
+	// Parse the claims from the refresh token, and use them to persist a token record to the database
+	tokenClaims, err = tokenManager.ParseToken(ctx, userToken.RefreshToken)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "invalid refresh token string could not be parsed")
+		return nil, nil, autherrors.NewBadParameterErrorFromString("tokenString", userToken.RefreshToken,
+			"invalid refresh token string could not be parsed")
+	}
+
+	// Extract the id from the token
+	tokenID, err = uuid.FromString(tokenClaims.Id)
+	if err != nil {
+		return nil, nil, autherrors.NewInternalError(ctx, err)
+	}
+
+	// Register the refresh token
+	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, tokenID, token2.TOKEN_TYPE_REFRESH, userToken.Expiry)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not register refresh token")
+		return nil, nil, autherrors.NewInternalError(ctx, err)
 	}
 
 	err = encodeToken(ctx, referrerURL, userToken, apiClient)

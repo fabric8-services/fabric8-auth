@@ -192,7 +192,7 @@ type TokenManager interface {
 	AuthServiceAccountToken() string
 	GenerateServiceAccountToken(saID string, saName string) (string, error)
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
-	GenerateUserTokenForAPIClient(ctx context.Context, keycloakToken oauth2.Token) (*oauth2.Token, error)
+	GenerateUserTokenForAPIClient(ctx context.Context, providerToken oauth2.Token) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
 	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity) (*oauth2.Token, error)
 	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
@@ -751,8 +751,8 @@ func (m *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context, r
 // #####################################################################################################################
 
 // GenerateUserTokenForAPIClient
-func (m *tokenManager) GenerateUserTokenForAPIClient(ctx context.Context, keycloakToken oauth2.Token) (*oauth2.Token, error) {
-	unsignedAccessToken, err := m.GenerateUnsignedUserAccessTokenForAPIClient(ctx, keycloakToken.AccessToken)
+func (m *tokenManager) GenerateUserTokenForAPIClient(ctx context.Context, providerToken oauth2.Token) (*oauth2.Token, error) {
+	unsignedAccessToken, err := m.GenerateUnsignedUserAccessTokenForAPIClient(ctx, providerToken.AccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -760,7 +760,7 @@ func (m *tokenManager) GenerateUserTokenForAPIClient(ctx context.Context, keyclo
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	unsignedRefreshToken, err := m.GenerateUnsignedUserRefreshTokenForAPIClient(ctx, keycloakToken.AccessToken)
+	unsignedRefreshToken, err := m.GenerateUnsignedUserRefreshTokenForAPIClient(ctx, providerToken.AccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -771,21 +771,21 @@ func (m *tokenManager) GenerateUserTokenForAPIClient(ctx context.Context, keyclo
 	token := &oauth2.Token{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		Expiry:       keycloakToken.Expiry,
+		Expiry:       providerToken.Expiry,
 		TokenType:    "Bearer",
 	}
 
 	// Derivative OAuth2 claims "expires_in" and "refresh_expires_in"
 	extra := make(map[string]interface{})
-	expiresIn := keycloakToken.Extra("expires_in")
+	expiresIn := providerToken.Extra("expires_in")
 	if expiresIn != nil {
 		extra["expires_in"] = expiresIn
 	}
-	refreshExpiresIn := keycloakToken.Extra("refresh_expires_in")
+	refreshExpiresIn := providerToken.Extra("refresh_expires_in")
 	if refreshExpiresIn != nil {
 		extra["refresh_expires_in"] = refreshExpiresIn
 	}
-	notBeforePolicy := keycloakToken.Extra("not_before_policy")
+	notBeforePolicy := providerToken.Extra("not_before_policy")
 	if notBeforePolicy != nil {
 		extra["not_before_policy"] = notBeforePolicy
 	}
@@ -797,8 +797,8 @@ func (m *tokenManager) GenerateUserTokenForAPIClient(ctx context.Context, keyclo
 }
 
 // GenerateUnsignedUserAccessTokenForAPIClient generates an unsigned OAuth2 user access token for the api_client based on the Keycloak token
-func (m *tokenManager) GenerateUnsignedUserAccessTokenForAPIClient(ctx context.Context, keycloakAccessToken string) (*jwt.Token, error) {
-	kcClaims, err := m.ParseToken(ctx, keycloakAccessToken)
+func (m *tokenManager) GenerateUnsignedUserAccessTokenForAPIClient(ctx context.Context, providerAccessToken string) (*jwt.Token, error) {
+	kcClaims, err := m.ParseToken(ctx, providerAccessToken)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

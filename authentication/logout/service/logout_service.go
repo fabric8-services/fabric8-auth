@@ -73,9 +73,13 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, tokenString *string, red
 	parameters.Add("redirect_uri", redirectURL)
 	logoutURL.RawQuery = parameters.Encode()
 
-	// If a token string was passed, then logout all tokens for the same identity
+	// If a token string was passed, then set the status to "logged out" for all tokens with the same identity
 	if tokenString != nil {
-		s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, *tokenString, token.TOKEN_STATUS_LOGGED_OUT)
+		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, *tokenString, token.TOKEN_STATUS_LOGGED_OUT)
+
+		if err != nil {
+			return "", errors.NewInternalError(ctx, err)
+		}
 	}
 
 	return logoutURL.String(), nil

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/url"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
@@ -15,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/role"
 	rolerepo "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	tokenrepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -142,7 +144,8 @@ type TokenService interface {
 	DeleteExternalToken(ctx context.Context, currentIdentity uuid.UUID, authURL string, forResource string) error
 	ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error)
 	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
-	RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
+	RegisterToken(ctx context.Context, identityID uuid.UUID, tokenID uuid.UUID, tokenType string, expiryTime time.Time) (*tokenrepo.Token, error)
+	RetrieveExternalToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
 	SetStatusForAllIdentityTokens(ctx context.Context, tokenstring string, status int) error
 }
 

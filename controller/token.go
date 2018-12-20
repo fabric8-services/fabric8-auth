@@ -102,7 +102,7 @@ func convertToken(t manager.TokenSet) *app.AuthToken {
 
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
-	appToken, errorResponse, err := c.app.TokenService().RetrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
+	appToken, errorResponse, err := c.app.TokenService().RetrieveExternalToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
 	if errorResponse != nil {
 		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
@@ -118,7 +118,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
 // Status checks if the stored external provider token is available.
 func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
-	appToken, errorResponse, err := c.app.TokenService().RetrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
+	appToken, errorResponse, err := c.app.TokenService().RetrieveExternalToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
 	if errorResponse != nil {
 		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)

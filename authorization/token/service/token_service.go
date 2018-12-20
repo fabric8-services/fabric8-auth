@@ -300,20 +300,8 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			return errors.NewInternalError(ctx, err)
 		}
 
-		// Create a new Token record in the database
-		newTokenRecord := &tokenrepo.Token{
-			TokenID:    newTokenID,
-			IdentityID: identity.ID,
-			Status:     0,
-			TokenType:  authtoken.TOKEN_TYPE_RPT,
-			ExpiryTime: time.Unix(expiresAt, 0),
-		}
-
-		// Persist the token record to the database
-		err = s.Repositories().TokenRepository().Create(ctx, newTokenRecord)
-		if err != nil {
-			return errors.NewInternalError(ctx, err)
-		}
+		// Register the token record
+		newTokenRecord, err := s.RegisterToken(ctx, identity.ID, newTokenID, authtoken.TOKEN_TYPE_RPT, time.Unix(expiresAt, 0))
 
 		// Assign privileges to the token record, and persist them to the database
 		for _, tokenPriv := range tokenPrivs {
@@ -540,9 +528,28 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 	return signedToken, nil
 }
 
+// RegisterToken creates a token record in the token repository
+func (s *tokenServiceImpl) RegisterToken(ctx context.Context, identityID uuid.UUID, tokenID uuid.UUID, tokenType string, expiryTime time.Time) (*tokenrepo.Token, error) {
+	tkn := &tokenrepo.Token{
+		TokenID:    tokenID,
+		IdentityID: identityID,
+		Status:     0,
+		TokenType:  tokenType,
+		ExpiryTime: expiryTime,
+	}
+
+	// Persist the token record to the database
+	err := s.Repositories().TokenRepository().Create(ctx, tkn)
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
+	}
+
+	return tkn, nil
+}
+
 // TODO remove the goa.RequestData param from here
-// RetrieveToken
-func (s *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
+// RetrieveExternalToken retrieves the external token for the specified provider
+func (s *tokenServiceImpl) RetrieveExternalToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
 	if forResource == "" {
 		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
@@ -693,15 +700,15 @@ func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, to
 
 	err = s.ExecuteInTransaction(func() error {
 		// For each token, set the status flag to true for the specified token status
-		for _, tkn := range(tokens) {
+		for _, tkn := range tokens {
 			tkn.SetStatus(status, true)
 			err = s.Repositories().TokenRepository().Save(ctx, &tkn)
 
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{
-					"err":           err,
-					"identity_id":  identity.ID,
-					"token_id": 	tkn.TokenID,
+					"err":         err,
+					"identity_id": identity.ID,
+					"token_id":    tkn.TokenID,
 				}, "Unable to update status for token.")
 				return err
 			}
@@ -759,15 +766,15 @@ func (s *tokenServiceImpl) loadIdentityFromSubClaim(ctx context.Context, token s
 	// Parse the token and extract its claims
 	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, token)
 	if err != nil {
-	return nil, errors.NewUnauthorizedError(err.Error())
+		return nil, errors.NewUnauthorizedError(err.Error())
 	}
 	sub := claims["sub"]
 	if sub == nil {
-	return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+		return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
 	}
 	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
 	if err != nil {
-	return nil, errors.NewUnauthorizedError(err.Error())
+		return nil, errors.NewUnauthorizedError(err.Error())
 	}
 
 	return s.Repositories().Identities().LoadWithUser(ctx, identityID)
