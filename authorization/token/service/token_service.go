@@ -302,6 +302,9 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 
 		// Register the token record
 		newTokenRecord, err := s.RegisterToken(ctx, identity.ID, newTokenID, authtoken.TOKEN_TYPE_RPT, time.Unix(expiresAt, 0))
+		if err != nil {
+			return errors.NewInternalError(ctx, err)
+		}
 
 		// Assign privileges to the token record, and persist them to the database
 		for _, tokenPriv := range tokenPrivs {
