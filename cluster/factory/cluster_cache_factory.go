@@ -9,6 +9,7 @@ import (
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/cluster"
+	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/rest"
 )
 
@@ -34,5 +35,5 @@ type clusterCacheFactoryImpl struct {
 
 // NewClusterCache creates a new cluster cache
 func (f *clusterCacheFactoryImpl) NewClusterCache(ctx context.Context, options ...rest.HTTPClientOption) cluster.ClusterCache {
-	return cluster.NewCache(f.config, options...)
+	return clusterservice.NewCache(f.config, options...)
 }

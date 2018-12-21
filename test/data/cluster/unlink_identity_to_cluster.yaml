@@ -1,0 +1,77 @@
+---
+version: 1
+interactions:
+- request:
+    body: |
+        {
+          "cluster-url": "https://cluster.ok/",
+          "identity-id": "715eab6a-9818-4642-8002-1d0cf8939007"
+        }
+    headers:
+      Content-Type:
+      - application/json
+    url: http://f8cluster/api/clusters/identities
+    method: DELETE
+  response:
+    status: 204 No Content
+    code: 204
+- request:
+    body: |
+        {
+          "cluster-url": "https://cluster.error/",
+          "identity-id": "715eab6a-9818-4642-8002-1d0cf8939007"
+        }
+    headers:
+      Content-Type:
+      - application/json
+    url: http://f8cluster/api/clusters/identities
+    method: DELETE
+  response:
+    body: "oopsy woopsy"
+    status: 500 Internal Server Error
+    code: 500
+- request:
+    body: |
+        {
+          "cluster-url": "https://cluster.bad/",
+          "identity-id": "Quis consequuntur ipsam qui."
+        }
+    headers:
+      Content-Type:
+      - application/json
+    url: http://f8cluster/api/clusters/identities
+    method: DELETE
+  response:
+    status: 400 Bad Request
+    code: 400
+    body: "invalid identity-id"
+- request:
+    body: |
+        {
+          "cluster-url": "https://cluster.unauthorized/",
+          "identity-id": "715eab6a-9818-4642-8002-1d0cf8939007"
+        }
+    headers:
+      Content-Type:
+      - application/json
+    url: http://f8cluster/api/clusters/identities
+    method: DELETE
+  response:
+    body: "unauthorized"
+    status: 401 Unauthorized
+    code: 401
+- request:
+    body: |
+        {
+          "cluster-url": "https://cluster.notfound/",
+          "identity-id": "715eab6a-9818-4642-8002-1d0cf8939007"
+        }
+    headers:
+      Content-Type:
+      - application/json
+    url: http://f8cluster/api/clusters/identities
+    method: DELETE
+  response:
+    body: "not found"
+    status: 404 Not Found
+    code: 404

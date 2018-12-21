@@ -1,5 +1,7 @@
 package cluster
 
+import "context"
+
 // Cluster represents an OpenShift cluster configuration
 type Cluster struct {
 	Name                   string `mapstructure:"name"`
@@ -15,4 +17,12 @@ type Cluster struct {
 	AuthClientSecret       string `mapstructure:"auth-client-secret"`
 	AuthClientDefaultScope string `mapstructure:"auth-client-default-scope"`
 	CapacityExhausted      bool   `mapstructure:"capacity-exhausted"` // Optional in oso-clusters.conf ('false' by default)
+}
+
+type ClusterCache interface {
+	RLock()
+	RUnlock()
+	Clusters() map[string]Cluster
+	Start(ctx context.Context) error
+	Stop()
 }

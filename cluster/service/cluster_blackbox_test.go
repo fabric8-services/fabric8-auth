@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
-	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/cluster/factory"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/dnaeon/go-vcr/cassette"
 	vcrec "github.com/dnaeon/go-vcr/recorder"
+	"github.com/fabric8-services/fabric8-auth/cluster"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -48,21 +49,138 @@ func (s *ClusterServiceTestSuite) TestClustersFail() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithDefaultMatcher(reqID, s.saToken))
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
 		_, err = s.Application.ClusterService().Clusters(ctx, rest.WithRoundTripper(r.Transport))
-		require.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+		require.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy")
 	})
 	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithDefaultMatcher(reqID, s.saToken))
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
 		_, err = s.Application.ClusterService().ClusterByURL(ctx, "https://api.starter-us-east-2.openshift.com/")
-		assert.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy", err.Error())
+		assert.EqualError(t, err, "unable to get clusters from Cluster Management Service. Response status: 500 Internal Server Error. Response body: oopsy woopsy")
 	})
+}
+
+func (s *ClusterServiceTestSuite) TestRemoveIdentityToClusterLinkOK() {
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
+	identityID := createIdentityIDFromString(s.T())
+
+	s.T().Run("200", func(t *testing.T) {
+		clusterURL := "https://cluster.ok/"
+		r, err := recorder.New("../../test/data/cluster/unlink_identity_to_cluster", recorder.WithUnLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		assert.NoError(t, err)
+	})
+}
+
+func (s *ClusterServiceTestSuite) TestRemoveIdentityToClusterLinkFail() {
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
+	identityID := createIdentityIDFromString(s.T())
+
+	s.T().Run("500", func(t *testing.T) {
+		clusterURL := "https://cluster.error/"
+		r, err := recorder.New("../../test/data/cluster/unlink_identity_to_cluster", recorder.WithUnLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 500 Internal Server Error. Response body: oopsy woopsy")
+	})
+
+	s.T().Run("400", func(t *testing.T) {
+		clusterURL := "https://cluster.bad/"
+		r, err := recorder.New("../../test/data/cluster/unlink_identity_to_cluster", recorder.WithUnLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 400 Bad Request. Response body: invalid identity-id")
+	})
+
+	s.T().Run("401", func(t *testing.T) {
+		clusterURL := "https://cluster.unauthorized/"
+		r, err := recorder.New("../../test/data/cluster/unlink_identity_to_cluster", recorder.WithUnLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 401 Unauthorized. Response body: unauthorized")
+	})
+
+	s.T().Run("404", func(t *testing.T) {
+		clusterURL := "https://cluster.notfound/"
+		r, err := recorder.New("../../test/data/cluster/unlink_identity_to_cluster", recorder.WithUnLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().UnlinkIdentityFromCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		require.EqualError(t, err, "failed to unlink identity to cluster in cluster management service. Response status: 404 Not Found. Response body: not found")
+	})
+}
+
+func (s *ClusterServiceTestSuite) TestAddIdentityToClusterLinkOK() {
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
+	identityID := createIdentityIDFromString(s.T())
+
+	s.T().Run("200", func(t *testing.T) {
+		clusterURL := "https://cluster.ok/"
+		r, err := recorder.New("../../test/data/cluster/link_identity_to_cluster", recorder.WithLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		assert.NoError(t, err)
+	})
+}
+
+func (s *ClusterServiceTestSuite) TestAddIdentityToClusterLinkFail() {
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
+	identityID := createIdentityIDFromString(s.T())
+
+	s.T().Run("500", func(t *testing.T) {
+		clusterURL := "https://cluster.error/"
+		r, err := recorder.New("../../test/data/cluster/link_identity_to_cluster", recorder.WithLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		require.EqualError(t, err, "failed to link identity to cluster in cluster management service. Response status: 500 Internal Server Error. Response body: oopsy woopsy")
+	})
+
+	s.T().Run("400", func(t *testing.T) {
+		clusterURL := "https://cluster.bad/"
+		r, err := recorder.New("../../test/data/cluster/link_identity_to_cluster", recorder.WithLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		require.EqualError(t, err, "failed to link identity to cluster in cluster management service. Response status: 400 Bad Request. Response body: invalid identity-id")
+	})
+
+	s.T().Run("401", func(t *testing.T) {
+		clusterURL := "https://cluster.unauthorized/"
+		r, err := recorder.New("../../test/data/cluster/link_identity_to_cluster", recorder.WithLinkIdentityToClusterRequestPayloadMatcher(clusterURL, reqID, s.saToken))
+		require.NoError(t, err)
+		defer func() { require.NoError(t, stopRecorder(r)) }()
+
+		err = s.Application.ClusterService().LinkIdentityToCluster(ctx, identityID, clusterURL, rest.WithRoundTripper(r.Transport))
+		require.EqualError(t, err, "failed to link identity to cluster in cluster management service. Response status: 401 Unauthorized. Response body: unauthorized")
+	})
+}
+
+func createIdentityIDFromString(t *testing.T) uuid.UUID {
+	identityID, err := uuid.FromString("715eab6a-9818-4642-8002-1d0cf8939007")
+	require.NoError(t, err)
+
+	return identityID
 }
 
 type dummyFactory struct {
@@ -71,14 +189,14 @@ type dummyFactory struct {
 }
 
 func (f *dummyFactory) NewClusterCache(ctx context.Context, options ...rest.HTTPClientOption) cluster.ClusterCache {
-	return cluster.NewCache(f.config, f.option)
+	return clusterservice.NewCache(f.config, f.option)
 }
 
 func (s *ClusterServiceTestSuite) TestStart() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("start fails if can't get clusters", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_error", recorder.WithDefaultMatcher(reqID, s.saToken))
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
@@ -94,7 +212,7 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	})
 
 	s.T().Run("start OK", func(t *testing.T) {
-		r, err := recorder.New("../../test/data/cluster/cluster_get_ok", recorder.WithMatcher(clusterRequestMatcher(t, reqID, s.saToken)))
+		r, err := recorder.New("../../test/data/cluster/cluster_get_ok", recorder.WithDefaultMatcher(reqID, s.saToken))
 		require.NoError(t, err)
 		defer func() { require.NoError(t, stopRecorder(r)) }()
 
@@ -154,20 +272,4 @@ func stopRecorder(r *vcrec.Recorder) error {
 		return true
 	})
 	return nil
-}
-
-func clusterRequestMatcher(t *testing.T, reqID, token string) cassette.Matcher {
-	return func(httpRequest *http.Request, cassetteRequest cassette.Request) bool {
-		authorization := httpRequest.Header.Get("Authorization")
-		assert.Equal(t, "Bearer "+token, authorization)
-
-		rID := httpRequest.Header.Get("X-Request-Id")
-		assert.Equal(t, reqID, rID)
-
-		assert.Equal(t, cassetteRequest.Method, httpRequest.Method)
-		require.NotNil(t, cassetteRequest.Method, httpRequest.URL)
-		assert.Equal(t, cassetteRequest.URL, httpRequest.URL.String())
-
-		return true
-	}
 }
