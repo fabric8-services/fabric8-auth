@@ -140,3 +140,7 @@ revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
 [[constraint]]
   name = "github.com/fsnotify/fsnotify"
   version = "1.4.7"
+
+[[constraint]]
+  name = "gopkg.in/h2non/gock.v1"
+  version = "1.0.12"

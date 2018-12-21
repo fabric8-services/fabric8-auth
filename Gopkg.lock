@@ -479,6 +479,12 @@
   revision = "ca59ef35f409df61fa4a5f8290ff289b37eccfb8"
 
 [[projects]]
+  name = "gopkg.in/h2non/gock.v1"
+  packages = ["."]
+  revision = "a6029d17e101ac1594adafea9e63fd8c988a8701"
+  version = "v1.0.12"
+
+[[projects]]
   name = "gopkg.in/square/go-jose.v2"
   packages = [
     ".",
@@ -496,6 +502,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "06a2c22f26b762b576a3b9caca652ee4200d6705ec02827556f40eb104ac111b"
+  inputs-digest = "473a73ee884f7d4964f4951a238b3a1560352d6cdbbc796b3684e422f80c7550"
   solver-name = "gps-cdcl"
   solver-version = 1
