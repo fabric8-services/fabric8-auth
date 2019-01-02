@@ -8,6 +8,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,6 +43,55 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		for _, identity := range identities {
 			assert.NotEqual(t, identity1.ID(), identity.ID)
 		}
+	})
+
+	s.T().Run("ok hard delete by identity ID", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		identity1 := g.CreateIdentity()
+		// create a second identity
+		g.CreateIdentity()
+
+		unscoped := func(s *gorm.DB) *gorm.DB {
+			return s.Unscoped()
+		}
+		// when hard delete user
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID(), unscoped)
+		// then
+		require.Nil(t, err)
+
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), unscoped)
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
+		require.Nil(t, identity)
+
+		identities, err := s.Application.Identities().List(s.Ctx)
+		require.NoError(t, err, "Could not list identities")
+		require.True(t, len(identities) >= 1)
+		// make sure that the deleted identity is not part of the result
+		for _, identity := range identities {
+			assert.NotEqual(t, identity1.ID(), identity.ID)
+		}
+	})
+
+	s.T().Run("ok soft delete by identity ID", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		identity1 := g.CreateIdentity()
+
+		unscoped := func(s *gorm.DB) *gorm.DB {
+			return s.Unscoped()
+		}
+
+		// when soft delete identity
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID())
+		// then
+		require.Nil(t, err)
+
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), unscoped)
+		require.Nil(t, err)
+
+		assert.NotNil(t, identity.DeletedAt)
+		assert.Equal(t, identity.ID, identity1.ID())
 	})
 
 	s.T().Run("ok by resource ID", func(t *testing.T) {

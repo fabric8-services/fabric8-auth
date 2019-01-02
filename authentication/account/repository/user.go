@@ -77,11 +77,11 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 // UserRepository represents the storage interface.
 type UserRepository interface {
 	repository.Exister
-	Load(ctx context.Context, ID uuid.UUID) (*User, error)
+	Load(ctx context.Context, ID uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) (*User, error)
 	Create(ctx context.Context, u *User) error
 	Save(ctx context.Context, u *User) error
-	List(ctx context.Context) ([]User, error)
-	Delete(ctx context.Context, ID uuid.UUID) error
+	List(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) ([]User, error)
+	Delete(ctx context.Context, ID uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]User, error)
 }
 
@@ -95,10 +95,10 @@ func (m *GormUserRepository) TableName() string {
 
 // Load returns a single User as a Database Model
 // This is more for use internally, and probably not what you want in  your controllers
-func (m *GormUserRepository) Load(ctx context.Context, id uuid.UUID) (*User, error) {
+func (m *GormUserRepository) Load(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) (*User, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "load"}, time.Now())
 	var native User
-	err := m.db.Table(m.TableName()).Where("id = ?", id).Find(&native).Error
+	err := m.db.Scopes(funcs...).Table(m.TableName()).Where("id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundError("user", id.String())
 	}
@@ -148,12 +148,12 @@ func (m *GormUserRepository) Save(ctx context.Context, model *User) error {
 }
 
 // Delete removes a single record.
-func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "delete"}, time.Now())
 
 	obj := User{ID: id}
 
-	result := m.db.Delete(&obj)
+	result := m.db.Scopes(funcs...).Delete(&obj)
 
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
@@ -174,7 +174,7 @@ func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 // List return all users
-func (m *GormUserRepository) List(ctx context.Context) ([]User, error) {
+func (m *GormUserRepository) List(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) ([]User, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "list"}, time.Now())
 	var rows []User
 
