@@ -1472,10 +1472,10 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLi
 	test.CreateUsersInternalServerError(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 
 	// verify identity and user is deleted
-	unscoped := func(db *gorm.DB) *gorm.DB {
+	includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
 		return db.Unscoped()
 	}
-	loadedIdentity, err := s.Application.Identities().Load(s.Ctx, identity.ID, unscoped)
+	loadedIdentity, err := s.Application.Identities().Load(s.Ctx, identity.ID, includeSoftDeletes)
 	require.EqualError(s.T(), err, fmt.Sprintf("identity with id '%s' not found", identity.ID))
 	require.Nil(s.T(), loadedIdentity)
 
@@ -1483,7 +1483,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLi
 	require.EqualError(s.T(), err, fmt.Sprintf("identity with id '%s' not found", identity.ID))
 	require.Nil(s.T(), loadedIdentity)
 
-	loadedUser, err := s.Application.Users().Load(s.Ctx, user.ID, unscoped)
+	loadedUser, err := s.Application.Users().Load(s.Ctx, user.ID, includeSoftDeletes)
 	require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", user.ID))
 	require.Nil(s.T(), loadedUser)
 

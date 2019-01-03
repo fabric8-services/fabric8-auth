@@ -72,21 +72,21 @@ func (s *userServiceBlackboxTestSuite) TestHardDeleteUser() {
 		err := s.Application.UserService().HardDeleteUser(s.Ctx, *user.Identity())
 		require.NoError(t, err)
 
-		unscoped := func(db *gorm.DB) *gorm.DB {
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()
 		}
 
 		userID := user.User().ID
-		loadedUser, err := s.Application.Users().Load(s.Ctx, userID, unscoped)
+		loadedUser, err := s.Application.Users().Load(s.Ctx, userID, includeSoftDeletes)
 		require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", userID))
-		require.Nil(s.T(), loadedUser)
+		require.Nil(t, loadedUser)
 
 		loadedUser, err = s.Application.Users().Load(s.Ctx, userID)
-		require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", userID))
-		require.Nil(s.T(), loadedUser)
+		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", userID))
+		require.Nil(t, loadedUser)
 
 		identityID := user.IdentityID()
-		identity, err := s.Application.Identities().Load(s.Ctx, identityID, unscoped)
+		identity, err := s.Application.Identities().Load(s.Ctx, identityID, includeSoftDeletes)
 		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identityID))
 		require.Nil(t, identity)
 

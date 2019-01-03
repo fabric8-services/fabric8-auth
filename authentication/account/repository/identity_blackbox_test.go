@@ -52,16 +52,16 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		// create a second identity
 		g.CreateIdentity()
 
-		unscoped := func(db *gorm.DB) *gorm.DB {
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()
 		}
 		// when hard delete user
-		err := s.Application.Identities().Delete(s.Ctx, identity1.ID(), unscoped)
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID(), includeSoftDeletes)
 		// then
-		require.Nil(t, err)
+		require.NoError(t, err)
 
 		// check identity is deleted permanently
-		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), unscoped)
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), includeSoftDeletes)
 		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
 		require.Nil(t, identity)
 
@@ -75,17 +75,17 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		g := s.NewTestGraph(t)
 		identity1 := g.CreateIdentity()
 
-		unscoped := func(db *gorm.DB) *gorm.DB {
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()
 		}
 
 		// when soft delete identity
 		err := s.Application.Identities().Delete(s.Ctx, identity1.ID())
 		// then
-		require.Nil(t, err)
+		require.NoError(t, err)
 
-		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), unscoped)
-		require.Nil(t, err)
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), includeSoftDeletes)
+		require.NoError(t, err)
 
 		assert.NotNil(t, identity.DeletedAt)
 		assert.Equal(t, identity.ID, identity1.ID())

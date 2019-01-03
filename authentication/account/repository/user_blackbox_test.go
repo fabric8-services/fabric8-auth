@@ -38,12 +38,12 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 		createAndLoadUser(s, false)
 
 		err := s.repo.Delete(s.Ctx, user.ID)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 
 		// lets see how many are present.
 		users, err := s.repo.List(s.Ctx)
-		require.Nil(t, err, "Could not list users")
-		require.True(t, len(users) > 0)
+		require.NoError(t, err, "Could not list users")
+		require.NotEmpty(t, users)
 
 		for _, data := range users {
 			// The user 'user' was deleted and rest were not deleted, hence we check
@@ -57,16 +57,16 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 		user := createAndLoadUser(s, false)
 		createAndLoadUser(s, false)
 
-		unscoped := func(db *gorm.DB) *gorm.DB {
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()
 		}
 
 		// hard delete user
-		err := s.repo.Delete(s.Ctx, user.ID, unscoped)
-		require.Nil(t, err)
+		err := s.repo.Delete(s.Ctx, user.ID, includeSoftDeletes)
+		require.NoError(t, err)
 
 		// check user is deleted permanently
-		loadedUser, err := s.repo.Load(s.Ctx, user.ID, unscoped)
+		loadedUser, err := s.repo.Load(s.Ctx, user.ID, includeSoftDeletes)
 		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", user.ID))
 		require.Nil(t, loadedUser)
 
@@ -80,16 +80,16 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 		user := createAndLoadUser(s, false)
 		createAndLoadUser(s, false)
 
-		unscoped := func(db *gorm.DB) *gorm.DB {
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()
 		}
 
 		// soft delete user
 		err := s.repo.Delete(s.Ctx, user.ID)
-		require.Nil(t, err)
+		require.NoError(t, err)
 
 		// load softly deleted user.
-		loadedUser, err := s.repo.Load(s.Ctx, user.ID, unscoped)
+		loadedUser, err := s.repo.Load(s.Ctx, user.ID, includeSoftDeletes)
 		require.Nil(t, err, "Could not load user")
 		assert.NotNil(t, loadedUser.DeletedAt)
 		assert.Equal(t, user.ID, loadedUser.ID)
