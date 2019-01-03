@@ -70,7 +70,6 @@ func (s *notificationServiceImpl) SendMessagesAsync(ctx context.Context, message
 			if e := s.send(ctx, c, msg); e != nil {
 				errs <- e
 			}
-			s.send(ctx, c, msg)
 		}
 	}()
 

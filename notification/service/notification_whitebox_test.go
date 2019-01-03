@@ -10,16 +10,15 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
-	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	tokentestsupport "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"net/http"
 
-	"github.com/fabric8-services/fabric8-auth/test/recorder"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/h2non/gock.v1"
 )
 
 func TestNotification(t *testing.T) {
@@ -29,9 +28,7 @@ func TestNotification(t *testing.T) {
 type TestNotificationSuite struct {
 	testsuite.UnitTestSuite
 	ns                 *notificationServiceImpl
-	doer               *testsupport.DummyHttpDoer
 	notificationConfig *notificationURLConfig
-	msg                notification.Message
 }
 
 func (s *TestNotificationSuite) SetupSuite() {
@@ -41,24 +38,6 @@ func (s *TestNotificationSuite) SetupSuite() {
 		notificationURL:   "https://notification",
 	}
 	s.ns = NewNotificationService(nil, s.notificationConfig).(*notificationServiceImpl)
-
-	// create a message
-	customAttributes := make(map[string]interface{})
-	customAttributes["temaName"] = "notification"
-	customAttributes["inviter"] = "Dipak Pawar"
-	customAttributes["spaceName"] = "notification testing"
-	customAttributes["acceptURL"] = "localhost/accept"
-
-	targetId := "8bccc228-bba7-43ad-b077-15fbb9148f7f"
-
-	msg := notification.Message{
-		UserID:      nil,
-		Custom:      customAttributes,
-		TargetID:    targetId,
-		MessageType: "invitation.team.noorg",
-	}
-
-	s.msg = msg
 }
 
 func (s *TestNotificationSuite) TestCreateClientWithServiceAccountToken() {
@@ -86,7 +65,7 @@ func (s *TestNotificationSuite) TestCreateClientWithServiceAccountToken() {
 }
 
 func (s *TestNotificationSuite) TestSend() {
-	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
 	require.Nil(s.T(), err)
@@ -94,24 +73,23 @@ func (s *TestNotificationSuite) TestSend() {
 	// extract the token
 	saToken := tokenManager.AuthServiceAccountToken()
 
-	msg := s.msg
-	messageID := new(uuid.UUID)
-
-	r, err := recorder.New("../../test/data/notification/notification_sent.ok", recorder.WithMatcher(recorder.NotifyRequestHeaderPayloadMatcher(messageID, reqID, saToken)))
-	require.NoError(s.T(), err)
-	defer r.Stop()
-
 	// create client
-	cl, err := s.ns.createClientWithContextSigner(ctx, rest.WithRoundTripper(r.Transport))
+	cl, err := s.ns.createClientWithContextSigner(ctx)
 	require.NoError(s.T(), err)
 
 	s.T().Run("should send message", func(t *testing.T) {
 		//given
-		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af04")
-		assert.NoError(t, e)
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
 
-		*messageID = msgID
-		msg.MessageID = msgID
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			BodyString(WithPayload(msgID)).
+			Reply(202)
 
 		//when
 		err := s.ns.send(ctx, cl, msg)
@@ -122,53 +100,70 @@ func (s *TestNotificationSuite) TestSend() {
 
 	s.T().Run("should fail to send message if client returned an error", func(t *testing.T) {
 		//given
-		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af06")
-		assert.NoError(t, e)
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
 
-		*messageID = msgID
-		msg.MessageID = msgID
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			BodyString(WithPayload(msgID)).
+			Reply(400).
+			BodyString("something bad happened")
 
 		//when
 		err = s.ns.send(ctx, cl, msg)
 
 		//then
 		require.Error(t, err)
-		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: ", err.Error())
+		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: something bad happened", err.Error())
 	})
 
 	s.T().Run("should fail to send message if client returned an unexpected status", func(t *testing.T) {
 		//given
-		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af05")
-		assert.NoError(t, e)
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
 
-		*messageID = msgID
-		msg.MessageID = msgID
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			BodyString(WithPayload(msgID)).
+			Reply(500).
+			BodyString("something went wrong")
 
 		//when
 		err = s.ns.send(ctx, cl, msg)
 
 		//then
 		require.Error(t, err)
-		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: ")
+		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: something went wrong")
 	})
 }
 
 func (s *TestNotificationSuite) TestSendAsync() {
 	// given
-	ctx, _, _ := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
+
+	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
+	require.Nil(s.T(), err)
+
+	// extract the token
+	saToken := tokenManager.AuthServiceAccountToken()
+
 	config := &notificationURLConfig{
 		ConfigurationData: s.Config,
 		notificationURL:   "::::",
 	}
 	ns := NewNotificationService(nil, config).(*notificationServiceImpl)
-	msg := s.msg
-	messageID := new(uuid.UUID)
-
-	r, err := recorder.New("../../test/data/notification/notification_sent.ok", recorder.WithNotifyRequestPayloadMatcher(messageID))
-	require.NoError(s.T(), err)
-	defer r.Stop()
 
 	s.T().Run("should fail to send message for invalid notification url", func(t *testing.T) {
+		//given
+		msg := createMessage(uuid.NewV4())
 		//when
 		errs, e := ns.SendMessageAsync(ctx, msg)
 
@@ -178,6 +173,9 @@ func (s *TestNotificationSuite) TestSendAsync() {
 	})
 
 	s.T().Run("should fail to send messages for invalid notification url", func(t *testing.T) {
+		//given
+		msg := createMessage(uuid.NewV4())
+
 		//when
 		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg})
 
@@ -188,55 +186,73 @@ func (s *TestNotificationSuite) TestSendAsync() {
 
 	s.T().Run("should report error to channel if client returned an error for sending message async", func(t *testing.T) {
 		//given
-		ns.config = s.notificationConfig
-		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af06")
-		assert.NoError(t, e)
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
 
-		*messageID = msgID
-		msg.MessageID = msgID
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			BodyString(WithPayload(msgID)).
+			Reply(400).
+			BodyString("something bad happened")
 
 		// when
-		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(r.Transport))
+		errs, e := s.ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(http.DefaultTransport))
 		err, ok := <-errs
 
 		// then
 		assert.NoError(t, e)
 		assert.True(t, ok)
 		require.Error(t, err)
-		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: ", err.Error())
+		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: something bad happened", err.Error())
 	})
 
 	s.T().Run("should report error to channel if client returned an unexpected status for sending messages async", func(t *testing.T) {
 		//given
-		ns.config = s.notificationConfig
-		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af05")
-		assert.NoError(t, e)
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
 
-		*messageID = msgID
-		msg.MessageID = msgID
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			BodyString(WithPayload(msgID)).
+			Reply(500).
+			BodyString("something went wrong")
 
 		//when
-		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(r.Transport))
+		errs, e := s.ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(http.DefaultTransport))
 		err, ok := <-errs
 
 		//then
 		assert.NoError(t, e)
 		assert.True(t, ok)
 		require.Error(t, err)
-		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: ")
+		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: something went wrong")
 	})
 
 	s.T().Run("should send messages async", func(t *testing.T) {
 		//given
-		ns.config = s.notificationConfig
-		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af04")
-		assert.NoError(t, e)
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
 
-		*messageID = msgID
-		msg.MessageID = msgID
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			Times(2).
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			BodyString(WithPayload(msgID)).
+			Reply(202)
 
 		//when
-		errs, e := ns.SendMessagesAsync(ctx, []notification.Message{msg}, rest.WithRoundTripper(r.Transport))
+		errs, e := s.ns.SendMessagesAsync(ctx, []notification.Message{msg, msg}, rest.WithRoundTripper(http.DefaultTransport))
 		err, ok := <-errs
 
 		//then
@@ -247,15 +263,20 @@ func (s *TestNotificationSuite) TestSendAsync() {
 
 	s.T().Run("should send message async", func(t *testing.T) {
 		//given
-		ns.config = s.notificationConfig
-		msgID, e := uuid.FromString("40bbdd3d-8b5d-4fd6-ac90-7236b669af04")
-		assert.NoError(t, e)
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
 
-		*messageID = msgID
-		msg.MessageID = msgID
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			BodyString(WithPayload(msgID)).
+			Reply(202)
 
 		//when
-		errs, e := ns.SendMessageAsync(ctx, msg, rest.WithRoundTripper(r.Transport))
+		errs, e := s.ns.SendMessageAsync(ctx, msg, rest.WithRoundTripper(http.DefaultTransport))
 		err, ok := <-errs
 
 		//then
@@ -272,4 +293,40 @@ type notificationURLConfig struct {
 
 func (c *notificationURLConfig) GetNotificationServiceURL() string {
 	return c.notificationURL
+}
+
+func createMessage(messageID uuid.UUID) notification.Message {
+	// create a message
+	customAttributes := make(map[string]interface{})
+	customAttributes["teamName"] = "notification"
+	customAttributes["inviter"] = "Dipak Pawar"
+	customAttributes["spaceName"] = "notification testing"
+	customAttributes["acceptURL"] = "localhost/accept"
+
+	targetId := "8bccc228-bba7-43ad-b077-15fbb9148f7f"
+
+	return notification.Message{
+		MessageID:   messageID,
+		Custom:      customAttributes,
+		TargetID:    targetId,
+		MessageType: "invitation.team.noorg",
+	}
+}
+
+func WithPayload(messageID uuid.UUID) string {
+	return `{
+			"data": {
+				"attributes": {
+				"custom": {
+					"teamName": "notification",
+					"inviter": "Dipak Pawar",
+					"spaceName": "notification testing",
+					"acceptURL": "localhost/accept"
+					},
+				"id": "8bccc228-bba7-43ad-b077-15fbb9148f7f",
+				"type": "invitation.team.noorg"
+				},
+				"id": "` + messageID.String() + `",
+				"type": "notifications"
+			}}`
 }
