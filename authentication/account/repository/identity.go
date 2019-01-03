@@ -124,7 +124,7 @@ type IdentityRepository interface {
 	Create(ctx context.Context, identity *Identity) error
 	Lookup(ctx context.Context, username, profileURL, providerType string) (*Identity, error)
 	Save(ctx context.Context, identity *Identity) error
-	Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error
+	Delete(ctx context.Context, id uuid.UUID) error
 	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
@@ -255,12 +255,12 @@ func (m *GormIdentityRepository) Save(ctx context.Context, model *Identity) erro
 	return errs.WithStack(err)
 }
 
-// Delete removes a single record. argument funcs can be used to add conditions dynamically to current database connection
-func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error {
+// Delete removes a single record
+func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "delete"}, time.Now())
 
 	obj := Identity{ID: id}
-	result := m.db.Scopes(funcs...).Delete(obj)
+	result := m.db.Delete(obj)
 
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{

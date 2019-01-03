@@ -81,7 +81,7 @@ type UserRepository interface {
 	Create(ctx context.Context, u *User) error
 	Save(ctx context.Context, u *User) error
 	List(ctx context.Context) ([]User, error)
-	Delete(ctx context.Context, ID uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error
+	Delete(ctx context.Context, ID uuid.UUID) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]User, error)
 }
 
@@ -148,13 +148,13 @@ func (m *GormUserRepository) Save(ctx context.Context, model *User) error {
 	return nil
 }
 
-// Delete removes a single record. arguments funcs can be used to add conditions dynamically to current database connection
-func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error {
+// Delete removes a single record.
+func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "delete"}, time.Now())
 
 	obj := User{ID: id}
 
-	result := m.db.Scopes(funcs...).Delete(&obj)
+	result := m.db.Delete(&obj)
 
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{

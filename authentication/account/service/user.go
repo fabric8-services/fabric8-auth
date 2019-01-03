@@ -12,7 +12,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 
-	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 )
 
@@ -147,20 +146,4 @@ func (s *userServiceImpl) LoadContextIdentityIfNotDeprovisioned(ctx context.Cont
 		return nil, errors.NewUnauthorizedError("user deprovisioned")
 	}
 	return identity, err
-}
-
-func (s *userServiceImpl) HardDeleteUser(ctx context.Context, identity repository.Identity) error {
-	return s.ExecuteInTransaction(func() error {
-		unscoped := func(db *gorm.DB) *gorm.DB {
-			return db.Unscoped()
-		}
-		if err := s.Repositories().Identities().Delete(ctx, identity.ID, unscoped); err != nil {
-			return err
-		}
-
-		if err := s.Repositories().Users().Delete(ctx, identity.User.ID, unscoped); err != nil {
-			return err
-		}
-		return nil
-	})
 }
