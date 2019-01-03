@@ -127,7 +127,7 @@ type IdentityRepository interface {
 	Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error
 	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
-	List(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
+	List(ctx context.Context) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
@@ -156,6 +156,7 @@ func (m Membership) TableName() string {
 
 // Load returns a single Identity as a Database Model
 // This is more for use internally, and probably not what you want in  your controllers
+// arguments funcs can be used to add conditions dynamically to current database connection
 func (m *GormIdentityRepository) Load(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) (*Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "load"}, time.Now())
 
@@ -254,7 +255,7 @@ func (m *GormIdentityRepository) Save(ctx context.Context, model *Identity) erro
 	return errs.WithStack(err)
 }
 
-// Delete removes a single record.
+// Delete removes a single record. argument funcs can be used to add conditions dynamically to current database connection
 func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "delete"}, time.Now())
 
@@ -368,11 +369,11 @@ func IdentityFilterByProviderType(providerType string) func(db *gorm.DB) *gorm.D
 }
 
 // List return all user identities
-func (m *GormIdentityRepository) List(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error) {
+func (m *GormIdentityRepository) List(ctx context.Context) ([]Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "list"}, time.Now())
 	var rows []Identity
 
-	err := m.db.Scopes(funcs...).Model(&Identity{}).Order("username").Find(&rows).Error
+	err := m.db.Model(&Identity{}).Order("username").Find(&rows).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

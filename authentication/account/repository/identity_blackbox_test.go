@@ -38,7 +38,7 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		assert.Nil(t, err)
 		identities, err := s.Application.Identities().List(s.Ctx)
 		require.NoError(t, err, "Could not list identities")
-		require.True(t, len(identities) >= 1)
+		require.NotEmpty(t, identities)
 		// make sure that the deleted identity is not part of the result
 		for _, identity := range identities {
 			assert.NotEqual(t, identity1.ID(), identity.ID)
@@ -60,17 +60,14 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		// then
 		require.Nil(t, err)
 
+		// check identity is deleted permanently
 		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), unscoped)
 		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
 		require.Nil(t, identity)
 
-		identities, err := s.Application.Identities().List(s.Ctx)
-		require.NoError(t, err, "Could not list identities")
-		require.True(t, len(identities) >= 1)
-		// make sure that the deleted identity is not part of the result
-		for _, identity := range identities {
-			assert.NotEqual(t, identity1.ID(), identity.ID)
-		}
+		identity, err = s.Application.Identities().Load(s.Ctx, identity1.ID())
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
+		require.Nil(t, identity)
 	})
 
 	s.T().Run("ok soft delete by identity ID", func(t *testing.T) {

@@ -80,7 +80,7 @@ type UserRepository interface {
 	Load(ctx context.Context, ID uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) (*User, error)
 	Create(ctx context.Context, u *User) error
 	Save(ctx context.Context, u *User) error
-	List(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) ([]User, error)
+	List(ctx context.Context) ([]User, error)
 	Delete(ctx context.Context, ID uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]User, error)
 }
@@ -95,6 +95,7 @@ func (m *GormUserRepository) TableName() string {
 
 // Load returns a single User as a Database Model
 // This is more for use internally, and probably not what you want in  your controllers
+// arguments funcs can be used to add conditions dynamically to current database connection
 func (m *GormUserRepository) Load(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) (*User, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "load"}, time.Now())
 	var native User
@@ -147,7 +148,7 @@ func (m *GormUserRepository) Save(ctx context.Context, model *User) error {
 	return nil
 }
 
-// Delete removes a single record.
+// Delete removes a single record. arguments funcs can be used to add conditions dynamically to current database connection
 func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "delete"}, time.Now())
 
@@ -174,7 +175,7 @@ func (m *GormUserRepository) Delete(ctx context.Context, id uuid.UUID, funcs ...
 }
 
 // List return all users
-func (m *GormUserRepository) List(ctx context.Context, funcs ...func(*gorm.DB) *gorm.DB) ([]User, error) {
+func (m *GormUserRepository) List(ctx context.Context) ([]User, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "list"}, time.Now())
 	var rows []User
 

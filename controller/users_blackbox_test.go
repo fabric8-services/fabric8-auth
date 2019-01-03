@@ -26,6 +26,7 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/goadesign/goa"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1471,10 +1472,24 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLi
 	test.CreateUsersInternalServerError(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 
 	// verify identity and user is deleted
-	err := s.Application.Identities().CheckExists(context.TODO(), identity.ID.String())
-	require.EqualError(s.T(), err, fmt.Sprintf("identities with id '%s' not found", identity.ID))
-	err = s.Application.Users().CheckExists(context.TODO(), user.ID.String())
-	require.EqualError(s.T(), err, fmt.Sprintf("users with id '%s' not found", user.ID))
+	unscoped := func(s *gorm.DB) *gorm.DB {
+		return s.Unscoped()
+	}
+	loadedIdentity, err := s.Application.Identities().Load(s.Ctx, identity.ID, unscoped)
+	require.EqualError(s.T(), err, fmt.Sprintf("identity with id '%s' not found", identity.ID))
+	require.Nil(s.T(), loadedIdentity)
+
+	loadedIdentity, err = s.Application.Identities().Load(s.Ctx, identity.ID)
+	require.EqualError(s.T(), err, fmt.Sprintf("identity with id '%s' not found", identity.ID))
+	require.Nil(s.T(), loadedIdentity)
+
+	loadedUser, err := s.Application.Users().Load(s.Ctx, user.ID, unscoped)
+	require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", user.ID))
+	require.Nil(s.T(), loadedUser)
+
+	loadedUser, err = s.Application.Users().Load(s.Ctx, user.ID)
+	require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", user.ID))
+	require.Nil(s.T(), loadedUser)
 
 	require.Equal(s.T(), uint64(1), s.clusterServiceMock.LinkIdentityToClusterCounter)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)

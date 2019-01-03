@@ -166,7 +166,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		}, "failed to link identity to cluster in cluster service")
 
 		// hard delete user and identity from DB so reg app can repeat provisioning
-		if err := c.deleteUser(ctx.Context, user.ID, identityID); err != nil {
+		if err := c.app.UserService().HardDeleteUser(ctx.Context, *identity); err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"err":         err,
 				"identity_id": identityID,
@@ -285,22 +285,6 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 	identity.User = *user // being explicit
 
 	return identity, user, nil
-}
-
-func (c UsersController) deleteUser(ctx context.Context, userID uuid.UUID, identityID uuid.UUID) error {
-	return transaction.Transactional(c.app, func(tr transaction.TransactionalResources) error {
-		unscoped := func(s *gorm.DB) *gorm.DB {
-			return s.Unscoped()
-		}
-		if err := tr.Identities().Delete(ctx, identityID, unscoped); err != nil {
-			return err
-		}
-
-		if err := tr.Users().Delete(ctx, userID, unscoped); err != nil {
-			return err
-		}
-		return nil
-	})
 }
 
 // TODO move business logic to the user service

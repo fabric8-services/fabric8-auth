@@ -70,16 +70,9 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", user.ID))
 		require.Nil(t, loadedUser)
 
-		// lets see how many are present.
-		users, err := s.repo.List(s.Ctx, unscoped)
-		require.Nil(t, err, "Could not list users")
-		require.True(t, len(users) > 0)
-
-		for _, data := range users {
-			// The user 'user' was deleted and rest were not deleted, hence we check
-			// that none of the user objects returned include the one deleted.
-			require.NotEqual(t, user.ID.String(), data.ID.String())
-		}
+		loadedUser, err = s.repo.Load(s.Ctx, user.ID)
+		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", user.ID))
+		require.Nil(t, loadedUser)
 	})
 
 	s.T().Run("ok soft delete by user ID", func(t *testing.T) {
