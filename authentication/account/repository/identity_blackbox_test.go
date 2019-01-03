@@ -8,6 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -42,6 +43,52 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		for _, identity := range identities {
 			assert.NotEqual(t, identity1.ID(), identity.ID)
 		}
+	})
+
+	s.T().Run("ok hard delete by identity ID", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		identity1 := g.CreateIdentity()
+		// create a second identity
+		g.CreateIdentity()
+
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+		// when hard delete user
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID(), unscoped)
+		// then
+		require.Nil(t, err)
+
+		// check identity is deleted permanently
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), unscoped)
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
+		require.Nil(t, identity)
+
+		identity, err = s.Application.Identities().Load(s.Ctx, identity1.ID())
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
+		require.Nil(t, identity)
+	})
+
+	s.T().Run("ok soft delete by identity ID", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		identity1 := g.CreateIdentity()
+
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+
+		// when soft delete identity
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID())
+		// then
+		require.Nil(t, err)
+
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), unscoped)
+		require.Nil(t, err)
+
+		assert.NotNil(t, identity.DeletedAt)
+		assert.Equal(t, identity.ID, identity1.ID())
 	})
 
 	s.T().Run("ok by resource ID", func(t *testing.T) {
@@ -79,25 +126,6 @@ func (s *IdentityRepositoryTestSuite) TestLoad() {
 		// then
 		require.NoError(t, err, "Could not load identity")
 		assert.Equal(t, identity.Identity().Username, result.Username)
-	})
-
-	s.T().Run("ok load deleted identity by dynamic condition", func(t *testing.T) {
-		// given
-		g := s.NewTestGraph(t)
-		identity1 := g.CreateIdentity()
-
-		// when soft delete identity
-		err := s.Application.Identities().Delete(s.Ctx, identity1.ID())
-		// then
-		require.Nil(t, err)
-
-		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), func(db *gorm.DB) *gorm.DB {
-			return db.Unscoped()
-		})
-		require.Nil(t, err)
-
-		assert.NotNil(t, identity.DeletedAt)
-		assert.Equal(t, identity.ID, identity1.ID())
 	})
 }
 

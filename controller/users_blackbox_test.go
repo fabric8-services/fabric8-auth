@@ -1471,7 +1471,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLi
 	// then
 	test.CreateUsersInternalServerError(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 
-	// verify identity and user doesn't exist
+	// verify identity and user is deleted
 	unscoped := func(db *gorm.DB) *gorm.DB {
 		return db.Unscoped()
 	}

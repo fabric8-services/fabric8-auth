@@ -149,10 +149,32 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
-			"username": ctx.Payload.Data.Attributes.Username,
+			"username": identity.Username,
 		}, "failed to create user in DB")
 
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
+	// we create a identity cluster relationship in cluster management service.
+	clusterURL := ctx.Payload.Data.Attributes.Cluster
+	err = c.app.ClusterService().LinkIdentityToCluster(ctx.Context, identityID, clusterURL)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"identity_id": identityID,
+			"cluster_url": clusterURL,
+		}, "failed to link identity to cluster in cluster service")
+
+		// hard delete user and identity from DB so reg app can repeat provisioning
+		if err := c.app.UserService().HardDeleteUser(ctx.Context, *identity); err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": identityID,
+				"user_id":     user.ID,
+			}, "failed to delete user %s with identity %s", user.ID, identityID)
+			return jsonapi.JSONErrorResponse(ctx, errs.Wrapf(err, "linking identity to cluster is failed which triggers deletion of user with id %s with identity having id %s and failed", user.ID, identityID))
+		}
+		return jsonapi.JSONErrorResponse(ctx, errs.Wrapf(err, "failed to link identity with id %s to cluster having url %s", identityID, clusterURL))
 	}
 
 	// finally, if all works, we create a user in WIT too.
@@ -252,17 +274,6 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 		err = tr.Identities().Create(ctx, identity)
 		if err != nil {
 			return err
-		}
-
-		clusterURL := user.Cluster
-		if err = c.app.ClusterService().LinkIdentityToCluster(ctx.Context, identityID, clusterURL); err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"identity_id": identityID,
-				"cluster_url": clusterURL,
-			}, "failed to link identity to cluster in cluster service")
-
-			return errs.Wrapf(err, "failed to link identity with id %s to cluster having url %s", identityID, clusterURL)
 		}
 		return nil
 	})

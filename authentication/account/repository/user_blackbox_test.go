@@ -51,6 +51,49 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 			require.NotEqual(t, user.ID.String(), data.ID.String())
 		}
 	})
+
+	s.T().Run("ok hard delete by user ID", func(t *testing.T) {
+		// create 2 users, where the first one would be deleted.
+		user := createAndLoadUser(s, false)
+		createAndLoadUser(s, false)
+
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+
+		// hard delete user
+		err := s.repo.Delete(s.Ctx, user.ID, unscoped)
+		require.Nil(t, err)
+
+		// check user is deleted permanently
+		loadedUser, err := s.repo.Load(s.Ctx, user.ID, unscoped)
+		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", user.ID))
+		require.Nil(t, loadedUser)
+
+		loadedUser, err = s.repo.Load(s.Ctx, user.ID)
+		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", user.ID))
+		require.Nil(t, loadedUser)
+	})
+
+	s.T().Run("ok soft delete by user ID", func(t *testing.T) {
+		// create 2 users, where the first one would be deleted.
+		user := createAndLoadUser(s, false)
+		createAndLoadUser(s, false)
+
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+
+		// soft delete user
+		err := s.repo.Delete(s.Ctx, user.ID)
+		require.Nil(t, err)
+
+		// load softly deleted user.
+		loadedUser, err := s.repo.Load(s.Ctx, user.ID, unscoped)
+		require.Nil(t, err, "Could not load user")
+		assert.NotNil(t, loadedUser.DeletedAt)
+		assert.Equal(t, user.ID, loadedUser.ID)
+	})
 }
 
 func (s *userBlackBoxTest) TestDeleteUnknownFails() {
@@ -62,24 +105,6 @@ func (s *userBlackBoxTest) TestDeleteUnknownFails() {
 
 func (s *userBlackBoxTest) TestOKToLoad() {
 	createAndLoadUser(s, false) // this function does the needful already
-}
-
-func (s *userBlackBoxTest) TestOKToLoadByDynamicCondition() {
-	// create 2 users, where the first one would be deleted.
-	user := createAndLoadUser(s, false)
-	createAndLoadUser(s, false)
-
-	// soft delete user
-	err := s.repo.Delete(s.Ctx, user.ID)
-	require.Nil(s.T(), err)
-
-	// load softly deleted user.
-	loadedUser, err := s.repo.Load(s.Ctx, user.ID, func(db *gorm.DB) *gorm.DB {
-		return db.Unscoped()
-	})
-	require.Nil(s.T(), err, "Could not load user")
-	assert.NotNil(s.T(), loadedUser.DeletedAt)
-	assert.Equal(s.T(), user.ID, loadedUser.ID)
 }
 
 func (s *userBlackBoxTest) TestExistsUser() {
