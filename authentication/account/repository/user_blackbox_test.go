@@ -57,8 +57,8 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 		user := createAndLoadUser(s, false)
 		createAndLoadUser(s, false)
 
-		unscoped := func(s *gorm.DB) *gorm.DB {
-			return s.Unscoped()
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
 		}
 
 		// hard delete user
@@ -80,8 +80,8 @@ func (s *userBlackBoxTest) TestOKToDelete() {
 		user := createAndLoadUser(s, false)
 		createAndLoadUser(s, false)
 
-		unscoped := func(s *gorm.DB) *gorm.DB {
-			return s.Unscoped()
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
 		}
 
 		// soft delete user

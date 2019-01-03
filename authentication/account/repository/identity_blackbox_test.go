@@ -52,8 +52,8 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		// create a second identity
 		g.CreateIdentity()
 
-		unscoped := func(s *gorm.DB) *gorm.DB {
-			return s.Unscoped()
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
 		}
 		// when hard delete user
 		err := s.Application.Identities().Delete(s.Ctx, identity1.ID(), unscoped)
@@ -75,8 +75,8 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		g := s.NewTestGraph(t)
 		identity1 := g.CreateIdentity()
 
-		unscoped := func(s *gorm.DB) *gorm.DB {
-			return s.Unscoped()
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
 		}
 
 		// when soft delete identity

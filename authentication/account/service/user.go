@@ -151,8 +151,8 @@ func (s *userServiceImpl) LoadContextIdentityIfNotDeprovisioned(ctx context.Cont
 
 func (s *userServiceImpl) HardDeleteUser(ctx context.Context, identity repository.Identity) error {
 	return s.ExecuteInTransaction(func() error {
-		unscoped := func(s *gorm.DB) *gorm.DB {
-			return s.Unscoped()
+		unscoped := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
 		}
 		if err := s.Repositories().Identities().Delete(ctx, identity.ID, unscoped); err != nil {
 			return err

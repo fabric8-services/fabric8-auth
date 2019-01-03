@@ -1472,8 +1472,8 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLi
 	test.CreateUsersInternalServerError(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 
 	// verify identity and user is deleted
-	unscoped := func(s *gorm.DB) *gorm.DB {
-		return s.Unscoped()
+	unscoped := func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped()
 	}
 	loadedIdentity, err := s.Application.Identities().Load(s.Ctx, identity.ID, unscoped)
 	require.EqualError(s.T(), err, fmt.Sprintf("identity with id '%s' not found", identity.ID))
