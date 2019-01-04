@@ -9,6 +9,8 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	errs "github.com/pkg/errors"
 
+	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,6 +61,38 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 			testsupport.AssertError(t, err, errors.NotFoundError{}, "user identity with username '%s' not found", username)
 
 		})
+	})
+}
+
+func (s *userServiceBlackboxTestSuite) TestHardDeleteUser() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		user := s.Graph.CreateUser()
+
+		err := s.Application.UserService().HardDeleteUser(s.Ctx, *user.Identity())
+		require.NoError(t, err)
+
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+
+		userID := user.User().ID
+		loadedUser, err := s.Application.Users().Load(s.Ctx, userID, includeSoftDeletes)
+		require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", userID))
+		require.Nil(t, loadedUser)
+
+		loadedUser, err = s.Application.Users().Load(s.Ctx, userID)
+		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", userID))
+		require.Nil(t, loadedUser)
+
+		identityID := user.IdentityID()
+		identity, err := s.Application.Identities().Load(s.Ctx, identityID, includeSoftDeletes)
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identityID))
+		require.Nil(t, identity)
+
+		identity, err = s.Application.Identities().Load(s.Ctx, identityID)
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identityID))
+		require.Nil(t, identity)
 	})
 }
 
