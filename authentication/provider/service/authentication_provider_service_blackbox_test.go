@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1033,10 +1034,9 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthStateForAuthori
 
 func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
 	// given
-	g := s.NewTestGraph(s.T())
 	redirectURL := "redirect_url"
 	claims := make(map[string]interface{})
-	user := g.CreateUser()
+	user := s.Graph.CreateUser()
 	claims["sub"] = user.IdentityID().String()
 	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	require.NoError(s.T(), err)
@@ -1055,8 +1055,8 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 			Username: user.Identity().Username,
 		}, nil
 	}
-	// when
 
+	// when
 	tm := testtoken.TokenManager
 	ctx := manager.ContextWithTokenManager(context.Background(), tm)
 
@@ -1075,6 +1075,25 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 	assert.NotEmpty(s.T(), resultAccessTokenClaims.SessionState)
 	s.T().Logf("token claim `session_state`: %v", resultAccessTokenClaims.SessionState)
 
+	// Confirm that both an access token and refresh token were created for the user's identity
+	tokens, err := s.Application.TokenRepository().ListForIdentity(s.Ctx, user.IdentityID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), tokens, 2)
+	accessTokenFound := false
+	refreshTokenFound := false
+
+	for _, token := range(tokens) {
+		require.True(s.T(), token.Valid())
+		if token.TokenType == token2.TOKEN_TYPE_ACCESS {
+			accessTokenFound = true
+		}
+		if token.TokenType == token2.TOKEN_TYPE_REFRESH {
+			refreshTokenFound = true
+		}
+	}
+
+	require.True(s.T(), accessTokenFound)
+	require.True(s.T(), refreshTokenFound)
 }
 
 func (s *authenticationProviderServiceTestSuite) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {

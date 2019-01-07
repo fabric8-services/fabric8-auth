@@ -252,10 +252,10 @@ func (s *authenticationProviderServiceImpl) ExchangeCodeWithProvider(ctx context
 	return token, nil
 }
 
-// CreateOrUpdateIdentityAndUser creates or updates user and identity, checks whether the user is approved,
-// encodes the token and returns final URL to which we are supposed to redirect
+// CreateOrUpdateIdentityAndUser creates or updates the user and identity associated with the oauth-provided user token,
+// checks whether the user is approved, generates a new user token and returns a final URL to which the client should redirect
 func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx context.Context, referrerURL *url.URL,
-	token *oauth2.Token) (*string, *oauth2.Token, error) {
+	providerToken *oauth2.Token) (*string, *oauth2.Token, error) {
 
 	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
 	if err != nil {
@@ -266,7 +266,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	}
 
 	apiClient := referrerURL.Query().Get(apiClientParam)
-	identity, err := s.UpdateIdentityUsingUserInfoEndPoint(ctx, token.AccessToken)
+	identity, err := s.UpdateIdentityUsingUserInfoEndPoint(ctx, providerToken.AccessToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
@@ -275,7 +275,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		case autherrors.UnauthorizedError:
 			if apiClient != "" {
 				// Return the api token
-				userToken, err := tokenManager.GenerateUserTokenForAPIClient(ctx, *token)
+				userToken, err := tokenManager.GenerateUserTokenForAPIClient(ctx, *providerToken)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to generate token for API client")
 					return nil, nil, err
@@ -295,7 +295,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 
 			userNotApprovedRedirectURL := s.config.GetNotApprovedRedirect()
 			if userNotApprovedRedirectURL != "" {
-				status, err := s.Services().OSOSubscriptionService().LoadOSOSubscriptionStatus(ctx, *token)
+				status, err := s.Services().OSOSubscriptionService().LoadOSOSubscriptionStatus(ctx, *providerToken)
 				if err != nil {
 					// Not critical. Just log the error and proceed
 					log.Error(ctx, map[string]interface{}{"err": err}, "failed to load OSO subscription status")
