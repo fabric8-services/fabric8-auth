@@ -46,8 +46,7 @@ func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
 }
 
 func (c *ClustersController) LinkExistingIdentitiesToCluster(ctx *app.LinkExistingIdentitiesToClusterClustersContext) error {
-	// currently using online registration as we already have it atleast for prod-preview, so we can use it directly.
-	if !token.IsSpecificServiceAccount(ctx, token.OnlineRegistration) {
+	if !token.IsSpecificServiceAccount(ctx, token.Migration) {
 		log.Error(ctx, nil, "The account is not an authorized service account allowed to create a new user")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))
 	}

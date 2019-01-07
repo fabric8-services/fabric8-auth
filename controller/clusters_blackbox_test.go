@@ -5,6 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
@@ -44,7 +45,7 @@ func (s *ClustersControllerTestSuite) TestLinkExistingIdentitiesToCluster() {
 	s.T().Run("ok", func(t *testing.T) {
 		// given
 		sa := &repository.Identity{
-			Username: "online-registration",
+			Username: token.Migration,
 			ID:       uuid.NewV4(),
 		}
 		svc, ctrl := s.SecuredController(sa)
