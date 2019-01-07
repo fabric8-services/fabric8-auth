@@ -241,7 +241,7 @@ func main() {
 	app.MountCollaboratorsController(service, collaboratorsCtrl)
 
 	// Mount "clusters" controller
-	clustersCtrl := controller.NewClustersController(service, config)
+	clustersCtrl := controller.NewClustersController(service, appDB, config)
 	app.MountClustersController(service, clustersCtrl)
 
 	// Mount "resources" controller

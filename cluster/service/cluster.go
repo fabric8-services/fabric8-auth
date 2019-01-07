@@ -165,6 +165,61 @@ func Start(ctx context.Context, factory service.ClusterCacheFactory, options ...
 	return clusterCache != nil && started == uint32(1), nil
 }
 
+func (s *clusterService) LinkExistingIdentitiesToCluster(ctx context.Context, options ...rest.HTTPClientOption) error {
+	identitiesWithClusters, err := s.Repositories().Identities().GetIdentitiesWithClusterURL(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "failed to load existing identities with default IDP")
+	}
+
+	if _, err := s.linkIdentitiesToCluster(ctx, identitiesWithClusters, options...); err != nil {
+		return errors.Wrapf(err, "failed while linking existing identities to it's cluster url")
+	}
+	return nil
+}
+
+func (s *clusterService) linkIdentitiesToCluster(ctx context.Context, identitiesWithClusterURL map[uuid.UUID]string, options ...rest.HTTPClientOption) (chan error, error) {
+	signer := newJWTSASigner(ctx, s.config, options...)
+	client, err := signer.createSignedClient()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create JWT signer for cluster service")
+	}
+
+	errs := make(chan error, len(identitiesWithClusterURL))
+	go func() {
+		defer close(errs)
+		for id, u := range identitiesWithClusterURL {
+			if e := s.link(ctx, client, id, u); e != nil {
+				errs <- e
+			}
+		}
+	}()
+
+	return errs, nil
+}
+
+func (s *clusterService) link(ctx context.Context, cl *clusterclient.Client, identityID uuid.UUID, clusterURL string) error {
+	identityToClusterData := &clusterclient.LinkIdentityToClusterData{
+		ClusterURL: clusterURL,
+		IdentityID: identityID.String(),
+	}
+	res, err := cl.LinkIdentityToClusterClusters(goasupport.ForwardContextRequestID(ctx), clusterclient.LinkIdentityToClusterClustersPath(), identityToClusterData)
+	if err != nil {
+		return errors.Wrapf(err, "failed to link identity %s to cluster having url %s", identityID, clusterURL)
+	}
+	defer rest.CloseResponse(res)
+	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
+	if res.StatusCode != http.StatusNoContent {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id":     identityID,
+			"cluster_url":     clusterURL,
+			"response_status": res.Status,
+			"response_body":   bodyString,
+		}, "unable to link identity to cluster in cluster management service")
+		return errors.Errorf("failed to link identity to cluster in cluster management service. Response status: %s. Response body: %s", res.Status, bodyString)
+	}
+	return nil
+}
+
 // Clusters converts the given cluster map to an array slice
 func Clusters(clusters map[string]cluster.Cluster) []cluster.Cluster {
 	cs := make([]cluster.Cluster, 0, len(clusters))
