@@ -149,6 +149,7 @@ type UserService interface {
 	ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error)
 	IdentityByUsernameAndEmail(ctx context.Context, username, email string) (*account.Identity, error)
 	ResetDeprovision(ctx context.Context, user account.User) error
+	HardDeleteUser(ctx context.Context, identity account.Identity) error
 }
 
 type UserProfileService interface {

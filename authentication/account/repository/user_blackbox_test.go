@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,23 +32,68 @@ func (s *userBlackBoxTest) SetupTest() {
 }
 
 func (s *userBlackBoxTest) TestOKToDelete() {
-	// create 2 users, where the first one would be deleted.
-	user := createAndLoadUser(s, false)
-	createAndLoadUser(s, false)
+	s.T().Run("ok by user ID", func(t *testing.T) {
+		// create 2 users, where the first one would be deleted.
+		user := createAndLoadUser(s, false)
+		createAndLoadUser(s, false)
 
-	err := s.repo.Delete(s.Ctx, user.ID)
-	assert.Nil(s.T(), err)
+		err := s.repo.Delete(s.Ctx, user.ID)
+		assert.NoError(t, err)
 
-	// lets see how many are present.
-	users, err := s.repo.List(s.Ctx)
-	require.Nil(s.T(), err, "Could not list users")
-	require.True(s.T(), len(users) > 0)
+		// lets see how many are present.
+		users, err := s.repo.List(s.Ctx)
+		require.NoError(t, err, "Could not list users")
+		require.NotEmpty(t, users)
 
-	for _, data := range users {
-		// The user 'user' was deleted and rest were not deleted, hence we check
-		// that none of the user objects returned include the one deleted.
-		require.NotEqual(s.T(), user.ID.String(), data.ID.String())
-	}
+		for _, data := range users {
+			// The user 'user' was deleted and rest were not deleted, hence we check
+			// that none of the user objects returned include the one deleted.
+			require.NotEqual(t, user.ID.String(), data.ID.String())
+		}
+	})
+
+	s.T().Run("ok hard delete by user ID", func(t *testing.T) {
+		// create 2 users, where the first one would be deleted.
+		user := createAndLoadUser(s, false)
+		createAndLoadUser(s, false)
+
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+
+		// hard delete user
+		err := s.repo.Delete(s.Ctx, user.ID, includeSoftDeletes)
+		require.NoError(t, err)
+
+		// check user is deleted permanently
+		loadedUser, err := s.repo.Load(s.Ctx, user.ID, includeSoftDeletes)
+		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", user.ID))
+		require.Nil(t, loadedUser)
+
+		loadedUser, err = s.repo.Load(s.Ctx, user.ID)
+		require.EqualError(t, err, fmt.Sprintf("user with id '%s' not found", user.ID))
+		require.Nil(t, loadedUser)
+	})
+
+	s.T().Run("ok soft delete by user ID", func(t *testing.T) {
+		// create 2 users, where the first one would be deleted.
+		user := createAndLoadUser(s, false)
+		createAndLoadUser(s, false)
+
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+
+		// soft delete user
+		err := s.repo.Delete(s.Ctx, user.ID)
+		require.NoError(t, err)
+
+		// load softly deleted user.
+		loadedUser, err := s.repo.Load(s.Ctx, user.ID, includeSoftDeletes)
+		require.Nil(t, err, "Could not load user")
+		assert.NotNil(t, loadedUser.DeletedAt)
+		assert.Equal(t, user.ID, loadedUser.ID)
+	})
 }
 
 func (s *userBlackBoxTest) TestDeleteUnknownFails() {

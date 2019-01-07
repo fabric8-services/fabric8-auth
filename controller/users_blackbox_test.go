@@ -22,9 +22,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	"github.com/goadesign/goa"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1428,6 +1430,69 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWithAllFieldsOK
 	assertCreatedUser(s.T(), appUser.Data, user, identity)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
 	require.Equal(s.T(), uint64(1), s.clusterServiceMock.LinkIdentityToClusterCounter)
+}
+
+func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLinkingIdentityToCluster() {
+	// given
+	user := testsupport.TestUser
+	identity := testsupport.TestIdentity
+	identity.User = user
+	identity.ProviderType = accountrepo.DefaultIDP
+	identity.RegistrationCompleted = true
+
+	user.ContextInformation = map[string]interface{}{
+		"last_visited": "yesterday",
+		"space":        "3d6dab8d-f204-42e8-ab29-cdb1c93130ad",
+		"rate":         100.00,
+		"count":        3,
+	}
+	user.Company = "randomCompany"
+	user.Bio = "some bio"
+	user.ImageURL = "some image"
+	user.URL = "some url"
+	user.Cluster = "https://some.cluster.com"
+	user.FeatureLevel = accountrepo.DefaultFeatureLevel
+	rhdUserName := "somerhdusername"
+	approved := false
+
+	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
+
+	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
+	clusterServiceMock.LinkIdentityToClusterFunc = func(p context.Context, ID uuid.UUID, url string, p3 ...rest.HTTPClientOption) (r error) {
+		return errors.NewInternalErrorFromString(p, fmt.Sprintf("cluster with requested url %s doesn't exist", url))
+	}
+	*s.clusterServiceMock = *clusterServiceMock
+
+	secureService, secureController := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+	// when
+	createUserPayload := newCreateUsersPayload(&user.Email, &user.FullName, &user.Bio, &user.ImageURL, &user.URL, &user.Company, &identity.Username, &rhdUserName, user.ID.String(), &user.Cluster, &identity.RegistrationCompleted, &approved, user.ContextInformation)
+
+	// then
+	test.CreateUsersInternalServerError(s.T(), secureService.Context, secureService, secureController, createUserPayload)
+
+	// verify identity and user is deleted
+	includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped()
+	}
+	loadedIdentity, err := s.Application.Identities().Load(s.Ctx, identity.ID, includeSoftDeletes)
+	require.EqualError(s.T(), err, fmt.Sprintf("identity with id '%s' not found", identity.ID))
+	require.Nil(s.T(), loadedIdentity)
+
+	loadedIdentity, err = s.Application.Identities().Load(s.Ctx, identity.ID)
+	require.EqualError(s.T(), err, fmt.Sprintf("identity with id '%s' not found", identity.ID))
+	require.Nil(s.T(), loadedIdentity)
+
+	loadedUser, err := s.Application.Users().Load(s.Ctx, user.ID, includeSoftDeletes)
+	require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", user.ID))
+	require.Nil(s.T(), loadedUser)
+
+	loadedUser, err = s.Application.Users().Load(s.Ctx, user.ID)
+	require.EqualError(s.T(), err, fmt.Sprintf("user with id '%s' not found", user.ID))
+	require.Nil(s.T(), loadedUser)
+
+	require.Equal(s.T(), uint64(1), s.clusterServiceMock.LinkIdentityToClusterCounter)
+	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 }
 
 func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUserInDbFails() {

@@ -10,6 +10,8 @@ import (
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,11 +40,57 @@ func (s *IdentityRepositoryTestSuite) TestDelete() {
 		assert.Nil(t, err)
 		identities, err := s.Application.Identities().List(s.Ctx)
 		require.NoError(t, err, "Could not list identities")
-		require.True(t, len(identities) >= 1)
+		require.NotEmpty(t, identities)
 		// make sure that the deleted identity is not part of the result
 		for _, identity := range identities {
 			assert.NotEqual(t, identity1.ID(), identity.ID)
 		}
+	})
+
+	s.T().Run("ok hard delete by identity ID", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		identity1 := g.CreateIdentity()
+		// create a second identity
+		g.CreateIdentity()
+
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+		// when hard delete user
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID(), includeSoftDeletes)
+		// then
+		require.NoError(t, err)
+
+		// check identity is deleted permanently
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), includeSoftDeletes)
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
+		require.Nil(t, identity)
+
+		identity, err = s.Application.Identities().Load(s.Ctx, identity1.ID())
+		require.EqualError(t, err, fmt.Sprintf("identity with id '%s' not found", identity1.ID()))
+		require.Nil(t, identity)
+	})
+
+	s.T().Run("ok soft delete by identity ID", func(t *testing.T) {
+		// given
+		g := s.NewTestGraph(t)
+		identity1 := g.CreateIdentity()
+
+		includeSoftDeletes := func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}
+
+		// when soft delete identity
+		err := s.Application.Identities().Delete(s.Ctx, identity1.ID())
+		// then
+		require.NoError(t, err)
+
+		identity, err := s.Application.Identities().Load(s.Ctx, identity1.ID(), includeSoftDeletes)
+		require.NoError(t, err)
+
+		assert.NotNil(t, identity.DeletedAt)
+		assert.Equal(t, identity.ID, identity1.ID())
 	})
 
 	s.T().Run("ok by resource ID", func(t *testing.T) {

@@ -120,12 +120,12 @@ func NewIdentityRepository(db *gorm.DB) *GormIdentityRepository {
 // IdentityRepository represents the storage interface.
 type IdentityRepository interface {
 	base.Exister
-	Load(ctx context.Context, id uuid.UUID) (*Identity, error)
+	Load(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) (*Identity, error)
 	LoadWithUser(ctx context.Context, id uuid.UUID) (*Identity, error)
 	Create(ctx context.Context, identity *Identity) error
 	Lookup(ctx context.Context, username, profileURL, providerType string) (*Identity, error)
 	Save(ctx context.Context, identity *Identity) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error
 	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
@@ -158,11 +158,12 @@ func (m Membership) TableName() string {
 
 // Load returns a single Identity as a Database Model
 // This is more for use internally, and probably not what you want in  your controllers
-func (m *GormIdentityRepository) Load(ctx context.Context, id uuid.UUID) (*Identity, error) {
+// arguments funcs can be used to add conditions dynamically to current database connection
+func (m *GormIdentityRepository) Load(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) (*Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "load"}, time.Now())
 
 	var native Identity
-	err := m.db.Table(m.TableName()).Where("id = ?", id).Find(&native).Error
+	err := m.db.Scopes(funcs...).Table(m.TableName()).Where("id = ?", id).Find(&native).Error
 	if err == gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(errors.NewNotFoundError("identity", id.String()))
 	}
@@ -273,12 +274,12 @@ func (m *GormIdentityRepository) Save(ctx context.Context, model *Identity) erro
 	return errs.WithStack(err)
 }
 
-// Delete removes a single record.
-func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID) error {
+// Delete removes a single record. argument funcs can be used to add conditions dynamically to current database connection
+func (m *GormIdentityRepository) Delete(ctx context.Context, id uuid.UUID, funcs ...func(*gorm.DB) *gorm.DB) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "delete"}, time.Now())
 
 	obj := Identity{ID: id}
-	result := m.db.Delete(obj)
+	result := m.db.Scopes(funcs...).Delete(obj)
 
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
