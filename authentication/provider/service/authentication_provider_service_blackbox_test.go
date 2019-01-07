@@ -1082,7 +1082,7 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 	accessTokenFound := false
 	refreshTokenFound := false
 
-	for _, token := range(tokens) {
+	for _, token := range tokens {
 		require.True(s.T(), token.Valid())
 		if token.TokenType == token2.TOKEN_TYPE_ACCESS {
 			accessTokenFound = true
