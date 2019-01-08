@@ -187,11 +187,16 @@ func (s *clusterService) linkIdentitiesToCluster(ctx context.Context, identities
 	errs := make(chan error, len(identitiesWithClusterURL))
 	go func() {
 		defer close(errs)
+		log.Logger().Infof("linking identity to cluster url has been started. total_identities=%d", len(identitiesWithClusterURL))
+		count := 0
 		for id, u := range identitiesWithClusterURL {
 			if e := s.link(ctx, client, id, u); e != nil {
 				errs <- e
+				continue
 			}
+			count++
 		}
+		log.Logger().Infof("linking identity to cluster url has been completed. total_identities=%d, linked_identities=%d", len(identitiesWithClusterURL), count)
 	}()
 
 	return errs, nil
@@ -210,10 +215,11 @@ func (s *clusterService) link(ctx context.Context, cl *clusterclient.Client, ide
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusNoContent {
 		log.Error(ctx, map[string]interface{}{
-			"identity_id":     identityID,
-			"cluster_url":     clusterURL,
-			"response_status": res.Status,
-			"response_body":   bodyString,
+			"identity_id":            identityID,
+			"cluster_url":            clusterURL,
+			"response_status":        res.Status,
+			"response_body":          bodyString,
+			"link_cluster_migration": "true",
 		}, "unable to link identity to cluster in cluster management service")
 		return errors.Errorf("failed to link identity to cluster in cluster management service. Response status: %s. Response body: %s", res.Status, bodyString)
 	}

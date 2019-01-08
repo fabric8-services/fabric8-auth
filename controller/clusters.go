@@ -47,8 +47,8 @@ func (c *ClustersController) Show(ctx *app.ShowClustersContext) error {
 
 func (c *ClustersController) LinkExistingIdentitiesToCluster(ctx *app.LinkExistingIdentitiesToClusterClustersContext) error {
 	if !token.IsSpecificServiceAccount(ctx, token.Migration) {
-		log.Error(ctx, nil, "The account is not an authorized service account allowed to create a new user")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to create users."))
+		log.Error(ctx, nil, "The service account is not authorized to link identities to cluster")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to link identities to cluster"))
 	}
 
 	if err := c.app.ClusterService().LinkExistingIdentitiesToCluster(ctx); err != nil {
