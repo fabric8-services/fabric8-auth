@@ -360,27 +360,34 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 	if err != nil {
 		return nil, err
 	}
+
 	// if an RPT token is provided, then use it to obtain a new token with updated permission claims
 	if identity != nil && accessToken != "" {
+		// Calling Refresh() automatically registers the new RPT token
 		refreshedAccessToken, err := s.Refresh(ctx, identity, accessToken)
 		if err != nil {
 			return nil, err
 		}
 		log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "obtained a new access token")
 		generatedToken.AccessToken = refreshedAccessToken
+	} else {
+		// This block is needed to register the new access token
+		tokenID, err := s.tokenManager.ExtractTokenID(ctx, generatedToken.AccessToken)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
+			return nil, errors.NewBadParameterErrorFromString("tokenString", generatedToken.AccessToken,
+				"could not extract token ID from token string")
+		}
+
+		// Register the access token
+		_, err = s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_ACCESS, generatedToken.Expiry)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
+			return nil, errors.NewInternalError(ctx, err)
+		}
 	}
 
-	tokenID, err := s.tokenManager.ExtractTokenID(ctx, generatedToken.AccessToken)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
-		return nil, errors.NewBadParameterErrorFromString("tokenString", generatedToken.AccessToken,
-			"could not extract token ID from token string")
-	}
-
-	// Register the access token
-	s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_ACCESS, generatedToken.Expiry)
-
-	tokenID, err = s.tokenManager.ExtractTokenID(ctx, generatedToken.RefreshToken)
+	tokenID, err := s.tokenManager.ExtractTokenID(ctx, generatedToken.RefreshToken)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
 		return nil, errors.NewBadParameterErrorFromString("tokenString", generatedToken.RefreshToken,
@@ -388,7 +395,11 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 	}
 
 	// Register the refresh token
-	s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_REFRESH, generatedToken.Expiry)
+	_, err = s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_REFRESH, generatedToken.Expiry)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
+		return nil, errors.NewInternalError(ctx, err)
+	}
 
 	return s.tokenManager.ConvertToken(*generatedToken)
 }
