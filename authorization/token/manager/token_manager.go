@@ -202,6 +202,7 @@ type TokenManager interface {
 	AddLoginRequiredHeaderToUnauthorizedError(err error, rw http.ResponseWriter)
 	AddLoginRequiredHeader(rw http.ResponseWriter)
 	AuthServiceAccountSigner() client.Signer
+	ExtractTokenID(ctx context.Context, tokenString string) (*uuid.UUID, error)
 }
 
 type tokenManager struct {
@@ -1007,6 +1008,25 @@ func (m *tokenManager) ParseTokenWithMapClaims(ctx context.Context, tokenString 
 		return claims, nil
 	}
 	return nil, errors.WithStack(errors.New("token is not valid"))
+}
+
+// ExtractTokenID parses the provided token string, reads the id (i.e. "jti") claim and returns it as a uuid value
+func (m *tokenManager) ExtractTokenID(ctx context.Context, tokenString string) (*uuid.UUID, error) {
+	// Parse the claims from the provided token string
+	tokenClaims, err := m.ParseToken(ctx, tokenString)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "invalid token string could not be parsed")
+		return nil, autherrors.NewBadParameterErrorFromString("tokenString", tokenString,
+			"invalid token string could not be parsed")
+	}
+
+	// Extract the id from the refresh token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	if err != nil {
+		return nil, autherrors.NewInternalError(ctx, err)
+	}
+
+	return &tokenID, nil
 }
 
 // PemKeys returns all the public keys in PEM-like format (PEM without header and footer)

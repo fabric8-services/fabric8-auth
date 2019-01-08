@@ -333,7 +333,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 
 // ExchangeRefreshToken exchanges refreshToken for OauthToken
 // TODO investigate merging this with the Refresh() method
-func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error) {
+func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken string, refreshToken string) (*manager.TokenSet, error) {
 
 	identity, err := s.loadIdentityFromSubClaim(ctx, refreshToken)
 
@@ -362,14 +362,34 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 	}
 	// if an RPT token is provided, then use it to obtain a new token with updated permission claims
 	if identity != nil && accessToken != "" {
-		// TODO: can't we just call s.Refresh(...) now?
-		refreshedAccessToken, err := s.Services().TokenService().Refresh(ctx, identity, accessToken)
+		refreshedAccessToken, err := s.Refresh(ctx, identity, accessToken)
 		if err != nil {
 			return nil, err
 		}
 		log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "obtained a new access token")
 		generatedToken.AccessToken = refreshedAccessToken
 	}
+
+	tokenID, err := s.tokenManager.ExtractTokenID(ctx, generatedToken.AccessToken)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
+		return nil, errors.NewBadParameterErrorFromString("tokenString", generatedToken.AccessToken,
+			"could not extract token ID from token string")
+	}
+
+	// Register the access token
+	s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_ACCESS, generatedToken.Expiry)
+
+	tokenID, err = s.tokenManager.ExtractTokenID(ctx, generatedToken.RefreshToken)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
+		return nil, errors.NewBadParameterErrorFromString("tokenString", generatedToken.RefreshToken,
+			"could not extract token ID from token string")
+	}
+
+	// Register the refresh token
+	s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_REFRESH, generatedToken.Expiry)
+
 	return s.tokenManager.ConvertToken(*generatedToken)
 }
 

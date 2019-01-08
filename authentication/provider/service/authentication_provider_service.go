@@ -335,43 +335,31 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		return nil, nil, err
 	}
 
-	// Parse the claims from the access token, and use them to persist a token record to the database
-	tokenClaims, err := tokenManager.ParseToken(ctx, userToken.AccessToken)
+	// Extract the id from the access token
+	tokenID, err := tokenManager.ExtractTokenID(ctx, userToken.AccessToken)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{"error": err}, "invalid access token string could not be parsed")
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
 		return nil, nil, autherrors.NewBadParameterErrorFromString("tokenString", userToken.AccessToken,
-			"invalid access token string could not be parsed")
-	}
-
-	// Extract the id from the token
-	tokenID, err := uuid.FromString(tokenClaims.Id)
-	if err != nil {
-		return nil, nil, autherrors.NewInternalError(ctx, err)
+			"could not extract token ID from token string")
 	}
 
 	// Register the access token
-	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, tokenID, token2.TOKEN_TYPE_ACCESS, userToken.Expiry)
+	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, *tokenID, token2.TOKEN_TYPE_ACCESS, userToken.Expiry)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"error": err}, "could not register access token")
 		return nil, nil, autherrors.NewInternalError(ctx, err)
 	}
 
-	// Parse the claims from the refresh token, and use them to persist a token record to the database
-	tokenClaims, err = tokenManager.ParseToken(ctx, userToken.RefreshToken)
+	// Extract the id from the refresh token
+	tokenID, err = tokenManager.ExtractTokenID(ctx, userToken.RefreshToken)
 	if err != nil {
-		log.Error(ctx, map[string]interface{}{"error": err}, "invalid refresh token string could not be parsed")
-		return nil, nil, autherrors.NewBadParameterErrorFromString("tokenString", userToken.RefreshToken,
-			"invalid refresh token string could not be parsed")
-	}
-
-	// Extract the id from the token
-	tokenID, err = uuid.FromString(tokenClaims.Id)
-	if err != nil {
-		return nil, nil, autherrors.NewInternalError(ctx, err)
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
+		return nil, nil, autherrors.NewBadParameterErrorFromString("tokenString", userToken.AccessToken,
+			"could not extract token ID from token string")
 	}
 
 	// Register the refresh token
-	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, tokenID, token2.TOKEN_TYPE_REFRESH, userToken.Expiry)
+	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, *tokenID, token2.TOKEN_TYPE_REFRESH, userToken.Expiry)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"error": err}, "could not register refresh token")
 		return nil, nil, autherrors.NewInternalError(ctx, err)
