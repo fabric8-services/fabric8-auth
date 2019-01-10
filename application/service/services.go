@@ -64,6 +64,7 @@ type ClusterService interface {
 	Status(ctx context.Context, options ...rest.HTTPClientOption) (bool, error)
 	UnlinkIdentityFromCluster(ctx context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) error
 	LinkIdentityToCluster(ctx context.Context, identityID uuid.UUID, clusterURL string, options ...rest.HTTPClientOption) error
+	LinkExistingIdentitiesToCluster(ctx context.Context, options ...rest.HTTPClientOption) error
 	Stop()
 }
 
