@@ -2,9 +2,9 @@ package service_test
 
 import (
 	"context"
+	errs "github.com/pkg/errors"
 	"testing"
 	"time"
-	errs "github.com/pkg/errors"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"

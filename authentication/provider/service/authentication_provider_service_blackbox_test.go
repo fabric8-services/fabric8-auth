@@ -744,7 +744,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPT
 	require.NoError(s.T(), err)
 	resultAccessTokenClaims := resultAccessToken.Claims.(jwt.MapClaims)
 	require.NotNil(s.T(), resultAccessTokenClaims["permissions"])
-	}
+}
 
 func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPTTokenInvalidFormat() {
 	tm, err := manager.NewTokenManager(s.Configuration)
