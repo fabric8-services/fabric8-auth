@@ -9,8 +9,6 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	"fmt"
-	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -128,32 +126,6 @@ func (s *IdentityRepositoryTestSuite) TestLoad() {
 		// then
 		require.NoError(t, err, "Could not load identity")
 		assert.Equal(t, identity.Identity().Username, result.Username)
-	})
-}
-
-func (s *IdentityRepositoryTestSuite) TestIdentitiesWithClusterURL() {
-
-	s.T().Run("ok", func(t *testing.T) {
-		// given
-		// Create test user & identity
-		g := s.NewTestGraph(t)
-		identities := make([]account.Identity, 0)
-		for i := 0; i < 5; i++ {
-			user := g.CreateUser()
-			identities = append(identities, *user.Identity())
-		}
-
-		// when
-		identitiesWithClusterURL, err := s.Application.Identities().GetIdentitiesWithClusterURL(s.Ctx)
-		// then
-		require.NoError(t, err, "Could not load identity")
-		require.NotEmpty(t, identitiesWithClusterURL)
-
-		for i := 0; i < 5; i++ {
-			identity := identities[i]
-			require.Contains(t, identitiesWithClusterURL, identity.ID)
-			assert.Equal(t, identitiesWithClusterURL[identity.ID], rest.AddTrailingSlashToURL(identity.User.Cluster))
-		}
 	})
 }
 

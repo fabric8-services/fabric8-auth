@@ -16,7 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
-	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -136,7 +135,6 @@ type IdentityRepository interface {
 	AddMember(ctx context.Context, identityID uuid.UUID, memberID uuid.UUID) error
 	RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error
 	FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error
-	GetIdentitiesWithClusterURL(ctx context.Context) (map[uuid.UUID]string, error)
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -185,23 +183,6 @@ func (m *GormIdentityRepository) LoadWithUser(ctx context.Context, id uuid.UUID)
 		return nil, errs.WithStack(errors.NewNotFoundError("user for identity", id.String()))
 	}
 	return &identities[0], nil
-}
-
-func (m *GormIdentityRepository) GetIdentitiesWithClusterURL(ctx context.Context) (map[uuid.UUID]string, error) {
-	ic := make(map[uuid.UUID]string)
-	identities, err := m.Query(IdentityFilterByProviderType(DefaultIDP), IdentityWithUser())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "failed to load identity with default identity provider")
-		return ic, errs.WithStack(err)
-	}
-	for _, identity := range identities {
-		if identity.IsUser() && identity.User.Cluster != "" {
-			ic[identity.ID] = rest.AddTrailingSlashToURL(identity.User.Cluster)
-		}
-	}
-	return ic, nil
 }
 
 // CheckExists returns nil if the given ID exists otherwise returns an error

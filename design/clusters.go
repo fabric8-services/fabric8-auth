@@ -38,15 +38,4 @@ var _ = a.Resource("clusters", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.BadGateway, JSONAPIErrors)
 	})
-
-	a.Action("linkExistingIdentitiesToCluster", func() {
-		a.Security("jwt")
-		a.Routing(
-			a.POST("/identities/link"),
-		)
-		a.Description("Link identities to clusters")
-		a.Response(d.Accepted)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.Unauthorized, JSONAPIErrors)
-	})
 })

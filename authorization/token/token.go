@@ -20,7 +20,6 @@ const (
 	JenkinsIdler       = "fabric8-jenkins-idler"
 	JenkinsProxy       = "fabric8-jenkins-proxy"
 	OnlineRegistration = "online-registration"
-	Migration          = "migration"
 	RhChe              = "rh-che"
 	GeminiServer       = "fabric8-gemini-server"
 
