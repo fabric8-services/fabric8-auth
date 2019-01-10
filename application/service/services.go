@@ -142,8 +142,7 @@ type TeamService interface {
 type TokenService interface {
 	Audit(ctx context.Context, identity *account.Identity, tokenString string, resourceID string) (*string, error)
 	DeleteExternalToken(ctx context.Context, currentIdentity uuid.UUID, authURL string, forResource string) error
-	ExchangeRefreshToken(ctx context.Context, accessToken string, refreshToken string) (*manager.TokenSet, error)
-	Refresh(ctx context.Context, identity *account.Identity, accessToken string) (string, error)
+	ExchangeRefreshToken(ctx context.Context, refreshToken string, rptToken string) (*manager.TokenSet, error)
 	RegisterToken(ctx context.Context, identityID uuid.UUID, tokenID uuid.UUID, tokenType string, expiryTime time.Time) (*tokenrepo.Token, error)
 	RetrieveExternalToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
 	SetStatusForAllIdentityTokens(ctx context.Context, tokenstring string, status int) error

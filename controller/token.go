@@ -76,10 +76,9 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	var t *manager.TokenSet
 	var err error
 	if accessToken != nil {
-		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
-		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
+		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, accessToken.Raw)
 	} else {
-		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, "", *refreshToken)
+		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, "")
 	}
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
@@ -245,8 +244,8 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		}, "unknown oauth client id")
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
-	// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
-	t, err := c.app.TokenService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
+
+	t, err := c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, accessToken.Raw)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err

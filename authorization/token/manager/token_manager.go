@@ -194,7 +194,7 @@ type TokenManager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserTokenForAPIClient(ctx context.Context, providerToken oauth2.Token) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
-	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity) (*oauth2.Token, error)
+	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity, permissions *[]Permissions) (*oauth2.Token, error)
 	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
 	SignRPTToken(ctx context.Context, rptToken *jwt.Token) (string, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
@@ -371,24 +371,17 @@ func (m *tokenManager) GenerateUserTokenForIdentity(ctx context.Context, identit
 
 // GenerateUnsignedRPTTokenForIdentity generates a JWT RPT token for the given identity and specified permissions.
 func (m *tokenManager) GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error) {
-	unsignedRPTtoken, err := m.GenerateUnsignedRPTTokenFromClaims(ctx, tokenClaims, &identity, permissions)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return unsignedRPTtoken, nil
-}
-
-// GenerateUnsignedRPTTokenFromClaims generates a new RPT token based on an existing set of claims, and a specified set of permissions
-func (m *tokenManager) GenerateUnsignedRPTTokenFromClaims(ctx context.Context, tokenClaims *TokenClaims, identity *repository.Identity, permissions *[]Permissions) (*jwt.Token, error) {
-	token, err := m.GenerateUnsignedUserAccessTokenFromClaims(ctx, tokenClaims, identity)
+	unsignedRPTtoken, err := m.GenerateUnsignedUserAccessTokenFromClaims(ctx, tokenClaims, &identity)
 	if err != nil {
 		return nil, err
 	}
-	claims := token.Claims.(jwt.MapClaims)
+
+	claims := unsignedRPTtoken.Claims.(jwt.MapClaims)
 	if permissions != nil && len(*permissions) > 0 {
 		claims["permissions"] = permissions
 	}
-	return token, nil
+
+	return unsignedRPTtoken, nil
 }
 
 // SignRPTToken generates a signature for the specified rpt token and returns it
@@ -705,13 +698,20 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenFromRefreshToken(ctx conte
 }
 
 // GenerateUserTokenUsingRefreshToken
-func (m *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity) (*oauth2.Token, error) {
+func (m *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string,
+	identity *repository.Identity, permissions *[]Permissions) (*oauth2.Token, error) {
 
 	nowTime := time.Now().Unix()
 	unsignedAccessToken, err := m.GenerateUnsignedUserAccessTokenFromRefreshToken(ctx, refreshTokenString, identity)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
+	if permissions != nil && len(*permissions) > 0 {
+		claims := unsignedAccessToken.Claims.(jwt.MapClaims)
+		claims["permissions"] = permissions
+	}
+
 	accessToken, err := unsignedAccessToken.SignedString(m.userAccountPrivateKey.Key)
 	if err != nil {
 		return nil, errors.WithStack(err)
