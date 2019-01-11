@@ -10,11 +10,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pmacik/loginusers-go/config"
 	"github.com/pmacik/loginusers-go/loginusers"
 
 	"github.com/fabric8-services/fabric8-auth/test/contracts/model"
-	"github.com/google/uuid"
 )
 
 type providerStateInfo struct {
@@ -127,8 +127,8 @@ func createUser(providerBaseURL string, userName string) *model.User {
 		createUserData: createUserData{
 			createUserAttributes: createUserAttributes{
 				Bio:       "Contract testing user account",
-				Cluster:   "localhost",
-				Email:     fmt.Sprintf("%s@email.com", userName),
+				Cluster:   "https://api.starter-us-east-2a.openshift.com/",
+				Email:     fmt.Sprintf("%s@redhat.com", userName),
 				Username:  userName,
 				RhdUserID: rhdUserUUID.String(),
 			},

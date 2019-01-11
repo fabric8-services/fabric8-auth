@@ -281,7 +281,9 @@
 [[projects]]
   name = "github.com/pact-foundation/pact-go"
   packages = [
+    "client",
     "dsl",
+    "install",
     "types",
     "utils"
   ]
@@ -422,7 +424,13 @@
 
 [[projects]]
   name = "github.com/tebeka/selenium"
-  packages = ["."]
+  packages = [
+    ".",
+    "chrome",
+    "firefox",
+    "internal/zip",
+    "log"
+  ]
   revision = "master"
 
 [[projects]]

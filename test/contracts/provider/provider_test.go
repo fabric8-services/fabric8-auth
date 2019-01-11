@@ -71,6 +71,7 @@ func TestAuthAPIProvider(t *testing.T) {
 
 	if pactBrokerURL != "" {
 		// Download pact file from pact broker
+		log.Printf("Downloading pact from a broker: %s", pactBrokerURL)
 		pactContent = pactFromBroker(
 			pactBrokerURL, pactBrokerUsername, pactBrokerPassword,
 			pactConsumer, pactProvider, pactVersion,
@@ -78,6 +79,7 @@ func TestAuthAPIProvider(t *testing.T) {
 	} else {
 		// Load a pact file cached locally
 		pactFile := fmt.Sprintf("%s/%s-%s.json", pactDir, strings.ToLower(pactConsumer), strings.ToLower(pactProvider))
+		log.Printf("Loading a pact file from file: %s", pactFile)
 		pactContent = pactFromFile(pactFile)
 	}
 
