@@ -122,7 +122,15 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 }
 
 func (s *LogoutControllerTestSuite) TestLogoutV2() {
+	svc, ctrl := s.UnSecuredController()
+	redirect := "https://openshift.io/home"
 
+	resp, redirectLocation := test.Logoutv2LogoutOK(s.T(), svc.Context, svc, ctrl, &redirect, nil)
+
+	// then
+	assert.Equal(s.T(), resp.Header().Get("Cache-Control"), "no-cache")
+	assert.Equal(s.T(), "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/logout?redirect_uri=https%3A%2F%2Fopenshift.io%2Fhome",
+		redirectLocation.RedirectLocation)
 }
 
 func (s *LogoutControllerTestSuite) checkRedirects(redirectParam string, referrerURL string, expectedRedirectParam string) {

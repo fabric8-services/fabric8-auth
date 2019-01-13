@@ -33,12 +33,12 @@ func NewLogoutService(context servicecontext.ServiceContext, config LogoutServic
 }
 
 func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (string, error) {
-	tkn := goajwt.ContextJWT(ctx)
-	if tkn == nil {
-		return "", errors.NewUnauthorizedError("no token in context")
-	}
+	tokenString := ""
 
-	tokenString := tkn.Raw
+	tkn := goajwt.ContextJWT(ctx)
+	if tkn != nil {
+		tokenString = tkn.Raw
+	}
 
 	if redirectURL == "" {
 		log.Error(ctx, map[string]interface{}{

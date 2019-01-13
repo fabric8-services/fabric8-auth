@@ -133,6 +133,7 @@ var _ = a.Resource("logout", func() {
 			a.Media(redirectLocation)
 		})
 		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
 })
 

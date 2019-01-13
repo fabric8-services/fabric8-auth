@@ -52,6 +52,7 @@ func (c *LogoutController) Logoutv2(ctx *app.Logoutv2LogoutContext) error {
 	}
 
 	locationPayload := &app.RedirectLocation{RedirectLocation: logoutRedirect}
+	ctx.ResponseData.Header().Set("Cache-Control", "no-cache")
 	return ctx.OK(locationPayload)
 }
 
