@@ -11,6 +11,8 @@ import (
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
 type LogoutServiceConfiguration interface {
@@ -30,7 +32,14 @@ func NewLogoutService(context servicecontext.ServiceContext, config LogoutServic
 	}
 }
 
-func (s *logoutServiceImpl) Logout(ctx context.Context, tokenString *string, redirectURL string) (string, error) {
+func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (string, error) {
+	tkn := goajwt.ContextJWT(ctx)
+	if tkn == nil {
+		return "", errors.NewUnauthorizedError("no token in context")
+	}
+
+	tokenString := tkn.Raw
+
 	if redirectURL == "" {
 		log.Error(ctx, map[string]interface{}{
 			"redirect_url":       redirectURL,
@@ -74,8 +83,8 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, tokenString *string, red
 	logoutURL.RawQuery = parameters.Encode()
 
 	// If a token string was passed, then set the status to "logged out" for all tokens with the same identity
-	if tokenString != nil {
-		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, *tokenString, token.TOKEN_STATUS_LOGGED_OUT)
+	if tokenString != "" {
+		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, tokenString, token.TOKEN_STATUS_LOGGED_OUT)
 
 		if err != nil {
 			return "", errors.NewInternalError(ctx, err)

@@ -121,15 +121,7 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 	})
 }
 
-func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithInvalidRedirectParamBadRequest() {
-
-}
-
-func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithInvalidReferrerParamBadRequest() {
-
-}
-
-func (s *LogoutControllerTestSuite) TestLogoutRedirectsWithReferrerAndInvalidRedirectBadRequest() {
+func (s *LogoutControllerTestSuite) TestLogoutV2() {
 
 }
 

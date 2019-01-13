@@ -129,7 +129,9 @@ var _ = a.Resource("logout", func() {
 		})
 		a.Description("Logout user")
 		a.Response(d.BadRequest, JSONAPIErrors)
-		a.Response(d.TemporaryRedirect)
+		a.Response(d.OK, func() {
+			a.Media(redirectLocation)
+		})
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
 })

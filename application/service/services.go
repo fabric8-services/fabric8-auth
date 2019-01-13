@@ -85,7 +85,7 @@ type LinkService interface {
 }
 
 type LogoutService interface {
-	Logout(ctx context.Context, tokenString *string, redirectURL string) (string, error)
+	Logout(ctx context.Context, redirectURL string) (string, error)
 }
 
 type NotificationService interface {
