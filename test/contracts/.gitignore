@@ -1,3 +1,2 @@
-consumer/logs
 provider/log
-pacts/provider-*.json
+pacts

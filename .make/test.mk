@@ -197,7 +197,6 @@ test-contracts-provider-no-coverage: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep 'contracts/provider'))
 	PACT_DIR=$(PWD)/test/contracts/pacts \
-	PACT_PROVIDER=Fabric8AuthService \
 	PACT_VERSION=latest \
 	PACT_BROKER_URL=http://localhost:8090 \
 	PACT_BROKER_USERNAME=pact_broker \
