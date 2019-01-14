@@ -45,7 +45,8 @@ func TestAuthAPIProvider(t *testing.T) {
 		log.Printf("pactBrokerURL=%s\n", pactBrokerURL)
 		log.Printf("userName=%s\n", userName)
 		log.Printf("userPassword=%s\n", userPassword)
-	*/
+		/*/
+	//*/
 
 	// Create Pact connecting to local Daemon
 	pact := &dsl.Pact{
@@ -87,6 +88,11 @@ func TestAuthAPIProvider(t *testing.T) {
 	pactContent = strings.Replace(pactContent, model.TestUserName, providerInfo.User.Data.Attributes.Username, -1)
 	pactContent = strings.Replace(pactContent, model.TestUserID, providerInfo.User.Data.ID, -1)
 	pactContent = strings.Replace(pactContent, model.TestJWSToken, providerInfo.Tokens.AccessToken, -1)
+
+	err := os.MkdirAll(pactDir, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	pactFilePath := fmt.Sprintf("%s/provider-%s-%s.json", pactDir, strings.ToLower(pactConsumer), strings.ToLower(pactProvider))
 	pactFile, err := os.Create(pactFilePath)
