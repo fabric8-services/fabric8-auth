@@ -66,7 +66,7 @@ func TestAuthAPIProvider(t *testing.T) {
 	providerInfo := Setup(providerSetupHost, providerSetupPort, pactProviderBaseURL, userName, userPassword)
 
 	if providerInfo == nil {
-		log.Fatalf("Error setting up provider initial state")
+		log.Fatalf("Unable to setup provider initial state")
 	}
 	var pactContent string
 
@@ -91,24 +91,30 @@ func TestAuthAPIProvider(t *testing.T) {
 
 	err := os.MkdirAll(pactDir, os.ModePerm)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to create a pact directory (%s): %q", pactDir, err)
 	}
 
 	pactFilePath := fmt.Sprintf("%s/provider-%s-%s.json", pactDir, strings.ToLower(pactConsumer), strings.ToLower(pactProvider))
 	pactFile, err := os.Create(pactFilePath)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to create a local pact file (%s): %q", pactFilePath, err)
 	}
 	defer pactFile.Close()
 
 	_, err = pactFile.WriteString(pactContent)
+	if err != nil {
+		log.Fatalf("Unable to write into pact file (%s): %q", pactFilePath, err)
+	}
 
 	// Verify the Provider with local Pact Files
-	pact.VerifyProvider(t, types.VerifyRequest{
+	_, err = pact.VerifyProvider(t, types.VerifyRequest{
 		ProviderBaseURL:        pactProviderBaseURL,
 		PactURLs:               []string{pactFilePath},
 		ProviderStatesSetupURL: fmt.Sprintf("http://%s:%d/pact/setup", providerSetupHost, providerSetupPort),
 	})
+	if err != nil {
+		log.Fatalf("Unable to verify provider: %q", err)
+	}
 
 	log.Println("Test Passed!")
 }
@@ -144,6 +150,9 @@ func pactFromBroker(pactBrokerURL string, pactBrokerUsername string, pactBrokerP
 	defer response.Body.Close()
 
 	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatalf("Unable to read HTTP response from pact broker:\n%q", err)
+	}
 
 	// Replace placeholders in pact file with real data (user name/id/token)
 	return string(responseBody)
