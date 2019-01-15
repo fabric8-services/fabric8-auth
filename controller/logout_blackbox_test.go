@@ -22,8 +22,8 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 
-	"github.com/satori/go.uuid"
 	"github.com/goadesign/goa"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
