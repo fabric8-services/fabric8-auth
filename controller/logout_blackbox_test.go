@@ -1,6 +1,8 @@
 package controller_test
 
 import (
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"testing"
 
 	"context"
@@ -10,13 +12,17 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/stretchr/testify/require"
 
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 
+	"github.com/satori/go.uuid"
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -121,8 +127,10 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 	})
 }
 
-func (s *LogoutControllerTestSuite) TestLogoutV2() {
-	svc, ctrl := s.UnSecuredController()
+func (s *LogoutControllerTestSuite) TestLogoutV2PayloadOK() {
+	svc := testsupport.UnsecuredService("Logout-Service")
+	ctrl := controller.NewLogoutController(svc, s.Application)
+
 	redirect := "https://openshift.io/home"
 
 	resp, redirectLocation := test.Logoutv2LogoutOK(s.T(), svc.Context, svc, ctrl, &redirect, nil)
@@ -131,6 +139,50 @@ func (s *LogoutControllerTestSuite) TestLogoutV2() {
 	assert.Equal(s.T(), resp.Header().Get("Cache-Control"), "no-cache")
 	assert.Equal(s.T(), "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/logout?redirect_uri=https%3A%2F%2Fopenshift.io%2Fhome",
 		redirectLocation.RedirectLocation)
+}
+
+func (s *LogoutControllerTestSuite) TestLogoutV2TokensInvalidated() {
+	tm := testtoken.TokenManager
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+	// create a user
+	user := s.Graph.CreateUser()
+	// Create an initial access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+	require.NoError(s.T(), err)
+	// create space
+	space := s.Graph.CreateSpace().AddAdmin(user)
+	// create RPT for the space
+	rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space.SpaceID())
+	require.NoError(s.T(), err)
+
+	tokenID, err := tm.ExtractTokenID(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	// Check there is a token registered for the user
+	loadedToken, err := s.Application.TokenRepository().Load(s.Ctx, *tokenID)
+	require.NoError(s.T(), err)
+
+	// And check the token has the correct status, type and identity
+	require.Equal(s.T(), 0, loadedToken.Status)
+	require.Equal(s.T(), token.TOKEN_TYPE_RPT, loadedToken.TokenType)
+	require.Equal(s.T(), user.IdentityID(), loadedToken.IdentityID)
+
+	tk, err := tm.Parse(s.Ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	svc := testsupport.ServiceAsUser("Logout-Service", *user.Identity())
+	ctrl := controller.NewLogoutController(svc, s.Application)
+
+	redirect := "https://openshift.io/home"
+
+	test.Logoutv2LogoutOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, &redirect, nil)
+
+	// Load the token again
+	loadedToken, err = s.Application.TokenRepository().Load(s.Ctx, *tokenID)
+	require.NoError(s.T(), err)
+
+	// Now check that the status is logged out
+	require.True(s.T(), loadedToken.HasStatus(token.TOKEN_STATUS_LOGGED_OUT))
 }
 
 func (s *LogoutControllerTestSuite) checkRedirects(redirectParam string, referrerURL string, expectedRedirectParam string) {
@@ -163,4 +215,16 @@ func (s *LogoutControllerTestSuite) checkRedirects(redirectParam string, referre
 		assert.Equal(s.T(), 307, rw.Code)
 		assert.Equal(s.T(), expectedRedirectParam, rw.Header().Get("Location"))
 	}
+}
+
+func (s *LogoutControllerTestSuite) SecuredController() (*goa.Service, *controller.LogoutController, account.Identity) {
+	identity, err := testsupport.CreateTestIdentity(s.DB, uuid.NewV4().String(), "KC")
+	require.Nil(s.T(), err)
+	svc, ctrl := s.SecuredControllerWithIdentity(identity)
+	return svc, ctrl, identity
+}
+
+func (s *LogoutControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *controller.LogoutController) {
+	svc := testsupport.ServiceAsUser("Logout-Service", identity)
+	return svc, controller.NewLogoutController(svc, s.Application)
 }
