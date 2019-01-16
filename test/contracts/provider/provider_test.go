@@ -33,6 +33,7 @@ func TestAuthAPIProvider(t *testing.T) {
 
 	var userName = os.Getenv("OSIO_USERNAME")
 	var userPassword = os.Getenv("OSIO_PASSWORD")
+	var userCluster = os.Getenv("OSIO_CLUSTER_URL")
 
 	/*
 		log.Printf("pactDir=%s\n", pactDir)
@@ -63,7 +64,7 @@ func TestAuthAPIProvider(t *testing.T) {
 	var providerSetupPort = 8080
 
 	// Set provider into initial state
-	providerInfo := Setup(providerSetupHost, providerSetupPort, pactProviderBaseURL, userName, userPassword)
+	providerInfo := Setup(providerSetupHost, providerSetupPort, pactProviderBaseURL, userName, userPassword, userCluster)
 
 	if providerInfo == nil {
 		log.Fatalf("Unable to setup provider initial state")

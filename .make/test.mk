@@ -190,6 +190,7 @@ test-integration-benchmark: prebuild-check migrate-database $(SOURCES)
 ## - RHD account credentials:
 ##   OSIO_USERNAME
 ##   OSIO_PASSWORD
+##   OSIO_CLUSTER_URL
 ## - Service account credentials (according to https://github.com/fabric8-services/fabric8-auth/blob/master/configuration/conf-files/service-account-secrets.conf#L30)
 ##   AUTH_SERVICE_ACCOUNT_CLIENT_ID
 ##   AUTH_SERVICE_ACCOUNT_CLIENT_SERCRET

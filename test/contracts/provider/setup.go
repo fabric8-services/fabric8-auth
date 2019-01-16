@@ -49,12 +49,12 @@ type createUserRequest struct {
 }
 
 // Setup starts a setup service for a provider - should be replaced by a provider setup endpoint
-func Setup(setupHost string, setupPort int, providerBaseURL string, userName string, userPassword string) *ProviderInitialState {
+func Setup(setupHost string, setupPort int, providerBaseURL string, userName string, userPassword string, userCluster string) *ProviderInitialState {
 	log.SetOutput(os.Stdout)
 
 	// Create test user in Auth and retun user info (such as id)
-	log.Printf("Making sure user %s is created...", userName)
-	var user = createUser(providerBaseURL, userName)
+	log.Printf("Making sure user %s is created for cluster (%s)...", userName, userCluster)
+	var user = ensureUser(providerBaseURL, userName, userCluster)
 	if user == nil {
 		log.Fatalf("Unable to create/get user")
 	}
@@ -117,7 +117,7 @@ func errorMessage(w http.ResponseWriter, errorMessage string) {
 	fmt.Fprintf(w, `{"error": "%s"}`, errorMessage)
 }
 
-func createUser(providerBaseURL string, userName string) *model.User {
+func ensureUser(providerBaseURL string, userName string, userCluster string) *model.User {
 
 	var httpClient = &http.Client{
 		Timeout: time.Second * 10,
@@ -131,7 +131,7 @@ func createUser(providerBaseURL string, userName string) *model.User {
 		createUserData: createUserData{
 			createUserAttributes: createUserAttributes{
 				Bio:       "Contract testing user account",
-				Cluster:   "https://api.starter-us-east-2a.openshift.com/",
+				Cluster:   userCluster,
 				Email:     fmt.Sprintf("%s@redhat.com", userName),
 				Username:  userName,
 				RhdUserID: rhdUserUUID.String(),
