@@ -516,7 +516,7 @@ func (s *tokenServiceImpl) RegisterToken(ctx context.Context, identityID uuid.UU
 	}
 
 	// Persist the token record to the database
-	s.ExecuteInTransaction(func() error {
+	err = s.ExecuteInTransaction(func() error {
 		err = s.Repositories().TokenRepository().Create(ctx, tkn)
 		if err != nil {
 			return err
