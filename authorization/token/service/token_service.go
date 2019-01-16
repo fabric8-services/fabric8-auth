@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -289,19 +288,14 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			return errors.NewInternalError(ctx, err)
 		}
 
-		// Extract the new jti claim (the Token ID) from the token, and the expiry time, in order to create a database record for it
-		claims := generatedToken.Claims.(jwt.MapClaims)
-		id := claims["jti"].(string)
-		expiresAt := claims["exp"].(int64)
-
-		// Convert the new Token ID to a UUID value
-		newTokenID, err := uuid.FromString(id)
+		// Sign the token
+		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
 
 		// Register the token record
-		newTokenRecord, err := s.RegisterToken(ctx, identity.ID, newTokenID, authtoken.TOKEN_TYPE_RPT, time.Unix(expiresAt, 0))
+		newTokenRecord, err := s.RegisterToken(ctx, identity.ID, signedToken, authtoken.TOKEN_TYPE_RPT, nil)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -313,12 +307,6 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			if err != nil {
 				return errors.NewInternalError(ctx, err)
 			}
-		}
-
-		// Sign the token
-		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
-		if err != nil {
-			return errors.NewInternalError(ctx, err)
 		}
 
 		return nil
@@ -368,15 +356,21 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 		// if an RPT token is provided, then use it to generate a permissions claim for the refreshed token
 		if identity != nil && rptToken != "" {
 
-			tokenID, err := s.tokenManager.ExtractTokenID(ctx, rptToken)
+			// Parse the claims from the provided token string
+			tokenClaims, err := s.tokenManager.ParseToken(ctx, rptToken)
 			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"rpt_token": rptToken,
-				}, "invalid RPT token specified")
-				return errors.NewUnauthorizedError("invalid RPT token")
+				log.Error(ctx, map[string]interface{}{"error": err, "rptToken": rptToken}, "invalid RPT token could not be parsed")
+				return errors.NewUnauthorizedError("invalid RPT token could not be parsed")
 			}
 
-			loadedToken, err := s.Repositories().TokenRepository().Load(ctx, *tokenID)
+			// Extract the id from the refresh token
+			tokenID, err := uuid.FromString(tokenClaims.Id)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{"error": err, "rptToken": rptToken}, "could not extract token ID from RPT token")
+				return errors.NewUnauthorizedError("could not extract token ID from RPT token")
+			}
+
+			loadedToken, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
 			if err != nil {
 				// This is not an error per se, so we'll just log an informational message
 				log.Info(ctx, map[string]interface{}{
@@ -422,12 +416,16 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 						break
 					}
 					oldPrivResourceID := oldPriv.ResourceID
-					if loadedToken.Status&authtoken.TOKEN_STATUS_STALE > 0 || oldPriv.Stale {
+					if loadedToken.HasStatus(authtoken.TOKEN_STATUS_STALE) || oldPriv.Stale {
 						privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPrivResourceID)
 						if err != nil {
 							return errors.NewInternalError(ctx, err)
 						}
-						log.Debug(ctx, map[string]interface{}{"resource_id": oldPrivResourceID, "new_scopes": privilegeCache.ScopesAsArray(), "old_scopes": oldPriv.ScopesAsArray()}, "old privileges are stale")
+
+						log.Debug(ctx, map[string]interface{}{"resource_id": oldPrivResourceID,
+							"new_scopes": privilegeCache.ScopesAsArray(), "old_scopes": oldPriv.ScopesAsArray()},
+							"old privileges are stale")
+
 						perm := &manager.Permissions{
 							ResourceSetID: &oldPrivResourceID,
 							Scopes:        privilegeCache.ScopesAsArray(),
@@ -458,39 +456,20 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 			return err
 		}
 
-		// Register the new access token
-		tokenID, err := s.tokenManager.ExtractTokenID(ctx, generatedToken.AccessToken)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
-			return errors.NewBadParameterErrorFromString("tokenString", generatedToken.AccessToken,
-				"could not extract token ID from token string")
+		// Register the new token - if it has permission it's an RPT token, otherwise it's a standard access token
+		if len(permissions) > 0 {
+			_, err = s.RegisterToken(ctx, identity.ID, generatedToken.AccessToken, authtoken.TOKEN_TYPE_RPT, tokenPrivs)
+		} else {
+			_, err = s.RegisterToken(ctx, identity.ID, generatedToken.AccessToken, authtoken.TOKEN_TYPE_ACCESS, nil)
 		}
-		_, err = s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_ACCESS, generatedToken.Expiry)
+
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
 			return errors.NewInternalError(ctx, err)
 		}
 
-		// If the access token is an RPT, register the privileges also
-		if len(tokenPrivs) > 0 {
-			// Assign privileges to the token record, and persist them to the database
-			for _, tokenPriv := range tokenPrivs {
-				tokenPriv.TokenID = *tokenID
-				err = s.Repositories().TokenRepository().CreatePrivilege(ctx, &tokenPriv)
-				if err != nil {
-					return errors.NewInternalError(ctx, err)
-				}
-			}
-		}
-
 		// Register the refresh token
-		tokenID, err = s.tokenManager.ExtractTokenID(ctx, generatedToken.RefreshToken)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
-			return errors.NewBadParameterErrorFromString("tokenString", generatedToken.RefreshToken,
-				"could not extract token ID from token string")
-		}
-		_, err = s.RegisterToken(ctx, identity.ID, *tokenID, authtoken.TOKEN_TYPE_REFRESH, generatedToken.Expiry)
+		_, err = s.RegisterToken(ctx, identity.ID, generatedToken.RefreshToken, authtoken.TOKEN_TYPE_REFRESH, nil)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
 			return errors.NewInternalError(ctx, err)
@@ -506,8 +485,28 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 	return s.tokenManager.ConvertToken(*generatedToken)
 }
 
-// RegisterToken creates a token record in the token repository
-func (s *tokenServiceImpl) RegisterToken(ctx context.Context, identityID uuid.UUID, tokenID uuid.UUID, tokenType string, expiryTime time.Time) (*tokenrepo.Token, error) {
+// RegisterToken creates a token record in the token repository for the specified token string
+func (s *tokenServiceImpl) RegisterToken(ctx context.Context, identityID uuid.UUID, tokenString string, tokenType string,
+	privileges []tokenrepo.TokenPrivilege) (*tokenrepo.Token, error) {
+
+	// Parse the claims from the provided token string
+	tokenClaims, err := s.tokenManager.ParseToken(ctx, tokenString)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "invalid token string could not be parsed")
+		return nil, errors.NewBadParameterErrorFromString("tokenString", tokenString,
+			"invalid token string could not be parsed")
+	}
+
+	// Extract the id from the refresh token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
+		return nil, errors.NewBadParameterErrorFromString("tokenString", tokenString,
+			"could not extract token ID from token string")
+	}
+
+	expiryTime := time.Unix(tokenClaims.ExpiresAt, 0)
+
 	tkn := &tokenrepo.Token{
 		TokenID:    tokenID,
 		IdentityID: identityID,
@@ -517,7 +516,27 @@ func (s *tokenServiceImpl) RegisterToken(ctx context.Context, identityID uuid.UU
 	}
 
 	// Persist the token record to the database
-	err := s.Repositories().TokenRepository().Create(ctx, tkn)
+	s.ExecuteInTransaction(func() error {
+		err = s.Repositories().TokenRepository().Create(ctx, tkn)
+		if err != nil {
+			return err
+		}
+
+		// If the access token is an RPT, register its permissions also
+		if privileges != nil && len(privileges) > 0 {
+			// Assign privileges to the token record, and persist them to the database
+			for _, tokenPriv := range privileges {
+				tokenPriv.TokenID = tokenID
+				err = s.Repositories().TokenRepository().CreatePrivilege(ctx, &tokenPriv)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return nil, errors.NewInternalError(ctx, err)
 	}

@@ -155,11 +155,14 @@ func (s *LogoutControllerTestSuite) TestLogoutV2TokensInvalidated() {
 	rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space.SpaceID())
 	require.NoError(s.T(), err)
 
-	tokenID, err := tm.ExtractTokenID(s.Ctx, *rptToken)
+	tokenClaims, err := tm.ParseToken(ctx, *rptToken)
+	require.NoError(s.T(), err)
+
+	tokenID, err := uuid.FromString(tokenClaims.Id)
 	require.NoError(s.T(), err)
 
 	// Check there is a token registered for the user
-	loadedToken, err := s.Application.TokenRepository().Load(s.Ctx, *tokenID)
+	loadedToken, err := s.Application.TokenRepository().Load(s.Ctx, tokenID)
 	require.NoError(s.T(), err)
 
 	// And check the token has the correct status, type and identity
@@ -178,7 +181,7 @@ func (s *LogoutControllerTestSuite) TestLogoutV2TokensInvalidated() {
 	test.Logoutv2LogoutOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, &redirect, nil)
 
 	// Load the token again
-	loadedToken, err = s.Application.TokenRepository().Load(s.Ctx, *tokenID)
+	loadedToken, err = s.Application.TokenRepository().Load(s.Ctx, tokenID)
 	require.NoError(s.T(), err)
 
 	// Now check that the status is logged out
