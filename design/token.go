@@ -198,6 +198,21 @@ var _ = a.Resource("token", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
+
+	a.Action("RevokeAll", func() {
+		a.Routing(
+			a.GET("/revoke_all"),
+		)
+		a.Params(func() {
+			a.Param("identity_id", d.String, "Identifier of the identity for which all tokens will be revoked")
+			a.Required("identity_id")
+		})
+		a.Description("Revokes all tokens for a specified identity id")
+		a.Response(d.OK)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 })
 
 // PublicKeys represents an public keys payload
