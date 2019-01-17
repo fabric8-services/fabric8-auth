@@ -1,4 +1,3 @@
 provider/log
 pacts
-test.log
-test-auth.log
+output

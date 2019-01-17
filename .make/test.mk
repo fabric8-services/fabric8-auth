@@ -199,9 +199,6 @@ test-contracts-provider-no-coverage: prebuild-check migrate-database $(SOURCES)
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep 'contracts/provider'))
 	PACT_DIR=$(PWD)/test/contracts/pacts \
 	PACT_VERSION=latest \
-	PACT_BROKER_URL=http://localhost:8090 \
-	PACT_BROKER_USERNAME=pact_broker \
-	PACT_BROKER_PASSWORD='changeme!!!' \
 	PACT_PROVIDER_BASE_URL=http://localhost:8089 \
 	go test -v -count=1 $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
