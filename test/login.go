@@ -20,6 +20,7 @@ import (
 // Token is filled using input Identity object
 func WithIdentity(ctx context.Context, ident account.Identity) context.Context {
 	token := fillClaimsWithIdentity(ident)
+	testtoken.TokenManager.SignRPTToken(ctx, token)
 	return goajwt.WithJWT(ctx, token)
 }
 

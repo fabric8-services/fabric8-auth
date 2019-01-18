@@ -194,7 +194,7 @@ type TokenManager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserTokenForAPIClient(ctx context.Context, providerToken oauth2.Token) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
-	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity, permissions *[]Permissions) (*oauth2.Token, error)
+	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity, permissions []Permissions) (*oauth2.Token, error)
 	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
 	SignRPTToken(ctx context.Context, rptToken *jwt.Token) (string, error)
 	ConvertTokenSet(tokenSet TokenSet) *oauth2.Token
@@ -698,7 +698,7 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenFromRefreshToken(ctx conte
 
 // GenerateUserTokenUsingRefreshToken
 func (m *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string,
-	identity *repository.Identity, permissions *[]Permissions) (*oauth2.Token, error) {
+	identity *repository.Identity, permissions []Permissions) (*oauth2.Token, error) {
 
 	nowTime := time.Now().Unix()
 	unsignedAccessToken, err := m.GenerateUnsignedUserAccessTokenFromRefreshToken(ctx, refreshTokenString, identity)
@@ -706,7 +706,7 @@ func (m *tokenManager) GenerateUserTokenUsingRefreshToken(ctx context.Context, r
 		return nil, errors.WithStack(err)
 	}
 
-	if permissions != nil && len(*permissions) > 0 {
+	if permissions != nil && len(permissions) > 0 {
 		claims := unsignedAccessToken.Claims.(jwt.MapClaims)
 		claims["permissions"] = permissions
 	}

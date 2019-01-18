@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -451,7 +452,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 		}
 
 		// Generate the new user token
-		generatedToken, err = s.tokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity, &permissions)
+		generatedToken, err = s.tokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity, permissions)
 		if err != nil {
 			return err
 		}
@@ -682,9 +683,20 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 
 // SetStatusForAllIdentityTokens parses the specified token string and extracts the sub claim, using it to then load
 // all tokens for that identity and setting their status flag with the specified status value
-func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, tokenstring string, status int) error {
-	// Load the identity using the sub claim of the passed token value
-	identity, err := s.loadIdentityFromSubClaim(ctx, tokenstring)
+func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, accessToken *jwt.Token, status int) error {
+
+	claims := accessToken.Claims.(jwt.MapClaims)
+
+	sub := claims["sub"]
+	if sub == nil {
+		return errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+	}
+	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+	if err != nil {
+		return errors.NewUnauthorizedError(err.Error())
+	}
+
+	identity, err := s.Repositories().Identities().LoadWithUser(ctx, identityID)
 	if err != nil {
 		return err
 	}

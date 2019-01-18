@@ -37,18 +37,34 @@ func TestLogoutControllerTestSuite(t *testing.T) {
 	suite.Run(t, &LogoutControllerTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *LogoutControllerTestSuite) UnSecuredController() (*goa.Service, *controller.LogoutController) {
-	svc := testsupport.ServiceAsUser("Logout-Service", testsupport.TestIdentity)
+func (s *LogoutControllerTestSuite) UnsecuredController() (*goa.Service, *controller.LogoutController) {
+	svc := goa.New("Logout-Service")
+	controller := controller.NewLogoutController(svc, s.Application)
+	return svc, controller
+}
+
+func (s *LogoutControllerTestSuite) SecuredController() (*goa.Service, *controller.LogoutController, account.Identity) {
+	identity, err := testsupport.CreateTestIdentity(s.DB, uuid.NewV4().String(), "KC")
+	require.Nil(s.T(), err)
+	svc, ctrl := s.SecuredControllerWithIdentity(identity)
+	return svc, ctrl, identity
+}
+
+func (s *LogoutControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *controller.LogoutController) {
+	svc := testsupport.ServiceAsUser("Logout-Service", identity)
 	return svc, controller.NewLogoutController(svc, s.Application)
 }
 
+
 func (s *LogoutControllerTestSuite) TestLogout() {
+
+	user := s.Graph.CreateUser()
 
 	s.T().Run("redirect", func(t *testing.T) {
 
 		t.Run("with redirect param only", func(t *testing.T) {
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
 			redirect := "https://openshift.io/home"
 			// when
 			resp := test.LogoutLogoutTemporaryRedirect(s.T(), svc.Context, svc, ctrl, &redirect, nil)
@@ -59,7 +75,7 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 
 		t.Run("with referer header only", func(t *testing.T) {
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.UnsecuredController()
 			referer := "https://openshift.io/home"
 			// when
 			resp := test.LogoutLogoutTemporaryRedirect(s.T(), svc.Context, svc, ctrl, nil, &referer)
@@ -70,7 +86,7 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 
 		t.Run("with redirect param and referer header", func(t *testing.T) {
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.UnsecuredController()
 			redirect := "https://prod-preview.openshift.io/home"
 			referer := "https://url.example.org/path"
 			// when
@@ -85,21 +101,21 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 
 		t.Run("with missing referer and redirect", func(t *testing.T) {
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.UnsecuredController()
 			// when/then
 			test.LogoutLogoutBadRequest(t, svc.Context, svc, ctrl, nil, nil)
 		})
 
 		t.Run("with missing referer header and redirect param", func(t *testing.T) {
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.UnsecuredController()
 			// when/then
 			test.LogoutLogoutBadRequest(t, svc.Context, svc, ctrl, nil, nil)
 		})
 
 		t.Run("with invalid redirect param", func(t *testing.T) {
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.UnsecuredController()
 			redirect := "://url.example.org/path" // invalid/unparseable URL
 			referer := ""
 			// when/then
@@ -108,7 +124,7 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 
 		t.Run("with invalid referer header", func(t *testing.T) {
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.UnsecuredController()
 			redirect := ""
 			referer := "://url.example.org/path" // invalid/unparseable URL
 			// when/then
@@ -118,7 +134,7 @@ func (s *LogoutControllerTestSuite) TestLogout() {
 		t.Run("with redirect param and invalid referer header", func(t *testing.T) {
 			t.Skipf("if redirect param is valid, then referer URL is not used")
 			// given
-			svc, ctrl := s.UnSecuredController()
+			svc, ctrl := s.UnsecuredController()
 			redirect := "https://url.example.org/path"
 			referer := "://url.example.org/path" // invalid/unparseable URL
 			// when/then
@@ -208,7 +224,7 @@ func (s *LogoutControllerTestSuite) checkRedirects(redirectParam string, referre
 	logoutCtx, err := app.NewLogoutLogoutContext(goaCtx, req, goa.New("LogoutService"))
 	require.Nil(s.T(), err)
 
-	svc, ctrl := s.UnSecuredController()
+	svc, ctrl := s.UnsecuredController()
 
 	test.LogoutLogoutTemporaryRedirect(s.T(), logoutCtx, svc, ctrl, &expectedRedirectParam, nil)
 
@@ -218,16 +234,4 @@ func (s *LogoutControllerTestSuite) checkRedirects(redirectParam string, referre
 		assert.Equal(s.T(), 307, rw.Code)
 		assert.Equal(s.T(), expectedRedirectParam, rw.Header().Get("Location"))
 	}
-}
-
-func (s *LogoutControllerTestSuite) SecuredController() (*goa.Service, *controller.LogoutController, account.Identity) {
-	identity, err := testsupport.CreateTestIdentity(s.DB, uuid.NewV4().String(), "KC")
-	require.Nil(s.T(), err)
-	svc, ctrl := s.SecuredControllerWithIdentity(identity)
-	return svc, ctrl, identity
-}
-
-func (s *LogoutControllerTestSuite) SecuredControllerWithIdentity(identity account.Identity) (*goa.Service, *controller.LogoutController) {
-	svc := testsupport.ServiceAsUser("Logout-Service", identity)
-	return svc, controller.NewLogoutController(svc, s.Application)
 }

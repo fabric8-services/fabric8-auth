@@ -33,12 +33,6 @@ func NewLogoutService(context servicecontext.ServiceContext, config LogoutServic
 }
 
 func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (string, error) {
-	tokenString := ""
-
-	tkn := goajwt.ContextJWT(ctx)
-	if tkn != nil {
-		tokenString = tkn.Raw
-	}
 
 	if redirectURL == "" {
 		log.Error(ctx, map[string]interface{}{
@@ -82,9 +76,10 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 	parameters.Add("redirect_uri", redirectURL)
 	logoutURL.RawQuery = parameters.Encode()
 
-	// If a token string was passed, then set the status to "logged out" for all tokens with the same identity
-	if tokenString != "" {
-		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, tokenString, token.TOKEN_STATUS_LOGGED_OUT)
+	// If an access token was passed in the context, then set the status to "logged out" for all tokens with the same identity
+	tkn := goajwt.ContextJWT(ctx)
+	if tkn != nil {
+		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, tkn, token.TOKEN_STATUS_LOGGED_OUT)
 
 		if err != nil {
 			return "", errors.NewInternalError(ctx, err)
