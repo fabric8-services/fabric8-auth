@@ -55,7 +55,6 @@ func (s *LogoutControllerTestSuite) SecuredControllerWithIdentity(identity accou
 	return svc, controller.NewLogoutController(svc, s.Application)
 }
 
-
 func (s *LogoutControllerTestSuite) TestLogout() {
 
 	user := s.Graph.CreateUser()
