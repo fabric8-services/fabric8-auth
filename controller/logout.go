@@ -6,6 +6,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/goadesign/goa"
@@ -60,7 +61,8 @@ func (c *LogoutController) doLogout(ctx jsonapi.InternalServerError, redirect *s
 	if redirect == nil {
 		if referrer == nil {
 			log.Error(ctx, nil, "Failed to logout. Referer Header and redirect param are both empty.")
-			return "", jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest("referer Header and redirect param are both empty (at least one should be specified)"))
+			return "", jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("referrer", referrer,
+				"referer Header and redirect param are both empty (at least one should be specified)"))
 		}
 		redirect = referrer
 	}
@@ -75,7 +77,7 @@ func (c *LogoutController) doLogout(ctx jsonapi.InternalServerError, redirect *s
 			"redirect_url": *redirect,
 			"err":          err,
 		}, "Failed to logout. Unable to parse provided redirect url.")
-		return "", jsonapi.JSONErrorResponse(ctx, goa.ErrBadRequest(err.Error()))
+		return "", jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterError("redirect", *redirect))
 	}
 	log.Debug(ctx, map[string]interface{}{
 		"redirect_url": *redirectURL,
