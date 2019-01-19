@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -290,28 +289,14 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			return errors.NewInternalError(ctx, err)
 		}
 
-		// Extract the new jti claim (the Token ID) from the token, and the expiry time, in order to create a database record for it
-		claims := generatedToken.Claims.(jwt.MapClaims)
-		id := claims["jti"].(string)
-		expiresAt := claims["exp"].(int64)
-
-		// Convert the new Token ID to a UUID value
-		newTokenID, err := uuid.FromString(id)
+		// Sign the token
+		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
 
-		// Create a new Token record in the database
-		newTokenRecord := &tokenrepo.Token{
-			TokenID:    newTokenID,
-			IdentityID: identity.ID,
-			Status:     0,
-			TokenType:  authtoken.TOKEN_TYPE_RPT,
-			ExpiryTime: time.Unix(expiresAt, 0),
-		}
-
-		// Persist the token record to the database
-		err = s.Repositories().TokenRepository().Create(ctx, newTokenRecord)
+		// Register the token record
+		newTokenRecord, err := s.RegisterToken(ctx, identity.ID, signedToken, authtoken.TOKEN_TYPE_RPT, nil)
 		if err != nil {
 			return errors.NewInternalError(ctx, err)
 		}
@@ -325,12 +310,6 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			}
 		}
 
-		// Sign the token
-		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
-		if err != nil {
-			return errors.NewInternalError(ctx, err)
-		}
-
 		return nil
 	})
 
@@ -341,32 +320,16 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 	return &signedToken, nil
 }
 
-// ExchangeRefreshToken exchanges refreshToken for OauthToken
-// TODO investigate merging this with the Refresh() method
-func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken, refreshToken string) (*manager.TokenSet, error) {
+// ExchangeRefreshToken exchanges refreshToken for a new user token
+func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToken string, rptToken string) (*manager.TokenSet, error) {
 
-	// Load identity for the refresh token
-	var identity *accountrepo.Identity
-	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, refreshToken)
-	if err != nil {
-		return nil, errors.NewUnauthorizedError(err.Error())
-	}
-	sub := claims["sub"]
-	if sub == nil {
-		return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
-	}
-	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
-	if err != nil {
-		return nil, errors.NewUnauthorizedError(err.Error())
-	}
-
-	err = s.ExecuteInTransaction(func() error {
-		identity, err = s.Repositories().Identities().LoadWithUser(ctx, identityID)
-		return err
-	})
+	identity, err := s.loadIdentityFromSubClaim(ctx, refreshToken)
 
 	if err != nil {
-		// That's OK if we didn't find the identity if the token was issued for an API client
+		if unauth, _ := errors.IsUnauthorizedError(err); unauth {
+			return nil, err
+		}
+		// It's OK if we didn't find the identity, if the token was issued for an API client
 		// Just log it and proceed.
 		log.Warn(ctx, map[string]interface{}{
 			"err": err,
@@ -381,168 +344,135 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, accessToken
 		return nil, errors.NewUnauthorizedError("unauthorized access")
 	}
 
-	generatedToken, err := s.tokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity)
-	if err != nil {
-		return nil, err
-	}
-	// if an RPT token is provided, then use it to obtain a new token with updated permission claims
-	if identity != nil && accessToken != "" {
-		// TODO: can't we just call s.Refresh(...) now?
-		refreshedAccessToken, err := s.Services().TokenService().Refresh(ctx, identity, accessToken)
-		if err != nil {
-			return nil, err
-		}
-		log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String()}, "obtained a new access token")
-		generatedToken.AccessToken = refreshedAccessToken
-	}
-	return s.tokenManager.ConvertToken(*generatedToken)
-}
+	// Initialize an array of permission objects that *may* be included in the token
+	permissions := []manager.Permissions{}
 
-// Refresh checks the resource permissions in the given tokenString for the given user, and returns a
-// new RPT Token (with a new expiry time and updated permissions if needed)
-func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Identity, accessToken string) (string, error) {
-	log.Debug(ctx, map[string]interface{}{"identity_id": identity.ID.String()}, "refreshing a user token...")
-	// Get the token manager from the context
-	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
-	if err != nil {
-		return "", errors.NewInternalError(ctx, err)
-	}
-	// Now parse the token string that was passed in
-	accessTokenClaims, err := tokenManager.ParseToken(ctx, accessToken)
-	if err != nil {
-		return "", errors.NewUnauthorizedError("failed to parse the request's access token")
-	}
-	// Now that we have the identity and have parsed the token, we can see if we have a record of the token in the database
-	var tokenID uuid.UUID
-	// Extract the jti from the token
-	tokenID, err = uuid.FromString(accessTokenClaims.Id)
-	if err != nil {
-		return "", errors.NewBadParameterErrorFromString("jti", accessTokenClaims.Id, "invalid jti identifier - not a UUID")
-	}
-	loadedToken, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
-	if err != nil {
-		// This is not an error per se, so we'll just log an informational message
-		log.Info(ctx, map[string]interface{}{
-			"token_id": tokenID,
-		}, "token with specified id not found")
-	}
-	// check if the token is still valid
-	if loadedToken != nil {
-		// Confirm that the token belongs to the current identity
-		if loadedToken.IdentityID != identity.ID {
-			return "", errors.NewUnauthorizedError("invalid token for identity")
-		}
-		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
-		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
-			return "", errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
-		}
-		// If the token has been revoked or the user is logged out, we respond in the same way
-		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(authtoken.TOKEN_STATUS_LOGGED_OUT) {
-			return "", errors.NewUnauthorizedErrorWithCode("token revoked or logged out", errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)
-		}
-	}
-	// If we've gotten this far, it means that either no existing token was found, or the token that was found
-	// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
-	signedToken := ""
+	// Initialize an array of TokenPrivilege objects so that we can persist a record of the token's privileges to the database
+	tokenPrivs := []tokenrepo.TokenPrivilege{}
+
+	var generatedToken *oauth2.Token
+
 	err = s.ExecuteInTransaction(func() error {
-		// Initialize an array of permission objects that will be included in the token
-		perms := []manager.Permissions{}
-		// Initialize an array of TokenPrivilege objects so that we can persist a record of the token's privileges to the database
-		tokenPrivs := []tokenrepo.TokenPrivilege{}
-		// If an existing RPT token is being replaced with a new token, then populate it with the privileges from the
-		// existing token.  HOWEVER, don't exceed the maximum configured permissions for the token
-		if loadedToken != nil {
-			oldTokenPrivs, err := s.Repositories().TokenRepository().ListPrivileges(ctx, loadedToken.TokenID)
+
+		// if an RPT token is provided, then use it to generate a permissions claim for the refreshed token
+		if identity != nil && rptToken != "" {
+
+			// Parse the claims from the provided token string
+			tokenClaims, err := s.tokenManager.ParseToken(ctx, rptToken)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				log.Error(ctx, map[string]interface{}{"error": err, "rptToken": rptToken}, "invalid RPT token could not be parsed")
+				return errors.NewUnauthorizedError("invalid RPT token could not be parsed")
 			}
-			// Sort the old token privileges by expiry time, from latest to earliest
-			sort.Slice(oldTokenPrivs, func(i, j int) bool {
-				return oldTokenPrivs[i].ExpiryTime.After(oldTokenPrivs[j].ExpiryTime)
-			})
-			// Loop through the privileges stored in the previous token, and add them to the permissions of the
-			// new token, breaking once the maximum permission limit has been hit
-			for _, oldPriv := range oldTokenPrivs {
-				// If we have hit the maximum permissions limit then break
-				if len(perms) >= s.config.GetRPTTokenMaxPermissions() {
-					break
-				}
-				oldPrivResourceID := oldPriv.ResourceID
-				if loadedToken.Status&authtoken.TOKEN_STATUS_STALE > 0 || oldPriv.Stale {
-					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPrivResourceID)
-					if err != nil {
-						return errors.NewInternalError(ctx, err)
-					}
-					log.Debug(ctx, map[string]interface{}{"resource_id": oldPrivResourceID, "new_scopes": privilegeCache.ScopesAsArray(), "old_scopes": oldPriv.ScopesAsArray()}, "old privileges are stale")
-					perm := &manager.Permissions{
-						ResourceSetID: &oldPrivResourceID,
-						Scopes:        privilegeCache.ScopesAsArray(),
-						Expiry:        privilegeCache.ExpiryTime.Unix(),
-					}
-					perms = append(perms, *perm)
-				} else {
-					// Create a new permissions object for the RPT token and store it in the array
-					perm := &manager.Permissions{
-						ResourceSetID: &oldPrivResourceID,
-						Scopes:        oldPriv.ScopesAsArray(),
-						Expiry:        oldPriv.ExpiryTime.Unix(),
-					}
-					perms = append(perms, *perm)
-				}
-				// Create a token privilege object to store in the database
-				tokenPriv := &tokenrepo.TokenPrivilege{
-					PrivilegeCacheID: oldPriv.PrivilegeCacheID,
-				}
-				tokenPrivs = append(tokenPrivs, *tokenPriv)
-			}
-		}
-		// update the expiry
-		now := time.Now().Unix()
-		accessTokenClaims.ExpiresAt = time.Unix(now+s.config.GetAccessTokenExpiresIn(), 0).Unix()
-		// Generate a new RPT token
-		generatedToken, err := tokenManager.GenerateUnsignedRPTTokenForIdentity(ctx, accessTokenClaims, *identity, &perms)
-		if err != nil {
-			return errors.NewInternalError(ctx, err)
-		}
 
-		// Extract the new jti claim (the Token ID) from the token, and the expiry time, in order to create a database record for it
-		claims := generatedToken.Claims.(jwt.MapClaims)
-		id := claims["jti"].(string)
-		expiresAt := claims["exp"].(int64)
-
-		// Convert the new Token ID to a UUID value
-		newTokenID, err := uuid.FromString(id)
-		if err != nil {
-			return errors.NewInternalError(ctx, err)
-		}
-
-		// Create a new Token record in the database
-		newTokenRecord := &tokenrepo.Token{
-			TokenID:    newTokenID,
-			IdentityID: identity.ID,
-			Status:     0,
-			TokenType:  authtoken.TOKEN_TYPE_RPT,
-			ExpiryTime: time.Unix(expiresAt, 0),
-		}
-
-		// Persist the token record to the database
-		err = s.Repositories().TokenRepository().Create(ctx, newTokenRecord)
-		if err != nil {
-			return errors.NewInternalError(ctx, err)
-		}
-
-		// Assign privileges to the token record, and persist them to the database
-		for _, tokenPriv := range tokenPrivs {
-			tokenPriv.TokenID = newTokenRecord.TokenID
-			err = s.Repositories().TokenRepository().CreatePrivilege(ctx, &tokenPriv)
+			// Extract the id from the refresh token
+			tokenID, err := uuid.FromString(tokenClaims.Id)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				log.Error(ctx, map[string]interface{}{"error": err, "rptToken": rptToken}, "could not extract token ID from RPT token")
+				return errors.NewUnauthorizedError("could not extract token ID from RPT token")
+			}
+
+			loadedToken, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
+			if err != nil {
+				// This is not an error per se, so we'll just log an informational message
+				log.Info(ctx, map[string]interface{}{
+					"token_id": tokenID,
+				}, "token with specified id not found")
+			}
+
+			// check if the token is still valid
+			if loadedToken != nil {
+				// Confirm that the token belongs to the current identity
+				if loadedToken.IdentityID != identity.ID {
+					return errors.NewUnauthorizedError("invalid token for identity")
+				}
+				// We now process the various token status codes in order of priority, starting with DEPROVISIONED
+				if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
+					return errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
+				}
+				// If the token has been revoked or the user is logged out, we respond in the same way
+				if loadedToken.HasStatus(authtoken.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(authtoken.TOKEN_STATUS_LOGGED_OUT) {
+					return errors.NewUnauthorizedErrorWithCode("token revoked or logged out", errors.UNAUTHORIZED_CODE_TOKEN_REVOKED)
+				}
+			}
+
+			// If we've gotten this far, it means that either no existing token was found, or the token that was found
+			// has been marked with status STALE and its privileges have changed, in either case we must generate a new token
+
+			// If an existing RPT token is being replaced with a new token, then populate it with the privileges from the
+			// existing token.  HOWEVER, don't exceed the maximum configured permissions for the token
+			if loadedToken != nil {
+				oldTokenPrivs, err := s.Repositories().TokenRepository().ListPrivileges(ctx, loadedToken.TokenID)
+				if err != nil {
+					return errors.NewInternalError(ctx, err)
+				}
+				// Sort the old token privileges by expiry time, from latest to earliest
+				sort.Slice(oldTokenPrivs, func(i, j int) bool {
+					return oldTokenPrivs[i].ExpiryTime.After(oldTokenPrivs[j].ExpiryTime)
+				})
+				// Loop through the privileges stored in the previous token, and add them to the permissions of the
+				// new token, breaking once the maximum permission limit has been hit
+				for _, oldPriv := range oldTokenPrivs {
+					// If we have hit the maximum permissions limit then break
+					if len(permissions) >= s.config.GetRPTTokenMaxPermissions() {
+						break
+					}
+					oldPrivResourceID := oldPriv.ResourceID
+					if loadedToken.HasStatus(authtoken.TOKEN_STATUS_STALE) || oldPriv.Stale {
+						privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPrivResourceID)
+						if err != nil {
+							return errors.NewInternalError(ctx, err)
+						}
+
+						log.Debug(ctx, map[string]interface{}{"resource_id": oldPrivResourceID,
+							"new_scopes": privilegeCache.ScopesAsArray(), "old_scopes": oldPriv.ScopesAsArray()},
+							"old privileges are stale")
+
+						perm := &manager.Permissions{
+							ResourceSetID: &oldPrivResourceID,
+							Scopes:        privilegeCache.ScopesAsArray(),
+							Expiry:        privilegeCache.ExpiryTime.Unix(),
+						}
+						permissions = append(permissions, *perm)
+					} else {
+						// Create a new permissions object for the RPT token and store it in the array
+						perm := &manager.Permissions{
+							ResourceSetID: &oldPrivResourceID,
+							Scopes:        oldPriv.ScopesAsArray(),
+							Expiry:        oldPriv.ExpiryTime.Unix(),
+						}
+						permissions = append(permissions, *perm)
+					}
+					// Create a token privilege object to store in the database
+					tokenPriv := &tokenrepo.TokenPrivilege{
+						PrivilegeCacheID: oldPriv.PrivilegeCacheID,
+					}
+					tokenPrivs = append(tokenPrivs, *tokenPriv)
+				}
 			}
 		}
 
-		// Sign the token
-		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
+		// Generate the new user token
+		generatedToken, err = s.tokenManager.GenerateUserTokenUsingRefreshToken(ctx, refreshToken, identity, permissions)
 		if err != nil {
+			return err
+		}
+
+		// Register the new token - if it has permission it's an RPT token, otherwise it's a standard access token
+		if len(permissions) > 0 {
+			_, err = s.RegisterToken(ctx, identity.ID, generatedToken.AccessToken, authtoken.TOKEN_TYPE_RPT, tokenPrivs)
+		} else {
+			_, err = s.RegisterToken(ctx, identity.ID, generatedToken.AccessToken, authtoken.TOKEN_TYPE_ACCESS, nil)
+		}
+
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
+			return errors.NewInternalError(ctx, err)
+		}
+
+		// Register the refresh token
+		_, err = s.RegisterToken(ctx, identity.ID, generatedToken.RefreshToken, authtoken.TOKEN_TYPE_REFRESH, nil)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
 			return errors.NewInternalError(ctx, err)
 		}
 
@@ -550,15 +480,74 @@ func (s *tokenServiceImpl) Refresh(ctx context.Context, identity *accountrepo.Id
 	})
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return signedToken, nil
+	return s.tokenManager.ConvertToken(*generatedToken)
+}
+
+// RegisterToken creates a token record in the token repository for the specified token string
+func (s *tokenServiceImpl) RegisterToken(ctx context.Context, identityID uuid.UUID, tokenString string, tokenType string,
+	privileges []tokenrepo.TokenPrivilege) (*tokenrepo.Token, error) {
+
+	// Parse the claims from the provided token string
+	tokenClaims, err := s.tokenManager.ParseToken(ctx, tokenString)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "invalid token string could not be parsed")
+		return nil, errors.NewBadParameterErrorFromString("tokenString", tokenString,
+			"invalid token string could not be parsed")
+	}
+
+	// Extract the id from the refresh token
+	tokenID, err := uuid.FromString(tokenClaims.Id)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token string")
+		return nil, errors.NewBadParameterErrorFromString("tokenString", tokenString,
+			"could not extract token ID from token string")
+	}
+
+	expiryTime := time.Unix(tokenClaims.ExpiresAt, 0)
+
+	tkn := &tokenrepo.Token{
+		TokenID:    tokenID,
+		IdentityID: identityID,
+		Status:     0,
+		TokenType:  tokenType,
+		ExpiryTime: expiryTime,
+	}
+
+	// Persist the token record to the database
+	err = s.ExecuteInTransaction(func() error {
+		err = s.Repositories().TokenRepository().Create(ctx, tkn)
+		if err != nil {
+			return err
+		}
+
+		// If the access token is an RPT, register its permissions also
+		if privileges != nil && len(privileges) > 0 {
+			// Assign privileges to the token record, and persist them to the database
+			for _, tokenPriv := range privileges {
+				tokenPriv.TokenID = tokenID
+				err = s.Repositories().TokenRepository().CreatePrivilege(ctx, &tokenPriv)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, errors.NewInternalError(ctx, err)
+	}
+
+	return tkn, nil
 }
 
 // TODO remove the goa.RequestData param from here
-// RetrieveToken
-func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
+// RetrieveExternalToken retrieves the external token for the specified provider
+func (s *tokenServiceImpl) RetrieveExternalToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error) {
 	if forResource == "" {
 		return nil, nil, errors.NewBadParameterError("for", "").Expected("git or OpenShift resource URL")
 	}
@@ -574,7 +563,7 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 		currentIdentityID = *id
 	} else {
 		// Extract user ID
-		currentIdentity, err := c.Services().UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+		currentIdentity, err := s.Services().UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -583,7 +572,7 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 
 	var appResponse app.ExternalToken
 
-	linkingProvider, err := c.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID,
+	linkingProvider, err := s.Factories().LinkingProviderFactory().NewLinkingProvider(ctx, currentIdentityID,
 		rest.AbsoluteURL(req, "", nil), forResource)
 	if err != nil {
 		return nil, nil, err
@@ -592,24 +581,58 @@ func (c *tokenServiceImpl) RetrieveToken(ctx context.Context, forResource string
 	osProvider, ok := linkingProvider.(provider.OpenShiftIdentityProvider)
 	if ok && serviceAccount {
 		// This is a request from OSO proxy, tenant, Jenkins Idler, or Jenkins proxy service to obtain a cluster wide token
-		return c.retrieveClusterToken(ctx, forResource, forcePull, osProvider)
+		return s.retrieveClusterToken(ctx, forResource, forcePull, osProvider)
 	}
 
-	externalToken, err := c.loadToken(ctx, linkingProvider, currentIdentityID)
+	var externalToken *tokenrepo.ExternalToken
+	err = s.ExecuteInTransaction(func() error {
+		err := s.Repositories().Identities().CheckExists(ctx, currentIdentityID.String())
+		if err != nil {
+			return errors.NewUnauthorizedError(err.Error())
+		}
+		tokens, err := s.Repositories().ExternalTokens().LoadByProviderIDAndIdentityID(ctx, linkingProvider.ID(), currentIdentityID)
+		if err != nil {
+			return err
+		}
+		if len(tokens) > 0 {
+			externalToken = &tokens[0]
+		}
+		return nil
+
+	})
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if externalToken != nil {
-		updatedToken, errorResponse, err := c.updateProfileIfEmpty(ctx, forResource, req, linkingProvider, externalToken, forcePull)
-		if err != nil {
-			return nil, errorResponse, err
+		if forcePull != nil && *forcePull {
+			userProfile, err := linkingProvider.Profile(ctx, oauth2.Token{AccessToken: externalToken.Token})
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":           err,
+					"for":           forResource,
+					"provider_name": linkingProvider.TypeName(),
+				}, "Unable to fetch user profile for external token. Account relinking may be required.")
+				linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
+				errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"",
+					linkURL, linkingProvider.TypeName(), linkingProvider.TypeName())
+				return nil, &errorResponse, errors.NewUnauthorizedError(err.Error())
+			}
+
+			externalToken.Username = userProfile.Username
+			err = s.ExecuteInTransaction(func() error {
+				return s.Repositories().ExternalTokens().Save(ctx, externalToken)
+			})
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		appResponse = app.ExternalToken{
-			Scope:          updatedToken.Scope,
-			AccessToken:    updatedToken.Token,
+			Scope:          externalToken.Scope,
+			AccessToken:    externalToken.Token,
 			TokenType:      "Bearer", // We aren't saving the token_type in the database
-			Username:       updatedToken.Username,
+			Username:       externalToken.Username,
 			ProviderAPIURL: linkingProvider.URL(),
 		}
 
@@ -658,34 +681,59 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 	return nil
 }
 
-// updateProfileIfEmpty checks if the username is missing in the token record (may happen to old accounts)
-// loads the user profile from the identity provider and saves the username in the external token
-func (c *tokenServiceImpl) updateProfileIfEmpty(ctx context.Context, forResource string, req *goa.RequestData,
-	prov provider.LinkingProvider, token *tokenrepo.ExternalToken, forcePull *bool) (tokenrepo.ExternalToken, *string, error) {
-	externalToken := *token
-	if forcePull != nil && *forcePull {
-		userProfile, err := prov.Profile(ctx, oauth2.Token{AccessToken: token.Token})
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":           err,
-				"for":           forResource,
-				"provider_name": prov.TypeName(),
-			}, "Unable to fetch user profile for external token. Account relinking may be required.")
-			linkURL := rest.AbsoluteURL(req, fmt.Sprintf("%s?for=%s", client.LinkTokenPath(), forResource), nil)
-			errorResponse := fmt.Sprintf("LINK url=%s, description=\"%s token is not valid or expired. Relink %s account\"",
-				linkURL, prov.TypeName(), prov.TypeName())
-			return externalToken, &errorResponse, errors.NewUnauthorizedError(err.Error())
-		}
-		externalToken.Username = userProfile.Username
-		err = c.ExecuteInTransaction(func() error {
-			return c.Repositories().ExternalTokens().Save(ctx, &externalToken)
-		})
-		return externalToken, nil, err
+// SetStatusForAllIdentityTokens parses the specified token string and extracts the sub claim, using it to then load
+// all tokens for that identity and setting their status flag with the specified status value
+func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, accessToken *jwt.Token, status int) error {
+
+	claims := accessToken.Claims.(jwt.MapClaims)
+
+	sub := claims["sub"]
+	if sub == nil {
+		return errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
 	}
-	return externalToken, nil, nil
+	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+	if err != nil {
+		return errors.NewUnauthorizedError(err.Error())
+	}
+
+	identity, err := s.Repositories().Identities().LoadWithUser(ctx, identityID)
+	if err != nil {
+		return err
+	}
+
+	// Load all tokens for the identity
+	tokens, err := s.Repositories().TokenRepository().ListForIdentity(ctx, identity.ID)
+	if err != nil {
+		return err
+	}
+
+	err = s.ExecuteInTransaction(func() error {
+		// For each token, set the status flag to true for the specified token status
+		for _, tkn := range tokens {
+			tkn.SetStatus(status, true)
+			err = s.Repositories().TokenRepository().Save(ctx, &tkn)
+
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err":         err,
+					"identity_id": identity.ID,
+					"token_id":    tkn.TokenID,
+				}, "Unable to update status for token.")
+				return err
+			}
+		}
+		return nil
+	})
+
+	log.Debug(ctx, map[string]interface{}{
+		"identity_id": identity.ID,
+		"tokens":      len(tokens),
+	}, "Updated all token status values for identity.")
+
+	return err
 }
 
-func (c *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
+func (s *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
 	username := provider.OSOCluster().ServiceAccountUsername
 	if forcePull != nil && *forcePull {
 		userProfile, err := provider.Profile(ctx, oauth2.Token{AccessToken: provider.OSOCluster().ServiceAccountToken})
@@ -720,24 +768,25 @@ func (c *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource
 	return &clusterToken, nil, nil
 }
 
-func (c *tokenServiceImpl) loadToken(ctx context.Context, prov provider.LinkingProvider, currentIdentity uuid.UUID) (*tokenrepo.ExternalToken, error) {
-	var externalToken *tokenrepo.ExternalToken
-	err := c.ExecuteInTransaction(func() error {
-		err := c.Repositories().Identities().CheckExists(ctx, currentIdentity.String())
-		if err != nil {
-			return errors.NewUnauthorizedError(err.Error())
-		}
-		tokens, err := c.Repositories().ExternalTokens().LoadByProviderIDAndIdentityID(ctx, prov.ID(), currentIdentity)
-		if err != nil {
-			return err
-		}
-		if len(tokens) > 0 {
-			externalToken = &tokens[0]
-		}
-		return nil
+// loadIdentityFromSubClaim Parses the specified token string and extracts the sub claim from the resulting token, then
+// uses that value to load the Identity (and corresponding User) record.  If there is no sub claim, a nil identity will
+// be returned along with an unauthorized error
+func (s *tokenServiceImpl) loadIdentityFromSubClaim(ctx context.Context, token string) (*accountrepo.Identity, error) {
+	// Parse the token and extract its claims
+	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, token)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+	sub := claims["sub"]
+	if sub == nil {
+		return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+	}
+	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
 
-	})
-	return externalToken, err
+	return s.Repositories().Identities().LoadWithUser(ctx, identityID)
 }
 
 func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {

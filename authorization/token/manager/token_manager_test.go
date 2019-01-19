@@ -105,7 +105,7 @@ func (s *TestTokenSuite) TestGenerateUserTokenAndRefreshFlowForAPIClient() {
 
 	// when
 	// refresh access token using generated refresh token for api client
-	token, err = testtoken.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, token.RefreshToken, nil)
+	token, err = testtoken.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, token.RefreshToken, nil, nil)
 
 	// then
 	require.NoError(s.T(), err)
@@ -132,7 +132,7 @@ func (s *TestTokenSuite) checkRefreshedUserTokenForIdentity(offlineToken bool) {
 	accessToken, identity, ctx := s.generateToken(offlineToken)
 	s.assertGeneratedToken(accessToken, identity, offlineToken)
 
-	refreshedAccessToken, err := testtoken.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, accessToken.RefreshToken, &identity)
+	refreshedAccessToken, err := testtoken.TokenManager.GenerateUserTokenUsingRefreshToken(ctx, accessToken.RefreshToken, &identity, nil)
 	require.NoError(s.T(), err)
 	s.assertGeneratedToken(refreshedAccessToken, identity, offlineToken)
 }

@@ -76,10 +76,9 @@ func (c *TokenController) Refresh(ctx *app.RefreshTokenContext) error {
 	var t *manager.TokenSet
 	var err error
 	if accessToken != nil {
-		// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
-		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
+		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, accessToken.Raw)
 	} else {
-		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, "", *refreshToken)
+		t, err = c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, "")
 	}
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
@@ -102,7 +101,7 @@ func convertToken(t manager.TokenSet) *app.AuthToken {
 
 // Retrieve fetches the stored external provider token.
 func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
-	appToken, errorResponse, err := c.app.TokenService().RetrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
+	appToken, errorResponse, err := c.app.TokenService().RetrieveExternalToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
 	if errorResponse != nil {
 		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
@@ -118,7 +117,7 @@ func (c *TokenController) Retrieve(ctx *app.RetrieveTokenContext) error {
 
 // Status checks if the stored external provider token is available.
 func (c *TokenController) Status(ctx *app.StatusTokenContext) error {
-	appToken, errorResponse, err := c.app.TokenService().RetrieveToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
+	appToken, errorResponse, err := c.app.TokenService().RetrieveExternalToken(ctx, ctx.For, ctx.RequestData, ctx.ForcePull)
 	if errorResponse != nil {
 		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
 		ctx.ResponseData.Header().Set("WWW-Authenticate", *errorResponse)
@@ -245,8 +244,8 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		}, "unknown oauth client id")
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
-	// TODO: refactor to avoid passing `accessToken.Raw`, which result in an second parsing later down in the code
-	t, err := c.app.TokenService().ExchangeRefreshToken(ctx, accessToken.Raw, *refreshToken)
+
+	t, err := c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, accessToken.Raw)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -665,7 +666,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenValidNo
 	require.NoError(s.T(), err)
 	// when
 	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-	result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, "", refreshToken)
+	result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, refreshToken, "")
 	// then
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), result)
@@ -679,110 +680,101 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenValidNo
 	assert.NoError(s.T(), err)
 }
 
-func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshToken() {
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithAccessToken() {
 
 	tm, err := manager.NewTokenManager(s.Configuration)
 	require.NoError(s.T(), err)
 
-	s.T().Run("valid refresh token", func(t *testing.T) {
+	user := s.Graph.CreateUser()
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+	claims := make(map[string]interface{})
+	claims["sub"] = user.IdentityID().String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	// when
+	result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, refreshToken, accessToken)
+	// then
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), result)
+	// verify that the refresh token is valid
+	require.NotNil(s.T(), result.RefreshToken)
+	_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
+	assert.NoError(s.T(), err)
+	// verify that the access token is valid
+	resultAccessToken, err := jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
+	require.NoError(s.T(), err)
+	resultAccessTokenClaims := resultAccessToken.Claims.(jwt.MapClaims)
+	require.Nil(s.T(), resultAccessTokenClaims["permissions"])
+}
 
-		t.Run("with access token", func(t *testing.T) { // just expect a regular access token
-			// given
-			g := s.NewTestGraph(t)
-			user := g.CreateUser()
-			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			claims := make(map[string]interface{})
-			claims["sub"] = user.IdentityID().String()
-			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
-			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
-			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-			require.NoError(t, err)
-			accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
-			require.NoError(t, err)
-			// when
-			result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, accessToken, refreshToken)
-			// then
-			require.NoError(t, err)
-			require.NotNil(t, result)
-			// verify that the refresh token is valid
-			require.NotNil(t, result.RefreshToken)
-			_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
-			assert.NoError(t, err)
-			// verify that the access token is valid
-			resultAccessToken, err := jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
-			require.NoError(t, err)
-			resultAccessTokenClaims := resultAccessToken.Claims.(jwt.MapClaims)
-			require.Nil(t, resultAccessTokenClaims["permissions"])
-		})
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPTTokenOK() {
+	tm, err := manager.NewTokenManager(s.Configuration)
+	require.NoError(s.T(), err)
 
-		t.Run("with rpt token", func(t *testing.T) { // just expect a regular access token
-			// given
-			g := s.NewTestGraph(t)
-			user := g.CreateUser()
-			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			claims := make(map[string]interface{})
-			claims["sub"] = user.IdentityID().String()
-			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
-			claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
-			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-			require.NoError(t, err)
-			accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
-			require.NoError(t, err)
-			// obtain an RPT token using the access token
-			space := g.CreateSpace().AddAdmin(user)
-			rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
-			require.NoError(t, err)
-			// when
-			result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, *rpt, refreshToken)
-			// then
-			require.NoError(t, err)
-			require.NotNil(t, result)
-			// verify that the refresh token is valid
-			require.NotNil(t, result.RefreshToken)
-			_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
-			require.NoError(t, err)
-			// verify that the access token is valid
-			require.NotNil(t, result.AccessToken)
-			resultAccessToken, err := jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
-			require.NoError(t, err)
-			resultAccessTokenClaims := resultAccessToken.Claims.(jwt.MapClaims)
-			require.NotNil(t, resultAccessTokenClaims["permissions"])
-		})
+	user := s.Graph.CreateUser()
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+	claims := make(map[string]interface{})
+	claims["sub"] = user.IdentityID().String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	// obtain an RPT token using the access token
+	space := s.Graph.CreateSpace().AddAdmin(user)
+	rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())
+	require.NoError(s.T(), err)
+	// when
+	result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, refreshToken, *rpt)
+	// then
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), result)
+	// verify that the refresh token is valid
+	require.NotNil(s.T(), result.RefreshToken)
+	_, err = jwt.Parse(*result.RefreshToken, tm.KeyFunction(ctx))
+	require.NoError(s.T(), err)
+	// verify that the access token is valid
+	require.NotNil(s.T(), result.AccessToken)
+	resultAccessToken, err := jwt.Parse(*result.AccessToken, tm.KeyFunction(ctx))
+	require.NoError(s.T(), err)
+	resultAccessTokenClaims := resultAccessToken.Claims.(jwt.MapClaims)
+	require.NotNil(s.T(), resultAccessTokenClaims["permissions"])
+}
 
-	})
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPTTokenInvalidFormat() {
+	tm, err := manager.NewTokenManager(s.Configuration)
+	require.NoError(s.T(), err)
 
-	s.T().Run("fail", func(t *testing.T) {
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+	// when
+	_, err = s.Application.TokenService().ExchangeRefreshToken(ctx, "", "")
+	// then
+	require.EqualError(s.T(), err, "token contains an invalid number of segments")
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
+}
 
-		t.Run("invalid format", func(t *testing.T) { // Fails if invalid format of refresh token
-			// given
-			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			// when
-			_, err := s.Application.TokenService().ExchangeRefreshToken(ctx, "", "")
-			// then
-			require.EqualError(t, err, "token contains an invalid number of segments")
-			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
-		})
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPTTokenExpired() {
+	tm, err := manager.NewTokenManager(s.Configuration)
+	require.NoError(s.T(), err)
 
-		t.Run("expired", func(t *testing.T) { // Fails if refresh token is expired
-			// given
-			g := s.NewTestGraph(t)
-			user := g.CreateUser()
-			claims := make(map[string]interface{})
-			claims["sub"] = user.IdentityID().String()
-			claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
-			claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
-			refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
-			require.NoError(t, err)
-			// when
-			ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
-			_, err = s.Application.TokenService().ExchangeRefreshToken(ctx, "", refreshToken)
-			// then
-			require.EqualError(t, err, "Token is expired")
-			require.IsType(t, autherrors.NewUnauthorizedError(""), err)
-		})
-
-	})
-
+	user := s.Graph.CreateUser()
+	claims := make(map[string]interface{})
+	claims["sub"] = user.IdentityID().String()
+	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
+	claims["exp"] = time.Now().Unix() - 60    // Expired 1m ago
+	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	require.NoError(s.T(), err)
+	// when
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
+	_, err = s.Application.TokenService().ExchangeRefreshToken(ctx, refreshToken, "")
+	// then
+	require.EqualError(s.T(), err, "Token is expired")
+	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
 func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForDeprovisionedUser() {
@@ -1033,10 +1025,9 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthStateForAuthori
 
 func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUserOK() {
 	// given
-	g := s.NewTestGraph(s.T())
 	redirectURL := "redirect_url"
 	claims := make(map[string]interface{})
-	user := g.CreateUser()
+	user := s.Graph.CreateUser()
 	claims["sub"] = user.IdentityID().String()
 	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	require.NoError(s.T(), err)
@@ -1055,8 +1046,8 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 			Username: user.Identity().Username,
 		}, nil
 	}
-	// when
 
+	// when
 	tm := testtoken.TokenManager
 	ctx := manager.ContextWithTokenManager(context.Background(), tm)
 
@@ -1075,6 +1066,25 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 	assert.NotEmpty(s.T(), resultAccessTokenClaims.SessionState)
 	s.T().Logf("token claim `session_state`: %v", resultAccessTokenClaims.SessionState)
 
+	// Confirm that both an access token and refresh token were created for the user's identity
+	tokens, err := s.Application.TokenRepository().ListForIdentity(s.Ctx, user.IdentityID())
+	require.NoError(s.T(), err)
+	require.Len(s.T(), tokens, 2)
+	accessTokenFound := false
+	refreshTokenFound := false
+
+	for _, token := range tokens {
+		require.True(s.T(), token.Valid())
+		if token.TokenType == token2.TOKEN_TYPE_ACCESS {
+			accessTokenFound = true
+		}
+		if token.TokenType == token2.TOKEN_TYPE_REFRESH {
+			refreshTokenFound = true
+		}
+	}
+
+	require.True(s.T(), accessTokenFound)
+	require.True(s.T(), refreshTokenFound)
 }
 
 func (s *authenticationProviderServiceTestSuite) authorizeCallback(testType string) (*httptest.ResponseRecorder, *app.CallbackAuthorizeContext) {

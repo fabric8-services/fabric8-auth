@@ -410,7 +410,7 @@ func (s *TokenControllerTestSuite) TestTokenAuditOK() {
 	res := s.Graph.CreateResource(rt)
 	// Assign the role to the user
 	s.Graph.CreateIdentityRole(user, res, limaRole)
-	// seup controller with mock KeycloakOAuthService behind
+	// seup controller with mock OAuthService behind
 	_, accessToken, _ := newOAuthMockService(s.T(), *user.Identity())
 	svc, ctrl := s.SecuredControllerWithIdentity(*user.Identity())
 	tokenManager, err := manager.NewTokenManager(s.Configuration)
