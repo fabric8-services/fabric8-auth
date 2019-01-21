@@ -95,6 +95,12 @@ var TestTenantIdentity = account.Identity{
 	User:     TestUser,
 }
 
+var TestAdminConsoleIdentity = account.Identity{
+	ID:       uuid.NewV4(),
+	Username: "fabric8-admin",
+	User:     TestUser,
+}
+
 // CreateLonelyTestIdentity creates an identity not associated with any user. For testing purpose only.
 func CreateLonelyTestIdentity(db *gorm.DB, username string) (account.Identity, error) {
 	testIdentity := account.Identity{

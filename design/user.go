@@ -171,4 +171,5 @@ var userTokenData = a.Type("UserTokenData", func() {
 	a.Attribute("status", d.Integer, "token status")
 	a.Attribute("token_type", d.String, "token type")
 	a.Attribute("expiry_time", d.DateTime, "token expiry time")
+	a.Required("token_id", "status", "token_type", "expiry_time")
 })

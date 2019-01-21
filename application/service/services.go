@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
@@ -144,7 +143,7 @@ type TokenService interface {
 	ExchangeRefreshToken(ctx context.Context, refreshToken string, rptToken string) (*manager.TokenSet, error)
 	RegisterToken(ctx context.Context, identityID uuid.UUID, tokenString string, tokenType string, privileges []tokenrepo.TokenPrivilege) (*tokenrepo.Token, error)
 	RetrieveExternalToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
-	SetStatusForAllIdentityTokens(ctx context.Context, accessToken *jwt.Token, status int) error
+	SetStatusForAllIdentityTokens(ctx context.Context, identityID uuid.UUID, status int) error
 }
 
 type UserProfileService interface {

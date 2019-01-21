@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
@@ -94,6 +96,45 @@ func (c *UserController) ListResources(ctx *app.ListResourcesUserContext) error 
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return ctx.OK(convertToUserResources(ctx.RequestData, resourceType, resourceIDs))
+}
+
+// ListTokens lists all of the tokens for the specified identity.  This endpoint may only be invoked via the admin console
+// service account
+func (c *UserController) ListTokens(ctx *app.ListTokensUserContext) error {
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.Admin)
+	if !isSvcAccount {
+		log.Error(ctx, nil, "The account is not an authorized service account allowed to manage user tokens")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to manage user tokens."))
+	}
+
+	identityID, err := uuid.FromString(ctx.IdentityID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Invalid identityID")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identity_id", ctx.IdentityID, "invalid identity_id - not a UUID"))
+	}
+
+	tokens, err := c.app.TokenRepository().ListForIdentity(ctx, identityID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "error retrieving user tokens")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	response := &app.UserTokenArray{}
+
+	for _, token := range tokens {
+		response.Data = append(response.Data, &app.UserTokenData{
+			TokenID:    token.TokenID.String(),
+			TokenType:  token.TokenType,
+			Status:     token.Status,
+			ExpiryTime: token.ExpiryTime,
+		})
+	}
+
+	return ctx.OK(response)
 }
 
 // convertToUserResources converts a list of resources to which the user has a role
