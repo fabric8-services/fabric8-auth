@@ -23,7 +23,7 @@ func TestAuthAPIProvider(t *testing.T) {
 	var pactProviderBaseURL = os.Getenv("PACT_PROVIDER_BASE_URL")
 
 	var pactConsumer = os.Getenv("PACT_CONSUMER")
-	var pactProvider = "Fabric8Auth"
+	var pactProvider = "fabric8-auth"
 
 	var pactVersion = os.Getenv("PACT_VERSION")
 
