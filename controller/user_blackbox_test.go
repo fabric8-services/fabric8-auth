@@ -283,6 +283,10 @@ func (s *UserControllerTestSuite) TestListUserResources() {
 
 }
 
+func (s *UserControllerTestSuite) TestListUserTokens() {
+
+}
+
 func (s *UserControllerTestSuite) checkPrivateEmailVisible(t *testing.T, emailPrivate bool) {
 	testUser := account.User{
 		ID:           uuid.NewV4(),

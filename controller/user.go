@@ -125,12 +125,34 @@ func (c *UserController) ListTokens(ctx *app.ListTokensUserContext) error {
 
 	response := &app.UserTokenArray{}
 
-	for _, token := range tokens {
+	for _, t := range tokens {
+		perms := []*app.TokenPrivilegeData{}
+
+		// If the token is an RPT token, include its privileges in the response
+		if t.TokenType == token.TOKEN_TYPE_RPT {
+			privs, err := c.app.TokenRepository().ListPrivileges(ctx, t.TokenID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err": err,
+				}, "error retrieving token privileges")
+				return jsonapi.JSONErrorResponse(ctx, err)
+			}
+
+			for _, priv := range privs {
+				perms = append(perms, &app.TokenPrivilegeData{
+					ResourceID: priv.ResourceID,
+					Scopes:     priv.Scopes,
+					Stale:      priv.Stale,
+				})
+			}
+		}
+
 		response.Data = append(response.Data, &app.UserTokenData{
-			TokenID:    token.TokenID.String(),
-			TokenType:  token.TokenType,
-			Status:     token.Status,
-			ExpiryTime: token.ExpiryTime,
+			TokenID:     t.TokenID.String(),
+			TokenType:   t.TokenType,
+			Status:      t.Status,
+			ExpiryTime:  t.ExpiryTime,
+			Permissions: perms,
 		})
 	}
 

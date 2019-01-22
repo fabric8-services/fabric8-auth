@@ -171,5 +171,13 @@ var userTokenData = a.Type("UserTokenData", func() {
 	a.Attribute("status", d.Integer, "token status")
 	a.Attribute("token_type", d.String, "token type")
 	a.Attribute("expiry_time", d.DateTime, "token expiry time")
+	a.Attribute("permissions", a.ArrayOf(tokenPrivilegeData))
 	a.Required("token_id", "status", "token_type", "expiry_time")
+})
+
+var tokenPrivilegeData = a.Type("TokenPrivilegeData", func() {
+	a.Attribute("resource_id", d.String, "resource identifier")
+	a.Attribute("scopes", d.String, "scopes granted for resource")
+	a.Attribute("stale", d.Boolean, "flag indicating whether these privileges are stale")
+	a.Required("resource_id", "scopes", "stale")
 })
