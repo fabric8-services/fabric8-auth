@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,7 @@ func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 	w.token = &tokenRepo.Token{}
 
 	var identityID *uuid.UUID
+	w.token.TokenType = token.TOKEN_TYPE_ACCESS
 
 	for i := range params {
 		switch t := params[i].(type) {
@@ -37,6 +39,12 @@ func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 			identityID = &t.Identity().ID
 		case userWrapper:
 			identityID = &t.Identity().ID
+		case string:
+			if t == token.TOKEN_TYPE_RPT ||
+				t == token.TOKEN_TYPE_ACCESS ||
+				t == token.TOKEN_TYPE_REFRESH {
+				w.token.TokenType = t
+			}
 		}
 	}
 
