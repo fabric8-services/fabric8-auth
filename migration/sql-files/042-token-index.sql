@@ -1,0 +1,1 @@
+CREATE INDEX uq_token_identity_id ON token (identity_id);
