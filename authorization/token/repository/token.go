@@ -93,6 +93,7 @@ type TokenRepository interface {
 	ListForIdentity(ctx context.Context, id uuid.UUID) ([]Token, error)
 	CreatePrivilege(ctx context.Context, privilege *TokenPrivilege) error
 	ListPrivileges(ctx context.Context, tokenID uuid.UUID) ([]permission.PrivilegeCache, error)
+	SetStatusFlagsForIdentity(ctx context.Context, identityID uuid.UUID, status int) error
 }
 
 // CRUD Functions
@@ -259,4 +260,24 @@ func (m *GormTokenRepository) ListPrivileges(ctx context.Context, tokenID uuid.U
 		return nil, errs.WithStack(err)
 	}
 	return rows, nil
+}
+
+func (m *GormTokenRepository) SetStatusFlagsForIdentity(ctx context.Context, identityID uuid.UUID, status int) error {
+	defer goa.MeasureSince([]string{"goa", "db", "token", "SetStatusFlagsForIdentity"}, time.Now())
+
+	err := m.db.Exec("UPDATE token SET status = status | ? WHERE identity_id = ? AND deleted_at IS NULL", status, identityID).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id": identityID.String(),
+			"status":      status,
+			"err":         err,
+		}, "unable to update token status")
+		return errs.WithStack(err)
+	}
+
+	log.Info(ctx, map[string]interface{}{
+		"identity_id": identityID.String(),
+		"status":      status,
+	}, "Token status values updated")
+	return nil
 }
