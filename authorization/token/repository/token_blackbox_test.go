@@ -199,7 +199,8 @@ func (s *tokenBlackBoxTest) TestSetStatusFlagsForIdentity() {
 
 	require.True(s.T(), t1.Token().Valid())
 
-	s.repo.SetStatusFlagsForIdentity(s.Ctx, user1.IdentityID(), tokenPkg.TOKEN_STATUS_REVOKED)
+	err := s.repo.SetStatusFlagsForIdentity(s.Ctx, user1.IdentityID(), tokenPkg.TOKEN_STATUS_REVOKED)
+	require.NoError(s.T(), err)
 
 	t1Loaded := s.Graph.LoadToken(t1.TokenID())
 
