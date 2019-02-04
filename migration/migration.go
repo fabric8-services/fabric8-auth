@@ -236,6 +236,8 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 42
 	m = append(m, steps{ExecuteSQLFile("042-token-index.sql")})
 
+	// Version 43
+	m = append(m, steps{ExecuteSQLFile("043-add-admin-console-resource.sql")})
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
