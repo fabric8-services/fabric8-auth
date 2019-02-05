@@ -4,6 +4,7 @@ import (
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 // tokenWrapper represents an RPT Token domain object
@@ -30,9 +31,14 @@ func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 	w.token = &tokenRepo.Token{}
 
 	var identityID *uuid.UUID
+	var expiryTime *time.Time
 
 	for i := range params {
 		switch t := params[i].(type) {
+		case *time.Time:
+			expiryTime = t
+		case time.Time:
+			expiryTime = &t
 		case *userWrapper:
 			identityID = &t.Identity().ID
 		case userWrapper:
@@ -44,6 +50,10 @@ func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 		w.token.IdentityID = *identityID
 	} else {
 		w.token.IdentityID = w.graph.CreateUser().Identity().ID
+	}
+
+	if expiryTime != nil {
+		w.token.ExpiryTime = *expiryTime
 	}
 
 	err := g.app.TokenRepository().Create(g.ctx, w.token)

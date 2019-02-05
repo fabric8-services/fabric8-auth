@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"testing"
+	"time"
 
 	tokenPkg "github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
@@ -212,4 +213,43 @@ func (s *tokenBlackBoxTest) TestSetStatusFlagsForIdentity() {
 
 	t4Loaded := s.Graph.LoadToken(t4.TokenID())
 	require.True(s.T(), t4Loaded.Token().Valid())
+}
+
+func (s *tokenBlackBoxTest) TestCleanupExpiredTokens() {
+	now := time.Now()
+	yesterday := now.AddDate(0, 0, -1)
+	tomorrow := now.AddDate(0, 0, 1)
+
+	s.Graph.CreateToken(yesterday)
+	s.Graph.CreateToken(yesterday)
+	s.Graph.CreateToken(now)
+	s.Graph.CreateToken(now)
+	s.Graph.CreateToken(now)
+	s.Graph.CreateToken(tomorrow)
+	s.Graph.CreateToken(tomorrow)
+
+	require.Equal(s.T(), s.countTokens(s.T()), 7)
+
+	// Let's start by cleaning up all tokens that expired more than 1 hour ago
+	err := s.repo.CleanupExpiredTokens(s.Ctx, 1)
+	require.NoError(s.T(), err)
+
+	// We should be left with 5 tokens (the "yesterday" tokens should now be gone)
+	require.Equal(s.T(), s.countTokens(s.T()), 5)
+
+	// Now let's clean up all the expired tokens, without any retention
+	err = s.repo.CleanupExpiredTokens(s.Ctx, 0)
+	require.NoError(s.T(), err)
+
+	// We should now be left with just 2 tokens
+	require.Equal(s.T(), s.countTokens(s.T()), 2)
+}
+
+func (s *tokenBlackBoxTest) countTokens(t *testing.T) int {
+	var result *int64
+
+	err := s.DB.Table("token").Count(&result).Error
+	require.NoError(t, err)
+
+	return int(*result)
 }

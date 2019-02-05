@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"net/http"
 	"os"
 	"os/user"
@@ -286,6 +287,13 @@ func main() {
 			}
 		}(config.GetMetricsHTTPAddress())
 	}
+
+	// Start background workers
+	worker := worker.NewTokenCleanupWorker(context.Background(), appDB)
+	// Activate token cleanup once every hour
+	worker.Start(time.NewTicker(time.Hour))
+	// Stop the worker when the app shuts down
+	defer worker.Stop()
 
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
