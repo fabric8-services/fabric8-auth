@@ -185,3 +185,31 @@ func (s *tokenBlackBoxTest) TestCreateListPrivileges() {
 	require.Len(s.T(), privs, 1)
 	require.Equal(s.T(), pc.PrivilegeCache().PrivilegeCacheID, privs[0].PrivilegeCacheID)
 }
+
+func (s *tokenBlackBoxTest) TestSetStatusFlagsForIdentity() {
+	user1 := s.Graph.CreateUser()
+	user2 := s.Graph.CreateUser()
+
+	t1 := s.Graph.CreateToken(user1)
+	t2 := s.Graph.CreateToken(user1)
+	s.Graph.CreateToken(user1)
+
+	t4 := s.Graph.CreateToken(user2)
+	s.Graph.CreateToken(user2)
+
+	require.True(s.T(), t1.Token().Valid())
+
+	err := s.repo.SetStatusFlagsForIdentity(s.Ctx, user1.IdentityID(), tokenPkg.TOKEN_STATUS_REVOKED)
+	require.NoError(s.T(), err)
+
+	t1Loaded := s.Graph.LoadToken(t1.TokenID())
+
+	require.False(s.T(), t1Loaded.Token().Valid())
+	require.True(s.T(), t1Loaded.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
+
+	t2Loaded := s.Graph.LoadToken(t2.TokenID())
+	require.False(s.T(), t2Loaded.Token().Valid())
+
+	t4Loaded := s.Graph.LoadToken(t4.TokenID())
+	require.True(s.T(), t4Loaded.Token().Valid())
+}

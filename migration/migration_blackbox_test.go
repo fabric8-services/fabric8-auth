@@ -122,6 +122,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration38", testMigration38)
 	t.Run("TestMigration39", testMigration39)
 	t.Run("TestMigration41", testMigration41)
+	t.Run("TestMigration43", testMigration43)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -520,6 +521,14 @@ func testMigration39(t *testing.T) {
 func testMigration41(t *testing.T) {
 	migrateToVersion(sqlDB, migrations[:(42)], (42))
 	require.Nil(t, runSQLscript(sqlDB, "041-identity-role-index.sql"))
+}
+
+func testMigration43(t *testing.T) {
+
+	migrateToVersion(sqlDB, migrations[:(44)], (44))
+
+	countRows(t, "SELECT count(1) FROM role where name = 'admin_console_admin'", 1)
+	countRows(t, "SELECT count(1) FROM resource where name = 'admin_console'", 1)
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

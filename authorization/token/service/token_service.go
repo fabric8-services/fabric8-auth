@@ -708,19 +708,14 @@ func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, ac
 	}
 
 	err = s.ExecuteInTransaction(func() error {
-		// For each token, set the status flag to true for the specified token status
-		for _, tkn := range tokens {
-			tkn.SetStatus(status, true)
-			err = s.Repositories().TokenRepository().Save(ctx, &tkn)
-
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err":         err,
-					"identity_id": identity.ID,
-					"token_id":    tkn.TokenID,
-				}, "Unable to update status for token.")
-				return err
-			}
+		// Update all the token status flags
+		err = s.Repositories().TokenRepository().SetStatusFlagsForIdentity(ctx, identity.ID, status)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"err":         err,
+				"identity_id": identity.ID,
+			}, "Unable to update status values for identity.")
+			return err
 		}
 		return nil
 	})
