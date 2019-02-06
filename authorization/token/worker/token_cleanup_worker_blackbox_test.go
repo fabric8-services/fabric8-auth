@@ -1,7 +1,6 @@
 package worker_test
 
 import (
-	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/stretchr/testify/require"
@@ -12,7 +11,6 @@ import (
 
 type tokenCleanupWorkerBlackBoxTest struct {
 	gormtestsupport.DBTestSuite
-	repo tokenRepo.TokenRepository
 }
 
 func TestRunTokenCleanupWorkerBlackBoxTest(t *testing.T) {

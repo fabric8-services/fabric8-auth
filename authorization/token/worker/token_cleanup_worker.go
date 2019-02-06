@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"github.com/fabric8-services/fabric8-auth/application"
+	"github.com/fabric8-services/fabric8-auth/log"
 	"time"
 )
 
@@ -36,7 +37,13 @@ func (w *tokenCleanupWorker) cleanupLoop() {
 	for {
 		select {
 		case <-w.ticker.C:
-			w.app.TokenService().CleanupExpiredTokens(w.ctx)
+			err := w.app.TokenService().CleanupExpiredTokens(w.ctx)
+			if err != nil {
+				// We will just log the error and continue
+				log.Error(nil, map[string]interface{}{
+					"err": err,
+				}, "error in token cleanup worker")
+			}
 		case <-w.stopCh:
 			w.ticker.Stop()
 			return
