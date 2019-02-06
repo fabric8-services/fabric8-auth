@@ -191,6 +191,9 @@ const (
 	varEnvironment = "environment"
 	varSentryDSN   = "sentry.dsn"
 
+	// Token cleanup
+	varExpiredTokenRetentionHours = "expired.token.retention.hours"
+
 	secondsInOneDay = 24 * 60 * 60
 )
 
@@ -623,6 +626,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// RPT Token maximum permissions
 	c.v.SetDefault(varRPTTokenMaxPermissions, 10)
 
+	// Expired token retention time, after which tokens will be cleaned up
+	c.v.SetDefault(varExpiredTokenRetentionHours, defaultExpiredTokenRetentionHours)
+
 	// Cluster service
 	c.v.SetDefault(varShortClusterServiceURL, "http://f8cluster")
 	c.v.SetDefault(varClusterRefreshInterval, 5*time.Minute) // 5 minutes
@@ -1010,4 +1016,8 @@ func (c *ConfigurationData) GetPrivilegeCacheExpirySeconds() int64 {
 // GetRPTTokenMaxPermissions returns the maximum number of permissions that may be stored in an RPT token
 func (c *ConfigurationData) GetRPTTokenMaxPermissions() int {
 	return c.v.GetInt(varRPTTokenMaxPermissions)
+}
+
+func (c *ConfigurationData) GetExpiredTokenRetentionHours() int {
+	return c.v.GetInt(varExpiredTokenRetentionHours)
 }

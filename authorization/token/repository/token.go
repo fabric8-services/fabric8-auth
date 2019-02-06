@@ -94,6 +94,7 @@ type TokenRepository interface {
 	CreatePrivilege(ctx context.Context, privilege *TokenPrivilege) error
 	ListPrivileges(ctx context.Context, tokenID uuid.UUID) ([]permission.PrivilegeCache, error)
 	SetStatusFlagsForIdentity(ctx context.Context, identityID uuid.UUID, status int) error
+	CleanupExpiredTokens(ctx context.Context, retentionHours int) error
 }
 
 // CRUD Functions
@@ -279,5 +280,21 @@ func (m *GormTokenRepository) SetStatusFlagsForIdentity(ctx context.Context, ide
 		"identity_id": identityID.String(),
 		"status":      status,
 	}, "Token status values updated")
+	return nil
+}
+
+func (m *GormTokenRepository) CleanupExpiredTokens(ctx context.Context, retentionHours int) error {
+	defer goa.MeasureSince([]string{"goa", "db", "token", "CleanupExpiredTokens"}, time.Now())
+
+	threshold := time.Now().Add(time.Duration(-retentionHours) * time.Hour)
+	err := m.db.Exec("DELETE FROM token WHERE expiry_time < ?", threshold).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to cleanup expired tokens")
+		return errs.WithStack(err)
+	}
+
+	log.Info(ctx, map[string]interface{}{}, "Expired tokens cleaned up")
 	return nil
 }

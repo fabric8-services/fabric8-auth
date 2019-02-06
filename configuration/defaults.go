@@ -109,4 +109,7 @@ vwIDAQAB
 
 	prodEnvironment        = "production"
 	prodPreviewEnvironment = "prod-preview"
+
+	// The number of hours to retain expired tokens.  After this time limit has been exceeded, the token may be cleaned up (deleted)
+	defaultExpiredTokenRetentionHours = 24
 )
