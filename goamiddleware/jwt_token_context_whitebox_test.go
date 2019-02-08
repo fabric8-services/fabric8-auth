@@ -70,6 +70,10 @@ func (s *testJWTokenContextSuite) TestHandler() {
 	header := textproto.MIMEHeader(rw.Header())
 	assert.NotContains(s.T(), header, "WWW-Authenticate")
 	assert.NotContains(s.T(), header, "Access-Control-Expose-Headers")
+
+	// Test with a user token
+	rw = httptest.NewRecorder()
+	s.Graph.CreateToken()
 }
 
 func dummyHandler(ctx context.Context, rw http.ResponseWriter, r *http.Request) error {
