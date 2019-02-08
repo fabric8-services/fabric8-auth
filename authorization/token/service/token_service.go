@@ -747,6 +747,38 @@ func (s *tokenServiceImpl) CleanupExpiredTokens(ctx context.Context) error {
 	return nil
 }
 
+func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.Token) error {
+	claims := accessToken.Claims.(jwt.MapClaims)
+
+	// Extract the id from the token
+	tokenID, err := uuid.FromString(claims["jti"].(string))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token")
+		return errors.NewBadParameterErrorFromString("token", accessToken.Raw,
+			"could not extract token ID from token")
+	}
+
+	tkn, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"token_id": tokenID,
+			"err":      err,
+		}, "unable to load token")
+		return err
+	}
+
+	if !tkn.Valid() {
+		log.Info(ctx, map[string]interface{}{
+			"token_id": tokenID,
+			"status":   tkn.Status,
+		}, "Invalid token status")
+
+		return errors.NewUnauthorizedError("invalid token")
+	}
+
+	return nil
+}
+
 func (s *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool,
 	provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
 	username := provider.OSOCluster().ServiceAccountUsername

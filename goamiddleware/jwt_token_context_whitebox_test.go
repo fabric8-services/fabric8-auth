@@ -3,36 +3,36 @@ package goamiddleware
 import (
 	"context"
 	"errors"
+	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
 
-	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
-func TestJWTokenContext(t *testing.T) {
-	suite.Run(t, &TestJWTokenContextSuite{})
+type testJWTokenContextSuite struct {
+	gormtestsupport.DBTestSuite
 }
 
-type TestJWTokenContextSuite struct {
-	testsuite.UnitTestSuite
+func TestJWTTokenContextSuite(t *testing.T) {
+	suite.Run(t, &testJWTokenContextSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *TestJWTokenContextSuite) TestHandler() {
+func (s *testJWTokenContextSuite) TestHandler() {
 	schema := &goa.JWTSecurity{}
 	errUnauthorized := goa.NewErrorClass("token_validation_failed", 401)
 
 	rw := httptest.NewRecorder()
 	rq := &http.Request{Header: make(map[string][]string)}
-	h := handler(testtoken.TokenManager, schema, dummyHandler, errUnauthorized)
+	h := handler(s.Application, testtoken.TokenManager, schema, dummyHandler, errUnauthorized)
 
 	err := h(context.Background(), rw, rq)
 	require.Error(s.T(), err)
