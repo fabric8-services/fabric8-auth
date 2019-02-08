@@ -29,6 +29,7 @@ import (
 type TokenServiceConfiguration interface {
 	manager.TokenManagerConfiguration
 	GetRPTTokenMaxPermissions() int
+	GetExpiredTokenRetentionHours() int
 }
 
 type tokenServiceImpl struct {
@@ -728,7 +729,26 @@ func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, ac
 	return err
 }
 
-func (s *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool, provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
+func (s *tokenServiceImpl) CleanupExpiredTokens(ctx context.Context) error {
+
+	err := s.ExecuteInTransaction(func() error {
+		return s.Repositories().TokenRepository().CleanupExpiredTokens(ctx, s.config.GetExpiredTokenRetentionHours())
+	})
+
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "unable to cleanup expired tokens")
+		return err
+	}
+
+	log.Debug(ctx, map[string]interface{}{}, "Cleaned up expired tokens.")
+
+	return nil
+}
+
+func (s *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool,
+	provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
 	username := provider.OSOCluster().ServiceAccountUsername
 	if forcePull != nil && *forcePull {
 		userProfile, err := provider.Profile(ctx, oauth2.Token{AccessToken: provider.OSOCluster().ServiceAccountToken})
