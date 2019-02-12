@@ -49,7 +49,7 @@ func handler(app application.Application, tokenManager manager.TokenManager, sch
 			// If the token is *not* a service account token, then check if it is valid
 			accountName := token.Claims.(jwtgo.MapClaims)["service_accountname"]
 			if accountName == nil {
-				err = app.TokenService().ValidateToken(context.Background(), token)
+				err = app.TokenService().ValidateToken(ctx, token)
 				if err != nil {
 					log.Error(ctx, map[string]interface{}{"error": err}, "failed to validate JSON Web Token in TokenContext middleware")
 					tokenManager.AddLoginRequiredHeader(rw)

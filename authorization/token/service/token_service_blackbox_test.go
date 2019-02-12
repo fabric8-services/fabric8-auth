@@ -833,6 +833,10 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithNoRPTTokenHasNoPe
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
 
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	ctx = manager.ContextWithTokenManager(ctx, tm)
 	refreshToken, err := tm.Parse(ctx, at.RefreshToken)
 	require.NoError(s.T(), err)
@@ -856,6 +860,11 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTToken() {
 	// Create an initial access token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	atClaims, err := tm.ParseToken(ctx, at.AccessToken)
 	require.NoError(s.T(), err)
 	// create space
@@ -890,6 +899,11 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenAndStaleR
 	// Create an initial access token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	// create space
 	space := s.Graph.CreateSpace().AddAdmin(user)
 	// create RPT for the 2nd space
@@ -921,6 +935,11 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenMultiReso
 	// Create an initial access token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	// create space 1
 	space1 := s.Graph.CreateSpace().AddAdmin(user)
 	// create RPT for the 1st space
