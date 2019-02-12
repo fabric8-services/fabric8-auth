@@ -136,6 +136,7 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *mo
 				Username:  userName,
 				RhdUserID: rhdUserUUID.String(),
 			},
+			Type: "identities",
 		},
 	}
 
