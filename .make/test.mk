@@ -197,10 +197,11 @@ test-integration-benchmark: prebuild-check migrate-database $(SOURCES)
 test-contracts-provider-no-coverage: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep 'contracts/provider'))
-	PACT_DIR=$(PWD)/test/contracts/pacts \
-	PACT_VERSION=latest \
+	$(eval PACT_VERSION?=latest)
+	PACT_DIR=$(TMP_PATH)/test/contracts/pacts \
+	PACT_VERSION=$(PACT_VERSION) \
 	PACT_PROVIDER_BASE_URL=http://localhost:8089 \
-	go test -v -count=1 $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
+	go test -count=1 $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
 .PHONY: test-remote-with-coverage
 ## Runs the remote tests and produces coverage files for each package.

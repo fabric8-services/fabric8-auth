@@ -55,6 +55,7 @@ func TestAuthAPIProvider(t *testing.T) {
 		Provider:             pactProvider,
 		PactDir:              pactDir,
 		Host:                 "localhost",
+		LogDir:               pactDir,
 		LogLevel:             "INFO",
 		SpecificationVersion: 2,
 	}
@@ -135,7 +136,12 @@ func pactFromBroker(pactBrokerURL string, pactBrokerUsername string, pactBrokerP
 	var httpClient = &http.Client{
 		Timeout: time.Second * 30,
 	}
-	pactURL := fmt.Sprintf("%s/pacts/provider/%s/consumer/%s/version/%s", pactBrokerURL, pactProvider, pactConsumer, pactVersion)
+	var pactURL string
+	if pactVersion == "latest" {
+		pactURL = fmt.Sprintf("%s/pacts/provider/%s/consumer/%s/latest", pactBrokerURL, pactProvider, pactConsumer)
+	} else {
+		pactURL = fmt.Sprintf("%s/pacts/provider/%s/consumer/%s/version/%s", pactBrokerURL, pactProvider, pactConsumer, pactVersion)
+	}
 	request, err := http.NewRequest("GET", pactURL, nil)
 	if err != nil {
 		log.Fatal(err)
