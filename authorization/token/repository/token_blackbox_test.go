@@ -216,6 +216,9 @@ func (s *tokenBlackBoxTest) TestSetStatusFlagsForIdentity() {
 }
 
 func (s *tokenBlackBoxTest) TestCleanupExpiredTokens() {
+	// Start by deleting all tokens
+	s.DB.Exec("DELETE FROM TOKEN")
+
 	now := time.Now()
 	yesterday := now.AddDate(0, 0, -1)
 	tomorrow := now.AddDate(0, 0, 1)
@@ -228,7 +231,7 @@ func (s *tokenBlackBoxTest) TestCleanupExpiredTokens() {
 	t6 := s.Graph.CreateToken(tomorrow)
 	t7 := s.Graph.CreateToken(tomorrow)
 
-	require.Equal(s.T(), s.countTokens(), 7)
+	require.Equal(s.T(), 7, s.countTokens())
 
 	// Let's start by cleaning up all tokens that expired more than 1 hour ago
 	err := s.repo.CleanupExpiredTokens(s.Ctx, 1)
@@ -251,7 +254,7 @@ func (s *tokenBlackBoxTest) TestCleanupExpiredTokens() {
 	require.NoError(s.T(), err)
 
 	// We should now be left with just 2 tokens
-	require.Equal(s.T(), s.countTokens(), 2)
+	require.Equal(s.T(), 2, s.countTokens())
 
 	// Check the exact token IDs
 	require.False(s.T(), s.tokenExists(t1.TokenID()))

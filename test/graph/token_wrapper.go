@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
@@ -75,19 +76,30 @@ func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.token.TokenType = tokenType
 
-	err := g.app.TokenRepository().Create(g.ctx, w.token)
-	require.NoError(g.t, err)
-
 	oauthToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(g.ctx, *identity, false)
 	require.NoError(g.t, err)
 
 	if tokenType == token.TOKEN_TYPE_ACCESS || tokenType == token.TOKEN_TYPE_RPT {
 		w.tokenString = oauthToken.AccessToken
+		w.token.TokenID = w.extractTokenID(g.t, g.ctx, oauthToken.AccessToken)
+
 	} else if tokenType == token.TOKEN_TYPE_REFRESH {
 		w.tokenString = oauthToken.RefreshToken
+		w.token.TokenID = w.extractTokenID(g.t, g.ctx, oauthToken.RefreshToken)
 	}
 
+	err = g.app.TokenRepository().Create(g.ctx, w.token)
+	require.NoError(g.t, err)
+
 	return &w
+}
+
+func (w *tokenWrapper) extractTokenID(t require.TestingT, ctx context.Context, tokenString string) uuid.UUID {
+	claims, err := testtoken.TokenManager.ParseToken(ctx, tokenString)
+	require.NoError(t, err)
+	tokenID, err := uuid.FromString(claims.Id)
+	require.NoError(t, err)
+	return tokenID
 }
 
 func (w *tokenWrapper) Token() *tokenRepo.Token {

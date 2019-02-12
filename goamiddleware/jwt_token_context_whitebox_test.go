@@ -73,7 +73,14 @@ func (s *testJWTokenContextSuite) TestHandler() {
 
 	// Test with a user token
 	rw = httptest.NewRecorder()
-	s.Graph.CreateToken()
+	tkn := s.Graph.CreateToken()
+	rq.Header.Set("Authorization", "Bearer "+tkn.TokenString())
+	err = h(context.Background(), rw, rq)
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), "next-handler-error", err.Error())
+	header = textproto.MIMEHeader(rw.Header())
+	assert.NotContains(s.T(), header, "WWW-Authenticate")
+	assert.NotContains(s.T(), header, "Access-Control-Expose-Headers")
 }
 
 func dummyHandler(ctx context.Context, rw http.ResponseWriter, r *http.Request) error {
