@@ -95,8 +95,8 @@ func (s *testJWTokenContextSuite) TestHandler() {
 	require.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "401 token_validation_failed: token is invalid", err.Error())
 	header = textproto.MIMEHeader(rw.Header())
-	require.NotEmpty(s.T(), header.Get("WWW-Authenticate"))
-	require.NotEmpty(s.T(), header.Get("Access-Control-Expose-Headers"))
+	require.Equal(s.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", header.Get("WWW-Authenticate"))
+	assert.Contains(s.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
 
 func dummyHandler(ctx context.Context, rw http.ResponseWriter, r *http.Request) error {
