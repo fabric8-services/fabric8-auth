@@ -662,7 +662,11 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenValidNo
 	claims["sub"] = user.IdentityID().String()
 	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
+	_, err = s.Application.TokenService().RegisterToken(s.Ctx, user.IdentityID(), refreshToken, token2.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	require.NoError(s.T(), err)
 	// when
 	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
@@ -691,10 +695,17 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithAcc
 	claims["sub"] = user.IdentityID().String()
 	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.NoError(s.T(), err)
+	_, err = s.Application.TokenService().RegisterToken(s.Ctx, user.IdentityID(), refreshToken, token2.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	require.NoError(s.T(), err)
+	_, err = s.Application.TokenService().RegisterToken(s.Ctx, user.IdentityID(), accessToken, token2.TOKEN_TYPE_ACCESS, nil)
+	require.NoError(s.T(), err)
+
 	// when
 	result, err := s.Application.TokenService().ExchangeRefreshToken(ctx, refreshToken, accessToken)
 	// then
@@ -721,10 +732,17 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPT
 	claims["sub"] = user.IdentityID().String()
 	claims["iat"] = time.Now().Unix() - 60*60 // Issued 1h ago
 	claims["exp"] = time.Now().Unix() + 60*60 // Expires in 1h
+
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.NoError(s.T(), err)
+	_, err = s.Application.TokenService().RegisterToken(s.Ctx, user.IdentityID(), refreshToken, token2.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	require.NoError(s.T(), err)
+	_, err = s.Application.TokenService().RegisterToken(s.Ctx, user.IdentityID(), accessToken, token2.TOKEN_TYPE_ACCESS, nil)
+	require.NoError(s.T(), err)
+
 	// obtain an RPT token using the access token
 	space := s.Graph.CreateSpace().AddAdmin(user)
 	rpt, err := s.Application.TokenService().Audit(ctx, user.Identity(), accessToken, space.SpaceID())

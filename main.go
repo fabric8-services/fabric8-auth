@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"net/http"
 	"os"
 	"os/user"
@@ -148,7 +149,7 @@ func main() {
 		}, "failed to create token manager")
 	}
 	// Middleware that extracts and stores the token in the context
-	jwtMiddlewareTokenContext := goamiddleware.TokenContext(tokenManager, app.NewJWTSecurity())
+	jwtMiddlewareTokenContext := goamiddleware.TokenContext(appDB, tokenManager, app.NewJWTSecurity())
 	service.Use(jwtMiddlewareTokenContext)
 
 	service.Use(manager.InjectTokenManager(tokenManager))
@@ -286,6 +287,13 @@ func main() {
 			}
 		}(config.GetMetricsHTTPAddress())
 	}
+
+	// Start background workers
+	worker := worker.NewTokenCleanupWorker(context.Background(), appDB)
+	// Activate token cleanup once every hour
+	worker.Start(time.NewTicker(time.Hour))
+	// Stop the worker when the app shuts down
+	defer worker.Stop()
 
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {

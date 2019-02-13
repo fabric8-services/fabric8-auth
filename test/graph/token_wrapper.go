@@ -1,16 +1,21 @@
 package graph
 
 import (
+	"context"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
-// tokenWrapper represents an RPT Token domain object
+// tokenWrapper represents a Token domain object
 type tokenWrapper struct {
 	baseWrapper
-	token *tokenRepo.Token
+	token       *tokenRepo.Token
+	tokenString string
 }
 
 func loadTokenWrapper(g *TestGraph, tokenID uuid.UUID) tokenWrapper {
@@ -30,38 +35,79 @@ func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.token = &tokenRepo.Token{}
 
-	var identityID *uuid.UUID
-	w.token.TokenType = token.TOKEN_TYPE_ACCESS
+	var identity *repository.Identity
+	var expiryTime *time.Time
+	tokenType := token.TOKEN_TYPE_ACCESS
 
 	for i := range params {
 		switch t := params[i].(type) {
-		case *userWrapper:
-			identityID = &t.Identity().ID
-		case userWrapper:
-			identityID = &t.Identity().ID
-		case string:
-			if t == token.TOKEN_TYPE_RPT ||
-				t == token.TOKEN_TYPE_ACCESS ||
-				t == token.TOKEN_TYPE_REFRESH {
-				w.token.TokenType = t
+		case *string:
+			if token.IsValidTokenType(*t) {
+				tokenType = *t
 			}
+		case string:
+			if token.IsValidTokenType(t) {
+				tokenType = t
+			}
+		case *time.Time:
+			expiryTime = t
+		case time.Time:
+			expiryTime = &t
+		case *userWrapper:
+			identity = t.Identity()
+		case userWrapper:
+			identity = t.Identity()
+		case *identityWrapper:
+			identity = t.Identity()
+		case identityWrapper:
+			identity = t.Identity()
 		}
 	}
 
-	if identityID != nil {
-		w.token.IdentityID = *identityID
-	} else {
-		w.token.IdentityID = w.graph.CreateUser().Identity().ID
+	if identity == nil {
+		identity = w.graph.CreateUser().Identity()
 	}
 
-	err := g.app.TokenRepository().Create(g.ctx, w.token)
+	w.token.IdentityID = identity.ID
+
+	if expiryTime != nil {
+		w.token.ExpiryTime = *expiryTime
+	}
+
+	w.token.TokenType = tokenType
+
+	oauthToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(g.ctx, *identity, false)
+	require.NoError(g.t, err)
+
+	if tokenType == token.TOKEN_TYPE_ACCESS || tokenType == token.TOKEN_TYPE_RPT {
+		w.tokenString = oauthToken.AccessToken
+		w.token.TokenID = w.extractTokenID(g.t, g.ctx, oauthToken.AccessToken)
+
+	} else if tokenType == token.TOKEN_TYPE_REFRESH {
+		w.tokenString = oauthToken.RefreshToken
+		w.token.TokenID = w.extractTokenID(g.t, g.ctx, oauthToken.RefreshToken)
+	}
+
+	err = g.app.TokenRepository().Create(g.ctx, w.token)
 	require.NoError(g.t, err)
 
 	return &w
 }
 
+func (w *tokenWrapper) extractTokenID(t require.TestingT, ctx context.Context, tokenString string) uuid.UUID {
+	claims, err := testtoken.TokenManager.ParseToken(ctx, tokenString)
+	require.NoError(t, err)
+	tokenID, err := uuid.FromString(claims.Id)
+	require.NoError(t, err)
+	return tokenID
+}
+
 func (w *tokenWrapper) Token() *tokenRepo.Token {
 	return w.token
+}
+
+func (w *tokenWrapper) TokenString() string {
+	return w.tokenString
 }
 
 func (w *tokenWrapper) TokenID() uuid.UUID {
