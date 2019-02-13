@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"github.com/dgrijalva/jwt-go"
 	errs "github.com/pkg/errors"
 	"testing"
 	"time"
@@ -833,6 +834,10 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithNoRPTTokenHasNoPe
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
 
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	ctx = manager.ContextWithTokenManager(ctx, tm)
 	refreshToken, err := tm.Parse(ctx, at.RefreshToken)
 	require.NoError(s.T(), err)
@@ -856,6 +861,11 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTToken() {
 	// Create an initial access token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	atClaims, err := tm.ParseToken(ctx, at.AccessToken)
 	require.NoError(s.T(), err)
 	// create space
@@ -890,6 +900,11 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenAndStaleR
 	// Create an initial access token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	// create space
 	space := s.Graph.CreateSpace().AddAdmin(user)
 	// create RPT for the 2nd space
@@ -921,6 +936,11 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenMultiReso
 	// Create an initial access token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	// create space 1
 	space1 := s.Graph.CreateSpace().AddAdmin(user)
 	// create RPT for the 1st space
@@ -1008,6 +1028,35 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenRevoked()
 	require.Error(s.T(), err)
 	assert.IsType(s.T(), errors.UnauthorizedError{}, errs.Cause(err))
 	assert.Empty(s.T(), userToken)
+}
+
+func (s *tokenServiceBlackboxTest) TestRegisterInvalidToken() {
+	// First test an invalid token string
+	_, err := s.Application.TokenService().RegisterToken(s.Ctx, uuid.NewV4(), "foo", token.TOKEN_TYPE_ACCESS, nil)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, errors.BadParameterError{})
+
+	// Then test a token with an invalid jti claim (the token id)
+	identity := s.Graph.CreateIdentity().Identity()
+
+	userToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(s.Ctx, *identity, false)
+	require.NoError(s.T(), err)
+
+	claims, err := testtoken.TokenManager.ParseToken(s.Ctx, userToken.AccessToken)
+	require.NoError(s.T(), err)
+
+	tkn, err := testtoken.TokenManager.GenerateUnsignedRPTTokenForIdentity(s.Ctx, claims, *identity, nil)
+	require.NoError(s.T(), err)
+
+	tknClaims := tkn.Claims.(jwt.MapClaims)
+	tknClaims["jti"] = "invalid_uuid"
+
+	tokenString, err := testtoken.TokenManager.SignRPTToken(s.Ctx, tkn)
+	require.NoError(s.T(), err)
+
+	_, err = s.Application.TokenService().RegisterToken(s.Ctx, identity.ID, tokenString, token.TOKEN_TYPE_RPT, nil)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, errors.BadParameterError{})
 }
 
 func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenOutdated() {
