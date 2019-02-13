@@ -324,7 +324,27 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 // ExchangeRefreshToken exchanges refreshToken for a new user token
 func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToken string, rptToken string) (*manager.TokenSet, error) {
 
-	identity, err := s.loadIdentityFromSubClaim(ctx, refreshToken)
+	tkn, err := s.tokenManager.Parse(ctx, refreshToken)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+
+	err = s.ValidateToken(ctx, tkn)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+
+	claims := tkn.Claims.(jwt.MapClaims)
+	sub := claims["sub"]
+	if sub == nil {
+		return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+	}
+	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+	if err != nil {
+		return nil, errors.NewUnauthorizedError(err.Error())
+	}
+
+	identity, err := s.Repositories().Identities().LoadWithUser(ctx, identityID)
 
 	if err != nil {
 		if unauth, _ := errors.IsUnauthorizedError(err); unauth {
@@ -747,6 +767,38 @@ func (s *tokenServiceImpl) CleanupExpiredTokens(ctx context.Context) error {
 	return nil
 }
 
+func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.Token) error {
+	claims := accessToken.Claims.(jwt.MapClaims)
+
+	// Extract the id from the token
+	tokenID, err := uuid.FromString(claims["jti"].(string))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract token ID from token")
+		return errors.NewBadParameterErrorFromString("token", accessToken.Raw,
+			"could not extract token ID from token")
+	}
+
+	tkn, err := s.Repositories().TokenRepository().Load(ctx, tokenID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"token_id": tokenID,
+			"err":      err,
+		}, "unable to load token")
+		return err
+	}
+
+	if !tkn.Valid() {
+		log.Info(ctx, map[string]interface{}{
+			"token_id": tokenID,
+			"status":   tkn.Status,
+		}, "Invalid token status")
+
+		return errors.NewUnauthorizedError("invalid token")
+	}
+
+	return nil
+}
+
 func (s *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource string, forcePull *bool,
 	provider provider.OpenShiftIdentityProvider) (*app.ExternalToken, *string, error) {
 	username := provider.OSOCluster().ServiceAccountUsername
@@ -781,27 +833,6 @@ func (s *tokenServiceImpl) retrieveClusterToken(ctx context.Context, forResource
 		"cluster": provider.OSOCluster().Name,
 	}, "Returning a cluster wide token")
 	return &clusterToken, nil, nil
-}
-
-// loadIdentityFromSubClaim Parses the specified token string and extracts the sub claim from the resulting token, then
-// uses that value to load the Identity (and corresponding User) record.  If there is no sub claim, a nil identity will
-// be returned along with an unauthorized error
-func (s *tokenServiceImpl) loadIdentityFromSubClaim(ctx context.Context, token string) (*accountrepo.Identity, error) {
-	// Parse the token and extract its claims
-	claims, err := s.tokenManager.ParseTokenWithMapClaims(ctx, token)
-	if err != nil {
-		return nil, errors.NewUnauthorizedError(err.Error())
-	}
-	sub := claims["sub"]
-	if sub == nil {
-		return nil, errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
-	}
-	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
-	if err != nil {
-		return nil, errors.NewUnauthorizedError(err.Error())
-	}
-
-	return s.Repositories().Identities().LoadWithUser(ctx, identityID)
 }
 
 func (s *tokenServiceImpl) scopesEquivalent(value1 []string, value2 []string) bool {

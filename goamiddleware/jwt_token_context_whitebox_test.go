@@ -3,36 +3,37 @@ package goamiddleware
 import (
 	"context"
 	"errors"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
 
-	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
-func TestJWTokenContext(t *testing.T) {
-	suite.Run(t, &TestJWTokenContextSuite{})
+type testJWTokenContextSuite struct {
+	gormtestsupport.DBTestSuite
 }
 
-type TestJWTokenContextSuite struct {
-	testsuite.UnitTestSuite
+func TestJWTTokenContextSuite(t *testing.T) {
+	suite.Run(t, &testJWTokenContextSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *TestJWTokenContextSuite) TestHandler() {
+func (s *testJWTokenContextSuite) TestHandler() {
 	schema := &goa.JWTSecurity{}
 	errUnauthorized := goa.NewErrorClass("token_validation_failed", 401)
 
 	rw := httptest.NewRecorder()
 	rq := &http.Request{Header: make(map[string][]string)}
-	h := handler(testtoken.TokenManager, schema, dummyHandler, errUnauthorized)
+	h := handler(s.Application, testtoken.TokenManager, schema, dummyHandler, errUnauthorized)
 
 	err := h(context.Background(), rw, rq)
 	require.Error(s.T(), err)
@@ -68,8 +69,34 @@ func (s *TestJWTokenContextSuite) TestHandler() {
 	require.Error(s.T(), err)
 	assert.Equal(s.T(), "next-handler-error", err.Error())
 	header := textproto.MIMEHeader(rw.Header())
-	assert.NotContains(s.T(), header, "WWW-Authenticate")
-	assert.NotContains(s.T(), header, "Access-Control-Expose-Headers")
+	require.Empty(s.T(), header.Get("WWW-Authenticate"))
+	require.Empty(s.T(), header.Get("Access-Control-Expose-Headers"))
+
+	// Test with a user token
+	rw = httptest.NewRecorder()
+	tkn := s.Graph.CreateToken()
+	rq.Header.Set("Authorization", "Bearer "+tkn.TokenString())
+	err = h(context.Background(), rw, rq)
+	require.Error(s.T(), err)
+	assert.Equal(s.T(), "next-handler-error", err.Error())
+	header = textproto.MIMEHeader(rw.Header())
+	require.Empty(s.T(), header.Get("WWW-Authenticate"))
+	require.Empty(s.T(), header.Get("Access-Control-Expose-Headers"))
+
+	// Test with an invalid user token
+	rw = httptest.NewRecorder()
+	tkn = s.Graph.CreateToken()
+	// Flag the token as revoked
+	tkn.Token().Status = token.TOKEN_STATUS_REVOKED
+	err = s.Application.TokenRepository().Save(s.Ctx, tkn.Token())
+	require.NoError(s.T(), err)
+	rq.Header.Set("Authorization", "Bearer "+tkn.TokenString())
+	err = h(context.Background(), rw, rq)
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "401 token_validation_failed: token is invalid", err.Error())
+	header = textproto.MIMEHeader(rw.Header())
+	require.Equal(s.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", header.Get("WWW-Authenticate"))
+	assert.Contains(s.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
 
 func dummyHandler(ctx context.Context, rw http.ResponseWriter, r *http.Request) error {

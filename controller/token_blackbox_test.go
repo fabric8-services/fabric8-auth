@@ -120,6 +120,11 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 		svc, ctrl, identity := s.SecuredController()
 		tokenSet, err := testtoken.GenerateUserTokenForIdentity(context.Background(), identity, false)
 		require.Nil(t, err)
+
+		// Register the refresh token
+		_, err = s.Application.TokenService().RegisterToken(s.Ctx, identity.ID, tokenSet.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+		require.NoError(s.T(), err)
+
 		payload := &app.RefreshToken{
 			RefreshToken: &tokenSet.RefreshToken,
 		}
@@ -377,9 +382,18 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectRefreshTokenOK() {
 	ctx := testtoken.ContextWithRequest(context.Background())
 	// Create a user
 	user := s.Graph.CreateUser()
-	// Create an access token for the user
+	// Create a user token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
+
+	// Register the access token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.AccessToken, token.TOKEN_TYPE_ACCESS, nil)
+	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
 	ctx = manager.ContextWithTokenManager(ctx, tm)
 	accessToken, err := tm.Parse(ctx, at.AccessToken)
 	require.NoError(s.T(), err)
