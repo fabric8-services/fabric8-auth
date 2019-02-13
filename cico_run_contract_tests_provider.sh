@@ -7,7 +7,7 @@ if [ "$CICO_RUN" == "true" ]; then
     cico_setup;
 fi
 
-make deps
+make build
 
 TMP_PATH="$(readlink -f tmp)"
 JOB_NAME="${JOB_NAME:-contract-testing-cico-job}"
@@ -70,11 +70,13 @@ kill $watchdogpid
 cd $CUR_DIR
 # Run the contract tests
 make test-contracts-provider-no-coverage |& tee "$OUTPUT_DIR/$ARTIFACTS_PATH/test.log"
-testsexit=$?
+testsexit=${PIPESTATUS[0]} #capture exit status of the make command
 
 # Delete sensitive files
-rm -rvf $OUTPUT_DIR/contracts/pacts
-rm -rvf test/contracts/provider/log
+if [ "$CICO_RUN" == "true" ]; then
+    rm -rvf $OUTPUT_DIR/contracts/pacts
+    rm -rvf test/contracts/provider/log
+fi
 
 # Archive the test results
 if [ "$ARCHIVE_ARTIFACTS" = "true" ]; then

@@ -71,14 +71,18 @@ func TestAuthAPIProvider(t *testing.T) {
 		log.Fatalf("Unable to setup provider initial state")
 	}
 	var pactContent string
+	var err error
 
 	if pactBrokerURL != "" {
 		// Download pact file from pact broker
 		log.Printf("Downloading pact from a broker: %s", pactBrokerURL)
-		pactContent = pactFromBroker(
+		pactContent, err = pactFromBroker(
 			pactBrokerURL, pactBrokerUsername, pactBrokerPassword,
 			pactConsumer, pactProvider, pactVersion,
 		)
+		if err != nil {
+			log.Fatalf("Unable to download pact from broker: %q", err)
+		}
 	} else {
 		// Load a pact file cached locally
 		pactFile := fmt.Sprintf("%s/%s-%s.json", pactDir, strings.ToLower(pactConsumer), strings.ToLower(pactProvider))
@@ -91,7 +95,7 @@ func TestAuthAPIProvider(t *testing.T) {
 	pactContent = strings.Replace(pactContent, model.TestUserID, providerInfo.User.Data.ID, -1)
 	pactContent = strings.Replace(pactContent, model.TestJWSToken, providerInfo.Tokens.AccessToken, -1)
 
-	err := os.MkdirAll(pactDir, os.ModePerm)
+	err = os.MkdirAll(pactDir, os.ModePerm)
 	if err != nil {
 		log.Fatalf("Unable to create a pact directory (%s): %q", pactDir, err)
 	}
@@ -131,7 +135,7 @@ func pactFromFile(pactFile string) string {
 }
 
 // pactFromBroker reads a pact from a given pact broker and returns as string
-func pactFromBroker(pactBrokerURL string, pactBrokerUsername string, pactBrokerPassword string, pactConsumer string, pactProvider string, pactVersion string) string {
+func pactFromBroker(pactBrokerURL string, pactBrokerUsername string, pactBrokerPassword string, pactConsumer string, pactProvider string, pactVersion string) (string, error) {
 
 	var httpClient = &http.Client{
 		Timeout: time.Second * 30,
@@ -144,7 +148,7 @@ func pactFromBroker(pactBrokerURL string, pactBrokerUsername string, pactBrokerP
 	}
 	request, err := http.NewRequest("GET", pactURL, nil)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", pactBrokerUsername, pactBrokerPassword)))))
@@ -152,15 +156,19 @@ func pactFromBroker(pactBrokerURL string, pactBrokerUsername string, pactBrokerP
 	log.Printf("Downloading a pact file from pact broker: %s", pactURL)
 	response, err := httpClient.Do(request)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		return "", fmt.Errorf("Unexpected response code while downloading a pact file: %d", response.StatusCode)
+	}
 
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Fatalf("Unable to read HTTP response from pact broker:\n%q", err)
+		return "", err
 	}
 
 	// Replace placeholders in pact file with real data (user name/id/token)
-	return string(responseBody)
+	return string(responseBody), nil
 }
