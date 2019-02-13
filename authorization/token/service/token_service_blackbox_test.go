@@ -1043,6 +1043,7 @@ func (s *tokenServiceBlackboxTest) TestRegisterInvalidToken() {
 	require.NoError(s.T(), err)
 
 	claims, err := testtoken.TokenManager.ParseToken(s.Ctx, userToken.AccessToken)
+	require.NoError(s.T(), err)
 
 	tkn, err := testtoken.TokenManager.GenerateUnsignedRPTTokenForIdentity(s.Ctx, claims, *identity, nil)
 	require.NoError(s.T(), err)
