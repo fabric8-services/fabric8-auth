@@ -1,4 +1,4 @@
-package provider
+package provider_test
 
 import (
 	"bytes"
@@ -13,8 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/pmacik/loginusers-go/config"
 	"github.com/pmacik/loginusers-go/loginusers"
-
-	"github.com/fabric8-services/fabric8-auth/test/contracts/model"
 )
 
 type providerStateInfo struct {
@@ -27,7 +25,7 @@ type providerStateInfo struct {
 }
 
 type ProviderInitialState struct {
-	User   model.User
+	User   User
 	Tokens loginusers.Tokens
 }
 
@@ -117,7 +115,7 @@ func errorMessage(w http.ResponseWriter, errorMessage string) {
 	fmt.Fprintf(w, `{"error": "%s"}`, errorMessage)
 }
 
-func ensureUser(providerBaseURL string, userName string, userCluster string) *model.User {
+func ensureUser(providerBaseURL string, userName string, userCluster string) *User {
 
 	var httpClient = &http.Client{
 		Timeout: time.Second * 10,
@@ -181,12 +179,12 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *mo
 			if response2.StatusCode != 200 {
 				log.Fatalf("userExists: Something went wrong: %s", responseBody)
 			}
-			var users model.Users
+			var users Users
 			err = json.Unmarshal(responseBody, &users)
 			if err != nil {
 				log.Fatalf("userExists: Unable to unmarshal response body: %s", err)
 			}
-			var user = &model.User{
+			var user = &User{
 				Data: users.Data[0],
 			}
 			log.Printf("User found with ID: %s", user.Data.ID)
@@ -195,7 +193,7 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *mo
 		log.Fatalf("createUser: Something went wrong with reading response body: %s", responseBody)
 	}
 
-	var user model.User
+	var user User
 	err = json.Unmarshal(responseBody, &user)
 	if err != nil {
 		log.Fatalf("createUser: Unable to unmarshal response body: %s", err)

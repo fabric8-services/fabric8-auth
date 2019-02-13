@@ -1,4 +1,4 @@
-package model
+package provider_test
 
 // APIStatusMessage represents a service status message returned by /api/status endpoint.
 type APIStatusMessage struct {

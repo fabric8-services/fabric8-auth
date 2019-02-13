@@ -1,4 +1,4 @@
-package provider
+package provider_test
 
 import (
 	"encoding/base64"
@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/test/contracts/model"
 	"github.com/pact-foundation/pact-go/dsl"
 	"github.com/pact-foundation/pact-go/types"
 )
@@ -91,9 +90,9 @@ func TestAuthAPIProvider(t *testing.T) {
 	}
 
 	// Replace placeholders in pact file with real data (user name/id/token)
-	pactContent = strings.Replace(pactContent, model.TestUserName, providerInfo.User.Data.Attributes.Username, -1)
-	pactContent = strings.Replace(pactContent, model.TestUserID, providerInfo.User.Data.ID, -1)
-	pactContent = strings.Replace(pactContent, model.TestJWSToken, providerInfo.Tokens.AccessToken, -1)
+	pactContent = strings.Replace(pactContent, TestUserName, providerInfo.User.Data.Attributes.Username, -1)
+	pactContent = strings.Replace(pactContent, TestUserID, providerInfo.User.Data.ID, -1)
+	pactContent = strings.Replace(pactContent, TestJWSToken, providerInfo.Tokens.AccessToken, -1)
 
 	err = os.MkdirAll(pactDir, os.ModePerm)
 	if err != nil {
