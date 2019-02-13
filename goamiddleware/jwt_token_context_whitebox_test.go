@@ -3,6 +3,7 @@ package goamiddleware
 import (
 	"context"
 	"errors"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
@@ -68,8 +69,8 @@ func (s *testJWTokenContextSuite) TestHandler() {
 	require.Error(s.T(), err)
 	assert.Equal(s.T(), "next-handler-error", err.Error())
 	header := textproto.MIMEHeader(rw.Header())
-	assert.NotContains(s.T(), header, "WWW-Authenticate")
-	assert.NotContains(s.T(), header, "Access-Control-Expose-Headers")
+	require.Empty(s.T(), header.Get("WWW-Authenticate"))
+	require.Empty(s.T(), header.Get("Access-Control-Expose-Headers"))
 
 	// Test with a user token
 	rw = httptest.NewRecorder()
@@ -79,8 +80,23 @@ func (s *testJWTokenContextSuite) TestHandler() {
 	require.Error(s.T(), err)
 	assert.Equal(s.T(), "next-handler-error", err.Error())
 	header = textproto.MIMEHeader(rw.Header())
-	assert.NotContains(s.T(), header, "WWW-Authenticate")
-	assert.NotContains(s.T(), header, "Access-Control-Expose-Headers")
+	require.Empty(s.T(), header.Get("WWW-Authenticate"))
+	require.Empty(s.T(), header.Get("Access-Control-Expose-Headers"))
+
+	// Test with an invalid user token
+	rw = httptest.NewRecorder()
+	tkn = s.Graph.CreateToken()
+	// Flag the token as revoked
+	tkn.Token().Status = token.TOKEN_STATUS_REVOKED
+	err = s.Application.TokenRepository().Save(s.Ctx, tkn.Token())
+	require.NoError(s.T(), err)
+	rq.Header.Set("Authorization", "Bearer "+tkn.TokenString())
+	err = h(context.Background(), rw, rq)
+	require.Error(s.T(), err)
+	assert.Contains(s.T(), err.Error(), "401 token_validation_failed: token is invalid", err.Error())
+	header = textproto.MIMEHeader(rw.Header())
+	require.NotEmpty(s.T(), header.Get("WWW-Authenticate"))
+	require.NotEmpty(s.T(), header.Get("Access-Control-Expose-Headers"))
 }
 
 func dummyHandler(ctx context.Context, rw http.ResponseWriter, r *http.Request) error {

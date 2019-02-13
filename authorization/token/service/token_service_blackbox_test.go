@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"github.com/dgrijalva/jwt-go"
 	errs "github.com/pkg/errors"
 	"testing"
 	"time"
@@ -1027,6 +1028,34 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenRevoked()
 	require.Error(s.T(), err)
 	assert.IsType(s.T(), errors.UnauthorizedError{}, errs.Cause(err))
 	assert.Empty(s.T(), userToken)
+}
+
+func (s *tokenServiceBlackboxTest) TestRegisterInvalidToken() {
+	// First test an invalid token string
+	_, err := s.Application.TokenService().RegisterToken(s.Ctx, uuid.NewV4(), "foo", token.TOKEN_TYPE_ACCESS, nil)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, errors.BadParameterError{})
+
+	// Then test a token with an invalid jti claim (the token id)
+	identity := s.Graph.CreateIdentity().Identity()
+
+	userToken, err := testtoken.TokenManager.GenerateUserTokenForIdentity(s.Ctx, *identity, false)
+	require.NoError(s.T(), err)
+
+	claims, err := testtoken.TokenManager.ParseToken(s.Ctx, userToken.AccessToken)
+
+	tkn, err := testtoken.TokenManager.GenerateUnsignedRPTTokenForIdentity(s.Ctx, claims, *identity, nil)
+	require.NoError(s.T(), err)
+
+	tknClaims := tkn.Claims.(jwt.MapClaims)
+	tknClaims["jti"] = "invalid_uuid"
+
+	tokenString, err := testtoken.TokenManager.SignRPTToken(s.Ctx, tkn)
+	require.NoError(s.T(), err)
+
+	_, err = s.Application.TokenService().RegisterToken(s.Ctx, identity.ID, tokenString, token.TOKEN_TYPE_RPT, nil)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), err, errors.BadParameterError{})
 }
 
 func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenOutdated() {
