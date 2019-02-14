@@ -34,20 +34,6 @@ func TestAuthAPIProvider(t *testing.T) {
 	var userPassword = os.Getenv("OSIO_PASSWORD")
 	var userCluster = os.Getenv("OSIO_CLUSTER_URL")
 
-	/*
-		log.Printf("pactDir=%s\n", pactDir)
-		log.Printf("pactProviderBaseURL=%s\n", pactProviderBaseURL)
-		log.Printf("pactConsumer=%s\n", pactConsumer)
-		log.Printf("pactProvider=%s\n", pactProvider)
-		log.Printf("pactVersion=%s\n", pactVersion)
-		log.Printf("pactBrokerUsername=%s\n", pactBrokerUsername)
-		log.Printf("pactBrokerPassword=%s\n", pactBrokerPassword)
-		log.Printf("pactBrokerURL=%s\n", pactBrokerURL)
-		log.Printf("userName=%s\n", userName)
-		log.Printf("userPassword=%s\n", userPassword)
-		/*/
-	//*/
-
 	// Create Pact connecting to local Daemon
 	pact := &dsl.Pact{
 		Consumer:             pactConsumer,
@@ -90,8 +76,8 @@ func TestAuthAPIProvider(t *testing.T) {
 	}
 
 	// Replace placeholders in pact file with real data (user name/id/token)
-	pactContent = strings.Replace(pactContent, TestUserName, providerInfo.User.Data.Attributes.Username, -1)
-	pactContent = strings.Replace(pactContent, TestUserID, providerInfo.User.Data.ID, -1)
+	pactContent = strings.Replace(pactContent, TestUserName, *providerInfo.User.Attributes.Username, -1)
+	pactContent = strings.Replace(pactContent, TestUserID, *providerInfo.User.ID, -1)
 	pactContent = strings.Replace(pactContent, TestJWSToken, providerInfo.Tokens.AccessToken, -1)
 
 	err = os.MkdirAll(pactDir, os.ModePerm)

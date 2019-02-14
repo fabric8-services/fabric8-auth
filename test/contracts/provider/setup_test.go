@@ -10,9 +10,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/pmacik/loginusers-go/config"
 	"github.com/pmacik/loginusers-go/loginusers"
+	uuid "github.com/satori/go.uuid"
+	"golang.org/x/oauth2"
+
+	"github.com/fabric8-services/fabric8-auth/client"
 )
 
 type providerStateInfo struct {
@@ -25,25 +28,8 @@ type providerStateInfo struct {
 }
 
 type ProviderInitialState struct {
-	User   User
+	User   client.UserData
 	Tokens loginusers.Tokens
-}
-
-type createUserAttributes struct {
-	Bio       string `json:"bio"`
-	Cluster   string `json:"cluster"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	RhdUserID string `json:"rhd_user_id"`
-}
-
-type createUserData struct {
-	createUserAttributes `json:"attributes"`
-	Type                 string `json:"type" pact:"example=identities"`
-}
-
-type createUserRequest struct {
-	createUserData `json:"data"`
 }
 
 // Setup starts a setup service for a provider - should be replaced by a provider setup endpoint
@@ -56,7 +42,7 @@ func Setup(setupHost string, setupPort int, providerBaseURL string, userName str
 	if user == nil {
 		log.Fatalf("Unable to create/get user")
 	}
-	log.Printf("Provider setup with user ID: %s", user.Data.ID)
+	log.Printf("Provider setup with user ID: %s", *user.ID)
 
 	loginUsersConfig := config.DefaultConfig()
 	loginUsersConfig.Auth.ServerAddress = providerBaseURL
@@ -115,7 +101,7 @@ func errorMessage(w http.ResponseWriter, errorMessage string) {
 	fmt.Fprintf(w, `{"error": "%s"}`, errorMessage)
 }
 
-func ensureUser(providerBaseURL string, userName string, userCluster string) *User {
+func ensureUser(providerBaseURL string, userName string, userCluster string) *client.UserData {
 
 	var httpClient = &http.Client{
 		Timeout: time.Second * 10,
@@ -124,11 +110,13 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *Us
 	log.Println("Getting the auth service account token")
 	authServiceAccountToken := serviceAccountToken(providerBaseURL)
 
-	rhdUserUUID, _ := uuid.NewUUID()
-	message := &createUserRequest{
-		createUserData: createUserData{
-			createUserAttributes: createUserAttributes{
-				Bio:       "Contract testing user account",
+	rhdUserUUID := uuid.NewV4()
+	userBio := "Contract testing user account"
+
+	message := &client.CreateUsersPayload{
+		Data: &client.CreateUserData{
+			Attributes: &client.CreateIdentityDataAttributes{
+				Bio:       &userBio,
 				Cluster:   userCluster,
 				Email:     fmt.Sprintf("%s@redhat.com", userName),
 				Username:  userName,
@@ -179,53 +167,43 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *Us
 			if response2.StatusCode != 200 {
 				log.Fatalf("userExists: Something went wrong: %s", responseBody)
 			}
-			var users Users
+
+			var users struct {
+				Data []client.UserData
+			}
+
 			err = json.Unmarshal(responseBody, &users)
 			if err != nil {
 				log.Fatalf("userExists: Unable to unmarshal response body: %s", err)
 			}
-			var user = &User{
-				Data: users.Data[0],
-			}
-			log.Printf("User found with ID: %s", user.Data.ID)
-			return user
+			var user = users.Data[0]
+
+			log.Printf("User found with ID: %s", *user.ID)
+			return &user
 		}
 		log.Fatalf("createUser: Something went wrong with reading response body: %s", responseBody)
 	}
 
-	var user User
+	var user client.UserData
 	err = json.Unmarshal(responseBody, &user)
 	if err != nil {
 		log.Fatalf("createUser: Unable to unmarshal response body: %s", err)
 	}
-	log.Printf("User created with ID: %s", user.Data.ID)
+	log.Printf("User created with ID: %s", *user.ID)
 	return &user
-}
-
-// ServiceAccountTokenRequest represents a request JSON body
-type ServiceAccountTokenRequest struct {
-	GrantType    string `json:"grant_type"`
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
-}
-
-// ServiceAccountTokenResponse represents a response JSON body
-type ServiceAccountTokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
 }
 
 func serviceAccountToken(providerBaseURL string) string {
 	var httpClient = &http.Client{
 		Timeout: time.Second * 10,
 	}
-	authClientID := os.Getenv("AUTH_SERVICE_ACCOUNT_CLIENT_ID")
-	authClienSecret := os.Getenv("AUTH_SERVICE_ACCOUNT_CLIENT_SECRET")
+	onlineRegistrationClientID := os.Getenv("ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID")
+	onlineRegistrationClienSecret := os.Getenv("ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SECRET")
 
-	message, err := json.Marshal(&ServiceAccountTokenRequest{
+	message, err := json.Marshal(&client.TokenExchange{
 		GrantType:    "client_credentials",
-		ClientID:     authClientID,
-		ClientSecret: authClienSecret,
+		ClientID:     onlineRegistrationClientID,
+		ClientSecret: &onlineRegistrationClienSecret,
 	})
 
 	// log.Printf("Message: %s", string(message))
@@ -254,7 +232,7 @@ func serviceAccountToken(providerBaseURL string) string {
 		log.Fatalf("serviceAccountToken: Something went wrong with reading response body: %s", responseBody)
 	}
 
-	var tokenResponse ServiceAccountTokenResponse
+	var tokenResponse oauth2.Token
 	err = json.Unmarshal(responseBody, &tokenResponse)
 	if err != nil {
 		log.Fatalf("serviceAccountToken: Unable to unmarshal response body: %s", err)

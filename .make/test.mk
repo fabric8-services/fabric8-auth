@@ -192,8 +192,8 @@ test-integration-benchmark: prebuild-check migrate-database $(SOURCES)
 ##   OSIO_PASSWORD
 ##   OSIO_CLUSTER_URL
 ## - Service account credentials (according to https://github.com/fabric8-services/fabric8-auth/blob/master/configuration/conf-files/service-account-secrets.conf#L30)
-##   AUTH_SERVICE_ACCOUNT_CLIENT_ID
-##   AUTH_SERVICE_ACCOUNT_CLIENT_SERCRET
+##   ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID
+##   ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SERCRET
 test-contracts-provider-no-coverage: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep 'contracts/provider'))
