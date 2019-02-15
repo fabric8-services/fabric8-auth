@@ -145,7 +145,7 @@ type TokenService interface {
 	ExchangeRefreshToken(ctx context.Context, refreshToken string, rptToken string) (*manager.TokenSet, error)
 	RegisterToken(ctx context.Context, identityID uuid.UUID, tokenString string, tokenType string, privileges []tokenrepo.TokenPrivilege) (*tokenrepo.Token, error)
 	RetrieveExternalToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
-	SetStatusForAllIdentityTokens(ctx context.Context, accessToken *jwt.Token, status int) error
+	SetStatusForAllIdentityTokens(ctx context.Context, identityID uuid.UUID, status int) error
 	ValidateToken(ctx context.Context, tkn *jwt.Token) error
 }
 

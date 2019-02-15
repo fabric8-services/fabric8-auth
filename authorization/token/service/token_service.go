@@ -704,19 +704,7 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 
 // SetStatusForAllIdentityTokens parses the specified token string and extracts the sub claim, using it to then load
 // all tokens for that identity and setting their status flag with the specified status value
-func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, accessToken *jwt.Token, status int) error {
-
-	claims := accessToken.Claims.(jwt.MapClaims)
-
-	sub := claims["sub"]
-	if sub == nil {
-		return errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
-	}
-	identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
-	if err != nil {
-		return errors.NewUnauthorizedError(err.Error())
-	}
-
+func (s *tokenServiceImpl) SetStatusForAllIdentityTokens(ctx context.Context, identityID uuid.UUID, status int) error {
 	identity, err := s.Repositories().Identities().LoadWithUser(ctx, identityID)
 	if err != nil {
 		return err

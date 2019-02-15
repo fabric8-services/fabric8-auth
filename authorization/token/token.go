@@ -12,6 +12,7 @@ const (
 
 	// Service Account Names
 
+	Admin              = "fabric8-admin"
 	Auth               = "fabric8-auth"
 	WIT                = "fabric8-wit"
 	OsoProxy           = "fabric8-oso-proxy"

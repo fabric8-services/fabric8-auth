@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/url"
 	"regexp"
@@ -11,6 +13,7 @@ import (
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/satori/go.uuid"
 
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
@@ -79,7 +82,19 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 	// If an access token was passed in the context, then set the status to "logged out" for all tokens with the same identity
 	tkn := goajwt.ContextJWT(ctx)
 	if tkn != nil {
-		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, tkn, token.TOKEN_STATUS_LOGGED_OUT)
+
+		claims := tkn.Claims.(jwt.MapClaims)
+
+		sub := claims["sub"]
+		if sub == nil {
+			return "", errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
+		}
+		identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+		if err != nil {
+			return "", errors.NewUnauthorizedError(err.Error())
+		}
+
+		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identityID, token.TOKEN_STATUS_LOGGED_OUT)
 
 		if err != nil {
 			return "", errors.NewInternalError(ctx, err)
