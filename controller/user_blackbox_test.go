@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"net/http"
 	"testing"
 	"time"
@@ -283,69 +281,6 @@ func (s *UserControllerTestSuite) TestListUserResources() {
 		})
 	})
 
-}
-
-func (s *UserControllerTestSuite) TestListUserTokensOK() {
-	user := s.Graph.CreateUser()
-	rt := s.Graph.CreateResourceType()
-	rt.AddScope("foo").AddScope("bar")
-	res := s.Graph.CreateResource(rt)
-
-	t1 := s.Graph.CreateToken(user, token2.TOKEN_TYPE_RPT)
-	priv := s.Graph.CreatePrivilegeCache(res, "foo", "bar")
-	t1.AddPrivilege(priv)
-
-	svc := testsupport.ServiceAsServiceAccountUser("User-Service", testsupport.TestAdminConsoleIdentity)
-	tokenManager, err := manager.NewTokenManager(s.Configuration)
-	require.Nil(s.T(), err)
-	ctrl := NewUserController(svc, s.Application, s.Configuration, tokenManager, nil)
-
-	_, tokenResponse := test.ListTokensUserOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
-
-	require.NotEmpty(s.T(), tokenResponse.Data)
-	require.Len(s.T(), tokenResponse.Data, 1)
-
-	require.Equal(s.T(), tokenResponse.Data[0].TokenID, t1.TokenID().String())
-	require.Equal(s.T(), tokenResponse.Data[0].TokenType, token2.TOKEN_TYPE_RPT)
-	require.Equal(s.T(), tokenResponse.Data[0].Status, 0)
-
-	// Add another token for our user
-	s.Graph.CreateToken(user, token2.TOKEN_TYPE_ACCESS)
-
-	_, tokenResponse = test.ListTokensUserOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
-
-	require.NotEmpty(s.T(), tokenResponse.Data)
-	require.Len(s.T(), tokenResponse.Data, 2)
-
-	user2 := s.Graph.CreateUser()
-	t2 := s.Graph.CreateToken(user2, token2.TOKEN_TYPE_ACCESS)
-
-	_, tokenResponse = test.ListTokensUserOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
-	require.Len(s.T(), tokenResponse.Data, 2)
-
-	_, tokenResponse = test.ListTokensUserOK(s.T(), svc.Context, svc, ctrl, user2.IdentityID().String())
-	require.Len(s.T(), tokenResponse.Data, 1)
-	require.Equal(s.T(), tokenResponse.Data[0].TokenID, t2.TokenID().String())
-}
-
-func (s *UserControllerTestSuite) TestListUserTokensBadRequest() {
-	svc := testsupport.ServiceAsServiceAccountUser("User-Service", testsupport.TestAdminConsoleIdentity)
-	tokenManager, err := manager.NewTokenManager(s.Configuration)
-	require.Nil(s.T(), err)
-	ctrl := NewUserController(svc, s.Application, s.Configuration, tokenManager, nil)
-
-	test.ListTokensUserBadRequest(s.T(), svc.Context, svc, ctrl, "invalid_uuid")
-}
-
-func (s *UserControllerTestSuite) TestListUserTokensUnauthorized() {
-	user := s.Graph.CreateUser()
-
-	svc := testsupport.UnsecuredService("User-Service")
-	tokenManager, err := manager.NewTokenManager(s.Configuration)
-	require.Nil(s.T(), err)
-	ctrl := NewUserController(svc, s.Application, s.Configuration, tokenManager, nil)
-
-	test.ListTokensUserUnauthorized(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
 }
 
 func (s *UserControllerTestSuite) checkPrivateEmailVisible(t *testing.T, emailPrivate bool) {

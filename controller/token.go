@@ -19,7 +19,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -383,32 +382,5 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 		}
 		return ctx.OK(rptTokenPayload)
 	}
-	return ctx.OK(nil)
-}
-
-func (c *TokenController) RevokeAll(ctx *app.RevokeAllTokenContext) error {
-	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.Admin)
-	if !isSvcAccount {
-		log.Error(ctx, nil, "The account is not an authorized service account allowed to manage user tokens")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to manage user tokens."))
-	}
-
-	identityID, err := uuid.FromString(ctx.IdentityID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Invalid identityID")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identity_id", ctx.IdentityID, "invalid identity_id - not a UUID"))
-	}
-
-	err = c.app.TokenService().SetStatusForAllIdentityTokens(ctx, identityID, token.TOKEN_STATUS_REVOKED)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":        err,
-			"identityID": identityID,
-		}, "Could not revoke tokens")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
-	}
-
 	return ctx.OK(nil)
 }

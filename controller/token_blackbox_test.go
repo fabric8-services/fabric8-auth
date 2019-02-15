@@ -684,69 +684,6 @@ func (s *TokenControllerTestSuite) TestExchangeWithCorrectCodeButNotApprovedUser
 	require.NotNil(s.T(), returnedToken.AccessToken)
 }
 
-func (s *TokenControllerTestSuite) TestRevokeAllOK() {
-	user := s.Graph.CreateUser()
-	t1 := s.Graph.CreateToken(user)
-	t2 := s.Graph.CreateToken(user)
-	t3 := s.Graph.CreateToken(user)
-	t4 := s.Graph.CreateToken(user)
-
-	user2 := s.Graph.CreateUser()
-	t5 := s.Graph.CreateToken(user2)
-
-	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", testsupport.TestAdminConsoleIdentity)
-	tokenManager, err := manager.NewTokenManager(s.Configuration)
-	require.Nil(s.T(), err)
-	ctrl := NewTokenController(svc, s.Application, tokenManager, s.Configuration)
-
-	test.RevokeAllTokenOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
-
-	t1l := s.Graph.LoadToken(t1.TokenID())
-	t2l := s.Graph.LoadToken(t2.TokenID())
-	t3l := s.Graph.LoadToken(t3.TokenID())
-	t4l := s.Graph.LoadToken(t4.TokenID())
-	t5l := s.Graph.LoadToken(t5.TokenID())
-
-	require.True(s.T(), t1l.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
-	require.True(s.T(), t2l.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
-	require.True(s.T(), t3l.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
-	require.True(s.T(), t4l.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
-	require.False(s.T(), t5l.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
-}
-
-func (s *TokenControllerTestSuite) TestRevokeAllUnauthorized() {
-	user := s.Graph.CreateUser()
-	t1 := s.Graph.CreateToken(user)
-
-	svc := testsupport.UnsecuredService("Token-Service")
-	tokenManager, err := manager.NewTokenManager(s.Configuration)
-	require.Nil(s.T(), err)
-	ctrl := NewTokenController(svc, s.Application, tokenManager, s.Configuration)
-
-	test.RevokeAllTokenUnauthorized(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
-
-	t1l := s.Graph.LoadToken(t1.TokenID())
-	require.False(s.T(), t1l.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
-
-	// Make sure other service accounts can't revoke tokens either
-	svc = testsupport.ServiceAsServiceAccountUser("Token-Service", testsupport.TestNotificationIdentity)
-	ctrl = NewTokenController(svc, s.Application, tokenManager, s.Configuration)
-
-	test.RevokeAllTokenUnauthorized(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
-
-	t1l = s.Graph.LoadToken(t1.TokenID())
-	require.False(s.T(), t1l.Token().HasStatus(tokenPkg.TOKEN_STATUS_REVOKED))
-}
-
-func (s *TokenControllerTestSuite) TestRevokeAllBadRequest() {
-	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", testsupport.TestAdminConsoleIdentity)
-	tokenManager, err := manager.NewTokenManager(s.Configuration)
-	require.Nil(s.T(), err)
-	ctrl := NewTokenController(svc, s.Application, tokenManager, s.Configuration)
-
-	test.RevokeAllTokenBadRequest(s.T(), svc.Context, svc, ctrl, "invalid_uuid")
-}
-
 func newOAuthMockService(t *testing.T, identity account.Identity) (service.AuthenticationProviderService, string, string) {
 	authProviderService := testservice.NewAuthenticationProviderServiceMock(t)
 	identity.User.FullName = "Test User" // origin 'fullname' will be updated by the token returned by the dummyIDPOAuthProvider.Profile function call

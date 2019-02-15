@@ -2,9 +2,6 @@ package controller
 
 import (
 	"context"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
-	"github.com/satori/go.uuid"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
@@ -96,67 +93,6 @@ func (c *UserController) ListResources(ctx *app.ListResourcesUserContext) error 
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 	return ctx.OK(convertToUserResources(ctx.RequestData, resourceType, resourceIDs))
-}
-
-// ListTokens lists all of the tokens for the specified identity.  This endpoint may only be invoked via the admin console
-// service account
-func (c *UserController) ListTokens(ctx *app.ListTokensUserContext) error {
-	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.Admin)
-	if !isSvcAccount {
-		log.Error(ctx, nil, "The account is not an authorized service account allowed to manage user tokens")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to manage user tokens."))
-	}
-
-	identityID, err := uuid.FromString(ctx.IdentityID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "Invalid identityID")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identity_id", ctx.IdentityID, "invalid identity_id - not a UUID"))
-	}
-
-	tokens, err := c.app.TokenRepository().ListForIdentity(ctx, identityID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err": err,
-		}, "error retrieving user tokens")
-		return jsonapi.JSONErrorResponse(ctx, err)
-	}
-
-	response := &app.UserTokenArray{}
-
-	for _, t := range tokens {
-		perms := []*app.TokenPrivilegeData{}
-
-		// If the token is an RPT token, include its privileges in the response
-		if t.TokenType == token.TOKEN_TYPE_RPT {
-			privs, err := c.app.TokenRepository().ListPrivileges(ctx, t.TokenID)
-			if err != nil {
-				log.Error(ctx, map[string]interface{}{
-					"err": err,
-				}, "error retrieving token privileges")
-				return jsonapi.JSONErrorResponse(ctx, err)
-			}
-
-			for _, priv := range privs {
-				perms = append(perms, &app.TokenPrivilegeData{
-					ResourceID: priv.ResourceID,
-					Scopes:     priv.Scopes,
-					Stale:      priv.Stale,
-				})
-			}
-		}
-
-		response.Data = append(response.Data, &app.UserTokenData{
-			TokenID:     t.TokenID.String(),
-			TokenType:   t.TokenType,
-			Status:      t.Status,
-			ExpiryTime:  t.ExpiryTime,
-			Permissions: perms,
-		})
-	}
-
-	return ctx.OK(response)
 }
 
 // convertToUserResources converts a list of resources to which the user has a role

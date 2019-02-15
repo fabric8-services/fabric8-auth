@@ -41,22 +41,6 @@ var _ = a.Resource("user", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
-
-	a.Action("listTokens", func() {
-		a.Security("jwt")
-		a.Routing(
-			a.GET("/tokens"),
-		)
-		a.Params(func() {
-			a.Param("identity_id", d.String, "the ID value of the user's identity")
-			a.Required("identity_id")
-		})
-		a.Description("List all tokens for a specified user")
-		a.Response(d.OK, userTokenArray)
-		a.Response(d.BadRequest, JSONAPIErrors)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.Unauthorized, JSONAPIErrors)
-	})
 })
 
 // showUser represents an identified user object to show
@@ -149,35 +133,4 @@ var userResourceData = a.Type("UserResourceData", func() {
 	a.Attribute("type", d.String, "type of the resource")
 	a.Attribute("links", genericLinks)
 	a.Required("id", "type")
-})
-
-var userTokenArray = a.MediaType("application/vnd.user-token-array+json", func() {
-	a.UseTrait("jsonapi-media-type")
-	a.TypeName("UserTokenArray")
-	a.Description("User Token Array")
-	a.Attributes(func() {
-		a.Attribute("data", a.ArrayOf(userTokenData))
-		a.Required("data")
-
-	})
-	a.View("default", func() {
-		a.Attribute("data")
-		a.Required("data")
-	})
-})
-
-var userTokenData = a.Type("UserTokenData", func() {
-	a.Attribute("token_id", d.String, "unique token identifier")
-	a.Attribute("status", d.Integer, "token status")
-	a.Attribute("token_type", d.String, "token type")
-	a.Attribute("expiry_time", d.DateTime, "token expiry time")
-	a.Attribute("permissions", a.ArrayOf(tokenPrivilegeData))
-	a.Required("token_id", "status", "token_type", "expiry_time")
-})
-
-var tokenPrivilegeData = a.Type("TokenPrivilegeData", func() {
-	a.Attribute("resource_id", d.String, "resource identifier")
-	a.Attribute("scopes", d.String, "scopes granted for resource")
-	a.Attribute("stale", d.Boolean, "flag indicating whether these privileges are stale")
-	a.Required("resource_id", "scopes", "stale")
 })
