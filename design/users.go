@@ -99,6 +99,38 @@ var _ = a.Resource("users", func() {
 		a.Response(d.BadRequest, JSONAPIErrors)
 		a.Response(d.InternalServerError, JSONAPIErrors)
 	})
+
+	a.Action("listTokens", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.GET("/:id/tokens"),
+		)
+		a.Params(func() {
+			a.Param("id", d.String, "the ID value of the user's identity")
+			a.Required("identityID")
+		})
+		a.Description("List all tokens for a specified user")
+		a.Response(d.OK, userTokenArray)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
+
+	a.Action("RevokeAllTokens", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.DELETE("/:id/tokens"),
+		)
+		a.Params(func() {
+			a.Param("id", d.String, "Identifier of the identity for which all tokens will be revoked")
+			a.Required("identityID")
+		})
+		a.Description("Revokes all tokens for a specified identity id")
+		a.Response(d.OK)
+		a.Response(d.BadRequest, JSONAPIErrors)
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+	})
 })
 
 // createUser represents an identified user object to create
@@ -188,4 +220,35 @@ var updateUserDataAttributes = a.Type("UpdateIdentityDataAttributes", func() {
 		a.Example(map[string]interface{}{"last_visited_url": "https://a.openshift.io", "space": "3d6dab8d-f204-42e8-ab29-cdb1c93130ad"})
 	})
 	a.Attribute("deprovisioned", d.Boolean, "Whether the identity has been deprovisioned")
+})
+
+var userTokenArray = a.MediaType("application/vnd.user-token-array+json", func() {
+	a.UseTrait("jsonapi-media-type")
+	a.TypeName("UserTokenArray")
+	a.Description("User Token Array")
+	a.Attributes(func() {
+		a.Attribute("data", a.ArrayOf(userTokenData))
+		a.Required("data")
+
+	})
+	a.View("default", func() {
+		a.Attribute("data")
+		a.Required("data")
+	})
+})
+
+var userTokenData = a.Type("UserTokenData", func() {
+	a.Attribute("token_id", d.String, "unique token identifier")
+	a.Attribute("status", d.Integer, "token status")
+	a.Attribute("token_type", d.String, "token type")
+	a.Attribute("expiry_time", d.DateTime, "token expiry time")
+	a.Attribute("permissions", a.ArrayOf(tokenPrivilegeData))
+	a.Required("token_id", "status", "token_type", "expiry_time")
+})
+
+var tokenPrivilegeData = a.Type("TokenPrivilegeData", func() {
+	a.Attribute("resource_id", d.String, "resource identifier")
+	a.Attribute("scopes", d.String, "scopes granted for resource")
+	a.Attribute("stale", d.Boolean, "flag indicating whether these privileges are stale")
+	a.Required("resource_id", "scopes", "stale")
 })

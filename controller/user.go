@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"

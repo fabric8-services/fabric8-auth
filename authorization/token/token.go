@@ -12,6 +12,7 @@ const (
 
 	// Service Account Names
 
+	Admin              = "fabric8-admin"
 	Auth               = "fabric8-auth"
 	WIT                = "fabric8-wit"
 	OsoProxy           = "fabric8-oso-proxy"
@@ -52,6 +53,13 @@ type PublicKey struct {
 // JSONKeys the remote keys encoded in a json document
 type JSONKeys struct {
 	Keys []interface{} `json:"keys"`
+}
+
+// IsValidTokenType returns true if the specified token type is one of the known token types, otherwise returns false
+func IsValidTokenType(tokenType string) bool {
+	return tokenType == TOKEN_TYPE_RPT ||
+		tokenType == TOKEN_TYPE_ACCESS ||
+		tokenType == TOKEN_TYPE_REFRESH
 }
 
 // IsSpecificServiceAccount checks if the request is done by a service account listed in the names param

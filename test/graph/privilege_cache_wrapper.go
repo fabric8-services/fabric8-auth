@@ -30,7 +30,7 @@ func newPrivilegeCacheWrapper(g *TestGraph, params []interface{}) interface{} {
 
 	w.privilegeCache = &permission.PrivilegeCache{}
 
-	var identityID uuid.NullUUID = uuid.NullUUID{}
+	var identityID = uuid.NullUUID{}
 	var resourceID string
 	var scopes []string
 

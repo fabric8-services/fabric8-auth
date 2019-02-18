@@ -3,6 +3,7 @@ package controller_test
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/http"
 	"os"
 	"testing"
@@ -1688,6 +1689,123 @@ func (s *UsersControllerTestSuite) TestCreateUserUnauthorized() {
 	test.CreateUsersUnauthorized(s.T(), context.Background(), nil, s.controller, createUserPayload)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 	require.Equal(s.T(), uint64(0), s.clusterServiceMock.LinkIdentityToClusterCounter)
+}
+
+func (s *UsersControllerTestSuite) TestListTokensOK() {
+	user := s.Graph.CreateUser()
+	rt := s.Graph.CreateResourceType()
+	rt.AddScope("foo").AddScope("bar")
+	res := s.Graph.CreateResource(rt)
+
+	t1 := s.Graph.CreateToken(user, token.TOKEN_TYPE_RPT)
+	priv := s.Graph.CreatePrivilegeCache(res, "foo", "bar")
+	t1.AddPrivilege(priv)
+
+	svc := testsupport.ServiceAsServiceAccountUser("User-Service", testsupport.TestAdminConsoleIdentity)
+	ctrl := NewUsersController(svc, s.Application, s.Configuration)
+
+	_, tokenResponse := test.ListTokensUsersOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
+
+	require.NotEmpty(s.T(), tokenResponse.Data)
+	require.Len(s.T(), tokenResponse.Data, 1)
+
+	require.Equal(s.T(), tokenResponse.Data[0].TokenID, t1.TokenID().String())
+	require.Equal(s.T(), tokenResponse.Data[0].TokenType, token.TOKEN_TYPE_RPT)
+	require.Equal(s.T(), tokenResponse.Data[0].Status, 0)
+
+	// Add another token for our user
+	s.Graph.CreateToken(user, token.TOKEN_TYPE_ACCESS)
+
+	_, tokenResponse = test.ListTokensUsersOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
+
+	require.NotEmpty(s.T(), tokenResponse.Data)
+	require.Len(s.T(), tokenResponse.Data, 2)
+
+	user2 := s.Graph.CreateUser()
+	t2 := s.Graph.CreateToken(user2, token.TOKEN_TYPE_ACCESS)
+
+	_, tokenResponse = test.ListTokensUsersOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
+	require.Len(s.T(), tokenResponse.Data, 2)
+
+	_, tokenResponse = test.ListTokensUsersOK(s.T(), svc.Context, svc, ctrl, user2.IdentityID().String())
+	require.Len(s.T(), tokenResponse.Data, 1)
+	require.Equal(s.T(), tokenResponse.Data[0].TokenID, t2.TokenID().String())
+}
+
+func (s *UsersControllerTestSuite) TestListUserTokensBadRequest() {
+	svc := testsupport.ServiceAsServiceAccountUser("User-Service", testsupport.TestAdminConsoleIdentity)
+	ctrl := NewUsersController(svc, s.Application, s.Configuration)
+	test.ListTokensUsersBadRequest(s.T(), svc.Context, svc, ctrl, "invalid_uuid")
+}
+
+func (s *UsersControllerTestSuite) TestListUserTokensUnauthorized() {
+	user := s.Graph.CreateUser()
+
+	svc := testsupport.UnsecuredService("User-Service")
+	ctrl := NewUsersController(svc, s.Application, s.Configuration)
+
+	test.ListTokensUsersUnauthorized(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
+
+	svc = testsupport.ServiceAsServiceAccountUser("User-Service", testsupport.TestNotificationIdentity)
+	ctrl = NewUsersController(svc, s.Application, s.Configuration)
+	test.ListTokensUsersUnauthorized(s.T(), svc.Context, svc, ctrl, "invalid_uuid")
+}
+
+func (s *UsersControllerTestSuite) TestRevokeAllTokensOK() {
+	user := s.Graph.CreateUser()
+	t1 := s.Graph.CreateToken(user)
+	t2 := s.Graph.CreateToken(user)
+	t3 := s.Graph.CreateToken(user)
+	t4 := s.Graph.CreateToken(user)
+
+	user2 := s.Graph.CreateUser()
+	t5 := s.Graph.CreateToken(user2)
+
+	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", testsupport.TestAdminConsoleIdentity)
+	ctrl := NewUsersController(svc, s.Application, s.Configuration)
+
+	test.RevokeAllTokensUsersOK(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
+
+	t1l := s.Graph.LoadToken(t1.TokenID())
+	t2l := s.Graph.LoadToken(t2.TokenID())
+	t3l := s.Graph.LoadToken(t3.TokenID())
+	t4l := s.Graph.LoadToken(t4.TokenID())
+	t5l := s.Graph.LoadToken(t5.TokenID())
+
+	require.True(s.T(), t1l.Token().HasStatus(token.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), t2l.Token().HasStatus(token.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), t3l.Token().HasStatus(token.TOKEN_STATUS_REVOKED))
+	require.True(s.T(), t4l.Token().HasStatus(token.TOKEN_STATUS_REVOKED))
+	require.False(s.T(), t5l.Token().HasStatus(token.TOKEN_STATUS_REVOKED))
+}
+
+func (s *UsersControllerTestSuite) TestRevokeAllTokensUnauthorized() {
+	user := s.Graph.CreateUser()
+	t1 := s.Graph.CreateToken(user)
+
+	svc := testsupport.UnsecuredService("Token-Service")
+	ctrl := NewUsersController(svc, s.Application, s.Configuration)
+
+	test.RevokeAllTokensUsersUnauthorized(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
+
+	t1l := s.Graph.LoadToken(t1.TokenID())
+	require.False(s.T(), t1l.Token().HasStatus(token.TOKEN_STATUS_REVOKED))
+
+	// Make sure other service accounts can't revoke tokens either
+	svc = testsupport.ServiceAsServiceAccountUser("Token-Service", testsupport.TestNotificationIdentity)
+	ctrl = NewUsersController(svc, s.Application, s.Configuration)
+
+	test.RevokeAllTokensUsersUnauthorized(s.T(), svc.Context, svc, ctrl, user.IdentityID().String())
+
+	t1l = s.Graph.LoadToken(t1.TokenID())
+	require.False(s.T(), t1l.Token().HasStatus(token.TOKEN_STATUS_REVOKED))
+}
+
+func (s *UsersControllerTestSuite) TestRevokeAllTokensBadRequest() {
+	svc := testsupport.ServiceAsServiceAccountUser("Token-Service", testsupport.TestAdminConsoleIdentity)
+	ctrl := NewUsersController(svc, s.Application, s.Configuration)
+
+	test.RevokeAllTokensUsersBadRequest(s.T(), svc.Context, svc, ctrl, "invalid_uuid")
 }
 
 func newCreateUsersPayload(email, fullName, bio, imageURL, profileURL, company, username, rhdUsername *string, rhdUserID string, cluster *string, registrationCompleted, approved *bool, contextInformation map[string]interface{}) *app.CreateUsersPayload {
