@@ -2,17 +2,17 @@ package service_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
-
-	"fmt"
 
 	"github.com/jinzhu/gorm"
+	errs "github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -66,28 +66,51 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 }
 
 func (s *userServiceBlackboxTestSuite) TestDeactivate() {
+
 	s.T().Run("ok", func(t *testing.T) {
-		// given
+		// given 2 users with tokens
 		userToDeactivate := s.Graph.CreateUser()
+		token1 := s.Graph.CreateToken(userToDeactivate)
+		token2 := s.Graph.CreateToken(userToDeactivate)
 		userToStayIntact := s.Graph.CreateUser()
+		token3 := s.Graph.CreateToken(userToStayIntact)
+		token4 := s.Graph.CreateToken(userToStayIntact)
 		// when
 		identity, err := s.Application.UserService().DeactivateUser(s.Ctx, userToDeactivate.Identity().Username)
 		// then
 		require.NoError(t, err)
-		assert.False(t, identity.User.Active)        // user is inactive
-		assert.False(t, identity.User.Deprovisioned) // but user NOT deprovisionned
+		assert.False(t, identity.User.Active)        // user is inactive...
+		assert.False(t, identity.User.Deprovisioned) // ... but user NOT deprovisionned
 		assert.Equal(t, userToDeactivate.User().ID, identity.User.ID)
 		assert.Equal(t, userToDeactivate.IdentityID(), identity.ID)
-
+		// verify that user's fields were obfuscated
 		loadedUser := s.Graph.LoadUser(userToDeactivate.IdentityID())
 		require.NotNil(t, loadedUser)
 		testsupport.AssertIdentityObfuscated(t, userToDeactivate.Identity(), loadedUser.Identity())
-
+		// also, verify that user's tokens were revoked
+		for _, tID := range []uuid.UUID{token1.TokenID(), token2.TokenID()} {
+			tok := s.Graph.LoadToken(tID)
+			require.NotNil(t, tok)
+			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_REVOKED)
+		}
+		// lastly, verify that user to keep intact remainded intact
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.True(t, loadedUser.User().Active)
 		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
+		for _, tID := range []uuid.UUID{token3.TokenID(), token4.TokenID()} {
+			tok := s.Graph.LoadToken(tID)
+			require.NotNil(t, tok)
+			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_VALID)
+		}
+
 	})
 
+	s.T().Run("not found", func(t *testing.T) {
+		// when
+		_, err := s.Application.UserService().DeactivateUser(s.Ctx, "unknown")
+		// then
+		require.Error(t, err)
+	})
 }
 
 func (s *userServiceBlackboxTestSuite) TestHardDeleteUser() {

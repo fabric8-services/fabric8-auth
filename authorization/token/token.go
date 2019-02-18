@@ -3,7 +3,8 @@ package token
 import (
 	"context"
 	"crypto/rsa"
-	"github.com/dgrijalva/jwt-go"
+
+	jwt "github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
@@ -28,6 +29,7 @@ const (
 
 	// Token Statuses
 
+	TOKEN_STATUS_VALID         = 0
 	TOKEN_STATUS_DEPROVISIONED = 1
 	TOKEN_STATUS_REVOKED       = 2
 	TOKEN_STATUS_LOGGED_OUT    = 4

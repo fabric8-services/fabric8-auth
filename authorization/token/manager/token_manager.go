@@ -21,14 +21,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"gopkg.in/square/go-jose.v2"
+	jose "gopkg.in/square/go-jose.v2"
 )
 
 var defaultManager TokenManager
@@ -482,7 +482,7 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Co
 	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
 	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	claims := token.Claims.(jwt.MapClaims)

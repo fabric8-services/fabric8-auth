@@ -10,6 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -138,7 +139,13 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 		if err != nil {
 			return err
 		}
-		return s.Repositories().Users().Save(ctx, &identity.User)
+		err = s.Repositories().Users().Save(ctx, &identity.User)
+		if err != nil {
+			return err
+		}
+
+		// revoke all user's tokens
+		return s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
 	})
 
 	return identity, err
