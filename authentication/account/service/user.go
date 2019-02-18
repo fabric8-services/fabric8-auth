@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -13,7 +15,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // NewUserService creates a new service to manage users
@@ -92,6 +94,50 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 		identity = &identities[0]
 		identity.User.Deprovisioned = true
 
+		return s.Repositories().Users().Save(ctx, &identity.User)
+	})
+
+	return identity, err
+}
+
+// DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account
+func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (*repository.Identity, error) {
+
+	var identity *repository.Identity
+	err := s.ExecuteInTransaction(func() error {
+
+		identities, err := s.Repositories().Identities().Query(
+			repository.IdentityWithUser(),
+			repository.IdentityFilterByUsername(username),
+			repository.IdentityFilterByProviderType(repository.DefaultIDP))
+		if err != nil {
+			return err
+		}
+		if len(identities) == 0 {
+			return errors.NewNotFoundErrorWithKey("user identity", "username", username)
+		}
+
+		identity = &identities[0]
+		// mark the account as inactive
+		identity.User.Active = false
+		// obfuscate the data
+		obfuscatated := uuid.NewV4().String()
+		identity.Username = obfuscatated
+		identity.ProfileURL = &obfuscatated
+		identity.User.Email = obfuscatated
+		identity.User.FullName = obfuscatated
+		identity.User.ImageURL = obfuscatated
+		identity.User.URL = obfuscatated
+		identity.User.Company = obfuscatated
+		identity.User.Bio = obfuscatated
+		identity.User.Cluster = obfuscatated
+		identity.User.FeatureLevel = obfuscatated
+		// empty data
+		identity.User.ContextInformation = account.ContextInformation{}
+		err = s.Repositories().Identities().Save(ctx, identity)
+		if err != nil {
+			return err
+		}
 		return s.Repositories().Users().Save(ctx, &identity.User)
 	})
 

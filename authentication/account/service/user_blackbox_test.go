@@ -8,10 +8,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	errs "github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 
 	"fmt"
+
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -36,12 +37,12 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 
 		identity, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToDeprovision.Identity().Username)
 		require.NoError(t, err)
-		assert.Equal(t, true, identity.User.Deprovisioned)
+		assert.True(t, identity.User.Deprovisioned)
 		assert.Equal(t, userToDeprovision.User().ID, identity.User.ID)
 		assert.Equal(t, userToDeprovision.IdentityID(), identity.ID)
 
 		loadedUser := s.Graph.LoadUser(userToDeprovision.IdentityID())
-		assert.Equal(t, true, loadedUser.User().Deprovisioned)
+		assert.True(t, loadedUser.User().Deprovisioned)
 		userToDeprovision.Identity().User.Deprovisioned = true
 		testsupport.AssertIdentityEqual(t, userToDeprovision.Identity(), loadedUser.Identity())
 
@@ -62,6 +63,31 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 
 		})
 	})
+}
+
+func (s *userServiceBlackboxTestSuite) TestDeactivate() {
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		userToDeactivate := s.Graph.CreateUser()
+		userToStayIntact := s.Graph.CreateUser()
+		// when
+		identity, err := s.Application.UserService().DeactivateUser(s.Ctx, userToDeactivate.Identity().Username)
+		// then
+		require.NoError(t, err)
+		assert.False(t, identity.User.Active)        // user is inactive
+		assert.False(t, identity.User.Deprovisioned) // but user NOT deprovisionned
+		assert.Equal(t, userToDeactivate.User().ID, identity.User.ID)
+		assert.Equal(t, userToDeactivate.IdentityID(), identity.ID)
+
+		loadedUser := s.Graph.LoadUser(userToDeactivate.IdentityID())
+		require.NotNil(t, loadedUser)
+		testsupport.AssertIdentityObfuscated(t, userToDeactivate.Identity(), loadedUser.Identity())
+
+		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
+		assert.True(t, loadedUser.User().Active)
+		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
+	})
+
 }
 
 func (s *userServiceBlackboxTestSuite) TestHardDeleteUser() {

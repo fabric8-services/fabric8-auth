@@ -11,11 +11,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
 )
 
 // In future, we could add support for FieldDefinitions the way we have for workitems.
@@ -38,6 +38,7 @@ type User struct {
 	Cluster       string // The OpenShift cluster allocated to the user.
 	// Whether the user has been deprovisioned
 	Deprovisioned      bool                       `gorm:"column:deprovisioned"`
+	Active             bool                       `gorm:"column:active"`
 	Identities         []Identity                 // has many Identities from different IDPs
 	ContextInformation account.ContextInformation `sql:"type:jsonb"` // context information of the user activity
 }

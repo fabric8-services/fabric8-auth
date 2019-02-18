@@ -20,7 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/goadesign/goa"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 	"net/url"
 )
@@ -154,6 +154,7 @@ type UserProfileService interface {
 }
 
 type UserService interface {
+	DeactivateUser(ctx context.Context, username string) (*account.Identity, error)
 	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
 	LoadContextIdentityAndUser(ctx context.Context) (*account.Identity, error)

@@ -14,7 +14,7 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -317,4 +317,35 @@ func AssertIdentityEqual(t require.TestingT, expected, actual *account.Identity)
 	assert.Equal(t, expected.User.FullName, actual.User.FullName)
 	assert.Equal(t, expected.User.ImageURL, actual.User.ImageURL)
 	assert.Equal(t, expected.User.URL, actual.User.URL)
+}
+
+// AssertIdentityObfuscated verifies that the `actual` identity was obfuscated, ie,
+// all the personal data were replaced with UUID values, except a few fields
+func AssertIdentityObfuscated(t require.TestingT, expected, actual *account.Identity) {
+	require.NotNil(t, expected)
+	require.NotNil(t, actual)
+	require.NotEmpty(t, actual.User)
+	assert.Equal(t, expected.ID, actual.ID)
+	// verify that all those fields have a UUID for value (ie, data was obfuscated)
+	for _, field := range []string{
+		actual.Username,
+		*actual.ProfileURL,
+		actual.User.Bio,
+		actual.User.Company,
+		actual.User.Email,
+		actual.User.FullName,
+		actual.User.ImageURL,
+		actual.User.URL,
+		actual.User.Cluster,
+		actual.User.FeatureLevel,
+	} {
+		_, err := uuid.FromString(field)
+		require.NoError(t, err)
+	}
+	// verify other fields
+	assert.Equal(t, expected.UserID, actual.UserID)
+	assert.Equal(t, expected.ProviderType, actual.ProviderType)
+	assert.False(t, actual.User.Active)
+	assert.False(t, actual.User.Deprovisioned)
+	assert.Empty(t, actual.User.ContextInformation)
 }
