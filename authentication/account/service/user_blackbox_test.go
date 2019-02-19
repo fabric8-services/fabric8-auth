@@ -100,7 +100,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		for _, tID := range []uuid.UUID{token3.TokenID(), token4.TokenID()} {
 			tok := s.Graph.LoadToken(tID)
 			require.NotNil(t, tok)
-			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_VALID)
+			assert.True(t, tok.Token().Valid())
 		}
 
 	})
