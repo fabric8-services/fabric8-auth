@@ -109,7 +109,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		// when
 		_, err := s.Application.UserService().DeactivateUser(s.Ctx, "unknown")
 		// then
-		require.Error(t, err)
+		testsupport.AssertError(t, err, errors.NotFoundError{}, "user identity with username 'unknown' not found")
 	})
 }
 
