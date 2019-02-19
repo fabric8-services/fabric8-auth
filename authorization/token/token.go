@@ -3,7 +3,8 @@ package token
 import (
 	"context"
 	"crypto/rsa"
-	"github.com/dgrijalva/jwt-go"
+
+	jwt "github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
