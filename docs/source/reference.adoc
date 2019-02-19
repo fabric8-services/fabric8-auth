@@ -155,12 +155,11 @@ __Response:__
 
 === How it works
 
-. Client sends a generated state. Auth "proxies" it to Keycloak and thereby initiates the first request in oauth2
-. Keycloak redirects to IdP etc. User logs in..
-. Keycloak calls back Auth with a code
+. Client sends a generated state. Auth "proxies" it to an identity provider and thereby initiates the first request in oauth2
+. The Identity Provider calls back Auth with a code
 . Auth passes the code to Client ( UI or another services )
-. Client then calls KC to do the code \<\-> token exchange.
-. Auth works as a smart proxy here between client and KC.
+. Client then calls the identity provider to do the code \<\-> token exchange.
+. Auth works as a smart proxy here between the client and the identity provider.
 
 === Steps to login
 
@@ -325,41 +324,12 @@ required fields: all
 "expires_in":3600
 }
 
-== Automated Tests
+== Offline Tokens
 
-=== Offline Tokens
+[IMPORTANT]
+Support for offline tokens has been removed from the auth service.
 
-When an access token is required in automated tests it can be tricky to get the required token via regular the login workflow
-because the login flow requires user interaction in a browser. Using an offline tokens is the preferable way to get an access token in automated tests.
-
-An Offline token is a special refresh token which does not expire and can be stored in a test as a secret.
-
-==== How to get an Offline Token
-
-1. Open in our browser: https://auth.openshift.io/api/login?scope=offline_access&redirect=https%3A%2F%2Fauth.openshift.io%2Fapi%2Fstatus
-The browser will be redirected to https://developers.redhat.com where you need to login using your test account credentials. If you are not asked for credentials then it means you are already logged in (maybe as another user if you have a few RHD accounts). Re-login if you want to login as different user (logout then login again).
-
-2. After successful login, you will be redirected to https://auth.openshift.io/api/status?token_json=<JSON>
-You need to copy <JSON> for that URL. It's an encoded JSON with both access and offline tokens. Decode this parameter and you will get the JSON. A decoded JSON will look something like this:
-
-[source]
-{
- "access_token" : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ",
- "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM9.FONFh7HgQ"
-}
-
-*refresh_token* is an offline token for the logged-in user.
-You now can store this offline token in a test (as a secret!!!). Offline tokens do not expire but they should be used at least *once in 30 days* to stay valid.
-
-==== How to use an Offline Token
-
-Before running a test, obtain a new access token. Please do not obtain a new access token multiple times during the test
-because generating a new token is an expensive operation. Get the access token in the beginning of the test and then re-use it for subsequent API calls.
-
-[source]
-curl -H "Content-Type: application/json" -X POST -d '{"refresh_token":"<REFRESH_TOKEN>"}' https://auth.openshift.io/api/token/refresh
-
-As a result, you will get a JSON with an access token which you can use in your test.
+As the offline token feature manifested in a point of vulnerability (where potential attackers may exploit a stolen token across an extensive period of time, without concern for the token expiring), we now recommend that standard access tokens, obtained using the standard OAuth flow are used instead (see above).
 
 == Token validation
 
