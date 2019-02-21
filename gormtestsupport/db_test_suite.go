@@ -2,19 +2,20 @@ package gormtestsupport
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/fabric8-services/fabric8-auth/application"
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/factory/wrapper"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	testsupport "github.com/fabric8-services/fabric8-common/test/suite"
 
 	"github.com/fabric8-services/fabric8-auth/test/graph"
 
@@ -37,8 +38,8 @@ type DBTestSuite struct {
 	Configuration   *config.ConfigurationData
 	DB              *gorm.DB
 	Application     application.Application
-	CleanTest       func()
-	CleanSuite      func()
+	CleanTest       func() error
+	CleanSuite      func() error
 	Ctx             context.Context
 	Graph           *graph.TestGraph
 	Wrappers        factorymanager.FactoryWrappers
@@ -70,7 +71,7 @@ func (s *DBTestSuite) SetupSuite() {
 	s.Application = gormapplication.NewGormDB(s.DB, configuration, s.Wrappers)
 	s.Ctx = migration.NewMigrationContext(context.Background())
 	s.PopulateDBTestSuite(s.Ctx)
-	s.CleanSuite = cleaner.DeleteCreatedEntities(s.DB)
+	s.CleanSuite = testsupport.DeleteCreatedEntities(s.DB, s.Configuration)
 	s.savedConfigVars = make(map[string]string)
 }
 
@@ -96,7 +97,7 @@ func (s *DBTestSuite) resetConfig() {
 
 // SetupTest implements suite.SetupTest
 func (s *DBTestSuite) SetupTest() {
-	s.CleanTest = cleaner.DeleteCreatedEntities(s.DB)
+	s.CleanTest = testsupport.DeleteCreatedEntities(s.DB, s.Configuration)
 	g := s.NewTestGraph(s.T())
 	s.Graph = &g
 	s.Wrappers.ResetWrappers()

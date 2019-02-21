@@ -63,7 +63,9 @@
     "configuration",
     "errors",
     "httpsupport",
-    "log"
+    "log",
+    "resource",
+    "test/suite"
   ]
   revision = "988ec38ba27dc10cc955f19cce227e7cd8d58528"
 
@@ -391,8 +393,8 @@
     "require",
     "suite"
   ]
-  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
-  version = "v1.2.1"
+  revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
+  version = "v1.3.0"
 
 [[projects]]
   branch = "master"
@@ -504,6 +506,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "287e1b2e3351c8c345732301ad76159c6393c72f147eb7ddcf5a58806329695a"
+  inputs-digest = "6b6683a14fd59d38d71f31eedbfe57186fe58ea06b093a86ee54a525a76c6c1a"
   solver-name = "gps-cdcl"
   solver-version = 1
