@@ -63,9 +63,11 @@
     "configuration",
     "errors",
     "httpsupport",
-    "log"
+    "log",
+    "resource",
+    "test/suite"
   ]
-  revision = "a85e65e22cfc18d7c2004317d340ad328ca8dcd1"
+  revision = "988ec38ba27dc10cc955f19cce227e7cd8d58528"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-notification"
@@ -225,6 +227,12 @@
   revision = "v3.0.7"
 
 [[projects]]
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
+
+[[projects]]
   name = "github.com/lib/pq"
   packages = [
     ".",
@@ -342,8 +350,8 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "c078b1e43f58d563c74cebe63c85789e76ddb627"
-  version = "v0.11.2"
+  revision = "e1e72e9de974bd926e5c56f83753fba2df402ce5"
+  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/spf13/afero"
@@ -385,8 +393,8 @@
     "require",
     "suite"
   ]
-  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
-  version = "v1.2.1"
+  revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
+  version = "v1.3.0"
 
 [[projects]]
   branch = "master"
@@ -406,7 +414,8 @@
     "bcrypt",
     "blowfish",
     "ed25519",
-    "ed25519/internal/edwards25519"
+    "ed25519/internal/edwards25519",
+    "ssh/terminal"
   ]
   revision = "81e90905daefcd6fd217b62423c0908922eadb30"
 
@@ -429,7 +438,10 @@
 
 [[projects]]
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "unix",
+    "windows"
+  ]
   revision = "478fcf54317e52ab69f40bb4c7a1520288d7f7ea"
 
 [[projects]]
@@ -494,6 +506,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0897a0891198afe3621691243db9f34424b71c523d133f6256ec3007a1f17d70"
+  inputs-digest = "6b6683a14fd59d38d71f31eedbfe57186fe58ea06b093a86ee54a525a76c6c1a"
   solver-name = "gps-cdcl"
   solver-version = 1
