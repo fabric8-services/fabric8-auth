@@ -145,8 +145,27 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 		}
 
 		// revoke all user's tokens
-		return s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
+		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	// call WIT and Tenant to deactivate the user there as well,
+	// using `auth` SA token here, not the request context's token
+	err = s.Services().WITService().DeleteUser(ctx, identity.ID.String())
+	if err != nil {
+		return nil, err
+	}
+	err = s.Services().TenantService().Delete(ctx, identity.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	return identity, err
 }

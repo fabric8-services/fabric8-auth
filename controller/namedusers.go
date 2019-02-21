@@ -3,7 +3,7 @@ package controller
 import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
@@ -18,11 +18,11 @@ type NamedusersController struct {
 	*goa.Controller
 	app           application.Application
 	config        UsersControllerConfiguration
-	tenantService accountservice.TenantService
+	tenantService appservice.TenantService
 }
 
 // NewNamedusersController creates a namedusers controller.
-func NewNamedusersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, tenantService accountservice.TenantService) *NamedusersController {
+func NewNamedusersController(service *goa.Service, app application.Application, config UsersControllerConfiguration, tenantService appservice.TenantService) *NamedusersController {
 	return &NamedusersController{
 		Controller:    service.NewController("NamedusersController"),
 		app:           app,

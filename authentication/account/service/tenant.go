@@ -6,21 +6,16 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+	uuid "github.com/satori/go.uuid"
 
 	goauuid "github.com/goadesign/goa/uuid"
-	"github.com/satori/go.uuid"
 )
-
-// TenantService represents the Tenant service
-type TenantService interface {
-	Init(ctx context.Context) error
-	Delete(ctx context.Context, identityID uuid.UUID) error
-}
 
 type tenantConfig interface {
 	GetTenantServiceURL() string
@@ -31,8 +26,10 @@ type tenantServiceImpl struct {
 	doer   rest.HttpDoer
 }
 
+var _ service.TenantService = &tenantServiceImpl{}
+
 // NewTenantService creates a new tenant service
-func NewTenantService(config tenantConfig) TenantService {
+func NewTenantService(config tenantConfig) service.TenantService {
 	return &tenantServiceImpl{config: config, doer: rest.DefaultHttpDoer()}
 }
 
@@ -54,6 +51,7 @@ func (t *tenantServiceImpl) Init(ctx context.Context) error {
 
 // Delete deletes tenants for the identity
 func (t *tenantServiceImpl) Delete(ctx context.Context, identityID uuid.UUID) error {
+	log.Info(ctx, map[string]interface{}{"identity_id": identityID.String()}, "deleting user on Tenant service")
 	c, err := t.createClientWithServiceAccountSigner(ctx)
 	if err != nil {
 		return err

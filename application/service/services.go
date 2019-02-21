@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
-	"github.com/dgrijalva/jwt-go"
+	"net/url"
+
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
@@ -22,7 +24,6 @@ import (
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
-	"net/url"
 )
 
 const (
@@ -165,9 +166,16 @@ type UserService interface {
 	HardDeleteUser(ctx context.Context, identity account.Identity) error
 }
 
+// TenantService represents the Tenant service
+type TenantService interface {
+	Init(ctx context.Context) error
+	Delete(ctx context.Context, identityID uuid.UUID) error
+}
+
 type WITService interface {
 	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
 	CreateUser(ctx context.Context, identity *account.Identity, identityID string) error
+	DeleteUser(ctx context.Context, identityID string) error
 	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
 }
 
@@ -190,6 +198,7 @@ type Services interface {
 	TokenService() TokenService
 	UserProfileService() UserProfileService
 	UserService() UserService
+	TenantService() TenantService
 	WITService() WITService
 }
 

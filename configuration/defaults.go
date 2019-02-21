@@ -97,6 +97,7 @@ vwIDAQAB
 	defaultPublicOAuthClientID = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
 	defaultWITDomainPrefix     = "api"
 	devModeWITURL              = "http://localhost:8080"
+	devModeTenantServiceURL    = "http://localhost:8090"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *

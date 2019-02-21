@@ -83,7 +83,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-wit"
-  revision = "b59d0dc8ae9b2bfea1fb5dc6ff3552c42b735756"
+  revision = "f7b1641d891c194976363c4a74d1fe0b575491af"
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-notification"
@@ -99,7 +99,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-common"
-  revision = "988ec38ba27dc10cc955f19cce227e7cd8d58528"
+  revision = "083c9c890cdf825027a0f009135af153d07d2926"
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"
@@ -120,7 +120,3 @@ required = [
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  name = "gopkg.in/h2non/gock.v1"
-  version = "1.0.12"
