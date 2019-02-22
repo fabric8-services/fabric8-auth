@@ -349,3 +349,11 @@ func AssertIdentityObfuscated(t require.TestingT, expected, actual *account.Iden
 	assert.False(t, actual.User.Deprovisioned)
 	assert.Empty(t, actual.User.ContextInformation)
 }
+
+// AssertIdentitySoftDeleted verifies that the `actual` identity was soft-delete
+func AssertIdentitySoftDeleted(t require.TestingT, actual *account.Identity) {
+	require.NotNil(t, actual)
+	require.NotNil(t, actual.DeletedAt)
+	require.NotEmpty(t, actual.User)
+	require.NotNil(t, actual.User.DeletedAt)
+}

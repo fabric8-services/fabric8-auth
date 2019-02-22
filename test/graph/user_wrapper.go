@@ -15,16 +15,22 @@ type userWrapper struct {
 	identity *account.Identity
 }
 
-func loadUserWrapper(g *TestGraph, identityID uuid.UUID) userWrapper {
+func loadUserWrapper(g *TestGraph, identityID uuid.UUID, options ...LoadOption) userWrapper {
 	w := userWrapper{baseWrapper: baseWrapper{g}}
-
-	var native account.Identity
-	err := w.graph.db.Table("identities").Where("ID = ?", identityID).Preload("User").Find(&native).Error
+	db := w.graph.db
+	for _, opt := range options {
+		db = opt(db)
+	}
+	var identity account.Identity
+	err := db.Table(identity.TableName()).Where("id = ?", identityID).Find(&identity).Error
+	require.NoError(w.graph.t, err)
+	var user account.User
+	err = db.Table(user.TableName()).Where("id = ?", identity.UserID).Find(&user).Error
 	require.NoError(w.graph.t, err)
 
-	w.identity = &native
-	w.user = &w.identity.User
-
+	w.identity = &identity
+	w.user = &user
+	w.identity.User = user
 	return w
 }
 

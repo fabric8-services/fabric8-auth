@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/test/graph"
+
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -108,10 +110,11 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		assert.False(t, identity.User.Deprovisioned) // ... but user NOT deprovisionned
 		assert.Equal(t, userToDeactivate.User().ID, identity.User.ID)
 		assert.Equal(t, userToDeactivate.IdentityID(), identity.ID)
-		// verify that user's fields were obfuscated
-		loadedUser := s.Graph.LoadUser(userToDeactivate.IdentityID())
+		// verify that user's fields were obfuscated and that the record was soft-deleted
+		loadedUser := s.Graph.LoadUser(userToDeactivate.IdentityID(), graph.Unscoped())
 		require.NotNil(t, loadedUser)
 		testsupport.AssertIdentityObfuscated(t, userToDeactivate.Identity(), loadedUser.Identity())
+		testsupport.AssertIdentitySoftDeleted(t, loadedUser.Identity())
 		// also, verify that user's tokens were revoked
 		for _, tID := range []uuid.UUID{token1.TokenID(), token2.TokenID()} {
 			tok := s.Graph.LoadToken(tID)
