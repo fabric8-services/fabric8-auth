@@ -71,7 +71,7 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 
 	// given
-	ctx := testtoken.ContextWithTokenManager()
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
 	saToken := testtoken.TokenManager.AuthServiceAccountToken()
 
 	s.T().Run("ok", func(t *testing.T) {
@@ -89,7 +89,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		gock.New("http://localhost:8080").
 			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.IdentityID().String())).
 			MatchHeader("Authorization", "Bearer "+saToken).
-			// MatchHeader("X-Request-Id", reqID).
+			MatchHeader("X-Request-Id", reqID).
 			SetMatcher(gocksupport.SpyOnCalls(&witCallsCounter)).
 			Reply(200)
 		// call to Tenant Service
@@ -97,7 +97,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		gock.New("http://localhost:8090").
 			Delete(fmt.Sprintf("/api/tenants/%s", userToDeactivate.IdentityID().String())).
 			MatchHeader("Authorization", "Bearer "+saToken).
-			// MatchHeader("X-Request-Id", reqID).
+			MatchHeader("X-Request-Id", reqID).
 			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
 			Reply(204)
 		// when

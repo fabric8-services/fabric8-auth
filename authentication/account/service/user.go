@@ -145,12 +145,7 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 		}
 
 		// revoke all user's tokens
-		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
 	})
 	if err != nil {
 		return nil, err
@@ -160,11 +155,13 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 	// using `auth` SA token here, not the request context's token
 	err = s.Services().WITService().DeleteUser(ctx, identity.ID.String())
 	if err != nil {
-		return nil, err
+		// just log the error but don't suspend the deactivation
+		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT service")
 	}
 	err = s.Services().TenantService().Delete(ctx, identity.ID)
 	if err != nil {
-		return nil, err
+		// just log the error but don't suspend the deactivation
+		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on Tenant service")
 	}
 
 	return identity, err
