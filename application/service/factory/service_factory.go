@@ -135,6 +135,7 @@ func (s *serviceContextImpl) endTransaction() {
 type ServiceFactory struct {
 	contextProducer         servicecontext.ServiceContextProducer
 	config                  *configuration.ConfigurationData
+	tenantServiceFunc       func() service.TenantService       // the function to call when `TenantService()` is called on this factory
 	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
 	clusterServiceFunc      func() service.ClusterService
@@ -147,6 +148,14 @@ type Option func(f *ServiceFactory)
 func WithWITService(s service.WITService) Option {
 	return func(f *ServiceFactory) {
 		f.witServiceFunc = func() service.WITService {
+			return s
+		}
+	}
+}
+
+func WithTenantService(s service.TenantService) Option {
+	return func(f *ServiceFactory) {
+		f.tenantServiceFunc = func() service.TenantService {
 			return s
 		}
 	}
@@ -183,6 +192,10 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *c
 	// default function to return an instance of WIT Service
 	f.witServiceFunc = func() service.WITService {
 		return witservice.NewWITService(f.getContext(), f.config)
+	}
+	// default function to return an instance of Tenant Service
+	f.tenantServiceFunc = func() service.TenantService {
+		return userservice.NewTenantService(f.config)
 	}
 	// default function to return an instance of Notification Service
 	f.notificationServiceFunc = func() service.NotificationService {
@@ -274,6 +287,10 @@ func (f *ServiceFactory) NotificationService() service.NotificationService {
 
 func (f *ServiceFactory) WITService() service.WITService {
 	return f.witServiceFunc()
+}
+
+func (f *ServiceFactory) TenantService() service.TenantService {
+	return f.tenantServiceFunc()
 }
 
 func (f *ServiceFactory) ClusterService() service.ClusterService {

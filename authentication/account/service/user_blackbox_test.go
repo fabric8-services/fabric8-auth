@@ -9,6 +9,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-common/gocksupport"
 
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -16,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	gock "gopkg.in/h2non/gock.v1"
 )
 
 type userServiceBlackboxTestSuite struct {
@@ -67,6 +70,10 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 
 func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 
+	// given
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	saToken := testtoken.TokenManager.AuthServiceAccountToken()
+
 	s.T().Run("ok", func(t *testing.T) {
 		// given 2 users with tokens
 		userToDeactivate := s.Graph.CreateUser()
@@ -75,8 +82,26 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		userToStayIntact := s.Graph.CreateUser()
 		token3 := s.Graph.CreateToken(userToStayIntact)
 		token4 := s.Graph.CreateToken(userToStayIntact)
+
+		defer gock.OffAll()
+		// call to WIT Service
+		witCallsCounter := 0
+		gock.New("http://localhost:8080").
+			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.IdentityID().String())).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("X-Request-Id", reqID).
+			SetMatcher(gocksupport.SpyOnCalls(&witCallsCounter)).
+			Reply(200)
+		// call to Tenant Service
+		tenantCallsCounter := 0
+		gock.New("http://localhost:8090").
+			Delete(fmt.Sprintf("/api/tenants/%s", userToDeactivate.IdentityID().String())).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("X-Request-Id", reqID).
+			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
+			Reply(204)
 		// when
-		identity, err := s.Application.UserService().DeactivateUser(s.Ctx, userToDeactivate.Identity().Username)
+		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
 		// then
 		require.NoError(t, err)
 		assert.False(t, identity.User.Active)        // user is inactive...
@@ -93,6 +118,9 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			require.NotNil(t, tok)
 			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_REVOKED)
 		}
+		// also, verify that WIT and tenant services were called
+		assert.Equal(t, 1, witCallsCounter)
+		assert.Equal(t, 1, tenantCallsCounter)
 		// lastly, verify that user to keep intact remainded intact
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.True(t, loadedUser.User().Active)

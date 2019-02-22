@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"net/http"
 	"os"
 	"os/user"
 	"runtime"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token/worker"
+
 	"github.com/fabric8-services/fabric8-auth/app"
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
+	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
@@ -25,7 +27,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/sentry"
 
 	"github.com/goadesign/goa"
-	"github.com/goadesign/goa/logging/logrus"
+	goalogrus "github.com/goadesign/goa/logging/logrus"
 	"github.com/goadesign/goa/middleware"
 	"github.com/goadesign/goa/middleware/gzip"
 	"github.com/goadesign/goa/middleware/security/jwt"
@@ -156,7 +158,7 @@ func main() {
 	service.Use(log.LogRequest(config.IsPostgresDeveloperModeEnabled()))
 	app.UseJWTMiddleware(service, jwt.New(tokenManager.PublicKeys(), nil, app.NewJWTSecurity()))
 
-	var tenantService accountservice.TenantService
+	var tenantService appservice.TenantService
 	if config.GetTenantServiceURL() != "" {
 		log.Logger().Infof("Enabling Tenant service %v", config.GetTenantServiceURL())
 		tenantService = accountservice.NewTenantService(config)

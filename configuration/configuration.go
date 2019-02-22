@@ -937,6 +937,9 @@ func (c *ConfigurationData) GetWITURL() (string, error) {
 
 // GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
 func (c *ConfigurationData) GetTenantServiceURL() string {
+	if c.IsPostgresDeveloperModeEnabled() {
+		return devModeTenantServiceURL
+	}
 	return c.v.GetString(varTenantServiceURL)
 }
 

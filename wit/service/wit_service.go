@@ -122,6 +122,32 @@ func (s *witServiceImpl) CreateUser(ctx context.Context, identity *account.Ident
 
 }
 
+// DeleteUser deletes a user in WIT
+func (s *witServiceImpl) DeleteUser(ctx context.Context, identityID string) error {
+	log.Info(ctx, map[string]interface{}{"identity_id": identityID}, "deleting user on WIT service")
+	// this endpoint is restricted to the `auth` Service Account
+	remoteWITService, err := s.createClientWithContextSigner(ctx)
+	if err != nil {
+		return err
+	}
+	deleteUserAPIPath := witservice.DeleteUsersPath(identityID)
+	res, err := remoteWITService.DeleteUsers(goasupport.ForwardContextRequestID(ctx), deleteUserAPIPath)
+	if err != nil {
+		return err
+	}
+	defer rest.CloseResponse(res)
+	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
+	if res.StatusCode != http.StatusOK {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id":     identityID,
+			"response_status": res.Status,
+			"response_body":   bodyString,
+		}, "unable to delete user in WIT")
+		return errors.Errorf("unable to delete user in WIT. Response status: %s. Response body: %s", res.Status, bodyString)
+	}
+	return nil
+}
+
 // GetSpace talks to the WIT service to retrieve a space record for the specified spaceID, then returns space
 func (s *witServiceImpl) GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error) {
 	remoteWITService, err := s.createClientWithContextSigner(ctx)

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,7 @@ type DummyHttpDoer struct {
 }
 
 func (c *DummyHttpClient) Do(req *http.Request) (*http.Response, error) {
+	log.Debug(nil, map[string]interface{}{"headers": req.Header}, "sending request with dummy HTTP client")
 	if c.AssertRequest != nil {
 		c.AssertRequest(req)
 	}
