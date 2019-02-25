@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/fabric8-services/fabric8-auth/authentication/account"
-
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -116,6 +116,16 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 			return errors.NewNotFoundErrorWithKey("user identity", "username", username)
 		}
 		identity = &identities[0]
+		// unlink external accounts (while we still have the user.Cluster info)
+		err = s.Services().TokenService().DeleteExternalToken(ctx, identity.ID, "", provider.GitHubProviderAlias)
+		if err != nil {
+			return err
+		}
+		err = s.Services().TokenService().DeleteExternalToken(ctx, identity.ID, "", provider.OpenShiftProviderAlias)
+		if err != nil {
+			return err
+		}
+
 		// mark the account as inactive
 		identity.User.Active = false
 		// obfuscate the data
@@ -153,6 +163,7 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 	}); err != nil {
 		return nil, err
 	}
+
 	// call WIT and Tenant to deactivate the user there as well,
 	// using `auth` SA token here, not the request context's token
 	err := s.Services().WITService().DeleteUser(ctx, identity.ID.String())
