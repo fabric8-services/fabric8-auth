@@ -123,7 +123,6 @@ required = [
 [prune]
   go-tests = true
   unused-packages = true
-<<<<<<< HEAD
 
 [[constraint]]
   name = "github.com/fsnotify/fsnotify"
@@ -144,5 +143,3 @@ required = [
 [[constraint]]
   name = "github.com/pmacik/loginusers-go"
   revision = "master"
-=======
->>>>>>> master
