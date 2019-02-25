@@ -238,6 +238,10 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 
 	// Version 43
 	m = append(m, steps{ExecuteSQLFile("043-add-admin-console-resource.sql")})
+
+	// Version 44
+	m = append(m, steps{ExecuteSQLFile("044-user-active.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

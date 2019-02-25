@@ -3,7 +3,8 @@ package token
 import (
 	"context"
 	"crypto/rsa"
-	"github.com/dgrijalva/jwt-go"
+
+	jwt "github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 )
 
@@ -12,6 +13,7 @@ const (
 
 	// Service Account Names
 
+	Admin              = "fabric8-admin"
 	Auth               = "fabric8-auth"
 	WIT                = "fabric8-wit"
 	OsoProxy           = "fabric8-oso-proxy"

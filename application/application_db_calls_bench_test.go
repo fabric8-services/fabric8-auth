@@ -8,10 +8,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/fabric8-services/fabric8-auth/gormsupport"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	"github.com/fabric8-services/fabric8-common/test/suite"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/jinzhu/gorm"
@@ -27,7 +27,7 @@ type Identity struct {
 
 type BenchDbOperations struct {
 	gormbench.DBBenchSuite
-	clean    func()
+	clean    func() error
 	repo     account.IdentityRepository
 	ctx      context.Context
 	dbPq     *sql.DB
@@ -55,7 +55,7 @@ func (s *BenchDbOperations) SetupSuite() {
 }
 
 func (s *BenchDbOperations) SetupBenchmark() {
-	s.clean = cleaner.DeleteCreatedEntities(s.DB)
+	s.clean = suite.DeleteCreatedEntities(s.DB, s.Configuration)
 	s.repo = account.NewIdentityRepository(s.DB)
 
 	s.identity = &account.Identity{

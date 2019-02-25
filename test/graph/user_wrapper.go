@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,6 +43,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 	}
 	w.user = &account.User{
 		ID:           id,
+		Active:       true,
 		Email:        fmt.Sprintf("TestUser-%s@test.com", id),
 		EmailPrivate: emailPrivate,
 		FullName:     fullname,

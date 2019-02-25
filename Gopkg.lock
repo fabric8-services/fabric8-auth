@@ -78,16 +78,19 @@
   revision = "3af1516d1d0e6872998e0b5ae4abc25355d314de"
 
 [[projects]]
-  digest = "1:eeb21043b086a7073da933541d86261e5725af03314bdd4cd8a8a543876b85fb"
+  digest = "1:7b951e0374f4d5873b1054cbf41f613db39babbadebdc38a0cd7029503a56915"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "configuration",
     "errors",
+    "gocksupport",
     "httpsupport",
     "log",
+    "resource",
+    "test/suite",
   ]
   pruneopts = "UT"
-  revision = "a85e65e22cfc18d7c2004317d340ad328ca8dcd1"
+  revision = "083c9c890cdf825027a0f009135af153d07d2926"
 
 [[projects]]
   digest = "1:05d2a6527e4b6eb09a6f91127a5c76f14062daf109c4730c879b862873444e82"
@@ -104,11 +107,11 @@
   revision = "7e149ee841ea9fe7d439f206781b51cacde5d4d3"
 
 [[projects]]
-  digest = "1:d281fc40082c4d1b5b7a31c44bd8cb05c2d2884707ac3082bcb0ca9fd5393ea2"
+  digest = "1:e089b9d91a01e1fceab0e01fe394fb87d77bbb2f8094f5e58939f62f793f7928"
   name = "github.com/fabric8-services/fabric8-wit"
   packages = ["design"]
   pruneopts = "UT"
-  revision = "b59d0dc8ae9b2bfea1fb5dc6ff3552c42b735756"
+  revision = "f7b1641d891c194976363c4a74d1fe0b575491af"
 
 [[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
@@ -299,6 +302,14 @@
   revision = "v3.0.7"
 
 [[projects]]
+  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:8ef506fc2bb9ced9b151dafa592d4046063d744c646c1bbe801982ce87e4bc24"
   name = "github.com/lib/pq"
   packages = [
@@ -473,12 +484,12 @@
   revision = "feef008d51ad2b3778f85d387ccf91735543008d"
 
 [[projects]]
-  digest = "1:f8ea8635717622a9ede1bd911161a108cb499b686589335350fcaa80710d6a66"
+  digest = "1:87c2e02fb01c27060ccc5ba7c5a407cc91147726f8f40b70cceeedbc52b1f3a8"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "c078b1e43f58d563c74cebe63c85789e76ddb627"
-  version = "v0.11.2"
+  revision = "e1e72e9de974bd926e5c56f83753fba2df402ce5"
+  version = "v1.3.0"
 
 [[projects]]
   digest = "1:bfa0cf18ae62c9a942863e6e7937777b2d44a3dbd42269ff30d26460eb0b73e3"
@@ -526,7 +537,7 @@
   revision = "651d9d916abc3c3d6a91a12549495caba5edffd2"
 
 [[projects]]
-  digest = "1:c52d48fe752736ae45b72959e1e4fc1a5b60d5b56f8fad42c58414daab5f309d"
+  digest = "1:8ff03ccc603abb0d7cce94d34b613f5f6251a9e1931eba1a3f9888a9029b055c"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
@@ -534,8 +545,8 @@
     "suite",
   ]
   pruneopts = "UT"
-  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
-  version = "v1.2.1"
+  revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
+  version = "v1.3.0"
 
 [[projects]]
   name = "github.com/tebeka/selenium"
@@ -565,13 +576,14 @@
   revision = "795b5e3961ea1912fde60af417ad85e86acc0d6a"
 
 [[projects]]
-  digest = "1:cdba2c61bea1a82b91c0b9dc03112e1373e3d825a6976b636b3d10769d6f6fb0"
+  digest = "1:f006d0b1a564169d9c5b731486286a26ba8a4ed0b5aa8830599a668e3cb67953"
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
     "blowfish",
     "ed25519",
     "ed25519/internal/edwards25519",
+    "ssh/terminal",
   ]
   pruneopts = "UT"
   revision = "81e90905daefcd6fd217b62423c0908922eadb30"
@@ -598,9 +610,12 @@
   revision = "da3ce8d62a7f77aadfda06cb82bd604d6469c645"
 
 [[projects]]
-  digest = "1:9ef12bb93d3105a9137f9983a22ade0750da7f16bf9ce120e705b6d5dfe22057"
+  digest = "1:04171a544083f675c3f201d1435dbb88f3cd0cf95763123ae3067a062854ab3a"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "unix",
+    "windows",
+  ]
   pruneopts = "UT"
   revision = "478fcf54317e52ab69f40bb4c7a1520288d7f7ea"
 
@@ -653,8 +668,7 @@
   name = "gopkg.in/h2non/gock.v1"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a6029d17e101ac1594adafea9e63fd8c988a8701"
-  version = "v1.0.12"
+  revision = "v1.0.12"
 
 [[projects]]
   digest = "1:d6d48c336df55aadc158c1b24a079a31fc40f5e237f7167fc967db2e8db4f271"
@@ -682,7 +696,9 @@
     "github.com/dgrijalva/jwt-go",
     "github.com/fabric8-services/fabric8-cluster-client/cluster",
     "github.com/fabric8-services/fabric8-cluster/design",
+    "github.com/fabric8-services/fabric8-common/gocksupport",
     "github.com/fabric8-services/fabric8-common/httpsupport",
+    "github.com/fabric8-services/fabric8-common/test/suite",
     "github.com/fabric8-services/fabric8-notification/design",
     "github.com/fabric8-services/fabric8-tenant/design",
     "github.com/fabric8-services/fabric8-wit/design",
@@ -729,6 +745,7 @@
     "github.com/wadey/gocovmerge",
     "golang.org/x/crypto/bcrypt",
     "golang.org/x/net/context",
+    "golang.org/x/net/websocket",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/github",
     "gopkg.in/h2non/gock.v1",

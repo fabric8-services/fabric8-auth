@@ -12,10 +12,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	"github.com/fabric8-services/fabric8-auth/gormsupport/cleaner"
 	gormbench "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testsuite "github.com/fabric8-services/fabric8-common/test/suite"
 )
 
 type BenchTransactional struct {

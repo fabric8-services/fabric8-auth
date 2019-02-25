@@ -2,19 +2,23 @@ package service_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	errs "github.com/pkg/errors"
+	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/fabric8-services/fabric8-common/gocksupport"
 
-	"fmt"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
+	errs "github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	gock "gopkg.in/h2non/gock.v1"
 )
 
 type userServiceBlackboxTestSuite struct {
@@ -36,12 +40,12 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 
 		identity, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToDeprovision.Identity().Username)
 		require.NoError(t, err)
-		assert.Equal(t, true, identity.User.Deprovisioned)
+		assert.True(t, identity.User.Deprovisioned)
 		assert.Equal(t, userToDeprovision.User().ID, identity.User.ID)
 		assert.Equal(t, userToDeprovision.IdentityID(), identity.ID)
 
 		loadedUser := s.Graph.LoadUser(userToDeprovision.IdentityID())
-		assert.Equal(t, true, loadedUser.User().Deprovisioned)
+		assert.True(t, loadedUser.User().Deprovisioned)
 		userToDeprovision.Identity().User.Deprovisioned = true
 		testsupport.AssertIdentityEqual(t, userToDeprovision.Identity(), loadedUser.Identity())
 
@@ -61,6 +65,79 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 			testsupport.AssertError(t, err, errors.NotFoundError{}, "user identity with username '%s' not found", username)
 
 		})
+	})
+}
+
+func (s *userServiceBlackboxTestSuite) TestDeactivate() {
+
+	// given
+	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	saToken := testtoken.TokenManager.AuthServiceAccountToken()
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given 2 users with tokens
+		userToDeactivate := s.Graph.CreateUser()
+		token1 := s.Graph.CreateToken(userToDeactivate)
+		token2 := s.Graph.CreateToken(userToDeactivate)
+		userToStayIntact := s.Graph.CreateUser()
+		token3 := s.Graph.CreateToken(userToStayIntact)
+		token4 := s.Graph.CreateToken(userToStayIntact)
+
+		defer gock.OffAll()
+		// call to WIT Service
+		witCallsCounter := 0
+		gock.New("http://localhost:8080").
+			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.IdentityID().String())).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("X-Request-Id", reqID).
+			SetMatcher(gocksupport.SpyOnCalls(&witCallsCounter)).
+			Reply(200)
+		// call to Tenant Service
+		tenantCallsCounter := 0
+		gock.New("http://localhost:8090").
+			Delete(fmt.Sprintf("/api/tenants/%s", userToDeactivate.IdentityID().String())).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("X-Request-Id", reqID).
+			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
+			Reply(204)
+		// when
+		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
+		// then
+		require.NoError(t, err)
+		assert.False(t, identity.User.Active)        // user is inactive...
+		assert.False(t, identity.User.Deprovisioned) // ... but user NOT deprovisionned
+		assert.Equal(t, userToDeactivate.User().ID, identity.User.ID)
+		assert.Equal(t, userToDeactivate.IdentityID(), identity.ID)
+		// verify that user's fields were obfuscated
+		loadedUser := s.Graph.LoadUser(userToDeactivate.IdentityID())
+		require.NotNil(t, loadedUser)
+		testsupport.AssertIdentityObfuscated(t, userToDeactivate.Identity(), loadedUser.Identity())
+		// also, verify that user's tokens were revoked
+		for _, tID := range []uuid.UUID{token1.TokenID(), token2.TokenID()} {
+			tok := s.Graph.LoadToken(tID)
+			require.NotNil(t, tok)
+			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_REVOKED)
+		}
+		// also, verify that WIT and tenant services were called
+		assert.Equal(t, 1, witCallsCounter)
+		assert.Equal(t, 1, tenantCallsCounter)
+		// lastly, verify that user to keep intact remainded intact
+		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
+		assert.True(t, loadedUser.User().Active)
+		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
+		for _, tID := range []uuid.UUID{token3.TokenID(), token4.TokenID()} {
+			tok := s.Graph.LoadToken(tID)
+			require.NotNil(t, tok)
+			assert.True(t, tok.Token().Valid())
+		}
+
+	})
+
+	s.T().Run("not found", func(t *testing.T) {
+		// when
+		_, err := s.Application.UserService().DeactivateUser(s.Ctx, "unknown")
+		// then
+		testsupport.AssertError(t, err, errors.NotFoundError{}, "user identity with username 'unknown' not found")
 	})
 }
 

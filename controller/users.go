@@ -23,7 +23,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // UsersController implements the users resource.
@@ -667,6 +667,94 @@ func (c *UsersController) VerifyEmail(ctx *app.VerifyEmailUsersContext) error {
 
 	ctx.ResponseData.Header().Set("Location", redirectURL)
 	return ctx.TemporaryRedirect()
+}
+
+// ListTokens lists all of the tokens for the specified identity.  This endpoint may only be invoked via the admin console
+// service account
+func (c *UsersController) ListTokens(ctx *app.ListTokensUsersContext) error {
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.Admin)
+	if !isSvcAccount {
+		log.Error(ctx, nil, "The account is not an authorized service account allowed to manage user tokens")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to manage user tokens."))
+	}
+
+	identityID, err := uuid.FromString(ctx.ID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Invalid identityID")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identity_id", ctx.ID, "invalid identity_id - not a UUID"))
+	}
+
+	tokens, err := c.app.TokenRepository().ListForIdentity(ctx, identityID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "error retrieving user tokens")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	response := &app.UserTokenArray{}
+
+	for _, t := range tokens {
+		perms := []*app.TokenPrivilegeData{}
+
+		// If the token is an RPT token, include its privileges in the response
+		if t.TokenType == token.TOKEN_TYPE_RPT {
+			privs, err := c.app.TokenRepository().ListPrivileges(ctx, t.TokenID)
+			if err != nil {
+				log.Error(ctx, map[string]interface{}{
+					"err": err,
+				}, "error retrieving token privileges")
+				return jsonapi.JSONErrorResponse(ctx, err)
+			}
+
+			for _, priv := range privs {
+				perms = append(perms, &app.TokenPrivilegeData{
+					ResourceID: priv.ResourceID,
+					Scopes:     priv.Scopes,
+					Stale:      priv.Stale,
+				})
+			}
+		}
+
+		response.Data = append(response.Data, &app.UserTokenData{
+			TokenID:     t.TokenID.String(),
+			TokenType:   t.TokenType,
+			Status:      t.Status,
+			ExpiryTime:  t.ExpiryTime,
+			Permissions: perms,
+		})
+	}
+
+	return ctx.OK(response)
+}
+
+func (c *UsersController) RevokeAllTokens(ctx *app.RevokeAllTokensUsersContext) error {
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.Admin)
+	if !isSvcAccount {
+		log.Error(ctx, nil, "The account is not an authorized service account allowed to manage user tokens")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("account not authorized to manage user tokens."))
+	}
+
+	identityID, err := uuid.FromString(ctx.ID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err": err,
+		}, "Invalid identityID")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewBadParameterErrorFromString("identity_id", ctx.ID, "invalid identity_id - not a UUID"))
+	}
+
+	err = c.app.TokenService().SetStatusForAllIdentityTokens(ctx, identityID, token.TOKEN_STATUS_REVOKED)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":        err,
+			"identityID": identityID,
+		}, "Could not revoke tokens")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+	}
+
+	return ctx.OK(nil)
 }
 
 func filterUsers(repos repository.Repositories, ctx *app.ListUsersContext) ([]accountrepo.User, []accountrepo.Identity, error) {

@@ -53,10 +53,6 @@ required = [
 ]
 
 [[constraint]]
-  name = "github.com/ajg/form"
-  version = "1.5.0"
-
-[[constraint]]
   name = "github.com/dgrijalva/jwt-go"
   version = "3.0.0"
 
@@ -64,10 +60,6 @@ required = [
   name = "github.com/goadesign/goa"
   version = "1.3.0"
   
-[[constraint]]
-  name = "github.com/jinzhu/gorm"
-  version = "1.9.1"
-
 [[constraint]]
   name = "github.com/lib/pq"
   version = "1.0.0"
@@ -79,10 +71,6 @@ required = [
 [[constraint]]
   name = "github.com/satori/go.uuid"
   version = "1.2.0"
-
-[[constraint]]
-  name = "github.com/sirupsen/logrus"
-  version = "0.11.2"
 
 [[constraint]]
   name = "github.com/stretchr/testify"
@@ -98,7 +86,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-wit"
-  revision = "b59d0dc8ae9b2bfea1fb5dc6ff3552c42b735756"
+  revision = "f7b1641d891c194976363c4a74d1fe0b575491af"
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-notification"
@@ -114,7 +102,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-common"
-  revision = "a85e65e22cfc18d7c2004317d340ad328ca8dcd1"
+  revision = "083c9c890cdf825027a0f009135af153d07d2926"
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"
@@ -129,16 +117,13 @@ required = [
   revision = "563b81fc02b75d664e54da31f787c2cc2186780b"
 
 [[constraint]]
-name = "github.com/dnaeon/go-vcr"
-revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
-
-[[constraint]]
   name = "github.com/gojuno/minimock"
   revision = "a5502dd2746ee6fc3fd58ad83d701d25e14d68d1"
 
 [prune]
   go-tests = true
   unused-packages = true
+<<<<<<< HEAD
 
 [[constraint]]
   name = "github.com/fsnotify/fsnotify"
@@ -159,3 +144,5 @@ revision= "9d71b8a6df86e00127f96bc8dabc09856ab8afdb"
 [[constraint]]
   name = "github.com/pmacik/loginusers-go"
   revision = "master"
+=======
+>>>>>>> master

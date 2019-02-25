@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // String returns the current configuration as a string
@@ -40,22 +40,23 @@ const (
 	//
 	//------------------------------------------------------------------------------------------------------------------
 
-	varHTTPAddress                     = "http.address"
-	varMetricsHTTPAddress              = "metrics.http.address"
-	varDeveloperModeEnabled            = "developer.mode.enabled"
-	varCleanTestDataEnabled            = "clean.test.data"
-	varDBLogsEnabled                   = "enable.db.logs"
-	varNotApprovedRedirect             = "notapproved.redirect"
-	varHeaderMaxLength                 = "header.maxlength"
-	varUsersListLimit                  = "users.listlimit"
-	defaultConfigFile                  = "config.yaml"
-	varValidRedirectURLs               = "redirect.valid"
-	varLogLevel                        = "log.level"
-	varLogJSON                         = "log.json"
-	varEmailVerifiedRedirectURL        = "email.verify.url"
-	varInvitationAcceptedRedirectURL   = "invitation.accepted.url"
-	varInternalUsersEmailAddressSuffix = "internal.users.email.address.domain"
-	varIgnoreEmailInProd               = "ignore.email.prod"
+	varHTTPAddress                         = "http.address"
+	varMetricsHTTPAddress                  = "metrics.http.address"
+	varDeveloperModeEnabled                = "developer.mode.enabled"
+	varCleanTestDataEnabled                = "clean.test.data"
+	varCleanTestDataErrorReportingRequired = "error.reporting.required"
+	varDBLogsEnabled                       = "enable.db.logs"
+	varNotApprovedRedirect                 = "notapproved.redirect"
+	varHeaderMaxLength                     = "header.maxlength"
+	varUsersListLimit                      = "users.listlimit"
+	defaultConfigFile                      = "config.yaml"
+	varValidRedirectURLs                   = "redirect.valid"
+	varLogLevel                            = "log.level"
+	varLogJSON                             = "log.json"
+	varEmailVerifiedRedirectURL            = "email.verify.url"
+	varInvitationAcceptedRedirectURL       = "invitation.accepted.url"
+	varInternalUsersEmailAddressSuffix     = "internal.users.email.address.domain"
+	varIgnoreEmailInProd                   = "ignore.email.prod"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -570,6 +571,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// By default, test data should be cleaned from DB, unless explicitely said otherwise.
 	c.v.SetDefault(varCleanTestDataEnabled, true)
+	// By default, error should be reported while cleaning test data from DB.
+	c.v.SetDefault(varCleanTestDataErrorReportingRequired, true)
 	// By default, DB logs are not output in the console
 	c.v.SetDefault(varDBLogsEnabled, false)
 
@@ -742,6 +745,11 @@ func (c *ConfigurationData) IsPostgresDeveloperModeEnabled() bool {
 // IsCleanTestDataEnabled returns `true` if the test data should be cleaned after each test. (default: true)
 func (c *ConfigurationData) IsCleanTestDataEnabled() bool {
 	return c.v.GetBool(varCleanTestDataEnabled)
+}
+
+// IsCleanTestDataErrorReportingRequired returns `true` if there is any error while cleaning test data after each test. (default: true)
+func (c *ConfigurationData) IsCleanTestDataErrorReportingRequired() bool {
+	return c.v.GetBool(varCleanTestDataErrorReportingRequired)
 }
 
 // IsDBLogsEnabled returns `true` if the DB logs (ie, SQL queries) should be output in the console. (default: false)
@@ -929,6 +937,9 @@ func (c *ConfigurationData) GetWITURL() (string, error) {
 
 // GetTenantServiceURL returns the URL for the Tenant service used by login to initialize OSO tenant space
 func (c *ConfigurationData) GetTenantServiceURL() string {
+	if c.IsPostgresDeveloperModeEnabled() {
+		return devModeTenantServiceURL
+	}
 	return c.v.GetString(varTenantServiceURL)
 }
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
-	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -22,7 +22,7 @@ type UserController struct {
 	app           application.Application
 	config        UserControllerConfiguration
 	tokenManager  manager.TokenManager
-	tenantService accountservice.TenantService
+	tenantService appservice.TenantService
 }
 
 // UserControllerConfiguration the Configuration for the UserController
@@ -32,7 +32,7 @@ type UserControllerConfiguration interface {
 
 // NewUserController creates a user controller.
 func NewUserController(service *goa.Service, app application.Application, config UserControllerConfiguration,
-	tokenManager manager.TokenManager, tenantService accountservice.TenantService) *UserController {
+	tokenManager manager.TokenManager, tenantService appservice.TenantService) *UserController {
 	return &UserController{
 		Controller:    service.NewController("UserController"),
 		app:           app,

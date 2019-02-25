@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fabric8-services/fabric8-auth/authentication/account"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // NewUserService creates a new service to manage users
@@ -94,6 +97,71 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 
 		return s.Repositories().Users().Save(ctx, &identity.User)
 	})
+
+	return identity, err
+}
+
+// DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account
+func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (*repository.Identity, error) {
+
+	var identity *repository.Identity
+	err := s.ExecuteInTransaction(func() error {
+
+		identities, err := s.Repositories().Identities().Query(
+			repository.IdentityWithUser(),
+			repository.IdentityFilterByUsername(username),
+			repository.IdentityFilterByProviderType(repository.DefaultIDP))
+		if err != nil {
+			return err
+		}
+		if len(identities) == 0 {
+			return errors.NewNotFoundErrorWithKey("user identity", "username", username)
+		}
+
+		identity = &identities[0]
+		// mark the account as inactive
+		identity.User.Active = false
+		// obfuscate the data
+		obfuscatated := uuid.NewV4().String()
+		identity.Username = obfuscatated
+		identity.ProfileURL = &obfuscatated
+		identity.User.Email = obfuscatated
+		identity.User.FullName = obfuscatated
+		identity.User.ImageURL = obfuscatated
+		identity.User.URL = obfuscatated
+		identity.User.Company = obfuscatated
+		identity.User.Bio = obfuscatated
+		identity.User.Cluster = obfuscatated
+		identity.User.FeatureLevel = obfuscatated
+		// empty data
+		identity.User.ContextInformation = account.ContextInformation{}
+		err = s.Repositories().Identities().Save(ctx, identity)
+		if err != nil {
+			return err
+		}
+		err = s.Repositories().Users().Save(ctx, &identity.User)
+		if err != nil {
+			return err
+		}
+
+		// revoke all user's tokens
+		return s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// call WIT and Tenant to deactivate the user there as well,
+	// using `auth` SA token here, not the request context's token
+	err = s.Services().WITService().DeleteUser(ctx, identity.ID.String())
+	if err != nil {
+		// just log the error but don't suspend the deactivation
+		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")
+	}
+	err = s.Services().TenantService().Delete(ctx, identity.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	return identity, err
 }
