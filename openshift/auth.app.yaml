@@ -49,7 +49,7 @@ objects:
               secretKeyRef:
                 name: auth
                 key: db.password
-          - name: AUTH_AUTH_PROVIDER_CLIENT_ID
+          - name: AUTH_OAUTH_PROVIDER_CLIENT_ID
             valueFrom:
               secretKeyRef:
                 name: auth
