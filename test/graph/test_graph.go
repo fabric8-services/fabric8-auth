@@ -2,13 +2,16 @@ package graph
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/log"
+
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -227,18 +230,34 @@ func (g *TestGraph) LoadIdentity(params ...interface{}) *identityWrapper {
 	return &w
 }
 
+// LoadOption a DB option when loading records
+type LoadOption func(*gorm.DB) *gorm.DB
+
+// Unscoped configures the database to "unscoped", so that soft-deleted
+// records can be retrieved
+func Unscoped() LoadOption {
+	return func(db *gorm.DB) *gorm.DB {
+		return db.Unscoped()
+	}
+}
+
 func (g *TestGraph) LoadUser(params ...interface{}) *userWrapper {
 	var identityID *uuid.UUID
-	for i := range params {
-		switch t := params[i].(type) {
+	options := []LoadOption{}
+	for _, p := range params {
+		log.Debug(nil, map[string]interface{}{"param_type": reflect.TypeOf(p)}, "searching user/identity with custom param")
+		switch p := p.(type) {
 		case *uuid.UUID:
-			identityID = t
+			identityID = p
 		case uuid.UUID:
-			identityID = &t
+			identityID = &p
+		case LoadOption:
+			log.Debug(nil, map[string]interface{}{}, "searching user/identity with custom options")
+			options = append(options, p)
 		}
 	}
 	require.NotNil(g.t, identityID, "Must specify a uuid parameter for the identity ID")
-	w := loadUserWrapper(g, *identityID)
+	w := loadUserWrapper(g, *identityID, options...)
 	g.register(g.generateIdentifier(params), &w)
 	return &w
 }
