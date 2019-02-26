@@ -95,8 +95,6 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		// call to Cluster Service
 		gock.New("http://f8cluster").
 			Get("/api/clusters/auth").
-			// MatchHeader("Authorization", "Bearer "+saToken).
-			// MatchHeader("X-Request-Id", reqID).
 			Reply(200).
 			BodyString(
 				fmt.Sprintf(`{
@@ -175,9 +173,9 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		assert.Equal(t, 1, tenantCallsCounter)
 		// also, verify that the external accounts where unlinked
 		_, err = s.Application.ExternalTokens().Load(ctx, githubTokenToRemove.ID())
-		require.Error(t, err)
+		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", githubTokenToRemove.ID()))
 		_, err = s.Application.ExternalTokens().Load(ctx, openshiftTokenToRemove.ID())
-		require.Error(t, err)
+		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", openshiftTokenToRemove.ID()))
 		// lastly, verify that everything belonging to the user to keep intact remainded as-is
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.True(t, loadedUser.User().Active)
