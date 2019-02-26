@@ -103,10 +103,8 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 
 // DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account
 func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (*repository.Identity, error) {
-
 	var identity *repository.Identity
-	err := s.ExecuteInTransaction(func() error {
-
+	if err := s.ExecuteInTransaction(func() error {
 		identities, err := s.Repositories().Identities().Query(
 			repository.IdentityWithUser(),
 			repository.IdentityFilterByUsername(username),
@@ -117,7 +115,6 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 		if len(identities) == 0 {
 			return errors.NewNotFoundErrorWithKey("user identity", "username", username)
 		}
-
 		identity = &identities[0]
 		// mark the account as inactive
 		identity.User.Active = false
@@ -143,17 +140,22 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 		if err != nil {
 			return err
 		}
-
 		// revoke all user's tokens
-		return s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
-	})
-	if err != nil {
+		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
+		if err != nil {
+			return err
+		}
+		// soft-delete user account
+		if err := s.Repositories().Identities().Delete(ctx, identity.ID); err != nil {
+			return err
+		}
+		return s.Repositories().Users().Delete(ctx, identity.User.ID)
+	}); err != nil {
 		return nil, err
 	}
-
 	// call WIT and Tenant to deactivate the user there as well,
 	// using `auth` SA token here, not the request context's token
-	err = s.Services().WITService().DeleteUser(ctx, identity.ID.String())
+	err := s.Services().WITService().DeleteUser(ctx, identity.ID.String())
 	if err != nil {
 		// just log the error but don't suspend the deactivation
 		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")
@@ -162,7 +164,6 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 	if err != nil {
 		return nil, err
 	}
-
 	return identity, err
 }
 
