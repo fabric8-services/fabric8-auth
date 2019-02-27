@@ -64,6 +64,7 @@ type ExternalTokenRepository interface {
 	Create(ctx context.Context, ExternalToken *ExternalToken) error
 	Save(ctx context.Context, ExternalToken *ExternalToken) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	DeleteByIdentityID(ctx context.Context, identityID uuid.UUID) error
 	LoadByProviderIDAndIdentityID(ctx context.Context, providerID uuid.UUID, identityID uuid.UUID) ([]ExternalToken, error)
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]ExternalToken, error)
 }
@@ -160,6 +161,23 @@ func (m *GormExternalTokenRepository) Delete(ctx context.Context, id uuid.UUID) 
 		"external_token_id": id,
 	}, "external_token deleted!")
 
+	return nil
+}
+
+// DeleteByIdentityID removes all records associated with a given identity ID
+func (m *GormExternalTokenRepository) DeleteByIdentityID(ctx context.Context, identityID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "ExternalToken", "deleteByIdentityID"}, time.Now())
+	result := m.db.Where("identity_id = ?", identityID).Delete(ExternalToken{IdentityID: identityID})
+	if result.Error != nil {
+		log.Error(ctx, map[string]interface{}{
+			"identity_id": identityID,
+			"err":         result.Error,
+		}, "unable to delete external tokens for a given identity")
+		return errs.WithStack(result.Error)
+	}
+	log.Debug(ctx, map[string]interface{}{
+		"identity_id": identityID,
+	}, "external tokens deleted!")
 	return nil
 }
 
