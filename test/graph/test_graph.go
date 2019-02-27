@@ -91,7 +91,6 @@ func (g *TestGraph) ID(value string) Identifier {
 // CreateUser creates a new user wrapper object
 func (g *TestGraph) CreateUser(params ...interface{}) *userWrapper {
 	return g.createAndRegister(newUserWrapper, params).(*userWrapper)
-
 }
 
 func (g *TestGraph) UserByID(id string) *userWrapper {
@@ -351,6 +350,10 @@ func (g *TestGraph) CreateInvitation(params ...interface{}) *invitationWrapper {
 
 func (g *TestGraph) CreateToken(params ...interface{}) *tokenWrapper {
 	return g.createAndRegister(newTokenWrapper, params).(*tokenWrapper)
+}
+
+func (g *TestGraph) CreateExternalToken(params ...interface{}) *externalTokenWrapper {
+	return g.createAndRegister(newExternalTokenWrapper, params).(*externalTokenWrapper)
 }
 
 func (g *TestGraph) LoadToken(params ...interface{}) *tokenWrapper {
