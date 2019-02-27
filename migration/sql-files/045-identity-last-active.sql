@@ -1,0 +1,1 @@
+ALTER TABLE identities ADD COLUMN last_active timestamp with time zone;

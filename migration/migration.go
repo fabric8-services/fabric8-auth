@@ -242,6 +242,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 44
 	m = append(m, steps{ExecuteSQLFile("044-user-active.sql")})
 
+	// Version 45
+	m = append(m, steps{ExecuteSQLFile("045-identity-last-active.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

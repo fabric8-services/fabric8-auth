@@ -497,6 +497,9 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 			return errors.NewInternalError(ctx, err)
 		}
 
+		// Update the identity's last active timestamp
+		s.Repositories().Identities().TouchLastActive(ctx, identity.ID)
+
 		return nil
 	})
 
