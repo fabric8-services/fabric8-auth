@@ -60,7 +60,7 @@ func (s *ClusterServiceTestSuite) TestClustersFail() {
 
 	})
 
-	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
+	s.T().Run("cluster by url fails if can't get clusters", func(t *testing.T) {
 		defer gock.OffAll()
 		clusterURL := "https://api.starter-us-east-2.openshift.com/"
 
