@@ -13,7 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	errs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // NewLinkingProviderFactory returns the default Linking provider factory.
@@ -51,6 +51,7 @@ func (f *linkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, ide
 				return errors.New("unable to load user for identity")
 			}
 			clusterURL = identities[0].User.Cluster
+			log.Debug(ctx, map[string]interface{}{"cluster_url": clusterURL, "identity_id": identityID}, "looking up cluster for identity")
 			return nil
 
 		})

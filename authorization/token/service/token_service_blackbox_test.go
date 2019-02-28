@@ -1030,6 +1030,31 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenRevoked()
 	assert.Empty(s.T(), userToken)
 }
 
+func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenUpdatesLastActive() {
+
+	tm := testtoken.TokenManager
+	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
+	// create a user
+	user := s.Graph.CreateUser()
+	// Create an initial access token for the user
+	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
+	require.NoError(s.T(), err)
+
+	// Register the refresh token
+	_, err = s.Application.TokenService().RegisterToken(ctx, user.IdentityID(), at.RefreshToken, token.TOKEN_TYPE_REFRESH, nil)
+	require.NoError(s.T(), err)
+
+	now := time.Now()
+
+	// refresh the user token
+	_, err = s.Application.TokenService().ExchangeRefreshToken(ctx, at.RefreshToken, "")
+	require.NoError(s.T(), err)
+
+	identity := s.Graph.LoadIdentity(user.IdentityID())
+
+	require.True(s.T(), now.Before(*identity.Identity().LastActive))
+}
+
 func (s *tokenServiceBlackboxTest) TestRegisterInvalidToken() {
 	// First test an invalid token string
 	_, err := s.Application.TokenService().RegisterToken(s.Ctx, uuid.NewV4(), "foo", token.TOKEN_TYPE_ACCESS, nil)

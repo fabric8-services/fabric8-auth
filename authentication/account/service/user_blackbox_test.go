@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+
 	"github.com/fabric8-services/fabric8-auth/test/graph"
 
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
@@ -81,13 +83,57 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		userToDeactivate := s.Graph.CreateUser()
 		token1 := s.Graph.CreateToken(userToDeactivate)
 		token2 := s.Graph.CreateToken(userToDeactivate)
+		githubTokenToRemove := s.Graph.CreateExternalToken(userToDeactivate, provider.GitHubProviderID)
+		openshiftTokenToRemove := s.Graph.CreateExternalToken(userToDeactivate, "33456e01-0ce4-4da2-b94d-daa968412662") // ID of the OpenShift cluster returned by gock on behalf of the cluster service
 		userToStayIntact := s.Graph.CreateUser()
 		token3 := s.Graph.CreateToken(userToStayIntact)
 		token4 := s.Graph.CreateToken(userToStayIntact)
+		githubTokenToKeep := s.Graph.CreateExternalToken(userToStayIntact, provider.GitHubProviderAlias)
+		openshiftTokenToKeep := s.Graph.CreateExternalToken(userToStayIntact, "02f2eee5-d01a-4119-9893-292a7d39b49e") // ID of the OpenShift cluster returned by gock on behalf of the cluster service
 
 		defer gock.OffAll()
+		// call to Cluster Service
+		gock.New("http://f8cluster").
+			Get("/api/clusters/auth").
+			Reply(200).
+			BodyString(
+				fmt.Sprintf(`{
+					"data": [
+						{
+							"token-provider-id": "33456e01-0ce4-4da2-b94d-daa968412662",
+							"api-url": "%s",
+							"app-dns": "a347.foo.openshiftapps.com",
+							"auth-client-default-scope": "user:full",
+							"auth-client-id": "openshift-io",
+							"auth-client-secret": "067da2df-b721-48cd-8e76-ac26e9140218",
+							"capacity-exhausted": false,
+							"console-url": "https://console.foo.openshift.com/console/",
+							"logging-url": "https://console.foo.openshift.com/console/",
+							"metrics-url": "https://metrics.foo.openshift.com/",
+							"name": "foo",
+							"service-account-token": "1d147ba1-2832-4048-b1c5-21ae37377f0d",
+							"service-account-username": "devtools-sre"
+						},
+						{
+							"token-provider-id": "02f2eee5-d01a-4119-9893-292a7d39b49e",
+							"api-url": "%s",
+							"app-dns": "a347.foo.openshiftapps.com",
+							"auth-client-default-scope": "user:full",
+							"auth-client-id": "openshift-io",
+							"auth-client-secret": "90ceb4c9-842a-4a82-8f1b-e2fd2e0117fe",
+							"capacity-exhausted": false,
+							"console-url": "https://console.foo.openshift.com/console/",
+							"logging-url": "https://console.foo.openshift.com/console/",
+							"metrics-url": "https://metrics.foo.openshift.com/",
+							"name": "foo",
+							"service-account-token": "1d147ba1-2832-4048-b1c5-21ae37377f0d",
+							"service-account-username": "devtools-sre"
+						}
+					]
+				}`, userToDeactivate.User().Cluster, userToStayIntact.User().Cluster))
 		// call to WIT Service
 		witCallsCounter := 0
+		gock.Observe(gock.DumpRequest)
 		gock.New("http://localhost:8080").
 			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.IdentityID().String())).
 			MatchHeader("Authorization", "Bearer "+saToken).
@@ -102,6 +148,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			MatchHeader("X-Request-Id", reqID).
 			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
 			Reply(204)
+
 		// when
 		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
 		// then
@@ -124,7 +171,12 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		// also, verify that WIT and tenant services were called
 		assert.Equal(t, 1, witCallsCounter)
 		assert.Equal(t, 1, tenantCallsCounter)
-		// lastly, verify that user to keep intact remainded intact
+		// also, verify that the external accounts where unlinked
+		_, err = s.Application.ExternalTokens().Load(ctx, githubTokenToRemove.ID())
+		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", githubTokenToRemove.ID()))
+		_, err = s.Application.ExternalTokens().Load(ctx, openshiftTokenToRemove.ID())
+		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", openshiftTokenToRemove.ID()))
+		// lastly, verify that everything belonging to the user to keep intact remainded as-is
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.True(t, loadedUser.User().Active)
 		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
@@ -133,6 +185,10 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			require.NotNil(t, tok)
 			assert.True(t, tok.Token().Valid())
 		}
+		_, err = s.Application.ExternalTokens().Load(ctx, githubTokenToKeep.ID())
+		require.NoError(t, err)
+		_, err = s.Application.ExternalTokens().Load(ctx, openshiftTokenToKeep.ID())
+		require.NoError(t, err)
 
 	})
 

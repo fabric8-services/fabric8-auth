@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -379,4 +380,20 @@ func (s *IdentityRepositoryTestSuite) TestRemoveMember() {
 	memberships, err = s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), memberships, 0)
+}
+
+func (s *IdentityRepositoryTestSuite) TestTouchLastUpdated() {
+	identity := s.Graph.CreateIdentity()
+
+	require.Nil(s.T(), identity.Identity().LastActive)
+
+	now := time.Now()
+
+	err := s.Application.Identities().TouchLastActive(s.Ctx, identity.ID())
+	require.NoError(s.T(), err)
+
+	// Reload the identity
+	identity = s.Graph.LoadIdentity(identity.ID())
+
+	require.True(s.T(), now.Before(*identity.Identity().LastActive))
 }
