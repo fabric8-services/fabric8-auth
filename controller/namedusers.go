@@ -65,7 +65,7 @@ func (c *NamedusersController) Deprovision(ctx *app.DeprovisionNamedusersContext
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
 }
 
-// Deactivate runs the deprovision action.
+// Deactivate runs the deactivate action.
 func (c *NamedusersController) Deactivate(ctx *app.DeactivateNamedusersContext) error {
 	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.OnlineRegistration)
 	if !isSvcAccount {
