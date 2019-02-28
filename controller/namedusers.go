@@ -64,3 +64,23 @@ func (c *NamedusersController) Deprovision(ctx *app.DeprovisionNamedusersContext
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
 }
+
+// Deactivate runs the deprovision action.
+func (c *NamedusersController) Deactivate(ctx *app.DeactivateNamedusersContext) error {
+	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.OnlineRegistration)
+	if !isSvcAccount {
+		log.Error(ctx, nil, "the account is not an authorized service account allowed to deprovision users")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("account not authorized to deprovision users"))
+	}
+
+	identity, err := c.app.UserService().DeactivateUser(ctx, ctx.Username)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":      err,
+			"username": ctx.Username,
+		}, "error occurred while deactivating user")
+		return jsonapi.JSONErrorResponse(ctx, err)
+	}
+
+	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
+}

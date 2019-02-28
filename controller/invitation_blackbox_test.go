@@ -10,7 +10,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testservice "github.com/fabric8-services/fabric8-auth/test/service"
+	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 
 	"github.com/goadesign/goa"
 

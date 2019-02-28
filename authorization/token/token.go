@@ -3,6 +3,7 @@ package token
 import (
 	"context"
 	"crypto/rsa"
+	"fmt"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
@@ -90,6 +91,7 @@ func extractServiceAccountName(ctx context.Context) (string, bool) {
 	if token == nil {
 		return "", false
 	}
+	fmt.Printf("SA token claims: %v\n", token.Claims)
 	accountName := token.Claims.(jwt.MapClaims)["service_accountname"]
 	if accountName == nil {
 		return "", false

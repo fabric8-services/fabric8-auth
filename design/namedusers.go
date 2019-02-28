@@ -24,4 +24,21 @@ var _ = a.Resource("namedusers", func() {
 		a.Response(d.Unauthorized, JSONAPIErrors)
 		a.Response(d.Forbidden, JSONAPIErrors)
 	})
+	a.Action("deactivate", func() {
+		a.Security("jwt")
+		a.Routing(
+			a.PATCH("/:username/deactivate"),
+		)
+		a.Description("deactivate the user")
+		a.Params(func() {
+			a.Param("username", d.String, "Username")
+		})
+		a.Response(d.OK, func() {
+			a.Media(showUser)
+		})
+		a.Response(d.InternalServerError, JSONAPIErrors)
+		a.Response(d.NotFound, JSONAPIErrors)
+		a.Response(d.Unauthorized, JSONAPIErrors)
+		a.Response(d.Forbidden, JSONAPIErrors)
+	})
 })
