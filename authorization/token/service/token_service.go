@@ -497,13 +497,6 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 			return errors.NewInternalError(ctx, err)
 		}
 
-		// Update the identity's last active timestamp
-		err = s.Repositories().Identities().TouchLastActive(ctx, identity.ID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{"error": err}, "could not update last active timestamp")
-			return errors.NewInternalError(ctx, err)
-		}
-
 		return nil
 	})
 
@@ -762,6 +755,9 @@ func (s *tokenServiceImpl) CleanupExpiredTokens(ctx context.Context) error {
 	return nil
 }
 
+// ValidateToken extracts the token ID (the "jti" claim) from the token and uses it to perform a db lookup of the token's
+// status, and if the status is invalid will return an unauthorized error.  For valid tokens, it will also update the
+// identity's (determined from the token's "sub" claim) last active timestamp
 func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.Token) error {
 	claims := accessToken.Claims.(jwt.MapClaims)
 
@@ -789,6 +785,20 @@ func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.T
 		}, "Invalid token status")
 
 		return errors.NewUnauthorizedError("invalid token")
+	}
+
+	identityID, err := uuid.FromString(claims["sub"].(string))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract identity ID ('sub' claim) from token")
+		return errors.NewBadParameterErrorFromString("token", accessToken.Raw,
+			"could not extract identity ID from token")
+	}
+
+	// Update the identity's last active timestamp
+	err = s.Repositories().Identities().TouchLastActive(ctx, identityID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not update last active timestamp")
+		return errors.NewInternalError(ctx, err)
 	}
 
 	return nil
