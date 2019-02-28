@@ -37,17 +37,34 @@ AUTH_CLUSTER_URL_SHORT="http://localhost:8087" make dev &> "$OUTPUT_DIR/$ARTIFAC
 authpid=$!
 
 ## Wait for the Auth service to start up
-mainpid=$$
-(sleep 180; echo "Auth service startup failed."; kill $authpid; kill $mainpid) &
-watchdogpid=$!
 wait_period=5
+attempts=18
+
 echo "Starting local Auth service"
-while [ $(curl -L --silent -XGET 'http://localhost:8089/api/status' > /dev/null; echo $?) -gt 0 ]; do
-    echo "Waiting for Auth service for ${wait_period}s ...";
-    sleep $wait_period;
+for i in $(seq 1 $attempts); do
+    echo "Attempt $i/$attempts..."
+    response_head="$(curl -LI --silent -XGET 'http://localhost:8089/api/status' | head -n 1)"
+    if [ -z "$response_head" ]; then
+        echo "Service unreachable - waiting for Auth service for ${wait_period}s ...";
+        sleep $wait_period;
+    else
+        response_code="$(echo $response_head | cut -d ' ' -f2)"
+        if [ $response_code -eq 200 ]; then
+            echo "The Auth service is up and running.";
+            break;
+        else 
+            echo "Failed to start the Auth service";
+            echo $response_head;
+            kill $authpid;
+            exit 1;
+        fi
+    fi
+    if [ $i -eq $attempts ]; then
+        echo "Auth service failed to start in $attempts attempts."
+        kill $authpid;
+        exit 1;
+    fi
 done
-echo "Auth service is up and running."
-kill $watchdogpid
 
 # Start Cluster service (Auth dependency)
 CUR_DIR=$(pwd)
@@ -56,16 +73,33 @@ F8_AUTH_URL="http://localhost:8089" make dev &> "$OUTPUT_DIR/$ARTIFACTS_PATH/tes
 clusterpid=$!
 
 ## Wait for the Cluster service to start up
-(sleep 180; echo "Cluster service startup failed."; kill $clusterpid; kill $mainpid) &
-watchdogpid=$!
-wait_period=5
 echo "Starting local Cluster service"
-while [ $(curl -L --silent -XGET 'http://localhost:8087/api/status' > /dev/null; echo $?) -gt 0 ]; do
-    echo "Waiting for Cluster service for ${wait_period}s ...";
-    sleep $wait_period;
+for i in $(seq 1 $attempts); do
+    echo "Attempt $i/$attempts..."
+    response_head="$(curl -LI --silent -XGET 'http://localhost:8087/api/status' | head -n 1)"
+    if [ -z "$response_head" ]; then
+        echo "Service unreachable - waiting for Cluster service for ${wait_period}s ...";
+        sleep $wait_period;
+    else
+        response_code="$(echo $response_head | cut -d ' ' -f2)"
+        if [ $response_code -eq 200 ]; then
+            echo "The Cluster service is up and running.";
+            break;
+        else 
+            echo "Failed to start the Cluster service";
+            echo $response_head;
+            kill $clusterpid;
+            kill $authpid;    
+            exit 1;
+        fi
+    fi
+    if [ $i -eq $attempts ]; then
+        echo "Cluster service failed to start in $attempts attempts."
+        kill $clusterpid;
+        kill $authpid;
+        exit 1;
+    fi
 done
-echo "Cluster service is up and running."
-kill $watchdogpid
 
 cd $CUR_DIR
 # Run the contract tests
@@ -103,6 +137,4 @@ if [ "$ARCHIVE_ARTIFACTS" = "true" ]; then
     echo
 fi
 
-kill $clusterpid
-kill $authpid
 exit $testsexit
