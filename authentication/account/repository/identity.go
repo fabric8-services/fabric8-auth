@@ -82,6 +82,8 @@ type Identity struct {
 	// Link to Resource
 	IdentityResourceID sql.NullString
 	IdentityResource   resource.Resource `gorm:"foreignkey:IdentityResourceID;association_foreignkey:ResourceID"`
+	// Timestamp of the identity's last activity
+	LastActive *time.Time
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -135,6 +137,7 @@ type IdentityRepository interface {
 	AddMember(ctx context.Context, identityID uuid.UUID, memberID uuid.UUID) error
 	RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error
 	FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error
+	TouchLastActive(ctx context.Context, identityID uuid.UUID) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -829,6 +832,23 @@ WHERE
 	log.Debug(ctx, map[string]interface{}{
 		"rows_marked_stale": result.RowsAffected,
 	}, "Privilege cache rows marked stale")
+
+	return nil
+}
+
+// TouchLastActive is intended to be a lightweight method that updates the last active column for a specified identity
+// to the current timestamp
+func (m *GormIdentityRepository) TouchLastActive(ctx context.Context, identityID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "TouchLastActive"}, time.Now())
+
+	err := m.db.Exec("UPDATE identities SET last_active = ? WHERE id = ?", time.Now(), identityID).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"id":  identityID,
+			"err": err,
+		}, "unable to update last active time")
+		return errs.WithStack(err)
+	}
 
 	return nil
 }

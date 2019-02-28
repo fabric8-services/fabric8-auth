@@ -89,15 +89,29 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 		if sub == nil {
 			return "", errors.NewUnauthorizedError("missing 'sub' claim in the refresh token")
 		}
-		identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
-		if err != nil {
-			return "", errors.NewUnauthorizedError(err.Error())
-		}
 
-		err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identityID, token.TOKEN_STATUS_LOGGED_OUT)
+		err = s.ExecuteInTransaction(func() error {
+			identityID, err := uuid.FromString(fmt.Sprintf("%s", sub))
+			if err != nil {
+				return errors.NewUnauthorizedError(err.Error())
+			}
+
+			err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identityID, token.TOKEN_STATUS_LOGGED_OUT)
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
+			}
+
+			// Update the identity's last active timestamp on logout
+			err = s.Repositories().Identities().TouchLastActive(ctx, identityID)
+			if err != nil {
+				return errors.NewInternalError(ctx, err)
+			}
+
+			return nil
+		})
 
 		if err != nil {
-			return "", errors.NewInternalError(ctx, err)
+			return "", err
 		}
 	}
 

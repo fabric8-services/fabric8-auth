@@ -4,6 +4,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"testing"
+	"time"
 
 	"context"
 	"net/http"
@@ -161,6 +162,9 @@ func (s *LogoutControllerTestSuite) TestLogoutV2TokensInvalidated() {
 	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
 	// create a user
 	user := s.Graph.CreateUser()
+
+	now := time.Now()
+
 	// Create an initial access token for the user
 	at, err := tm.GenerateUserTokenForIdentity(ctx, *user.Identity(), false)
 	require.NoError(s.T(), err)
@@ -194,6 +198,10 @@ func (s *LogoutControllerTestSuite) TestLogoutV2TokensInvalidated() {
 	redirect := "https://openshift.io/home"
 
 	test.Logoutv2LogoutOK(s.T(), goajwt.WithJWT(svc.Context, tk), svc, ctrl, &redirect, nil)
+
+	identity := s.Graph.LoadIdentity(user.IdentityID())
+	// Confirm that the last active field has been updated during logout
+	require.True(s.T(), now.Before(*identity.Identity().LastActive))
 
 	// Load the token again
 	loadedToken, err = s.Application.TokenRepository().Load(s.Ctx, tokenID)
