@@ -1066,6 +1066,8 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 		}, nil
 	}
 
+	now := time.Now()
+
 	// when
 	tm := testtoken.TokenManager
 	ctx := manager.ContextWithTokenManager(context.Background(), tm)
@@ -1084,6 +1086,10 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 	require.NoError(s.T(), err)
 	assert.NotEmpty(s.T(), resultAccessTokenClaims.SessionState)
 	s.T().Logf("token claim `session_state`: %v", resultAccessTokenClaims.SessionState)
+
+	// Confirm that the identity's last active field was updated
+	identity := s.Graph.LoadIdentity(user.IdentityID())
+	require.True(s.T(), now.Before(*identity.Identity().LastActive))
 
 	// Confirm that both an access token and refresh token were created for the user's identity
 	tokens, err := s.Application.TokenRepository().ListForIdentity(s.Ctx, user.IdentityID())

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
@@ -76,12 +77,16 @@ func (s *testJWTokenContextSuite) TestHandler() {
 	rw = httptest.NewRecorder()
 	tkn := s.Graph.CreateToken()
 	rq.Header.Set("Authorization", "Bearer "+tkn.TokenString())
+	now := time.Now()
 	err = h(context.Background(), rw, rq)
 	require.Error(s.T(), err)
 	assert.Equal(s.T(), "next-handler-error", err.Error())
 	header = textproto.MIMEHeader(rw.Header())
 	require.Empty(s.T(), header.Get("WWW-Authenticate"))
 	require.Empty(s.T(), header.Get("Access-Control-Expose-Headers"))
+	// Confirm that the identity's last active timestamp has been updated
+	identity := s.Graph.LoadIdentity(tkn.Token().IdentityID)
+	require.True(s.T(), now.Before(*identity.Identity().LastActive))
 
 	// Test with an invalid user token
 	rw = httptest.NewRecorder()

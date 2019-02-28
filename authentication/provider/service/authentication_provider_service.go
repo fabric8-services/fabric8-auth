@@ -328,6 +328,13 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		"user_name":   identity.Username,
 	}, "local user created/updated")
 
+	// Update the identity's last active timestamp
+	err = s.Repositories().Identities().TouchLastActive(ctx, identity.ID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"err": err, "identity_id": identity.ID.String()}, "failed to update last_active timestamp for identity")
+		return nil, nil, err
+	}
+
 	// Generate a new user token instead of using the original oauth provider token
 	userToken, err := tokenManager.GenerateUserTokenForIdentity(ctx, *identity, false)
 	if err != nil {
