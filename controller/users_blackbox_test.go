@@ -25,7 +25,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testservice "github.com/fabric8-services/fabric8-auth/test/service"
+	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	"github.com/satori/go.uuid"
