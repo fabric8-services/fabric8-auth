@@ -26,8 +26,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testjwt "github.com/fabric8-services/fabric8-auth/test/jwt"
 	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
+	testjwt "github.com/fabric8-services/fabric8-auth/test/jwt"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
