@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
 	"time"
+
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
@@ -28,10 +29,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testoauth "github.com/fabric8-services/fabric8-auth/test/generated/authentication"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	testoauth "github.com/fabric8-services/fabric8-auth/test/token/oauth"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"

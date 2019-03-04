@@ -1,17 +1,22 @@
 package controller_test
 
 import (
+	"context"
 	"testing"
+
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 
 	"github.com/fabric8-services/fabric8-auth/app/test"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	. "github.com/fabric8-services/fabric8-auth/controller"
+	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -30,16 +35,16 @@ func (s *NamedUsersControllerTestSuite) SetupTest() {
 	s.tenantService = &dummyTenantService{}
 }
 
-func (s *NamedUsersControllerTestSuite) SecuredServiceAccountController(identity repository.Identity) (*goa.Service, *NamedusersController) {
+func (s *NamedUsersControllerTestSuite) SecuredServiceAccountController(identity repository.Identity) (*goa.Service, *controller.NamedusersController) {
 	svc := testsupport.ServiceAsServiceAccountUser("Namedusers-ServiceAccount-Service", identity)
-	controller := NewNamedusersController(svc, s.Application, s.Configuration, s.tenantService)
-	return svc, controller
+	ctrl := controller.NewNamedusersController(svc, s.Application, s.Configuration, s.tenantService)
+	return svc, ctrl
 }
 
-func (s *NamedUsersControllerTestSuite) SecuredController(identity repository.Identity) (*goa.Service, *NamedusersController) {
+func (s *NamedUsersControllerTestSuite) SecuredController(identity repository.Identity) (*goa.Service, *controller.NamedusersController) {
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
-	controller := NewNamedusersController(svc, s.Application, s.Configuration, s.tenantService)
-	return svc, controller
+	ctrl := controller.NewNamedusersController(svc, s.Application, s.Configuration, s.tenantService)
+	return svc, ctrl
 }
 
 func (s *NamedUsersControllerTestSuite) TestDeprovisionOK() {
@@ -53,32 +58,32 @@ func (s *NamedUsersControllerTestSuite) TestDeprovisionOK() {
 }
 
 func (s *NamedUsersControllerTestSuite) TestDeprovisionFailsForUnknownUser() {
-	svc, controller := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-	test.DeprovisionNamedusersNotFound(s.T(), svc.Context, svc, controller, uuid.NewV4().String())
+	svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+	test.DeprovisionNamedusersNotFound(s.T(), svc.Context, svc, ctrl, uuid.NewV4().String())
 }
 
 func (s *NamedUsersControllerTestSuite) TestDeprovisionFailsForUnauthorizedIdentity() {
 	userToDeprovision := s.Graph.CreateUser()
 
 	// Another service account can't deprovision
-	svc, controller := s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
-	test.DeprovisionNamedusersForbidden(s.T(), svc.Context, svc, controller, userToDeprovision.Identity().Username)
+	svc, ctrl := s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
+	test.DeprovisionNamedusersForbidden(s.T(), svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
 
 	// Regular user can't deprovision either
-	svc, controller = s.SecuredController(*s.Graph.CreateUser().Identity())
-	test.DeprovisionNamedusersForbidden(s.T(), svc.Context, svc, controller, userToDeprovision.Identity().Username)
+	svc, ctrl = s.SecuredController(*s.Graph.CreateUser().Identity())
+	test.DeprovisionNamedusersForbidden(s.T(), svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
 
 	// If no token present in the context then fails too
-	_, controller = s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-	test.DeprovisionNamedusersForbidden(s.T(), nil, nil, controller, userToDeprovision.Identity().Username)
+	_, ctrl = s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+	test.DeprovisionNamedusersForbidden(s.T(), nil, nil, ctrl, userToDeprovision.Identity().Username)
 }
 
 func (s *NamedUsersControllerTestSuite) checkDeprovisionOK() {
 	userToDeprovision := s.Graph.CreateUser()
 	userToStayIntact := s.Graph.CreateUser()
 
-	svc, controller := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-	_, result := test.DeprovisionNamedusersOK(s.T(), svc.Context, svc, controller, userToDeprovision.Identity().Username)
+	svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+	_, result := test.DeprovisionNamedusersOK(s.T(), svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
 
 	// Check if tenant service was called
 	assert.Equal(s.T(), userToDeprovision.IdentityID(), s.tenantService.identityID)
@@ -95,4 +100,70 @@ func (s *NamedUsersControllerTestSuite) checkDeprovisionOK() {
 	loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 	assert.Equal(s.T(), false, loadedUser.User().Deprovisioned)
 	testsupport.AssertIdentityEqual(s.T(), userToStayIntact.Identity(), loadedUser.Identity())
+}
+
+func (s *NamedUsersControllerTestSuite) TestDeactivateUser() {
+
+	s.T().Run("ok", func(t *testing.T) {
+		// given
+		userServiceMock := testservice.NewUserServiceMock(t)
+		app := gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithUserService(userServiceMock))
+		svc := testsupport.ServiceAsServiceAccountUser("Users-Service", testsupport.TestOnlineRegistrationAppIdentity)
+		ctrl := controller.NewNamedusersController(svc, app, s.Configuration, s.tenantService)
+		identity := &repository.Identity{
+			ID:       uuid.NewV4(),
+			Username: "user-to-deactivate",
+			User: repository.User{
+				ID: uuid.NewV4(),
+			},
+		}
+		var usernameArg string
+		userServiceMock.DeactivateUserFunc = func(ctx context.Context, username string) (*repository.Identity, error) {
+			usernameArg = username
+			return identity, nil
+		}
+		// userServiceMock.DeactivateUserMock.Expect(svc.Context, identity.Username)
+		// when
+		test.DeactivateNamedusersOK(t, svc.Context, svc, ctrl, "user-to-deactivate")
+		// then
+		// verify that the `UserService.DeactivateUser` func was called once...
+		assert.Equal(t, 1, int(userServiceMock.DeactivateUserCounter))
+		// ... with the expected `username` argument
+		assert.Equal(t, "user-to-deactivate", usernameArg)
+	})
+
+	s.T().Run("failures", func(t *testing.T) {
+
+		t.Run("invalid service account", func(t *testing.T) {
+			// given
+			svc, ctrl := s.SecuredServiceAccountController(testsupport.TestAdminConsoleIdentity)
+			// when
+			test.DeactivateNamedusersForbidden(t, context.Background(), svc, ctrl, "missing-token-user")
+
+		})
+
+		t.Run("missing token", func(t *testing.T) {
+			// given
+			svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+			// when
+			test.DeactivateNamedusersForbidden(t, context.Background(), svc, ctrl, "missing-token-user")
+		})
+
+		t.Run("unknown identity", func(t *testing.T) {
+			// given
+			userServiceMock := testservice.NewUserServiceMock(t)
+			app := gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithUserService(userServiceMock))
+			svc := testsupport.ServiceAsServiceAccountUser("Users-Service", testsupport.TestOnlineRegistrationAppIdentity)
+			ctrl := controller.NewNamedusersController(svc, app, s.Configuration, s.tenantService)
+			// defer userServiceMock.Finish()
+			userServiceMock.DeactivateUserFunc = func(ctx context.Context, username string) (*repository.Identity, error) {
+				return nil, errors.NewNotFoundErrorFromString("user not found")
+			}
+			// when
+			test.DeactivateNamedusersNotFound(t, svc.Context, svc, ctrl, "unknown-user")
+			// then
+			// verify that the `UserService.DeactivateUser` func was called once...
+			assert.Equal(t, 1, int(userServiceMock.DeactivateUserCounter))
+		})
+	})
 }
