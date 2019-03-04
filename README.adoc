@@ -4,6 +4,8 @@
 :sectnums:
 :experimental:
 
+TEST PR. DO NOT MERGE!
+
 image:https://ci.centos.org/buildStatus/icon?job=devtools-fabric8-auth-build-master-push-client[Jenkins,link="https://ci.centos.org/job/devtools-fabric8-auth-build-master-push-client/lastBuild/"]
 image:https://goreportcard.com/badge/github.com/fabric8-services/fabric8-auth[Go Report Card, link="https://goreportcard.com/report/github.com/fabric8-services/fabric8-auth"]
 image:https://godoc.org/github.com/fabric8-services/fabric8-auth?status.png[GoDoc,link="https://godoc.org/github.com/fabric8-services/fabric8-auth"]
