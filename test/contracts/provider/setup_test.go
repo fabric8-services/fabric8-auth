@@ -2,6 +2,7 @@ package provider_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,9 +14,9 @@ import (
 	"github.com/pmacik/loginusers-go/config"
 	"github.com/pmacik/loginusers-go/loginusers"
 	uuid "github.com/satori/go.uuid"
-	"golang.org/x/oauth2"
 
 	"github.com/fabric8-services/fabric8-auth/client"
+	"github.com/fabric8-services/fabric8-common/auth"
 )
 
 type providerStateInfo struct {
@@ -108,7 +109,10 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *cl
 	}
 
 	log.Println("Getting the auth service account token")
-	authServiceAccountToken := serviceAccountToken(providerBaseURL)
+	authServiceAccountToken, err := serviceAccountToken(providerBaseURL)
+	if err != nil {
+		log.Fatalf("createUser: Unable to get service account token:\n%q", err)
+	}
 
 	rhdUserUUID := uuid.NewV4()
 	userBio := "Contract testing user account"
@@ -193,49 +197,16 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *cl
 	return &user
 }
 
-func serviceAccountToken(providerBaseURL string) string {
-	var httpClient = &http.Client{
-		Timeout: time.Second * 10,
-	}
+type AuthConfig struct {
+	url string
+}
+
+func (c *AuthConfig) GetAuthServiceURL() string {
+	return c.url
+}
+func serviceAccountToken(providerBaseURL string) (string, error) {
+	authConfig := &AuthConfig{providerBaseURL}
 	onlineRegistrationClientID := os.Getenv("ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID")
 	onlineRegistrationClienSecret := os.Getenv("ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SECRET")
-
-	message, err := json.Marshal(&client.TokenExchange{
-		GrantType:    "client_credentials",
-		ClientID:     onlineRegistrationClientID,
-		ClientSecret: &onlineRegistrationClienSecret,
-	})
-
-	// log.Printf("Message: %s", string(message))
-
-	if err != nil {
-		log.Fatalf("serviceAccountToken: Unable to marshal JSON object: %q\n", err)
-	}
-	request, err := http.NewRequest("POST", fmt.Sprintf("%s/api/token", providerBaseURL), bytes.NewBuffer(message))
-	request.Header.Add("Content-Type", "application/json")
-	if err != nil {
-		log.Fatalf("serviceAccountToken: Unable to create HTTP request: %q\n", err)
-	}
-
-	response, err := httpClient.Do(request)
-	if err != nil {
-		log.Fatalf("serviceAccountToken: Unable to send HTTP request: %q\n", err)
-	}
-	defer response.Body.Close()
-
-	responseBody, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Fatalf("serviceAccountToken: Unable to read HTTP response:\n%q", err)
-	}
-
-	if response.StatusCode != 200 {
-		log.Fatalf("serviceAccountToken: Something went wrong with reading response body: %s", responseBody)
-	}
-
-	var tokenResponse oauth2.Token
-	err = json.Unmarshal(responseBody, &tokenResponse)
-	if err != nil {
-		log.Fatalf("serviceAccountToken: Unable to unmarshal response body: %s", err)
-	}
-	return tokenResponse.AccessToken
+	return auth.ServiceAccountToken(context.Background(), authConfig, onlineRegistrationClientID, onlineRegistrationClienSecret)
 }
