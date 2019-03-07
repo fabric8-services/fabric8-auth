@@ -188,13 +188,15 @@ func ensureUser(providerBaseURL string, userName string, userCluster string) *cl
 		log.Fatalf("createUser: Something went wrong with reading response body: %s", responseBody)
 	}
 
-	var user client.UserData
+	var user struct {
+		Data client.UserData
+	}
 	err = json.Unmarshal(responseBody, &user)
 	if err != nil {
 		log.Fatalf("createUser: Unable to unmarshal response body: %s", err)
 	}
-	log.Printf("User created with ID: %s", *user.ID)
-	return &user
+	log.Printf("User created with ID: %s", *user.Data.ID)
+	return &user.Data
 }
 
 type AuthConfig struct {
