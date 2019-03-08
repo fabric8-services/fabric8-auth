@@ -6,8 +6,9 @@ CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
     load_jenkins_vars;
     install_deps;
-    yum -y install epel-release;
-    yum --enablerepo=centosplus --enablerepo=epel -y install  \
+    YUM_OPTS="-y -d1 --setopt tsflags='nodocs'"
+    yum $YUM_OPTS install epel-release;
+    yum $YUM_OPTS --enablerepo=centosplus --enablerepo=epel install  \
         chromium \
         chromium-headless \
         chromedriver \
@@ -34,7 +35,7 @@ OUTPUT_DIR="$TMP_PATH/test"
 mkdir -p "$OUTPUT_DIR/$ARTIFACTS_PATH"
 
 F8_CLUSTER_DIR="$GOPATH/src/github.com/fabric8-services/fabric8-cluster"
-go get github.com/fabric8-services/fabric8-cluster
+git clone github.com/fabric8-services/fabric8-cluster $F8_CLUSTER_DIR
 
 # Add Pact CLI to PATH
 export PATH="$TMP_PATH/pact/bin:$PATH"
