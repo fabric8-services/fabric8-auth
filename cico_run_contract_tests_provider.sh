@@ -35,7 +35,7 @@ OUTPUT_DIR="$TMP_PATH/test"
 mkdir -p "$OUTPUT_DIR/$ARTIFACTS_PATH"
 
 F8_CLUSTER_DIR="$GOPATH/src/github.com/fabric8-services/fabric8-cluster"
-git clone github.com/fabric8-services/fabric8-cluster $F8_CLUSTER_DIR
+git clone https://github.com/fabric8-services/fabric8-cluster $F8_CLUSTER_DIR
 
 # Add Pact CLI to PATH
 export PATH="$TMP_PATH/pact/bin:$PATH"
