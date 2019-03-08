@@ -5,6 +5,20 @@
 CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
     cico_setup;
+    yum -y install epel-release;
+    yum --enablerepo=centosplus --enablerepo=epel -y install  \
+        chromium \
+        chromium-headless \
+        chromedriver \
+        docker-compose \
+        golang \
+        make;
+    export GOPATH="/tmp/go"
+    F8_AUTH_DIR="$GOPATH/src/github.com/fabric8-services/fabric8-auth"
+    mkdir -p $F8_AUTH_DIR
+    mv * $F8_AUTH_DIR
+    mv .[!.]* $F8_AUTH_DIR
+    cd $F8_AUTH_DIR
 fi
 
 make build
