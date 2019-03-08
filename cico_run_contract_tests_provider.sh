@@ -4,7 +4,8 @@
 
 CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
-    cico_setup;
+    load_jenkins_vars;
+    install_deps;
     yum -y install epel-release;
     yum --enablerepo=centosplus --enablerepo=epel -y install  \
         chromium \
