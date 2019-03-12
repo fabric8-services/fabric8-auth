@@ -178,13 +178,13 @@ func CreateTestIdentityAndUser(db *gorm.DB, username, providerType string) (acco
 	return testIdentity, err
 }
 
-func CreateDeprovisionedTestIdentityAndUser(db *gorm.DB, username string) (account.Identity, error) {
+func CreateBannedTestIdentityAndUser(db *gorm.DB, username string) (account.Identity, error) {
 	testUser := account.User{
 		ID:            uuid.NewV4(),
 		Email:         uuid.NewV4().String(),
 		FullName:      "Test Developer " + username,
 		Cluster:       "https://api.starter-us-east-2a.openshift.com",
-		Deprovisioned: true,
+		Banned: true,
 	}
 	testIdentity := account.Identity{
 		Username:     username,
@@ -305,7 +305,7 @@ func AssertIdentityEqual(t require.TestingT, expected, actual *account.Identity)
 	assert.Equal(t, expected.ProviderType, actual.ProviderType)
 	assert.Equal(t, expected.RegistrationCompleted, actual.RegistrationCompleted)
 	assert.Equal(t, expected.User.ID, actual.User.ID)
-	assert.Equal(t, expected.User.Deprovisioned, actual.User.Deprovisioned)
+	assert.Equal(t, expected.User.Banned, actual.User.Banned)
 	assert.Equal(t, expected.User.Bio, actual.User.Bio)
 	assert.Equal(t, expected.User.Cluster, actual.User.Cluster)
 	assert.Equal(t, expected.User.Company, actual.User.Company)
@@ -346,7 +346,7 @@ func AssertIdentityObfuscated(t require.TestingT, expected, actual *account.Iden
 	assert.Equal(t, expected.UserID, actual.UserID)
 	assert.Equal(t, expected.ProviderType, actual.ProviderType)
 	assert.False(t, actual.User.Active)
-	assert.False(t, actual.User.Deprovisioned)
+	assert.False(t, actual.User.Banned)
 	assert.Empty(t, actual.User.ContextInformation)
 }
 

@@ -315,11 +315,11 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		return nil, nil, err
 	}
 
-	if identity.User.Deprovisioned {
+	if identity.User.Banned {
 		log.Warn(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
 			"user_name":   identity.Username,
-		}, "deprovisioned user tried to login")
+		}, "banned user tried to login")
 		return nil, nil, autherrors.NewUnauthorizedError("unauthorized access")
 	}
 

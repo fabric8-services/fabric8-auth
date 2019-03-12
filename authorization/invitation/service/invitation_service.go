@@ -20,7 +20,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/notification"
 	errs "github.com/pkg/errors"
 
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 type InvitationConfiguration interface {
@@ -378,8 +378,8 @@ func (s *invitationServiceImpl) Accept(ctx context.Context, token uuid.UUID) (st
 		return "", redirectOnFailure, errs.Wrapf(err, "failed to load identity for invitee %d", currentIdentityID)
 	}
 
-	if identity.User.Deprovisioned {
-		return "", redirectOnFailure, autherrors.NewUnauthorizedError("user deprovisioned")
+	if identity.User.Banned {
+		return "", redirectOnFailure, autherrors.NewUnauthorizedError("user banned")
 	}
 
 	var resourceID string

@@ -40,8 +40,8 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 			return errors.NewUnauthorizedError(fmt.Sprintf("unknown Identity ID %s", identityID))
 		}
 
-		if identity.User.Deprovisioned {
-			return errors.NewUnauthorizedError(fmt.Sprintf("user %s has been deprovisioned", identity.Username))
+		if identity.User.Banned {
+			return errors.NewUnauthorizedError(fmt.Sprintf("user %s has been banned", identity.Username))
 		}
 
 		// Validate the space resource

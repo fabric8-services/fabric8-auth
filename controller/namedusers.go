@@ -31,15 +31,15 @@ func NewNamedusersController(service *goa.Service, app application.Application, 
 	}
 }
 
-// Deprovision runs the deprovision action.
-func (c *NamedusersController) Deprovision(ctx *app.DeprovisionNamedusersContext) error {
+// Ban runs the "ban" action.
+func (c *NamedusersController) Ban(ctx *app.BanNamedusersContext) error {
 	isSvcAccount := token.IsSpecificServiceAccount(ctx, token.OnlineRegistration)
 	if !isSvcAccount {
 		log.Error(ctx, nil, "the account is not an authorized service account allowed to deprovision users")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewForbiddenError("account not authorized to deprovision users"))
 	}
 
-	identity, err := c.app.UserService().DeprovisionUser(ctx, ctx.Username)
+	identity, err := c.app.UserService().BanUser(ctx, ctx.Username)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
@@ -63,6 +63,18 @@ func (c *NamedusersController) Deprovision(ctx *app.DeprovisionNamedusersContext
 	}
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
+}
+
+// Deprovision runs the deprovision action.
+// DEPRECATED: see `Ban`
+func (c *NamedusersController) Deprovision(ctx *app.DeprovisionNamedusersContext) error {
+	// internally forward to the `/ban` endpoint method of this controller
+	return c.Ban(&app.BanNamedusersContext{
+		Context:      ctx.Context,
+		RequestData:  ctx.RequestData,
+		ResponseData: ctx.ResponseData,
+		Username:     ctx.Username,
+	})
 }
 
 // Deactivate runs the deactivate action.

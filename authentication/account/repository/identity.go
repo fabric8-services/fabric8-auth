@@ -19,7 +19,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 const (
@@ -413,7 +413,7 @@ WHERE
   identities.user_id = users.id 
   AND identities.username LIKE ?
   AND identities.deleted_at IS NULL
-  AND users.deprovisioned IS false
+  AND users.banned IS false
   AND users.deleted_at IS NULL
 UNION SELECT
   identities.id AS identity_id,
@@ -425,7 +425,7 @@ WHERE
   identities.user_id = users.id 
   AND identities.deleted_at IS NULL
   AND users.deleted_at IS NULL
-  AND users.deprovisioned IS false 
+  AND users.banned IS false 
   AND (LOWER(users.full_name) LIKE ?
   OR (LOWER(users.email) LIKE ? AND users.email_private is false))) users LIMIT ?`
 

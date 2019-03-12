@@ -85,14 +85,14 @@ func (s *UserInfoControllerTestSuite) TestShowUserInfoFailsWithInvalidToken() {
 	require.Equal(s.T(), err.Errors[0].Detail, fmt.Sprintf("auth token contains id %s of unknown Identity\n", sub))
 }
 
-func (s *UserInfoControllerTestSuite) TestShowUserinfoDeprovisionedUserFails() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestShowUserinfoDeprovisionedUserFails"+uuid.NewV4().String())
+func (s *UserInfoControllerTestSuite) TestShowUserinfoBannedUserFails() {
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, "TestShowUserinfoBannedUserFails"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	svc, userCtrl := s.SecuredController(identity)
 	rw, _ := test.ShowUserinfoUnauthorized(s.T(), svc.Context, svc, userCtrl)
 
-	assert.Equal(s.T(), "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Equal(s.T(), "DEPROVISIONED description=\"Account has been banned\"", rw.Header().Get("WWW-Authenticate"))
 	assert.Contains(s.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 

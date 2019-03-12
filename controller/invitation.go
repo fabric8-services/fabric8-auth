@@ -35,7 +35,7 @@ func NewInvitationController(service *goa.Service, app application.Application, 
 
 // CreateInvite runs the create action.
 func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -95,7 +95,7 @@ func (c *InvitationController) CreateInvite(ctx *app.CreateInviteInvitationConte
 
 // RescindInvite runs the revoke action.
 func (c *InvitationController) RescindInvite(ctx *app.RescindInviteInvitationContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

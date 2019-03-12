@@ -33,28 +33,27 @@ func TestUserService(t *testing.T) {
 	suite.Run(t, &userServiceBlackboxTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-func (s *userServiceBlackboxTestSuite) TestDeprovisionUnknownUserFails() {
-}
-
-func (s *userServiceBlackboxTestSuite) TestDeprovision() {
+func (s *userServiceBlackboxTestSuite) TestBanUser() {
 
 	s.T().Run("ok", func(t *testing.T) {
 		userToDeprovision := s.Graph.CreateUser()
 		userToStayIntact := s.Graph.CreateUser()
 
-		identity, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToDeprovision.Identity().Username)
+		identity, err := s.Application.UserService().BanUser(s.Ctx, userToDeprovision.Identity().Username)
 		require.NoError(t, err)
-		assert.True(t, identity.User.Deprovisioned)
+		assert.True(t, identity.User.Banned)
+		assert.True(t, identity.User.Deprovisioned) // for backward compatibility
 		assert.Equal(t, userToDeprovision.User().ID, identity.User.ID)
 		assert.Equal(t, userToDeprovision.IdentityID(), identity.ID)
 
 		loadedUser := s.Graph.LoadUser(userToDeprovision.IdentityID())
-		assert.True(t, loadedUser.User().Deprovisioned)
-		userToDeprovision.Identity().User.Deprovisioned = true
+		assert.True(t, loadedUser.User().Banned)
+		userToDeprovision.Identity().User.Banned = true
 		testsupport.AssertIdentityEqual(t, userToDeprovision.Identity(), loadedUser.Identity())
 
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
-		assert.Equal(t, false, loadedUser.User().Deprovisioned)
+		assert.Equal(t, false, loadedUser.User().Banned)
+		assert.Equal(t, false, loadedUser.User().Deprovisioned) // for backward compatibility
 		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
 	})
 
@@ -64,7 +63,7 @@ func (s *userServiceBlackboxTestSuite) TestDeprovision() {
 			// given
 			username := uuid.NewV4().String()
 			// when
-			_, err := s.Application.UserService().DeprovisionUser(s.Ctx, username)
+			_, err := s.Application.UserService().BanUser(s.Ctx, username)
 			// then
 			testsupport.AssertError(t, err, errors.NotFoundError{}, "user identity with username '%s' not found", username)
 
@@ -153,8 +152,8 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
 		// then
 		require.NoError(t, err)
-		assert.False(t, identity.User.Active)        // user is inactive...
-		assert.False(t, identity.User.Deprovisioned) // ... but user NOT deprovisionned
+		assert.False(t, identity.User.Active) // user is inactive...
+		assert.False(t, identity.User.Banned) // ... but user NOT banned
 		assert.Equal(t, userToDeactivate.User().ID, identity.User.ID)
 		assert.Equal(t, userToDeactivate.IdentityID(), identity.ID)
 		// verify that user's fields were obfuscated and that the record was soft-deleted
@@ -236,22 +235,22 @@ func (s *userServiceBlackboxTestSuite) TestResetDeprovision() {
 	userToResetDeprovision := s.Graph.CreateUser()
 	userToStayIntact := s.Graph.CreateUser()
 
-	identity, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToResetDeprovision.Identity().Username)
+	identity, err := s.Application.UserService().BanUser(s.Ctx, userToResetDeprovision.Identity().Username)
 	require.NoError(s.T(), err)
-	assert.True(s.T(), identity.User.Deprovisioned)
+	assert.True(s.T(), identity.User.Banned)
 
-	identityToStayIntact, err := s.Application.UserService().DeprovisionUser(s.Ctx, userToStayIntact.Identity().Username)
+	identityToStayIntact, err := s.Application.UserService().BanUser(s.Ctx, userToStayIntact.Identity().Username)
 	require.NoError(s.T(), err)
-	assert.True(s.T(), identityToStayIntact.User.Deprovisioned)
+	assert.True(s.T(), identityToStayIntact.User.Banned)
 
 	err = s.Application.UserService().ResetDeprovision(s.Ctx, identity.User)
 	require.NoError(s.T(), err)
 
 	loadedUser := s.Graph.LoadUser(userToResetDeprovision.IdentityID())
-	assert.False(s.T(), loadedUser.User().Deprovisioned)
+	assert.False(s.T(), loadedUser.User().Banned)
 
 	loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
-	assert.True(s.T(), loadedUser.User().Deprovisioned)
+	assert.True(s.T(), loadedUser.User().Banned)
 }
 
 func (s *userServiceBlackboxTestSuite) TestIdentityByUsernameAndEmail() {

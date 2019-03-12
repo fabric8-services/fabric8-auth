@@ -3,11 +3,13 @@ package controller_test
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
@@ -28,7 +30,6 @@ import (
 	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -69,8 +70,8 @@ func (s *UsersControllerTestSuite) UnsecuredController() (*goa.Service, *UsersCo
 	return svc, controller
 }
 
-func (s *UsersControllerTestSuite) UnsecuredControllerDeprovisionedUser() (*goa.Service, *UsersController) {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+func (s *UsersControllerTestSuite) UnsecuredControllerBannedUser() (*goa.Service, *UsersController) {
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, uuid.NewV4().String())
 	require.Nil(s.T(), err)
 
 	svc := testsupport.ServiceAsUser("Users-Service", identity)
@@ -118,31 +119,34 @@ func (s *UsersControllerTestSuite) TestCreateRandomUser() {
 	})
 }
 
-func (s *UsersControllerTestSuite) updateDeprovisionedAttribute(deprovisioned bool) {
+func (s *UsersControllerTestSuite) updateBannedAttribute(banned bool) {
 	var identity accountrepo.Identity
 	var err error
-	if deprovisioned {
-		_, identity = s.createRandomUserIdentity(s.T(), "tes-updateDeprovisionedAttribute")
+	if banned {
+		_, identity = s.createRandomUserIdentity(s.T(), "tes-updateBannedAttribute")
 	} else {
-		identity, err = testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "test-updateDeprovisionedAttribute")
+		identity, err = testsupport.CreateBannedTestIdentityAndUser(s.DB, "test-updateBannedAttribute")
 		require.NoError(s.T(), err)
 	}
 	secureService, secureController := s.SecuredController(identity)
 	updateUsersPayload := &app.UpdateUsersPayload{
 		Data: &app.UpdateUserData{
-			Attributes: &app.UpdateIdentityDataAttributes{Deprovisioned: &deprovisioned},
-			Type:       "identities",
+			Attributes: &app.UpdateIdentityDataAttributes{
+				Banned:        &banned,
+				Deprovisioned: &banned,
+			},
+			Type: "identities",
 		},
 	}
 	// Try to deprovision
-	if deprovisioned {
-		// in this case, the existing state is that the user is not deprovisioned.
+	if banned {
+		// in this case, the existing state is that the user is not banned.
 		test.UpdateUsersOK(s.T(), secureService.Context, secureService, secureController, updateUsersPayload)
-		s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+		s.checkIfUserBanned(identity.ID, !banned)
 	} else {
-		// in this case, the existing state is that the user is deprovisioned.
+		// in this case, the existing state is that the user is banned.
 		test.UpdateUsersUnauthorized(s.T(), secureController.Context, secureService, secureController, updateUsersPayload)
-		s.checkIfUserDeprovisioned(identity.ID, !deprovisioned)
+		s.checkIfUserBanned(identity.ID, !banned)
 	}
 }
 
@@ -202,9 +206,9 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 			assert.Equal(t, contextInformation["rate"], updatedContextInformation["rate"])
 		})
 
-		t.Run("deprovisioned attribute ignored", func(t *testing.T) {
-			s.updateDeprovisionedAttribute(true)
-			s.updateDeprovisionedAttribute(false)
+		t.Run("banned attribute ignored", func(t *testing.T) {
+			s.updateBannedAttribute(true)
+			s.updateBannedAttribute(false)
 		})
 
 		t.Run("add feature level", func(t *testing.T) {
@@ -818,9 +822,9 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 		test.UpdateUsersUnauthorized(t, context.Background(), nil, s.controller, updateUsersPayload)
 	})
 
-	s.T().Run("deprovisioned user cannot update user", func(t *testing.T) {
+	s.T().Run("banned user cannot update user", func(t *testing.T) {
 		// given
-		svc, ctrl := s.UnsecuredControllerDeprovisionedUser()
+		svc, ctrl := s.UnsecuredControllerBannedUser()
 		newEmail := "TestUpdateUserUnauthorized-" + uuid.NewV4().String() + "@email.com"
 		newFullName := "TestUpdateUserUnauthorized"
 		newImageURL := "http://new.image.io/imageurl"
@@ -845,11 +849,11 @@ func (s *UsersControllerTestSuite) TestUpdateUser() {
 
 }
 
-func (s *UsersControllerTestSuite) checkIfUserDeprovisioned(id uuid.UUID, expected bool) {
+func (s *UsersControllerTestSuite) checkIfUserBanned(id uuid.UUID, expected bool) {
 	identityRepository := accountrepo.NewIdentityRepository(s.DB)
 	identity, err := identityRepository.LoadWithUser(context.Background(), id)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), expected, identity.User.Deprovisioned)
+	require.Equal(s.T(), expected, identity.User.Banned)
 }
 
 func (s *UsersControllerTestSuite) TestSendEmailVerificationCode() {
@@ -949,8 +953,8 @@ func (s *UsersControllerTestSuite) TestShowUserOK() {
 	assertSingleUserResponseHeaders(s.T(), res, result, user)
 }
 
-func (s *UsersControllerTestSuite) TestShowDeprovisionedUsersFails() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestShowDeprovisionedUsersFails"+uuid.NewV4().String())
+func (s *UsersControllerTestSuite) TestShowBannedUsersFails() {
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, "TestShowBannedUsersFails"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	// User returned if no token present
@@ -966,7 +970,7 @@ func (s *UsersControllerTestSuite) TestShowDeprovisionedUsersFails() {
 	secureService, secureController = s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
 	rw, _ := test.ShowUsersUnauthorized(s.T(), secureService.Context, secureService, secureController, identity.ID.String(), nil, nil)
 
-	assert.Equal(s.T(), "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Equal(s.T(), "DEPROVISIONED description=\"Account has been banned\"", rw.Header().Get("WWW-Authenticate"))
 	assert.Contains(s.T(), "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 }
 
@@ -1516,7 +1520,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
 	// Deprovision created user
-	_, err := s.Application.UserService().DeprovisionUser(s.Ctx, identity.Username)
+	_, err := s.Application.UserService().BanUser(s.Ctx, identity.Username)
 	assert.NoError(s.T(), err)
 
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
@@ -1527,7 +1531,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	require.NoError(s.T(), err)
 	loadedUser := s.Graph.LoadUser(id)
 	assertCreatedUser(s.T(), appUser.Data, *loadedUser.User(), *loadedUser.Identity())
-	assert.False(s.T(), loadedUser.User().Deprovisioned)
+	assert.False(s.T(), loadedUser.User().Banned)
 	require.Equal(s.T(), uint64(0), s.witService.CreateUserCounter)
 
 	*s.witService = *testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
