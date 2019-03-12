@@ -8,6 +8,7 @@ import (
 	"html/template"
 	logger "log"
 	"testing"
+	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	config "github.com/fabric8-services/fabric8-auth/configuration"
@@ -19,7 +20,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -123,6 +124,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration39", testMigration39)
 	t.Run("TestMigration41", testMigration41)
 	t.Run("TestMigration43", testMigration43)
+	t.Run("TestMigration46", testMigration46)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -529,6 +531,34 @@ func testMigration43(t *testing.T) {
 
 	countRows(t, "SELECT count(1) FROM role where name = 'admin_console_admin'", 1)
 	countRows(t, "SELECT count(1) FROM resource where name = 'admin_console'", 1)
+}
+
+func testMigration46(t *testing.T) {
+	// given
+	migrateToVersion(sqlDB, migrations[:(46)], (46))
+	require.Nil(t, runSQLscript(sqlDB, "046-identity-last-active-default.sql"))
+	// when
+	migrateToVersion(sqlDB, migrations[:(47)], (47))
+	// then
+	var lastActive time.Time
+	// null 'last_active' value was set to default
+	err := sqlDB.QueryRow("SELECT last_active FROM identities WHERE id = '00000000-0000-0000-0000-000000000001'").Scan(&lastActive)
+	require.NoError(t, err)
+	defaultTime, err := time.Parse("2006-01-02:03:04:05", "2019-03-04:00:00:00")
+	require.NoError(t, err)
+	assert.Equal(t, defaultTime, lastActive)
+	// non-null 'last_active' value remains unchanged
+	err = sqlDB.QueryRow("SELECT last_active FROM identities WHERE id = '00000000-0000-0000-0000-000000000002'").Scan(&lastActive)
+	require.NoError(t, err)
+	defaultTime, err = time.Parse("2006-01-02:03:04:05", "2019-03-11:12:34:56")
+	require.NoError(t, err)
+	assert.Equal(t, defaultTime, lastActive)
+	// also, when a new record is inserted, its `last_activity` should not be NULL
+	_, err = sqlDB.Exec("insert into identities (id) values ('00000000-0000-0000-0000-000000000003')")
+	require.NoError(t, err)
+	err = sqlDB.QueryRow("SELECT last_active FROM identities WHERE id = '00000000-0000-0000-0000-000000000003'").Scan(&lastActive)
+	require.NoError(t, err) // error would occur if the
+	assert.True(t, lastActive.Add(1*time.Minute).After(time.Now()))
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and
