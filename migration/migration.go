@@ -245,7 +245,10 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("045-identity-last-active.sql")})
 
 	// Version 46
-	m = append(m, steps{ExecuteSQLFile("046-add-user-banned-column.sql")})
+	m = append(m, steps{ExecuteSQLFile("046-identity-last-active-default.sql")})
+
+	// Version 47
+	m = append(m, steps{ExecuteSQLFile("047-add-user-banned-column.sql")})
 
 	// Version N
 	//
