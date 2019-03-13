@@ -9,9 +9,9 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"

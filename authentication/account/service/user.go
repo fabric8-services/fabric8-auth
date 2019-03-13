@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -20,15 +21,24 @@ import (
 )
 
 // NewUserService creates a new service to manage users
-func NewUserService(ctx servicecontext.ServiceContext) service.UserService {
+func NewUserService(ctx servicecontext.ServiceContext, config UserServiceConfiguration) service.UserService {
 	return &userServiceImpl{
 		BaseService: base.NewBaseService(ctx),
+		config:      config,
 	}
+}
+
+// UserServiceConfiguration the configuration for the User service
+type UserServiceConfiguration interface {
+	GetUserDeactivationFetchLimit() int
+	GetUserDeactivationInactivityNotificationPeriod() int
+	GetUserDeactivationInactivityPeriod() int
 }
 
 // userServiceImpl implements the UserService to manage users
 type userServiceImpl struct {
 	base.BaseService
+	config UserServiceConfiguration
 }
 
 // ResetDeprovisioned sets User.Deprovisioned to false
@@ -99,6 +109,18 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 	})
 
 	return identity, err
+}
+
+func (s *userServiceImpl) ListIdentitiesToNotifyBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
+	since := time.Now().Add(time.Duration(s.config.GetUserDeactivationInactivityNotificationPeriod()*-1*24*60) * time.Minute) // remove 'n' days from now
+	limit := s.config.GetUserDeactivationFetchLimit()
+	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, limit)
+}
+
+func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context) ([]repository.Identity, error) {
+	since := time.Now().Add(time.Duration(s.config.GetUserDeactivationInactivityPeriod()*-1*24*60) * time.Minute) // remove 'n' days from now
+	limit := s.config.GetUserDeactivationFetchLimit()
+	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, limit)
 }
 
 // DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account

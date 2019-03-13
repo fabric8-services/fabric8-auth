@@ -1,6 +1,7 @@
 package repository_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,10 +9,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	uuid "github.com/satori/go.uuid"
 
 	"fmt"
+
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -128,6 +130,73 @@ func (s *IdentityRepositoryTestSuite) TestLoad() {
 		require.NoError(t, err, "Could not load identity")
 		assert.Equal(t, identity.Identity().Username, result.Username)
 	})
+}
+
+func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
+
+	ctx := context.Background()
+	now := time.Now()
+	identity1 := s.Graph.CreateIdentity(now.Add(-40 * 24 * 60 * time.Minute)) // 40 days since last activity
+	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * 60 * time.Minute)) // 70 days since last activity
+	s.Graph.CreateIdentity(now.Add(-24 * 60 * time.Minute))                   // 1 day since last activity
+
+	s.T().Run("no user to deactivate", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-90 * 24 * 60 * time.Minute) // 90 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	s.T().Run("one user to deactivate", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-60 * 24 * 60 * time.Minute) // 60 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, identity2.ID(), result[0].ID)
+	})
+
+	s.T().Run("one user to deactivate with limit reached", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 1)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, identity2.ID(), result[0].ID)
+
+	})
+
+	s.T().Run("two users to deactivate with limit unreached", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, identity2.ID(), result[0].ID)
+		assert.Equal(t, identity1.ID(), result[1].ID)
+	})
+
+	s.T().Run("two users to deactivate without limit", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, -1)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, identity2.ID(), result[0].ID)
+		assert.Equal(t, identity1.ID(), result[1].ID)
+	})
+
 }
 
 func (s *IdentityRepositoryTestSuite) TestIdentityExists() {

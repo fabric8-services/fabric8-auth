@@ -1,8 +1,10 @@
 package graph
 
 import (
+	"time"
+
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,10 +28,17 @@ func loadIdentityWrapper(g *TestGraph, identityID uuid.UUID) identityWrapper {
 
 func newIdentityWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := identityWrapper{baseWrapper: baseWrapper{g}}
-
+	var lastActive *time.Time
+	for _, p := range params {
+		switch p := p.(type) {
+		case time.Time:
+			lastActive = &p
+		}
+	}
 	w.identity = &account.Identity{
 		Username:     "TestUserIdentity-" + uuid.NewV4().String(),
 		ProviderType: account.DefaultIDP,
+		LastActive:   lastActive,
 	}
 
 	err := g.app.Identities().Create(g.ctx, w.identity)
