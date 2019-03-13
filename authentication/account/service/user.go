@@ -32,7 +32,7 @@ type userServiceImpl struct {
 }
 
 // ResetBanned sets User.Banned to false
-func (s *userServiceImpl) ResetDeprovision(ctx context.Context, user repository.User) error {
+func (s *userServiceImpl) ResetBan(ctx context.Context, user repository.User) error {
 	user.Banned = false
 	return s.ExecuteInTransaction(func() error {
 		return s.Repositories().Users().Save(ctx, &user)
@@ -94,7 +94,7 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 
 		identity = &identities[0]
 		identity.User.Banned = true
-		identity.User.Deprovisioned = true
+		identity.User.Deprovisioned = true // for backward compatibility
 
 		return s.Repositories().Users().Save(ctx, &identity.User)
 	})

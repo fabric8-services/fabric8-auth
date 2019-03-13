@@ -36,20 +36,20 @@ func TestUserService(t *testing.T) {
 func (s *userServiceBlackboxTestSuite) TestBanUser() {
 
 	s.T().Run("ok", func(t *testing.T) {
-		userToDeprovision := s.Graph.CreateUser()
+		userToBan := s.Graph.CreateUser()
 		userToStayIntact := s.Graph.CreateUser()
 
-		identity, err := s.Application.UserService().BanUser(s.Ctx, userToDeprovision.Identity().Username)
+		identity, err := s.Application.UserService().BanUser(s.Ctx, userToBan.Identity().Username)
 		require.NoError(t, err)
 		assert.True(t, identity.User.Banned)
 		assert.True(t, identity.User.Deprovisioned) // for backward compatibility
-		assert.Equal(t, userToDeprovision.User().ID, identity.User.ID)
-		assert.Equal(t, userToDeprovision.IdentityID(), identity.ID)
+		assert.Equal(t, userToBan.User().ID, identity.User.ID)
+		assert.Equal(t, userToBan.IdentityID(), identity.ID)
 
-		loadedUser := s.Graph.LoadUser(userToDeprovision.IdentityID())
+		loadedUser := s.Graph.LoadUser(userToBan.IdentityID())
 		assert.True(t, loadedUser.User().Banned)
-		userToDeprovision.Identity().User.Banned = true
-		testsupport.AssertIdentityEqual(t, userToDeprovision.Identity(), loadedUser.Identity())
+		userToBan.Identity().User.Banned = true
+		testsupport.AssertIdentityEqual(t, userToBan.Identity(), loadedUser.Identity())
 
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.Equal(t, false, loadedUser.User().Banned)
@@ -231,7 +231,7 @@ func (s *userServiceBlackboxTestSuite) TestHardDeleteUser() {
 	})
 }
 
-func (s *userServiceBlackboxTestSuite) TestResetDeprovision() {
+func (s *userServiceBlackboxTestSuite) TestResetBan() {
 	userToResetDeprovision := s.Graph.CreateUser()
 	userToStayIntact := s.Graph.CreateUser()
 
@@ -243,7 +243,7 @@ func (s *userServiceBlackboxTestSuite) TestResetDeprovision() {
 	require.NoError(s.T(), err)
 	assert.True(s.T(), identityToStayIntact.User.Banned)
 
-	err = s.Application.UserService().ResetDeprovision(s.Ctx, identity.User)
+	err = s.Application.UserService().ResetBan(s.Ctx, identity.User)
 	require.NoError(s.T(), err)
 
 	loadedUser := s.Graph.LoadUser(userToResetDeprovision.IdentityID())

@@ -162,7 +162,7 @@ type UserService interface {
 	LoadContextIdentityIfNotBanned(ctx context.Context) (*account.Identity, error)
 	ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error)
 	IdentityByUsernameAndEmail(ctx context.Context, username, email string) (*account.Identity, error)
-	ResetDeprovision(ctx context.Context, user account.User) error
+	ResetBan(ctx context.Context, user account.User) error
 	HardDeleteUser(ctx context.Context, identity account.Identity) error
 }
 

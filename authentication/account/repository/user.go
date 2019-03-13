@@ -37,7 +37,7 @@ type User struct {
 	FeatureLevel  string // the level of features that the user opted in (to access unreleased features). Defaults to `released` so no non-released feature is enabled for the user.
 	Cluster       string // The OpenShift cluster allocated to the user.
 	// Whether the user has been banned
-	Deprovisioned      bool                       `gorm:"column:deprovisioned"`
+	Deprovisioned      bool                       `gorm:"column:deprovisioned"` // for backward compatibility
 	Banned             bool                       `gorm:"column:banned"`
 	Active             bool                       `gorm:"column:active"`
 	Identities         []Identity                 // has many Identities from different IDPs

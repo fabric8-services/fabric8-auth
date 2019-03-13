@@ -133,7 +133,7 @@ func (s *UsersControllerTestSuite) updateBannedAttribute(banned bool) {
 		Data: &app.UpdateUserData{
 			Attributes: &app.UpdateIdentityDataAttributes{
 				Banned:        &banned,
-				Deprovisioned: &banned,
+				Deprovisioned: &banned, // for backward compatibility
 			},
 			Type: "identities",
 		},
@@ -1519,7 +1519,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 	// First attempt should be OK
 	test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
 	require.Equal(s.T(), uint64(1), s.witService.CreateUserCounter)
-	// Deprovision created user
+	// Ban created user
 	_, err := s.Application.UserService().BanUser(s.Ctx, identity.Username)
 	assert.NoError(s.T(), err)
 

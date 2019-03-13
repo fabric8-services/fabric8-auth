@@ -47,7 +47,7 @@ func (s *NamedUsersControllerTestSuite) SecuredController(identity repository.Id
 	return svc, ctrl
 }
 
-func (s *NamedUsersControllerTestSuite) TestDeprovision() {
+func (s *NamedUsersControllerTestSuite) TestDeprovision() { // for backward compatibility
 
 	s.T().Run("ok", func(t *testing.T) {
 

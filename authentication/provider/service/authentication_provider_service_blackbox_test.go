@@ -801,7 +801,7 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsFo
 	require.NoError(s.T(), err)
 
 	user := s.Graph.CreateUser()
-	user.Deprovision()
+	user.Ban()
 
 	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 	claims := make(map[string]interface{})
