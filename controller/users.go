@@ -71,12 +71,12 @@ func (c *UsersController) Show(ctx *app.ShowUsersContext) error {
 			return err
 		}
 
-		if tenantSA && identity.User.Deprovisioned {
-			// Don't return deprovisioned users for calls made by Tenant SA
+		if tenantSA && identity.User.Banned {
+			// Don't return banned users for calls made by Tenant SA
 			// TODO we should disable notifications for such users too but if we just return 401 for notification service request we may break it
 			ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
-			ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
-			return errors.NewUnauthorizedError("Account has been deprovisioned")
+			ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been banned\"")
+			return errors.NewUnauthorizedError("Account has been banned")
 		}
 
 		return nil
@@ -118,7 +118,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
 	}
 	if userExists {
-		// This may happen for manually deprovisioned users which are reactivating their account via the registration app
+		// This may happen for manually banned users which are reactivating their account via the registration app
 		// We should re-deprovision such user
 		idn, err := c.app.UserService().IdentityByUsernameAndEmail(ctx, ctx.Payload.Data.Attributes.Username, ctx.Payload.Data.Attributes.Email)
 		if err != nil {
@@ -132,8 +132,8 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		if idn == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewVersionConflictError("user with such email or username already exists"))
 		}
-		if idn.User.Deprovisioned {
-			err := c.app.UserService().ResetDeprovision(ctx, idn.User)
+		if idn.User.Banned {
+			err := c.app.UserService().ResetBan(ctx, idn.User)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{"err": err, "username": ctx.Payload.Data.Attributes.Username, "email": ctx.Payload.Data.Attributes.Email}, "unable to re-provision user")
 				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
@@ -291,7 +291,7 @@ func (c *UsersController) createUserInDB(ctx *app.CreateUsersContext, identityID
 // Update updates the authorized user based on the provided Token
 func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 
-	loggedInIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	loggedInIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

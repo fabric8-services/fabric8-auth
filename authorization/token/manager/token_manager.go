@@ -410,7 +410,7 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.Con
 	claims["aud"] = tokenClaims.Audience
 	claims["typ"] = "Bearer"
 	claims["auth_time"] = tokenClaims.IssuedAt
-	claims["approved"] = identity != nil && !identity.User.Deprovisioned && tokenClaims.Approved
+	claims["approved"] = identity != nil && !identity.User.Banned && tokenClaims.Approved
 
 	if identity != nil {
 		claims["sub"] = identity.ID.String()
@@ -495,7 +495,7 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Co
 	claims["aud"] = openshiftIO
 	claims["typ"] = "Bearer"
 	claims["auth_time"] = iat // TODO should use the time when user actually logged-in the last time. Will need to get this time from the RHD token
-	claims["approved"] = !identity.User.Deprovisioned
+	claims["approved"] = !identity.User.Banned
 	claims["sub"] = identity.ID.String()
 	claims["email_verified"] = identity.User.EmailVerified
 	claims["name"] = identity.User.FullName
@@ -650,7 +650,7 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenFromRefreshToken(ctx conte
 		authOpenshiftIO,
 		openshiftIO,
 	}
-	claims["approved"] = identity != nil && !identity.User.Deprovisioned
+	claims["approved"] = identity != nil && !identity.User.Banned
 	if identity != nil {
 		claims["sub"] = identity.ID.String()
 		claims["email_verified"] = identity.User.EmailVerified

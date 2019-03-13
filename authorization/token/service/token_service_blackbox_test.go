@@ -441,7 +441,7 @@ func (s *tokenServiceBlackboxTest) TestAuditStaleTokenWithChangedPrivilegesAfter
 	require.ElementsMatch(s.T(), perms[0].Scopes, []string{"november", "oscar"})
 }
 
-func (s *tokenServiceBlackboxTest) TestAuditDeprovisionedToken() {
+func (s *tokenServiceBlackboxTest) TestAuditBannedToken() {
 	tm := testtoken.TokenManager
 
 	// Create a user
@@ -468,7 +468,7 @@ func (s *tokenServiceBlackboxTest) TestAuditDeprovisionedToken() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), rptToken)
 
-	// Mark the token as deprovisioned and save it
+	// Mark the token as banned and save it
 	s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_DEPROVISIONED)
 
 	// Audit the RPT token for the same ID
@@ -971,7 +971,7 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenMultiReso
 
 }
 
-func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenUserDeprovisioned() {
+func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenUserBanned() {
 	tm := testtoken.TokenManager
 
 	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(context.Background()), tm)
@@ -985,8 +985,8 @@ func (s *tokenServiceBlackboxTest) TestExchangeRefreshTokenWithRPTTokenUserDepro
 	// create RPT for the 1st space
 	rptToken, err := s.Application.TokenService().Audit(ctx, user.Identity(), at.AccessToken, space.SpaceID())
 	require.NoError(s.T(), err)
-	// mark user as deprovisionned, ie set the token as deprovisioned and save it
-	//s.Application.UserService().DeprovisionUser(ctx, user.Identity().Username) <- no trigger ATM
+	// mark user as banned, ie set the token as banned and save it
+	//s.Application.UserService().BanUser(ctx, user.Identity().Username) <- no trigger ATM
 	s.setTokenStatus(s.T(), *rptToken, token.TOKEN_STATUS_DEPROVISIONED)
 	// when
 	// refresh the user token

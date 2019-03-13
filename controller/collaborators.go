@@ -50,7 +50,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 
 	var currentIdentity *account.Identity
 	if !isServiceAccount {
-		currentIdentity, err = c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+		currentIdentity, err = c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 		if err != nil {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
@@ -140,7 +140,7 @@ func (c *CollaboratorsController) checkSpaceExist(ctx context.Context, spaceID s
 
 // Add user's identity to the list of space collaborators.
 func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -161,7 +161,7 @@ func (c *CollaboratorsController) Add(ctx *app.AddCollaboratorsContext) error {
 
 // AddMany adds user's identities to the list of space collaborators.
 func (c *CollaboratorsController) AddMany(ctx *app.AddManyCollaboratorsContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -222,7 +222,7 @@ func (c *CollaboratorsController) addContributors(ctx context.Context, currentId
 
 // Remove user from the list of space collaborators.
 func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -239,7 +239,7 @@ func (c *CollaboratorsController) Remove(ctx *app.RemoveCollaboratorsContext) er
 
 // RemoveMany removes users from the list of space collaborators.
 func (c *CollaboratorsController) RemoveMany(ctx *app.RemoveManyCollaboratorsContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

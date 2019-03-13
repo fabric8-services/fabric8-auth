@@ -41,9 +41,9 @@ type userServiceImpl struct {
 	config UserServiceConfiguration
 }
 
-// ResetDeprovisioned sets User.Deprovisioned to false
-func (s *userServiceImpl) ResetDeprovision(ctx context.Context, user repository.User) error {
-	user.Deprovisioned = false
+// ResetBanned sets User.Banned to false
+func (s *userServiceImpl) ResetBan(ctx context.Context, user repository.User) error {
+	user.Banned = false
 	return s.ExecuteInTransaction(func() error {
 		return s.Repositories().Users().Save(ctx, &user)
 	})
@@ -86,7 +86,7 @@ func (s *userServiceImpl) UserInfo(ctx context.Context, identityID uuid.UUID) (*
 	return &identity.User, identity, nil
 }
 
-func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) (*repository.Identity, error) {
+func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*repository.Identity, error) {
 
 	var identity *repository.Identity
 	err := s.ExecuteInTransaction(func() error {
@@ -103,7 +103,8 @@ func (s *userServiceImpl) DeprovisionUser(ctx context.Context, username string) 
 		}
 
 		identity = &identities[0]
-		identity.User.Deprovisioned = true
+		identity.User.Banned = true
+		identity.User.Deprovisioned = true // for backward compatibility
 
 		return s.Repositories().Users().Save(ctx, &identity.User)
 	})
@@ -238,15 +239,15 @@ func (s *userServiceImpl) LoadContextIdentityAndUser(ctx context.Context) (*repo
 	return identity, err
 }
 
-// LoadContextIdentityIfNotDeprovisioned returns the same identity as LoadContextIdentityAndUser()
-// if the user is not deprovisioned. Returns an Unauthorized error if the user is deprovisioned.
-func (s *userServiceImpl) LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*repository.Identity, error) {
+// LoadContextIdentityIfNotBanned returns the same identity as LoadContextIdentityAndUser()
+// if the user is not banned. Returns an Unauthorized error if the user is banned.
+func (s *userServiceImpl) LoadContextIdentityIfNotBanned(ctx context.Context) (*repository.Identity, error) {
 	identity, err := s.LoadContextIdentityAndUser(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if identity.User.Deprovisioned {
-		return nil, errors.NewUnauthorizedError("user deprovisioned")
+	if identity.User.Banned {
+		return nil, errors.NewUnauthorizedError("user banned")
 	}
 	return identity, err
 }

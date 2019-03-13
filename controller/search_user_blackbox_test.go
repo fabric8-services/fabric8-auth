@@ -290,8 +290,8 @@ func (s *TestSearchUserSearch) UnSecuredController() (*goa.Service, *SearchContr
 	return svc, ctrl
 }
 
-func (s *TestSearchUserSearch) UnsecuredControllerDeprovisionedUser() (*goa.Service, *SearchController) {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+func (s *TestSearchUserSearch) UnsecuredControllerBannedUser() (*goa.Service, *SearchController) {
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 	svc := testsupport.ServiceAsUser("Search-Service", identity)
 	ctrl := NewSearchController(svc, s.Application, s.Configuration)
@@ -311,7 +311,7 @@ func (s *TestSearchUserSearch) TestSearchUnauthorized() {
 	test.UsersSearchUnauthorized(s.T(), ctrl.Context, ctrl.Service, ctrl, nil, nil, "a")
 }
 
-func (s *TestSearchUserSearch) TestSearchUnauthorizedForDeprovisionedUser() {
-	_, ctrl := s.UnsecuredControllerDeprovisionedUser()
+func (s *TestSearchUserSearch) TestSearchUnauthorizedForBannedUser() {
+	_, ctrl := s.UnsecuredControllerBannedUser()
 	test.UsersSearchUnauthorized(s.T(), ctrl.Context, ctrl.Service, ctrl, nil, nil, "a")
 }

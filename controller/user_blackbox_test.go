@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
@@ -22,7 +23,6 @@ import (
 	token "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -164,15 +164,15 @@ func (s *UserControllerTestSuite) TestShowUser() {
 			test.ShowUserUnauthorized(t, ctx, svc, userCtrl, nil, nil)
 		})
 
-		s.T().Run("deprovisionned user", func(t *testing.T) {
+		s.T().Run("banned user", func(t *testing.T) {
 			// given
-			identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestShowDeprovisionedUserFails"+uuid.NewV4().String())
+			identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, "TestShowBannedUserFails"+uuid.NewV4().String())
 			require.NoError(t, err)
 			svc, userCtrl := s.SecuredController(identity)
 			// when
 			rw, _ := test.ShowUserUnauthorized(t, svc.Context, svc, userCtrl, nil, nil)
 			// then
-			assert.Equal(t, "DEPROVISIONED description=\"Account has been deprovisioned\"", rw.Header().Get("WWW-Authenticate"))
+			assert.Equal(t, "DEPROVISIONED description=\"Account has been banned\"", rw.Header().Get("WWW-Authenticate"))
 			assert.Contains(t, "WWW-Authenticate", rw.Header().Get("Access-Control-Expose-Headers"))
 		})
 

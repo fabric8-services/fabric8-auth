@@ -29,7 +29,7 @@ func NewResourceRolesController(service *goa.Service, app application.Applicatio
 
 // ListAssigned runs the list action.
 func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRolesContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -53,7 +53,7 @@ func (c *ResourceRolesController) ListAssigned(ctx *app.ListAssignedResourceRole
 
 // ListAssignedByRoleName runs the list action.
 func (c *ResourceRolesController) ListAssignedByRoleName(ctx *app.ListAssignedByRoleNameResourceRolesContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

@@ -570,12 +570,12 @@ func (s *authenticationProviderServiceTestSuite) checkAPIClientForUsersReturnOK(
 	s.checkLoginCallback(dummyIDPOAuthProviderRef, rw, authorizeCtx, "api_token")
 }
 
-func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnauthorized() {
+func (s *authenticationProviderServiceTestSuite) TestBannedUserLoginUnauthorized() {
 	extra := make(map[string]string)
 	_, callbackCtx := s.loginCallback(extra)
 
-	// Fails if identity is deprovisioned
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
+	// Fails if identity is banned
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, "TestBannedUserLoginUnauthorized-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	claims := make(map[string]interface{})
@@ -600,12 +600,12 @@ func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnaut
 	require.IsType(s.T(), err, autherrors.UnauthorizedError{})
 }
 
-func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK() {
+func (s *authenticationProviderServiceTestSuite) TestNotBannedUserLoginOK() {
 	extra := make(map[string]string)
 	_, callbackCtx := s.loginCallback(extra)
 
-	// OK if identity is not deprovisioned
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
+	// OK if identity is not banned
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestBannedUserLoginUnauthorized-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	claims := make(map[string]interface{})
@@ -796,12 +796,12 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPT
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
-func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForDeprovisionedUser() {
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForBannedUser() {
 	tm, err := manager.NewTokenManager(s.Configuration)
 	require.NoError(s.T(), err)
 
 	user := s.Graph.CreateUser()
-	user.Deprovision()
+	user.Ban()
 
 	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 	claims := make(map[string]interface{})
