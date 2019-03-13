@@ -123,7 +123,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 
 		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
 		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
-			return nil, errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
+			return nil, errors.NewUnauthorizedErrorWithCode("token banned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
 		}
 
 		// If the token has been revoked or the user is logged out, we respond in the same way
@@ -357,11 +357,11 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
 	}
 
-	if identity != nil && identity.User.Deprovisioned {
+	if identity != nil && identity.User.Banned {
 		log.Warn(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
 			"user_name":   identity.Username,
-		}, "deprovisioned user tried to refresh token")
+		}, "banned user tried to refresh token")
 		return nil, errors.NewUnauthorizedError("unauthorized access")
 	}
 
@@ -408,7 +408,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 				}
 				// We now process the various token status codes in order of priority, starting with DEPROVISIONED
 				if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
-					return errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
+					return errors.NewUnauthorizedErrorWithCode("token banned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
 				}
 				// If the token has been revoked or the user is logged out, we respond in the same way
 				if loadedToken.HasStatus(authtoken.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(authtoken.TOKEN_STATUS_LOGGED_OUT) {
@@ -584,7 +584,7 @@ func (s *tokenServiceImpl) RetrieveExternalToken(ctx context.Context, forResourc
 		currentIdentityID = *id
 	} else {
 		// Extract user ID
-		currentIdentity, err := s.Services().UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+		currentIdentity, err := s.Services().UserService().LoadContextIdentityIfNotBanned(ctx)
 		if err != nil {
 			return nil, nil, err
 		}

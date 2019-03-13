@@ -95,7 +95,7 @@ func (c *ResourceController) Register(ctx *app.RegisterResourceContext) error {
 // Scopes runs the scopes action, which returns the available scopes for the specified resource
 func (c *ResourceController) Scopes(ctx *app.ScopesResourceContext) error {
 	// Load the identity from the context
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}

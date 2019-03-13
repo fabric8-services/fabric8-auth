@@ -118,7 +118,6 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("003-space-resources.sql")})
 
 	// Version 4
-
 	m = append(m, steps{ExecuteSQLFile("004-unique-resource-space.sql")})
 
 	// Version 5
@@ -247,6 +246,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 
 	// Version 46
 	m = append(m, steps{ExecuteSQLFile("046-identity-last-active-default.sql")})
+
+	// Version 47
+	m = append(m, steps{ExecuteSQLFile("047-add-user-banned-column.sql")})
 
 	// Version N
 	//

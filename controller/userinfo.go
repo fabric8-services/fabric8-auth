@@ -42,10 +42,10 @@ func (c *UserinfoController) Show(ctx *app.ShowUserinfoContext) error {
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
-	if user.Deprovisioned {
+	if user.Banned {
 		ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
-		ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been deprovisioned\"")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has been deprovisioned"))
+		ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Account has been banned\"")
+		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("Account has been banned"))
 	}
 
 	givenName, familyName := account.SplitFullName(user.FullName)

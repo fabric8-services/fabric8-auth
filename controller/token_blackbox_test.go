@@ -443,7 +443,7 @@ func (s *TokenControllerTestSuite) TestTokenAuditOK() {
 	require.Contains(s.T(), perms[0].Scopes, "lima")
 }
 
-func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
+func (s *TokenControllerTestSuite) TestAuditBannedToken() {
 	// given
 	// Create a user
 	user := s.Graph.CreateUser()
