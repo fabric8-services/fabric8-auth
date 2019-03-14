@@ -119,5 +119,5 @@ vwIDAQAB
 	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
 	defaultUserDeactivationInactivityNotificationPeriod = 30 // 30 days
 	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
-	defaultUserDeactivationInactivityPeriod = 37 // 30 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
+	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 37 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
 )

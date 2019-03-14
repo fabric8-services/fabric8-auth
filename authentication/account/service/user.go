@@ -113,13 +113,13 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 }
 
 func (s *userServiceImpl) ListIdentitiesToNotifyBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(time.Duration(s.config.GetUserDeactivationInactivityNotificationPeriod()*-1*24*60) * time.Minute) // remove 'n' days from now
+	since := time.Now().Add(time.Duration(-s.config.GetUserDeactivationInactivityNotificationPeriod() * 24) * time.Hour) // remove 'n' days from now
 	limit := s.config.GetUserDeactivationFetchLimit()
 	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, limit)
 }
 
 func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(time.Duration(s.config.GetUserDeactivationInactivityPeriod()*-1*24*60) * time.Minute) // remove 'n' days from now
+	since := time.Now().Add(time.Duration(-s.config.GetUserDeactivationInactivityPeriod()*-1*24) * time.Hour) // remove 'n' days from now
 	limit := s.config.GetUserDeactivationFetchLimit()
 	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, limit)
 }
