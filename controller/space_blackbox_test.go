@@ -54,8 +54,8 @@ func (rest *TestSpaceREST) UnSecuredController() (*goa.Service, *SpaceController
 	return svc, NewSpaceController(svc, rest.Application)
 }
 
-func (rest *TestSpaceREST) UnSecuredControllerWithDeprovisionedIdentity() (*goa.Service, *SpaceController) {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(rest.DB, uuid.NewV4().String())
+func (rest *TestSpaceREST) UnSecuredControllerWithBannedIdentity() (*goa.Service, *SpaceController) {
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(rest.DB, uuid.NewV4().String())
 	require.NoError(rest.T(), err)
 
 	svc := testsupport.ServiceAsUser("Space-Service", identity)
@@ -69,9 +69,9 @@ func (rest *TestSpaceREST) TestFailCreateSpaceUnauthorized() {
 	test.CreateSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }
 
-func (rest *TestSpaceREST) TestCreateSpaceUnauthorizedDeprovisionedUser() {
+func (rest *TestSpaceREST) TestCreateSpaceUnauthorizedBannedUser() {
 	// given
-	svc, ctrl := rest.UnSecuredControllerWithDeprovisionedIdentity()
+	svc, ctrl := rest.UnSecuredControllerWithBannedIdentity()
 	// when/then
 	test.CreateSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }
@@ -105,9 +105,9 @@ func (rest *TestSpaceREST) TestFailDeleteSpaceUnauthorized() {
 	test.DeleteSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }
 
-func (rest *TestSpaceREST) TestDeleteSpaceUnauthorizedDeprovisionedUser() {
+func (rest *TestSpaceREST) TestDeleteSpaceUnauthorizedBannedUser() {
 	// given
-	svc, ctrl := rest.UnSecuredControllerWithDeprovisionedIdentity()
+	svc, ctrl := rest.UnSecuredControllerWithBannedIdentity()
 	// when/then
 	test.DeleteSpaceUnauthorized(rest.T(), svc.Context, svc, ctrl, uuid.NewV4())
 }

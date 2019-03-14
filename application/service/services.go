@@ -156,13 +156,13 @@ type UserProfileService interface {
 
 type UserService interface {
 	DeactivateUser(ctx context.Context, username string) (*account.Identity, error)
-	DeprovisionUser(ctx context.Context, username string) (*account.Identity, error)
+	BanUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
 	LoadContextIdentityAndUser(ctx context.Context) (*account.Identity, error)
-	LoadContextIdentityIfNotDeprovisioned(ctx context.Context) (*account.Identity, error)
+	LoadContextIdentityIfNotBanned(ctx context.Context) (*account.Identity, error)
 	ContextIdentityIfExists(ctx context.Context) (uuid.UUID, error)
 	IdentityByUsernameAndEmail(ctx context.Context, username, email string) (*account.Identity, error)
-	ResetDeprovision(ctx context.Context, user account.User) error
+	ResetBan(ctx context.Context, user account.User) error
 	HardDeleteUser(ctx context.Context, identity account.Identity) error
 }
 

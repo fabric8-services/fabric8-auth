@@ -219,7 +219,8 @@ var updateUserDataAttributes = a.Type("UpdateIdentityDataAttributes", func() {
 	a.Attribute("contextInformation", a.HashOf(d.String, d.Any), "User context information of any type as a json", func() {
 		a.Example(map[string]interface{}{"last_visited_url": "https://a.openshift.io", "space": "3d6dab8d-f204-42e8-ab29-cdb1c93130ad"})
 	})
-	a.Attribute("deprovisioned", d.Boolean, "Whether the identity has been deprovisioned")
+	a.Attribute("deprovisioned", d.Boolean, "Whether the identity has been deprovisioned (DEPRECATED: use 'banned' instead)")
+	a.Attribute("banned", d.Boolean, "Whether the identity has been banned")
 })
 
 var userTokenArray = a.MediaType("application/vnd.user-token-array+json", func() {

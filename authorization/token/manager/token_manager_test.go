@@ -65,8 +65,8 @@ func (s *TestTokenSuite) TestGenerateUserTokenAndRefreshFlowForAPIClient() {
 		Username: username,
 	}
 
-	// we don't have any record in auth this is why deprovisioned is true to verify approved false.
-	identity.User.Deprovisioned = true
+	// we don't have any record in auth this is why banned is true to verify approved false.
+	identity.User.Banned = true
 	claims := make(map[string]interface{})
 	claims["sub"] = identityID.String()
 	claims["email"] = email
@@ -75,7 +75,7 @@ func (s *TestTokenSuite) TestGenerateUserTokenAndRefreshFlowForAPIClient() {
 	claims["given_name"] = username
 	claims["family_name"] = ""
 	claims["session_state"] = sessionState
-	claims["approved"] = !identity.User.Deprovisioned
+	claims["approved"] = !identity.User.Banned
 
 	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	if err != nil {
@@ -178,7 +178,7 @@ func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
 	s.assertClaim(rptClaims, "aud", "https://openshift.io")
 	s.assertClaim(rptClaims, "typ", "Bearer")
 	s.assertClaim(rptClaims, "auth_time", iat)
-	s.assertClaim(rptClaims, "approved", !identity.User.Deprovisioned)
+	s.assertClaim(rptClaims, "approved", !identity.User.Banned)
 	s.assertClaim(rptClaims, "sub", identity.ID.String())
 	s.assertClaim(rptClaims, "email", identity.User.Email)
 	s.assertClaim(rptClaims, "email_verified", identity.User.EmailVerified)
@@ -222,7 +222,7 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	s.assertClaim(accessToken, "aud", "https://openshift.io")
 	s.assertClaim(accessToken, "typ", "Bearer")
 	s.assertClaim(accessToken, "auth_time", iat)
-	s.assertClaim(accessToken, "approved", !identity.User.Deprovisioned)
+	s.assertClaim(accessToken, "approved", !identity.User.Banned)
 	s.assertClaim(accessToken, "sub", identity.ID.String())
 	s.assertClaim(accessToken, "email", identity.User.Email)
 	s.assertClaim(accessToken, "email_verified", identity.User.EmailVerified)

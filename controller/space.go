@@ -25,7 +25,7 @@ func NewSpaceController(service *goa.Service, app application.Application) *Spac
 
 // Create runs the create action.
 func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -47,7 +47,7 @@ func (c *SpaceController) Create(ctx *app.CreateSpaceContext) error {
 
 // Delete runs the delete action.
 func (c *SpaceController) Delete(ctx *app.DeleteSpaceContext) error {
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
