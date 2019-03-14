@@ -155,7 +155,6 @@ type UserProfileService interface {
 }
 
 type UserService interface {
-	ListIdentitiesToDeactivate(ctx context.Context) ([]account.Identity, error)
 	ListIdentitiesToNotifyBeforeDeactivation(ctx context.Context) ([]account.Identity, error)
 	DeactivateUser(ctx context.Context, username string) (*account.Identity, error)
 	BanUser(ctx context.Context, username string) (*account.Identity, error)

@@ -132,7 +132,7 @@ func (s *IdentityRepositoryTestSuite) TestLoad() {
 	})
 }
 
-func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
+func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation() {
 
 	ctx := context.Background()
 	now := time.Now()
@@ -140,32 +140,32 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * 60 * time.Minute)) // 70 days since last activity
 	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))                          // 1 day since last activity
 
-	s.T().Run("no user to deactivate", func(t *testing.T) {
+	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
 		// given
 		lastActivity := now.Add(-90 * 24 * 60 * time.Minute) // 90 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
 		// then
 		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 
-	s.T().Run("one user to deactivate", func(t *testing.T) {
+	s.T().Run("one user to notify for deactivation", func(t *testing.T) {
 		// given
 		lastActivity := now.Add(-60 * 24 * 60 * time.Minute) // 60 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		assert.Equal(t, identity2.ID(), result[0].ID)
 	})
 
-	s.T().Run("one user to deactivate with limit reached", func(t *testing.T) {
+	s.T().Run("one user to notify for deactivation with limit reached", func(t *testing.T) {
 		// given
 		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 1)
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 1)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 1)
@@ -173,11 +173,11 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 
 	})
 
-	s.T().Run("two users to deactivate with limit unreached", func(t *testing.T) {
+	s.T().Run("two users to notify for deactivation with limit unreached", func(t *testing.T) {
 		// given
 		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 2)
@@ -185,11 +185,11 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 		assert.Equal(t, identity1.ID(), result[1].ID)
 	})
 
-	s.T().Run("two users to deactivate without limit", func(t *testing.T) {
+	s.T().Run("two users to notify for deactivation without limit", func(t *testing.T) {
 		// given
 		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, -1)
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, -1)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 2)

@@ -130,7 +130,7 @@ type IdentityRepository interface {
 	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
-	ListIdentitiesToDeactivate(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
+	ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
@@ -389,10 +389,10 @@ func (m *GormIdentityRepository) List(ctx context.Context) ([]Identity, error) {
 	return rows, nil
 }
 
-// ListIdentitiesToDeactivate return identities whose last activity is older than the given one. The result size is limited to the given
+// ListIdentitiesToNotifyForDeactivation return identities whose last activity is older than the given one. The result size is limited to the given
 // number of identities (ordered by last activity)
 // if limit is a negative value (eg: '-1'), it is ignored
-func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
+func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToDeactivate"}, time.Now())
 	var identities []Identity
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
