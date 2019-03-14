@@ -138,7 +138,7 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 	now := time.Now()
 	identity1 := s.Graph.CreateIdentity(now.Add(-40 * 24 * 60 * time.Minute)) // 40 days since last activity
 	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * 60 * time.Minute)) // 70 days since last activity
-	s.Graph.CreateIdentity(now.Add(-24 * 60 * time.Minute))                   // 1 day since last activity
+	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))                          // 1 day since last activity
 
 	s.T().Run("no user to deactivate", func(t *testing.T) {
 		// given
