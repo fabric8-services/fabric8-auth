@@ -35,14 +35,18 @@ OUTPUT_DIR="$TMP_PATH/test"
 mkdir -p "$OUTPUT_DIR/$ARTIFACTS_PATH"
 
 F8_CLUSTER_DIR="$GOPATH/src/github.com/fabric8-services/fabric8-cluster"
-git clone https://github.com/fabric8-services/fabric8-cluster $F8_CLUSTER_DIR
+if [ ! -d $F8_CLUSTER_DIR ]; then
+    git clone https://github.com/fabric8-services/fabric8-cluster $F8_CLUSTER_DIR
+fi
 
 # Add Pact CLI to PATH
 export PATH="$TMP_PATH/pact/bin:$PATH"
 
 # Ensure Pact CLI is installed
+set +e
 pact-mock-service version &> /dev/null
 test_pact_exit=$?
+set -e
 if [ $test_pact_exit -ne 0 ]; then
     curl -L -s https://github.com/pact-foundation/pact-ruby-standalone/releases/download/v1.63.0/pact-1.63.0-linux-x86_64.tar.gz -o "$TMP_PATH/pact-cli.tar.gz"
     tar -xf "$TMP_PATH/pact-cli.tar.gz" --directory "$TMP_PATH"
