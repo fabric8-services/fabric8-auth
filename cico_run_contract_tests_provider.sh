@@ -21,7 +21,17 @@ CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
     load_jenkins_vars;
     if [ -e "jenkins-env.json" ]; then
-        eval "$(./env-toolkit load -f jenkins-env.json --regex 'PACT_*|ARCHIVE_ARTIFACTS|JOB_NAME|BUILD_NUMBER')"
+        regex="PACT_*\
+|ARCHIVE_ARTIFACTS\
+|JOB_NAME\
+|BUILD_NUMBER\
+|OSIO_USERNAME\
+|OSIO_PASSWORD\
+|AUTH_SERVICE_ACCOUNT_CLIENT_ID\
+|AUTH_SERVICE_ACCOUNT_CLIENT_SECRET"
+        eval "$(./env-toolkit load -f jenkins-env.json --regex $regex)"
+        export ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID="$AUTH_SERVICE_ACCOUNT_CLIENT_ID"
+        export ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SERCRET="$AUTH_SERVICE_ACCOUNT_CLIENT_SECRET"
     fi
     install_deps;
     YUM_OPTS="-y -d1"
