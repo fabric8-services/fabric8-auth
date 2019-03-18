@@ -19,7 +19,7 @@ CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
     load_jenkins_vars;
     if [ -e "jenkins-env.json" ]; then
-        eval "$(./env-toolkit load -f jenkins-env.json --regex 'PACT_*|ARCHIVE_ARTIFACTS')"
+        eval "$(./env-toolkit load -f jenkins-env.json --regex 'PACT_*|ARCHIVE_ARTIFACTS|JOB_NAME|BUILD_NUMBER')"
     fi
     install_deps;
     YUM_OPTS="-y -d1"
@@ -46,6 +46,7 @@ JOB_NAME="${JOB_NAME:-contract-testing-cico-job}"
 BUILD_NUMBER="${BUILD_NUMBER:-0}"
 
 ARTIFACTS_PATH="contracts/${JOB_NAME}/${BUILD_NUMBER}"
+LATEST_LINK_PATH="contracts/${JOB_NAME}/latest"
 
 OUTPUT_DIR="$TMP_PATH/test"
 mkdir -p "$OUTPUT_DIR/$ARTIFACTS_PATH"
@@ -165,7 +166,6 @@ if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
 
     echo "Archiving artifacts to http://artifacts.ci.centos.org/devtools/$ARTIFACTS_PATH"
     cd $OUTPUT_DIR
-    LATEST_LINK_PATH="contracts/${JOB_NAME}/latest"
     ln -sfn "$BUILD_NUMBER" "$LATEST_LINK_PATH"
 
     rsync --password-file="$artifacts_key_path" -qPHva --relative "./$ARTIFACTS_PATH" "$LATEST_LINK_PATH" devtools@artifacts.ci.centos.org::devtools/
