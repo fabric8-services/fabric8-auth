@@ -186,8 +186,3 @@ func (s *DBTestSuite) Run(name string, subtest func()) bool {
 	}()
 	return s.Suite.Run(name, subtest)
 }
-
-// Skip keeps the code for the test, but skips its execution
-func (s *DBTestSuite) Skip(name string, subtest func()) bool {
-	return true
-}

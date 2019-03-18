@@ -45,10 +45,6 @@ type userServiceBlackboxTestSuite struct {
 	gormtestsupport.DBTestSuite
 }
 
-func (s *userServiceBlackboxTestSuite) Skip(name string, subtest func()) bool {
-	return true
-}
-
 func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
 	config.GetUserDeactivationInactivityPeriodFunc = func() int {
