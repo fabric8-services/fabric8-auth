@@ -1,6 +1,6 @@
 #!/bin/bash
 
-artifacts_key_path="$(readlink -f ../artifacts.key)"
+artifacts_key_path="$(readlink -f ./artifacts.key)"
 
 . cico_setup.sh
 
