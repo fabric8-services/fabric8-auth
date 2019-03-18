@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -20,15 +21,24 @@ import (
 )
 
 // NewUserService creates a new service to manage users
-func NewUserService(ctx servicecontext.ServiceContext) service.UserService {
+func NewUserService(ctx servicecontext.ServiceContext, config UserServiceConfiguration) service.UserService {
 	return &userServiceImpl{
 		BaseService: base.NewBaseService(ctx),
+		config:      config,
 	}
+}
+
+// UserServiceConfiguration the configuration for the User service
+type UserServiceConfiguration interface {
+	GetUserDeactivationFetchLimit() int
+	GetUserDeactivationInactivityNotificationPeriod() int
+	GetUserDeactivationInactivityPeriod() int
 }
 
 // userServiceImpl implements the UserService to manage users
 type userServiceImpl struct {
 	base.BaseService
+	config UserServiceConfiguration
 }
 
 // ResetBanned sets User.Banned to false
@@ -100,6 +110,12 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 	})
 
 	return identity, err
+}
+
+func (s *userServiceImpl) ListIdentitiesToNotifyBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
+	since := time.Now().Add(time.Duration(-s.config.GetUserDeactivationInactivityNotificationPeriod()*24) * time.Hour) // remove 'n' days from now
+	limit := s.config.GetUserDeactivationFetchLimit()
+	return s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
 }
 
 // DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account

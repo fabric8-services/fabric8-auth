@@ -130,6 +130,7 @@ type IdentityRepository interface {
 	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
+	ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
@@ -386,6 +387,25 @@ func (m *GormIdentityRepository) List(ctx context.Context) ([]Identity, error) {
 	}, "Identity List executed successfully!")
 
 	return rows, nil
+}
+
+// ListIdentitiesToNotifyForDeactivation return identities whose last activity is older than the given one. The result size is limited to the given
+// number of identities (ordered by last activity)
+// if limit is a negative value (eg: '-1'), it is ignored
+func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToDeactivate"}, time.Now())
+	var identities []Identity
+	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
+	// queries to notify before deactivation and queries to deactivate for real.
+	err := m.db.Model(&Identity{}).Where("last_active < ?", lastActivity).Order("last_active, created_at").Limit(limit).Find(&identities).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	log.Debug(ctx, map[string]interface{}{
+		"identities_to_deactivate": len(identities),
+	}, "Listing identities to deactivated completed")
+
+	return identities, nil
 }
 
 // IsValid returns true if the identity exists

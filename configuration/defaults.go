@@ -113,4 +113,11 @@ vwIDAQAB
 
 	// The number of hours to retain expired tokens.  After this time limit has been exceeded, the token may be cleaned up (deleted)
 	defaultExpiredTokenRetentionHours = 24
+
+	// defaultUserDeactivationFetchLimit the default number of accounts to return when fetching the users to deactivate (and deactivate at once)
+	defaultUserDeactivationFetchLimit = 10
+	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
+	defaultUserDeactivationInactivityNotificationPeriod = 24 // 24 days
+	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
+	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
 )
