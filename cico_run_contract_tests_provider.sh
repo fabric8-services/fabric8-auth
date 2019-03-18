@@ -4,14 +4,16 @@ echo "Current dir: $(pwd)"
 
 . cico_setup.sh
 
-artifacts_key_path="$(readlink -f ./artifacts.key)"
-echo "Checking for $artifacts_key_path file..."
-if [ -f $artifacts_key_path ]; then
-    echo "$artifacts_key_path found - preparing for archiving artifacts."
-    chmod 600 "$artifacts_key_path"
-    chown root:root "$artifacts_key_path"
+artifacts_key="$(readlink -f ./artifacts.key)"
+artifacts_key_path="/tmp/$artifacts_key"
+echo "Checking for $artifacts_key file..."
+if [ -f $artifacts_key ]; then
+    echo "$artifacts_key found - preparing for archiving artifacts."
+    chmod 600 "$artifacts_key"
+    chown root:root "$artifacts_key"
+    cp -vf "$artifacts_key" "$artifacts_key_path"
 else
-    echo "$artifacts_key_path does not found!"
+    echo "$artifacts_key does not found!"
     exit 1
 fi
 
