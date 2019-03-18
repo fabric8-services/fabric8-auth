@@ -156,6 +156,8 @@ if [ $final_exit == 0 ]; then
     fi
 fi
 
+set -x
+
 # Archive the test results
 if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
     echo
