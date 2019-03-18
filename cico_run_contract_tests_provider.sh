@@ -72,6 +72,7 @@ if [ $test_pact_exit -ne 0 ]; then
 fi
 
 # Start Auth service
+docker pull registry.centos.org/postgresql/postgresql:9.6
 AUTH_CLUSTER_URL_SHORT="http://localhost:8087" make dev &> "$OUTPUT_DIR/$ARTIFACTS_PATH/test-auth.log" &
 authpid=$!
 
