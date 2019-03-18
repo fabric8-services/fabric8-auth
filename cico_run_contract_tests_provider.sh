@@ -5,6 +5,9 @@
 CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
     load_jenkins_vars;
+    if [ -e "jenkins-env.json" ]; then
+        eval "$(./env-toolkit load -f jenkins-env.json --regex 'PACT_*|ARCHIVE_ARTIFACTS')"
+    fi
     install_deps;
     YUM_OPTS="-y -d1 --setopt tsflags='nodocs'"
     yum $YUM_OPTS install epel-release;
