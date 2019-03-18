@@ -1,7 +1,7 @@
 #!/bin/bash
 
 artifacts_key_path="$(readlink -f ./artifacts.key)"
-
+echo "Checking for $artifacts_key_path file..."
 if [ ! -f $artifacts_key_path ]; then
     echo "$artifacts_key_path does not found!"
     exit 1
