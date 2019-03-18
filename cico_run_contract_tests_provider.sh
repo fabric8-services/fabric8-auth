@@ -5,7 +5,7 @@ echo "Current dir: $(pwd)"
 . cico_setup.sh
 
 artifacts_key="$(readlink -f ./artifacts.key)"
-artifacts_key_path="/tmp/$artifacts_key"
+artifacts_key_path="/tmp/artifacts.key"
 echo "Checking for $artifacts_key file..."
 if [ -f $artifacts_key ]; then
     echo "$artifacts_key found - preparing for archiving artifacts."
