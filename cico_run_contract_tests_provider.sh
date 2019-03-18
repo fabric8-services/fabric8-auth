@@ -1,5 +1,7 @@
 #!/bin/bash
 
+artifacts_key_path="$(readlink -f ../artifacts.key)"
+
 . cico_setup.sh
 
 CICO_RUN="${CICO_RUN:-true}"
@@ -153,10 +155,9 @@ if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
     LATEST_LINK_PATH="contracts/${JOB_NAME}/latest"
     ln -sfn "$BUILD_NUMBER" "$LATEST_LINK_PATH"
 
-    key_path="$(readlink -f ../artifacts.key)"
-    chmod 600 "$key_path"
-    chown root:root "$key_path"
-    rsync --password-file="$key_path" -qPHva --relative "./$ARTIFACTS_PATH" "$LATEST_LINK_PATH" devtools@artifacts.ci.centos.org::devtools/
+    chmod 600 "$artifacts_key_path"
+    chown root:root "$artifacts_key_path"
+    rsync --password-file="$artifacts_key_path" -qPHva --relative "./$ARTIFACTS_PATH" "$LATEST_LINK_PATH" devtools@artifacts.ci.centos.org::devtools/
     ARTIFACTS_UPLOAD_EXIT_CODE=$?
 
     if [ $ARTIFACTS_UPLOAD_EXIT_CODE -eq 0 ]; then
