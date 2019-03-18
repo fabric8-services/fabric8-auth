@@ -11,7 +11,7 @@ if [ -f $artifacts_key ]; then
     echo "$artifacts_key found - preparing for archiving artifacts."
     chmod 600 "$artifacts_key"
     chown root:root "$artifacts_key"
-    cp -vf "$artifacts_key" "$artifacts_key_path"
+    mv -vf "$artifacts_key" "$artifacts_key_path"
 else
     echo "$artifacts_key does not found!"
     exit 1
@@ -33,6 +33,16 @@ if [ "$CICO_RUN" == "true" ]; then
         docker-compose \
         golang \
         make;
+
+    # Aviod "to many open files" error
+    echo "* hard nofile 999999" >> /etc/security/limits.conf
+    echo "* soft nofile 999999" >> /etc/security/limits.conf
+    echo "root hard nofile 999999" >> /etc/security/limits.conf
+    echo "root soft nofile 999999" >> /etc/security/limits.conf
+    session required pam_limits.so
+    sysctl fs.inotify.max_user_watches=65536
+    sysctl fs.inotify.max_user_instances=2048
+
     export GOPATH="/tmp/go"
     F8_AUTH_DIR="$GOPATH/src/github.com/fabric8-services/fabric8-auth"
     mkdir -p $F8_AUTH_DIR
@@ -77,7 +87,7 @@ AUTH_CLUSTER_URL_SHORT="http://localhost:8087" make dev &> "$OUTPUT_DIR/$ARTIFAC
 authpid=$!
 
 ## Wait for the Auth service to start up
-wait_period=5
+wait_period=10
 attempts=18
 
 final_exit=0
