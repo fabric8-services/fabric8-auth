@@ -1,13 +1,15 @@
 #!/bin/bash
 
+echo "Current dir: $(pwd)"
+
+. cico_setup.sh
+
 artifacts_key_path="$(readlink -f ./artifacts.key)"
 echo "Checking for $artifacts_key_path file..."
 if [ ! -f $artifacts_key_path ]; then
     echo "$artifacts_key_path does not found!"
     exit 1
 fi
-
-. cico_setup.sh
 
 CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
