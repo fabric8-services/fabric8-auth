@@ -60,6 +60,8 @@ authpid=$!
 wait_period=5
 attempts=18
 
+final_exit=0
+
 echo "Starting local Auth service"
 for i in $(seq 1 $attempts); do
     echo "Attempt $i/$attempts..."
@@ -76,13 +78,13 @@ for i in $(seq 1 $attempts); do
             echo "Failed to start the Auth service";
             echo $response_head;
             kill $authpid;
-            exit 1;
+            final_exit=1;
         fi
     fi
     if [ $i -eq $attempts ]; then
         echo "Auth service failed to start in $attempts attempts."
         kill $authpid;
-        exit 1;
+        final_exit=1;
     fi
 done
 
@@ -110,30 +112,33 @@ for i in $(seq 1 $attempts); do
             echo $response_head;
             kill $clusterpid;
             kill $authpid;    
-            exit 1;
+            final_exit=1;
         fi
     fi
     if [ $i -eq $attempts ]; then
         echo "Cluster service failed to start in $attempts attempts."
         kill $clusterpid;
         kill $authpid;
-        exit 1;
+        final_exit=1;
     fi
 done
 
 cd $CUR_DIR
-# Run the contract tests
-make test-contracts-provider-no-coverage |& tee "$OUTPUT_DIR/$ARTIFACTS_PATH/test.log"
-testsexit=${PIPESTATUS[0]} #capture exit status of the make command
 
-# Delete sensitive files
-if [ "$CICO_RUN" == "true" ]; then
-    rm -rvf $OUTPUT_DIR/contracts/pacts
-    rm -rvf test/contracts/provider/log
+if [ $final_exit == 0 ]; then
+    # Run the contract tests
+    make test-contracts-provider-no-coverage |& tee "$OUTPUT_DIR/$ARTIFACTS_PATH/test.log"
+    tests_exit=${PIPESTATUS[0]} #capture exit status of the make command
+
+    # Delete sensitive files
+    if [ "$CICO_RUN" == "true" ]; then
+        rm -rvf $OUTPUT_DIR/contracts/pacts
+        rm -rvf test/contracts/provider/log
+    fi
 fi
 
 # Archive the test results
-if [ "$ARCHIVE_ARTIFACTS" = "true" ]; then
+if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
     cd $OUTPUT_DIR
     LATEST_LINK_PATH="contracts/${JOB_NAME}/latest"
     ln -sfn "$BUILD_NUMBER" "$LATEST_LINK_PATH"
@@ -157,4 +162,6 @@ if [ "$ARCHIVE_ARTIFACTS" = "true" ]; then
     echo
 fi
 
-exit $testsexit
+RTN_CODE=$(($tests_exit + $final_exit))
+
+exit $RTN_CODE
