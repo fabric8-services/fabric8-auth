@@ -2,6 +2,11 @@
 
 artifacts_key_path="$(readlink -f ./artifacts.key)"
 
+if [ ! -f $artifacts_key_path ]; then
+    echo "$artifacts_key_path does not found!"
+    exit 1
+fi
+
 . cico_setup.sh
 
 CICO_RUN="${CICO_RUN:-true}"
@@ -11,7 +16,7 @@ if [ "$CICO_RUN" == "true" ]; then
         eval "$(./env-toolkit load -f jenkins-env.json --regex 'PACT_*|ARCHIVE_ARTIFACTS')"
     fi
     install_deps;
-    YUM_OPTS="-y -d1 --setopt tsflags='nodocs'"
+    YUM_OPTS="-y -d1"
     yum $YUM_OPTS install epel-release;
     yum $YUM_OPTS --enablerepo=centosplus --enablerepo=epel install  \
         chromium \
