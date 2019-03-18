@@ -27,11 +27,9 @@ if [ "$CICO_RUN" == "true" ]; then
 |BUILD_NUMBER\
 |OSIO_USERNAME\
 |OSIO_PASSWORD\
-|AUTH_SERVICE_ACCOUNT_CLIENT_ID\
-|AUTH_SERVICE_ACCOUNT_CLIENT_SECRET"
+|ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID\
+|ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SECRET"
         eval "$(./env-toolkit load -f jenkins-env.json --regex $regex)"
-        export ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID="$AUTH_SERVICE_ACCOUNT_CLIENT_ID"
-        export ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SERCRET="$AUTH_SERVICE_ACCOUNT_CLIENT_SECRET"
     fi
     install_deps;
     YUM_OPTS="-y -d1"
@@ -89,7 +87,6 @@ if [ $test_pact_exit -ne 0 ]; then
 fi
 
 # Start Auth service
-docker pull registry.centos.org/postgresql/postgresql:9.6
 AUTH_CLUSTER_URL_SHORT="http://localhost:8087" make dev &> "$OUTPUT_DIR/$ARTIFACTS_PATH/test-auth.log" &
 authpid=$!
 
