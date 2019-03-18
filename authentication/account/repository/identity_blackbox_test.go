@@ -136,13 +136,18 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation(
 
 	ctx := context.Background()
 	now := time.Now()
-	identity1 := s.Graph.CreateIdentity(now.Add(-40 * 24 * 60 * time.Minute)) // 40 days since last activity
-	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * 60 * time.Minute)) // 70 days since last activity
-	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))                          // 1 day since last activity
+	identity1 := s.Graph.CreateIdentity(now.Add(-40 * 24 * time.Hour)).Identity() // 40 days since last activity
+	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * time.Hour)).Identity() // 70 days since last activity
+	identity3 := s.Graph.CreateIdentity(now.Add(-70 * 24 * time.Hour)).Identity() // noise: 70 day since last activity, but already notified
+	yesterday := now.Add(-1 * 24 * time.Hour)
+	identity3.DeactivationNotification = &yesterday
+	err := s.Application.Identities().Save(ctx, identity3)
+	require.NoError(s.T(), err)
+	s.Graph.CreateIdentity(now.Add(-24 * time.Hour)) // noise: 1 day since last activity
 
 	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
 		// given
-		lastActivity := now.Add(-90 * 24 * 60 * time.Minute) // 90 days of inactivity
+		lastActivity := now.Add(-90 * 24 * time.Hour) // 90 days of inactivity
 		// when
 		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
 		// then
@@ -152,49 +157,49 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation(
 
 	s.T().Run("one user to notify for deactivation", func(t *testing.T) {
 		// given
-		lastActivity := now.Add(-60 * 24 * 60 * time.Minute) // 60 days of inactivity
+		lastActivity := now.Add(-60 * 24 * time.Hour) // 60 days of inactivity
 		// when
 		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 1)
-		assert.Equal(t, identity2.ID(), result[0].ID)
+		assert.Equal(t, identity2.ID, result[0].ID)
 	})
 
 	s.T().Run("one user to notify for deactivation with limit reached", func(t *testing.T) {
 		// given
-		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
 		// when
 		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 1)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 1)
-		assert.Equal(t, identity2.ID(), result[0].ID)
+		assert.Equal(t, identity2.ID, result[0].ID)
 
 	})
 
 	s.T().Run("two users to notify for deactivation with limit unreached", func(t *testing.T) {
 		// given
-		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
 		// when
 		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 2)
-		assert.Equal(t, identity2.ID(), result[0].ID)
-		assert.Equal(t, identity1.ID(), result[1].ID)
+		assert.Equal(t, identity2.ID, result[0].ID)
+		assert.Equal(t, identity1.ID, result[1].ID)
 	})
 
 	s.T().Run("two users to notify for deactivation without limit", func(t *testing.T) {
 		// given
-		lastActivity := now.Add(-30 * 24 * 60 * time.Minute) // 30 days of inactivity
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
 		// when
 		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, -1)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 2)
-		assert.Equal(t, identity2.ID(), result[0].ID)
-		assert.Equal(t, identity1.ID(), result[1].ID)
+		assert.Equal(t, identity2.ID, result[0].ID)
+		assert.Equal(t, identity1.ID, result[1].ID)
 	})
 
 }

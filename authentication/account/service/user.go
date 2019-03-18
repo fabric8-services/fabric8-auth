@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/notification"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -17,6 +19,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 
 	"github.com/jinzhu/gorm"
+	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -112,10 +115,43 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 	return identity, err
 }
 
-func (s *userServiceImpl) ListIdentitiesToNotifyBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(time.Duration(-s.config.GetUserDeactivationInactivityNotificationPeriod()*24) * time.Hour) // remove 'n' days from now
+// NotifyIdentitiesBeforeDeactivation list identities (with a limit) who are eligible for account deactivation,
+// sends a notification to each one and record the timestamp of the notification as a marker before upcoming deactivation
+func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
+	since := time.Now().Add(time.Duration(-s.config.GetUserDeactivationInactivityNotificationPeriod()) * 24 * time.Hour) // remove 'n' days from now
 	limit := s.config.GetUserDeactivationFetchLimit()
-	return s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
+	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
+	if err != nil {
+		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
+	}
+	// for each identity, send a notification and record the timestamp in a separate transaction.
+	// perform the task for each identity in a separate Tx, and just log the error if something wring happen,
+	// but don't stop processing on the rest of the accounts.
+	expirationDate := time.Now().Add(time.Duration(s.config.GetUserDeactivationInactivityPeriod()-s.config.GetUserDeactivationInactivityNotificationPeriod()) * 24 * time.Hour).Format("Mon Jan 2")
+	notificationDate := time.Now()
+	for _, identity := range identities {
+		msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.Username, expirationDate)
+		_, err := s.Services().NotificationService().SendMessageAsync(ctx, msg)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"error":    err,
+				"username": identity.Username,
+			}, "failed to send notification to user before account deactivation")
+			continue
+		}
+		if err := s.ExecuteInTransaction(func() error {
+			identity.DeactivationNotification = &notificationDate
+			return s.Repositories().Identities().Save(ctx, &identity)
+		}); err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"error":    err,
+				"username": identity.Username,
+			}, "failed to record timestampt of notification sent to user before account deactivation")
+			continue
+		}
+	}
+
+	return identities, nil
 }
 
 // DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account

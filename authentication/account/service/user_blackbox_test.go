@@ -6,8 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/rest"
+
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 
+	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/test/graph"
@@ -16,9 +20,11 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	servicemock "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	userservicemock "github.com/fabric8-services/fabric8-auth/test/generated/authentication/account/service"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-common/gocksupport"
+	testsuite "github.com/fabric8-services/fabric8-common/test/suite"
 
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
@@ -29,12 +35,187 @@ import (
 	gock "gopkg.in/h2non/gock.v1"
 )
 
+func TestUserService(t *testing.T) {
+	suite.Run(t, &userServiceBlackboxTestSuite{
+		DBTestSuite: gormtestsupport.NewDBTestSuite(),
+	})
+}
+
 type userServiceBlackboxTestSuite struct {
 	gormtestsupport.DBTestSuite
 }
 
-func TestUserService(t *testing.T) {
-	suite.Run(t, &userServiceBlackboxTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
+func (s *userServiceBlackboxTestSuite) Skip(name string, subtest func()) bool {
+	return true
+}
+
+func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation() {
+	config := userservicemock.NewUserServiceConfigurationMock(s.T())
+	config.GetUserDeactivationInactivityPeriodFunc = func() int {
+		return 97
+	}
+	ctx := context.Background()
+
+	var identity1, identity2, identity3 *repository.Identity
+	// configure the `SetupSubtest` and `TearDownSubtest` to setup/reset data after each subtest
+	s.SetupSubtest = func() {
+		s.CleanTest = testsuite.DeleteCreatedEntities(s.DB, s.Configuration)
+		now := time.Now()
+		identity1 = s.Graph.CreateIdentity("user1", now.Add(-40*24*time.Hour)).Identity() // 40 days since last activity
+		identity2 = s.Graph.CreateIdentity("user2", now.Add(-70*24*time.Hour)).Identity() // 70 days since last activity
+		identity3 = s.Graph.CreateIdentity("user3", now.Add(-70*24*time.Hour)).Identity() // noise: 70 day since last activity, but already notified
+		yesterday := now.Add(-1 * 24 * time.Hour)
+		identity3.DeactivationNotification = &yesterday
+		err := s.Application.Identities().Save(ctx, identity3)
+		require.NoError(s.T(), err)
+		s.Graph.CreateIdentity("user4", now.Add(-24*time.Hour)) // noise: 1 day since last activity
+	}
+
+	s.TearDownSubtest = func() {
+		err := s.CleanTest()
+		require.NoError(s.T(), err)
+	}
+
+	s.Run("no user to deactivate", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
+			return 90
+		}
+		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+			return nil, nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		// when
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		// then
+		require.NoError(s.T(), err)
+		assert.Empty(s.T(), result)
+		assert.Equal(s.T(), uint64(0), notificationServiceMock.SendMessageAsyncCounter)
+	})
+
+	s.Run("one user to deactivate", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
+			return 60
+		}
+		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+			return nil, nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		// when
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
+		// also check that the `DeactivationNotification` field was set in the DB
+		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), identity.DeactivationNotification)
+		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+	})
+
+	s.Run("one user to deactivate with limit reached", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 1
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
+			return 30
+		}
+		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+			return nil, nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		// when
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
+		// also check that the `DeactivationNotification` field was set in the DB
+		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), identity.DeactivationNotification)
+		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+	})
+
+	s.Run("two users to deactivate", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
+			return 30
+		}
+		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+			return nil, nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		// when
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 2)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), identity1.ID, result[1].ID)
+		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageAsyncCounter)
+		// also check that the `DeactivationNotification` fields were set for both identities in the DB
+		for _, id := range []uuid.UUID{identity1.ID, identity2.ID} {
+			identity, err := s.Application.Identities().Load(ctx, id)
+			require.NoError(s.T(), err)
+			require.NotNil(s.T(), identity.DeactivationNotification)
+			assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+		}
+	})
+
+	s.Run("error while sending second notification", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
+			return 30
+		}
+		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+			if msg.UserID != nil && *msg.UserID == identity2.ID.String() {
+				return nil, fmt.Errorf("mock error!")
+			}
+			return nil, nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		// when
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 2)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), identity1.ID, result[1].ID)
+		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageAsyncCounter)
+		// also check that the `DeactivationNotification` fields were NOT set for identity #2 in the DB
+		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
+		require.NoError(s.T(), err)
+		require.Nil(s.T(), identity.DeactivationNotification)
+		// but it worked for identity #1
+		identity, err = s.Application.Identities().Load(ctx, identity1.ID)
+		require.NoError(s.T(), err)
+		require.NotNil(s.T(), identity.DeactivationNotification)
+		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+	})
+
 }
 
 func (s *userServiceBlackboxTestSuite) TestBanUser() {
@@ -314,84 +495,6 @@ func (s *userServiceBlackboxTestSuite) TestShowUserInfoOK() {
 		// then
 		require.Error(t, err)
 		assert.IsType(t, errors.UnauthorizedError{}, errs.Cause(err))
-	})
-
-}
-
-func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation() {
-
-	now := time.Now()
-	identity1 := s.Graph.CreateIdentity(now.Add(-40 * 24 * 60 * time.Minute)) // 40 days since last activity
-	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * 60 * time.Minute)) // 70 days since last activity
-	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))                          // 1 day since last activity
-
-	config := userservicemock.NewUserServiceConfigurationMock(s.T())
-	userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
-	ctx := context.Background()
-
-	s.T().Run("no user to deactivate", func(t *testing.T) {
-		// given
-		config.GetUserDeactivationFetchLimitFunc = func() int {
-			return 100
-		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 90
-		}
-		// when
-		result, err := userSvc.ListIdentitiesToNotifyBeforeDeactivation(ctx)
-		// then
-		require.NoError(t, err)
-		assert.Empty(t, result)
-	})
-
-	s.T().Run("one user to deactivate", func(t *testing.T) {
-		// given
-		config.GetUserDeactivationFetchLimitFunc = func() int {
-			return 100
-		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 60
-		}
-		// when
-		result, err := userSvc.ListIdentitiesToNotifyBeforeDeactivation(ctx)
-		// then
-		require.NoError(t, err)
-		require.Len(t, result, 1)
-		assert.Equal(t, identity2.ID(), result[0].ID)
-	})
-
-	s.T().Run("one user to deactivate with limit reached", func(t *testing.T) {
-		// given
-		config.GetUserDeactivationFetchLimitFunc = func() int {
-			return 1
-		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 30
-		}
-		// when
-		result, err := userSvc.ListIdentitiesToNotifyBeforeDeactivation(ctx)
-		// then
-		require.NoError(t, err)
-		require.Len(t, result, 1)
-		assert.Equal(t, identity2.ID(), result[0].ID)
-
-	})
-
-	s.T().Run("two users to deactivate", func(t *testing.T) {
-		// given
-		config.GetUserDeactivationFetchLimitFunc = func() int {
-			return 100
-		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 30
-		}
-		// when
-		result, err := userSvc.ListIdentitiesToNotifyBeforeDeactivation(ctx)
-		// then
-		require.NoError(t, err)
-		require.Len(t, result, 2)
-		assert.Equal(t, identity2.ID(), result[0].ID)
-		assert.Equal(t, identity1.ID(), result[1].ID)
 	})
 
 }
