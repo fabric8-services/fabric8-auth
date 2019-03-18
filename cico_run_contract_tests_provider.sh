@@ -35,11 +35,8 @@ if [ "$CICO_RUN" == "true" ]; then
         make;
 
     # Aviod "to many open files" error
-    echo "* hard nofile 999999" >> /etc/security/limits.conf
-    echo "* soft nofile 999999" >> /etc/security/limits.conf
-    echo "root hard nofile 999999" >> /etc/security/limits.conf
-    echo "root soft nofile 999999" >> /etc/security/limits.conf
-    session required pam_limits.so
+    ulimit -Hn 999999
+    ulimit -Sn 999999
     sysctl fs.inotify.max_user_watches=65536
     sysctl fs.inotify.max_user_instances=2048
 
