@@ -6,7 +6,11 @@ echo "Current dir: $(pwd)"
 
 artifacts_key_path="$(readlink -f ./artifacts.key)"
 echo "Checking for $artifacts_key_path file..."
-if [ ! -f $artifacts_key_path ]; then
+if [ -f $artifacts_key_path ]; then
+    echo "$artifacts_key_path found - preparing for archiving artifacts."
+    chmod 600 "$artifacts_key_path"
+    chown root:root "$artifacts_key_path"
+else
     echo "$artifacts_key_path does not found!"
     exit 1
 fi
@@ -162,8 +166,6 @@ if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
     LATEST_LINK_PATH="contracts/${JOB_NAME}/latest"
     ln -sfn "$BUILD_NUMBER" "$LATEST_LINK_PATH"
 
-    chmod 600 "$artifacts_key_path"
-    chown root:root "$artifacts_key_path"
     rsync --password-file="$artifacts_key_path" -qPHva --relative "./$ARTIFACTS_PATH" "$LATEST_LINK_PATH" devtools@artifacts.ci.centos.org::devtools/
     ARTIFACTS_UPLOAD_EXIT_CODE=$?
 
