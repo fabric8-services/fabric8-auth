@@ -39,14 +39,14 @@ if [ ! -d $F8_CLUSTER_DIR ]; then
     git clone https://github.com/fabric8-services/fabric8-cluster $F8_CLUSTER_DIR
 fi
 
+set +e
+
 # Add Pact CLI to PATH
 export PATH="$TMP_PATH/pact/bin:$PATH"
 
 # Ensure Pact CLI is installed
-set +e
 pact-mock-service version &> /dev/null
 test_pact_exit=$?
-set -e
 if [ $test_pact_exit -ne 0 ]; then
     curl -L -s https://github.com/pact-foundation/pact-ruby-standalone/releases/download/v1.63.0/pact-1.63.0-linux-x86_64.tar.gz -o "$TMP_PATH/pact-cli.tar.gz"
     tar -xf "$TMP_PATH/pact-cli.tar.gz" --directory "$TMP_PATH"
@@ -74,7 +74,7 @@ for i in $(seq 1 $attempts); do
         if [ $response_code -eq 200 ]; then
             echo "The Auth service is up and running.";
             break;
-        else 
+        else
             echo "Failed to start the Auth service";
             echo $response_head;
             kill $authpid;
@@ -89,41 +89,44 @@ for i in $(seq 1 $attempts); do
 done
 
 # Start Cluster service (Auth dependency)
-CUR_DIR=$(pwd)
-cd $F8_CLUSTER_DIR
-F8_AUTH_URL="http://localhost:8089" make dev &> "$OUTPUT_DIR/$ARTIFACTS_PATH/test-cluster.log" &
-clusterpid=$!
 
-## Wait for the Cluster service to start up
-echo "Starting local Cluster service"
-for i in $(seq 1 $attempts); do
-    echo "Attempt $i/$attempts..."
-    response_head="$(curl -LI --silent -XGET 'http://localhost:8087/api/status' | head -n 1)"
-    if [ -z "$response_head" ]; then
-        echo "Service unreachable - waiting for Cluster service for ${wait_period}s ...";
-        sleep $wait_period;
-    else
-        response_code="$(echo $response_head | cut -d ' ' -f2)"
-        if [ $response_code -eq 200 ]; then
-            echo "The Cluster service is up and running.";
-            break;
-        else 
-            echo "Failed to start the Cluster service";
-            echo $response_head;
+if [ $final_exit == 0 ]; then
+    CUR_DIR=$(pwd)
+    cd $F8_CLUSTER_DIR
+    F8_AUTH_URL="http://localhost:8089" make dev &> "$OUTPUT_DIR/$ARTIFACTS_PATH/test-cluster.log" &
+    clusterpid=$!
+
+    ## Wait for the Cluster service to start up
+    echo "Starting local Cluster service"
+    for i in $(seq 1 $attempts); do
+        echo "Attempt $i/$attempts..."
+        response_head="$(curl -LI --silent -XGET 'http://localhost:8087/api/status' | head -n 1)"
+        if [ -z "$response_head" ]; then
+            echo "Service unreachable - waiting for Cluster service for ${wait_period}s ...";
+            sleep $wait_period;
+        else
+            response_code="$(echo $response_head | cut -d ' ' -f2)"
+            if [ $response_code -eq 200 ]; then
+                echo "The Cluster service is up and running.";
+                break;
+            else
+                echo "Failed to start the Cluster service";
+                echo $response_head;
+                kill $clusterpid;
+                kill $authpid;
+                final_exit=1;
+            fi
+        fi
+        if [ $i -eq $attempts ]; then
+            echo "Cluster service failed to start in $attempts attempts."
             kill $clusterpid;
-            kill $authpid;    
+            kill $authpid;
             final_exit=1;
         fi
-    fi
-    if [ $i -eq $attempts ]; then
-        echo "Cluster service failed to start in $attempts attempts."
-        kill $clusterpid;
-        kill $authpid;
-        final_exit=1;
-    fi
-done
+    done
 
-cd $CUR_DIR
+    cd $CUR_DIR
+fi
 
 if [ $final_exit == 0 ]; then
     # Run the contract tests
@@ -139,6 +142,10 @@ fi
 
 # Archive the test results
 if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
+    echo
+    echo
+
+    echo "Archiving artifacts to http://artifacts.ci.centos.org/devtools/$ARTIFACTS_PATH"
     cd $OUTPUT_DIR
     LATEST_LINK_PATH="contracts/${JOB_NAME}/latest"
     ln -sfn "$BUILD_NUMBER" "$LATEST_LINK_PATH"
@@ -149,13 +156,10 @@ if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
     rsync --password-file="$key_path" -qPHva --relative "./$ARTIFACTS_PATH" "$LATEST_LINK_PATH" devtools@artifacts.ci.centos.org::devtools/
     ARTIFACTS_UPLOAD_EXIT_CODE=$?
 
-    echo
-    echo
-
     if [ $ARTIFACTS_UPLOAD_EXIT_CODE -eq 0 ]; then
-    echo "Artifacts were uploaded to http://artifacts.ci.centos.org/devtools/$ARTIFACTS_PATH"
+        echo "Artifacts were uploaded to http://artifacts.ci.centos.org/devtools/$ARTIFACTS_PATH"
     else
-    echo "ERROR: Failed to upload artifacts to http://artifacts.ci.centos.org/devtools/$ARTIFACTS_PATH"
+        echo "ERROR: Failed to upload artifacts to http://artifacts.ci.centos.org/devtools/$ARTIFACTS_PATH"
     fi
 
     echo
