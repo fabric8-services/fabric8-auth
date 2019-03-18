@@ -117,7 +117,7 @@ vwIDAQAB
 	// defaultUserDeactivationFetchLimit the default number of accounts to return when fetching the users to deactivate (and deactivate at once)
 	defaultUserDeactivationFetchLimit = 10
 	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
-	defaultUserDeactivationInactivityNotificationPeriod = 30 // 30 days
+	defaultUserDeactivationInactivityNotificationPeriod = 24 // 24 days
 	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
-	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 37 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
+	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
 )
