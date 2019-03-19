@@ -158,10 +158,22 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
 
-	defer p.Release()
+	defer func() {
+		err := p.Release()
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"error": err,
+			}, "error while releasing the go routine pool")
+		}
+	}()
 	for _, identity := range identities {
 		wg.Add(1)
-		p.Invoke(identity)
+		err := p.Invoke(identity)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"error": err,
+			}, "error while notifying about account deactivation")
+		}
 	}
 	wg.Wait()
 	return identities, nil
