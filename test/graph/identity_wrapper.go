@@ -34,6 +34,8 @@ func newIdentityWrapper(g *TestGraph, params []interface{}) interface{} {
 		switch p := p.(type) {
 		case string:
 			username = p
+		case *string:
+			username = *p
 		case time.Time:
 			lastActive = &p
 		}
