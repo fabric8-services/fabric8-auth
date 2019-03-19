@@ -117,6 +117,10 @@ required = [
   name = "github.com/gojuno/minimock"
   revision = "a5502dd2746ee6fc3fd58ad83d701d25e14d68d1"
 
+[[constraint]]
+  name = "github.com/panjf2000/ants"
+  version = "v4.1"
+
 [prune]
   go-tests = true
   unused-packages = true

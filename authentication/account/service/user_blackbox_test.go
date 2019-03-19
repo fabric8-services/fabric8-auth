@@ -47,10 +47,13 @@ type userServiceBlackboxTestSuite struct {
 
 func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
-	config.GetUserDeactivationInactivityPeriodFunc = func() int {
-		return 97
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+		return 97 * 24 * time.Hour
 	}
 	ctx := context.Background()
+	config.GetPostDeactivationNotificationDelayFunc = func() time.Duration {
+		return 500 * time.Millisecond
+	}
 
 	var identity1, identity2, identity3 *repository.Identity
 	// configure the `SetupSubtest` and `TearDownSubtest` to setup/reset data after each subtest
@@ -77,8 +80,8 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 90
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 90 * 24 * time.Hour // 90 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
@@ -98,8 +101,8 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 60
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 60 * 24 * time.Hour // 60 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
@@ -117,7 +120,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), identity.DeactivationNotification)
-		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 	})
 
 	s.Run("one user to deactivate with limit reached", func() {
@@ -125,8 +128,8 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 1
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 30
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
@@ -144,7 +147,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), identity.DeactivationNotification)
-		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 	})
 
 	s.Run("two users to deactivate", func() {
@@ -152,8 +155,8 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 30
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
@@ -173,7 +176,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 			identity, err := s.Application.Identities().Load(ctx, id)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), identity.DeactivationNotification)
-			assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+			assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 		}
 	})
 
@@ -182,8 +185,8 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() int {
-			return 30
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
@@ -209,7 +212,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		identity, err = s.Application.Identities().Load(ctx, identity1.ID)
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), identity.DeactivationNotification)
-		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second)
+		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 	})
 
 }

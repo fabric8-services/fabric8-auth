@@ -3,9 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
-
-	"github.com/fabric8-services/fabric8-auth/notification"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -17,8 +16,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/notification"
 
 	"github.com/jinzhu/gorm"
+	"github.com/panjf2000/ants"
 	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
@@ -34,8 +35,9 @@ func NewUserService(ctx servicecontext.ServiceContext, config UserServiceConfigu
 // UserServiceConfiguration the configuration for the User service
 type UserServiceConfiguration interface {
 	GetUserDeactivationFetchLimit() int
-	GetUserDeactivationInactivityNotificationPeriod() int
-	GetUserDeactivationInactivityPeriod() int
+	GetUserDeactivationInactivityNotificationPeriod() time.Duration
+	GetUserDeactivationInactivityPeriod() time.Duration
+	GetPostDeactivationNotificationDelay() time.Duration
 }
 
 // userServiceImpl implements the UserService to manage users
@@ -118,7 +120,7 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 // NotifyIdentitiesBeforeDeactivation list identities (with a limit) who are eligible for account deactivation,
 // sends a notification to each one and record the timestamp of the notification as a marker before upcoming deactivation
 func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(time.Duration(-s.config.GetUserDeactivationInactivityNotificationPeriod()) * 24 * time.Hour) // remove 'n' days from now
+	since := time.Now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriod()) // remove 'n' days from now
 	limit := s.config.GetUserDeactivationFetchLimit()
 	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
 	if err != nil {
@@ -127,31 +129,58 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	// for each identity, send a notification and record the timestamp in a separate transaction.
 	// perform the task for each identity in a separate Tx, and just log the error if something wring happen,
 	// but don't stop processing on the rest of the accounts.
-	expirationDate := time.Now().Add(time.Duration(s.config.GetUserDeactivationInactivityPeriod()-s.config.GetUserDeactivationInactivityNotificationPeriod()) * 24 * time.Hour).Format("Mon Jan 2")
-	notificationDate := time.Now()
-	for _, identity := range identities {
-		msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.Username, expirationDate)
-		_, err := s.Services().NotificationService().SendMessageAsync(ctx, msg)
+	expirationDate := time.Now().
+		Add(s.config.GetUserDeactivationInactivityPeriod() - s.config.GetUserDeactivationInactivityNotificationPeriod()).
+		Format("Mon Jan 2")
+	// run the notification/record update in a separate routine, with pooling of child routines to avoid
+	// sending too many requests at once to the notification service and to the database
+	defer ants.Release()
+	var wg sync.WaitGroup
+	p, err := ants.NewPoolWithFunc(10, func(id interface{}) {
+		defer wg.Done()
+		identity, ok := id.(repository.Identity)
+		// just to make sure that the arg type is valid.
+		if !ok {
+			log.Error(ctx, map[string]interface{}{}, "argument is not an identity")
+			return
+		}
+		err := s.notifyIdentityBeforeDeactivation(ctx, identity, expirationDate)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"error":    err,
 				"username": identity.Username,
-			}, "failed to send notification to user before account deactivation")
-			continue
+			}, "error while notifying user before account deactivation")
 		}
-		if err := s.ExecuteInTransaction(func() error {
-			identity.DeactivationNotification = &notificationDate
-			return s.Repositories().Identities().Save(ctx, &identity)
-		}); err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"error":    err,
-				"username": identity.Username,
-			}, "failed to record timestampt of notification sent to user before account deactivation")
-			continue
-		}
+		// include a small delay to give time to notification service and database to handle the requests
+		time.Sleep(s.config.GetPostDeactivationNotificationDelay())
+	})
+	if err != nil {
+		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
 
+	defer p.Release()
+	for _, identity := range identities {
+		wg.Add(1)
+		p.Invoke(identity)
+	}
+	wg.Wait()
 	return identities, nil
+}
+
+func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string) error {
+	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.Username, expirationDate)
+	_, err := s.Services().NotificationService().SendMessageAsync(ctx, msg)
+	if err != nil {
+		return errs.Wrap(err, "failed to send notification to user before account deactivation")
+	}
+	if err := s.ExecuteInTransaction(func() error {
+		notificationDate := time.Now()
+		identity.DeactivationNotification = &notificationDate
+		return s.Repositories().Identities().Save(ctx, &identity)
+	}); err != nil {
+		return errs.Wrap(err, "failed to record timestamp of notification sent to user before account deactivation")
+	}
+	return nil
 }
 
 // DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account

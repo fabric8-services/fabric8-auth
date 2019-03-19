@@ -120,4 +120,6 @@ vwIDAQAB
 	defaultUserDeactivationInactivityNotificationPeriod = 24 // 24 days
 	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
 	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
+	// defaultPostDeactivationNotificationDelay the default number of milliseconds between to user account deactivation notifications by the same go routine
+	defaultPostDeactivationNotificationDelay = 500
 )
