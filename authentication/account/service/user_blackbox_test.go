@@ -6,22 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/notification"
-	"github.com/fabric8-services/fabric8-auth/rest"
-
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
-	"github.com/fabric8-services/fabric8-auth/test/graph"
-
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	"github.com/fabric8-services/fabric8-auth/notification"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	servicemock "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	userservicemock "github.com/fabric8-services/fabric8-auth/test/generated/authentication/account/service"
+	"github.com/fabric8-services/fabric8-auth/test/graph"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	"github.com/fabric8-services/fabric8-common/gocksupport"
 	testsuite "github.com/fabric8-services/fabric8-common/test/suite"
@@ -96,7 +93,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		assert.Equal(s.T(), uint64(0), notificationServiceMock.SendMessageAsyncCounter)
 	})
 
-	s.Run("one user to deactivate", func() {
+	s.Run("one user to deactivate without limit", func() {
 		// given
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
@@ -215,6 +212,94 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 	})
 
+}
+func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
+	config := userservicemock.NewUserServiceConfigurationMock(s.T())
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+		return 31 * 24 * time.Hour // 31 days
+	}
+	ctx := context.Background()
+
+	now := time.Now()
+	identity1 := s.Graph.CreateIdentity("user1", now.Add(-40*24*time.Hour)).Identity() // 40 days since last activity
+	yesterday := now.Add(-1 * 24 * time.Hour)
+	identity1.DeactivationNotification = &yesterday
+	err := s.Application.Identities().Save(ctx, identity1)
+	require.NoError(s.T(), err)
+	identity2 := s.Graph.CreateIdentity("user2", now.Add(-70*24*time.Hour)).Identity() // 70 days since last activity
+	identity2.DeactivationNotification = &yesterday
+	err = s.Application.Identities().Save(ctx, identity2)
+	require.NoError(s.T(), err)
+	s.Graph.CreateIdentity("user3", now.Add(-70*24*time.Hour)).Identity() // noise: 70 day since last activity, but not notified yet
+	s.Graph.CreateIdentity("user4", now.Add(-24*time.Hour))               // noise: 1 day since last activity
+
+	s.Run("no user to deactivate", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 90 * 24 * time.Hour // 90 days
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		// then
+		require.NoError(s.T(), err)
+		assert.Empty(s.T(), result)
+	})
+
+	s.Run("one user to deactivate without limit", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 60 * 24 * time.Hour // 60 days
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+	})
+
+	s.Run("one user to deactivate with limit reached", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 1
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+	})
+
+	s.Run("two users to deactivate", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 2)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), identity1.ID, result[1].ID)
+	})
 }
 
 func (s *userServiceBlackboxTestSuite) TestBanUser() {

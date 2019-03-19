@@ -117,10 +117,10 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 	return identity, err
 }
 
-// NotifyIdentitiesBeforeDeactivation list identities (with a limit) who are eligible for account deactivation,
+// NotifyIdentitiesBeforeDeactivation list identities (with a limit) who are soon eligible for account deactivation,
 // sends a notification to each one and record the timestamp of the notification as a marker before upcoming deactivation
 func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriod()) // remove 'n' days from now
+	since := time.Now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriod()) // remove 'n' days from now (default: 24)
 	limit := s.config.GetUserDeactivationFetchLimit()
 	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
 	if err != nil {
@@ -177,6 +177,13 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	}
 	wg.Wait()
 	return identities, nil
+}
+
+// ListIdentitiesToDeactivate lists the identities to deactivate
+func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context) ([]repository.Identity, error) {
+	since := time.Now().Add(-s.config.GetUserDeactivationInactivityPeriod()) // remove 'n' days from now (default: 31)
+	limit := s.config.GetUserDeactivationFetchLimit()
+	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, limit)
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string) error {
