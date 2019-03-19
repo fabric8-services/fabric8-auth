@@ -3,7 +3,7 @@ package notification
 import (
 	"fmt"
 
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 type Configuration interface {
@@ -78,6 +78,21 @@ func NewSpaceInvitationEmail(identityID string, spaceName string, inviterName st
 			"inviter":   inviterName,
 			"roleNames": roleNames,
 			"acceptURL": acceptURL,
+		},
+	}
+}
+
+// NewUserDeactivationEmail is a helper constructor which returns a message to inform the user that her
+// account will be deactivated soon
+func NewUserDeactivationEmail(identityID, username, deactivationDate string) Message {
+	return Message{
+		MessageID:   uuid.NewV4(),
+		MessageType: "user.deactivation",
+		TargetID:    identityID,
+		UserID:      &identityID,
+		Custom: map[string]interface{}{
+			"username":         username,
+			"deactivationDate": deactivationDate,
 		},
 	}
 }

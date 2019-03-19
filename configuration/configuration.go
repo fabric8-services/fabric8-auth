@@ -187,6 +187,8 @@ const (
 	varUserDeactivationInactivityNotificationPeriod = "user.deactivation.inactivity.notification.period"
 	// varUserDeactivationInactivityPeriod the number of days of inactivity before deactivating the user account
 	varUserDeactivationInactivityPeriod = "user.deactivation.inactivity.period"
+	// varPostDeactivationNotificationDelay the delay (in milliseconds) between 2 account deactivation notifications sent to users
+	varPostDeactivationNotificationDelay = "user.deactivation.post.notification.delay"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -652,6 +654,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varUserDeactivationFetchLimit, defaultUserDeactivationFetchLimit)
 	c.v.SetDefault(varUserDeactivationInactivityNotificationPeriod, defaultUserDeactivationInactivityNotificationPeriod)
 	c.v.SetDefault(varUserDeactivationInactivityPeriod, defaultUserDeactivationInactivityPeriod)
+	c.v.SetDefault(varPostDeactivationNotificationDelay, defaultPostDeactivationNotificationDelay)
 
 }
 
@@ -1057,11 +1060,18 @@ func (c *ConfigurationData) GetUserDeactivationFetchLimit() int {
 }
 
 // GetUserDeactivationInactivityNotificationPeriod returns the number of days of inactivity before notifying the user of the imminent account deactivation
-func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriod() int {
-	return c.v.GetInt(varUserDeactivationInactivityNotificationPeriod)
+func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriod() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationInactivityNotificationPeriod)) * 24 * time.Hour
 }
 
 // GetUserDeactivationInactivityPeriod returns the number of days of inactivity before a user account can be deactivated
-func (c *ConfigurationData) GetUserDeactivationInactivityPeriod() int {
-	return c.v.GetInt(varUserDeactivationInactivityPeriod)
+func (c *ConfigurationData) GetUserDeactivationInactivityPeriod() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationInactivityPeriod)) * 24 * time.Hour
+}
+
+// GetPostDeactivationNotificationDelay returns the number of milliseconds to wait after notifying another user that her account may be deactivated
+// this delay is used to reduce the load on the other services (notification and database) in case there would be
+// too many users to notify at once.
+func (c *ConfigurationData) GetPostDeactivationNotificationDelay() time.Duration {
+	return time.Duration(c.v.GetInt(varPostDeactivationNotificationDelay)) * time.Millisecond
 }

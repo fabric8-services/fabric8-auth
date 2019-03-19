@@ -29,14 +29,19 @@ func loadIdentityWrapper(g *TestGraph, identityID uuid.UUID) identityWrapper {
 func newIdentityWrapper(g *TestGraph, params []interface{}) interface{} {
 	w := identityWrapper{baseWrapper: baseWrapper{g}}
 	var lastActive *time.Time
+	username := "TestUserIdentity-" + uuid.NewV4().String()
 	for _, p := range params {
 		switch p := p.(type) {
+		case string:
+			username = p
+		case *string:
+			username = *p
 		case time.Time:
 			lastActive = &p
 		}
 	}
 	w.identity = &account.Identity{
-		Username:     "TestUserIdentity-" + uuid.NewV4().String(),
+		Username:     username,
 		ProviderType: account.DefaultIDP,
 		LastActive:   lastActive,
 	}

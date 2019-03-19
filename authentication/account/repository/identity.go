@@ -84,6 +84,8 @@ type Identity struct {
 	IdentityResource   resource.Resource `gorm:"foreignkey:IdentityResourceID;association_foreignkey:ResourceID"`
 	// Timestamp of the identity's last activity
 	LastActive *time.Time
+	// Timestamp of deactivation notification
+	DeactivationNotification *time.Time `gorm:"column:deactivation_notification"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -209,7 +211,7 @@ func (m *GormIdentityRepository) Create(ctx context.Context, model *Identity) er
 		}, "unable to create the identity")
 		return errs.WithStack(err)
 	}
-	log.Info(ctx, map[string]interface{}{
+	log.Debug(ctx, map[string]interface{}{
 		"identity_id": model.ID,
 	}, "Identity created!")
 	return nil
@@ -393,17 +395,17 @@ func (m *GormIdentityRepository) List(ctx context.Context) ([]Identity, error) {
 // number of identities (ordered by last activity)
 // if limit is a negative value (eg: '-1'), it is ignored
 func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
-	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToDeactivate"}, time.Now())
+	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToNotifyForDeactivation"}, time.Now())
 	var identities []Identity
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
-	err := m.db.Model(&Identity{}).Where("last_active < ?", lastActivity).Order("last_active, created_at").Limit(limit).Find(&identities).Error
+	err := m.db.Model(&Identity{}).Where("last_active < ? and deactivation_notification is NULL", lastActivity).Order("last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
-	log.Debug(ctx, map[string]interface{}{
-		"identities_to_deactivate": len(identities),
-	}, "Listing identities to deactivated completed")
+	log.Info(ctx, map[string]interface{}{
+		"identities_to_notify_before_deactivation": len(identities),
+	}, "Listing identities to notify before deactivation completed")
 
 	return identities, nil
 }
