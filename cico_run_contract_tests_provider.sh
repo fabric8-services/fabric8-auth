@@ -79,7 +79,7 @@ export PATH="$TMP_PATH/pact/bin:$PATH"
 pact-mock-service version &> /dev/null
 test_pact_exit=$?
 if [ $test_pact_exit -ne 0 ]; then
-    curl -L -s https://github.com/pact-foundation/pact-ruby-standalone/releases/download/v1.63.0/pact-1.63.0-linux-x86_64.tar.gz -o "$TMP_PATH/pact-cli.tar.gz"
+    curl -L -s https://github.com/pact-foundation/pact-ruby-standalone/releases/download/v1.64.0/pact-1.64.0-linux-x86_64.tar.gz -o "$TMP_PATH/pact-cli.tar.gz"
     tar -xf "$TMP_PATH/pact-cli.tar.gz" --directory "$TMP_PATH"
 fi
 
@@ -94,6 +94,7 @@ attempts=18
 final_exit=0
 
 echo "Starting local Auth service"
+sleep $wait_period
 for i in $(seq 1 $attempts); do
     echo "Attempt $i/$attempts..."
     response_head="$(curl -LI --silent -XGET 'http://localhost:8089/api/status' | head -n 1)"
@@ -129,6 +130,7 @@ if [ $final_exit == 0 ]; then
 
     ## Wait for the Cluster service to start up
     echo "Starting local Cluster service"
+    sleep $wait_period
     for i in $(seq 1 $attempts); do
         echo "Attempt $i/$attempts..."
         response_head="$(curl -LI --silent -XGET 'http://localhost:8087/api/status' | head -n 1)"
