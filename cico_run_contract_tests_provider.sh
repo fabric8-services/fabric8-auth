@@ -83,6 +83,11 @@ if [ $test_pact_exit -ne 0 ]; then
     tar -xf "$TMP_PATH/pact-cli.tar.gz" --directory "$TMP_PATH"
 fi
 
+# Clean any running auth/cluster contaiers
+for i in $(docker ps -f name=cluster -f name=auth -q); do
+    docker rm -f $i
+done
+
 # Start Auth service
 AUTH_CLUSTER_URL_SHORT="http://localhost:8087" make dev &> "$OUTPUT_DIR/$ARTIFACTS_PATH/test-auth.log" &
 authpid=$!
