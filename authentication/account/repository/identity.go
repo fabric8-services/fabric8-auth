@@ -880,11 +880,12 @@ WHERE
 }
 
 // TouchLastActive is intended to be a lightweight method that updates the last active column for a specified identity
-// to the current timestamp
+// to the current timestamp. Also, it resets the `deactivation_notification` timestamp so we can send another deactivation
+// notification to the user if she is once again inactive in the future.
 func (m *GormIdentityRepository) TouchLastActive(ctx context.Context, identityID uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "TouchLastActive"}, time.Now())
 
-	err := m.db.Exec("UPDATE identities SET last_active = ? WHERE id = ?", time.Now(), identityID).Error
+	err := m.db.Exec("UPDATE identities SET last_active = ?, deactivation_notification = NULL WHERE id = ?", time.Now(), identityID).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"id":  identityID,
