@@ -553,7 +553,7 @@ func testMigration46(t *testing.T) {
 	defaultTime, err = time.Parse("2006-01-02:03:04:05", "2019-03-11:12:34:56")
 	require.NoError(t, err)
 	assert.Equal(t, defaultTime, lastActive)
-	// also, when a new record is inserted, its `last_activity` should not be NULL
+	// also, when a new record is inserted, its `last_active` should not be NULL
 	_, err = sqlDB.Exec("insert into identities (id) values ('00000000-0000-0000-0000-000000000003')")
 	require.NoError(t, err)
 	err = sqlDB.QueryRow("SELECT last_active FROM identities WHERE id = '00000000-0000-0000-0000-000000000003'").Scan(&lastActive)
