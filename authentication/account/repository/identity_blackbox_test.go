@@ -457,17 +457,54 @@ func (s *IdentityRepositoryTestSuite) TestRemoveMember() {
 }
 
 func (s *IdentityRepositoryTestSuite) TestTouchLastUpdated() {
-	identity := s.Graph.CreateIdentity()
 
-	require.Nil(s.T(), identity.Identity().LastActive)
+	s.Run("without lastactive timestamp", func() {
+		// given
+		identity := s.Graph.CreateIdentity().Identity()
+		require.NotNil(s.T(), identity)
+		require.Nil(s.T(), identity.LastActive)
+		now := time.Now()
+		// when
+		err := s.Application.Identities().TouchLastActive(s.Ctx, identity.ID)
+		require.NoError(s.T(), err)
+		// then
+		identity = s.Graph.LoadIdentity(identity.ID).Identity()
+		assert.True(s.T(), now.Before(*identity.LastActive))
+		assert.Nil(s.T(), identity.DeactivationNotification)
+	})
 
-	now := time.Now()
+	s.Run("with lastactive timestamp", func() {
+		// given
+		yesterday := time.Now().Add(-24 * time.Hour)
+		identity := s.Graph.CreateIdentity(yesterday).Identity()
+		require.NotNil(s.T(), identity)
+		require.NotNil(s.T(), identity.LastActive)
+		now := time.Now()
+		// when
+		err := s.Application.Identities().TouchLastActive(s.Ctx, identity.ID)
+		require.NoError(s.T(), err)
+		// then
+		identity = s.Graph.LoadIdentity(identity.ID).Identity()
+		assert.True(s.T(), now.Before(*identity.LastActive))
+		assert.Nil(s.T(), identity.DeactivationNotification)
+	})
 
-	err := s.Application.Identities().TouchLastActive(s.Ctx, identity.ID())
-	require.NoError(s.T(), err)
-
-	// Reload the identity
-	identity = s.Graph.LoadIdentity(identity.ID())
-
-	require.True(s.T(), now.Before(*identity.Identity().LastActive))
+	s.Run("with deactivation_notification timestamp", func() {
+		// given
+		yesterday := time.Now().Add(-24 * time.Hour)
+		identity := s.Graph.CreateIdentity(yesterday).Identity()
+		require.NotNil(s.T(), identity)
+		require.NotNil(s.T(), identity.LastActive)
+		identity.DeactivationNotification = &yesterday
+		err := s.Application.Identities().Save(s.Ctx, identity)
+		require.NoError(s.T(), err)
+		now := time.Now()
+		// when
+		err = s.Application.Identities().TouchLastActive(s.Ctx, identity.ID)
+		require.NoError(s.T(), err)
+		// then
+		identity = s.Graph.LoadIdentity(identity.ID).Identity()
+		assert.True(s.T(), now.Before(*identity.LastActive))
+		assert.Nil(s.T(), identity.DeactivationNotification)
+	})
 }
