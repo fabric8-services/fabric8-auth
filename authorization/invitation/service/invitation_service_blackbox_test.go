@@ -17,7 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	"github.com/fabric8-services/fabric8-auth/test"
-	testservice "github.com/fabric8-services/fabric8-auth/test/service"
+	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"

@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
 	"time"
+
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 
 	"github.com/fabric8-services/fabric8-auth/rest"
 
@@ -28,10 +29,10 @@ import (
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testoauth "github.com/fabric8-services/fabric8-auth/test/generated/authentication"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	testoauth "github.com/fabric8-services/fabric8-auth/test/token/oauth"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
@@ -569,12 +570,12 @@ func (s *authenticationProviderServiceTestSuite) checkAPIClientForUsersReturnOK(
 	s.checkLoginCallback(dummyIDPOAuthProviderRef, rw, authorizeCtx, "api_token")
 }
 
-func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnauthorized() {
+func (s *authenticationProviderServiceTestSuite) TestBannedUserLoginUnauthorized() {
 	extra := make(map[string]string)
 	_, callbackCtx := s.loginCallback(extra)
 
-	// Fails if identity is deprovisioned
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
+	// Fails if identity is banned
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, "TestBannedUserLoginUnauthorized-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	claims := make(map[string]interface{})
@@ -599,12 +600,12 @@ func (s *authenticationProviderServiceTestSuite) TestDeprovisionedUserLoginUnaut
 	require.IsType(s.T(), err, autherrors.UnauthorizedError{})
 }
 
-func (s *authenticationProviderServiceTestSuite) TestNotDeprovisionedUserLoginOK() {
+func (s *authenticationProviderServiceTestSuite) TestNotBannedUserLoginOK() {
 	extra := make(map[string]string)
 	_, callbackCtx := s.loginCallback(extra)
 
-	// OK if identity is not deprovisioned
-	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestDeprovisionedUserLoginUnauthorized-"+uuid.NewV4().String())
+	// OK if identity is not banned
+	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "TestBannedUserLoginUnauthorized-"+uuid.NewV4().String())
 	require.NoError(s.T(), err)
 
 	claims := make(map[string]interface{})
@@ -795,12 +796,12 @@ func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenWithRPT
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
 
-func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForDeprovisionedUser() {
+func (s *authenticationProviderServiceTestSuite) TestExchangeRefreshTokenFailsForBannedUser() {
 	tm, err := manager.NewTokenManager(s.Configuration)
 	require.NoError(s.T(), err)
 
 	user := s.Graph.CreateUser()
-	user.Deprovision()
+	user.Ban()
 
 	ctx := manager.ContextWithTokenManager(testtoken.ContextWithRequest(nil), tm)
 	claims := make(map[string]interface{})
@@ -1065,6 +1066,8 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 		}, nil
 	}
 
+	now := time.Now()
+
 	// when
 	tm := testtoken.TokenManager
 	ctx := manager.ContextWithTokenManager(context.Background(), tm)
@@ -1083,6 +1086,10 @@ func (s *authenticationProviderServiceTestSuite) TestCreateOrUpdateIdentityAndUs
 	require.NoError(s.T(), err)
 	assert.NotEmpty(s.T(), resultAccessTokenClaims.SessionState)
 	s.T().Logf("token claim `session_state`: %v", resultAccessTokenClaims.SessionState)
+
+	// Confirm that the identity's last active field was updated
+	identity := s.Graph.LoadIdentity(user.IdentityID())
+	require.True(s.T(), now.Before(*identity.Identity().LastActive))
 
 	// Confirm that both an access token and refresh token were created for the user's identity
 	tokens, err := s.Application.TokenRepository().ListForIdentity(s.Ctx, user.IdentityID())

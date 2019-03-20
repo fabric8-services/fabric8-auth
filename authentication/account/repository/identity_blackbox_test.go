@@ -1,16 +1,19 @@
 package repository_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	uuid "github.com/satori/go.uuid"
 
 	"fmt"
+
 	"github.com/jinzhu/gorm"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -127,6 +130,78 @@ func (s *IdentityRepositoryTestSuite) TestLoad() {
 		require.NoError(t, err, "Could not load identity")
 		assert.Equal(t, identity.Identity().Username, result.Username)
 	})
+}
+
+func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation() {
+
+	ctx := context.Background()
+	now := time.Now()
+	identity1 := s.Graph.CreateIdentity(now.Add(-40 * 24 * time.Hour)).Identity() // 40 days since last activity
+	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * time.Hour)).Identity() // 70 days since last activity
+	identity3 := s.Graph.CreateIdentity(now.Add(-70 * 24 * time.Hour)).Identity() // noise: 70 day since last activity, but already notified
+	yesterday := now.Add(-1 * 24 * time.Hour)
+	identity3.DeactivationNotification = &yesterday
+	err := s.Application.Identities().Save(ctx, identity3)
+	require.NoError(s.T(), err)
+	s.Graph.CreateIdentity(now.Add(-24 * time.Hour)) // noise: 1 day since last activity
+
+	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-90 * 24 * time.Hour) // 90 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	s.T().Run("one user to notify for deactivation", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-60 * 24 * time.Hour) // 60 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, identity2.ID, result[0].ID)
+	})
+
+	s.T().Run("one user to notify for deactivation with limit reached", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 1)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, identity2.ID, result[0].ID)
+
+	})
+
+	s.T().Run("two users to notify for deactivation with limit unreached", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, identity2.ID, result[0].ID)
+		assert.Equal(t, identity1.ID, result[1].ID)
+	})
+
+	s.T().Run("two users to notify for deactivation without limit", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, -1)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, identity2.ID, result[0].ID)
+		assert.Equal(t, identity1.ID, result[1].ID)
+	})
+
 }
 
 func (s *IdentityRepositoryTestSuite) TestIdentityExists() {
@@ -379,4 +454,57 @@ func (s *IdentityRepositoryTestSuite) TestRemoveMember() {
 	memberships, err = s.Application.Identities().FindIdentityMemberships(s.Ctx, user.IdentityID(), nil)
 	require.NoError(s.T(), err)
 	require.Len(s.T(), memberships, 0)
+}
+
+func (s *IdentityRepositoryTestSuite) TestTouchLastUpdated() {
+
+	s.Run("without lastactive timestamp", func() {
+		// given
+		identity := s.Graph.CreateIdentity().Identity()
+		require.NotNil(s.T(), identity)
+		require.Nil(s.T(), identity.LastActive)
+		now := time.Now()
+		// when
+		err := s.Application.Identities().TouchLastActive(s.Ctx, identity.ID)
+		require.NoError(s.T(), err)
+		// then
+		identity = s.Graph.LoadIdentity(identity.ID).Identity()
+		assert.True(s.T(), now.Before(*identity.LastActive))
+		assert.Nil(s.T(), identity.DeactivationNotification)
+	})
+
+	s.Run("with lastactive timestamp", func() {
+		// given
+		yesterday := time.Now().Add(-24 * time.Hour)
+		identity := s.Graph.CreateIdentity(yesterday).Identity()
+		require.NotNil(s.T(), identity)
+		require.NotNil(s.T(), identity.LastActive)
+		now := time.Now()
+		// when
+		err := s.Application.Identities().TouchLastActive(s.Ctx, identity.ID)
+		require.NoError(s.T(), err)
+		// then
+		identity = s.Graph.LoadIdentity(identity.ID).Identity()
+		assert.True(s.T(), now.Before(*identity.LastActive))
+		assert.Nil(s.T(), identity.DeactivationNotification)
+	})
+
+	s.Run("with deactivation_notification timestamp", func() {
+		// given
+		yesterday := time.Now().Add(-24 * time.Hour)
+		identity := s.Graph.CreateIdentity(yesterday).Identity()
+		require.NotNil(s.T(), identity)
+		require.NotNil(s.T(), identity.LastActive)
+		identity.DeactivationNotification = &yesterday
+		err := s.Application.Identities().Save(s.Ctx, identity)
+		require.NoError(s.T(), err)
+		now := time.Now()
+		// when
+		err = s.Application.Identities().TouchLastActive(s.Ctx, identity.ID)
+		require.NoError(s.T(), err)
+		// then
+		identity = s.Graph.LoadIdentity(identity.ID).Identity()
+		assert.True(s.T(), now.Before(*identity.LastActive))
+		assert.Nil(s.T(), identity.DeactivationNotification)
+	})
 }

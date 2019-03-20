@@ -1,12 +1,10 @@
 package graph
 
 import (
-	"fmt"
-
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	resource "github.com/fabric8-services/fabric8-auth/authorization/resource/repository"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,7 +62,6 @@ func newOrganizationWrapper(g *TestGraph, params []interface{}) interface{} {
 	organizationResource.resource.ResourceType = *resourceType
 	w.resource = organizationResource.Resource()
 	w.Identity().IdentityResource = *w.resource
-	fmt.Printf("loaded organization with resource=%v\n", w.resource)
 	return &w
 }
 

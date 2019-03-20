@@ -348,7 +348,7 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("no token in request"))
 	}
 
-	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+	currentIdentity, err := c.app.UserService().LoadContextIdentityIfNotBanned(ctx)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
@@ -362,7 +362,7 @@ func (c *TokenController) Audit(ctx *app.AuditTokenContext) error {
 			{
 				if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED {
 					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")
-					ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Token has been deprovisioned\"")
+					ctx.ResponseData.Header().Set("WWW-Authenticate", "DEPROVISIONED description=\"Token has been banned\"")
 					return jsonapi.JSONErrorResponse(ctx, err)
 				} else if t.UnauthorizedCode == errors.UNAUTHORIZED_CODE_TOKEN_REVOKED {
 					ctx.ResponseData.Header().Add("Access-Control-Expose-Headers", "WWW-Authenticate")

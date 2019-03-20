@@ -140,6 +140,7 @@ type ServiceFactory struct {
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
 	clusterServiceFunc      func() service.ClusterService
 	authProviderServiceFunc func() service.AuthenticationProviderService
+	userServiceFunc         func() service.UserService
 }
 
 // Option an option to configure the Service Factory
@@ -187,6 +188,17 @@ func WithAuthenticationProviderService(s service.AuthenticationProviderService) 
 	}
 }
 
+// WithUserService overrides the default function that returns the UserService,
+// so that instead, a mock implementation can be used
+func WithUserService(s service.UserService) Option {
+	return func(f *ServiceFactory) {
+		f.userServiceFunc = func() service.UserService {
+			return s
+		}
+	}
+}
+
+// NewServiceFactory returns a new ServiceFactory which can be configured with the options to replace the default implementations of some services
 func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
 	// default function to return an instance of WIT Service
@@ -205,11 +217,15 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *c
 	f.clusterServiceFunc = func() service.ClusterService {
 		return clusterservice.NewClusterService(f.getContext(), f.config)
 	}
-	// default function to return an instance of Cluster Service
+	// default function to return an instance of Auth Service
 	f.authProviderServiceFunc = func() service.AuthenticationProviderService {
 		return providerservice.NewAuthenticationProviderService(f.getContext(), f.config)
 	}
-	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d options", len(options))
+	// default function to return an instance of User Service
+	f.userServiceFunc = func() service.UserService {
+		return userservice.NewUserService(f.getContext(), f.config)
+	}
+	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d option(s)", len(options))
 	// and options
 	for _, opt := range options {
 		opt(f)
@@ -274,7 +290,7 @@ func (f *ServiceFactory) SpaceService() service.SpaceService {
 }
 
 func (f *ServiceFactory) UserService() service.UserService {
-	return userservice.NewUserService(f.getContext())
+	return f.userServiceFunc()
 }
 
 func (f *ServiceFactory) UserProfileService() service.UserProfileService {

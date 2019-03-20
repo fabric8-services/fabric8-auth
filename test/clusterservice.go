@@ -11,7 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	testservice "github.com/fabric8-services/fabric8-auth/test/service"
+	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 
 	"github.com/gojuno/minimock"
 	"github.com/satori/go.uuid"

@@ -48,8 +48,8 @@ func (s *CollaboratorsControllerTestSuite) NewUnsecuredController() (*goa.Servic
 	return svc, NewCollaboratorsController(svc, s.Application, s.Configuration)
 }
 
-func (s *CollaboratorsControllerTestSuite) NewUnsecuredControllerDeprovisionedUser() (*goa.Service, *CollaboratorsController) {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, uuid.NewV4().String())
+func (s *CollaboratorsControllerTestSuite) NewUnsecuredControllerBannedUser() (*goa.Service, *CollaboratorsController) {
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, uuid.NewV4().String())
 	require.NoError(s.T(), err)
 	svc := testsupport.ServiceAsUser("Collaborators-Service", identity)
 	return svc, NewCollaboratorsController(svc, s.Application, s.Configuration)
@@ -343,14 +343,14 @@ func (s *CollaboratorsControllerTestSuite) TestAddSingleCollaborator() {
 			test.AddCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, extraUser.IdentityID().String())
 		})
 
-		t.Run("deprovisionned user", func(t *testing.T) {
+		t.Run("banned user", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			admin := g.CreateUser()
 			contrib := g.CreateUser()
 			space := g.CreateSpace().AddAdmin(admin).AddContributor(contrib)
 			spaceID, _ := uuid.FromString(space.SpaceID())
-			svc, ctrl := s.NewUnsecuredControllerDeprovisionedUser()
+			svc, ctrl := s.NewUnsecuredControllerBannedUser()
 			extraUser := g.CreateUser()
 			// when/then
 			test.AddCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, extraUser.IdentityID().String())
@@ -430,13 +430,13 @@ func (s *CollaboratorsControllerTestSuite) TestAddManyCollaborators() {
 			test.AddManyCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, payload)
 		})
 
-		t.Run("deprovisionned user", func(t *testing.T) {
+		t.Run("banned user", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			admin := g.CreateUser()
 			space := g.CreateSpace()
 			spaceID, _ := uuid.FromString(space.SpaceID())
-			svc, ctrl := s.NewUnsecuredControllerDeprovisionedUser()
+			svc, ctrl := s.NewUnsecuredControllerBannedUser()
 			payload := newAddManyCollaboratorsPayload(t, admin.IdentityID())
 			// when/then
 			test.AddManyCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, payload)
@@ -480,14 +480,14 @@ func (s *CollaboratorsControllerTestSuite) TestRemoveSingleCollaborator() {
 			test.RemoveCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, contrib.IdentityID().String())
 		})
 
-		t.Run("deprovisionned user account", func(t *testing.T) {
+		t.Run("banned user account", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			admin := g.CreateUser()
 			contrib := g.CreateUser()
 			space := g.CreateSpace().AddAdmin(admin).AddContributor(contrib)
 			spaceID, _ := uuid.FromString(space.SpaceID())
-			svc, ctrl := s.NewUnsecuredControllerDeprovisionedUser()
+			svc, ctrl := s.NewUnsecuredControllerBannedUser()
 			// when/then
 			test.RemoveCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, contrib.IdentityID().String())
 		})
@@ -641,14 +641,14 @@ func (s *CollaboratorsControllerTestSuite) TestRemoveMultipleCollaborator() {
 			test.RemoveManyCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, payload)
 		})
 
-		t.Run("deprovisionned user", func(t *testing.T) {
+		t.Run("banned user", func(t *testing.T) {
 			// given
 			g := s.NewTestGraph(t)
 			admin := g.CreateUser()
 			contrib := g.CreateUser()
 			space := g.CreateSpace().AddAdmin(admin).AddContributor(contrib)
 			spaceID, _ := uuid.FromString(space.SpaceID())
-			svc, ctrl := s.NewUnsecuredControllerDeprovisionedUser()
+			svc, ctrl := s.NewUnsecuredControllerBannedUser()
 			payload := newRemoveManyCollaboratorsPayload(t, admin.Identity(), contrib.Identity())
 			// when/then
 			test.RemoveManyCollaboratorsUnauthorized(t, svc.Context, svc, ctrl, spaceID, payload)

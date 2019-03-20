@@ -331,8 +331,8 @@ func (s *TokenStorageTestSuite) retrieveExternalOSOTokenFromDBSuccess() (account
 	return identity, expectedToken
 }
 
-func (s *TokenStorageTestSuite) TestRetrieveExternalTokenForDeprovisionedUserUnauthorized() {
-	identity, err := testsupport.CreateDeprovisionedTestIdentityAndUser(s.DB, "TestRetrieveExternalTokenForDeprovisionedUserUnauthorized"+uuid.NewV4().String())
+func (s *TokenStorageTestSuite) TestRetrieveExternalTokenForBannedUserUnauthorized() {
+	identity, err := testsupport.CreateBannedTestIdentityAndUser(s.DB, "TestRetrieveExternalTokenForBannedUserUnauthorized"+uuid.NewV4().String())
 	require.Nil(s.T(), err)
 
 	service, controller := s.SecuredControllerWithIdentityAndDummyProviderFactory(identity)

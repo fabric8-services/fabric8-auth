@@ -26,8 +26,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	testjwt "github.com/fabric8-services/fabric8-auth/test/jwt"
-	testservice "github.com/fabric8-services/fabric8-auth/test/service"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
@@ -443,7 +443,7 @@ func (s *TokenControllerTestSuite) TestTokenAuditOK() {
 	require.Contains(s.T(), perms[0].Scopes, "lima")
 }
 
-func (s *TokenControllerTestSuite) TestAuditDeprovisionedToken() {
+func (s *TokenControllerTestSuite) TestAuditBannedToken() {
 	// given
 	// Create a user
 	user := s.Graph.CreateUser()

@@ -87,8 +87,8 @@ func (w *userWrapper) IdentityID() uuid.UUID {
 	return w.identity.ID
 }
 
-func (w *userWrapper) Deprovision() {
-	w.user.Deprovisioned = true
+func (w *userWrapper) Ban() {
+	w.user.Banned = true
 	err := w.graph.app.Users().Save(w.graph.ctx, w.user)
 	require.NoError(w.graph.t, err)
 }

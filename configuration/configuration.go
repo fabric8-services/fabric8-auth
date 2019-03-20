@@ -178,6 +178,20 @@ const (
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
+	// User deactivation
+	//
+	//------------------------------------------------------------------------------------------------------------------
+	// varUserDeactivationFetchLimit the maximum number of identities to warn before deactivation and deactivate
+	varUserDeactivationFetchLimit = "user.deactivation.fetch.limit"
+	// varUserDeactivationInactivityPeriodNotification the number of days of inactivity before notifying the user of account deactivation
+	varUserDeactivationInactivityNotificationPeriod = "user.deactivation.inactivity.notification.period"
+	// varUserDeactivationInactivityPeriod the number of days of inactivity before deactivating the user account
+	varUserDeactivationInactivityPeriod = "user.deactivation.inactivity.period"
+	// varPostDeactivationNotificationDelay the delay (in milliseconds) between 2 account deactivation notifications sent to users
+	varPostDeactivationNotificationDelay = "user.deactivation.post.notification.delay"
+
+	//------------------------------------------------------------------------------------------------------------------
+	//
 	// Other
 	//
 	//------------------------------------------------------------------------------------------------------------------
@@ -637,6 +651,13 @@ func (c *ConfigurationData) setConfigDefaults() {
 	// Cluster service
 	c.v.SetDefault(varShortClusterServiceURL, "http://f8cluster")
 	c.v.SetDefault(varClusterRefreshInterval, 5*time.Minute) // 5 minutes
+
+	// User deactivation
+	c.v.SetDefault(varUserDeactivationFetchLimit, defaultUserDeactivationFetchLimit)
+	c.v.SetDefault(varUserDeactivationInactivityNotificationPeriod, defaultUserDeactivationInactivityNotificationPeriod)
+	c.v.SetDefault(varUserDeactivationInactivityPeriod, defaultUserDeactivationInactivityPeriod)
+	c.v.SetDefault(varPostDeactivationNotificationDelay, defaultPostDeactivationNotificationDelay)
+
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email
@@ -1033,4 +1054,26 @@ func (c *ConfigurationData) GetRPTTokenMaxPermissions() int {
 
 func (c *ConfigurationData) GetExpiredTokenRetentionHours() int {
 	return c.v.GetInt(varExpiredTokenRetentionHours)
+}
+
+// GetUserDeactivationFetchLimit returns the max/limit number of user accounts to deactivate during a worker call
+func (c *ConfigurationData) GetUserDeactivationFetchLimit() int {
+	return c.v.GetInt(varUserDeactivationFetchLimit)
+}
+
+// GetUserDeactivationInactivityNotificationPeriod returns the number of days of inactivity before notifying the user of the imminent account deactivation
+func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriod() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationInactivityNotificationPeriod)) * 24 * time.Hour
+}
+
+// GetUserDeactivationInactivityPeriod returns the number of days of inactivity before a user account can be deactivated
+func (c *ConfigurationData) GetUserDeactivationInactivityPeriod() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationInactivityPeriod)) * 24 * time.Hour
+}
+
+// GetPostDeactivationNotificationDelay returns the number of milliseconds to wait after notifying another user that her account may be deactivated
+// this delay is used to reduce the load on the other services (notification and database) in case there would be
+// too many users to notify at once.
+func (c *ConfigurationData) GetPostDeactivationNotificationDelay() time.Duration {
+	return time.Duration(c.v.GetInt(varPostDeactivationNotificationDelay)) * time.Millisecond
 }

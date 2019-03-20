@@ -276,6 +276,12 @@
   revision = "5a0325d7fafaac12dda6e7fb8bd222ec1b69875e"
 
 [[projects]]
+  name = "github.com/panjf2000/ants"
+  packages = ["."]
+  revision = "8bb0cde224fdf3a1c6915b4dbd943bc506b42257"
+  version = "v4.1"
+
+[[projects]]
   name = "github.com/pelletier/go-buffruneio"
   packages = ["."]
   revision = "c37440a7cf42ac63b919c752ca73a85067e05992"
@@ -506,6 +512,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "91c2d17f41b78bab590d1ae93d7a2e41171135e7783b7cc6f8ccf914167a17ec"
+  inputs-digest = "45eab9197c97afaa69bdc775f55accf6e583e15b8f657eebcd15f1bc97b42883"
   solver-name = "gps-cdcl"
   solver-version = 1

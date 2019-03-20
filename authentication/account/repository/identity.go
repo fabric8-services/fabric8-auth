@@ -19,7 +19,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 const (
@@ -82,6 +82,10 @@ type Identity struct {
 	// Link to Resource
 	IdentityResourceID sql.NullString
 	IdentityResource   resource.Resource `gorm:"foreignkey:IdentityResourceID;association_foreignkey:ResourceID"`
+	// Timestamp of the identity's last activity
+	LastActive *time.Time
+	// Timestamp of deactivation notification
+	DeactivationNotification *time.Time `gorm:"column:deactivation_notification"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -128,6 +132,8 @@ type IdentityRepository interface {
 	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
+	ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
+	ListIdentitiesToDeactivate(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
@@ -135,6 +141,7 @@ type IdentityRepository interface {
 	AddMember(ctx context.Context, identityID uuid.UUID, memberID uuid.UUID) error
 	RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error
 	FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error
+	TouchLastActive(ctx context.Context, identityID uuid.UUID) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -205,7 +212,7 @@ func (m *GormIdentityRepository) Create(ctx context.Context, model *Identity) er
 		}, "unable to create the identity")
 		return errs.WithStack(err)
 	}
-	log.Info(ctx, map[string]interface{}{
+	log.Debug(ctx, map[string]interface{}{
 		"identity_id": model.ID,
 	}, "Identity created!")
 	return nil
@@ -385,6 +392,45 @@ func (m *GormIdentityRepository) List(ctx context.Context) ([]Identity, error) {
 	return rows, nil
 }
 
+// ListIdentitiesToNotifyForDeactivation return identities whose last activity is older than the given one. The result size is limited to the given
+// number of identities (ordered by last activity)
+// if limit is a negative value (eg: '-1'), it is ignored
+func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToNotifyForDeactivation"}, time.Now())
+	var identities []Identity
+	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
+	// queries to notify before deactivation and queries to deactivate for real.
+	err := m.db.Model(&Identity{}).Where("last_active < ? and deactivation_notification is NULL", lastActivity).Order("last_active, created_at").Limit(limit).Find(&identities).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	log.Info(ctx, map[string]interface{}{
+		"identities_to_notify_before_deactivation": len(identities),
+	}, "Listing identities to notify before deactivation completed")
+
+	return identities, nil
+}
+
+// ListIdentitiesToDeactivate return identities whose last activity is older than the given one,
+// and for whom there is a `deactivation_notification` value.
+// The result size is limited to the given number of identities (ordered by last activity)
+// if limit is a negative value (eg: '-1'), it is ignored
+func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToDeactivate"}, time.Now())
+	var identities []Identity
+	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
+	// queries to notify before deactivation and queries to deactivate for real.
+	err := m.db.Model(&Identity{}).Where("last_active < ? and deactivation_notification is NOT NULL", lastActivity).Order("last_active, created_at").Limit(limit).Find(&identities).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	log.Info(ctx, map[string]interface{}{
+		"identities_to_deactivate": len(identities),
+	}, "Listing identities to deactivate completed")
+
+	return identities, nil
+}
+
 // IsValid returns true if the identity exists
 func (m *GormIdentityRepository) IsValid(ctx context.Context, id uuid.UUID) bool {
 	_, err := m.Load(ctx, id)
@@ -410,7 +456,7 @@ WHERE
   identities.user_id = users.id 
   AND identities.username LIKE ?
   AND identities.deleted_at IS NULL
-  AND users.deprovisioned IS false
+  AND users.banned IS false
   AND users.deleted_at IS NULL
 UNION SELECT
   identities.id AS identity_id,
@@ -422,7 +468,7 @@ WHERE
   identities.user_id = users.id 
   AND identities.deleted_at IS NULL
   AND users.deleted_at IS NULL
-  AND users.deprovisioned IS false 
+  AND users.banned IS false 
   AND (LOWER(users.full_name) LIKE ?
   OR (LOWER(users.email) LIKE ? AND users.email_private is false))) users LIMIT ?`
 
@@ -829,6 +875,24 @@ WHERE
 	log.Debug(ctx, map[string]interface{}{
 		"rows_marked_stale": result.RowsAffected,
 	}, "Privilege cache rows marked stale")
+
+	return nil
+}
+
+// TouchLastActive is intended to be a lightweight method that updates the last active column for a specified identity
+// to the current timestamp. Also, it resets the `deactivation_notification` timestamp so we can send another deactivation
+// notification to the user if she is once again inactive in the future.
+func (m *GormIdentityRepository) TouchLastActive(ctx context.Context, identityID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "TouchLastActive"}, time.Now())
+
+	err := m.db.Exec("UPDATE identities SET last_active = ?, deactivation_notification = NULL WHERE id = ?", time.Now(), identityID).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"id":  identityID,
+			"err": err,
+		}, "unable to update last active time")
+		return errs.WithStack(err)
+	}
 
 	return nil
 }

@@ -123,7 +123,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 
 		// We now process the various token status codes in order of priority, starting with DEPROVISIONED
 		if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
-			return nil, errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
+			return nil, errors.NewUnauthorizedErrorWithCode("token banned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
 		}
 
 		// If the token has been revoked or the user is logged out, we respond in the same way
@@ -357,11 +357,11 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 		}, "failed to load identity when refreshing token; it's OK if the token was issued for an API client")
 	}
 
-	if identity != nil && identity.User.Deprovisioned {
+	if identity != nil && identity.User.Banned {
 		log.Warn(ctx, map[string]interface{}{
 			"identity_id": identity.ID,
 			"user_name":   identity.Username,
-		}, "deprovisioned user tried to refresh token")
+		}, "banned user tried to refresh token")
 		return nil, errors.NewUnauthorizedError("unauthorized access")
 	}
 
@@ -408,7 +408,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 				}
 				// We now process the various token status codes in order of priority, starting with DEPROVISIONED
 				if loadedToken.HasStatus(authtoken.TOKEN_STATUS_DEPROVISIONED) {
-					return errors.NewUnauthorizedErrorWithCode("token deprovisioned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
+					return errors.NewUnauthorizedErrorWithCode("token banned", errors.UNAUTHORIZED_CODE_TOKEN_DEPROVISIONED)
 				}
 				// If the token has been revoked or the user is logged out, we respond in the same way
 				if loadedToken.HasStatus(authtoken.TOKEN_STATUS_REVOKED) || loadedToken.HasStatus(authtoken.TOKEN_STATUS_LOGGED_OUT) {
@@ -584,7 +584,7 @@ func (s *tokenServiceImpl) RetrieveExternalToken(ctx context.Context, forResourc
 		currentIdentityID = *id
 	} else {
 		// Extract user ID
-		currentIdentity, err := s.Services().UserService().LoadContextIdentityIfNotDeprovisioned(ctx)
+		currentIdentity, err := s.Services().UserService().LoadContextIdentityIfNotBanned(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -755,6 +755,9 @@ func (s *tokenServiceImpl) CleanupExpiredTokens(ctx context.Context) error {
 	return nil
 }
 
+// ValidateToken extracts the token ID (the "jti" claim) from the token and uses it to perform a db lookup of the token's
+// status, and if the status is invalid will return an unauthorized error.  For valid tokens, it will also update the
+// identity's (determined from the token's "sub" claim) last active timestamp
 func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.Token) error {
 	claims := accessToken.Claims.(jwt.MapClaims)
 
@@ -782,6 +785,20 @@ func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.T
 		}, "Invalid token status")
 
 		return errors.NewUnauthorizedError("invalid token")
+	}
+
+	identityID, err := uuid.FromString(claims["sub"].(string))
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract identity ID ('sub' claim) from token")
+		return errors.NewBadParameterErrorFromString("token", accessToken.Raw,
+			"could not extract identity ID from token")
+	}
+
+	// Update the identity's last active timestamp
+	err = s.Repositories().Identities().TouchLastActive(ctx, identityID)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{"error": err}, "could not update last active timestamp")
+		return errors.NewInternalError(ctx, err)
 	}
 
 	return nil
