@@ -364,6 +364,7 @@ func (c *ConfigurationData) checkServiceAccountConfig() {
 		"fabric8-notification":  true,
 		"rh-che":                true,
 		"fabric8-gemini-server": true,
+		"toolchain-operator":    true,
 	}
 	for _, sa := range c.sa {
 		if sa.Name == "" {
@@ -498,6 +499,7 @@ func (c *ConfigurationData) GetAuthServiceURL() string {
 // "fabric8-notification : "secret"
 // "rh-che : "secret"
 // "fabric8-gemini-server" : "secret"
+// "toolchain-operator" : "secret"
 func (c *ConfigurationData) GetServiceAccounts() map[string]ServiceAccount {
 	return c.sa
 }
