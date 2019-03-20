@@ -2,6 +2,7 @@ package gormtestsupport
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -40,6 +41,8 @@ type DBTestSuite struct {
 	Application     application.Application
 	CleanTest       func() error
 	CleanSuite      func() error
+	SetupSubtest    func()
+	TearDownSubtest func()
 	Ctx             context.Context
 	Graph           *graph.TestGraph
 	Wrappers        factorymanager.FactoryWrappers
@@ -105,6 +108,7 @@ func (s *DBTestSuite) SetupTest() {
 
 // TearDownTest implements suite.TearDownTest
 func (s *DBTestSuite) TearDownTest() {
+	fmt.Println("=== Teardown test")
 	// in some cases, we might need to keep the test data in the DB for inspecting/reproducing
 	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
 	// By default, test data will be removed from the DB after each test
@@ -121,6 +125,7 @@ func (s *DBTestSuite) PopulateDBTestSuite(ctx context.Context) {
 
 // TearDownSuite implements suite.TearDownAllSuite
 func (s *DBTestSuite) TearDownSuite() {
+	fmt.Println("=== Teardown Suite")
 	// in some cases, we might need to keep the test data in the DB for inspecting/reproducing
 	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
 	// By default, test data will be removed from the DB after each test
@@ -155,7 +160,7 @@ func (s *DBTestSuite) NewTestGraph(t *testing.T) graph.TestGraph {
 	return graph.NewTestGraph(t, s.Application, s.Ctx, s.DB)
 }
 
-// ReplaceFactory replaces a default factory with the specified factory.  This function is recommended to be used
+// WrapFactory replaces a default factory with the specified factory.  This function is recommended to be used
 // during tests where the default behaviour of a factory needs to be overridden
 func (s *DBTestSuite) WrapFactory(identifier string, constructor wrapper.FactoryWrapperConstructor, initializer wrapper.FactoryWrapperInitializer) {
 	s.Wrappers.RegisterWrapper(identifier, constructor, initializer)
@@ -164,4 +169,20 @@ func (s *DBTestSuite) WrapFactory(identifier string, constructor wrapper.Factory
 // ResetFactories resets all factories to default, and resets all overridden factory configurations.
 func (s *DBTestSuite) ResetFactories() {
 	s.Wrappers.ResetWrappers()
+}
+
+// Run overrides the default behaviour of the Suite.Run method, in order
+// to run the SetupSubtest and TearDownSubtest methods for each subtest
+func (s *DBTestSuite) Run(name string, subtest func()) bool {
+	fmt.Printf("==== RUN Subtest '%s'\n", name)
+	if s.SetupSubtest != nil {
+		s.SetupSubtest()
+	}
+	defer func() {
+		fmt.Printf("==== END Subtest '%s'\n", name)
+		if s.TearDownSubtest != nil {
+			s.TearDownSubtest()
+		}
+	}()
+	return s.Suite.Run(name, subtest)
 }

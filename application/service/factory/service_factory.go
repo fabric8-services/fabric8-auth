@@ -223,7 +223,7 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *c
 	}
 	// default function to return an instance of User Service
 	f.userServiceFunc = func() service.UserService {
-		return userservice.NewUserService(f.getContext())
+		return userservice.NewUserService(f.getContext(), f.config)
 	}
 	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d option(s)", len(options))
 	// and options
