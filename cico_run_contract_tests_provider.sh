@@ -24,9 +24,11 @@ if [ "$CICO_RUN" == "true" ]; then
 |BUILD_NUMBER\
 |OSIO_USERNAME\
 |OSIO_PASSWORD\
+|OSIO_CLUSTER_URL\
 |ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID\
 |ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SECRET"
         eval "$(./env-toolkit load -f jenkins-env.json --regex $regex)"
+        export OSIO_CLUSTER_URL="${OSIO_CLUSTER_URL:-https://api.starter-us-east-2a.openshift.com/}"
     fi
     install_deps;
     YUM_OPTS="-y -d1"
