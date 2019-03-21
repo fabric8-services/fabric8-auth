@@ -4,17 +4,19 @@
 
 CICO_RUN="${CICO_RUN:-true}"
 if [ "$CICO_RUN" == "true" ]; then
-    artifacts_key="$(readlink -f ./artifacts.key)"
-    artifacts_key_path="/tmp/artifacts.key"
-    echo "Checking for $artifacts_key file..."
-    if [ -f $artifacts_key ]; then
-        echo "$artifacts_key found - preparing for archiving artifacts."
-        chmod 600 "$artifacts_key"
-        chown root:root "$artifacts_key"
-        mv -vf "$artifacts_key" "$artifacts_key_path"
-    else
-        echo "$artifacts_key does not found!"
-        exit 1
+    if [ "$ARCHIVE_ARTIFACTS" == "true" ]; then
+        artifacts_key="$(readlink -f ./artifacts.key)"
+        artifacts_key_path="/tmp/artifacts.key"
+        echo "Checking for $artifacts_key file..."
+        if [ -f $artifacts_key ]; then
+            echo "$artifacts_key found - preparing for archiving artifacts."
+            chmod 600 "$artifacts_key"
+            chown root:root "$artifacts_key"
+            mv -vf "$artifacts_key" "$artifacts_key_path"
+        else
+            echo "$artifacts_key does not found!"
+            exit 1
+        fi
     fi
     load_jenkins_vars;
     if [ -e "jenkins-env.json" ]; then
