@@ -61,6 +61,9 @@ func (c *NamedusersController) Ban(ctx *app.BanNamedusersContext) error {
 			// Just log the error and proceed
 		}
 	}
+	log.Info(ctx, map[string]interface{}{
+		"username": ctx.Username,
+	}, "user banned")
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
 }
@@ -93,6 +96,9 @@ func (c *NamedusersController) Deactivate(ctx *app.DeactivateNamedusersContext) 
 		}, "error occurred while deactivating user")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
+	log.Info(ctx, map[string]interface{}{
+		"username": ctx.Username,
+	}, "user deactivated")
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
 }
