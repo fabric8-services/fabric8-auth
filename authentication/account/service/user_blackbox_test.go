@@ -88,6 +88,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		require.NoError(s.T(), err)
 		user4.Banned = true
 		err = s.Application.Users().Save(ctx, user4)
+		require.NoError(s.T(), err)
 	}
 
 	s.TearDownSubtest = func() {
@@ -277,6 +278,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	require.NoError(s.T(), err)
 	user4.Banned = true
 	err = s.Application.Users().Save(ctx, user4)
+	require.NoError(s.T(), err)
 
 	s.Run("no user to deactivate", func() {
 		// given

@@ -168,6 +168,7 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation(
 	require.NoError(s.T(), err)
 	user4.Banned = true
 	err = s.Application.Users().Save(ctx, user4)
+	require.NoError(s.T(), err)
 
 	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
 		// given
@@ -265,6 +266,7 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 	require.NoError(s.T(), err)
 	user4.Banned = true
 	err = s.Application.Users().Save(ctx, user4)
+	require.NoError(s.T(), err)
 
 	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
 		// given
