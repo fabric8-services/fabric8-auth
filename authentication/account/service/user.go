@@ -127,7 +127,7 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
 	// for each identity, send a notification and record the timestamp in a separate transaction.
-	// perform the task for each identity in a separate Tx, and just log the error if something wring happen,
+	// perform the task for each identity in a separate Tx, and just log the error if something wrong happened,
 	// but don't stop processing on the rest of the accounts.
 	expirationDate := time.Now().
 		Add(s.config.GetUserDeactivationInactivityPeriod() - s.config.GetUserDeactivationInactivityNotificationPeriod()).
@@ -181,9 +181,10 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 
 // ListIdentitiesToDeactivate lists the identities to deactivate
 func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(-s.config.GetUserDeactivationInactivityPeriod()) // remove 'n' days from now (default: 31)
+	since := time.Now().Add(-s.config.GetUserDeactivationInactivityPeriod())                                                                    // remove 'n' days from now (default: 31)
+	notification := time.Now().Add(s.config.GetUserDeactivationInactivityNotificationPeriod() - s.config.GetUserDeactivationInactivityPeriod()) // make sure that the notification was sent at least `n` days earlier (default: 7)
 	limit := s.config.GetUserDeactivationFetchLimit()
-	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, limit)
+	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit)
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string) error {

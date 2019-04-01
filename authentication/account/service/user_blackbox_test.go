@@ -52,8 +52,8 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		return 500 * time.Millisecond
 	}
 
-	var identity1, identity2, identity3 *repository.Identity
 	// configure the `SetupSubtest` and `TearDownSubtest` to setup/reset data after each subtest
+	var identity1, identity2, identity3 *repository.Identity
 	s.SetupSubtest = func() {
 		s.CleanTest = testsuite.DeleteCreatedEntities(s.DB, s.Configuration)
 		now := time.Now()
@@ -66,7 +66,6 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		require.NoError(s.T(), err)
 		s.Graph.CreateIdentity("user4", now.Add(-24*time.Hour)) // noise: 1 day since last activity
 	}
-
 	s.TearDownSubtest = func() {
 		err := s.CleanTest()
 		require.NoError(s.T(), err)
@@ -223,15 +222,20 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	now := time.Now()
 	identity1 := s.Graph.CreateIdentity("user1", now.Add(-40*24*time.Hour)).Identity() // 40 days since last activity
 	yesterday := now.Add(-1 * 24 * time.Hour)
-	identity1.DeactivationNotification = &yesterday
+	ago11days := now.Add(-11 * 24 * time.Hour)
+	identity1.DeactivationNotification = &ago11days
 	err := s.Application.Identities().Save(ctx, identity1)
 	require.NoError(s.T(), err)
 	identity2 := s.Graph.CreateIdentity("user2", now.Add(-70*24*time.Hour)).Identity() // 70 days since last activity
-	identity2.DeactivationNotification = &yesterday
+	identity2.DeactivationNotification = &ago11days
 	err = s.Application.Identities().Save(ctx, identity2)
 	require.NoError(s.T(), err)
-	s.Graph.CreateIdentity("user3", now.Add(-70*24*time.Hour)).Identity() // noise: 70 day since last activity, but not notified yet
-	s.Graph.CreateIdentity("user4", now.Add(-24*time.Hour))               // noise: 1 day since last activity
+	s.Graph.CreateIdentity("user3", now.Add(-70*24*time.Hour)).Identity()              // noise: 70 day since last activity, but not notified yet
+	s.Graph.CreateIdentity("user4", now.Add(-24*time.Hour))                            // noise: 1 day since last activity
+	identity5 := s.Graph.CreateIdentity("user5", now.Add(-40*24*time.Hour)).Identity() // noise: 40 day since last activity, but notified lately: should not be listed as a user to deactivate
+	identity5.DeactivationNotification = &yesterday
+	err = s.Application.Identities().Save(ctx, identity5)
+	require.NoError(s.T(), err)
 
 	s.Run("no user to deactivate", func() {
 		// given
@@ -240,6 +244,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 90 * 24 * time.Hour // 90 days
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 80 * 24 * time.Hour // 20 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
@@ -256,6 +263,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 50 * 24 * time.Hour // 20 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
@@ -274,6 +284,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 20 * 24 * time.Hour // 20 days
+		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
 		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
@@ -290,6 +303,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 20 * 24 * time.Hour // 20 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
