@@ -1,28 +1,30 @@
 package service_test
 
 import (
-	"bytes"
 	"context"
-	"errors"
-	"golang.org/x/oauth2"
-	"io/ioutil"
+	"fmt"
 	"net/http"
 	"testing"
 
+	"golang.org/x/oauth2"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-	"github.com/fabric8-services/fabric8-auth/configuration"
+	subscription "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
+	testsubscription "github.com/fabric8-services/fabric8-auth/test/generated/authentication/subscription/service"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
-	"github.com/satori/go.uuid"
+	jwt "github.com/dgrijalva/jwt-go"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	gock "gopkg.in/h2non/gock.v1"
 )
 
 type osoSubscriptionServiceTestSuite struct {
@@ -61,81 +63,213 @@ func (s *osoSubscriptionServiceTestSuite) TestInvalidTokeFails() {
 	require.Error(s.T(), err)
 }
 
-func (s *osoSubscriptionServiceTestSuite) TestClientResponse() {
-	accessToken, err := testtoken.GenerateToken(uuid.NewV4().String(), "test-oso-registration-app-user")
-	require.NoError(s.T(), err)
+func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
+	// given
+	appRegURL := "https://some.osourl.io"
+	admin := "test-admin"
+	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithClusterService(clusterServiceMock))
+	config := testsubscription.NewOSOSubscriptionServiceConfigurationMock(s.T())
+	config.GetOSORegistrationAppURLFunc = func() string {
+		return appRegURL
+	}
+	config.GetOSORegistrationAppAdminUsernameFunc = func() string {
+		return admin
+	}
+	config.GetOSORegistrationAppAdminTokenFunc = func() string {
+		return fmt.Sprintf("%s-token", admin)
+	}
+	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
 
-	// Should return an error if the client failed
-	s.client.Error = errors.New("something went wrong")
-	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
-	require.Error(s.T(), err)
-	assert.IsType(s.T(), autherrors.InternalError{}, err)
+	var username, accessToken string
+	s.SetupSubtest = func() {
+		username = uuid.NewV4().String()
+		var err error
+		accessToken, err = testtoken.GenerateToken(uuid.NewV4().String(), username)
+		require.NoError(s.T(), err)
+	}
+	defer gock.OffAll()
+	gock.Observe(gock.DumpRequest)
 
-	// Should return an error if the client returns any status but 200 or 404
-	s.client.Error = nil
-	body := ioutil.NopCloser(bytes.NewReader([]byte{}))
-	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError}
-	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
-	require.Error(s.T(), err)
-	assert.IsType(s.T(), autherrors.InternalError{}, err)
+	s.Run("success", func() {
 
-	// Should return "signup_needed" if the client returns 404
-	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
-	loader := testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
-	test.ActivateDummySubscriptionLoaderFactory(s, loader)
-	status, err := s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), "signup_needed", status)
+		s.Run("subscription found", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(200).BodyString(`{
+				"subscriptions":[
+					{
+						"status":"some-test-status",
+						"plan":{
+							"service":{
+								"api_url":"https://api.starter-us-east-2a.openshift.com"
+							}
+						}
+					}
+				]
+			}`)
+			// when
+			status, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "some-test-status", status)
+		})
 
-	// Should return an error if the client returns invalid payload
-	body = ioutil.NopCloser(bytes.NewReader([]byte("foo")))
-	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
-	test.ActivateDummySubscriptionLoaderFactory(s, loader)
-	_, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
-	require.Error(s.T(), err)
-	assert.IsType(s.T(), autherrors.InternalError{}, err)
+		s.Run("multiple subscriptions", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(200).BodyString(`{
+				"subscriptions":[
+					{
+						"status":"some-test-status",
+						"plan":{
+							"service":{
+								"api_url":"unknown_cluster"
+							}
+						}
+					},
+					{
+						"status":"some-test-status",
+						"plan":{
+							"service":{
+								"api_url":"https://api.starter-us-east-2a.openshift.com"
+							}
+						}
+					},
+					{
+						"status":"some-test-status",
+						"plan":{
+							"service":{
+								"api_url":"other_unknown_cluster"
+							}
+						}
+					}
+				]
+			}`)
+			// when
+			status, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "some-test-status", status)
+		})
+	})
 
-	// Should return "signup_needed" if no subscription found
-	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}}]}")))
-	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
-	test.ActivateDummySubscriptionLoaderFactory(s, loader)
-	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), "signup_needed", status)
+	s.Run("failure", func() {
 
-	// Subscription found
-	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status-for2\",\"plan\":{\"service\":{\"api_url\":\"https://api.starter-us-east-2a.openshift.com/\"}}}]}")))
-	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
-	test.ActivateDummySubscriptionLoaderFactory(s, loader)
-	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), "some-test-status-for2", status)
+		s.Run("should return an error if token is invalid", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(500)
+			// when
+			_, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{})
+			// then
+			require.Error(s.T(), err)
+			assert.IsType(s.T(), &jwt.ValidationError{}, err)
+		})
 
-	// Multiple subscriptions
-	body = ioutil.NopCloser(bytes.NewReader([]byte("{\"subscriptions\":[{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}},{\"status\":\"some-test-status-for2\",\"plan\":{\"service\":{\"api_url\":\"https://api.starter-us-east-2a.openshift.com/\"}}},{\"status\":\"some-test-status\",\"plan\":{\"service\":{\"api_url\":\"unknown_cluster\"}}}]}")))
-	s.client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
-	loader = testsupport.NewDummyRemoteSubscriptionLoader(&dummyConfig{s.Configuration}, s.client)
-	test.ActivateDummySubscriptionLoaderFactory(s, loader)
-	status, err = s.Application.OSOSubscriptionService().LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), "some-test-status-for2", status)
-}
+		s.Run("should return an error if token manager is missing", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(500)
+			// when
+			_, err := svc.LoadOSOSubscriptionStatus(context.Background(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.Error(s.T(), err)
+			assert.IsType(s.T(), autherrors.InternalError{}, err)
+		})
 
-type dummyConfig struct {
-	*configuration.ConfigurationData
-}
+		s.Run("should return an error if the client failed", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(500)
+			// when
+			_, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.Error(s.T(), err)
+			assert.IsType(s.T(), autherrors.InternalError{}, err)
+		})
 
-func (c *dummyConfig) GetOSORegistrationAppURL() string {
-	return "https://some.osourl.io"
-}
+		s.Run("should return an error if the client returns any status but 200 or 404", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(501)
+			// when
+			_, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.Error(s.T(), err)
+			assert.IsType(s.T(), autherrors.InternalError{}, err)
+		})
 
-func (c *dummyConfig) GetOSORegistrationAppAdminUsername() string {
-	return "test-oso-admin-user"
-}
+		s.Run("should return signup_needed if the client returns 404", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(404)
+			// when
+			status, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "signup_needed", status)
+		})
 
-func (c *dummyConfig) GetOSORegistrationAppAdminToken() string {
-	return "test-oso-admin-token"
+		s.Run("should return an error if the client returns invalid payload", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(200).BodyString("foo")
+			// when
+			_, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.Error(s.T(), err)
+			assert.IsType(s.T(), autherrors.InternalError{}, err)
+		})
+
+		s.Run("should return 'signup_needed' if no subscription found", func() {
+			// intercept call to remote Online Reg App Service
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(200).BodyString(`{
+				"subscriptions":[
+					{
+						"status":"some-test-status",
+						"plan":{
+							"service":{
+								"api_url":"unknown_cluster"
+							}
+						}
+					}
+				]
+			}`)
+			// when
+			status, err := svc.LoadOSOSubscriptionStatus(testtoken.ContextWithTokenManager(), oauth2.Token{AccessToken: accessToken})
+			// then
+			require.NoError(s.T(), err)
+			assert.Equal(s.T(), "signup_needed", status)
+		})
+	})
+
 }

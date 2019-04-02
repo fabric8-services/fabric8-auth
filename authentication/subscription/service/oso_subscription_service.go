@@ -2,24 +2,28 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/authentication/subscription"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"golang.org/x/oauth2"
 
-	autherrors "github.com/fabric8-services/fabric8-auth/errors"
+	errs "github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 const signUpNeededStatus = "signup_needed"
 
+// OSOSubscriptionServiceConfiguration the OSOSubscriptionService implementation configuration
 type OSOSubscriptionServiceConfiguration interface {
-	manager.TokenManagerConfiguration
+	// manager.TokenManagerConfiguration
 	GetOSORegistrationAppURL() string
 	GetOSORegistrationAppAdminUsername() string
 	GetOSORegistrationAppAdminToken() string
@@ -31,6 +35,7 @@ type osoSubscriptionServiceImpl struct {
 	httpClient rest.HttpClient
 }
 
+// NewOSOSubscriptionService returns a new OSOSubscriptionService implementation
 func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSOSubscriptionServiceConfiguration) service.OSOSubscriptionService {
 	return &osoSubscriptionServiceImpl{
 		BaseService: base.NewBaseService(context),
@@ -41,7 +46,6 @@ func NewOSOSubscriptionService(context servicecontext.ServiceContext, config OSO
 
 // LoadOSOSubscriptionStatus loads a subscription status from OpenShift Online Registration app
 func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error) {
-
 	tm, err := manager.ReadTokenManagerFromContext(ctx)
 	if err != nil {
 		log.Error(nil, map[string]interface{}{
@@ -57,9 +61,9 @@ func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Conte
 	}
 	username := tokenClaims.Username
 
-	subs, err := s.Factories().SubscriptionLoaderFactory().NewSubscriptionLoader(ctx).LoadSubscriptions(ctx, username)
+	subs, err := s.loadSubscriptions(ctx, username)
 	if err != nil {
-		if subscription.IsSignUpNeededError(err) {
+		if isSignUpNeededError(err) {
 			return signUpNeededStatus, nil
 		}
 		return "", autherrors.NewInternalError(ctx, err)
@@ -76,4 +80,100 @@ func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Conte
 	}
 	// Didn't find subscription for OSIO clusters. OSIO sign up is required.
 	return signUpNeededStatus, nil
+}
+
+type signUpNeededError struct {
+	Err error
+}
+
+func (e signUpNeededError) Error() string {
+	return e.Err.Error()
+}
+
+func newSignUpNeededError(ctx context.Context, err error) signUpNeededError {
+	return signUpNeededError{err}
+}
+
+func isSignUpNeededError(err error) bool {
+	_, ok := errs.Cause(err).(signUpNeededError)
+	if !ok {
+		return false
+	}
+	return true
+}
+
+type Subscriptions struct {
+	Subscriptions []Subscription `json:"subscriptions"`
+}
+
+type Subscription struct {
+	Status string `json:"status"`
+	Plan   Plan   `json:"plan"`
+}
+
+type Plan struct {
+	Service Service `json:"service"`
+}
+
+type Service struct {
+	APIURL string `json:"api_url"`
+}
+
+type SubscriptionLoader interface {
+	LoadSubscriptions(ctx context.Context, username string) (*Subscriptions, error)
+}
+
+func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, username string) (*Subscriptions, error) {
+	// Load status from OSO
+	regAppURL := fmt.Sprintf("%s/api/accounts/%s/subscriptions?authorization_username=%s",
+		s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
+	log.Debug(ctx, map[string]interface{}{
+		"url": regAppURL,
+	}, "calling remote registration application to check the user status")
+	req, err := http.NewRequest("GET", regAppURL, nil)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err.Error(),
+			"reg_app_url": regAppURL,
+		}, "unable to create http request")
+		return nil, autherrors.NewInternalError(ctx, err)
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.config.GetOSORegistrationAppAdminToken()))
+	res, err := s.httpClient.Do(req)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err.Error(),
+			"reg_app_url": regAppURL,
+		}, "unable to load OSO subscription status")
+		return nil, autherrors.NewInternalError(ctx, err)
+	}
+	defer rest.CloseResponse(res)
+	bodyString := rest.ReadBody(res.Body)
+
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusNotFound {
+			// User does not exist
+			return nil, newSignUpNeededError(ctx, nil)
+		}
+
+		log.Error(ctx, map[string]interface{}{
+			"reg_app_url":     regAppURL,
+			"response_status": res.Status,
+			"response_body":   bodyString,
+		}, "unable to load OSO subscription status")
+		return nil, autherrors.NewInternalError(ctx, errors.New("unable to load OSO subscription status"))
+	}
+
+	var sbs Subscriptions
+	err = json.Unmarshal([]byte(bodyString), &sbs)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err,
+			"reg_app_url": regAppURL,
+			"body":        bodyString,
+		}, "unable to unmarshal json with subscription status")
+		return nil, autherrors.NewInternalError(ctx, err)
+	}
+
+	return &sbs, nil
 }

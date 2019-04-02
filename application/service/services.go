@@ -8,7 +8,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
-	"github.com/fabric8-services/fabric8-auth/authentication/subscription"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
@@ -223,14 +222,9 @@ type LinkingProviderFactory interface {
 	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, authURL string, forResource string) (provider.LinkingProvider, error)
 }
 
-type SubscriptionLoaderFactory interface {
-	NewSubscriptionLoader(ctx context.Context) subscription.SubscriptionLoader
-}
-
 // Factories is the interface responsible for creating instances of factory objects
 type Factories interface {
 	ClusterCacheFactory() ClusterCacheFactory
 	IdentityProviderFactory() IdentityProviderFactory
 	LinkingProviderFactory() LinkingProviderFactory
-	SubscriptionLoaderFactory() SubscriptionLoaderFactory
 }
