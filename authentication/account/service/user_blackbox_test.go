@@ -49,18 +49,17 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 	}
 	ctx := context.Background()
 	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
-		return 500 * time.Millisecond
+		return 5 * time.Millisecond
 	}
 
 	// configure the `SetupSubtest` and `TearDownSubtest` to setup/reset data after each subtest
 	var identity1, identity2, identity3 repository.Identity
 	s.SetupSubtest = func() {
 		s.CleanTest = testsuite.DeleteCreatedEntities(s.DB, s.Configuration)
-		now := time.Now()
-		yesterday := now.Add(-1 * 24 * time.Hour)
-		ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
-		ago40days := now.Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
-		ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+		yesterday := time.Now().Add(-1 * 24 * time.Hour)
+		ago65days := time.Now().Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
+		ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
+		ago70days := time.Now().Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
 		// user/identity1: 40 days since last activity and not notified
 		user1 := s.Graph.CreateUser().User()
 		identity1 = user1.Identities[0]
@@ -75,7 +74,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		require.NoError(s.T(), err)
 		// noise: user/identity: 1 day since last activity and not notified yet
 		user3 := s.Graph.CreateUser().User()
-		s.Graph.CreateIdentity(now.Add(-24 * time.Hour))
+		s.Graph.CreateIdentity(yesterday)
 		identity3 = user3.Identities[0]
 		identity3.LastActive = &yesterday
 		err = s.Application.Identities().Save(ctx, &identity3)
@@ -109,7 +108,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		assert.Empty(s.T(), result)
@@ -130,7 +129,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
@@ -157,7 +156,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
@@ -184,7 +183,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 2)
@@ -217,7 +216,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 2)
@@ -242,12 +241,11 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		return 31 * 24 * time.Hour // 31 days
 	}
 	ctx := context.Background()
-	now := time.Now()
-	yesterday := now.Add(-1 * 24 * time.Hour)
-	ago10days := now.Add(-10 * 24 * time.Hour)
-	ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
-	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
-	ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+	yesterday := time.Now().Add(-1 * 24 * time.Hour)
+	ago10days := time.Now().Add(-10 * 24 * time.Hour)
+	ago65days := time.Now().Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
+	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
+	ago70days := time.Now().Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
 	// user/identity1: 40 days since last activity and notified
 	user1 := s.Graph.CreateUser().User()
 	identity1 := user1.Identities[0]
@@ -264,7 +262,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	require.NoError(s.T(), err)
 	// noise: user/identity: 1 day since last activity and not notified yet
 	user3 := s.Graph.CreateUser().User()
-	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))
+	s.Graph.CreateIdentity(time.Now().Add(-24 * time.Hour))
 	identity3 := user3.Identities[0]
 	identity3.LastActive = &yesterday
 	err = s.Application.Identities().Save(ctx, &identity3)
@@ -293,7 +291,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
-		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		assert.Empty(s.T(), result)
@@ -312,7 +310,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
-		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
@@ -332,7 +330,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
-		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
@@ -352,13 +350,109 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
-		result, err := userSvc.ListIdentitiesToDeactivate(ctx)
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 2)
 		assert.Equal(s.T(), identity2.ID, result[0].ID) // user 2 was inactive for 70 days and notified 10 days ago
 		assert.Equal(s.T(), identity1.ID, result[1].ID) // user 1 was inactive for 40 days and notified 10 days ago
 	})
+
+}
+
+// Testing workflow of user to notify and deactivate, or not, depending on their activity, etc.
+func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
+	// given
+	config := userservicemock.NewUserServiceConfigurationMock(s.T())
+	config.GetUserDeactivationFetchLimitFunc = func() int {
+		return 100
+	}
+	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+		return 30 * 24 * time.Hour // 31 days, ie, 7 days after notification
+	}
+	config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		return 20 * 24 * time.Hour // 24 days
+	}
+	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
+		return 5 * time.Millisecond
+	}
+	ctx := context.Background()
+	yesterday := time.Now().Add(-1 * 24 * time.Hour)
+	// ago10days := now.Add(-10 * 24 * time.Hour)
+	// ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
+	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
+	// ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+
+	// identity1.DeactivationNotification = &ago10days
+	// err := s.Application.Identities().Save(ctx, &identity1)
+	// require.NoError(s.T(), err)
+
+	notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+	notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+		return nil, nil
+	}
+
+	userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+
+	// ----------------------------------------
+	// Step 1: User A is not active for 40 days
+	// and was not notified yet.
+	// ----------------------------------------
+	user1 := s.Graph.CreateUser().User()
+	identity1 := user1.Identities[0]
+	identity1.LastActive = &ago40days
+	err := s.Application.Identities().Save(ctx, &identity1)
+	require.NoError(s.T(), err)
+	// Check if User A is returned to be notified.
+	notified, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
+	require.NoError(s.T(), err)
+	require.Len(s.T(), notified, 1)
+	assert.Equal(s.T(), identity1.ID, notified[0].ID)
+	// Check if User A is not returned to be deactivated yet.
+	deactivated, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), deactivated)
+
+	// -----------------------------------------------------------
+	// Step 2: Run the notification emitting again (ie, next day),
+	// and check that user A is not notified again.
+	// -----------------------------------------------------------
+	notified, err = userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), notified)
+
+	// ----------------------------------
+	// Step 3: User A does some activity.
+	// ----------------------------------
+	identity1.LastActive = &yesterday
+	err = s.Application.Identities().Save(ctx, &identity1)
+	require.NoError(s.T(), err)
+	// Check if User A is not returned to be notified (activity is too recent)
+	notified, err = userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), notified)
+	// Check if User A is not returned to be deactivated yet.
+	deactivated, err = userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), deactivated)
+
+	// ------------------------------------------------------------
+	// Step 4: After notification period the user A still not among
+	// users to be notified nor deactivated: she was notified but
+	// came back to the platform in the mean time.
+	// ------------------------------------------------------------
+	// 10 days later...
+	in10days := func() time.Time {
+		return time.Now().Add(10 * 24 * time.Hour)
+	}
+	// Check if User A is not returned to be notified (activity is too recent)
+	notified, err = userSvc.NotifyIdentitiesBeforeDeactivation(ctx, in10days)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), notified)
+	// Check if User A is not returned to be deactivated yet.
+	deactivated, err = userSvc.ListIdentitiesToDeactivate(ctx, in10days)
+	require.NoError(s.T(), err)
+	require.Empty(s.T(), deactivated)
 }
 
 func (s *userServiceBlackboxTestSuite) TestBanUser() {

@@ -119,8 +119,8 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 
 // NotifyIdentitiesBeforeDeactivation list identities (with a limit) who are soon eligible for account deactivation,
 // sends a notification to each one and record the timestamp of the notification as a marker before upcoming deactivation
-func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriodDays()) // remove 'n' days from now (default: 24)
+func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context, now func() time.Time) ([]repository.Identity, error) {
+	since := now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriodDays()) // remove 'n' days from now (default: 24)
 	limit := s.config.GetUserDeactivationFetchLimit()
 	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
 	if err != nil {
@@ -129,7 +129,7 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	// for each identity, send a notification and record the timestamp in a separate transaction.
 	// perform the task for each identity in a separate Tx, and just log the error if something wrong happened,
 	// but don't stop processing on the rest of the accounts.
-	expirationDate := time.Now().
+	expirationDate := now().
 		Add(s.config.GetUserDeactivationInactivityPeriodDays() - s.config.GetUserDeactivationInactivityNotificationPeriodDays()).
 		Format("Mon Jan 2")
 	// run the notification/record update in a separate routine, with pooling of child routines to avoid
@@ -144,7 +144,7 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 			log.Error(ctx, map[string]interface{}{}, "argument is not an identity")
 			return
 		}
-		err := s.notifyIdentityBeforeDeactivation(ctx, identity, expirationDate)
+		err := s.notifyIdentityBeforeDeactivation(ctx, identity, expirationDate, now)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
 				"error":    err,
@@ -180,21 +180,21 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 }
 
 // ListIdentitiesToDeactivate lists the identities to deactivate
-func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context) ([]repository.Identity, error) {
-	since := time.Now().Add(-s.config.GetUserDeactivationInactivityPeriodDays())                                                                    // remove 'n' days from now (default: 31)
-	notification := time.Now().Add(s.config.GetUserDeactivationInactivityNotificationPeriodDays() - s.config.GetUserDeactivationInactivityPeriodDays()) // make sure that the notification was sent at least `n` days earlier (default: 7)
+func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now func() time.Time) ([]repository.Identity, error) {
+	since := now().Add(-s.config.GetUserDeactivationInactivityPeriodDays())                                                                        // remove 'n' days from now (default: 31)
+	notification := now().Add(s.config.GetUserDeactivationInactivityNotificationPeriodDays() - s.config.GetUserDeactivationInactivityPeriodDays()) // make sure that the notification was sent at least `n` days earlier (default: 7)
 	limit := s.config.GetUserDeactivationFetchLimit()
 	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit)
 }
 
-func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string) error {
+func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string, now func() time.Time) error {
 	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.Username, expirationDate)
 	_, err := s.Services().NotificationService().SendMessageAsync(ctx, msg)
 	if err != nil {
 		return errs.Wrap(err, "failed to send notification to user before account deactivation")
 	}
 	if err := s.ExecuteInTransaction(func() error {
-		notificationDate := time.Now()
+		notificationDate := now()
 		identity.DeactivationNotification = &notificationDate
 		return s.Repositories().Identities().Save(ctx, &identity)
 	}); err != nil {
