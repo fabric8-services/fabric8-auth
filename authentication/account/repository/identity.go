@@ -400,7 +400,11 @@ func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx conte
 	var identities []Identity
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
-	err := m.db.Model(&Identity{}).Where("last_active < ? and deactivation_notification is NULL", lastActivity).Order("last_active, created_at").Limit(limit).Find(&identities).Error
+	err := m.db.Model(&Identity{}).
+		Where(`last_active < ? AND deactivation_notification IS NULL`, lastActivity).
+		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
+		Order("last_active, created_at").
+		Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
@@ -412,7 +416,7 @@ func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx conte
 }
 
 // ListIdentitiesToDeactivate return identities whose last activity is older than the given one,
-// and for whom there is a `deactivation_notification` value.
+// and for whom there is a `deactivation_notification` value and who were not previously banned.
 // The result size is limited to the given number of identities (ordered by last activity)
 // if limit is a negative value (eg: '-1'), it is ignored
 func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
@@ -420,7 +424,10 @@ func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context,
 	var identities []Identity
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
-	err := m.db.Model(&Identity{}).Where("last_active < ? and deactivation_notification is NOT NULL", lastActivity).Order("last_active, created_at").Limit(limit).Find(&identities).Error
+	err := m.db.Model(&Identity{}).
+		Where("last_active < ? and deactivation_notification is NOT NULL", lastActivity).
+		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
+		Order("last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}

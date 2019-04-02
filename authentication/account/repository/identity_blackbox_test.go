@@ -134,16 +134,41 @@ func (s *IdentityRepositoryTestSuite) TestLoad() {
 
 func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation() {
 
+	// given
 	ctx := context.Background()
 	now := time.Now()
-	identity1 := s.Graph.CreateIdentity(now.Add(-40 * 24 * time.Hour)).Identity() // 40 days since last activity
-	identity2 := s.Graph.CreateIdentity(now.Add(-70 * 24 * time.Hour)).Identity() // 70 days since last activity
-	identity3 := s.Graph.CreateIdentity(now.Add(-70 * 24 * time.Hour)).Identity() // noise: 70 day since last activity, but already notified
 	yesterday := now.Add(-1 * 24 * time.Hour)
-	identity3.DeactivationNotification = &yesterday
-	err := s.Application.Identities().Save(ctx, identity3)
+	ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
+	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
+	ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+	// user/identity1: 40 days since last activity and not notified
+	user1 := s.Graph.CreateUser().User()
+	identity1 := user1.Identities[0]
+	identity1.LastActive = &ago40days
+	err := s.Application.Identities().Save(ctx, &identity1)
 	require.NoError(s.T(), err)
-	s.Graph.CreateIdentity(now.Add(-24 * time.Hour)) // noise: 1 day since last activity
+	// user/identity2: 70 days since last activity and not notified
+	user2 := s.Graph.CreateUser().User()
+	identity2 := user2.Identities[0]
+	identity2.LastActive = &ago70days
+	err = s.Application.Identities().Save(ctx, &identity2)
+	require.NoError(s.T(), err)
+	// noise: user/identity: 1 day since last activity and not notified yet
+	user3 := s.Graph.CreateUser().User()
+	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))
+	identity3 := user3.Identities[0]
+	identity3.LastActive = &yesterday
+	err = s.Application.Identities().Save(ctx, &identity3)
+	require.NoError(s.T(), err)
+	// noise: user/identity: 65 days since last activity but banned
+	user4 := s.Graph.CreateUser().User()
+	identity4 := user4.Identities[0]
+	identity4.LastActive = &ago65days
+	err = s.Application.Identities().Save(ctx, &identity4)
+	require.NoError(s.T(), err)
+	user4.Banned = true
+	err = s.Application.Users().Save(ctx, user4)
+	require.NoError(s.T(), err)
 
 	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
 		// given
@@ -175,7 +200,6 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation(
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		assert.Equal(t, identity2.ID, result[0].ID)
-
 	})
 
 	s.T().Run("two users to notify for deactivation with limit unreached", func(t *testing.T) {
@@ -195,6 +219,104 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation(
 		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
 		// when
 		result, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivation(ctx, lastActivity, -1)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, identity2.ID, result[0].ID)
+		assert.Equal(t, identity1.ID, result[1].ID)
+	})
+
+}
+
+func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
+	// given
+	ctx := context.Background()
+	now := time.Now()
+	yesterday := now.Add(-1 * 24 * time.Hour)
+	ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
+	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
+	ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+	// user/identity1: 40 days since last activity and notified
+	user1 := s.Graph.CreateUser().User()
+	identity1 := user1.Identities[0]
+	identity1.LastActive = &ago40days
+	identity1.DeactivationNotification = &yesterday
+	err := s.Application.Identities().Save(ctx, &identity1)
+	require.NoError(s.T(), err)
+	// user/identity2: 70 days since last activity and notified
+	user2 := s.Graph.CreateUser().User()
+	identity2 := user2.Identities[0]
+	identity2.LastActive = &ago70days
+	identity2.DeactivationNotification = &yesterday
+	err = s.Application.Identities().Save(ctx, &identity2)
+	require.NoError(s.T(), err)
+	// noise: user/identity: 1 day since last activity and not notified yet
+	user3 := s.Graph.CreateUser().User()
+	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))
+	identity3 := user3.Identities[0]
+	identity3.LastActive = &yesterday
+	err = s.Application.Identities().Save(ctx, &identity3)
+	require.NoError(s.T(), err)
+	// noise: user/identity: 65 days since last activity and notified, but also banned
+	user4 := s.Graph.CreateUser().User()
+	identity4 := user4.Identities[0]
+	identity4.LastActive = &ago65days
+	identity4.DeactivationNotification = &yesterday
+	err = s.Application.Identities().Save(ctx, &identity4)
+	require.NoError(s.T(), err)
+	user4.Banned = true
+	err = s.Application.Users().Save(ctx, user4)
+	require.NoError(s.T(), err)
+
+	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-90 * 24 * time.Hour) // 90 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	s.T().Run("one user to notify for deactivation", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-60 * 24 * time.Hour) // 60 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, identity2.ID, result[0].ID)
+	})
+
+	s.T().Run("one user to notify for deactivation with limit reached", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 1)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, identity2.ID, result[0].ID)
+	})
+
+	s.T().Run("two users to notify for deactivation with limit unreached", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		// then
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, identity2.ID, result[0].ID)
+		assert.Equal(t, identity1.ID, result[1].ID)
+	})
+
+	s.T().Run("two users to notify for deactivation without limit", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, -1)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 2)

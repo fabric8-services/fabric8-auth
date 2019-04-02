@@ -253,6 +253,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 48
 	m = append(m, steps{ExecuteSQLFile("048-identity-deactivation-notification.sql")})
 
+	// Version 49
+	m = append(m, steps{ExecuteSQLFile("049-user-banned-index.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
