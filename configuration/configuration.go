@@ -1061,19 +1061,19 @@ func (c *ConfigurationData) GetUserDeactivationFetchLimit() int {
 	return c.v.GetInt(varUserDeactivationFetchLimit)
 }
 
-// GetUserDeactivationInactivityNotificationPeriod returns the number of days of inactivity before notifying the user of the imminent account deactivation
-func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriod() time.Duration {
+// GetUserDeactivationInactivityNotificationPeriodDays returns the number of days of inactivity before notifying the user of the imminent account deactivation
+func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriodDays() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationInactivityNotificationPeriod)) * 24 * time.Hour
 }
 
-// GetUserDeactivationInactivityPeriod returns the number of days of inactivity before a user account can be deactivated
-func (c *ConfigurationData) GetUserDeactivationInactivityPeriod() time.Duration {
+// GetUserDeactivationInactivityPeriodDays returns the number of days of inactivity before a user account can be deactivated
+func (c *ConfigurationData) GetUserDeactivationInactivityPeriodDays() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationInactivityPeriod)) * 24 * time.Hour
 }
 
-// GetPostDeactivationNotificationDelay returns the number of milliseconds to wait after notifying another user that her account may be deactivated
+// GetPostDeactivationNotificationDelayMillis returns the number of milliseconds to wait after notifying another user that her account may be deactivated
 // this delay is used to reduce the load on the other services (notification and database) in case there would be
 // too many users to notify at once.
-func (c *ConfigurationData) GetPostDeactivationNotificationDelay() time.Duration {
+func (c *ConfigurationData) GetPostDeactivationNotificationDelayMillis() time.Duration {
 	return time.Duration(c.v.GetInt(varPostDeactivationNotificationDelay)) * time.Millisecond
 }

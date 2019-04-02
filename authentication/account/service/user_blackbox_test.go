@@ -44,11 +44,11 @@ type userServiceBlackboxTestSuite struct {
 
 func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
-	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 		return 97 * 24 * time.Hour
 	}
 	ctx := context.Background()
-	config.GetPostDeactivationNotificationDelayFunc = func() time.Duration {
+	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
 		return 500 * time.Millisecond
 	}
 
@@ -100,7 +100,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 90 * 24 * time.Hour // 90 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -121,7 +121,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -148,7 +148,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 1
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -175,7 +175,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -205,7 +205,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 30 * 24 * time.Hour
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -238,7 +238,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 }
 func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
-	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 		return 31 * 24 * time.Hour // 31 days
 	}
 	ctx := context.Background()
@@ -285,10 +285,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 			return 90 * 24 * time.Hour // 90 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 80 * 24 * time.Hour // 80 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
@@ -304,10 +304,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 55 * 24 * time.Hour // 55 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
@@ -324,10 +324,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 1
 		}
-		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 20 * 24 * time.Hour // 20 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
@@ -344,10 +344,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 20 * 24 * time.Hour // 20 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
