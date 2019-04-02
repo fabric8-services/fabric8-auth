@@ -3,17 +3,16 @@ package test
 import (
 	"context"
 
-	"golang.org/x/oauth2"
 	"time"
 
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 // WithIdentity fills the context with token
@@ -89,15 +88,4 @@ func WithServiceAccountAuthz(ctx context.Context, tokenManager manager.TokenMana
 	}
 	token := tokenManager.GenerateUnsignedServiceAccountToken(ident.ID.String(), ident.Username)
 	return goajwt.WithJWT(ctx, token)
-}
-
-// TODO remove this
-// DummyOSORegistrationApp represents a mock OSOSubscriptionManager implementation
-type DummyOSORegistrationApp struct {
-	Status string
-	Err    error
-}
-
-func (regApp *DummyOSORegistrationApp) LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error) {
-	return regApp.Status, regApp.Err
 }
