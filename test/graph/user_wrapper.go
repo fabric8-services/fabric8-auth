@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 
+	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
@@ -68,7 +69,7 @@ func newUserWrapper(g *TestGraph, params []interface{}) interface{} {
 			UUID:  w.user.ID,
 			Valid: true},
 	}
-
+	w.user.Identities = []repository.Identity{*w.identity}
 	err = g.app.Identities().Create(g.ctx, w.identity)
 	require.NoError(g.t, err)
 
