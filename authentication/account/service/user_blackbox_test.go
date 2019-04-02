@@ -53,18 +53,42 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 	}
 
 	// configure the `SetupSubtest` and `TearDownSubtest` to setup/reset data after each subtest
-	var identity1, identity2, identity3 *repository.Identity
+	var identity1, identity2, identity3 repository.Identity
 	s.SetupSubtest = func() {
 		s.CleanTest = testsuite.DeleteCreatedEntities(s.DB, s.Configuration)
 		now := time.Now()
-		identity1 = s.Graph.CreateIdentity("user1", now.Add(-40*24*time.Hour)).Identity() // 40 days since last activity
-		identity2 = s.Graph.CreateIdentity("user2", now.Add(-70*24*time.Hour)).Identity() // 70 days since last activity
-		identity3 = s.Graph.CreateIdentity("user3", now.Add(-70*24*time.Hour)).Identity() // noise: 70 day since last activity, but already notified
 		yesterday := now.Add(-1 * 24 * time.Hour)
-		identity3.DeactivationNotification = &yesterday
-		err := s.Application.Identities().Save(ctx, identity3)
+		ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
+		ago40days := now.Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
+		ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+		// user/identity1: 40 days since last activity and not notified
+		user1 := s.Graph.CreateUser().User()
+		identity1 = user1.Identities[0]
+		identity1.LastActive = &ago40days
+		err := s.Application.Identities().Save(ctx, &identity1)
 		require.NoError(s.T(), err)
-		s.Graph.CreateIdentity("user4", now.Add(-24*time.Hour)) // noise: 1 day since last activity
+		// user/identity2: 70 days since last activity and not notified
+		user2 := s.Graph.CreateUser().User()
+		identity2 = user2.Identities[0]
+		identity2.LastActive = &ago70days
+		err = s.Application.Identities().Save(ctx, &identity2)
+		require.NoError(s.T(), err)
+		// noise: user/identity: 1 day since last activity and not notified yet
+		user3 := s.Graph.CreateUser().User()
+		s.Graph.CreateIdentity(now.Add(-24 * time.Hour))
+		identity3 = user3.Identities[0]
+		identity3.LastActive = &yesterday
+		err = s.Application.Identities().Save(ctx, &identity3)
+		require.NoError(s.T(), err)
+		// noise: user/identity: 65 days since last activity but banned
+		user4 := s.Graph.CreateUser().User()
+		identity4 := user4.Identities[0]
+		identity4.LastActive = &ago65days
+		err = s.Application.Identities().Save(ctx, &identity4)
+		require.NoError(s.T(), err)
+		user4.Banned = true
+		err = s.Application.Users().Save(ctx, user4)
+		require.NoError(s.T(), err)
 	}
 	s.TearDownSubtest = func() {
 		err := s.CleanTest()
@@ -218,23 +242,42 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		return 31 * 24 * time.Hour // 31 days
 	}
 	ctx := context.Background()
-
 	now := time.Now()
-	identity1 := s.Graph.CreateIdentity("user1", now.Add(-40*24*time.Hour)).Identity() // 40 days since last activity
 	yesterday := now.Add(-1 * 24 * time.Hour)
-	ago11days := now.Add(-11 * 24 * time.Hour)
-	identity1.DeactivationNotification = &ago11days
-	err := s.Application.Identities().Save(ctx, identity1)
+	ago10days := now.Add(-10 * 24 * time.Hour)
+	ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
+	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
+	ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+	// user/identity1: 40 days since last activity and notified
+	user1 := s.Graph.CreateUser().User()
+	identity1 := user1.Identities[0]
+	identity1.LastActive = &ago40days
+	identity1.DeactivationNotification = &ago10days
+	err := s.Application.Identities().Save(ctx, &identity1)
 	require.NoError(s.T(), err)
-	identity2 := s.Graph.CreateIdentity("user2", now.Add(-70*24*time.Hour)).Identity() // 70 days since last activity
-	identity2.DeactivationNotification = &ago11days
-	err = s.Application.Identities().Save(ctx, identity2)
+	// user/identity2: 70 days since last activity and notified
+	user2 := s.Graph.CreateUser().User()
+	identity2 := user2.Identities[0]
+	identity2.LastActive = &ago70days
+	identity2.DeactivationNotification = &ago10days
+	err = s.Application.Identities().Save(ctx, &identity2)
 	require.NoError(s.T(), err)
-	s.Graph.CreateIdentity("user3", now.Add(-70*24*time.Hour)).Identity()              // noise: 70 day since last activity, but not notified yet
-	s.Graph.CreateIdentity("user4", now.Add(-24*time.Hour))                            // noise: 1 day since last activity
-	identity5 := s.Graph.CreateIdentity("user5", now.Add(-40*24*time.Hour)).Identity() // noise: 40 day since last activity, but notified lately: should not be listed as a user to deactivate
-	identity5.DeactivationNotification = &yesterday
-	err = s.Application.Identities().Save(ctx, identity5)
+	// noise: user/identity: 1 day since last activity and not notified yet
+	user3 := s.Graph.CreateUser().User()
+	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))
+	identity3 := user3.Identities[0]
+	identity3.LastActive = &yesterday
+	err = s.Application.Identities().Save(ctx, &identity3)
+	require.NoError(s.T(), err)
+	// noise: user/identity: 65 days since last activity and notified, but also banned
+	user4 := s.Graph.CreateUser().User()
+	identity4 := user4.Identities[0]
+	identity4.LastActive = &ago65days
+	identity4.DeactivationNotification = &yesterday
+	err = s.Application.Identities().Save(ctx, &identity4)
+	require.NoError(s.T(), err)
+	user4.Banned = true
+	err = s.Application.Users().Save(ctx, user4)
 	require.NoError(s.T(), err)
 
 	s.Run("no user to deactivate", func() {
@@ -246,7 +289,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 			return 90 * 24 * time.Hour // 90 days
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
-			return 80 * 24 * time.Hour // 20 days
+			return 80 * 24 * time.Hour // 80 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
@@ -265,7 +308,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 			return 60 * 24 * time.Hour // 60 days
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
-			return 50 * 24 * time.Hour // 20 days
+			return 55 * 24 * time.Hour // 55 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
@@ -273,7 +316,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
-		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), identity2.ID, result[0].ID) // user 2 was inactive for 70 days and notified 10 days ago
 	})
 
 	s.Run("one user to deactivate with limit reached", func() {
@@ -293,7 +336,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
-		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), identity2.ID, result[0].ID) // user 2 was inactive for 70 days and notified 10 days ago
 	})
 
 	s.Run("two users to deactivate", func() {
@@ -313,8 +356,8 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 2)
-		assert.Equal(s.T(), identity2.ID, result[0].ID)
-		assert.Equal(s.T(), identity1.ID, result[1].ID)
+		assert.Equal(s.T(), identity2.ID, result[0].ID) // user 2 was inactive for 70 days and notified 10 days ago
+		assert.Equal(s.T(), identity1.ID, result[1].ID) // user 1 was inactive for 40 days and notified 10 days ago
 	})
 }
 
