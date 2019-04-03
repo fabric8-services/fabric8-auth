@@ -232,47 +232,59 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 	// given
 	ctx := context.Background()
 	now := time.Now()
-	yesterday := now.Add(-1 * 24 * time.Hour)
-	ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
-	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
-	ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
+	ago10days := now.Add(-10 * 24 * time.Hour) // 10 days ago
+	ago11days := now.Add(-11 * 24 * time.Hour) // 11 days ago
+	ago20days := now.Add(-20 * 24 * time.Hour) // 11 days ago
+	ago65days := now.Add(-65 * 24 * time.Hour) // 65 days ago
+	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days ago
+	ago70days := now.Add(-70 * 24 * time.Hour) // 70 days ago
 	// user/identity1: 40 days since last activity and notified
 	user1 := s.Graph.CreateUser().User()
 	identity1 := user1.Identities[0]
 	identity1.LastActive = &ago40days
-	identity1.DeactivationNotification = &yesterday
+	identity1.DeactivationNotification = &ago11days
 	err := s.Application.Identities().Save(ctx, &identity1)
 	require.NoError(s.T(), err)
-	// user/identity2: 70 days since last activity and notified
+	// user/identity2: 70 days since last activity and notified yesterday
 	user2 := s.Graph.CreateUser().User()
 	identity2 := user2.Identities[0]
 	identity2.LastActive = &ago70days
-	identity2.DeactivationNotification = &yesterday
+	identity2.DeactivationNotification = &ago11days
 	err = s.Application.Identities().Save(ctx, &identity2)
 	require.NoError(s.T(), err)
 	// noise: user/identity: 1 day since last activity and not notified yet
 	user3 := s.Graph.CreateUser().User()
 	s.Graph.CreateIdentity(now.Add(-24 * time.Hour))
 	identity3 := user3.Identities[0]
-	identity3.LastActive = &yesterday
+	identity3.LastActive = &ago10days
 	err = s.Application.Identities().Save(ctx, &identity3)
 	require.NoError(s.T(), err)
 	// noise: user/identity: 65 days since last activity and notified, but also banned
 	user4 := s.Graph.CreateUser().User()
 	identity4 := user4.Identities[0]
 	identity4.LastActive = &ago65days
-	identity4.DeactivationNotification = &yesterday
+	identity4.DeactivationNotification = &ago11days
 	err = s.Application.Identities().Save(ctx, &identity4)
 	require.NoError(s.T(), err)
 	user4.Banned = true
 	err = s.Application.Users().Save(ctx, user4)
 	require.NoError(s.T(), err)
 
-	s.T().Run("no user to notify for deactivation", func(t *testing.T) {
+	s.T().Run("no user to notify for deactivation - no inactivity", func(t *testing.T) {
 		// given
 		lastActivity := now.Add(-90 * 24 * time.Hour) // 90 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, ago10days, 100)
+		// then
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	s.T().Run("no user to notify for deactivation - late notifications", func(t *testing.T) {
+		// given
+		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+		// when
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, ago20days, 100)
 		// then
 		require.NoError(t, err)
 		assert.Empty(t, result)
@@ -282,7 +294,7 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 		// given
 		lastActivity := now.Add(-60 * 24 * time.Hour) // 60 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, ago10days, 100)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 1)
@@ -293,7 +305,7 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 		// given
 		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 1)
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, ago10days, 1)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 1)
@@ -304,7 +316,7 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 		// given
 		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, 100)
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, ago10days, 100)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 2)
@@ -316,7 +328,7 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 		// given
 		lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
 		// when
-		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, -1)
+		result, err := s.Application.Identities().ListIdentitiesToDeactivate(ctx, lastActivity, ago10days, -1)
 		// then
 		require.NoError(t, err)
 		require.Len(t, result, 2)

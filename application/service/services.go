@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/url"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
@@ -154,8 +155,8 @@ type UserProfileService interface {
 }
 
 type UserService interface {
-	NotifyIdentitiesBeforeDeactivation(ctx context.Context) ([]account.Identity, error)
-	ListIdentitiesToDeactivate(ctx context.Context) ([]account.Identity, error)
+	NotifyIdentitiesBeforeDeactivation(ctx context.Context, now func() time.Time) ([]account.Identity, error)
+	ListIdentitiesToDeactivate(ctx context.Context, now func() time.Time) ([]account.Identity, error)
 	DeactivateUser(ctx context.Context, username string) (*account.Identity, error)
 	BanUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
