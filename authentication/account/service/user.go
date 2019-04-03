@@ -150,6 +150,10 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 				"error":    err,
 				"username": identity.Username,
 			}, "error while notifying user before account deactivation")
+		} else {
+			log.Info(ctx, map[string]interface{}{
+				"username": identity.Username,
+			}, "notified user before account deactivation")
 		}
 		// include a small delay to give time to notification service and database to handle the requests
 		time.Sleep(s.config.GetPostDeactivationNotificationDelayMillis())

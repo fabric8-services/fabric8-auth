@@ -18,6 +18,7 @@ import (
 	role "github.com/fabric8-services/fabric8-auth/authorization/role/repository"
 	token "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	worker "github.com/fabric8-services/fabric8-auth/worker/repository"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
@@ -147,6 +148,10 @@ func (g *GormBase) TokenRepository() token.TokenRepository {
 
 func (g *GormBase) PrivilegeCacheRepository() permission.PrivilegeCacheRepository {
 	return permission.NewPrivilegeCacheRepository(g.db)
+}
+
+func (g *GormBase) WorkerLockRepository() worker.LockRepository {
+	return worker.NewLockRepository(g.db.DB())
 }
 
 //----------------------------------------------------------------------------------------------------------------------

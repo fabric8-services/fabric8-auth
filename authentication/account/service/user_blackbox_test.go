@@ -378,14 +378,7 @@ func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	}
 	ctx := context.Background()
 	yesterday := time.Now().Add(-1 * 24 * time.Hour)
-	// ago10days := now.Add(-10 * 24 * time.Hour)
-	// ago65days := now.Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
 	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
-	// ago70days := now.Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
-
-	// identity1.DeactivationNotification = &ago10days
-	// err := s.Application.Identities().Save(ctx, &identity1)
-	// require.NoError(s.T(), err)
 
 	notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 	notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {

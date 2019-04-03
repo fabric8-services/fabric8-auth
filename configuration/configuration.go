@@ -57,6 +57,7 @@ const (
 	varInvitationAcceptedRedirectURL       = "invitation.accepted.url"
 	varInternalUsersEmailAddressSuffix     = "internal.users.email.address.domain"
 	varIgnoreEmailInProd                   = "ignore.email.prod"
+	varPodName                             = "pod.name"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -1032,6 +1033,11 @@ func (c *ConfigurationData) GetInternalUsersEmailAddressSuffix() string {
 // GetIgnoreEmailInProd returns regex for checking if the user with such email should be ignored during account provisioning
 func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 	return c.v.GetString(varIgnoreEmailInProd)
+}
+
+// GetPodName returns the name of the pod on which this instance is running
+func (c *ConfigurationData) GetPodName() string {
+	return c.v.GetString(varPodName)
 }
 
 // GetEnvironment returns the current environment application is deployed in

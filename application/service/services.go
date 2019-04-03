@@ -100,6 +100,7 @@ type OrganizationService interface {
 
 type OSOSubscriptionService interface {
 	LoadOSOSubscriptionStatus(ctx context.Context, token oauth2.Token) (string, error)
+	DeactivateUser(ctx context.Context, username string) error
 }
 
 type PermissionService interface {

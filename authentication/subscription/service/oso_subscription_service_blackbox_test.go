@@ -11,6 +11,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	subscription "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -67,8 +68,6 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 	// given
 	appRegURL := "https://some.osourl.io"
 	admin := "test-admin"
-	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
-	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithClusterService(clusterServiceMock))
 	config := testsubscription.NewOSOSubscriptionServiceConfigurationMock(s.T())
 	config.GetOSORegistrationAppURLFunc = func() string {
 		return appRegURL
@@ -79,6 +78,8 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 	config.GetOSORegistrationAppAdminTokenFunc = func() string {
 		return fmt.Sprintf("%s-token", admin)
 	}
+	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithClusterService(clusterServiceMock))
 	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
 
 	var username, accessToken string
@@ -270,6 +271,56 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 			require.NoError(s.T(), err)
 			assert.Equal(s.T(), "signup_needed", status)
 		})
+	})
+
+}
+
+func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
+
+	appRegURL := "https://some.osourl.io"
+	admin := "test-admin"
+	config := testsubscription.NewOSOSubscriptionServiceConfigurationMock(s.T())
+	config.GetOSORegistrationAppURLFunc = func() string {
+		return appRegURL
+	}
+	config.GetOSORegistrationAppAdminUsernameFunc = func() string {
+		return admin
+	}
+	config.GetOSORegistrationAppAdminTokenFunc = func() string {
+		return fmt.Sprintf("%s-token", admin)
+	}
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil)
+	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
+
+	defer gock.OffAll()
+	gock.Observe(gock.DumpRequest)
+
+	s.Run("success", func() {
+		username := "foo"
+		// intercept call to remote Online Reg App Service
+		gock.New(config.GetOSORegistrationAppURL()).
+			Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+			MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+			Reply(200)
+		// when
+		err := svc.DeactivateUser(context.Background(), username)
+		// then
+		assert.NoError(s.T(), err)
+	})
+
+	s.Run("failure", func() {
+		username := "bar"
+		// intercept call to remote Online Reg App Service
+		gock.New(config.GetOSORegistrationAppURL()).
+			Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+			MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+			Reply(500)
+		// when
+		err := svc.DeactivateUser(context.Background(), username)
+		// then
+		testsupport.AssertError(s.T(), err, errors.InternalError{}, "unable to deactivate user")
 	})
 
 }

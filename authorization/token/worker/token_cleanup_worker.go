@@ -2,9 +2,10 @@ package worker
 
 import (
 	"context"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"time"
 )
 
 type TokenCleanupWorker interface {
@@ -51,8 +52,8 @@ func (w *tokenCleanupWorker) cleanupLoop() {
 	}
 }
 
-func (c *tokenCleanupWorker) Stop() {
-	if c.stopCh != nil {
-		c.stopCh <- true
+func (w *tokenCleanupWorker) Stop() {
+	if w.stopCh != nil {
+		w.stopCh <- true
 	}
 }
