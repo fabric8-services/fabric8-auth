@@ -16,7 +16,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	appservicemock "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	accountservicemock "github.com/fabric8-services/fabric8-auth/test/generated/authentication/account/service"
-	baseworker "github.com/fabric8-services/fabric8-auth/worker/repository"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,11 +67,13 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		err := s.Application.Identities().Save(ctx, &identity1)
 		require.NoError(s.T(), err)
 		// start the worker with a 50ms ticker
-		w := worker.NewUserDeactivationNotificationWorker(context.Background(), app)
-		w.Start(time.Millisecond * 50)
-		defer w.Stop()
+		w := s.newUserDeactivationNotificationWorker(context.Background(), "pod-a", app)
+		freq := time.Millisecond * 50
+		w.Start(freq)
 		// wait a few cycles before checking the results
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(freq * 5)
+		w.Stop()
+		time.Sleep(freq * 10) // give workers some time to stop for good
 		// then load the user and check her deactivation notification status
 		result, err := s.Application.Identities().Load(context.Background(), identity1.ID)
 		require.NoError(s.T(), err)
@@ -89,10 +90,10 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		err := s.Application.Identities().Save(ctx, &identity1)
 		require.NoError(s.T(), err)
 		// start the workers with a 50ms ticker
-		w1 := s.newUserDeactivationNotificationWorker("pod-1", app)
-		w2 := s.newUserDeactivationNotificationWorker("pod-2", app)
-		w3 := s.newUserDeactivationNotificationWorker("pod-3", app)
-		w4 := s.newUserDeactivationNotificationWorker("pod-4", app)
+		w1 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-1", app)
+		w2 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-2", app)
+		w3 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-3", app)
+		w4 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-4", app)
 		freq := time.Millisecond * 50
 		w1.Start(freq)
 		w2.Start(freq)
@@ -112,16 +113,17 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		// notification only sent once to the user
 		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
 		// verify that the lock was released
-		l, err := s.Application.WorkerLockRepository().AcquireLockToNotifyUsersToDeactivate(context.WithValue(context.Background(), baseworker.LockOwner, "assertion"))
+		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), worker.UserDeactivationNotification, "assert")
 		require.NoError(s.T(), err)
 		l.Close()
 	})
 }
 
-func (s *UserDeactivationNotificationWorkerTest) newUserDeactivationNotificationWorker(podname string, app application.Application) worker.UserDeactivationNotificationWorker {
+func (s *UserDeactivationNotificationWorkerTest) newUserDeactivationNotificationWorker(ctx context.Context, podname string, app application.Application) worker.UserDeactivationNotificationWorker {
 	os.Setenv("AUTH_POD_NAME", podname)
 	config, err := configuration.GetConfigurationData()
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), podname, config.GetPodName())
-	return worker.NewUserDeactivationNotificationWorker(context.WithValue(context.Background(), baseworker.LockOwner, podname), app)
+	ctx = context.WithValue(ctx, worker.UserDeactivationNotification, podname)
+	return worker.NewUserDeactivationNotificationWorker(ctx, app)
 }
