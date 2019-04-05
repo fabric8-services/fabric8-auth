@@ -59,10 +59,7 @@ func (w *userDeactivationNotificationWorker) Start(freq time.Duration) {
 			case <-w.ticker.C:
 				w.notifyUsers()
 			case <-w.stopCh:
-				log.Info(w.ctx, map[string]interface{}{
-					"owner": w.owner,
-				}, "about to stop the user deactivation notification worker...")
-				w.stop()
+				w.cleanup()
 				return
 			}
 		}
@@ -79,7 +76,7 @@ func (w *userDeactivationNotificationWorker) Stop() {
 	}
 }
 
-func (w *userDeactivationNotificationWorker) stop() {
+func (w *userDeactivationNotificationWorker) cleanup() {
 	log.Info(w.ctx, map[string]interface{}{
 		"owner": w.owner,
 	}, "stopping user deactivation notification worker")
@@ -90,10 +87,11 @@ func (w *userDeactivationNotificationWorker) stop() {
 			log.Error(w.ctx, map[string]interface{}{
 				"err": err,
 			}, "error while releasing user deactivation notification worker lock")
+		} else {
+			log.Info(w.ctx, map[string]interface{}{
+				"owner": w.owner,
+			}, "released user deactivation notification worker lock")
 		}
-		log.Info(w.ctx, map[string]interface{}{
-			"owner": w.owner,
-		}, "released user deactivation notification worker lock")
 	}
 }
 
