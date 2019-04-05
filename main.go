@@ -1,24 +1,24 @@
 package main
 
 import (
-	"syscall"
-	"os/signal"
 	"context"
 	"flag"
 	"net/http"
 	"os"
+	"os/signal"
 	"os/user"
 	"runtime"
+	"syscall"
 	"time"
 
-	tokenworker "github.com/fabric8-services/fabric8-auth/authorization/token/worker"
-	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	"github.com/fabric8-services/fabric8-auth/app"
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	tokenworker "github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/goamiddleware"
@@ -27,6 +27,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
+	"github.com/fabric8-services/fabric8-auth/worker"
 
 	"github.com/goadesign/goa"
 	goalogrus "github.com/goadesign/goa/logging/logrus"
@@ -297,6 +298,7 @@ func main() {
 	tokenCleanupWorker.Start(time.Hour)
 	// user deactivation and notification workers, running once per day
 	ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
+	ctx = context.WithValue(worker.LockOwner, config.GetPodName())
 	userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
 	userDeactivationWorker.Start(time.Hour * 24)
 	userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
@@ -304,7 +306,7 @@ func main() {
 
 	// gracefull shutdown
 	go handleShutdown(db, tokenCleanupWorker, userDeactivationNotificationWorker, userDeactivationWorker)
-	
+
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
 		log.Error(nil, map[string]interface{}{
@@ -320,7 +322,7 @@ type Worker interface {
 	Stop()
 }
 
-func handleShutdown(db *gorm.DB, workers... Worker) {
+func handleShutdown(db *gorm.DB, workers ...Worker) {
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
@@ -330,7 +332,7 @@ func handleShutdown(db *gorm.DB, workers... Worker) {
 	err := db.Close()
 	if err != nil {
 		log.Error(nil, map[string]interface{}{
-			"error":err,
+			"error": err,
 		}, "error while closing the connection to the database")
 	}
 	// also, stop the workers
