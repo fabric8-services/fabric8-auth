@@ -47,7 +47,7 @@ func (r *lockRepositoryImpl) AcquireLockToNotifyUsersToDeactivate(ctx context.Co
 }
 
 // acquireLock acquires a lock on the postgres table for the requesting
-// user deactivation notification worker
+// user deactivation or deactivation notification worker
 // Returns an error if the lock could not be obtained
 func (r *lockRepositoryImpl) acquireLock(ctx context.Context, name string) (*pglock.Lock, error) {
 	log.Info(ctx, map[string]interface{}{
