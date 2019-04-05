@@ -48,7 +48,7 @@ func (w *userDeactivationNotificationWorker) Start(freq time.Duration) {
 		log.Warn(w.ctx, map[string]interface{}{
 			"error": err,
 			"owner": w.owner,
-		}, "unable to acquire user deactivation notification worker lock")
+		}, "unable to acquire user deactivation notification worker lock which is OK if another pod has already started a worker")
 		return
 	}
 	w.lock = l
