@@ -36,7 +36,7 @@ func (s *tokenCleanupWorkerBlackBoxTest) TestCleanupWorker() {
 
 	// Start the worker with a 50ms ticker
 	worker := worker.NewTokenCleanupWorker(s.Ctx, s.Application)
-	worker.Start(time.NewTicker(time.Millisecond * 50))
+	worker.Start(time.Millisecond * 50)
 	defer worker.Stop()
 
 	for i := 0; i < 30; i++ {

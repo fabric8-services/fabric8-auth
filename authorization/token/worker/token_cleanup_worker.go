@@ -9,7 +9,7 @@ import (
 )
 
 type TokenCleanupWorker interface {
-	Start(ticker *time.Ticker)
+	Start(freq time.Duration)
 	Stop()
 }
 
@@ -27,8 +27,8 @@ type tokenCleanupWorker struct {
 	stopCh chan bool
 }
 
-func (w *tokenCleanupWorker) Start(ticker *time.Ticker) {
-	w.ticker = ticker
+func (w *tokenCleanupWorker) Start(freq time.Duration) {
+	w.ticker = time.NewTicker(freq)
 	w.stopCh = make(chan bool, 1)
 
 	go w.cleanupLoop()

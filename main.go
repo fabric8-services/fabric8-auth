@@ -1,6 +1,8 @@
 package main
 
 import (
+	"syscall"
+	"os/signal"
 	"context"
 	"flag"
 	"net/http"
@@ -9,8 +11,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/authorization/token/worker"
-
+	tokenworker "github.com/fabric8-services/fabric8-auth/authorization/token/worker"
+	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	"github.com/fabric8-services/fabric8-auth/app"
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	appservice "github.com/fabric8-services/fabric8-auth/application/service"
@@ -81,7 +83,6 @@ func main() {
 			log.Logger().Infof("Retrying to connect in %v...", config.GetPostgresConnectionRetrySleep())
 			time.Sleep(config.GetPostgresConnectionRetrySleep())
 		} else {
-			defer db.Close()
 			break
 		}
 	}
@@ -291,12 +292,19 @@ func main() {
 	}
 
 	// Start background workers
-	worker := worker.NewTokenCleanupWorker(context.Background(), appDB)
-	// Activate token cleanup once every hour
-	worker.Start(time.NewTicker(time.Hour))
-	// Stop the worker when the app shuts down
-	defer worker.Stop()
+	// token cleanup, running once every hour
+	tokenCleanupWorker := tokenworker.NewTokenCleanupWorker(context.Background(), appDB)
+	tokenCleanupWorker.Start(time.Hour)
+	// user deactivation and notification workers, running once per day
+	ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
+	userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
+	userDeactivationWorker.Start(time.Hour * 24)
+	userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
+	userDeactivationNotificationWorker.Start(time.Hour * 24)
 
+	// gracefull shutdown
+	go handleShutdown(db, tokenCleanupWorker, userDeactivationNotificationWorker, userDeactivationWorker)
+	
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
 		log.Error(nil, map[string]interface{}{
@@ -305,6 +313,31 @@ func main() {
 		}, "unable to connect to server")
 		service.LogError("startup", "err", err)
 	}
+}
+
+type Worker interface {
+	Start(freq time.Duration)
+	Stop()
+}
+
+func handleShutdown(db *gorm.DB, workers... Worker) {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+	// handle ctrl+c event here
+	// close database
+	log.Warn(nil, nil, "Closing DB connection before complete shutdown")
+	err := db.Close()
+	if err != nil {
+		log.Error(nil, map[string]interface{}{
+			"error":err,
+		}, "error while closing the connection to the database")
+	}
+	// also, stop the workers
+	for _, w := range workers {
+		w.Stop()
+	}
+	os.Exit(0)
 }
 
 func configFileFromFlags(flagName string, envVarName string) string {
