@@ -1,6 +1,7 @@
 package worker_test
 
 import (
+	"sync"
 	"context"
 	"fmt"
 	"os"
@@ -97,22 +98,29 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		require.NoError(s.T(), err)
 		mockRemoteCalls(userToDeactivate.User(), identityToDeactivate)
 		// start the workers with a 50ms ticker
-		w1 := s.newUserDeactivationWorker(ctx, "pod-1", app)
-		w2 := s.newUserDeactivationWorker(ctx, "pod-2", app)
-		w3 := s.newUserDeactivationWorker(ctx, "pod-3", app)
-		w4 := s.newUserDeactivationWorker(ctx, "pod-4", app)
 		freq := time.Millisecond * 50
-		w1.Start(freq)
-		w2.Start(freq)
-		w3.Start(freq)
-		w4.Start(freq)
+		latch := sync.WaitGroup{}
+		latch.Add(1)
+		workers := []worker.UserDeactivationNotificationWorker{}
+		for i := 1; i <= 5; i++ {
+			fmt.Printf("initializing worker %d...\n", i)
+			w := s.newUserDeactivationWorker(context.Background(), fmt.Sprintf("pod-%d", i), app)
+			workers = append(workers, w)
+			go func(i int) {
+				// now, wait for latch to be released so that all workers start at the same time
+				fmt.Printf("worker %d now waiting to latch to start...\n", i)
+				latch.Wait()
+				w.Start(freq)
+			}(i)
+		}
+		latch.Done() 
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 5)
-		w1.Stop()
-		w2.Stop()
-		w3.Stop()
-		w4.Stop()
-		time.Sleep(freq * 5) // give workers some time to stop for good
+		// now stop all workers
+		for _, w := range workers {
+			w.Stop()
+		}
+		time.Sleep(freq * 10) // give workers some time to stop for good
 		// then load the user and check her deactivation notification status
 		unscoped := func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()

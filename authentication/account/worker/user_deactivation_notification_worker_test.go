@@ -2,7 +2,9 @@ package worker_test
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -91,21 +93,28 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		err := s.Application.Identities().Save(ctx, &identity1)
 		require.NoError(s.T(), err)
 		// start the workers with a 50ms ticker
-		w1 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-1", app)
-		w2 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-2", app)
-		w3 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-3", app)
-		w4 := s.newUserDeactivationNotificationWorker(context.Background(), "pod-4", app)
 		freq := time.Millisecond * 50
-		w1.Start(freq)
-		w2.Start(freq)
-		w3.Start(freq)
-		w4.Start(freq)
+		latch := sync.WaitGroup{}
+		latch.Add(1)
+		workers := []worker.UserDeactivationNotificationWorker{}
+		for i := 1; i <= 5; i++ {
+			fmt.Printf("initializing worker %d...\n", i)
+			w := s.newUserDeactivationNotificationWorker(context.Background(), fmt.Sprintf("pod-%d", i), app)
+			workers = append(workers, w)
+			go func(i int) {
+				// now, wait for latch to be released so that all workers start at the same time
+				fmt.Printf("worker %d now waiting to latch to start...\n", i)
+				latch.Wait()
+				w.Start(freq)
+			}(i)
+		}
+		latch.Done() 
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 5)
-		w1.Stop()
-		w2.Stop()
-		w3.Stop()
-		w4.Stop()
+		// now stop all workers
+		for _, w := range workers {
+			w.Stop()
+		}
 		time.Sleep(freq * 10) // give workers some time to stop for good
 		// then load the user and check her deactivation notification status
 		result, err := s.Application.Identities().Load(context.Background(), identity1.ID)
