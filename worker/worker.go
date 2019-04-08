@@ -30,16 +30,6 @@ func (w *Worker) Start(freq time.Duration) {
 		"name":  w.Name,
 	}, "starting worker")
 
-	l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name)
-	if err != nil {
-		log.Warn(w.Ctx, map[string]interface{}{
-			"error": err,
-			"owner": w.Owner,
-			"name":  w.Name,
-		}, "unable to acquire lock (which is OK if another pod has already started a worker)")
-		return
-	}
-	w.lock = l
 	w.ticker = time.NewTicker(freq)
 	go func() {
 		for {
@@ -51,6 +41,33 @@ func (w *Worker) Start(freq time.Duration) {
 					}, "nothing to do in this worker?!?")
 					continue
 				}
+				l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name)
+				if err != nil {
+					log.Warn(w.Ctx, map[string]interface{}{
+						"error": err,
+						"owner": w.Owner,
+						"name":  w.Name,
+					}, "unable to acquire lock (which is OK if another pod has already acquired it)")
+					return
+				}
+				w.lock = l
+				defer func() {
+					if w.lock != nil {
+						err := w.lock.Close()
+						if err != nil {
+							log.Error(w.Ctx, map[string]interface{}{
+								"err":   err,
+								"owner": w.Owner,
+								"name":  w.Name,
+							}, "error while releasing worker lock")
+						} else {
+							log.Info(w.Ctx, map[string]interface{}{
+								"owner": w.Owner,
+								"name":  w.Name,
+							}, "released worker lock")
+						}
+					}
+				}()
 				w.Do()
 			case <-w.stopCh:
 				w.cleanup()
@@ -77,19 +94,5 @@ func (w *Worker) cleanup() {
 		"name":  w.Name,
 	}, "stopping the worker")
 	w.ticker.Stop()
-	if w.lock != nil {
-		err := w.lock.Close()
-		if err != nil {
-			log.Error(w.Ctx, map[string]interface{}{
-				"err":   err,
-				"owner": w.Owner,
-				"name":  w.Name,
-			}, "error while releasing worker lock")
-		} else {
-			log.Info(w.Ctx, map[string]interface{}{
-				"owner": w.Owner,
-				"name":  w.Name,
-			}, "released worker lock")
-		}
-	}
+
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	accountservicemock "github.com/fabric8-services/fabric8-auth/test/generated/authentication/account/service"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	baseworker "github.com/fabric8-services/fabric8-auth/worker"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,7 +112,7 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		w2.Stop()
 		w3.Stop()
 		w4.Stop()
-		time.Sleep(freq * 10) // give workers some time to stop for good
+		time.Sleep(freq * 5) // give workers some time to stop for good
 		// then load the user and check her deactivation notification status
 		unscoped := func(db *gorm.DB) *gorm.DB {
 			return db.Unscoped()
@@ -120,7 +121,7 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		require.NoError(s.T(), err)
 		assert.NotNil(s.T(), result.DeletedAt)
 		// verify that the lock was released
-		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), worker.UserDeactivation, "assert")
+		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivation)
 		require.NoError(s.T(), err)
 		l.Close()
 	})
@@ -131,7 +132,7 @@ func (s *UserDeactivationWorkerTest) newUserDeactivationWorker(ctx context.Conte
 	config, err := configuration.GetConfigurationData()
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), podname, config.GetPodName())
-	ctx = context.WithValue(ctx, worker.UserDeactivation, podname)
+	ctx = context.WithValue(ctx, baseworker.LockOwner, podname)
 	return worker.NewUserDeactivationWorker(ctx, app)
 }
 

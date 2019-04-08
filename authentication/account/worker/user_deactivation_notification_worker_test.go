@@ -16,6 +16,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/rest"
 	appservicemock "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	accountservicemock "github.com/fabric8-services/fabric8-auth/test/generated/authentication/account/service"
+	baseworker "github.com/fabric8-services/fabric8-auth/worker"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -113,7 +114,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		// notification only sent once to the user
 		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
 		// verify that the lock was released
-		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), worker.UserDeactivationNotification, "assert")
+		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivationNotification)
 		require.NoError(s.T(), err)
 		l.Close()
 	})
@@ -124,6 +125,6 @@ func (s *UserDeactivationNotificationWorkerTest) newUserDeactivationNotification
 	config, err := configuration.GetConfigurationData()
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), podname, config.GetPodName())
-	ctx = context.WithValue(ctx, worker.UserDeactivationNotification, podname)
+	ctx = context.WithValue(ctx, baseworker.LockOwner, podname)
 	return worker.NewUserDeactivationNotificationWorker(ctx, app)
 }
