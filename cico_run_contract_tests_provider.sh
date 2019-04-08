@@ -172,7 +172,7 @@ fi
 
 if [ $final_exit == 0 ]; then
     # Run the contract tests
-    make test-contracts-provider-no-coverage |& tee "$OUTPUT_DIR/$ARTIFACTS_PATH/test.log"
+    GO_TEST_VERBOSITY_FLAG=-v make test-contracts-provider-no-coverage |& tee "$OUTPUT_DIR/$ARTIFACTS_PATH/test.log"
     tests_exit=${PIPESTATUS[0]} #capture exit status of the make command
 
     # Delete sensitive files
