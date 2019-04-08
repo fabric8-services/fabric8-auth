@@ -60,7 +60,6 @@ func (w *Worker) execute() {
 		}, "unable to acquire lock (which is OK if another pod has already acquired it)")
 		return
 	}
-	w.lock = l
 	defer func() {
 		if w.lock != nil {
 			err := w.lock.Close()
@@ -78,6 +77,7 @@ func (w *Worker) execute() {
 			}
 		}
 	}()
+	w.lock = l
 	w.Do()
 }
 
