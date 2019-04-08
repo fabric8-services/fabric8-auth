@@ -298,7 +298,7 @@ func main() {
 	tokenCleanupWorker.Start(time.Hour)
 	// user deactivation and notification workers, running once per day
 	ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
-	ctx = context.WithValue(context.Background(), worker.LockOwner, config.GetPodName())
+	ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
 	userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
 	userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalMinutes())
 	userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
