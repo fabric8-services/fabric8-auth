@@ -1,10 +1,10 @@
 package worker_test
 
 import (
-	"sync"
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,7 +113,7 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 				w.Start(freq)
 			}(i)
 		}
-		latch.Done() 
+		latch.Done()
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 5)
 		// now stop all workers

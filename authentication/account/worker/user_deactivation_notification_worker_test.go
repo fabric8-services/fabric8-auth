@@ -108,7 +108,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 				w.Start(freq)
 			}(i)
 		}
-		latch.Done() 
+		latch.Done()
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 5)
 		// now stop all workers
