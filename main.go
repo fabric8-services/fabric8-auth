@@ -296,16 +296,17 @@ func main() {
 	// token cleanup, running once every hour
 	tokenCleanupWorker := tokenworker.NewTokenCleanupWorker(context.Background(), appDB)
 	tokenCleanupWorker.Start(time.Hour)
-	// user deactivation and notification workers, running once per day
-	ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
-	ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
-	userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
-	userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalMinutes())
-	userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
-	userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalMinutes())
+	// // user deactivation and notification workers, running once per day
+	// DISABLED FOR NOW
+	// ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
+	// ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
+	// userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
+	// userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalMinutes())
+	// userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
+	// userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalMinutes())
 
 	// gracefull shutdown
-	go handleShutdown(db, tokenCleanupWorker, userDeactivationNotificationWorker, userDeactivationWorker)
+	go handleShutdown(db, tokenCleanupWorker) //, userDeactivationNotificationWorker, userDeactivationWorker)
 
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
