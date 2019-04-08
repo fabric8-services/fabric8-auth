@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 	"net/url"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
-	"github.com/fabric8-services/fabric8-auth/authentication/subscription"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
 	permission "github.com/fabric8-services/fabric8-auth/authorization/permission/repository"
@@ -155,8 +155,8 @@ type UserProfileService interface {
 }
 
 type UserService interface {
-	NotifyIdentitiesBeforeDeactivation(ctx context.Context) ([]account.Identity, error)
-	ListIdentitiesToDeactivate(ctx context.Context) ([]account.Identity, error)
+	NotifyIdentitiesBeforeDeactivation(ctx context.Context, now func() time.Time) ([]account.Identity, error)
+	ListIdentitiesToDeactivate(ctx context.Context, now func() time.Time) ([]account.Identity, error)
 	DeactivateUser(ctx context.Context, username string) (*account.Identity, error)
 	BanUser(ctx context.Context, username string) (*account.Identity, error)
 	UserInfo(ctx context.Context, identityID uuid.UUID) (*account.User, *account.Identity, error)
@@ -223,14 +223,9 @@ type LinkingProviderFactory interface {
 	NewLinkingProvider(ctx context.Context, identityID uuid.UUID, authURL string, forResource string) (provider.LinkingProvider, error)
 }
 
-type SubscriptionLoaderFactory interface {
-	NewSubscriptionLoader(ctx context.Context) subscription.SubscriptionLoader
-}
-
 // Factories is the interface responsible for creating instances of factory objects
 type Factories interface {
 	ClusterCacheFactory() ClusterCacheFactory
 	IdentityProviderFactory() IdentityProviderFactory
 	LinkingProviderFactory() LinkingProviderFactory
-	SubscriptionLoaderFactory() SubscriptionLoaderFactory
 }

@@ -14,12 +14,12 @@ import (
 	manager "github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/client"
 	jwtgoa "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
@@ -82,8 +82,12 @@ func GenerateTokenWithClaims(claims map[string]interface{}) (string, error) {
 
 	// default claims
 	token.Claims.(jwt.MapClaims)["uuid"] = uuid.NewV4().String()
-	token.Claims.(jwt.MapClaims)["preferred_username"] = fmt.Sprintf("testUser-%s", uuid.NewV4().String())
-	token.Claims.(jwt.MapClaims)["sub"] = uuid.NewV4().String()
+	if username, ok := claims["sub"]; ok {
+		token.Claims.(jwt.MapClaims)["preferred_username"] = username // reuse the current 'sub'
+	} else {
+		token.Claims.(jwt.MapClaims)["preferred_username"] = fmt.Sprintf("testUser-%s", uuid.NewV4().String())
+		token.Claims.(jwt.MapClaims)["sub"] = uuid.NewV4().String()
+	}
 	token.Claims.(jwt.MapClaims)["jti"] = uuid.NewV4().String()
 	token.Claims.(jwt.MapClaims)["session_state"] = uuid.NewV4().String()
 	token.Claims.(jwt.MapClaims)["iat"] = time.Now().Unix()

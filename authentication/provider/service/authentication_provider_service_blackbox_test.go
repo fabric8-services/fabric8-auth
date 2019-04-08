@@ -2,7 +2,6 @@ package service_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,14 +10,11 @@ import (
 	"testing"
 	"time"
 
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
-
-	"github.com/fabric8-services/fabric8-auth/rest"
-
 	"github.com/fabric8-services/fabric8-auth/app"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/client"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -28,6 +24,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/resource"
+	"github.com/fabric8-services/fabric8-auth/rest"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testoauth "github.com/fabric8-services/fabric8-auth/test/generated/authentication"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
@@ -41,6 +38,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
+	gock "gopkg.in/h2non/gock.v1"
 )
 
 type authenticationProviderServiceTestSuite struct {
@@ -104,17 +102,18 @@ func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationRedirect(
 
 func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserUnauthorized() {
 	claims := make(map[string]interface{})
-	claims["username"] = "something-that-doesn-not-exist-in-db" + uuid.NewV4().String()
+	username := "something-that-doesn-not-exist-in-db" + uuid.NewV4().String()
+	claims["username"] = username
 	token, err := testtoken.GenerateTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(true))
+	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(uuid.NewV4().String(), true))
 	_, err = s.Application.AuthenticationProviderService().UpdateIdentityUsingUserInfoEndPoint(context.Background(), token)
 
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 
-	_, err = s.unapprovedUserRedirected()
+	_, err = s.unapprovedUserRedirected(username)
 	require.NotNil(s.T(), err)
 	require.IsType(s.T(), autherrors.NewUnauthorizedError(""), err)
 }
@@ -125,35 +124,61 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserRedirected() 
 		os.Setenv("AUTH_NOTAPPROVED_REDIRECT", env)
 		s.resetConfiguration()
 	}()
+	defer gock.OffAll()
+	gock.Observe(gock.DumpRequest)
 
 	os.Setenv("AUTH_NOTAPPROVED_REDIRECT", "https://xyz.io")
 	s.resetConfiguration()
-
-	loader := testsupport.NewDummySubscriptionLoader()
-	loader.Status = uuid.NewV4().String()
-	loader.APIURL = "https://api.starter-us-east-2.openshift.com"
-
-	testsupport.ActivateDummySubscriptionLoaderFactory(s, loader)
 	testsupport.ActivateDummyClusterCacheFactory(s, testsupport.NewDummyClusterCache())
 
-	redirect, err := s.unapprovedUserRedirected()
-	require.NoError(s.T(), err)
-	require.Equal(s.T(), "https://xyz.io?status="+loader.Status, *redirect)
+	s.Run("should redirect if signup needed", func() {
+		username := uuid.NewV4().String()
+		// intercept call to remote Online Reg App Service
+		gock.New(s.Configuration.GetOSORegistrationAppURL()).
+			Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+			MatchParam("authorization_username", s.Configuration.GetOSORegistrationAppAdminUsername()).
+			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", s.Configuration.GetOSORegistrationAppAdminToken())).
+			Reply(200).BodyString(`{
+				"subscriptions":[
+					{
+						"status":"some-test-status",
+						"plan":{
+							"service":{
+								"api_url":"https://api.starter-us-east-2a.openshift.com"
+							}
+						}
+					}
+				]
+			}`)
+		// when
+		redirect, err := s.unapprovedUserRedirected(username)
+		// then
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), fmt.Sprintf("https://xyz.io?status=%s", "some-test-status"), *redirect)
+	})
 
-	// If OSO subscription status loading failed we still should redirect
-	loader.Status = ""
-	loader.Err = autherrors.NewInternalError(context.Background(), errors.New(""))
-	redirect, err = s.unapprovedUserRedirected()
-	require.NoError(s.T(), err)
-	require.Equal(s.T(), "https://xyz.io?status=", *redirect)
+	s.Run("should redirect if OSO subscription status loading failed", func() {
+		username := uuid.NewV4().String()
+		// intercept call to remote Online Reg App Service
+		gock.New(s.Configuration.GetOSORegistrationAppURL()).
+			Get(fmt.Sprintf("api/accounts/%s/subscriptions", username)).
+			MatchParam("authorization_username", s.Configuration.GetOSORegistrationAppAdminUsername()).
+			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", s.Configuration.GetOSORegistrationAppAdminToken())).
+			Reply(500) // will trigger an error result from the reg app service
+		// when
+		redirect, err := s.unapprovedUserRedirected(username)
+		// then
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), "https://xyz.io?status=", *redirect)
+	})
 }
 
-func (s *authenticationProviderServiceTestSuite) unapprovedUserRedirected() (*string, error) {
+func (s *authenticationProviderServiceTestSuite) unapprovedUserRedirected(username string) (*string, error) {
 	redirect, err := url.Parse("https://openshift.io/_home")
 	require.Nil(s.T(), err)
 
 	claims := make(map[string]interface{})
-	claims["sub"] = uuid.NewV4().String()
+	claims["sub"] = username
 	accessToken, err := testtoken.GenerateAccessTokenWithClaims(claims)
 	if err != nil {
 		panic(err)
@@ -164,7 +189,7 @@ func (s *authenticationProviderServiceTestSuite) unapprovedUserRedirected() (*st
 	}
 
 	token := &oauth2.Token{Expiry: time.Now(), AccessToken: accessToken, RefreshToken: refreshToken}
-	dummyOAuth := s.getDummyOauthIDPService(false)
+	dummyOAuth := s.getDummyOauthIDPService(username, false)
 	testsupport.ActivateDummyIdentityProviderFactory(s, dummyOAuth)
 	defer s.ResetFactories()
 
@@ -472,12 +497,12 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 	require.Contains(s.T(), *redirectUrl, refererUrl)
 }
 
-func (s *authenticationProviderServiceTestSuite) getDummyOauthIDPService(forApprovedUser bool) *dummyIDPOAuthProvider {
-	g := s.NewTestGraph(s.T())
-	newIdentity := g.CreateUser().Identity()
+func (s *authenticationProviderServiceTestSuite) getDummyOauthIDPService(username string, forApprovedUser bool) *dummyIDPOAuthProvider {
 	claims := make(map[string]interface{})
-	claims["sub"] = uuid.NewV4()
+	claims["sub"] = username
 	if forApprovedUser {
+		g := s.NewTestGraph(s.T())
+		newIdentity := g.CreateUser().Identity()
 		claims["preferred_username"] = newIdentity.Username
 		claims["email"] = newIdentity.User.Email
 		claims["company"] = newIdentity.User.Company
@@ -488,17 +513,16 @@ func (s *authenticationProviderServiceTestSuite) getDummyOauthIDPService(forAppr
 	refreshToken, err := testtoken.GenerateRefreshTokenWithClaims(claims)
 	require.Nil(s.T(), err)
 
-	dummyOauth := &dummyIDPOAuthProvider{
+	return &dummyIDPOAuthProvider{
 		IdentityProvider: provider.NewIdentityProvider(s.Configuration),
 		accessToken:      accessToken,
 		refreshToken:     refreshToken,
 	}
-	return dummyOauth
 }
 
 func (s *authenticationProviderServiceTestSuite) TestValidOAuthAuthorizationCode() {
 	rw, authorizeCtx := s.loginCallback(make(map[string]string))
-	dummyOauth := s.getDummyOauthIDPService(true)
+	dummyOauth := s.getDummyOauthIDPService(uuid.NewV4().String(), true)
 	s.checkLoginCallback(dummyOauth, rw, authorizeCtx, "token_json")
 }
 
@@ -566,7 +590,7 @@ func (s *authenticationProviderServiceTestSuite) checkAPIClientForUsersReturnOK(
 	extra["api_client"] = "vscode"
 	rw, authorizeCtx := s.loginCallback(extra)
 
-	dummyIDPOAuthProviderRef := s.getDummyOauthIDPService(false)
+	dummyIDPOAuthProviderRef := s.getDummyOauthIDPService(uuid.NewV4().String(), false)
 	s.checkLoginCallback(dummyIDPOAuthProviderRef, rw, authorizeCtx, "api_token")
 }
 
@@ -989,7 +1013,7 @@ func (s *authenticationProviderServiceTestSuite) TestValidOAuthAuthorizationCode
 	_, err := s.Application.AuthenticationProviderService().AuthorizeCallback(callbackCtx, callbackCtx.State, callbackCtx.Code)
 	require.Nil(s.T(), err)
 
-	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(true))
+	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(uuid.NewV4().String(), true))
 	userToken, err := s.Application.AuthenticationProviderService().ExchangeCodeWithProvider(callbackCtx,
 		callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Nil(s.T(), err)
@@ -1133,7 +1157,7 @@ func (s *authenticationProviderServiceTestSuite) authorizeCallback(testType stri
 	authorizeCtx, err := app.NewAuthorizeAuthorizeContext(goaCtx, req, goa.New("LoginService"))
 	require.Nil(s.T(), err)
 
-	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(false))
+	testsupport.ActivateDummyIdentityProviderFactory(s, s.getDummyOauthIDPService(uuid.NewV4().String(), false))
 	defer s.ResetFactories()
 
 	redirectTo, err := s.Application.AuthenticationProviderService().GenerateAuthCodeURL(authorizeCtx,
