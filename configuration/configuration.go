@@ -183,7 +183,7 @@ const (
 	//
 	//------------------------------------------------------------------------------------------------------------------
 
-	// varUserDeactivationWorkerFrew the interval between 2 cycles of the user deactivation worker
+	// varUserDeactivationWorkerIntervalMinutes is the interval between 2 cycles of the user deactivation worker in minutes
 	varUserDeactivationWorkerIntervalMinutes = "user.deactivation.interval.minutes"
 	// varUserDeactivationNotificationWorkerIntervalMinutes is the interval between 2 cycles of the user deactivation notification worker in minutes
 	varUserDeactivationNotificationWorkerIntervalMinutes = "user.deactivation.notification.interval.minutes"
