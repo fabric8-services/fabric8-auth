@@ -54,10 +54,6 @@ func NewTokenService(context servicecontext.ServiceContext, config TokenServiceC
 	}
 }
 
-func (s *tokenServiceImpl) TokenManager() manager.TokenManager {
-	return s.tokenManager
-}
-
 // Audit verifies an existing token in respect to its privileges for a specified resource.  It starts by validating
 // the status of the token passed in the request, and if that token is currently valid and contains the specified
 // resource, returns the same token.  If the token is invalid or outdated, or doesn't contain the specified resource,

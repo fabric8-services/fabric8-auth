@@ -51,7 +51,12 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identityID uuid.UUID) e
 		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID.String())
 	}
 
-	token, err := s.Services().TokenService().TokenManager().GenerateTransientUserAccessTokenForIdentity(ctx, *identity)
+	tokenManager, err := manager.DefaultManager(s.config)
+	if err != nil {
+		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID.String())
+	}
+
+	token, err := tokenManager.GenerateTransientUserAccessTokenForIdentity(ctx, *identity)
 	if err != nil {
 		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID.String())
 	}
