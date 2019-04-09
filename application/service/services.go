@@ -184,7 +184,7 @@ type WITService interface {
 
 // CheService service interface for Che
 type CheService interface {
-	DeleteUser(ctx context.Context, identityID string) error
+	DeleteUser(ctx context.Context, identityID uuid.UUID) error
 }
 
 //Services creates instances of service layer objects

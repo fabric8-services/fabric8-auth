@@ -195,7 +195,7 @@ type TokenManager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserTokenForAPIClient(ctx context.Context, providerToken oauth2.Token) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
-	GenerateTransientAccessTokenForIdentity(ctx context.Context, identity repository.Identity) (*string, error)
+	GenerateTransientUserAccessTokenForIdentity(ctx context.Context, identity repository.Identity) (*string, error)
 	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity, permissions []Permissions) (*oauth2.Token, error)
 	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
 	SignRPTToken(ctx context.Context, rptToken *jwt.Token) (string, error)
