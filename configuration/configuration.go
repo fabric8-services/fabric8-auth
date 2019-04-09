@@ -162,6 +162,7 @@ const (
 
 	varWITDomainPrefix        = "wit.domain.prefix"
 	varTenantServiceURL       = "tenant.serviceurl"
+	varCheServiceURL       = "che.serviceurl"
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
 	varAuthURL                = "auth.url"
@@ -964,6 +965,11 @@ func (c *ConfigurationData) GetTenantServiceURL() string {
 		return devModeTenantServiceURL
 	}
 	return c.v.GetString(varTenantServiceURL)
+}
+
+// GetCheServiceURL returns the URL for the Che service
+func (c *ConfigurationData) GetCheServiceURL() string {
+	return c.v.GetString(varCheServiceURL)
 }
 
 // GetOSORegistrationAppURL returns the URL for the OpenShift Online Registration App

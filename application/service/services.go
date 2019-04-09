@@ -174,11 +174,17 @@ type TenantService interface {
 	Delete(ctx context.Context, identityID uuid.UUID) error
 }
 
+// WITService service interface for WIT
 type WITService interface {
 	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
 	CreateUser(ctx context.Context, identity *account.Identity, identityID string) error
 	DeleteUser(ctx context.Context, identityID string) error
 	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
+}
+
+// CheService service interface for Che
+type CheService interface {
+	DeleteUser(ctx context.Context, identityID string) error
 }
 
 //Services creates instances of service layer objects
@@ -202,6 +208,7 @@ type Services interface {
 	UserService() UserService
 	TenantService() TenantService
 	WITService() WITService
+	CheService() CheService
 }
 
 //----------------------------------------------------------------------------------------------------------------------
