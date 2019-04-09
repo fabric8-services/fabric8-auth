@@ -1,30 +1,45 @@
 package service
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"net/http"
 
+	"github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/application/service/base"
+	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
-
-	"github.com/fabric8-services/fabric8-auth/application/service"
 	errs "github.com/pkg/errors"
 )
 
 // cheServiceImpl is the default implementation of CheService.
 type cheServiceImpl struct {
-	config Configuration
+	base.BaseService
+	config       Configuration
+	tokenManager manager.TokenManager
 }
 
 // Configuration the config for the Che service
 type Configuration interface {
+	manager.TokenManagerConfiguration
 	GetCheServiceURL() string
 }
+
 // NewCheService creates a new Che service.
-func NewCheService(config Configuration) service.CheService {
+func NewCheService(context servicecontext.ServiceContext, config Configuration) service.CheService {
+	tokenManager, err := manager.NewTokenManager(config)
+	if err != nil {
+		log.Panic(nil, map[string]interface{}{
+			"err": err,
+		}, "failed to create token manager")
+	}
+
 	return &cheServiceImpl{
-		config:config,
+		BaseService:  base.NewBaseService(context),
+		config:       config,
+		tokenManager: tokenManager,
 	}
 }
 
@@ -37,12 +52,23 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identityID string) erro
 	if err != nil {
 		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID)
 	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", "foooo"))
+
+	identity, err := s.Repositories().Identities().Load(ctx, identityID)
+	if err != nil {
+		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID)
+	}
+
+	token, err := s.tokenManager.GenerateTransientAccessTokenForIdentity(ctx, identity)
+	if err != nil {
+		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID)
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID)
 	}
-	
+
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusOK {
@@ -55,4 +81,3 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identityID string) erro
 	}
 	return nil
 }
-

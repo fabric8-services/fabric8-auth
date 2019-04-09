@@ -20,7 +20,7 @@ func TestChe(t *testing.T) {
 }
 
 type TestCheSuite struct {
-	testsuite.UnitTestSuite 
+	testsuite.UnitTestSuite
 }
 
 func (s *TestCheSuite) TestDeleteUser() {
@@ -39,7 +39,7 @@ func (s *TestCheSuite) TestDeleteUser() {
 	s.Run("ok", func() {
 		// given
 		ctx := context.Background()
-		identityID:=uuid.NewV4().String()
+		identityID := uuid.NewV4().String()
 		gock.New("http://che.test").
 			Delete(fmt.Sprintf("api/user/%s", identityID)).
 			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", "foo")).

@@ -163,7 +163,7 @@ const (
 
 	varWITDomainPrefix        = "wit.domain.prefix"
 	varTenantServiceURL       = "tenant.serviceurl"
-	varCheServiceURL       = "che.serviceurl"
+	varCheServiceURL          = "che.serviceurl"
 	varWITURL                 = "wit.url"
 	varNotificationServiceURL = "notification.serviceurl"
 	varAuthURL                = "auth.url"
