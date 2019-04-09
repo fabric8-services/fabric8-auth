@@ -16,7 +16,6 @@ import (
 	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
-	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	tokenworker "github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -27,7 +26,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
-	"github.com/fabric8-services/fabric8-auth/worker"
 
 	"github.com/goadesign/goa"
 	goalogrus "github.com/goadesign/goa/logging/logrus"
