@@ -147,6 +147,7 @@ type TokenService interface {
 	RegisterToken(ctx context.Context, identityID uuid.UUID, tokenString string, tokenType string, privileges []tokenrepo.TokenPrivilege) (*tokenrepo.Token, error)
 	RetrieveExternalToken(ctx context.Context, forResource string, req *goa.RequestData, forcePull *bool) (*app.ExternalToken, *string, error)
 	SetStatusForAllIdentityTokens(ctx context.Context, identityID uuid.UUID, status int) error
+	TokenManager() manager.TokenManager
 	ValidateToken(ctx context.Context, tkn *jwt.Token) error
 }
 

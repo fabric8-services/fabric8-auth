@@ -19,8 +19,7 @@ import (
 // cheServiceImpl is the default implementation of CheService.
 type cheServiceImpl struct {
 	base.BaseService
-	config       Configuration
-	tokenManager manager.TokenManager
+	config Configuration
 }
 
 // Configuration the config for the Che service
@@ -31,17 +30,9 @@ type Configuration interface {
 
 // NewCheService creates a new Che service.
 func NewCheService(context servicecontext.ServiceContext, config Configuration) service.CheService {
-	tokenManager, err := manager.NewTokenManager(config)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to create token manager")
-	}
-
 	return &cheServiceImpl{
-		BaseService:  base.NewBaseService(context),
-		config:       config,
-		tokenManager: tokenManager,
+		BaseService: base.NewBaseService(context),
+		config:      config,
 	}
 }
 
@@ -60,7 +51,7 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identityID uuid.UUID) e
 		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID.String())
 	}
 
-	token, err := s.tokenManager.GenerateTransientUserAccessTokenForIdentity(ctx, *identity)
+	token, err := s.Services().TokenService().TokenManager().GenerateTransientUserAccessTokenForIdentity(ctx, *identity)
 	if err != nil {
 		return errs.Wrapf(err, "unable to delete user '%s' in Che", identityID.String())
 	}
