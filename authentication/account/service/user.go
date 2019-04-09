@@ -276,7 +276,7 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 	// call Che
 	// call WIT and Tenant to deactivate the user there as well,
 	// using `auth` SA token here, not the request context's token
-	err = s.Services().CheService().DeleteUser(ctx, identity.ID)
+	err = s.Services().CheService().DeleteUser(ctx, *identity)
 	if err != nil {
 		// do not proceed with tenant removal if something wrong happened during Che cleanup
 		return nil, errs.Wrapf(err, "error occurred during deactivation of user '%s' on Che Service", identity.ID)

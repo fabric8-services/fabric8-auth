@@ -1,26 +1,24 @@
 package service_test
 
 import (
-	"context"
 	"fmt"
+	//"github.com/gophercloud/gophercloud/openstack/compute/v2/images"
 	"testing"
 
-	cheservice "github.com/fabric8-services/fabric8-auth/che/service"
+	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	mockcheservice "github.com/fabric8-services/fabric8-auth/test/generated/che/service"
-	testsuite "github.com/fabric8-services/fabric8-common/test/suite"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	uuid "github.com/satori/go.uuid"
-	gock "gopkg.in/h2non/gock.v1"
+	"gopkg.in/h2non/gock.v1"
 )
 
 func TestChe(t *testing.T) {
-	suite.Run(t, &TestCheSuite{})
+	suite.Run(t, &TestCheSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 type TestCheSuite struct {
-	testsuite.UnitTestSuite
+	gormtestsupport.DBTestSuite
 }
 
 func (s *TestCheSuite) TestDeleteUser() {
@@ -34,18 +32,17 @@ func (s *TestCheSuite) TestDeleteUser() {
 	config.GetCheServiceURLFunc = func() string {
 		return "http://che.test"
 	}
-	svc := cheservice.NewCheService(config)
 
 	s.Run("ok", func() {
 		// given
-		ctx := context.Background()
-		identityID := uuid.NewV4().String()
+		identity := s.Graph.CreateIdentity().Identity()
+
 		gock.New("http://che.test").
-			Delete(fmt.Sprintf("api/user/%s", identityID)).
+			Delete(fmt.Sprintf("api/user/%s", identity.ID)).
 			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", "foo")).
 			Reply(200)
 		// when
-		err := svc.DeleteUser(ctx, identityID)
+		err := s.Application.CheService().DeleteUser(s.Ctx, *identity)
 		// then
 		require.NoError(s.T(), err)
 	})
