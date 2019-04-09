@@ -185,7 +185,7 @@ const (
 
 	// varUserDeactivationWorkerFrew the interval between 2 cycles of the user deactivation worker
 	varUserDeactivationWorkerIntervalMinutes = "user.deactivation.interval.minutes"
-	// varUserDeactivationWorkerFrew the interval between 2 cycles of the user deactivation worker
+	// varUserDeactivationNotificationWorkerIntervalMinutes is the interval between 2 cycles of the user deactivation notification worker in minutes
 	varUserDeactivationNotificationWorkerIntervalMinutes = "user.deactivation.notification.interval.minutes"
 	// varUserDeactivationFetchLimit the maximum number of identities to warn before deactivation and deactivate
 	varUserDeactivationFetchLimit = "user.deactivation.fetch.limit"
