@@ -60,6 +60,7 @@ type TokenManagerConfiguration interface {
 	IsPostgresDeveloperModeEnabled() bool
 	GetAccessTokenExpiresIn() int64
 	GetRefreshTokenExpiresIn() int64
+	GetTransientTokenExpiresIn() int64
 	GetAuthServiceURL() string
 }
 
@@ -511,6 +512,26 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Co
 	}
 	claims["session_state"] = uuid.NewV4().String()
 	return token, nil
+}
+
+// GenerateTransientUserAccessTokenForIdentity generates a transient user access token, an extremely short-lived token
+func (m *tokenManager) GenerateTransientUserAccessTokenForIdentity(ctx context.Context, identity repository.Identity) (*string, error) {
+	token, err := m.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	iat := time.Now().Unix()
+	claims["exp"] = iat + m.config.GetTransientTokenExpiresIn()
+	claims["transient"] = "true"
+
+	accessToken, err := token.SignedString(m.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &accessToken, nil
 }
 
 // #####################################################################################################################
