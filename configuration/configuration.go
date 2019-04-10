@@ -976,6 +976,9 @@ func (c *ConfigurationData) GetTenantServiceURL() string {
 
 // GetCheServiceURL returns the URL for the Che service
 func (c *ConfigurationData) GetCheServiceURL() string {
+	if c.IsPostgresDeveloperModeEnabled() {
+		return devModeCheServiceURL
+	}
 	return c.v.GetString(varCheServiceURL)
 }
 

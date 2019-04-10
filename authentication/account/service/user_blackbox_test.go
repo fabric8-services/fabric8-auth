@@ -3,6 +3,8 @@ package service_test
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/notification"
@@ -23,6 +26,7 @@ import (
 	"github.com/fabric8-services/fabric8-common/gocksupport"
 	testsuite "github.com/fabric8-services/fabric8-common/test/suite"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/jinzhu/gorm"
 	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -572,6 +576,28 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
 			Reply(204)
 
+		tokenManager, err := manager.DefaultManager(s.Configuration)
+		require.NoError(s.T(), err)
+		tokenMatcher := gock.NewBasicMatcher()
+		tokenMatcher.Add(func(req *http.Request, ereq *gock.Request) (bool, error) {
+			h := req.Header.Get("Authorization")
+			if strings.HasPrefix(h, "Bearer ") {
+				token := h[len("Bearer "):]
+				// parse the token and check the 'sub' claim
+				tk, err := tokenManager.Parse(context.Background(), token)
+				if err != nil {
+					return false, err
+				}
+				if claims, ok := tk.Claims.(jwt.MapClaims); ok {
+					return claims["sub"] == userToDeactivate.IdentityID().String(), nil
+				}
+			}
+			return false, nil
+		})
+		gock.New("http://localhost:8091").
+			Delete(fmt.Sprintf("api/user/%s", userToDeactivate.IdentityID().String())).
+			SetMatcher(tokenMatcher).
+			Reply(200)
 		// when
 		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
 		// then
