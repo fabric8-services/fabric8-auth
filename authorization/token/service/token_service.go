@@ -20,6 +20,7 @@ import (
 	"github.com/goadesign/goa"
 	"github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
+	"strconv"
 
 	"sort"
 	"time"
@@ -787,18 +788,32 @@ func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.T
 		return errors.NewUnauthorizedError("invalid token")
 	}
 
-	identityID, err := uuid.FromString(claims["sub"].(string))
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{"error": err}, "could not extract identity ID ('sub' claim) from token")
-		return errors.NewBadParameterErrorFromString("token", accessToken.Raw,
-			"could not extract identity ID from token")
+	transient := false
+	transClaim := claims["transient"]
+	if transClaim != nil {
+		transient, err = strconv.ParseBool(transClaim.(string))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"token_id": tokenID,
+				"err":      err,
+			}, "invalid transient claim")
+		}
 	}
 
-	// Update the identity's last active timestamp
-	err = s.Repositories().Identities().TouchLastActive(ctx, identityID)
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{"error": err}, "could not update last active timestamp")
-		return errors.NewInternalError(ctx, err)
+	if !transient {
+		identityID, err := uuid.FromString(claims["sub"].(string))
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"error": err}, "could not extract identity ID ('sub' claim) from token")
+			return errors.NewBadParameterErrorFromString("token", accessToken.Raw,
+				"could not extract identity ID from token")
+		}
+
+		// Update the identity's last active timestamp
+		err = s.Repositories().Identities().TouchLastActive(ctx, identityID)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{"error": err}, "could not update last active timestamp")
+			return errors.NewInternalError(ctx, err)
+		}
 	}
 
 	return nil
