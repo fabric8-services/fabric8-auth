@@ -497,6 +497,8 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 
 	// given
 	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx = testtoken.ContextWithRequest(ctx)
+
 	saToken := testtoken.TokenManager.AuthServiceAccountToken()
 
 	s.T().Run("ok", func(t *testing.T) {
