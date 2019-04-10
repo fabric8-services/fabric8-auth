@@ -68,6 +68,7 @@ func (s *TestCheSuite) TestDeleteUser() {
 		// given
 		identity := s.Graph.CreateIdentity().Identity()
 		tokenManager, err := manager.DefaultManager(config)
+		require.NoError(s.T(), err)
 		tokenMatcher := gock.NewBasicMatcher()
 		tokenMatcher.Add(func(req *http.Request, ereq *gock.Request) (bool, error) {
 			h := req.Header.Get("Authorization")
