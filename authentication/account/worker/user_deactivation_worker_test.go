@@ -8,11 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jinzhu/gorm"
-
 	"github.com/fabric8-services/fabric8-auth/application"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/worker"
+	ososervice "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -20,7 +19,6 @@ import (
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	baseworker "github.com/fabric8-services/fabric8-auth/worker"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/h2non/gock.v1"
@@ -61,12 +59,12 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		userToDeactivate.User().Cluster = "TestCluster" // need to use the same clus
 		err := s.Application.Users().Save(ctx, userToDeactivate.User())
 		require.NoError(s.T(), err)
-		identityToDeactivate := userToDeactivate.Identity()
+		identityToDeactivate := *userToDeactivate.Identity()
 		identityToDeactivate.LastActive = &ago40days
 		identityToDeactivate.DeactivationNotification = &ago30days
-		err = s.Application.Identities().Save(ctx, identityToDeactivate)
+		err = s.Application.Identities().Save(ctx, &identityToDeactivate)
 		require.NoError(s.T(), err)
-		mockRemoteCalls(userToDeactivate.User(), identityToDeactivate)
+		mockRemoteCalls(userToDeactivate.User(), identityToDeactivate, s.Configuration)
 		// start the worker with a 50ms ticker
 		w := s.newUserDeactivationWorker(ctx, "pod-a", app)
 		freq := time.Millisecond * 50
@@ -75,13 +73,10 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		time.Sleep(freq * 2)
 		w.Stop()
 		time.Sleep(freq * 10) // give workers some time to stop for good
-		// then load the user and check her deactivation notification status
-		unscoped := func(db *gorm.DB) *gorm.DB {
-			return db.Unscoped()
-		}
-		result, err := s.Application.Identities().Load(ctx, identityToDeactivate.ID, unscoped)
+		// verify that the lock was released
+		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivation)
 		require.NoError(s.T(), err)
-		assert.NotNil(s.T(), result.DeletedAt)
+		l.Close()
 	})
 
 	s.Run("multiple workers but only one working", func() {
@@ -91,18 +86,18 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		userToDeactivate.User().Cluster = "TestCluster" // need to use the same clus
 		err := s.Application.Users().Save(ctx, userToDeactivate.User())
 		require.NoError(s.T(), err)
-		identityToDeactivate := userToDeactivate.Identity()
+		identityToDeactivate := *userToDeactivate.Identity()
 		identityToDeactivate.LastActive = &ago40days
 		identityToDeactivate.DeactivationNotification = &ago30days
-		err = s.Application.Identities().Save(ctx, identityToDeactivate)
+		err = s.Application.Identities().Save(ctx, &identityToDeactivate)
 		require.NoError(s.T(), err)
-		mockRemoteCalls(userToDeactivate.User(), identityToDeactivate)
+		mockRemoteCalls(userToDeactivate.User(), identityToDeactivate, s.Configuration)
 		// start the workers with a 50ms ticker
 		freq := time.Millisecond * 50
 		latch := sync.WaitGroup{}
 		latch.Add(1)
 		workers := []worker.UserDeactivationNotificationWorker{}
-		for i := 1; i <= 5; i++ {
+		for i := 1; i <= 2; i++ {
 			fmt.Printf("initializing worker %d...\n", i)
 			w := s.newUserDeactivationWorker(context.Background(), fmt.Sprintf("pod-%d", i), app)
 			workers = append(workers, w)
@@ -121,13 +116,6 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 			w.Stop()
 		}
 		time.Sleep(freq * 10) // give workers some time to stop for good
-		// then load the user and check her deactivation notification status
-		unscoped := func(db *gorm.DB) *gorm.DB {
-			return db.Unscoped()
-		}
-		result, err := s.Application.Identities().Load(ctx, identityToDeactivate.ID, unscoped)
-		require.NoError(s.T(), err)
-		assert.NotNil(s.T(), result.DeletedAt)
 		// verify that the lock was released
 		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivation)
 		require.NoError(s.T(), err)
@@ -144,39 +132,14 @@ func (s *UserDeactivationWorkerTest) newUserDeactivationWorker(ctx context.Conte
 	return worker.NewUserDeactivationWorker(ctx, app)
 }
 
-func mockRemoteCalls(userToDeactivate *account.User, identity *account.Identity) {
-	fmt.Printf("Preparing Gock for user '%s' / identity '%s'\n", userToDeactivate.ID.String(), identity.ID.String())
+func mockRemoteCalls(userToDeactivate *account.User, identity account.Identity, config ososervice.OSOSubscriptionServiceConfiguration) {
+	fmt.Printf("Preparing Gock for user '%s' / identity id '%s' username '%s' \n", userToDeactivate.ID.String(), identity.ID.String(), identity.Username)
 	// call to Cluster Service
 	gock.Observe(gock.DumpRequest)
-	gock.New("http://f8cluster").
-		Get("/api/clusters/auth").
-		Reply(200).
-		BodyString(
-			fmt.Sprintf(`{
-					"data": [
-						{
-							"token-provider-id": "33456e01-0ce4-4da2-b94d-daa968412662",
-							"api-url": "%s",
-							"app-dns": "a347.foo.openshiftapps.com",
-							"auth-client-default-scope": "user:full",
-							"auth-client-id": "openshift-io",
-							"auth-client-secret": "067da2df-b721-48cd-8e76-ac26e9140218",
-							"capacity-exhausted": false,
-							"console-url": "https://console.foo.openshift.com/console/",
-							"logging-url": "https://console.foo.openshift.com/console/",
-							"metrics-url": "https://metrics.foo.openshift.com/",
-							"name": "foo",
-							"service-account-token": "1d147ba1-2832-4048-b1c5-21ae37377f0d",
-							"service-account-username": "devtools-sre"
-						}
-					]
-				}`, userToDeactivate.Cluster))
-	// call to WIT Service
-	gock.New("http://localhost:8080").
-		Delete(fmt.Sprintf("/api/users/username/%s", identity.ID.String())).
+	// call to OSO Reg App
+	gock.New(config.GetOSORegistrationAppURL()).
+		Post(fmt.Sprintf("/api/accounts/%s/deprovision_osio", identity.Username)).
+		MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+		// not checking token here. Refer to OSO Reg App Deactivation tests
 		Reply(200)
-	// call to Tenant Service
-	gock.New("http://localhost:8090").
-		Delete(fmt.Sprintf("/api/tenants/%s", identity.ID.String())).
-		Reply(204)
 }
