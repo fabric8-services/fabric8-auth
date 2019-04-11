@@ -54,7 +54,10 @@ func (w *userDeactivationWorker) deactivateUsers() {
 		return
 	}
 	for _, identity := range identities {
-		_, err := w.App.UserService().DeactivateUser(w.Ctx, identity.Username)
+		// to deactivate a user, we need to call the OSO Registration App which will take care of
+		// deactivating the user on OSO and then call back `auth` service (on its `/namedusers/:username/deactivate` endpoint)
+		// which will handle the deactivation on the OSIO platform
+		err := w.App.OSOSubscriptionService().DeactivateUser(w.Ctx, identity.Username)
 		if err != nil {
 			// We will just log the error and continue
 			log.Error(nil, map[string]interface{}{
