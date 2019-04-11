@@ -52,7 +52,7 @@ func (s *TestCheSuite) TestDeleteUser() {
 		gock.New("http://localhost:8091").
 			Delete(fmt.Sprintf("api/user/%s", identity.ID)).
 			SetMatcher(tokenMatcher).
-			Reply(200)
+			Reply(204) // expect a `No Content` response
 		// when
 		err = s.Application.CheService().DeleteUser(s.Ctx, *identity)
 		// then

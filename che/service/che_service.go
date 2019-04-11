@@ -3,8 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/http"
+
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
@@ -69,7 +70,7 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identity repository.Ide
 
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
-	if res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusNoContent {
 		log.Error(ctx, map[string]interface{}{
 			"identity_id":     identity.ID.String(),
 			"response_status": res.Status,
