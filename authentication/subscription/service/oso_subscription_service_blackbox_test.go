@@ -295,22 +295,36 @@ func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
 	gock.Observe(gock.DumpRequest)
 
 	s.Run("success", func() {
-		username := uuid.NewV4().String()
-		gock.New(config.GetOSORegistrationAppURL()).
-			Get(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
-			MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
-			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
-			Reply(200)
-		// when
-		err := svc.DeactivateUser(context.Background(), username)
-		// then
-		require.NoError(s.T(), err)
+		s.Run("ok", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(200)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.NoError(s.T(), err)
+		})
+		s.Run("not found", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(404)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.NoError(s.T(), err)
+		})
 	})
 
 	s.Run("failure", func() {
 
 		s.Run("should return an error if the client returns any status but 200", func() {
-			username := uuid.NewV4().String()
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
 			gock.New(config.GetOSORegistrationAppURL()).
 				Get(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
 				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).

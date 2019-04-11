@@ -179,15 +179,15 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 	return &sbs, nil
 }
 
-// DeactivateUser deactivates the user on OpenShift
+// DeactivateUser deactivates the user on OpenShift Online
 func (s *osoSubscriptionServiceImpl) DeactivateUser(ctx context.Context, username string) error {
 	// Load status from OSO
 	regAppURL := fmt.Sprintf("%s/api/accounts/%s/deprovision_osio?authorization_username=%s",
 		s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
 	log.Debug(ctx, map[string]interface{}{
-		"url": regAppURL,
-	}, "calling remote registration application to check the user status")
-	req, err := http.NewRequest("GET", regAppURL, nil)
+		"reg_app_url": regAppURL,
+	}, "calling remote registration application to deactivate user")
+	req, err := http.NewRequest("POST", regAppURL, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err.Error(),
@@ -207,7 +207,7 @@ func (s *osoSubscriptionServiceImpl) DeactivateUser(ctx context.Context, usernam
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 
-	if res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
 		log.Error(ctx, map[string]interface{}{
 			"reg_app_url":     regAppURL,
 			"response_status": res.Status,
