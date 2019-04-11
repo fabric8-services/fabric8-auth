@@ -7,11 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"net/url"
 	"regexp"
 	"strconv"
 	"time"
+
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -26,7 +27,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	errs "github.com/pkg/errors"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
 )
 
@@ -132,7 +133,7 @@ func (s *authenticationProviderServiceImpl) LoginCallback(ctx context.Context, s
 
 	providerToken, err := s.ExchangeCodeWithProvider(ctx, code, redirectURL)
 	if err != nil {
-		redirect := referrerURL.String() + "?error=" + err.Error()
+		redirect := referrerURL.String() + "?error=" + url.QueryEscape(err.Error())
 		return &redirect, err
 	}
 
