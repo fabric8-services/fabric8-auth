@@ -11,7 +11,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	subscription "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
-	"github.com/fabric8-services/fabric8-auth/errors"
 	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
@@ -276,9 +275,10 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 }
 
 func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
-
+	// given
 	appRegURL := "https://some.osourl.io"
 	admin := "test-admin"
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil)
 	config := testsubscription.NewOSOSubscriptionServiceConfigurationMock(s.T())
 	config.GetOSORegistrationAppURLFunc = func() string {
 		return appRegURL
@@ -289,38 +289,51 @@ func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
 	config.GetOSORegistrationAppAdminTokenFunc = func() string {
 		return fmt.Sprintf("%s-token", admin)
 	}
-	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil)
 	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
 
 	defer gock.OffAll()
 	gock.Observe(gock.DumpRequest)
 
 	s.Run("success", func() {
-		username := "foo"
-		// intercept call to remote Online Reg App Service
-		gock.New(config.GetOSORegistrationAppURL()).
-			Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
-			MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
-			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
-			Reply(200)
-		// when
-		err := svc.DeactivateUser(context.Background(), username)
-		// then
-		assert.NoError(s.T(), err)
+		s.Run("ok", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(200)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.NoError(s.T(), err)
+		})
+		s.Run("not found", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(404)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.NoError(s.T(), err)
+		})
 	})
 
 	s.Run("failure", func() {
-		username := "bar"
-		// intercept call to remote Online Reg App Service
-		gock.New(config.GetOSORegistrationAppURL()).
-			Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
-			MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
-			MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
-			Reply(500)
-		// when
-		err := svc.DeactivateUser(context.Background(), username)
-		// then
-		testsupport.AssertError(s.T(), err, errors.InternalError{}, "unable to deactivate user")
-	})
 
+		s.Run("should return an error if the client returns any status but 200", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(500)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.Error(s.T(), err)
+		})
+	})
 }
