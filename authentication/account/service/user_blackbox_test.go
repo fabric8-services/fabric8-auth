@@ -42,7 +42,7 @@ type userServiceBlackboxTestSuite struct {
 	gormtestsupport.DBTestSuite
 }
 
-func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation() {
+func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
 	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 		return 97 * 24 * time.Hour
@@ -51,9 +51,13 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
 		return 5 * time.Millisecond
 	}
-
+	now := time.Now() // make sure we use the same 'now' everywhere in the test
+	nowf := func() time.Time {
+		return now
+	}
 	// configure the `SetupSubtest` and `TearDownSubtest` to setup/reset data after each subtest
 	var identity1, identity2, identity3 repository.Identity
+	var user1, user2 repository.User
 	s.SetupSubtest = func() {
 		s.CleanTest = testsuite.DeleteCreatedEntities(s.DB, s.Configuration)
 		yesterday := time.Now().Add(-1 * 24 * time.Hour)
@@ -61,13 +65,13 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
 		ago70days := time.Now().Add(-70 * 24 * time.Hour) // 70 days since last activity and notified...
 		// user/identity1: 40 days since last activity and not notified
-		user1 := s.Graph.CreateUser().User()
+		user1 = *s.Graph.CreateUser().User()
 		identity1 = user1.Identities[0]
 		identity1.LastActive = &ago40days
 		err := s.Application.Identities().Save(ctx, &identity1)
 		require.NoError(s.T(), err)
 		// user/identity2: 70 days since last activity and not notified
-		user2 := s.Graph.CreateUser().User()
+		user2 = *s.Graph.CreateUser().User()
 		identity2 = user2.Identities[0]
 		identity2.LastActive = &ago70days
 		err = s.Application.Identities().Save(ctx, &identity2)
@@ -108,7 +112,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
 		require.NoError(s.T(), err)
 		assert.Empty(s.T(), result)
@@ -123,13 +127,15 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
 		}
+		var msgToSend notification.Message
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+			msgToSend = msg
 			return nil, nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
@@ -140,6 +146,11 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		require.NoError(s.T(), err)
 		require.NotNil(s.T(), identity.DeactivationNotification)
 		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
+		// also verify that the message to send to the user has the correct data
+		assert.Equal(s.T(), identity2.ID.String(), msgToSend.TargetID)
+		expiryDate := userservice.GetExpiryDate(config, nowf)
+		assert.Equal(s.T(), expiryDate, msgToSend.Custom["expiryDate"])
+		assert.Equal(s.T(), user2.Email, msgToSend.Custom["userEmail"])
 	})
 
 	s.Run("one user to deactivate with limit reached", func() {
@@ -156,7 +167,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
@@ -177,13 +188,15 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
+		var msgToSend []notification.Message
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+			msgToSend = append(msgToSend, msg)
 			return nil, nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
-		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 2)
@@ -191,12 +204,28 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToNotifyBeforeDeactivation()
 		assert.Equal(s.T(), identity1.ID, result[1].ID)
 		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageAsyncCounter)
 		// also check that the `DeactivationNotification` fields were set for both identities in the DB
-		for _, id := range []uuid.UUID{identity1.ID, identity2.ID} {
+		expiryDate := userservice.GetExpiryDate(config, nowf)
+		customs := []map[string]interface{}{}
+		for i, id := range []uuid.UUID{identity1.ID, identity2.ID} {
 			identity, err := s.Application.Identities().Load(ctx, id)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), identity.DeactivationNotification)
 			assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
+			// also verify that the message to send to the user has the correct data
+			assert.Equal(s.T(), identity.ID.String(), msgToSend[i].TargetID)
+			customs = append(customs, msgToSend[i].Custom)
 		}
+		// verify that 2 messages were sent, although, we can't be sure in which order
+		assert.ElementsMatch(s.T(), customs, []map[string]interface{}{
+			{
+				"expiryDate": expiryDate,
+				"userEmail":  user1.Email,
+			},
+			{
+				"expiryDate": expiryDate,
+				"userEmail":  user2.Email,
+			},
+		})
 	})
 
 	s.Run("error while sending second notification", func() {

@@ -129,9 +129,7 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	// for each identity, send a notification and record the timestamp in a separate transaction.
 	// perform the task for each identity in a separate Tx, and just log the error if something wrong happened,
 	// but don't stop processing on the rest of the accounts.
-	expirationDate := now().
-		Add(s.config.GetUserDeactivationInactivityPeriodDays() - s.config.GetUserDeactivationInactivityNotificationPeriodDays()).
-		Format("Mon Jan 2")
+	expirationDate := GetExpiryDate(s.config, now)
 	// run the notification/record update in a separate routine, with pooling of child routines to avoid
 	// sending too many requests at once to the notification service and to the database
 	defer ants.Release()
@@ -183,6 +181,15 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	return identities, nil
 }
 
+// GetExpiryDate a utility function which returns the expiry date, ie, when the user deactivation will happen
+// The date is based on the given 'now', and takes into account the delay for which the user is given a chance
+// to come back (7 days by default)
+func GetExpiryDate(config UserServiceConfiguration, now func() time.Time) string {
+	return now().
+		Add(config.GetUserDeactivationInactivityPeriodDays() - config.GetUserDeactivationInactivityNotificationPeriodDays()).
+		Format("Mon Jan 2")
+}
+
 // ListIdentitiesToDeactivate lists the identities to deactivate
 func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now func() time.Time) ([]repository.Identity, error) {
 	since := now().Add(-s.config.GetUserDeactivationInactivityPeriodDays())                                                                        // remove 'n' days from now (default: 31)
@@ -192,7 +199,7 @@ func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now fu
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string, now func() time.Time) error {
-	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.Username, expirationDate)
+	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.User.Email, expirationDate)
 	_, err := s.Services().NotificationService().SendMessageAsync(ctx, msg)
 	if err != nil {
 		return errs.Wrap(err, "failed to send notification to user before account deactivation")

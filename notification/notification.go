@@ -84,15 +84,15 @@ func NewSpaceInvitationEmail(identityID string, spaceName string, inviterName st
 
 // NewUserDeactivationEmail is a helper constructor which returns a message to inform the user that her
 // account will be deactivated soon
-func NewUserDeactivationEmail(identityID, username, deactivationDate string) Message {
+func NewUserDeactivationEmail(identityID, email, deactivationDate string) Message {
 	return Message{
 		MessageID:   uuid.NewV4(),
 		MessageType: "user.deactivation",
 		TargetID:    identityID,
 		UserID:      &identityID,
 		Custom: map[string]interface{}{
-			"username":         username,
-			"deactivationDate": deactivationDate,
+			"userEmail":  email,
+			"expiryDate": deactivationDate,
 		},
 	}
 }

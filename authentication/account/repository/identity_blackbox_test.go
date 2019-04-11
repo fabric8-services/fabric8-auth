@@ -189,6 +189,8 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToNotifyForDeactivation(
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		assert.Equal(t, identity2.ID, result[0].ID)
+		// also check that 'User' relationship was loaded
+		assert.Equal(t, identity2.UserID.UUID, result[0].User.ID)
 	})
 
 	s.T().Run("one user to notify for deactivation with limit reached", func(t *testing.T) {
