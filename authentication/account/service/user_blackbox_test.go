@@ -217,11 +217,11 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		}
 		// verify that 2 messages were sent, although, we can't be sure in which order
 		assert.ElementsMatch(s.T(), customs, []map[string]interface{}{
-			map[string]interface{}{
+			{
 				"expiryDate": expiryDate,
 				"userEmail":  user1.Email,
 			},
-			map[string]interface{}{
+			{
 				"expiryDate": expiryDate,
 				"userEmail":  user2.Email,
 			},
