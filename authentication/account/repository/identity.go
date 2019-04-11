@@ -400,7 +400,7 @@ func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx conte
 	var identities []Identity
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
-	err := m.db.Model(&Identity{}).
+	err := m.db.Model(&Identity{}).Preload("User").
 		Where(`last_active < ? AND deactivation_notification IS NULL`, lastActivity).
 		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
 		Order("last_active, created_at").

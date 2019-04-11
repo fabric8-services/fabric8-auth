@@ -188,7 +188,7 @@ func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now fu
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string, now func() time.Time) error {
-	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.Username, expirationDate)
+	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.User.Email, expirationDate)
 	_, err := s.Services().NotificationService().SendMessageAsync(ctx, msg)
 	if err != nil {
 		return errs.Wrap(err, "failed to send notification to user before account deactivation")
