@@ -145,7 +145,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 		// also verify that the message to send to the user has the correct data
 		assert.Equal(s.T(), identity2.ID.String(), msgToSend.TargetID)
-		expiryDate := time.Now().Add(config.GetUserDeactivationInactivityPeriodDays() - config.GetUserDeactivationInactivityNotificationPeriodDays()).Format("Mon Jan 2")
+		expiryDate := userservice.GetExpiryDate(config, time.Now)
 		assert.Equal(s.T(), expiryDate, msgToSend.Custom["expiryDate"])
 		assert.Equal(s.T(), user2.Email, msgToSend.Custom["userEmail"])
 	})
@@ -201,7 +201,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		assert.Equal(s.T(), identity1.ID, result[1].ID)
 		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageAsyncCounter)
 		// also check that the `DeactivationNotification` fields were set for both identities in the DB
-		expiryDate := time.Now().Add(config.GetUserDeactivationInactivityPeriodDays() - config.GetUserDeactivationInactivityNotificationPeriodDays()).Format("Mon Jan 2")
+		expiryDate := userservice.GetExpiryDate(config, time.Now)
 		for i, id := range []uuid.UUID{identity1.ID, identity2.ID} {
 			identity, err := s.Application.Identities().Load(ctx, id)
 			require.NoError(s.T(), err)
