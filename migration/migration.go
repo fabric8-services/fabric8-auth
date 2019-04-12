@@ -256,6 +256,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 49
 	m = append(m, steps{ExecuteSQLFile("049-user-banned-index.sql")})
 
+	// Version 50
+	m = append(m, steps{ExecuteSQLFile("050-worker-lock.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

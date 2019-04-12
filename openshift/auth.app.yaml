@@ -29,6 +29,10 @@ objects:
         containers:
         - image: ${IMAGE}:${IMAGE_TAG}
           env:
+          - name: AUTH_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
           - name: AUTH_POSTGRES_HOST
             valueFrom:
               secretKeyRef:
