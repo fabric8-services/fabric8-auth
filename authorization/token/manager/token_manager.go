@@ -60,6 +60,7 @@ type TokenManagerConfiguration interface {
 	IsPostgresDeveloperModeEnabled() bool
 	GetAccessTokenExpiresIn() int64
 	GetRefreshTokenExpiresIn() int64
+	GetTransientTokenExpiresIn() int64
 	GetAuthServiceURL() string
 }
 
@@ -194,6 +195,7 @@ type TokenManager interface {
 	GenerateUnsignedServiceAccountToken(saID string, saName string) *jwt.Token
 	GenerateUserTokenForAPIClient(ctx context.Context, providerToken oauth2.Token) (*oauth2.Token, error)
 	GenerateUserTokenForIdentity(ctx context.Context, identity repository.Identity, offlineToken bool) (*oauth2.Token, error)
+	GenerateTransientUserAccessTokenForIdentity(ctx context.Context, identity repository.Identity) (*string, error)
 	GenerateUserTokenUsingRefreshToken(ctx context.Context, refreshTokenString string, identity *repository.Identity, permissions []Permissions) (*oauth2.Token, error)
 	GenerateUnsignedRPTTokenForIdentity(ctx context.Context, tokenClaims *TokenClaims, identity repository.Identity, permissions *[]Permissions) (*jwt.Token, error)
 	SignRPTToken(ctx context.Context, rptToken *jwt.Token) (string, error)
@@ -511,6 +513,26 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Co
 	}
 	claims["session_state"] = uuid.NewV4().String()
 	return token, nil
+}
+
+// GenerateTransientUserAccessTokenForIdentity generates a transient user access token, an extremely short-lived token
+func (m *tokenManager) GenerateTransientUserAccessTokenForIdentity(ctx context.Context, identity repository.Identity) (*string, error) {
+	token, err := m.GenerateUnsignedUserAccessTokenForIdentity(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+	iat := time.Now().Unix()
+	claims["exp"] = iat + m.config.GetTransientTokenExpiresIn()
+	claims["transient"] = "true"
+
+	accessToken, err := token.SignedString(m.userAccountPrivateKey.Key)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &accessToken, nil
 }
 
 // #####################################################################################################################

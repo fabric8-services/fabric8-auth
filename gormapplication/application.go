@@ -232,6 +232,10 @@ func (g *GormDB) WITService() service.WITService {
 	return g.serviceFactory.WITService()
 }
 
+func (g *GormDB) CheService() service.CheService {
+	return g.serviceFactory.CheService()
+}
+
 func (g *GormDB) ClusterService() service.ClusterService {
 	return g.serviceFactory.ClusterService()
 }
