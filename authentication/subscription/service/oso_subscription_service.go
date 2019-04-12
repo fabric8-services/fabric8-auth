@@ -184,7 +184,6 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 
 // DeactivateUser deactivates the user on OpenShift Online
 func (s *osoSubscriptionServiceImpl) DeactivateUser(ctx context.Context, username string) error {
-	// Load status from OSO
 	regAppURL := fmt.Sprintf("%s/api/accounts/%s/deprovision_osio?authorization_username=%s",
 		s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
 	log.Debug(ctx, map[string]interface{}{
