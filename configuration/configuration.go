@@ -661,6 +661,9 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varUserDeactivationInactivityPeriod, defaultUserDeactivationInactivityPeriod)
 	c.v.SetDefault(varPostDeactivationNotificationDelay, defaultPostDeactivationNotificationDelay)
 
+	// Che
+	c.v.SetDefault(varCheServiceURL, defaultCheServiceURL)
+
 }
 
 // GetEmailVerifiedRedirectURL returns the url where the user would be redirected to after clicking on email

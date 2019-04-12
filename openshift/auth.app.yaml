@@ -169,11 +169,6 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: notification.serviceurl
-          - name: AUTH_CHE_SERVICEURL
-            valueFrom:
-              secretKeyRef:
-                name: auth
-                key: che.serviceurl
           - name: AUTH_EMAIL_VERIFY_URL
             valueFrom:
               configMapKeyRef:

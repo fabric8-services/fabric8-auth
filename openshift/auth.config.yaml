@@ -56,6 +56,5 @@ objects:
     invitation.accepted.url: https://prod-preview.openshift.io/_home
     environment: prod-preview
     ignore.email.prod: ".+\\+preview.*\\@redhat\\.com"
-    che.serviceurl: https://che.openshift.io
     
   
