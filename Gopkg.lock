@@ -2,6 +2,13 @@
 
 
 [[projects]]
+  name = "cirello.io/pglock"
+  packages = ["."]
+  revision = "96beb072c82169ab35ca0317cb5caebd8faa0429"
+  source = "github.com/cirello-io/pglock"
+  version = "v1.2.0"
+
+[[projects]]
   name = "github.com/ajg/form"
   packages = ["."]
   revision = "cc2954064ec9ea8d93917f0f87456e11d7b881ad"
@@ -477,6 +484,15 @@
   revision = "a888bfdffa4526cc6987572bca9a2c6b7758290f"
 
 [[projects]]
+  branch = "master"
+  name = "golang.org/x/xerrors"
+  packages = [
+    ".",
+    "internal"
+  ]
+  revision = "d61658bd2e18010be0e21349cc92b1b706e35146"
+
+[[projects]]
   name = "google.golang.org/appengine"
   packages = [
     "internal",
@@ -512,6 +528,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "45eab9197c97afaa69bdc775f55accf6e583e15b8f657eebcd15f1bc97b42883"
+  inputs-digest = "eb8bb3b9ba10aef0a0d5dd76a56cdb1a8aa4faf9f3f93469ddd8b04261420b7c"
   solver-name = "gps-cdcl"
   solver-version = 1

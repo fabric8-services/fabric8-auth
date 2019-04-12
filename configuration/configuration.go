@@ -57,6 +57,7 @@ const (
 	varInvitationAcceptedRedirectURL       = "invitation.accepted.url"
 	varInternalUsersEmailAddressSuffix     = "internal.users.email.address.domain"
 	varIgnoreEmailInProd                   = "ignore.email.prod"
+	varPodName                             = "pod.name"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -183,14 +184,19 @@ const (
 	// User deactivation
 	//
 	//------------------------------------------------------------------------------------------------------------------
+
+	// varUserDeactivationWorkerIntervalMinutes is the interval between 2 cycles of the user deactivation worker in minutes
+	varUserDeactivationWorkerIntervalMinutes = "user.deactivation.interval.minutes"
+	// varUserDeactivationNotificationWorkerIntervalMinutes is the interval between 2 cycles of the user deactivation notification worker in minutes
+	varUserDeactivationNotificationWorkerIntervalMinutes = "user.deactivation.notification.interval.minutes"
 	// varUserDeactivationFetchLimit the maximum number of identities to warn before deactivation and deactivate
 	varUserDeactivationFetchLimit = "user.deactivation.fetch.limit"
 	// varUserDeactivationInactivityPeriodNotification the number of days of inactivity before notifying the user of account deactivation
-	varUserDeactivationInactivityNotificationPeriod = "user.deactivation.inactivity.notification.period"
-	// varUserDeactivationInactivityPeriod the number of days of inactivity before deactivating the user account
-	varUserDeactivationInactivityPeriod = "user.deactivation.inactivity.period"
-	// varPostDeactivationNotificationDelay the delay (in milliseconds) between 2 account deactivation notifications sent to users
-	varPostDeactivationNotificationDelay = "user.deactivation.post.notification.delay"
+	varUserDeactivationInactivityNotificationPeriodDays = "user.deactivation.inactivity.notification.period.days"
+	// varUserDeactivationInactivityPeriodDays the number of days of inactivity before deactivating the user account
+	varUserDeactivationInactivityPeriodDays = "user.deactivation.inactivity.period.days"
+	// varPostDeactivationNotificationDelayMillis the delay (in milliseconds) between 2 account deactivation notifications sent to users
+	varPostDeactivationNotificationDelayMillis = "user.deactivation.post.notification.delay.millis"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -619,7 +625,10 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org public_repo read:user")
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
-
+	c.v.SetDefault(varOSORegistrationAppURL, "http://oso.regapp.serviceurl")
+	c.v.SetDefault(varNotificationServiceURL, "http://notification.serviceurl")
+	c.v.SetDefault(varOSORegistrationAppAdminUsername, "oso.regapp.admin.username")
+	c.v.SetDefault(varOSORegistrationAppAdminToken, "oso.regapp.admin.token")
 	// Max number of users returned when searching users
 	c.v.SetDefault(varUsersListLimit, 50)
 
@@ -657,9 +666,11 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// User deactivation
 	c.v.SetDefault(varUserDeactivationFetchLimit, defaultUserDeactivationFetchLimit)
-	c.v.SetDefault(varUserDeactivationInactivityNotificationPeriod, defaultUserDeactivationInactivityNotificationPeriod)
-	c.v.SetDefault(varUserDeactivationInactivityPeriod, defaultUserDeactivationInactivityPeriod)
-	c.v.SetDefault(varPostDeactivationNotificationDelay, defaultPostDeactivationNotificationDelay)
+	c.v.SetDefault(varUserDeactivationInactivityNotificationPeriodDays, defaultUserDeactivationInactivityNotificationPeriod)
+	c.v.SetDefault(varUserDeactivationInactivityPeriodDays, defaultUserDeactivationInactivityPeriod)
+	c.v.SetDefault(varPostDeactivationNotificationDelayMillis, defaultPostDeactivationNotificationDelay)
+	c.v.SetDefault(varUserDeactivationWorkerIntervalMinutes, defaultUserDeactivationWorkerIntervalMinutes)
+	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalMinutes, defaultUserDeactivationNotificationWorkerIntervalMinutes)
 
 }
 
@@ -1050,6 +1061,11 @@ func (c *ConfigurationData) GetIgnoreEmailInProd() string {
 	return c.v.GetString(varIgnoreEmailInProd)
 }
 
+// GetPodName returns the name of the pod on which this instance is running
+func (c *ConfigurationData) GetPodName() string {
+	return c.v.GetString(varPodName)
+}
+
 // GetEnvironment returns the current environment application is deployed in
 // like 'production', 'prod-preview', 'local', etc as the value of environment variable
 // `AUTH_ENVIRONMENT` is set.
@@ -1079,17 +1095,27 @@ func (c *ConfigurationData) GetUserDeactivationFetchLimit() int {
 
 // GetUserDeactivationInactivityNotificationPeriodDays returns the number of days of inactivity before notifying the user of the imminent account deactivation
 func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriodDays() time.Duration {
-	return time.Duration(c.v.GetInt(varUserDeactivationInactivityNotificationPeriod)) * 24 * time.Hour
+	return time.Duration(c.v.GetInt(varUserDeactivationInactivityNotificationPeriodDays)) * 24 * time.Hour
 }
 
 // GetUserDeactivationInactivityPeriodDays returns the number of days of inactivity before a user account can be deactivated
 func (c *ConfigurationData) GetUserDeactivationInactivityPeriodDays() time.Duration {
-	return time.Duration(c.v.GetInt(varUserDeactivationInactivityPeriod)) * 24 * time.Hour
+	return time.Duration(c.v.GetInt(varUserDeactivationInactivityPeriodDays)) * 24 * time.Hour
 }
 
 // GetPostDeactivationNotificationDelayMillis returns the number of milliseconds to wait after notifying another user that her account may be deactivated
 // this delay is used to reduce the load on the other services (notification and database) in case there would be
 // too many users to notify at once.
 func (c *ConfigurationData) GetPostDeactivationNotificationDelayMillis() time.Duration {
-	return time.Duration(c.v.GetInt(varPostDeactivationNotificationDelay)) * time.Millisecond
+	return time.Duration(c.v.GetInt(varPostDeactivationNotificationDelayMillis)) * time.Millisecond
+}
+
+// GetUserDeactivationWorkerIntervalMinutes returns the interval between 2 cycles of the user deactivation worker.
+func (c *ConfigurationData) GetUserDeactivationWorkerIntervalMinutes() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationWorkerIntervalMinutes)) * time.Minute
+}
+
+// GetUserDeactivationNotificationWorkerIntervalMinutes returns the interval between 2 cycles of the user deactivation notification worker.
+func (c *ConfigurationData) GetUserDeactivationNotificationWorkerIntervalMinutes() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationNotificationWorkerIntervalMinutes)) * time.Minute
 }

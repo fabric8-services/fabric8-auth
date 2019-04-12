@@ -67,8 +67,6 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 	// given
 	appRegURL := "https://some.osourl.io"
 	admin := "test-admin"
-	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
-	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithClusterService(clusterServiceMock))
 	config := testsubscription.NewOSOSubscriptionServiceConfigurationMock(s.T())
 	config.GetOSORegistrationAppURLFunc = func() string {
 		return appRegURL
@@ -79,6 +77,8 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 	config.GetOSORegistrationAppAdminTokenFunc = func() string {
 		return fmt.Sprintf("%s-token", admin)
 	}
+	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithClusterService(clusterServiceMock))
 	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
 
 	var username, accessToken string

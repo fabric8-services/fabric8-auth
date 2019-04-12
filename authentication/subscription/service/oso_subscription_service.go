@@ -134,6 +134,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err.Error(),
+			"username":    username,
 			"reg_app_url": regAppURL,
 		}, "unable to create http request")
 		return nil, autherrors.NewInternalError(ctx, err)
@@ -143,6 +144,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err.Error(),
+			"username":    username,
 			"reg_app_url": regAppURL,
 		}, "unable to load OSO subscription status")
 		return nil, autherrors.NewInternalError(ctx, err)
@@ -158,6 +160,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 
 		log.Error(ctx, map[string]interface{}{
 			"reg_app_url":     regAppURL,
+			"username":        username,
 			"response_status": res.Status,
 			"response_body":   bodyString,
 		}, "unable to load OSO subscription status")
@@ -181,7 +184,6 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 
 // DeactivateUser deactivates the user on OpenShift Online
 func (s *osoSubscriptionServiceImpl) DeactivateUser(ctx context.Context, username string) error {
-	// Load status from OSO
 	regAppURL := fmt.Sprintf("%s/api/accounts/%s/deprovision_osio?authorization_username=%s",
 		s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
 	log.Debug(ctx, map[string]interface{}{

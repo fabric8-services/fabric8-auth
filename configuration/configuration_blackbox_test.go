@@ -13,7 +13,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
 	"github.com/goadesign/goa"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -153,11 +153,11 @@ func checkURLValidation(t *testing.T, envName, serviceName string) {
 		resetConfiguration()
 	}()
 
-	// URL not set
+	// URL not set: use default
 	os.Unsetenv(envName)
 	saConfig, err := configuration.GetConfigurationData()
 	require.NoError(t, err)
-	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), fmt.Sprintf("%s url is empty", serviceName))
+	assert.NotContains(t, saConfig.DefaultConfigurationError().Error(), fmt.Sprintf("%s url is empty", serviceName))
 
 	// URL is invalid
 	os.Setenv(envName, "%")
