@@ -624,7 +624,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
 	c.v.SetDefault(varOSORegistrationAppURL, "http://oso.regapp.serviceurl")
 	c.v.SetDefault(varOSORegistrationAppAdminUsername, "oso.regapp.admin.username")
-	c.v.SetDefault(varOSORegistrationAppAdminToken , "oso.regapp.admin.token")
+	c.v.SetDefault(varOSORegistrationAppAdminToken, "oso.regapp.admin.token")
 	// Max number of users returned when searching users
 	c.v.SetDefault(varUsersListLimit, 50)
 
