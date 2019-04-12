@@ -18,7 +18,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -38,6 +38,57 @@ type TestTokenSuite struct {
 func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
 	s.checkGenerateUserTokenForIdentity(false)
 	s.checkGenerateUserTokenForIdentity(true) // Offline token
+}
+
+func (s *TestTokenSuite) TestGenerateTransientUserAccessTokenForIdentity() {
+	// given
+	ctx := testtoken.ContextWithRequest(nil)
+	user := repository.User{
+		ID:       uuid.NewV4(),
+		Email:    uuid.NewV4().String(),
+		FullName: uuid.NewV4().String(),
+		Cluster:  uuid.NewV4().String(),
+	}
+	identity := repository.Identity{
+		ID:       uuid.NewV4(),
+		User:     user,
+		Username: uuid.NewV4().String(),
+	}
+	// when
+	accessToken, err := testtoken.TokenManager.GenerateTransientUserAccessTokenForIdentity(ctx, identity)
+	// then
+	require.NoError(s.T(), err)
+	// Headers
+	s.assertHeaders(*accessToken)
+	// Claims
+	claims, err := testtoken.TokenManager.ParseTokenWithMapClaims(context.Background(), *accessToken)
+	require.NoError(s.T(), err)
+	s.assertJti(claims)
+	iat := s.assertIat(claims)
+	expiresIn := time.Duration(s.Config.GetTransientTokenExpiresIn()) * time.Second
+	s.assertExpiresIn(claims["exp"], expiresIn, 10*time.Second) // 60 seconds days +/- 10 seconds
+	s.assertIntClaim(claims, "nbf", 0)
+	s.assertClaim(claims, "iss", "https://auth.openshift.io")
+	s.assertClaim(claims, "aud", "https://openshift.io")
+	s.assertClaim(claims, "typ", "Bearer")
+	s.assertClaim(claims, "auth_time", iat)
+	s.assertClaim(claims, "approved", !identity.User.Banned)
+	s.assertClaim(claims, "sub", identity.ID.String())
+	s.assertClaim(claims, "email", identity.User.Email)
+	s.assertClaim(claims, "email_verified", identity.User.EmailVerified)
+	s.assertClaim(claims, "preferred_username", identity.Username)
+	s.assertSessionState(claims)
+
+	firstName, lastName := account.SplitFullName(identity.User.FullName)
+	s.assertClaim(claims, "given_name", firstName)
+	s.assertClaim(claims, "family_name", lastName)
+
+	s.assertClaim(claims, "allowed-origins", []interface{}{
+		"https://auth.openshift.io",
+		"https://openshift.io",
+	})
+	// and verify that the claim is transient
+	s.assertClaim(claims, "transient", "true")
 }
 
 func (s *TestTokenSuite) TestRefreshedUserTokenForIdentity() {
@@ -172,7 +223,7 @@ func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
 	// Claims
 	s.assertJti(rptClaims)
 	iat := s.assertIat(rptClaims)
-	s.assertExpiresIn(rptClaims["exp"])
+	s.assertExpiresIn(rptClaims["exp"], 30*24*time.Hour, time.Minute) // 30 days +/- 1 min
 	s.assertIntClaim(rptClaims, "nbf", 0)
 	s.assertClaim(rptClaims, "iss", "https://auth.openshift.io")
 	s.assertClaim(rptClaims, "aud", "https://openshift.io")
@@ -216,7 +267,7 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	// Claims
 	s.assertJti(accessToken)
 	iat := s.assertIat(accessToken)
-	s.assertExpiresIn(accessToken["exp"])
+	s.assertExpiresIn(accessToken["exp"], 30*24*time.Hour, time.Minute) // 30 days +/- 1 min
 	s.assertIntClaim(accessToken, "nbf", 0)
 	s.assertClaim(accessToken, "iss", "https://auth.openshift.io")
 	s.assertClaim(accessToken, "aud", "https://openshift.io")
@@ -257,7 +308,7 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 		s.assertIntClaim(refreshToken, "exp", 0)
 		s.assertClaim(refreshToken, "typ", "Offline")
 	} else {
-		s.assertExpiresIn(refreshToken["exp"])
+		s.assertExpiresIn(refreshToken["exp"], 30*24*time.Hour, time.Minute) // 30 days +/- 1 min
 		s.assertClaim(refreshToken, "typ", "Refresh")
 	}
 	s.assertIntClaim(refreshToken, "auth_time", 0)
@@ -324,12 +375,14 @@ func (s *TestTokenSuite) assertHeaders(tokenString string) {
 	assert.Equal(s.T(), "JWT", jwtToken.Header["typ"])
 }
 
-func (s *TestTokenSuite) assertExpiresIn(actualValue interface{}) {
+func (s *TestTokenSuite) assertExpiresIn(actualValue interface{}, delay, margin time.Duration) {
 	require.NotNil(s.T(), actualValue)
-	now := time.Now().Unix()
+	now := time.Now()
 	expInt, err := manager.NumberToInt(actualValue)
 	require.NoError(s.T(), err)
-	assert.True(s.T(), expInt >= now+30*24*60*60-60 && expInt < now+30*24*60*60+60, "expiration claim is not in 30 days (%d +/- 1m): %d", now+30*24*60*60, expInt) // Between 30 days from now and 30 days + 1 minute
+	exp := time.Unix(expInt, 0)
+	assert.True(s.T(), exp.Before(now.Add(delay+margin)), "exp '%s' should be before '%s'", exp, now.Add(delay+margin))
+	assert.True(s.T(), exp.After(now.Add(delay-margin)), "exp '%s' should be after '%s'", exp, now.Add(delay-margin))
 }
 
 func (s *TestTokenSuite) assertJti(claims jwt.MapClaims) {
