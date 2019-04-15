@@ -131,4 +131,6 @@ vwIDAQAB
 	defaultUserDeactivationWorkerIntervalMinutes = 4
 	// defaultUserDeactivationNotificationWorkerIntervalMinutes the default interval between 2 cycles of the user deactivation worker
 	defaultUserDeactivationNotificationWorkerIntervalMinutes = 4
+
+	defaultUserDeactivationTestingMode = true
 )

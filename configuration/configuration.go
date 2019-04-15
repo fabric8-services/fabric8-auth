@@ -198,6 +198,9 @@ const (
 	// varPostDeactivationNotificationDelayMillis the delay (in milliseconds) between 2 account deactivation notifications sent to users
 	varPostDeactivationNotificationDelayMillis = "user.deactivation.post.notification.delay.millis"
 
+	// For testing user deactivation
+	varUserDeactivationTestingMode = "user.deactivation.testing.mode"
+
 	//------------------------------------------------------------------------------------------------------------------
 	//
 	// Other
@@ -672,6 +675,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varUserDeactivationWorkerIntervalMinutes, defaultUserDeactivationWorkerIntervalMinutes)
 	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalMinutes, defaultUserDeactivationNotificationWorkerIntervalMinutes)
 
+	c.v.SetDefault(varUserDeactivationTestingMode, defaultUserDeactivationTestingMode)
+
 	// Che
 	c.v.SetDefault(varCheServiceURL, defaultCheServiceURL)
 
@@ -1121,4 +1126,8 @@ func (c *ConfigurationData) GetUserDeactivationWorkerIntervalMinutes() time.Dura
 // GetUserDeactivationNotificationWorkerIntervalMinutes returns the interval between 2 cycles of the user deactivation notification worker.
 func (c *ConfigurationData) GetUserDeactivationNotificationWorkerIntervalMinutes() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationNotificationWorkerIntervalMinutes)) * time.Minute
+}
+
+func (c *ConfigurationData) GetUserDeactivationTestingMode() bool {
+	return c.v.GetBool(varUserDeactivationTestingMode)
 }
