@@ -98,6 +98,7 @@ vwIDAQAB
 	defaultWITDomainPrefix     = "api"
 	devModeWITURL              = "http://localhost:8080"
 	devModeTenantServiceURL    = "http://localhost:8090"
+	devModeCheServiceURL       = "http://localhost:8091"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
@@ -122,4 +123,10 @@ vwIDAQAB
 	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
 	// defaultPostDeactivationNotificationDelay the default number of milliseconds between to user account deactivation notifications by the same go routine
 	defaultPostDeactivationNotificationDelay = 500
+	// defaultCheServiceURL the default URL to the Che service
+	defaultCheServiceURL = "http://rhche-host:8080"
+	// defaultPostDeactivationNotificationDelay the default interval between 2 cycles of the user deactivation worker
+	defaultUserDeactivationWorkerIntervalMinutes = 4
+	// defaultUserDeactivationNotificationWorkerIntervalMinutes the default interval between 2 cycles of the user deactivation worker
+	defaultUserDeactivationNotificationWorkerIntervalMinutes = 4
 )

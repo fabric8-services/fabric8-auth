@@ -46,7 +46,7 @@ type authenticationProviderServiceTestSuite struct {
 	oauth provider.IdentityProvider
 }
 
-func TestAuthenticationProviderServiceBlackBox(t *testing.T) {
+func TestAuthenticationProviderService(t *testing.T) {
 	resource.Require(t, resource.Database)
 	suite.Run(t, &authenticationProviderServiceTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
@@ -481,8 +481,10 @@ func (s *authenticationProviderServiceTestSuite) TestInvalidOAuthAuthorizationCo
 		*callbackCtx.Code, rest.AbsoluteURL(callbackCtx.RequestData, client.CallbackLoginPath(), nil))
 	require.Error(s.T(), err)
 
+	s.T().Logf("redirect URL: '%s'", *redirectUrl)
+	s.T().Logf("error: '%v'", err)
 	locationUrl, err = url.Parse(*redirectUrl)
-	require.Nil(s.T(), err)
+	require.NoError(s.T(), err)
 
 	allQueryParameters = locationUrl.Query()
 

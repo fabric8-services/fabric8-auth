@@ -129,9 +129,7 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	// for each identity, send a notification and record the timestamp in a separate transaction.
 	// perform the task for each identity in a separate Tx, and just log the error if something wrong happened,
 	// but don't stop processing on the rest of the accounts.
-	expirationDate := now().
-		Add(s.config.GetUserDeactivationInactivityPeriodDays() - s.config.GetUserDeactivationInactivityNotificationPeriodDays()).
-		Format("Mon Jan 2")
+	expirationDate := GetExpiryDate(s.config, now)
 	// run the notification/record update in a separate routine, with pooling of child routines to avoid
 	// sending too many requests at once to the notification service and to the database
 	defer ants.Release()
@@ -150,6 +148,10 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 				"error":    err,
 				"username": identity.Username,
 			}, "error while notifying user before account deactivation")
+		} else {
+			log.Info(ctx, map[string]interface{}{
+				"username": identity.Username,
+			}, "notified user before account deactivation")
 		}
 		// include a small delay to give time to notification service and database to handle the requests
 		time.Sleep(s.config.GetPostDeactivationNotificationDelayMillis())
@@ -179,6 +181,15 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	return identities, nil
 }
 
+// GetExpiryDate a utility function which returns the expiry date, ie, when the user deactivation will happen
+// The date is based on the given 'now', and takes into account the delay for which the user is given a chance
+// to come back (7 days by default)
+func GetExpiryDate(config UserServiceConfiguration, now func() time.Time) string {
+	return now().
+		Add(config.GetUserDeactivationInactivityPeriodDays() - config.GetUserDeactivationInactivityNotificationPeriodDays()).
+		Format("Mon Jan 2")
+}
+
 // ListIdentitiesToDeactivate lists the identities to deactivate
 func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now func() time.Time) ([]repository.Identity, error) {
 	since := now().Add(-s.config.GetUserDeactivationInactivityPeriodDays())                                                                        // remove 'n' days from now (default: 31)
@@ -188,7 +199,7 @@ func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now fu
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string, now func() time.Time) error {
-	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.Username, expirationDate)
+	msg := notification.NewUserDeactivationEmail(identity.ID.String(), identity.User.Email, expirationDate)
 	_, err := s.Services().NotificationService().SendMessageAsync(ctx, msg)
 	if err != nil {
 		return errs.Wrap(err, "failed to send notification to user before account deactivation")
@@ -272,6 +283,14 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 	if err != nil {
 		// just log the error but don't suspend the deactivation
 		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")
+	}
+	// call Che
+	// call WIT and Tenant to deactivate the user there as well,
+	// using `auth` SA token here, not the request context's token
+	err = s.Services().CheService().DeleteUser(ctx, *identity)
+	if err != nil {
+		// do not proceed with tenant removal if something wrong happened during Che cleanup
+		return nil, errs.Wrapf(err, "error occurred during deactivation of user '%s' on Che Service", identity.ID)
 	}
 	err = s.Services().TenantService().Delete(ctx, identity.ID)
 	if err != nil {

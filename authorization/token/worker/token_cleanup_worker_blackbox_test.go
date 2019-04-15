@@ -1,14 +1,15 @@
 package worker_test
 
 import (
+	"testing"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type tokenCleanupWorkerBlackBoxTest struct {
@@ -33,11 +34,9 @@ func (s *tokenCleanupWorkerBlackBoxTest) TestCleanupWorker() {
 
 	require.Equal(s.T(), 3, s.countTokens())
 
-	// Start the worker with a 1 second timer
+	// Start the worker with a 50ms ticker
 	worker := worker.NewTokenCleanupWorker(s.Ctx, s.Application)
-
-	// Activate token cleanup once every hour
-	worker.Start(time.NewTicker(time.Millisecond * 50))
+	worker.Start(time.Millisecond * 50)
 	defer worker.Stop()
 
 	for i := 0; i < 30; i++ {

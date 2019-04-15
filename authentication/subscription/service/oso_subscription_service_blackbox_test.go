@@ -67,8 +67,6 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 	// given
 	appRegURL := "https://some.osourl.io"
 	admin := "test-admin"
-	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
-	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithClusterService(clusterServiceMock))
 	config := testsubscription.NewOSOSubscriptionServiceConfigurationMock(s.T())
 	config.GetOSORegistrationAppURLFunc = func() string {
 		return appRegURL
@@ -79,6 +77,8 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 	config.GetOSORegistrationAppAdminTokenFunc = func() string {
 		return fmt.Sprintf("%s-token", admin)
 	}
+	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithClusterService(clusterServiceMock))
 	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
 
 	var username, accessToken string
@@ -272,4 +272,68 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 		})
 	})
 
+}
+
+func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
+	// given
+	appRegURL := "https://some.osourl.io"
+	admin := "test-admin"
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, nil, nil)
+	config := testsubscription.NewOSOSubscriptionServiceConfigurationMock(s.T())
+	config.GetOSORegistrationAppURLFunc = func() string {
+		return appRegURL
+	}
+	config.GetOSORegistrationAppAdminUsernameFunc = func() string {
+		return admin
+	}
+	config.GetOSORegistrationAppAdminTokenFunc = func() string {
+		return fmt.Sprintf("%s-token", admin)
+	}
+	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
+
+	defer gock.OffAll()
+	gock.Observe(gock.DumpRequest)
+
+	s.Run("success", func() {
+		s.Run("ok", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(200)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.NoError(s.T(), err)
+		})
+		s.Run("not found", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(404)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.NoError(s.T(), err)
+		})
+	})
+
+	s.Run("failure", func() {
+
+		s.Run("should return an error if the client returns any status but 200", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Get(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(500)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.Error(s.T(), err)
+		})
+	})
 }

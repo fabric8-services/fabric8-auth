@@ -134,6 +134,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err.Error(),
+			"username":    username,
 			"reg_app_url": regAppURL,
 		}, "unable to create http request")
 		return nil, autherrors.NewInternalError(ctx, err)
@@ -143,6 +144,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"err":         err.Error(),
+			"username":    username,
 			"reg_app_url": regAppURL,
 		}, "unable to load OSO subscription status")
 		return nil, autherrors.NewInternalError(ctx, err)
@@ -158,6 +160,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 
 		log.Error(ctx, map[string]interface{}{
 			"reg_app_url":     regAppURL,
+			"username":        username,
 			"response_status": res.Status,
 			"response_body":   bodyString,
 		}, "unable to load OSO subscription status")
@@ -170,10 +173,49 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 		log.Error(ctx, map[string]interface{}{
 			"err":         err,
 			"reg_app_url": regAppURL,
+			"username":    username,
 			"body":        bodyString,
 		}, "unable to unmarshal json with subscription status")
 		return nil, autherrors.NewInternalError(ctx, err)
 	}
 
 	return &sbs, nil
+}
+
+// DeactivateUser deactivates the user on OpenShift Online
+func (s *osoSubscriptionServiceImpl) DeactivateUser(ctx context.Context, username string) error {
+	regAppURL := fmt.Sprintf("%s/api/accounts/%s/deprovision_osio?authorization_username=%s",
+		s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
+	log.Debug(ctx, map[string]interface{}{
+		"reg_app_url": regAppURL,
+	}, "calling remote registration application to deactivate user")
+	req, err := http.NewRequest("POST", regAppURL, nil)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err.Error(),
+			"reg_app_url": regAppURL,
+		}, "unable to create http request")
+		return errs.Wrapf(err, "unable to deprovision user")
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.config.GetOSORegistrationAppAdminToken()))
+	res, err := s.httpClient.Do(req)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"err":         err.Error(),
+			"reg_app_url": regAppURL,
+		}, "unable to deprovision user")
+		return errs.Wrapf(err, "unable to deprovision user")
+	}
+	defer rest.CloseResponse(res)
+	bodyString := rest.ReadBody(res.Body)
+
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
+		log.Error(ctx, map[string]interface{}{
+			"reg_app_url":     regAppURL,
+			"response_status": res.Status,
+			"response_body":   bodyString,
+		}, "unable to deprovision user")
+		return errs.Errorf("unable to deprovision user")
+	}
+	return nil
 }

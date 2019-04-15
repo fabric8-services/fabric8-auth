@@ -20,6 +20,7 @@ import (
 	spaceservice "github.com/fabric8-services/fabric8-auth/authorization/space/service"
 	teamservice "github.com/fabric8-services/fabric8-auth/authorization/team/service"
 	tokenservice "github.com/fabric8-services/fabric8-auth/authorization/token/service"
+	cheservice "github.com/fabric8-services/fabric8-auth/che/service"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
@@ -311,4 +312,8 @@ func (f *ServiceFactory) TenantService() service.TenantService {
 
 func (f *ServiceFactory) ClusterService() service.ClusterService {
 	return f.clusterServiceFunc()
+}
+
+func (f *ServiceFactory) CheService() service.CheService {
+	return cheservice.NewCheService(f.getContext(), f.config)
 }

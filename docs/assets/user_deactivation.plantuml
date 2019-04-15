@@ -1,0 +1,10 @@
+@startuml
+DeactivationWorker --> UserService: list accounts to deactivate
+DeactivationWorker --> OnlineRegistration: notify account deactivation
+OnlineRegistration --> OnlineRegistration: internal deactivation
+OnlineRegistration --> UserService: OSIO deactivation
+UserService --> UserService: internal deactivation (records, tokens, etc.)
+UserService --> WITService: deactivation
+UserService --> CheService: deactivation
+UserService --> TenantService: deactivation
+@enduml

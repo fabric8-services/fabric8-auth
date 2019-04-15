@@ -124,6 +124,11 @@ required = [
   name = "github.com/panjf2000/ants"
   version = "v4.1"
 
+[[constraint]]
+  name = "cirello.io/pglock"
+  source = "github.com/cirello-io/pglock"
+  version = "v1.2.0"
+
 [prune]
   go-tests = true
   unused-packages = true
