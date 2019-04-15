@@ -213,7 +213,7 @@ func (s *userServiceImpl) filterUsersForTesting(identities []repository.Identity
 	ids := make([]repository.Identity, 0)
 
 	for _, id := range identities {
-		if strings.HasPrefix(id.User.Email, "sbryzak") {
+		if strings.HasPrefix(id.User.Email, "sbryzak+preview") {
 			ids = append(ids, id)
 		}
 	}
