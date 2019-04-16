@@ -1103,12 +1103,14 @@ func (c *ConfigurationData) GetUserDeactivationFetchLimit() int {
 
 // GetUserDeactivationInactivityNotificationPeriodDays returns the number of days of inactivity before notifying the user of the imminent account deactivation
 func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriodDays() time.Duration {
-	return time.Duration(c.v.GetFloat64(varUserDeactivationInactivityNotificationPeriodDays)) * 24 * time.Hour
+	//return time.Duration(c.v.GetFloat64(varUserDeactivationInactivityNotificationPeriodDays)) * 24 * time.Hour
+	return time.Minute * 30
 }
 
 // GetUserDeactivationInactivityPeriodDays returns the number of days of inactivity before a user account can be deactivated
 func (c *ConfigurationData) GetUserDeactivationInactivityPeriodDays() time.Duration {
-	return time.Duration(c.v.GetFloat64(varUserDeactivationInactivityPeriodDays)) * 24 * time.Hour
+	//return time.Duration(c.v.GetFloat64(varUserDeactivationInactivityPeriodDays)) * 24 * time.Hour
+	return time.Minute * 60
 }
 
 // GetPostDeactivationNotificationDelayMillis returns the number of milliseconds to wait after notifying another user that her account may be deactivated
