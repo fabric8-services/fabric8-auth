@@ -55,9 +55,6 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
 		return 5 * time.Millisecond
 	}
-	config.GetUserDeactivationTestingModeFunc = func() bool {
-		return false
-	}
 	now := time.Now() // make sure we use the same 'now' everywhere in the test
 	nowf := func() time.Time {
 		return now
@@ -276,9 +273,6 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
 		return 31 * 24 * time.Hour // 31 days
 	}
-	config.GetUserDeactivationTestingModeFunc = func() bool {
-		return false
-	}
 	ctx := context.Background()
 	yesterday := time.Now().Add(-1 * 24 * time.Hour)
 	ago10days := time.Now().Add(-10 * 24 * time.Hour)
@@ -414,9 +408,6 @@ func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	}
 	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
 		return 5 * time.Millisecond
-	}
-	config.GetUserDeactivationTestingModeFunc = func() bool {
-		return false
 	}
 	ctx := context.Background()
 	yesterday := time.Now().Add(-1 * 24 * time.Hour)

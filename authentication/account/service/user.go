@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -39,7 +38,6 @@ type UserServiceConfiguration interface {
 	GetUserDeactivationInactivityNotificationPeriodDays() time.Duration
 	GetUserDeactivationInactivityPeriodDays() time.Duration
 	GetPostDeactivationNotificationDelayMillis() time.Duration
-	GetUserDeactivationTestingMode() bool
 }
 
 // userServiceImpl implements the UserService to manage users
@@ -197,28 +195,7 @@ func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now fu
 	since := now().Add(-s.config.GetUserDeactivationInactivityPeriodDays())                                                                        // remove 'n' days from now (default: 31)
 	notification := now().Add(s.config.GetUserDeactivationInactivityNotificationPeriodDays() - s.config.GetUserDeactivationInactivityPeriodDays()) // make sure that the notification was sent at least `n` days earlier (default: 7)
 	limit := s.config.GetUserDeactivationFetchLimit()
-
-	if s.config.GetUserDeactivationTestingMode() {
-		return s.filterUsersForTesting(s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit))
-	}
-
 	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit)
-}
-
-func (s *userServiceImpl) filterUsersForTesting(identities []repository.Identity, err error) ([]repository.Identity, error) {
-	if err != nil {
-		return nil, err
-	}
-
-	ids := make([]repository.Identity, 0)
-
-	for _, id := range identities {
-		if strings.HasPrefix(id.User.Email, "sbryzak+preview") {
-			ids = append(ids, id)
-		}
-	}
-
-	return ids, nil
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string, now func() time.Time) error {

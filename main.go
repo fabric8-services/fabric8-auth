@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/fabric8-services/fabric8-auth/worker"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,7 +16,6 @@ import (
 	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
-	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	tokenworker "github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -298,12 +296,12 @@ func main() {
 	tokenCleanupWorker.Start(time.Hour)
 	// // user deactivation and notification workers, running once per day
 	// DISABLED FOR NOW
-	ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
-	ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
-	userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
-	userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalMinutes())
-	userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
-	userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalMinutes())
+	// ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
+	// ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
+	// userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
+	// userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalMinutes())
+	// userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
+	// userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalMinutes())
 
 	// gracefull shutdown
 	go handleShutdown(db, tokenCleanupWorker) //, userDeactivationNotificationWorker, userDeactivationWorker)
