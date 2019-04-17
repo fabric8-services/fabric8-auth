@@ -399,6 +399,46 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 
 }
 
+func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivateTest() {
+	lastActive := time.Now().AddDate(-1, 0, 0)
+
+	user := s.Graph.CreateUser()
+	user.User().Email = "sbryzak-preview5@redhat.com"
+	err := s.Application.Users().Save(s.Ctx, user.User())
+	require.NoError(s.T(), err)
+
+	user.Identity().LastActive = &lastActive
+	err = s.Application.Identities().Save(s.Ctx, user.Identity())
+	require.NoError(s.T(), err)
+
+	user2 := s.Graph.CreateUser()
+	user2.Identity().LastActive = &lastActive
+	err = s.Application.Identities().Save(s.Ctx, user2.Identity())
+	require.NoError(s.T(), err)
+
+	ids, err := s.Application.Identities().ListIdentitiesToNotifyForDeactivationTest(s.Ctx, time.Now(), 100)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), ids, 1)
+	require.Equal(s.T(), user.IdentityID(), ids[0].ID)
+
+	notification := time.Now().AddDate(0, -6, 0)
+
+	user.Identity().DeactivationNotification = &notification
+	err = s.Application.Identities().Save(s.Ctx, user.Identity())
+	require.NoError(s.T(), err)
+
+	user2.Identity().DeactivationNotification = &notification
+	err = s.Application.Identities().Save(s.Ctx, user2.Identity())
+	require.NoError(s.T(), err)
+
+	ids, err = s.Application.Identities().ListIdentitiesToDeactivateTest(s.Ctx, time.Now(), time.Now(), 100)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), ids, 1)
+	require.Equal(s.T(), user.IdentityID(), ids[0].ID)
+}
+
 // Testing workflow of user to notify and deactivate, or not, depending on their activity, etc.
 func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	// given

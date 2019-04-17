@@ -133,7 +133,15 @@ type IdentityRepository interface {
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
 	ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
+
+	// Delete this after testing
+	ListIdentitiesToNotifyForDeactivationTest(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
+
 	ListIdentitiesToDeactivate(ctx context.Context, lastActivity, notification time.Time, limit int) ([]Identity, error)
+
+	// Delete this after testing
+	ListIdentitiesToDeactivateTest(ctx context.Context, lastActivity, notification time.Time, limit int) ([]Identity, error)
+
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
@@ -415,6 +423,26 @@ func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx conte
 	return identities, nil
 }
 
+func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivationTest(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToNotifyForDeactivationTest"}, time.Now())
+	var identities []Identity
+	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
+	// queries to notify before deactivation and queries to deactivate for real.
+	err := m.db.Model(&Identity{}).Preload("User").
+		Where(`last_active < ? AND deactivation_notification IS NULL`, lastActivity).
+		Joins("left join users on identities.user_id = users.id").Where("users.banned is false and users.email LIKE 'sbryzak-preview%'").
+		Order("last_active, created_at").
+		Limit(limit).Find(&identities).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	log.Info(ctx, map[string]interface{}{
+		"identities_to_notify_before_deactivation": len(identities),
+	}, "Listing identities to notify before deactivation completed")
+
+	return identities, nil
+}
+
 // ListIdentitiesToDeactivate return identities whose last activity is older than the given one,
 // and for whom there is a `deactivation_notification` value and who were not previously banned.
 // The result size is limited to the given number of identities (ordered by last activity)
@@ -427,6 +455,25 @@ func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context,
 	err := m.db.Model(&Identity{}).
 		Where("last_active < ? and deactivation_notification < ?", lastActivity, notification).
 		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
+		Order("last_active, created_at").Limit(limit).Find(&identities).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, errs.WithStack(err)
+	}
+	log.Info(ctx, map[string]interface{}{
+		"identities_to_deactivate": len(identities),
+	}, "Listing identities to deactivate completed")
+
+	return identities, nil
+}
+
+func (m *GormIdentityRepository) ListIdentitiesToDeactivateTest(ctx context.Context, lastActivity, notification time.Time, limit int) ([]Identity, error) {
+	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToDeactivateTest"}, time.Now())
+	var identities []Identity
+	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
+	// queries to notify before deactivation and queries to deactivate for real.
+	err := m.db.Model(&Identity{}).
+		Where("last_active < ? and deactivation_notification < ?", lastActivity, notification).
+		Joins("left join users on identities.user_id = users.id").Where("users.banned is false and users.email LIKE 'sbryzak-preview%'").
 		Order("last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -22,7 +21,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/panjf2000/ants"
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 // NewUserService creates a new service to manage users
@@ -124,7 +123,16 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context, now func() time.Time) ([]repository.Identity, error) {
 	since := now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriodDays()) // remove 'n' days from now (default: 24)
 	limit := s.config.GetUserDeactivationFetchLimit()
-	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
+
+	var identities []repository.Identity
+	var err error
+
+	if s.config.GetUserDeactivationTestingMode() {
+		identities, err = s.Repositories().Identities().ListIdentitiesToNotifyForDeactivationTest(ctx, since, limit)
+	} else {
+		identities, err = s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
+	}
+
 	if err != nil {
 		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
@@ -199,26 +207,10 @@ func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now fu
 	limit := s.config.GetUserDeactivationFetchLimit()
 
 	if s.config.GetUserDeactivationTestingMode() {
-		return s.filterUsersForTesting(s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit))
+		return s.Repositories().Identities().ListIdentitiesToDeactivateTest(ctx, since, notification, limit)
 	}
 
 	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit)
-}
-
-func (s *userServiceImpl) filterUsersForTesting(identities []repository.Identity, err error) ([]repository.Identity, error) {
-	if err != nil {
-		return nil, err
-	}
-
-	ids := make([]repository.Identity, 0)
-
-	for _, id := range identities {
-		if strings.HasPrefix(id.User.Email, "sbryzak+preview") {
-			ids = append(ids, id)
-		}
-	}
-
-	return ids, nil
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string, now func() time.Time) error {
