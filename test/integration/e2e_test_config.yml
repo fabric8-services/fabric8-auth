@@ -1,0 +1,10 @@
+developer.mode.enabled: true
+
+wit.url: http://127.0.0.1:8080
+notification.serviceurl: http://127.0.0.1:8082
+cluster.url.short: http://127.0.0.1:8083
+che.serviceurl: http://localhost:8084
+oso.regapp.serviceurl: http://127.0.0.1:8085
+
+user.deactivation.notification.interval.minutes: 10
+user.deactivation.interval.minutes: 15
