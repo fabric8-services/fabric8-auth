@@ -32,18 +32,22 @@ func (s *UserDeactivationSuite) SetupTest() {
 	s.BaseSuite.SetupTest(s.NotificationDone, s.DeactivateDone)
 }
 
-func (s *UserDeactivationSuite) Test1() {
+func (s *UserDeactivationSuite) TestWithNoUserActivity() {
+	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
+
 	t := s.T()
 	wantNotificatinCalls := 1
 	wantDeactivateCalls := 1
-	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
 
 	// start auth_service
 	cmd, display := s.authCmd()
 	defer display(t)
 	err := cmd.Start()
 	assert.NoError(t, err)
-	defer cmd.Process.Kill()
+	defer func() {
+		cmd.Process.Kill()
+		log.Println("Auth service stopped")
+	}()
 	log.Println("Auth service started")
 
 	// test data
@@ -58,10 +62,10 @@ func (s *UserDeactivationSuite) Test1() {
 		select {
 		case identityID := <-s.NotificationDone:
 			log.Println("Got notification call back")
-			s.UpdateNotificationTime(identityID)
 			notificatinCalls++
 			assert.True(t, (notificatinCalls <= wantNotificatinCalls),
 				"Notification calls exceeds, want:%d, got:%d", wantNotificatinCalls, notificatinCalls)
+			s.UpdateNotificationTime(identityID, &ago7days)
 		case userID := <-s.DeactivateDone:
 			log.Println("Got deactivate call back")
 			s.VarifyDeactivate(userID)
@@ -69,7 +73,61 @@ func (s *UserDeactivationSuite) Test1() {
 			assert.True(t, (deactivateCalls <= wantDeactivateCalls),
 				"Deactivation calls exceeds, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
 		case <-timeout.C:
-			log.Println("Timed out")
+			log.Println("Test waiting time is over")
+			runLoop = false
+		}
+	}
+
+	assert.Equal(t, wantNotificatinCalls, notificatinCalls, "Notification calls not equal, want:%d, got:%d", wantNotificatinCalls, notificatinCalls)
+	assert.Equal(t, wantDeactivateCalls, deactivateCalls, "Deactivation calls not equal, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
+}
+
+func (s *UserDeactivationSuite) TestWithUserActivity() {
+	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
+
+	t := s.T()
+	wantNotificatinCalls := 2
+	wantDeactivateCalls := 1
+
+	// start auth_service
+	cmd, display := s.authCmd()
+	defer display(t)
+	err := cmd.Start()
+	assert.NoError(t, err)
+	defer func() {
+		cmd.Process.Kill()
+		log.Println("Auth service stopped")
+	}()
+	log.Println("Auth service started")
+
+	// test data
+	s.createUser()
+
+	// wait and varify
+	timeout := time.NewTimer(60 * time.Second)
+	runLoop := true
+	notificatinCalls := 0
+	deactivateCalls := 0
+	for runLoop {
+		select {
+		case identityID := <-s.NotificationDone:
+			log.Println("Got notification call back")
+			notificatinCalls++
+			assert.True(t, (notificatinCalls <= wantNotificatinCalls),
+				"Notification calls exceeds, want:%d, got:%d", wantNotificatinCalls, notificatinCalls)
+			if notificatinCalls == 1 {
+				s.UpdateNotificationTime(identityID, nil)
+			} else {
+				s.UpdateNotificationTime(identityID, &ago7days)
+			}
+		case userID := <-s.DeactivateDone:
+			log.Println("Got deactivate call back")
+			s.VarifyDeactivate(userID)
+			deactivateCalls++
+			assert.True(t, (deactivateCalls <= wantDeactivateCalls),
+				"Deactivation calls exceeds, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
+		case <-timeout.C:
+			log.Println("Test waiting time is over")
 			runLoop = false
 		}
 	}
@@ -91,7 +149,7 @@ func (s *UserDeactivationSuite) createUser() {
 	require.NoError(s.T(), err)
 }
 
-func (s *UserDeactivationSuite) UpdateNotificationTime(identityID string) {
+func (s *UserDeactivationSuite) UpdateNotificationTime(identityID string, updatedTime *time.Time) {
 	t := s.T()
 	if identityID == "" {
 		t.Fail()
@@ -114,8 +172,8 @@ func (s *UserDeactivationSuite) UpdateNotificationTime(identityID string) {
 			require.NoError(t, err)
 			require.NotNil(t, identity)
 			if identity.DeactivationNotification != nil {
-				log.Printf("DeactivationNotification will be reset with past dates")
-				identity.DeactivationNotification = &ago7days
+				log.Printf("DeactivationNotification will be reset with %v", updatedTime)
+				identity.DeactivationNotification = updatedTime
 				err = s.Application.Identities().Save(ctx, identity)
 				require.NoError(t, err)
 				return
