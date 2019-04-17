@@ -403,7 +403,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivateTest() {
 	lastActive := time.Now().AddDate(-1, 0, 0)
 
 	user := s.Graph.CreateUser()
-	user.User().Email = "sbryzak-preview5@redhat.com"
+	user.User().Email = "sbryzak+preview5@redhat.com"
 	err := s.Application.Users().Save(s.Ctx, user.User())
 	require.NoError(s.T(), err)
 
