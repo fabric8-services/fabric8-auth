@@ -68,10 +68,10 @@ func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 			s.UpdateNotificationTime(identityID, &ago7days)
 		case userID := <-s.DeactivateDone:
 			log.Println("Got deactivate call back")
-			s.VarifyDeactivate(userID)
 			deactivateCalls++
 			assert.True(t, (deactivateCalls <= wantDeactivateCalls),
 				"Deactivation calls exceeds, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
+			s.VarifyDeactivate(userID)
 		case <-timeout.C:
 			log.Println("Test waiting time is over")
 			runLoop = false
@@ -122,10 +122,10 @@ func (s *UserDeactivationSuite) TestWithUserActivity() {
 			}
 		case userID := <-s.DeactivateDone:
 			log.Println("Got deactivate call back")
-			s.VarifyDeactivate(userID)
 			deactivateCalls++
 			assert.True(t, (deactivateCalls <= wantDeactivateCalls),
 				"Deactivation calls exceeds, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
+			s.VarifyDeactivate(userID)
 		case <-timeout.C:
 			log.Println("Test waiting time is over")
 			runLoop = false
@@ -198,4 +198,5 @@ func (s *UserDeactivationSuite) VarifyDeactivate(userID string) {
 	user, err := s.Application.Users().Load(context.Background(), id)
 	assert.Error(t, err) // not found as users.delete_at is set
 	assert.Nil(t, user)
+	log.Printf("Deactivate call varified successfully")
 }

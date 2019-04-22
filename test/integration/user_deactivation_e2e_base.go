@@ -85,7 +85,7 @@ func (s *BaseSuite) authCmd(args ...string) (*exec.Cmd, func(*testing.T)) {
 
 func GetRegAppServer(DeactivateDone chan string) func(rw http.ResponseWriter, r *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		log.Printf("RegApp service, Got Request, path=%s\n", r.URL.Path)
+		log.Printf("RegApp service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
 
 		username := extractUsername(r.URL.Path)
 		url := fmt.Sprintf("http://127.0.0.1:8089/api/namedusers/%s/deactivate", username)
@@ -96,19 +96,20 @@ func GetRegAppServer(DeactivateDone chan string) func(rw http.ResponseWriter, r 
 		httpClient := http.Client{}
 		res, err := httpClient.Do(req)
 		if err != nil {
-			log.Printf("RegApp service, failed, err=%v\n", err)
+			log.Printf("RegApp service, failed, err:%v\n", err)
+			rw.WriteHeader(http.StatusInternalServerError)
+			log.Printf("RegApp service, Return Response, status:%d\n", http.StatusInternalServerError)
 			return
 		}
-		log.Printf("RegApp service, deactivate call, status=%s\n", res.Status)
-
 		userID := extractIDFromRegAppRequestPath(r.URL.Path)
 		DeactivateDone <- userID
+		log.Printf("RegApp service, Return Response, status:%d\n", res.StatusCode)
 	}
 }
 
 func GetNotificationServer(NotificationDone chan string) func(rw http.ResponseWriter, r *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		log.Printf("Notification service, Got Request, path=%s\n", r.URL.Path)
+		log.Printf("Notification service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
 
 		defer r.Body.Close()
 		content, _ := ioutil.ReadAll(r.Body)
@@ -116,11 +117,12 @@ func GetNotificationServer(NotificationDone chan string) func(rw http.ResponseWr
 		NotificationDone <- identityID
 
 		rw.WriteHeader(http.StatusAccepted)
+		log.Printf("Notification service, Return Response, status:%d\n", http.StatusAccepted)
 	}
 }
 
 func ServeClusterRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("Cluster service, Got Request, path=%s\n", r.URL.Path)
+	log.Printf("Cluster service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
 	rw.Write([]byte(`{
 		"data": [
 			{
@@ -137,19 +139,23 @@ func ServeClusterRequests(rw http.ResponseWriter, r *http.Request) {
 			}
 		]
 	}`))
+	log.Printf("Cluster service, Return Response, status:%d\n", http.StatusOK)
 }
 
 func ServeWITRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("WIT service, Got Request, path=%s\n", r.URL.Path)
+	log.Printf("WIT service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
+	log.Printf("WIT service, Return Response, status:%d\n", http.StatusOK)
 }
 
 func ServeTenantRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("Tenant service, Got Request, path=%s\n", r.URL.Path)
+	log.Printf("Tenant service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
 	rw.WriteHeader(http.StatusNoContent)
+	log.Printf("Tenant service, Return Response, status:%d\n", http.StatusNoContent)
 }
 
 func ServeCheRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("Che service, Got Request, path=%s\n", r.URL.Path)
+	log.Printf("Che service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
+	log.Printf("Che service, Return Response, status:%d\n", http.StatusOK)
 }
 
 func displayAuthLogs(t *testing.T, output *bytes.Buffer) {
