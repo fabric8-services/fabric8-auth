@@ -126,9 +126,9 @@ vwIDAQAB
 	// defaultCheServiceURL the default URL to the Che service
 	defaultCheServiceURL = "http://rhche-host:8080"
 	// defaultPostDeactivationNotificationDelay the default interval between 2 cycles of the user deactivation worker
-	defaultUserDeactivationWorkerIntervalMinutes = 4
-	// defaultUserDeactivationNotificationWorkerIntervalMinutes the default interval between 2 cycles of the user deactivation worker
-	defaultUserDeactivationNotificationWorkerIntervalMinutes = 4
+	defaultUserDeactivationWorkerIntervalSeconds = 240
+	// defaultUserDeactivationNotificationWorkerIntervalSeconds the default interval between 2 cycles of the user deactivation worker
+	defaultUserDeactivationNotificationWorkerIntervalSeconds = 240
 
 	defaultUserDeactivationTestingMode = true
 )
