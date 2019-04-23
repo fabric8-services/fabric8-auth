@@ -1122,7 +1122,7 @@ func (c *ConfigurationData) GetPostDeactivationNotificationDelayMillis() time.Du
 
 // GetUserDeactivationWorkerIntervalSeconds returns the interval between 2 cycles of the user deactivation worker.
 func (c *ConfigurationData) GetUserDeactivationWorkerIntervalSeconds() time.Duration {
-	return time.Duration(c.v.GetInt(varUserDeactivationWorkerIntervalSeconds)) * time.Minute
+	return time.Duration(c.v.GetInt(varUserDeactivationWorkerIntervalSeconds)) * time.Second
 }
 
 // GetUserDeactivationNotificationWorkerIntervalSeconds returns the interval between 2 cycles of the user deactivation notification worker.
