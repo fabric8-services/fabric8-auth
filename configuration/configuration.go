@@ -185,10 +185,10 @@ const (
 	//
 	//------------------------------------------------------------------------------------------------------------------
 
-	// varUserDeactivationWorkerIntervalMinutes is the interval between 2 cycles of the user deactivation worker in minutes
-	varUserDeactivationWorkerIntervalMinutes = "user.deactivation.interval.minutes"
-	// varUserDeactivationNotificationWorkerIntervalMinutes is the interval between 2 cycles of the user deactivation notification worker in minutes
-	varUserDeactivationNotificationWorkerIntervalMinutes = "user.deactivation.notification.interval.minutes"
+	// varUserDeactivationWorkerIntervalSeconds is the interval between 2 cycles of the user deactivation worker in minutes
+	varUserDeactivationWorkerIntervalSeconds = "user.deactivation.interval.seconds"
+	// varUserDeactivationNotificationWorkerIntervalSeconds is the interval between 2 cycles of the user deactivation notification worker in minutes
+	varUserDeactivationNotificationWorkerIntervalSeconds = "user.deactivation.notification.interval.seconds"
 	// varUserDeactivationFetchLimit the maximum number of identities to warn before deactivation and deactivate
 	varUserDeactivationFetchLimit = "user.deactivation.fetch.limit"
 	// varUserDeactivationInactivityPeriodNotification the number of days of inactivity before notifying the user of account deactivation
@@ -672,8 +672,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varUserDeactivationInactivityNotificationPeriodDays, defaultUserDeactivationInactivityNotificationPeriod)
 	c.v.SetDefault(varUserDeactivationInactivityPeriodDays, defaultUserDeactivationInactivityPeriod)
 	c.v.SetDefault(varPostDeactivationNotificationDelayMillis, defaultPostDeactivationNotificationDelay)
-	c.v.SetDefault(varUserDeactivationWorkerIntervalMinutes, defaultUserDeactivationWorkerIntervalMinutes)
-	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalMinutes, defaultUserDeactivationNotificationWorkerIntervalMinutes)
+	c.v.SetDefault(varUserDeactivationWorkerIntervalSeconds, defaultUserDeactivationWorkerIntervalSeconds)
+	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalSeconds, defaultUserDeactivationNotificationWorkerIntervalSeconds)
 
 	c.v.SetDefault(varUserDeactivationTestingMode, defaultUserDeactivationTestingMode)
 
@@ -1120,14 +1120,14 @@ func (c *ConfigurationData) GetPostDeactivationNotificationDelayMillis() time.Du
 	return time.Duration(c.v.GetInt(varPostDeactivationNotificationDelayMillis)) * time.Millisecond
 }
 
-// GetUserDeactivationWorkerIntervalMinutes returns the interval between 2 cycles of the user deactivation worker.
-func (c *ConfigurationData) GetUserDeactivationWorkerIntervalMinutes() time.Duration {
-	return time.Duration(c.v.GetInt(varUserDeactivationWorkerIntervalMinutes)) * time.Minute
+// GetUserDeactivationWorkerIntervalSeconds returns the interval between 2 cycles of the user deactivation worker.
+func (c *ConfigurationData) GetUserDeactivationWorkerIntervalSeconds() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationWorkerIntervalSeconds)) * time.Second
 }
 
-// GetUserDeactivationNotificationWorkerIntervalMinutes returns the interval between 2 cycles of the user deactivation notification worker.
-func (c *ConfigurationData) GetUserDeactivationNotificationWorkerIntervalMinutes() time.Duration {
-	return time.Duration(c.v.GetInt(varUserDeactivationNotificationWorkerIntervalMinutes)) * time.Minute
+// GetUserDeactivationNotificationWorkerIntervalSeconds returns the interval between 2 cycles of the user deactivation notification worker.
+func (c *ConfigurationData) GetUserDeactivationNotificationWorkerIntervalSeconds() time.Duration {
+	return time.Duration(c.v.GetInt(varUserDeactivationNotificationWorkerIntervalSeconds)) * time.Second
 }
 
 func (c *ConfigurationData) GetUserDeactivationTestingMode() bool {

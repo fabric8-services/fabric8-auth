@@ -301,9 +301,9 @@ func main() {
 	ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
 	ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
 	userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
-	userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalMinutes())
+	userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalSeconds())
 	userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
-	userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalMinutes())
+	userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalSeconds())
 
 	// gracefull shutdown
 	go handleShutdown(db, tokenCleanupWorker) //, userDeactivationNotificationWorker, userDeactivationWorker)
