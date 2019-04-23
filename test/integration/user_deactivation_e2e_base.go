@@ -123,7 +123,7 @@ func GetNotificationServer(NotificationDone chan string) func(rw http.ResponseWr
 
 func ServeClusterRequests(rw http.ResponseWriter, r *http.Request) {
 	log.Printf("Cluster service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
-	rw.Write([]byte(`{
+	_, _ = rw.Write([]byte(`{
 		"data": [
 			{
 				"api-url": "starter-us-east-2",
@@ -206,7 +206,10 @@ type Attributes struct {
 
 func extractIDFromNotificationPayload(content []byte) string {
 	var payload Payload
-	json.Unmarshal([]byte(content), &payload)
+	err := json.Unmarshal([]byte(content), &payload)
+	if err != nil {
+		return ""
+	}
 	if payload.Data == nil {
 		return ""
 	}

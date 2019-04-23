@@ -32,6 +32,7 @@ func (s *UserDeactivationSuite) SetupTest() {
 	s.BaseSuite.SetupTest(s.NotificationDone, s.DeactivateDone)
 }
 
+// notification, still inactive, deactivate
 func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
 
@@ -45,7 +46,7 @@ func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 	err := cmd.Start()
 	assert.NoError(t, err)
 	defer func() {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		log.Println("Auth service stopped")
 	}()
 	log.Println("Auth service started")
@@ -82,6 +83,7 @@ func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 	assert.Equal(t, wantDeactivateCalls, deactivateCalls, "Deactivation calls not equal, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
 }
 
+// notification, new activity, deactivation doesn't happen, no activity again, another notification, no activity this time, deactivation
 func (s *UserDeactivationSuite) TestWithUserActivity() {
 	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
 
@@ -95,7 +97,7 @@ func (s *UserDeactivationSuite) TestWithUserActivity() {
 	err := cmd.Start()
 	assert.NoError(t, err)
 	defer func() {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		log.Println("Auth service stopped")
 	}()
 	log.Println("Auth service started")
@@ -165,28 +167,26 @@ func (s *UserDeactivationSuite) UpdateNotificationTime(identityID string, update
 	require.NotNil(t, identity)
 
 	// change notificatin time async
-	go func() {
-		attempt := 5
-		for i := 1; i <= attempt; i++ {
-			identity, err := s.Application.Identities().Load(ctx, id)
-			require.NoError(t, err)
-			require.NotNil(t, identity)
-			if identity.DeactivationNotification != nil {
-				log.Printf("DeactivationNotification will be reset with %v", updatedTime)
-				identity.DeactivationNotification = updatedTime
-				err = s.Application.Identities().Save(ctx, identity)
-				require.NoError(t, err)
-				return
-			} else {
-				time.Sleep(time.Second)
-			}
-		}
+	attempt := 5
+	for i := 1; i <= attempt; i++ {
 		identity, err := s.Application.Identities().Load(ctx, id)
 		require.NoError(t, err)
 		require.NotNil(t, identity)
-		require.NotNil(t, identity.DeactivationNotification,
-			"DeactivationNotification is not set after %d seconds from notification call, identity:%v", attempt, identity)
-	}()
+		if identity.DeactivationNotification != nil {
+			log.Printf("DeactivationNotification will be reset with %v", updatedTime)
+			identity.DeactivationNotification = updatedTime
+			err = s.Application.Identities().Save(ctx, identity)
+			require.NoError(t, err)
+			return
+		} else {
+			time.Sleep(time.Second)
+		}
+	}
+	identity, err = s.Application.Identities().Load(ctx, id)
+	require.NoError(t, err)
+	require.NotNil(t, identity)
+	require.NotNil(t, identity.DeactivationNotification,
+		"DeactivationNotification is not set after %d seconds from notification call, identity:%v", attempt, identity)
 }
 
 func (s *UserDeactivationSuite) VarifyDeactivate(userID string) {
