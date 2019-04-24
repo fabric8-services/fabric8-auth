@@ -79,7 +79,9 @@ func (s *BaseSuite) cmdAuth(args ...string) (*exec.Cmd, *bytes.Buffer) {
 func (s *BaseSuite) authCmd(args ...string) (*exec.Cmd, func(*testing.T)) {
 	cmd, out := s.cmdAuth(args...)
 	return cmd, func(t *testing.T) {
-		displayAuthLogs(t, out)
+		if t.Failed() {
+			displayAuthLogs(t, out)
+		}
 	}
 }
 

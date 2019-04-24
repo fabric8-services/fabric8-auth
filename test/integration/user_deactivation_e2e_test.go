@@ -34,7 +34,9 @@ func (s *UserDeactivationSuite) SetupTest() {
 
 // notification, still inactive, deactivate
 func (s *UserDeactivationSuite) TestWithNoUserActivity() {
+	configFile := os.Getenv("AUTH_CONFIG_FILE_PATH")
 	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
+	defer os.Setenv("AUTH_CONFIG_FILE_PATH", configFile)
 
 	t := s.T()
 	wantNotificatinCalls := 1
@@ -54,7 +56,7 @@ func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 	// test data
 	s.createUser()
 
-	// wait and varify
+	// wait and verify
 	timeout := time.NewTimer(40 * time.Second)
 	runLoop := true
 	notificatinCalls := 0
@@ -72,7 +74,7 @@ func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 			deactivateCalls++
 			assert.True(t, (deactivateCalls <= wantDeactivateCalls),
 				"Deactivation calls exceeds, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
-			s.VarifyDeactivate(userID)
+			s.VerifyDeactivate(userID)
 		case <-timeout.C:
 			log.Println("Test waiting time is over")
 			runLoop = false
@@ -85,7 +87,9 @@ func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 
 // notification, new activity, deactivation doesn't happen, no activity again, another notification, no activity this time, deactivation
 func (s *UserDeactivationSuite) TestWithUserActivity() {
+	configFile := os.Getenv("AUTH_CONFIG_FILE_PATH")
 	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
+	defer os.Setenv("AUTH_CONFIG_FILE_PATH", configFile)
 
 	t := s.T()
 	wantNotificatinCalls := 2
@@ -105,7 +109,7 @@ func (s *UserDeactivationSuite) TestWithUserActivity() {
 	// test data
 	s.createUser()
 
-	// wait and varify
+	// wait and verify
 	timeout := time.NewTimer(60 * time.Second)
 	runLoop := true
 	notificatinCalls := 0
@@ -127,7 +131,7 @@ func (s *UserDeactivationSuite) TestWithUserActivity() {
 			deactivateCalls++
 			assert.True(t, (deactivateCalls <= wantDeactivateCalls),
 				"Deactivation calls exceeds, want:%d, got:%d", wantDeactivateCalls, deactivateCalls)
-			s.VarifyDeactivate(userID)
+			s.VerifyDeactivate(userID)
 		case <-timeout.C:
 			log.Println("Test waiting time is over")
 			runLoop = false
@@ -191,7 +195,7 @@ func (s *UserDeactivationSuite) UpdateNotificationTime(identityID string, update
 
 func (s *UserDeactivationSuite) VerifyDeactivate(userID string) {
 	t := s.T()
-	require.NotNil(t, userID, "User deactivation can't be varified as UserID is nil")
+	require.NotEmpty(t, userID, "User deactivation can't be verified as UserID is blank")
 
 	id, err := uuid.FromString(userID)
 	require.NoError(t, err)
