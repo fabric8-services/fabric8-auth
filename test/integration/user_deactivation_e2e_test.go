@@ -189,7 +189,7 @@ func (s *UserDeactivationSuite) UpdateNotificationTime(identityID string, update
 		"DeactivationNotification is not set after %d seconds from notification call, identity:%v", attempt, identity)
 }
 
-func (s *UserDeactivationSuite) VarifyDeactivate(userID string) {
+func (s *UserDeactivationSuite) VerifyDeactivate(userID string) {
 	t := s.T()
 	require.NotNil(t, userID, "User deactivation can't be varified as UserID is nil")
 
