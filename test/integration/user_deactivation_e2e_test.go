@@ -198,5 +198,5 @@ func (s *UserDeactivationSuite) VerifyDeactivate(userID string) {
 	user, err := s.Application.Users().Load(context.Background(), id)
 	assert.Error(t, err) // not found as users.delete_at is set
 	assert.Nil(t, user)
-	log.Printf("Deactivate call varified successfully")
+	log.Printf("Deactivate call verified successfully")
 }
