@@ -120,15 +120,14 @@ vwIDAQAB
 	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
 	defaultUserDeactivationInactivityNotificationPeriod = 24 // 24 days
 	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
-	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
+	//	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
+	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 1 // 31 days (1 day after defaultUserDeactivationInactivityNotificationPeriod)
 	// defaultPostDeactivationNotificationDelay the default number of milliseconds between to user account deactivation notifications by the same go routine
 	defaultPostDeactivationNotificationDelay = 500
 	// defaultCheServiceURL the default URL to the Che service
 	defaultCheServiceURL = "http://rhche-host:8080"
 	// defaultPostDeactivationNotificationDelay the default interval between 2 cycles of the user deactivation worker
-	defaultUserDeactivationWorkerIntervalSeconds = 240
-	// defaultUserDeactivationNotificationWorkerIntervalSeconds the default interval between 2 cycles of the user deactivation worker
-	defaultUserDeactivationNotificationWorkerIntervalSeconds = 240
-
-	defaultUserDeactivationTestingMode = true
+	defaultUserDeactivationWorkerIntervalSeconds = 60 * 60 // 1 hour
+	// defaultUserDeactivationNotificationWorkerIntervalSeconds the default interval between 2 cycles of the user deactivation notification worker
+	defaultUserDeactivationNotificationWorkerIntervalSeconds = 60 * 60 // 1 hour
 )
