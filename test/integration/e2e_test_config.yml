@@ -6,5 +6,5 @@ cluster.url.short: http://127.0.0.1:8083
 che.serviceurl: http://localhost:8084
 oso.regapp.serviceurl: http://127.0.0.1:8085
 
-user.deactivation.notification.interval.minutes: 15
-user.deactivation.interval.minutes: 25
+user.deactivation.notification.interval.seconds: 15
+user.deactivation.interval.seconds: 25
