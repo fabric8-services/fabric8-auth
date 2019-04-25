@@ -195,6 +195,7 @@ func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now fu
 	since := now().Add(-s.config.GetUserDeactivationInactivityPeriodDays())                                                                        // remove 'n' days from now (default: 31)
 	notification := now().Add(s.config.GetUserDeactivationInactivityNotificationPeriodDays() - s.config.GetUserDeactivationInactivityPeriodDays()) // make sure that the notification was sent at least `n` days earlier (default: 7)
 	limit := s.config.GetUserDeactivationFetchLimit()
+
 	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit)
 }
 
