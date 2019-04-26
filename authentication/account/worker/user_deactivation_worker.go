@@ -64,6 +64,10 @@ func (w *userDeactivationWorker) deactivateUsers() {
 				"err":      err,
 				"username": identity.Username,
 			}, "error while deactivating user")
+		} else {
+			log.Info(nil, map[string]interface{}{
+				"username": identity.Username,
+			}, "user account deactivation triggered")
 		}
 	}
 	log.Debug(w.Ctx, map[string]interface{}{
