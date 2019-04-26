@@ -185,6 +185,8 @@ const (
 	//
 	//------------------------------------------------------------------------------------------------------------------
 
+	varUserDeactivationEnabled             = "user.deactivation.enabled"
+	varUserDeactivationNotificationEnabled = "user.deactivation.notification.enabled"
 	// varUserDeactivationWorkerIntervalSeconds is the interval between 2 cycles of the user deactivation worker in minutes
 	varUserDeactivationWorkerIntervalSeconds = "user.deactivation.interval.seconds"
 	// varUserDeactivationNotificationWorkerIntervalSeconds is the interval between 2 cycles of the user deactivation notification worker in minutes
@@ -665,6 +667,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varClusterRefreshInterval, 5*time.Minute) // 5 minutes
 
 	// User deactivation
+	c.v.SetDefault(varUserDeactivationEnabled, defaultUserDeactivationEnabled)
+	c.v.SetDefault(varUserDeactivationNotificationEnabled, defaultUserDeactivationNotificationEnabled)
 	c.v.SetDefault(varUserDeactivationFetchLimit, defaultUserDeactivationFetchLimit)
 	c.v.SetDefault(varUserDeactivationInactivityNotificationPeriodDays, defaultUserDeactivationInactivityNotificationPeriod)
 	c.v.SetDefault(varUserDeactivationInactivityPeriodDays, defaultUserDeactivationInactivityPeriod)
@@ -1089,6 +1093,16 @@ func (c *ConfigurationData) GetRPTTokenMaxPermissions() int {
 
 func (c *ConfigurationData) GetExpiredTokenRetentionHours() int {
 	return c.v.GetInt(varExpiredTokenRetentionHours)
+}
+
+// GetUserDeactivationEnabled returns true if the user deactivation worker should be enabled
+func (c *ConfigurationData) GetUserDeactivationEnabled() bool {
+	return c.v.GetBool(varUserDeactivationEnabled)
+}
+
+// GetUserDeactivationNotificationEnabled returns true if the user deactivation notification worker should be enabled
+func (c *ConfigurationData) GetUserDeactivationNotificationEnabled() bool {
+	return c.v.GetBool(varUserDeactivationNotificationEnabled)
 }
 
 // GetUserDeactivationFetchLimit returns the max/limit number of user accounts to deactivate during a worker call
