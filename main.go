@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-
-	// "github.com/fabric8-services/fabric8-auth/worker"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,8 +16,7 @@ import (
 	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
-
-	// userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
+	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	tokenworker "github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -30,6 +27,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
+	"github.com/fabric8-services/fabric8-auth/worker"
 
 	"github.com/goadesign/goa"
 	goalogrus "github.com/goadesign/goa/logging/logrus"
@@ -298,16 +296,32 @@ func main() {
 	// token cleanup, running once every hour
 	tokenCleanupWorker := tokenworker.NewTokenCleanupWorker(context.Background(), appDB)
 	tokenCleanupWorker.Start(time.Hour)
+	workers := []Worker{tokenCleanupWorker}
 	// User deactivation and notification workers
-	// ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
-	// ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
-	// userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
-	// userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalSeconds())
-	// userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
-	// userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalSeconds())
-
+	ctx := manager.ContextWithTokenManager(context.Background(), tokenManager)
+	ctx = context.WithValue(ctx, worker.LockOwner, config.GetPodName())
+	if config.GetUserDeactivationNotificationEnabled() {
+		log.Info(nil, map[string]interface{}{
+			"user_fetch_limit":               config.GetUserDeactivationFetchLimit(),
+			"inactivity_notification_period": config.GetUserDeactivationInactivityNotificationPeriodDays(),
+			"notification_interval":          config.GetUserDeactivationNotificationWorkerIntervalSeconds(),
+		}, "Deactivation notification worker enabled")
+		userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
+		userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalSeconds())
+		workers = append(workers, userDeactivationNotificationWorker)
+	}
+	if config.GetUserDeactivationEnabled() {
+		log.Info(nil, map[string]interface{}{
+			"user_fetch_limit":      config.GetUserDeactivationFetchLimit(),
+			"inactivity_period":     config.GetUserDeactivationInactivityPeriodDays(),
+			"deactivation_interval": config.GetUserDeactivationWorkerIntervalSeconds(),
+		}, "Deactivation worker enabled")
+		userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
+		userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalSeconds())
+		workers = append(workers, userDeactivationWorker)
+	}
 	// graceful shutdown
-	go handleShutdown(db, tokenCleanupWorker) //, userDeactivationNotificationWorker, userDeactivationWorker)
+	go handleShutdown(db, workers[:]...)
 
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {
