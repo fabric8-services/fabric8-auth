@@ -86,6 +86,8 @@ type Identity struct {
 	LastActive *time.Time
 	// Timestamp of deactivation notification
 	DeactivationNotification *time.Time `gorm:"column:deactivation_notification"`
+	// Timestamp of deactivation attempt
+	DeactivationAttempt *time.Time `gorm:"column:deactivation_attempt"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -142,6 +144,7 @@ type IdentityRepository interface {
 	RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error
 	FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error
 	TouchLastActive(ctx context.Context, identityID uuid.UUID) error
+	TouchDeactivationAttempt(ctx context.Context, identityID uuid.UUID) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -427,7 +430,7 @@ func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context,
 	err := m.db.Model(&Identity{}).
 		Where("last_active < ? and deactivation_notification < ?", lastActivity, notification).
 		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
-		Order("last_active, created_at").Limit(limit).Find(&identities).Error
+		Order("deactivation_attempt, last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
@@ -898,6 +901,21 @@ func (m *GormIdentityRepository) TouchLastActive(ctx context.Context, identityID
 			"id":  identityID,
 			"err": err,
 		}, "unable to update last active time")
+		return errs.WithStack(err)
+	}
+
+	return nil
+}
+
+func (m *GormIdentityRepository) TouchDeactivationAttempt(ctx context.Context, identityID uuid.UUID) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "TouchDeactivationAttempt"}, time.Now())
+
+	err := m.db.Exec("UPDATE identities SET deactivation_attempt = ? WHERE id = ?", time.Now(), identityID).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"id":  identityID,
+			"err": err,
+		}, "unable to update deactivation attempt")
 		return errs.WithStack(err)
 	}
 
