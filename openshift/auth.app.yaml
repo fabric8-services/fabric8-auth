@@ -193,6 +193,16 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: ignore.email.prod          
+          - name: AUTH_USER_DEACTIVATION_NOTIFICATION_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: user.deactivation.notification.enabled
+          - name: AUTH_USER_DEACTIVATION_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: user.deactivation.enabled
           imagePullPolicy: Always
           name: auth
           ports:
