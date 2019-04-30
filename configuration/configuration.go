@@ -199,8 +199,8 @@ const (
 	varUserDeactivationInactivityPeriodDays = "user.deactivation.inactivity.period.days"
 	// varPostDeactivationNotificationDelayMillis the delay (in milliseconds) between 2 account deactivation notifications sent to users
 	varPostDeactivationNotificationDelayMillis = "user.deactivation.post.notification.delay.millis"
-	// varUserDeactivationWorkerRescheduleDelayDays the number of days to wait after a failed deactivation attempt to attempt deactivation again
-	varUserDeactivationWorkerRescheduleDelayDays = "user.deactivation.reschedule.delay.days"
+	// varUserDeactivationWorkerRescheduleDelayHours the number of hours to wait after a failed deactivation attempt to attempt deactivation again
+	varUserDeactivationWorkerRescheduleDelayHours = "user.deactivation.reschedule.delay.hours"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -677,7 +677,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varPostDeactivationNotificationDelayMillis, defaultPostDeactivationNotificationDelay)
 	c.v.SetDefault(varUserDeactivationWorkerIntervalSeconds, defaultUserDeactivationWorkerIntervalSeconds)
 	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalSeconds, defaultUserDeactivationNotificationWorkerIntervalSeconds)
-	c.v.SetDefault(varUserDeactivationWorkerRescheduleDelayDays, defaultUserDeactivationRescheduleDelayDays)
+	c.v.SetDefault(varUserDeactivationWorkerRescheduleDelayHours, defaultUserDeactivationRescheduleDelayHours)
 
 	// Che
 	c.v.SetDefault(varCheServiceURL, defaultCheServiceURL)
@@ -1141,5 +1141,5 @@ func (c *ConfigurationData) GetUserDeactivationNotificationWorkerIntervalSeconds
 }
 
 func (c *ConfigurationData) GetUserDeactivationRescheduleDelay() time.Duration {
-	return time.Duration(c.v.GetInt(varUserDeactivationWorkerRescheduleDelayDays)) * 24 * time.Hour
+	return time.Duration(c.v.GetInt(varUserDeactivationWorkerRescheduleDelayHours)) * time.Hour
 }

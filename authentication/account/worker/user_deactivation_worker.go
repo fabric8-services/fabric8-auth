@@ -23,7 +23,7 @@ const (
 )
 
 // NewUserDeactivationWorker returns a new UserDeactivationWorker
-func NewUserDeactivationWorker(ctx context.Context, app application.Application, rescheduleDelay time.Duration) UserDeactivationWorker {
+func NewUserDeactivationWorker(ctx context.Context, app application.Application) UserDeactivationWorker {
 	w := &userDeactivationWorker{
 		worker.Worker{
 			Ctx:   ctx,
@@ -31,7 +31,6 @@ func NewUserDeactivationWorker(ctx context.Context, app application.Application,
 			Owner: worker.GetLockOwner(ctx),
 			Name:  "user-deactivation",
 		},
-		rescheduleDelay,
 	}
 	w.Do = w.deactivateUsers
 	return w
@@ -39,7 +38,6 @@ func NewUserDeactivationWorker(ctx context.Context, app application.Application,
 
 type userDeactivationWorker struct {
 	worker.Worker
-	rescheduleDelay time.Duration
 }
 
 func (w *userDeactivationWorker) deactivateUsers() {
@@ -56,10 +54,8 @@ func (w *userDeactivationWorker) deactivateUsers() {
 		return
 	}
 
-	rescheduledDeactivation := time.Now().Add(w.rescheduleDelay)
-
 	for _, identity := range identities {
-		err := w.App.Identities().BumpDeactivationSchedule(w.Ctx, identity.ID, rescheduledDeactivation)
+		err := w.App.UserService().RescheduleDeactivation(w.Ctx, identity.ID)
 		if err != nil {
 			log.Error(nil, map[string]interface{}{
 				"err":      err,

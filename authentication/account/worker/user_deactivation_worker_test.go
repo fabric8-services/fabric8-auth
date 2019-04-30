@@ -129,7 +129,7 @@ func (s *UserDeactivationWorkerTest) newUserDeactivationWorker(ctx context.Conte
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), podname, config.GetPodName())
 	ctx = context.WithValue(ctx, baseworker.LockOwner, podname)
-	return worker.NewUserDeactivationWorker(ctx, app, time.Duration(24)*time.Hour)
+	return worker.NewUserDeactivationWorker(ctx, app)
 }
 
 func mockRemoteCalls(userToDeactivate *account.User, identity account.Identity, config ososervice.OSOSubscriptionServiceConfiguration) {

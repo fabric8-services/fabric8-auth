@@ -133,5 +133,5 @@ vwIDAQAB
 	// defaultUserDeactivationNotificationWorkerIntervalSeconds the default interval between 2 cycles of the user deactivation notification worker
 	defaultUserDeactivationNotificationWorkerIntervalSeconds = 60 * 60 // 1 hour
 	// defaultUserDeactivationRescheduleDelayDays default of 1 day to re-attempt a failed deactivation attempt
-	defaultUserDeactivationRescheduleDelayDays = 1 // 1 day
+	defaultUserDeactivationRescheduleDelayHours = 24 // 24 hours
 )

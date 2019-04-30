@@ -86,7 +86,7 @@ type Identity struct {
 	LastActive *time.Time
 	// Timestamp of deactivation notification
 	DeactivationNotification *time.Time `gorm:"column:deactivation_notification"`
-	// Timestamp of deactivation attempt
+	// Time of scheduled deactivation
 	DeactivationScheduled *time.Time `gorm:"column:deactivation_scheduled"`
 }
 
