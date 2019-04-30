@@ -29,7 +29,6 @@ func (w *Worker) Start(freq time.Duration) {
 		"owner": w.Owner,
 		"name":  w.Name,
 	}, "starting worker")
-
 	w.ticker = time.NewTicker(freq)
 	go func() {
 		for {
@@ -45,39 +44,28 @@ func (w *Worker) Start(freq time.Duration) {
 }
 
 func (w *Worker) execute() {
-	if w.Do == nil {
-		log.Warn(w.Ctx, map[string]interface{}{
-			"name": w.Name,
-		}, "nothing to do in this worker?!?")
-		return
-	}
 	l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name)
 	if err != nil {
-		log.Warn(w.Ctx, map[string]interface{}{
+		log.Debug(w.Ctx, map[string]interface{}{
 			"error": err,
 			"owner": w.Owner,
 			"name":  w.Name,
 		}, "unable to acquire lock (which is OK if another pod has already acquired it)")
 		return
 	}
-	defer func() {
-		if w.lock != nil {
-			err := w.lock.Close()
-			if err != nil {
-				log.Error(w.Ctx, map[string]interface{}{
-					"err":   err,
-					"owner": w.Owner,
-					"name":  w.Name,
-				}, "error while releasing worker lock")
-			} else {
-				log.Info(w.Ctx, map[string]interface{}{
-					"owner": w.Owner,
-					"name":  w.Name,
-				}, "released worker lock")
-			}
-		}
-	}()
+	// worker tries to acquire the lock at each cycle, so when the lock is released
+	// by the owner pod (during shutdown), then another pod can take the work.
+	log.Info(w.Ctx, map[string]interface{}{
+		"owner": w.Owner,
+		"name":  w.Name,
+	}, "acquired lock")
 	w.lock = l
+	if w.Do == nil {
+		log.Warn(w.Ctx, map[string]interface{}{
+			"name": w.Name,
+		}, "nothing to do in this worker?!?")
+		return
+	}
 	w.Do()
 }
 
@@ -93,10 +81,31 @@ func (w *Worker) Stop() {
 }
 
 func (w *Worker) cleanup() {
+	// stop the ticker
 	log.Warn(w.Ctx, map[string]interface{}{
 		"owner": w.Owner,
 		"name":  w.Name,
 	}, "stopping the worker")
 	w.ticker.Stop()
+	// release the global lock
+	log.Warn(w.Ctx, map[string]interface{}{
+		"owner": w.Owner,
+		"name":  w.Name,
+	}, "releasing the worker lock")
+	if w.lock != nil {
+		err := w.lock.Close()
+		if err != nil {
+			log.Error(w.Ctx, map[string]interface{}{
+				"err":   err,
+				"owner": w.Owner,
+				"name":  w.Name,
+			}, "error while releasing worker lock")
+		} else {
+			log.Info(w.Ctx, map[string]interface{}{
+				"owner": w.Owner,
+				"name":  w.Name,
+			}, "worker lock released")
+		}
+	}
 
 }
