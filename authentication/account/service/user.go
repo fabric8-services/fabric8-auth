@@ -208,6 +208,8 @@ func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, 
 	if err := s.ExecuteInTransaction(func() error {
 		notificationDate := now()
 		identity.DeactivationNotification = &notificationDate
+		scheduledDeactivation := identity.LastActive.Add(s.config.GetUserDeactivationInactivityPeriodDays())
+		identity.DeactivationScheduled = &scheduledDeactivation
 		return s.Repositories().Identities().Save(ctx, &identity)
 	}); err != nil {
 		return errs.Wrap(err, "failed to record timestamp of notification sent to user before account deactivation")

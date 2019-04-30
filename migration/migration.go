@@ -260,7 +260,7 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	m = append(m, steps{ExecuteSQLFile("050-worker-lock.sql")})
 
 	// Version 51
-	m = append(m, steps{ExecuteSQLFile("051-identity-last-deactivation.sql")})
+	m = append(m, steps{ExecuteSQLFile("051-identity-deactivation-scheduled.sql")})
 
 	// Version N
 	//

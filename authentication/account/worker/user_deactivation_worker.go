@@ -23,7 +23,7 @@ const (
 )
 
 // NewUserDeactivationWorker returns a new UserDeactivationWorker
-func NewUserDeactivationWorker(ctx context.Context, app application.Application) UserDeactivationWorker {
+func NewUserDeactivationWorker(ctx context.Context, app application.Application, rescheduleDelay time.Duration) UserDeactivationWorker {
 	w := &userDeactivationWorker{
 		worker.Worker{
 			Ctx:   ctx,
@@ -31,6 +31,7 @@ func NewUserDeactivationWorker(ctx context.Context, app application.Application)
 			Owner: worker.GetLockOwner(ctx),
 			Name:  "user-deactivation",
 		},
+		rescheduleDelay,
 	}
 	w.Do = w.deactivateUsers
 	return w
@@ -38,6 +39,7 @@ func NewUserDeactivationWorker(ctx context.Context, app application.Application)
 
 type userDeactivationWorker struct {
 	worker.Worker
+	rescheduleDelay time.Duration
 }
 
 func (w *userDeactivationWorker) deactivateUsers() {
@@ -53,13 +55,16 @@ func (w *userDeactivationWorker) deactivateUsers() {
 		}, "error while notifying users to deactivate")
 		return
 	}
+
+	rescheduledDeactivation := time.Now().Add(w.rescheduleDelay)
+
 	for _, identity := range identities {
-		err := w.App.Identities().TouchDeactivationAttempt(w.Ctx, identity.ID)
+		err := w.App.Identities().BumpDeactivationSchedule(w.Ctx, identity.ID, rescheduledDeactivation)
 		if err != nil {
 			log.Error(nil, map[string]interface{}{
 				"err":      err,
 				"username": identity.Username,
-			}, "error updating deactivation_attempt while deactivating user")
+			}, "error updating deactivation schedule while deactivating user")
 		}
 		// to deactivate a user, we need to call the OSO Registration App which will take care of
 		// deactivating the user on OSO and then call back `auth` service (on its `/namedusers/:username/deactivate` endpoint)

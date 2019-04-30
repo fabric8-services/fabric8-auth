@@ -316,7 +316,7 @@ func main() {
 			"inactivity_period":     config.GetUserDeactivationInactivityPeriodDays(),
 			"deactivation_interval": config.GetUserDeactivationWorkerIntervalSeconds(),
 		}, "Deactivation worker enabled")
-		userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
+		userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB, config.GetUserDeactivationRescheduleDelay())
 		userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalSeconds())
 		workers = append(workers, userDeactivationWorker)
 	}

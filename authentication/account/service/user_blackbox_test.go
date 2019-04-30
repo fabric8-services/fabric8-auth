@@ -275,6 +275,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	}
 	ctx := context.Background()
 	yesterday := time.Now().Add(-1 * 24 * time.Hour)
+	ago3days := time.Now().Add(-3 * 24 * time.Hour)
 	ago10days := time.Now().Add(-10 * 24 * time.Hour)
 	ago65days := time.Now().Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
 	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
@@ -284,6 +285,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	identity1 := user1.Identities[0]
 	identity1.LastActive = &ago40days
 	identity1.DeactivationNotification = &ago10days
+	identity1.DeactivationScheduled = &ago3days
 	err := s.Application.Identities().Save(ctx, &identity1)
 	require.NoError(s.T(), err)
 	// user/identity2: 70 days since last activity and notified
@@ -291,6 +293,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	identity2 := user2.Identities[0]
 	identity2.LastActive = &ago70days
 	identity2.DeactivationNotification = &ago10days
+	identity2.DeactivationScheduled = &ago3days
 	err = s.Application.Identities().Save(ctx, &identity2)
 	require.NoError(s.T(), err)
 	// noise: user/identity: 1 day since last activity and not notified yet

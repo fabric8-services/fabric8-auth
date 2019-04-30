@@ -234,24 +234,27 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 	// given
 	ctx := context.Background()
 	now := time.Now()
+	ago4days := now.Add(-4 * 24 * time.Hour)   // 4 days ago
 	ago10days := now.Add(-10 * 24 * time.Hour) // 10 days ago
 	ago11days := now.Add(-11 * 24 * time.Hour) // 11 days ago
 	ago20days := now.Add(-20 * 24 * time.Hour) // 11 days ago
 	ago65days := now.Add(-65 * 24 * time.Hour) // 65 days ago
 	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days ago
 	ago70days := now.Add(-70 * 24 * time.Hour) // 70 days ago
-	// user/identity1: 40 days since last activity and notified
+	// user/identity1: 40 days since last activity and notified 11 days ago, scheduled for deactivation 4 days ago
 	user1 := s.Graph.CreateUser().User()
 	identity1 := user1.Identities[0]
 	identity1.LastActive = &ago40days
 	identity1.DeactivationNotification = &ago11days
+	identity1.DeactivationScheduled = &ago4days
 	err := s.Application.Identities().Save(ctx, &identity1)
 	require.NoError(s.T(), err)
-	// user/identity2: 70 days since last activity and notified yesterday
+	// user/identity2: 70 days since last activity and notified yesterday, scheduled for deactivation 4 days ago
 	user2 := s.Graph.CreateUser().User()
 	identity2 := user2.Identities[0]
 	identity2.LastActive = &ago70days
 	identity2.DeactivationNotification = &ago11days
+	identity2.DeactivationScheduled = &ago4days
 	err = s.Application.Identities().Save(ctx, &identity2)
 	require.NoError(s.T(), err)
 	// noise: user/identity: 1 day since last activity and not notified yet
