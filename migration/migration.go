@@ -259,6 +259,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 50
 	m = append(m, steps{ExecuteSQLFile("050-worker-lock.sql")})
 
+	// Version 51
+	m = append(m, steps{ExecuteSQLFile("051-identity-deactivation-scheduled.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

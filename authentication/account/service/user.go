@@ -38,6 +38,7 @@ type UserServiceConfiguration interface {
 	GetUserDeactivationInactivityNotificationPeriodDays() time.Duration
 	GetUserDeactivationInactivityPeriodDays() time.Duration
 	GetPostDeactivationNotificationDelayMillis() time.Duration
+	GetUserDeactivationRescheduleDelay() time.Duration
 }
 
 // userServiceImpl implements the UserService to manage users
@@ -208,6 +209,9 @@ func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, 
 	if err := s.ExecuteInTransaction(func() error {
 		notificationDate := now()
 		identity.DeactivationNotification = &notificationDate
+		scheduledDeactivation := notificationDate.Add(time.Duration(s.config.GetUserDeactivationInactivityPeriodDays()-
+			s.config.GetUserDeactivationInactivityNotificationPeriodDays()) * 24 * time.Hour)
+		identity.DeactivationScheduled = &scheduledDeactivation
 		return s.Repositories().Identities().Save(ctx, &identity)
 	}); err != nil {
 		return errs.Wrap(err, "failed to record timestamp of notification sent to user before account deactivation")
@@ -298,6 +302,17 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 		return nil, err
 	}
 	return identity, err
+}
+
+// RescheduleDeactivation sets the deactivation schedule to a configurable point of time in the future
+func (s *userServiceImpl) RescheduleDeactivation(ctx context.Context, identityID uuid.UUID) error {
+	rescheduledDeactivation := time.Now().Add(s.config.GetUserDeactivationRescheduleDelay())
+
+	err := s.ExecuteInTransaction(func() error {
+		return s.Repositories().Identities().BumpDeactivationSchedule(ctx, identityID, rescheduledDeactivation)
+	})
+
+	return err
 }
 
 // ContextIdentityIfExists returns the identity's ID found in given context if the identity exists in the Auth DB
