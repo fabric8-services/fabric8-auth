@@ -711,7 +711,8 @@ func (s *IdentityRepositoryTestSuite) TestBumpDeactivationSchedule() {
 
 	// Bump the deactivation schedule to 1 hour from now
 	scheduled := time.Now().UTC().Add(1 * time.Hour)
-	s.Application.Identities().BumpDeactivationSchedule(s.Ctx, identity.ID(), scheduled)
+	err := s.Application.Identities().BumpDeactivationSchedule(s.Ctx, identity.ID(), scheduled)
+	require.NoError(s.T(), err)
 
 	// Reload the identity
 	identity = s.Graph.LoadIdentity(identity.ID())
