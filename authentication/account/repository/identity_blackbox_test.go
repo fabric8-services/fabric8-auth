@@ -343,6 +343,63 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 
 }
 
+func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivateSorting() {
+	now := time.Now()
+	ago4days := now.Add(-4 * 24 * time.Hour)   // 4 days ago
+	ago5days := now.Add(-5 * 24 * time.Hour)   // 5 days ago
+	ago6days := now.Add(-6 * 24 * time.Hour)   // 6 days ago
+	ago10days := now.Add(-10 * 24 * time.Hour) // 10 days ago
+	ago11days := now.Add(-11 * 24 * time.Hour) // 11 days ago
+	ago40days := now.Add(-40 * 24 * time.Hour) // 40 days ago
+
+	// Create a number of users
+	user1 := s.Graph.CreateUser().User()
+	identity1 := user1.Identities[0]
+	identity1.LastActive = &ago40days
+	identity1.DeactivationNotification = &ago11days
+	identity1.DeactivationScheduled = &ago4days
+	err := s.Application.Identities().Save(s.Ctx, &identity1)
+	require.NoError(s.T(), err)
+
+	user2 := s.Graph.CreateUser().User()
+	identity2 := user2.Identities[0]
+	identity2.LastActive = &ago40days
+	identity2.DeactivationNotification = &ago11days
+	identity2.DeactivationScheduled = &ago5days
+	err = s.Application.Identities().Save(s.Ctx, &identity2)
+	require.NoError(s.T(), err)
+
+	user3 := s.Graph.CreateUser().User()
+	s.Graph.CreateIdentity()
+	identity3 := user3.Identities[0]
+	identity3.LastActive = &ago40days
+	err = s.Application.Identities().Save(s.Ctx, &identity3)
+	require.NoError(s.T(), err)
+
+	user4 := s.Graph.CreateUser().User()
+	identity4 := user4.Identities[0]
+	identity4.LastActive = &ago40days
+	identity4.DeactivationNotification = &ago11days
+	identity4.DeactivationScheduled = &ago6days
+	err = s.Application.Identities().Save(s.Ctx, &identity4)
+	require.NoError(s.T(), err)
+
+	lastActivity := now.Add(-30 * 24 * time.Hour) // 30 days of inactivity
+	result, err := s.Application.Identities().ListIdentitiesToDeactivate(s.Ctx, lastActivity, ago10days, 1)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), result, 1)
+	require.Equal(s.T(), identity4.ID, result[0].ID)
+
+	result, err = s.Application.Identities().ListIdentitiesToDeactivate(s.Ctx, lastActivity, ago10days, 4)
+	require.NoError(s.T(), err)
+
+	require.Len(s.T(), result, 3)
+	require.Equal(s.T(), identity4.ID, result[0].ID)
+	require.Equal(s.T(), identity2.ID, result[1].ID)
+	require.Equal(s.T(), identity1.ID, result[2].ID)
+}
+
 func (s *IdentityRepositoryTestSuite) TestIdentityExists() {
 
 	s.T().Run("identity exists", func(t *testing.T) {
@@ -646,4 +703,19 @@ func (s *IdentityRepositoryTestSuite) TestTouchLastUpdated() {
 		assert.True(s.T(), now.Before(*identity.LastActive))
 		assert.Nil(s.T(), identity.DeactivationNotification)
 	})
+}
+
+func (s *IdentityRepositoryTestSuite) TestBumpDeactivationSchedule() {
+	// Create an identity
+	identity := s.Graph.CreateIdentity()
+
+	// Bump the deactivation schedule to 1 hour from now
+	scheduled := time.Now().UTC().Add(1 * time.Hour)
+	s.Application.Identities().BumpDeactivationSchedule(s.Ctx, identity.ID(), scheduled)
+
+	// Reload the identity
+	identity = s.Graph.LoadIdentity(identity.ID())
+
+	// Confirm the scheduled time has been updated (and is equal to the nearest second)
+	require.WithinDuration(s.T(), scheduled, *identity.Identity().DeactivationScheduled, time.Duration(1)*time.Second)
 }
