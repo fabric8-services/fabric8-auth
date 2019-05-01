@@ -186,8 +186,9 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 func (s *osoSubscriptionServiceImpl) DeactivateUser(ctx context.Context, username string) error {
 	regAppURL := fmt.Sprintf("%s/api/accounts/%s/deprovision_osio?authorization_username=%s",
 		s.config.GetOSORegistrationAppURL(), username, s.config.GetOSORegistrationAppAdminUsername())
-	log.Debug(ctx, map[string]interface{}{
+	log.Info(ctx, map[string]interface{}{
 		"reg_app_url": regAppURL,
+		"username":    username,
 	}, "calling remote registration application to deactivate user")
 	req, err := http.NewRequest("POST", regAppURL, nil)
 	if err != nil {
