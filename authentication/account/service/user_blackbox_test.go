@@ -214,13 +214,14 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		for _, msg := range msgToSend {
 			targetIDs = append(targetIDs, msg.TargetID)
 		}
+		require.Len(s.T(), msgToSend, 2)
 		for i, id := range []uuid.UUID{identity1.ID, identity2.ID} {
 			identity, err := s.Application.Identities().Load(ctx, id)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), identity.DeactivationNotification)
 			assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 			// also verify that the message to send to the user has the correct data
-			assert.Contains(s.T(), targetIDs, identity.ID.String())
+			require.Contains(s.T(), targetIDs, identity.ID.String())
 			customs = append(customs, msgToSend[i].Custom)
 		}
 		// verify that 2 messages were sent, although, we can't be sure in which order
