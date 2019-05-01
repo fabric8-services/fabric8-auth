@@ -41,7 +41,7 @@ type userDeactivationWorker struct {
 }
 
 func (w *userDeactivationWorker) deactivateUsers() {
-	log.Debug(w.Ctx, map[string]interface{}{
+	log.Info(w.Ctx, map[string]interface{}{
 		"owner": w.Owner,
 	}, "starting cycle of inactive users deactivation")
 	// user service has the config settings to limit the number of users to deactivate
@@ -78,7 +78,7 @@ func (w *userDeactivationWorker) deactivateUsers() {
 			}, "user account deactivation triggered")
 		}
 	}
-	log.Debug(w.Ctx, map[string]interface{}{
+	log.Info(w.Ctx, map[string]interface{}{
 		"identities": len(identities),
 		"owner":      w.Owner,
 	}, "ending cycle of inactive users deactivation")

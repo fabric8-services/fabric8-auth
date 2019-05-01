@@ -41,7 +41,7 @@ type userDeactivationNotificationWorker struct {
 }
 
 func (w *userDeactivationNotificationWorker) notifyUsers() {
-	log.Debug(w.Ctx, map[string]interface{}{
+	log.Info(w.Ctx, map[string]interface{}{
 		"owner": w.Owner,
 	}, "starting cycle of inactive users notifications")
 	identities, err := w.App.UserService().NotifyIdentitiesBeforeDeactivation(w.Ctx, time.Now) // user service has the config settings to limit the number of users to notify
@@ -51,7 +51,7 @@ func (w *userDeactivationNotificationWorker) notifyUsers() {
 			"err": err,
 		}, "error while notifying users to deactivate")
 	}
-	log.Debug(w.Ctx, map[string]interface{}{
+	log.Info(w.Ctx, map[string]interface{}{
 		"identities": len(identities),
 		"owner":      w.Owner,
 	}, "ending cycle of inactive users notifications")
