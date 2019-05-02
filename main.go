@@ -292,6 +292,10 @@ func main() {
 		}(config.GetMetricsHTTPAddress())
 	}
 
+	// register user deactivation prometheus metric
+	metric.RegisterMetrics()
+
+
 	// Start background workers
 	// token cleanup, running once every hour
 	tokenCleanupWorker := tokenworker.NewTokenCleanupWorker(context.Background(), appDB)

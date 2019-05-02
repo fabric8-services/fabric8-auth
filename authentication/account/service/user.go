@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/metric"
+
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -154,6 +156,7 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 				"username": identity.Username,
 			}, "notified user before account deactivation")
 		}
+		metric.RecordUserDeactivationNotification(err == nil) // record the notification
 		// include a small delay to give time to notification service and database to handle the requests
 		time.Sleep(s.config.GetPostDeactivationNotificationDelayMillis())
 	})
@@ -221,6 +224,12 @@ func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, 
 
 // DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account
 func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (*repository.Identity, error) {
+	result, err := s.deactivateUser(ctx, username)
+	metric.RecordUserDeactivation(err == nil)
+	return result, err
+}
+
+func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (*repository.Identity, error) {
 	identities, err := s.Repositories().Identities().Query(
 		repository.IdentityWithUser(),
 		repository.IdentityFilterByUsername(username),
