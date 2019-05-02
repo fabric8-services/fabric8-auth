@@ -13,7 +13,7 @@ import (
 
 // LockRepository the interface for the repository
 type LockRepository interface {
-	AcquireLock(ctx context.Context, owner string, name string) (*pglock.Lock, error)
+	AcquireLock(ctx context.Context, owner string, name string, opts ...pglock.ClientOption) (*pglock.Lock, error)
 	GetLock(ctx context.Context, name string) (*pglock.Lock, error)
 }
 
@@ -30,23 +30,30 @@ func NewLockRepository(db *sql.DB) LockRepository {
 
 // AcquireLock acquires a lock with the given name for the given owner
 // Returns an error if the lock could not be obtained
-func (r *lockRepositoryImpl) AcquireLock(ctx context.Context, owner, name string) (*pglock.Lock, error) {
+func (r *lockRepositoryImpl) AcquireLock(ctx context.Context, owner, name string, opts ...pglock.ClientOption) (*pglock.Lock, error) {
 	log.Info(ctx, map[string]interface{}{
 		"lock":  name,
 		"owner": owner,
 	}, "acquiring lock...")
 	// obtain a lock to prevent other pods to perform this task
-	opts := []pglock.ClientOption{
-		pglock.WithCustomTable("worker_lock"),
-		pglock.WithLeaseDuration(30 * time.Second),
-		pglock.WithHeartbeatFrequency(10 * time.Second),
-		pglock.WithLogger(log.Logger()),
+	clnOpts := []pglock.ClientOption{}
+	if opts != nil {
+		// Useful for testing
+		clnOpts = opts
+	} else {
+		// Use default
+		clnOpts = []pglock.ClientOption{
+			pglock.WithCustomTable("worker_lock"),
+			pglock.WithLeaseDuration(30 * time.Second),
+			pglock.WithHeartbeatFrequency(10 * time.Second),
+			pglock.WithLogger(log.Logger()),
+		}
 	}
 	if owner != "" {
 		// use a specific owner name, otherwise it will be a random value (default behaviour)
-		opts = append(opts, pglock.WithOwner(owner))
+		clnOpts = append(clnOpts, pglock.WithOwner(owner))
 	}
-	c, err := pglock.New(r.db, opts...)
+	c, err := pglock.New(r.db, clnOpts...)
 	if err != nil {
 		return nil, errs.Wrap(err, "cannot create worker lock client")
 	}

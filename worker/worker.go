@@ -12,11 +12,13 @@ import (
 
 // Worker the base worker
 type Worker struct {
-	Ctx    context.Context
-	App    application.Application
-	Name   string // name of the lock (eg: "user_deactivation_notification"), to use when claiming a lock
-	Owner  string // owner of the lock (eg, the name of the Pod), to use when claiming a lock
-	Do     func() // the function to run the business code at each cycle of the worker
+	Ctx   context.Context
+	App   application.Application
+	Name  string // name of the lock (eg: "user_deactivation_notification"), to use when claiming a lock
+	Owner string // owner of the lock (eg, the name of the Pod), to use when claiming a lock
+	Do    func() // the function to run the business code at each cycle of the worker
+	Opts  []pglock.ClientOption
+
 	lock   *pglock.Lock
 	ticker *time.Ticker
 	stopCh chan bool
@@ -45,7 +47,7 @@ func (w *Worker) Start(freq time.Duration) {
 }
 
 func (w *Worker) acquireLock() {
-	l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name)
+	l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name, w.Opts...)
 	if err != nil {
 		log.Warn(w.Ctx, map[string]interface{}{
 			"error": err,

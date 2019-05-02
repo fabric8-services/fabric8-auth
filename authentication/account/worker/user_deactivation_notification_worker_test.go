@@ -125,12 +125,14 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		// verify that the lock was released
 		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivationNotification)
 		require.NoError(s.T(), err)
-		l.Close()
+		err = l.Close()
+		require.NoError(s.T(), err)
 	})
 }
 
 func (s *UserDeactivationNotificationWorkerTest) newUserDeactivationNotificationWorker(ctx context.Context, podname string, app application.Application) worker.UserDeactivationNotificationWorker {
-	os.Setenv("AUTH_POD_NAME", podname)
+	err := os.Setenv("AUTH_POD_NAME", podname)
+	require.NoError(s.T(), err)
 	config, err := configuration.GetConfigurationData()
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), podname, config.GetPodName())
