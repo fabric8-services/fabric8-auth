@@ -36,7 +36,7 @@ func (r *lockRepositoryImpl) AcquireLock(ctx context.Context, owner, name string
 		"owner": owner,
 	}, "acquiring lock...")
 	// obtain a lock to prevent other pods to perform this task
-	clnOpts := []pglock.ClientOption{}
+	var clnOpts []pglock.ClientOption
 	if opts != nil {
 		// Useful for testing
 		clnOpts = opts
