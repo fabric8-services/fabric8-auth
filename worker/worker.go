@@ -12,11 +12,13 @@ import (
 
 // Worker the base worker
 type Worker struct {
-	Ctx    context.Context
-	App    application.Application
-	Name   string // name of the lock (eg: "user_deactivation_notification"), to use when claiming a lock
-	Owner  string // owner of the lock (eg, the name of the Pod), to use when claiming a lock
-	Do     func() // the function to run the business code at each cycle of the worker
+	Ctx   context.Context
+	App   application.Application
+	Name  string // name of the lock (eg: "user_deactivation_notification"), to use when claiming a lock
+	Owner string // owner of the lock (eg, the name of the Pod), to use when claiming a lock
+	Do    func() // the function to run the business code at each cycle of the worker
+	Opts  []pglock.ClientOption
+
 	lock   *pglock.Lock
 	ticker *time.Ticker
 	stopCh chan bool
@@ -31,6 +33,7 @@ func (w *Worker) Start(freq time.Duration) {
 	}, "starting worker")
 	w.ticker = time.NewTicker(freq)
 	go func() {
+		w.acquireLock() // will wait until succeed
 		for {
 			select {
 			case <-w.ticker.C:
@@ -43,10 +46,10 @@ func (w *Worker) Start(freq time.Duration) {
 	}()
 }
 
-func (w *Worker) execute() {
-	l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name)
+func (w *Worker) acquireLock() {
+	l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name, w.Opts...)
 	if err != nil {
-		log.Debug(w.Ctx, map[string]interface{}{
+		log.Warn(w.Ctx, map[string]interface{}{
 			"error": err,
 			"owner": w.Owner,
 			"name":  w.Name,
@@ -60,6 +63,27 @@ func (w *Worker) execute() {
 		"name":  w.Name,
 	}, "acquired lock")
 	w.lock = l
+}
+
+func (w *Worker) execute() {
+	// Check if the lock is still hold by the current owner
+	l, err := w.App.WorkerLockRepository().GetLock(w.Ctx, w.Name)
+	if err != nil {
+		log.Warn(w.Ctx, map[string]interface{}{
+			"error": err,
+			"owner": w.Owner,
+			"name":  w.Name,
+		}, "unable to check the existing lock's owner")
+		return
+	}
+	if l.Owner() != w.Owner {
+		// Theoretically it can happen if the heartbeat failed for some reason and the lock has been acquired by another owner
+		log.Error(w.Ctx, map[string]interface{}{
+			"owner": w.Owner,
+			"name":  w.Name,
+		}, "the current owner lost the lock! will try to re-acquire it")
+		w.acquireLock() // will wait until succeed
+	}
 	if w.Do == nil {
 		log.Warn(w.Ctx, map[string]interface{}{
 			"name": w.Name,
