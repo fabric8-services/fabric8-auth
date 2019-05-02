@@ -53,7 +53,7 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 	if notFound || privilegeCache.Stale || privilegeCache.ExpiryTime.Before(nowTime) {
 		scopes, err := s.Repositories().IdentityRoleRepository().FindScopesByIdentityAndResource(ctx, identityID, resourceID)
 		if err != nil {
-			return nil, errors.NewInternalError(ctx, err)
+			return nil, errors.NewInternalError(err)
 		}
 
 		scopeList := strings.Join(scopes, ",")
@@ -73,7 +73,7 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 			})
 
 			if err != nil {
-				return nil, errors.NewInternalError(ctx, err)
+				return nil, errors.NewInternalError(err)
 			}
 		} else {
 			// Otherwise update the existing record
@@ -86,7 +86,7 @@ func (s *privilegeCacheServiceImpl) CachedPrivileges(ctx context.Context, identi
 			})
 
 			if err != nil {
-				return nil, errors.NewInternalError(ctx, err)
+				return nil, errors.NewInternalError(err)
 			}
 		}
 	}

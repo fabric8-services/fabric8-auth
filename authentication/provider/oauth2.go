@@ -186,7 +186,7 @@ func (provider *DefaultIdentityProvider) UserProfilePayload(ctx context.Context,
 			"response_body": string(body),
 			"profile_url":   provider.ProfileURL,
 		}, "unable to get user profile")
-		return nil, errors.NewInternalErrorFromString(ctx, "unable to get user profile")
+		return nil, errors.NewInternalErrorFromString("unable to get user profile")
 	}
 	return body, nil
 }

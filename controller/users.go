@@ -103,7 +103,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 	preview, err := c.checkPreviewUser(ctx.Payload.Data.Attributes.Email)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"err": err, "email": ctx.Payload.Data.Attributes.Email}, "unable to parse user's email")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 	}
 	if preview {
 		log.Info(ctx, map[string]interface{}{"email": ctx.Payload.Data.Attributes.Email}, "ignoring preview user")
@@ -115,7 +115,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 
 	userExists, err := c.userExistsInDB(ctx, ctx.Payload.Data.Attributes.Email, ctx.Payload.Data.Attributes.Username)
 	if err != nil {
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 	}
 	if userExists {
 		// This may happen for manually banned users which are reactivating their account via the registration app
@@ -127,7 +127,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 				"username": ctx.Payload.Data.Attributes.Username,
 				"email":    ctx.Payload.Data.Attributes.Email,
 			}, "unable to lookup identity by username and email")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 		}
 		if idn == nil {
 			return jsonapi.JSONErrorResponse(ctx, errors.NewVersionConflictError("user with such email or username already exists"))
@@ -136,7 +136,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 			err := c.app.UserService().ResetBan(ctx, idn.User)
 			if err != nil {
 				log.Error(ctx, map[string]interface{}{"err": err, "username": ctx.Payload.Data.Attributes.Username, "email": ctx.Payload.Data.Attributes.Email}, "unable to re-provision user")
-				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+				return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 			}
 		}
 		// User/identity already exist. Just return it.
@@ -152,7 +152,7 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 			"username": identity.Username,
 		}, "failed to create user in DB")
 
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 	}
 
 	// we create a identity cluster relationship in cluster management service.
@@ -751,7 +751,7 @@ func (c *UsersController) RevokeAllTokens(ctx *app.RevokeAllTokensUsersContext) 
 			"err":        err,
 			"identityID": identityID,
 		}, "Could not revoke tokens")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 	}
 
 	return ctx.OK(nil)

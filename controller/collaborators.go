@@ -93,7 +93,7 @@ func (c *CollaboratorsController) List(ctx *app.ListCollaboratorsContext) error 
 	for i, idn := range page {
 		user, err := c.app.Users().Load(ctx, idn.UserID.UUID)
 		if err != nil {
-			return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(ctx, err))
+			return jsonapi.JSONErrorResponse(ctx, autherrors.NewInternalError(err))
 		}
 		idn.User = *user
 		resultUsers[i] = idn.User

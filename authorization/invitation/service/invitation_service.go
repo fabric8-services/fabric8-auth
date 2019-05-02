@@ -105,7 +105,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 			identityResource, err = s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				return errors.NewInternalError(err)
 			}
 
 			// Confirm that the issuing user has the necessary scope to manage members for the organization, team or security group
@@ -116,7 +116,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 			// We only allow membership in some identity types - confirm that we are inviting to an organization, team or security group
 			if !authorization.CanHaveMembers(identityResource.ResourceType.Name) {
-				return errors.NewInternalErrorFromString(ctx, "may only invite a user as a member to an organization, team or security group")
+				return errors.NewInternalErrorFromString("may only invite a user as a member to an organization, team or security group")
 			}
 		} else if inviteToResource != nil {
 			// Confirm that the issuing user has the manage members scope for the resource
@@ -135,7 +135,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 			// Load the identity
 			identity, err := s.Repositories().Identities().Load(ctx, *invitation.IdentityID)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				return errors.NewInternalError(err)
 			}
 
 			if !identity.IsUser() {
@@ -188,7 +188,7 @@ func (s *invitationServiceImpl) Issue(ctx context.Context, issuingUserId uuid.UU
 
 				err = s.Repositories().InvitationRepository().AddRole(ctx, inv.InvitationID, role.RoleID)
 				if err != nil {
-					return errors.NewInternalError(ctx, err)
+					return errors.NewInternalError(err)
 				}
 			}
 
@@ -327,7 +327,7 @@ func (s *invitationServiceImpl) Rescind(ctx context.Context, rescindingUserID, i
 
 		identityResource, err := s.Repositories().ResourceRepository().Load(ctx, inviteToIdentity.IdentityResourceID.String)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		// Confirm that the rescinding user has the necessary scope to manage members for the organization, team or security group

@@ -37,7 +37,7 @@ func (s *userProfileService) Get(ctx context.Context, accessToken string, profil
 
 	req, err := http.NewRequest("GET", profileURL, nil)
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, errors.NewInternalError(err)
 	}
 	req.Header.Add("Authorization", "Bearer "+accessToken)
 	req.Header.Add("Content-Type", "application/json")
@@ -50,7 +50,7 @@ func (s *userProfileService) Get(ctx context.Context, accessToken string, profil
 			"user_profile_url": profileURL,
 			"err":              err,
 		}, "Unable to fetch oauth user profile")
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, errors.NewInternalError(err)
 	} else if resp != nil {
 		defer rest.CloseResponse(resp)
 	}
@@ -65,7 +65,7 @@ func (s *userProfileService) Get(ctx context.Context, accessToken string, profil
 		if resp.StatusCode == 400 {
 			return nil, errors.NewUnauthorizedError(bodyString)
 		}
-		return nil, errors.NewInternalError(ctx, errs.Errorf("received a non-200 response %s while fetching oauth user profile %s", resp.Status, profileURL))
+		return nil, errors.NewInternalError(errs.Errorf("received a non-200 response %s while fetching oauth user profile %s", resp.Status, profileURL))
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&userProfileResponse)

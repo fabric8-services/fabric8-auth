@@ -89,7 +89,7 @@ func (m *GormPrivilegeCacheRepository) CheckExists(ctx context.Context, privileg
 		return exists, errors.NewNotFoundError(m.TableName(), fmt.Sprintf("%s", privilegeCacheID.String()))
 	}
 	if err != nil {
-		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
+		return false, errors.NewInternalError(errs.Wrapf(err, "unable to verify if %s exists", m.TableName()))
 	}
 	return exists, nil
 }

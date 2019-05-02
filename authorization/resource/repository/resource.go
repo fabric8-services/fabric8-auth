@@ -276,7 +276,7 @@ func (m *GormResourceRepository) FindWithRoleByResourceTypeAndIdentity(ctx conte
 			"resource_type": resourceType,
 			"err":           err,
 		}, "error getting columns")
-		return result, errors.NewInternalError(ctx, err)
+		return result, errors.NewInternalError(err)
 	}
 	columnValues := make([]interface{}, len(columns))
 

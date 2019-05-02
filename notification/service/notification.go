@@ -120,7 +120,7 @@ func (s *notificationServiceImpl) send(ctx context.Context, c *client.Client, ms
 	defer rest.CloseResponse(resp)
 	if resp.StatusCode >= 400 {
 		body := rest.ReadBody(resp.Body)
-		err := errors.NewInternalErrorFromString(ctx, fmt.Sprintf("unexpected response code: %s; response body: %s", resp.Status, body))
+		err := errors.NewInternalErrorFromString(fmt.Sprintf("unexpected response code: %s; response body: %s", resp.Status, body))
 		log.Error(ctx, map[string]interface{}{
 			"status":     resp.StatusCode,
 			"message_id": msg.MessageID,

@@ -65,14 +65,14 @@ func (f *linkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, ide
 
 		cluster, err := f.Services().ClusterService().ClusterByURL(ctx, clusterURL)
 		if err != nil {
-			return nil, errs.NewInternalError(ctx, err)
+			return nil, errs.NewInternalError(err)
 		}
 		if cluster == nil {
 			log.Error(ctx, map[string]interface{}{
 				"for":         forResource,
 				"cluster_url": clusterURL,
 			}, "unable to find oauth config for provider alias")
-			return nil, errs.NewInternalErrorFromString(ctx, fmt.Sprintf("unable to load provider for cluster URL %s", clusterURL))
+			return nil, errs.NewInternalErrorFromString(fmt.Sprintf("unable to load provider for cluster URL %s", clusterURL))
 		}
 		return provider.NewOpenShiftIdentityProvider(*cluster, authURL)
 	}
@@ -88,7 +88,7 @@ func (f *linkingProviderFactoryImpl) NewLinkingProvider(ctx context.Context, ide
 	}
 	cluster, err := f.Services().ClusterService().ClusterByURL(ctx, forResource)
 	if err != nil {
-		return nil, errs.NewInternalError(ctx, err)
+		return nil, errs.NewInternalError(err)
 	}
 	if cluster != nil {
 		return provider.NewOpenShiftIdentityProvider(*cluster, authURL)

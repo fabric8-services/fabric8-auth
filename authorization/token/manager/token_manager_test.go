@@ -343,7 +343,7 @@ func (s *TestTokenSuite) TestAddLoginRequiredHeader() {
 
 func (s *TestTokenSuite) TestAddLoginRequiredHeaderToUnauthorizedError() {
 	rw := httptest.NewRecorder()
-	err := errors.NewInternalErrorFromString(context.Background(), "oopsie woopsie")
+	err := errors.NewInternalErrorFromString("oopsie woopsie")
 
 	testtoken.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, rw)
 	header := textproto.MIMEHeader(rw.Header())

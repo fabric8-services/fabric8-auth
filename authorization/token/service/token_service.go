@@ -74,7 +74,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 	// Get the token manager from the context
 	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, errors.NewInternalError(err)
 	}
 
 	// Now parse the token string that was passed in
@@ -139,7 +139,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			// Query for all of the token's privileges
 			privileges, err := s.Repositories().TokenRepository().ListPrivileges(ctx, tokenID)
 			if err != nil {
-				return nil, errors.NewInternalError(ctx, err)
+				return nil, errors.NewInternalError(err)
 			}
 
 			scopesChanged := false
@@ -155,7 +155,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 					// Retrieve the up to date scopes for the resource
 					privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, *tokenPermission.ResourceSetID)
 					if err != nil {
-						return nil, errors.NewInternalError(ctx, err)
+						return nil, errors.NewInternalError(err)
 					}
 
 					// Compare the scopes of the resource with the scopes in the token
@@ -187,7 +187,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 				loadedToken.Status = 0
 				err = s.Repositories().TokenRepository().Save(ctx, loadedToken)
 				if err != nil {
-					return nil, errors.NewInternalError(ctx, err)
+					return nil, errors.NewInternalError(err)
 				}
 
 				return nil, nil
@@ -210,7 +210,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 		// Populate the scopes for the requested resource
 		privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, resourceID)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		perm := &manager.Permissions{
@@ -232,7 +232,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 		if loadedToken != nil {
 			oldTokenPrivs, err := s.Repositories().TokenRepository().ListPrivileges(ctx, loadedToken.TokenID)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				return errors.NewInternalError(err)
 			}
 
 			// Sort the old token privileges by expiry time, from latest to earliest
@@ -288,19 +288,19 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 		// Generate a new RPT token
 		generatedToken, err := tokenManager.GenerateUnsignedRPTTokenForIdentity(ctx, tokenClaims, *identity, &perms)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		// Sign the token
 		signedToken, err = tokenManager.SignRPTToken(ctx, generatedToken)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		// Register the token record
 		newTokenRecord, err := s.RegisterToken(ctx, identity.ID, signedToken, authtoken.TOKEN_TYPE_RPT, nil)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		// Assign privileges to the token record, and persist them to the database
@@ -308,7 +308,7 @@ func (s *tokenServiceImpl) Audit(ctx context.Context, identity *accountrepo.Iden
 			tokenPriv.TokenID = newTokenRecord.TokenID
 			err = s.Repositories().TokenRepository().CreatePrivilege(ctx, &tokenPriv)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				return errors.NewInternalError(err)
 			}
 		}
 
@@ -425,7 +425,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 			if loadedToken != nil {
 				oldTokenPrivs, err := s.Repositories().TokenRepository().ListPrivileges(ctx, loadedToken.TokenID)
 				if err != nil {
-					return errors.NewInternalError(ctx, err)
+					return errors.NewInternalError(err)
 				}
 				// Sort the old token privileges by expiry time, from latest to earliest
 				sort.Slice(oldTokenPrivs, func(i, j int) bool {
@@ -442,7 +442,7 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 					if loadedToken.HasStatus(authtoken.TOKEN_STATUS_STALE) || oldPriv.Stale {
 						privilegeCache, err := s.Services().PrivilegeCacheService().CachedPrivileges(ctx, identity.ID, oldPrivResourceID)
 						if err != nil {
-							return errors.NewInternalError(ctx, err)
+							return errors.NewInternalError(err)
 						}
 
 						log.Debug(ctx, map[string]interface{}{"resource_id": oldPrivResourceID,
@@ -488,14 +488,14 @@ func (s *tokenServiceImpl) ExchangeRefreshToken(ctx context.Context, refreshToke
 
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		// Register the refresh token
 		_, err = s.RegisterToken(ctx, identity.ID, generatedToken.RefreshToken, authtoken.TOKEN_TYPE_REFRESH, nil)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"error": err}, "could not register token")
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		return nil
@@ -561,7 +561,7 @@ func (s *tokenServiceImpl) RegisterToken(ctx context.Context, identityID uuid.UU
 	})
 
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, errors.NewInternalError(err)
 	}
 
 	return tkn, nil
@@ -673,7 +673,7 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 		if val, _ := errors.IsUnauthorizedError(err); val {
 			return err
 		}
-		return errors.NewInternalError(ctx, err)
+		return errors.NewInternalError(err)
 	}
 
 	// Delete from local DB
@@ -698,7 +698,7 @@ func (c *tokenServiceImpl) DeleteExternalToken(ctx context.Context, currentIdent
 		if val, _ := errors.IsUnauthorizedError(err); val {
 			return err
 		}
-		return errors.NewInternalError(ctx, err)
+		return errors.NewInternalError(err)
 	}
 	return nil
 }
@@ -812,7 +812,7 @@ func (s *tokenServiceImpl) ValidateToken(ctx context.Context, accessToken *jwt.T
 		err = s.Repositories().Identities().TouchLastActive(ctx, identityID)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{"error": err}, "could not update last active timestamp")
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 	}
 

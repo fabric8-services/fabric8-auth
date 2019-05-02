@@ -1464,7 +1464,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLi
 
 	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
 	clusterServiceMock.LinkIdentityToClusterFunc = func(p context.Context, ID uuid.UUID, url string, p3 ...rest.HTTPClientOption) (r error) {
-		return errors.NewInternalErrorFromString(p, fmt.Sprintf("cluster with requested url %s doesn't exist", url))
+		return errors.NewInternalErrorFromString(fmt.Sprintf("cluster with requested url %s doesn't exist", url))
 	}
 	*s.clusterServiceMock = *clusterServiceMock
 
@@ -1856,7 +1856,7 @@ func (s *DummyEmailVerificationService) SendVerificationCode(ctx context.Context
 	if s.success {
 		return nil, nil
 	}
-	return nil, errors.NewInternalErrorFromString(ctx, "failed to send out email")
+	return nil, errors.NewInternalErrorFromString("failed to send out email")
 }
 
 func (s *DummyEmailVerificationService) VerifyCode(ctx context.Context, code string) (*accountrepo.VerificationCode, error) {

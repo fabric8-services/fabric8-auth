@@ -44,7 +44,7 @@ func (s *permissionServiceImpl) HasScope(ctx context.Context, identityID uuid.UU
 func (s *permissionServiceImpl) RequireScope(ctx context.Context, identityID uuid.UUID, resourceID string, scopeName string) error {
 	result, err := s.HasScope(ctx, identityID, resourceID, scopeName)
 	if err != nil {
-		return errors.NewInternalError(ctx, err)
+		return errors.NewInternalError(err)
 	}
 
 	if !result {

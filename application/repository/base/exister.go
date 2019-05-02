@@ -42,7 +42,7 @@ func exists(ctx context.Context, db *gorm.DB, tableName, idColumnName, id string
 		return exists, errors.NewNotFoundError(tableName, id)
 	}
 	if err != nil {
-		return false, errors.NewInternalError(ctx, errs.Wrapf(err, "unable to verify if %s exists", tableName))
+		return false, errors.NewInternalError(errs.Wrapf(err, "unable to verify if %s exists", tableName))
 	}
 	return exists, nil
 }
