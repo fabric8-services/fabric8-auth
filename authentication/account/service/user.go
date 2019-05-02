@@ -284,7 +284,7 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 
 	// call WIT and Tenant to deactivate the user there as well,
 	// using `auth` SA token here, not the request context's token
-	err := s.Services().WITService().DeleteUser(ctx, identity.ID.String())
+	err := s.Services().WITService().DeleteUser(ctx, username)
 	if err != nil {
 		// just log the error but don't suspend the deactivation
 		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")

@@ -182,7 +182,7 @@ func (s *TestWITSuite) TestDeleteWITUser() {
 	saToken := testtoken.TokenManager.AuthServiceAccountToken()
 
 	// test data
-	identityID := uuid.NewV4().String()
+	username := uuid.NewV4().String()
 
 	// Set up expected request
 	s.doer.Client.Error = nil
@@ -191,21 +191,21 @@ func (s *TestWITSuite) TestDeleteWITUser() {
 
 	s.doer.Client.AssertRequest = func(req *http.Request) {
 		assert.Equal(s.T(), "DELETE", req.Method)
-		assert.Equal(s.T(), fmt.Sprintf("https://wit/api/users/username/%s", identityID), req.URL.String())
+		assert.Equal(s.T(), fmt.Sprintf("https://wit/api/users/username/%s", username), req.URL.String())
 		assert.Equal(s.T(), "Bearer "+saToken, req.Header.Get("Authorization"))
 		assert.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
 		assert.Nil(s.T(), req.Body)
 	}
 
 	s.T().Run("should accept", func(t *testing.T) {
-		err := s.ws.DeleteUser(ctx, identityID)
+		err := s.ws.DeleteUser(ctx, username)
 		require.NoError(s.T(), err)
 	})
 
 	s.T().Run("should fail to delete user if client returned an error", func(t *testing.T) {
 		s.doer.Client.Response = nil
 		s.doer.Client.Error = errors.New("failed to delete user in wit")
-		err := s.ws.DeleteUser(ctx, identityID)
+		err := s.ws.DeleteUser(ctx, username)
 		require.Error(s.T(), err)
 		assert.Equal(s.T(), "failed to delete user in wit", err.Error())
 	})
@@ -213,7 +213,7 @@ func (s *TestWITSuite) TestDeleteWITUser() {
 	s.T().Run("should fail to delete user if client returned unexpected status", func(t *testing.T) {
 		s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError, Status: "500"}
 		s.doer.Client.Error = nil
-		err := s.ws.DeleteUser(ctx, identityID)
+		err := s.ws.DeleteUser(ctx, username)
 		require.Error(s.T(), err)
 		testsupport.AssertError(s.T(), err, errors.New(""), "unable to delete user in WIT. Response status: 500. Response body: ")
 	})
