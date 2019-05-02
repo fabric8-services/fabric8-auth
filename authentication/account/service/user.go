@@ -221,19 +221,40 @@ func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, 
 
 // DeactivateUser deactivates a user, i.e., mark her as `active=false`, obfuscate the personal info and soft-delete the account
 func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (*repository.Identity, error) {
-	var identity *repository.Identity
+	identities, err := s.Repositories().Identities().Query(
+		repository.IdentityWithUser(),
+		repository.IdentityFilterByUsername(username),
+		repository.IdentityFilterByProviderType(repository.DefaultIDP))
+	if err != nil {
+		return nil, err
+	}
+	if len(identities) == 0 {
+		return nil, errors.NewNotFoundErrorWithKey("user identity", "username", username)
+	}
+	identity := &identities[0]
+
+	// call WIT and Tenant to deactivate the user,
+	// using `auth` SA token here, not the request context's token
+	err = s.Services().WITService().DeleteUser(ctx, username)
+	if err != nil {
+		// just log the error but don't suspend the deactivation
+		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")
+	}
+	// call Che
+	// call WIT and Tenant to deactivate the user there as well,
+	// using `auth` SA token here, not the request context's token
+	err = s.Services().CheService().DeleteUser(ctx, *identity)
+	if err != nil {
+		// do not proceed with tenant removal if something wrong happened during Che cleanup
+		return nil, errs.Wrapf(err, "error occurred during deactivation of user '%s' on Che Service", identity.ID)
+	}
+	err = s.Services().TenantService().Delete(ctx, identity.ID)
+	if err != nil {
+		return nil, errs.Wrapf(err, "error occurred during deleting of user '%s' on Tenant Service", identity.ID)
+	}
+
+	// Now it's safe to clean up Auth DB
 	if err := s.ExecuteInTransaction(func() error {
-		identities, err := s.Repositories().Identities().Query(
-			repository.IdentityWithUser(),
-			repository.IdentityFilterByUsername(username),
-			repository.IdentityFilterByProviderType(repository.DefaultIDP))
-		if err != nil {
-			return err
-		}
-		if len(identities) == 0 {
-			return errors.NewNotFoundErrorWithKey("user identity", "username", username)
-		}
-		identity = &identities[0]
 		// unlink external accounts (while we still have the user.Cluster info)
 		err = s.Services().TokenService().DeleteExternalToken(ctx, identity.ID, "", provider.GitHubProviderAlias)
 		if err != nil {
@@ -282,25 +303,6 @@ func (s *userServiceImpl) DeactivateUser(ctx context.Context, username string) (
 		return nil, err
 	}
 
-	// call WIT and Tenant to deactivate the user there as well,
-	// using `auth` SA token here, not the request context's token
-	err := s.Services().WITService().DeleteUser(ctx, username)
-	if err != nil {
-		// just log the error but don't suspend the deactivation
-		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")
-	}
-	// call Che
-	// call WIT and Tenant to deactivate the user there as well,
-	// using `auth` SA token here, not the request context's token
-	err = s.Services().CheService().DeleteUser(ctx, *identity)
-	if err != nil {
-		// do not proceed with tenant removal if something wrong happened during Che cleanup
-		return nil, errs.Wrapf(err, "error occurred during deactivation of user '%s' on Che Service", identity.ID)
-	}
-	err = s.Services().TenantService().Delete(ctx, identity.ID)
-	if err != nil {
-		return nil, err
-	}
 	return identity, err
 }
 
