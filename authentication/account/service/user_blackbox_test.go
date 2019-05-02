@@ -592,7 +592,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		witCallsCounter := 0
 		gock.Observe(gock.DumpRequest)
 		gock.New("http://localhost:8080").
-			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.IdentityID().String())).
+			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.Identity().Username)).
 			MatchHeader("Authorization", "Bearer "+saToken).
 			MatchHeader("X-Request-Id", reqID).
 			SetMatcher(gocksupport.SpyOnCalls(&witCallsCounter)).
