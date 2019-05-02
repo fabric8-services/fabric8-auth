@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"net/http"
 
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
-
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
 	errs "github.com/pkg/errors"
 )
 
@@ -76,7 +77,12 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identity repository.Ide
 			"response_status": res.Status,
 			"response_body":   bodyString,
 		}, "unable to delete user in Che")
-		return errs.Wrapf(err, "unable to delete user '%s' in Che", identity.ID.String())
+		if res.StatusCode == http.StatusNotFound {
+			// May happen if the user has been already deleted from Che
+			// Log the error but don't return it
+			return nil
+		}
+		return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("unable to delete user '%s' in Che", identity.ID.String()))
 	}
 	return nil
 }

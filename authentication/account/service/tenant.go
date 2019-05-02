@@ -75,6 +75,11 @@ func (t *tenantServiceImpl) Delete(ctx context.Context, identityID uuid.UUID) er
 			"response_status": response.Status,
 			"response_body":   respBody,
 		}, "unable to delete tenants")
+		if response.StatusCode == http.StatusNotFound {
+			// May happen if the user has been already deleted from Tenant
+			// Log the error but don't return it
+			return nil
+		}
 		return errors.New("unable to delete tenant")
 	}
 
