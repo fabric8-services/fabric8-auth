@@ -79,10 +79,8 @@ func (s *TestCheSuite) TestDeleteUser() {
 			SetMatcher(tokenMatcher).
 			Reply(500) // expect a `No Content` response
 		// when
-		fmt.Println("!!!!!! test")
 		err = s.Application.CheService().DeleteUser(s.Ctx, *identity)
 		// then
 		require.Error(s.T(), err)
-		fmt.Println("!!!!!! test done")
 	})
 }
