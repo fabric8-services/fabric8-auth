@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"net/http"
 
-	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
-
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
+
 	errs "github.com/pkg/errors"
 )
 
@@ -70,13 +71,26 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identity repository.Ide
 
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
-	if res.StatusCode != http.StatusNoContent {
-		log.Error(ctx, map[string]interface{}{
+
+	switch res.StatusCode {
+	case http.StatusNoContent:
+		// OK
+		return nil
+	case http.StatusNotFound:
+		// May happen if the user has been already deleted from Che
+		// Log the error but return OK
+		log.Warn(ctx, map[string]interface{}{
 			"identity_id":     identity.ID.String(),
 			"response_status": res.Status,
 			"response_body":   bodyString,
-		}, "unable to delete user in Che")
-		return errs.Wrapf(err, "unable to delete user '%s' in Che", identity.ID.String())
+		}, "unable to delete user in Che which is OK if user already deleted from Che")
+		return nil
 	}
-	return nil
+
+	log.Error(ctx, map[string]interface{}{
+		"identity_id":     identity.ID.String(),
+		"response_status": res.Status,
+		"response_body":   bodyString,
+	}, "unable to delete user in Che")
+	return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("unable to delete user '%s' in Che", identity.ID.String()))
 }

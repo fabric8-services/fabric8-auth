@@ -158,7 +158,7 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 
 			})
 
-			t.Run("missing tokem", func(t *testing.T) {
+			t.Run("missing token", func(t *testing.T) {
 				// If no token present in the context then fails too
 				_, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 				test.BanNamedusersForbidden(s.T(), nil, nil, ctrl, userToBan.Identity().Username)
@@ -257,7 +257,7 @@ func (s *NamedUsersControllerTestSuite) TestDeactivateUser() {
 				return nil, errors.NewNotFoundErrorFromString("user not found")
 			}
 			// when
-			test.DeactivateNamedusersNotFound(t, svc.Context, svc, ctrl, "unknown-user")
+			test.DeactivateNamedusersOK(t, svc.Context, svc, ctrl, "unknown-user")
 			// then
 			// verify that the `UserService.DeactivateUser` func was called once...
 			assert.Equal(t, 1, int(userServiceMock.DeactivateUserCounter))
