@@ -62,7 +62,7 @@ func (s *UserDeactivationSuite) TestWithNoUserActivity() {
 	// test data
 	s.identity = s.createUser()
 	// use-case workflow
-	timeout := time.NewTimer(40 * time.Second)
+	timeout := time.NewTimer(60 * time.Second)
 	notificationCalls := 0
 	deactivateCalls := 0
 loop:
