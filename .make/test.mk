@@ -191,6 +191,14 @@ test-remote: prebuild-check $(SOURCES)
 test-migration: prebuild-check
 	AUTH_RESOURCE_DATABASE=1 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -vet off $(GO_TEST_VERBOSITY_FLAG) github.com/fabric8-services/fabric8-auth/migration
 
+.PHONY: test-e2e
+## Runs the e2e tests
+## Make sure you ran "make integration-test-env-prepare" before you run this target.
+test-e2e: prebuild-check migrate-database $(SOURCES)
+	$(call log-info,"Running test: $@")
+	$(eval TEST_PACKAGES:=$(shell go list ./... | grep integration))
+	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -vet off $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
+
 # Downloads docker-compose to tmp/docker-compose if it does not already exist.
 define download-docker-compose
 	@if [ ! -f "$(DOCKER_COMPOSE_BIN_ALT)" ]; then \
