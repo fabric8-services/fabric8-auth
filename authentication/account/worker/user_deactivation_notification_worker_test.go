@@ -45,7 +45,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 	config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 		return 20 * 24 * time.Hour // 24 days
 	}
-	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
+	config.GetPostDeactivationNotificationDelayFunc = func() time.Duration {
 		return 5 * time.Millisecond
 	}
 	ctx := context.Background()
