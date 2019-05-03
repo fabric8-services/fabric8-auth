@@ -73,10 +73,22 @@ func (s *WorkerTestSuite) TestMultipleWorkers() {
 	assert.Equal(s.T(), 1, doersCount, "only one doer was expected to be called")
 
 	// now stop all workers
+	stopWG := sync.WaitGroup{}
 	for _, w := range workers {
-		w.Stop()
+		stopWG.Add(1)
+		go func(w *worker.Worker) {
+			w.Stop()
+			for {
+				time.Sleep(freq) // give workers some time to stop for good
+				if w.IsStopped() {
+					stopWG.Done()
+					return // only exit when the worker is stopped
+				}
+			}
+		}(w)
 	}
-	time.Sleep(freq * 20) // give workers some time to stop for good
+	stopWG.Wait()
+
 	// verify that the lock has been deleted
 	_, err = s.Application.WorkerLockRepository().GetLock(s.Ctx, "test-worker")
 	require.Error(s.T(), err)

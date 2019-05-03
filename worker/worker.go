@@ -19,13 +19,17 @@ type Worker struct {
 	Do    func() // the function to run the business code at each cycle of the worker
 	Opts  []pglock.ClientOption
 
-	lock   *pglock.Lock
-	ticker *time.Ticker
-	stopCh chan bool
+	running bool // state of the worker
+	lock    *pglock.Lock
+	ticker  *time.Ticker
+	stopCh  chan bool
 }
 
 // Start starts the worker with the given timer
 func (w *Worker) Start(freq time.Duration) {
+	defer func() {
+		w.running = true
+	}()
 	w.stopCh = make(chan bool, 1)
 	log.Info(w.Ctx, map[string]interface{}{
 		"owner": w.Owner,
@@ -104,7 +108,15 @@ func (w *Worker) Stop() {
 	}
 }
 
+// IsStopped return true if the worker is not in a `running` state, false otherwise.
+func (w *Worker) IsStopped() bool {
+	return !w.running
+}
+
 func (w *Worker) cleanup() {
+	defer func() {
+		w.running = false
+	}()
 	// stop the ticker
 	log.Warn(w.Ctx, map[string]interface{}{
 		"owner": w.Owner,
@@ -131,5 +143,5 @@ func (w *Worker) cleanup() {
 			}, "worker lock released")
 		}
 	}
-
+	close(w.stopCh)
 }
