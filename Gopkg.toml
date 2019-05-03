@@ -123,8 +123,8 @@ required = [
 
 [[constraint]]
   name = "cirello.io/pglock"
-  source = "github.com/alexeykazakov/pglock"
-  revision = "0759a5f88d75b7629df0a9714e7fa34f6efb4d07"
+  source = "github.com/cirello-io/pglock"
+  version = "v1.2.1"
 
 [prune]
   go-tests = true
