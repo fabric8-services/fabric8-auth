@@ -10,12 +10,10 @@ import (
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/client"
-	"github.com/fabric8-services/fabric8-auth/goasupport"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 	uuid "github.com/satori/go.uuid"
 
 	goaclient "github.com/goadesign/goa/client"
-	jwtgoa "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -147,13 +145,7 @@ func (s *UserDeactivationSuite) triggerActivity(identity *account.Identity) {
 	c.Host = "localhost:8089"
 	c.Scheme = "http"
 	ctx := testtoken.ContextWithRequest(context.Background())
-
-	accessToken := s.Graph.CreateToken(identity, token.TOKEN_TYPE_ACCESS).TokenString()
 	refreshToken := s.Graph.CreateToken(identity, token.TOKEN_TYPE_REFRESH).TokenString()
-	extracted, err := testtoken.TokenManager.Parse(context.Background(), accessToken)
-	require.NoError(s.T(), err)
-	ctx = jwtgoa.WithJWT(ctx, extracted)
-	c.SetJWTSigner(goasupport.NewForwardSigner(ctx))
 	resp, err := c.ExchangeToken(ctx, client.ExchangeTokenPath(), &client.TokenExchange{
 		GrantType:    "refresh_token",
 		ClientID:     s.Configuration.GetPublicOAuthClientID(),
