@@ -15,38 +15,52 @@ const (
 )
 
 var (
-	userDeactivationNotificationCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: userDeactivationNotificationCounterName,
-		Help: "Total number of the users notified for upcoming deactivation",
-	}, []string{"successful", "failure"})
-	userDeactivationCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: userDeactivationCounterName,
-		Help: "Total number of the deactivated users",
-	}, []string{"successful", "failure"})
+	// UserDeactivationNotificationCounter counts the number of notifications sent to users
+	UserDeactivationNotificationCounter *prometheus.CounterVec
+	// UserDeactivationCounter counts the user deactivations
+	UserDeactivationCounter *prometheus.CounterVec
 )
 
 // RegisterMetrics registers the service-specific metrics
 func RegisterMetrics() {
-	userDeactivationNotificationCounter = metricsupport.Register(*userDeactivationNotificationCounter, userDeactivationNotificationCounterName).(*prometheus.CounterVec)
-	userDeactivationCounter = metricsupport.Register(*userDeactivationCounter, userDeactivationCounterName).(*prometheus.CounterVec)
+	UserDeactivationNotificationCounter = metricsupport.Register(prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: userDeactivationNotificationCounterName,
+		Help: "Total number of users notified for deactivation",
+	}, []string{"successful"}), userDeactivationNotificationCounterName).(*prometheus.CounterVec)
+	UserDeactivationCounter = metricsupport.Register(prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: userDeactivationCounterName,
+		Help: "Total number of deactivated users",
+	}, []string{"successful"}), userDeactivationCounterName).(*prometheus.CounterVec)
 	log.Info(nil, nil, "user deactivation/notification metrics registered successfully")
+}
+
+// UnregisterMetrics un-registers the service-specific metrics
+func UnregisterMetrics() {
+	prometheus.Unregister(*UserDeactivationNotificationCounter)
+	prometheus.Unregister(*UserDeactivationCounter)
+	log.Info(nil, nil, "user deactivation/notification metrics unregistered successfully")
 }
 
 // RecordUserDeactivationNotification records a new user deactivation notification in the prometheus metric
 func RecordUserDeactivationNotification(successful bool) {
-	if counter, err := userDeactivationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
+	if counter, err := UserDeactivationNotificationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
 		log.Error(nil, map[string]interface{}{
 			"metric_name": userDeactivationNotificationCounterName,
 			"successful":  successful,
 			"err":         err,
-		}, "Failed to get metric")
+		}, "Failed to increment metric")
 	} else {
+		log.Info(nil, map[string]interface{}{
+			"metric_name": userDeactivationNotificationCounterName,
+			"successful":  successful,
+		}, "incremented metric")
 		counter.Inc()
 	}
 }
+
 // RecordUserDeactivation records a new user deactivation in the prometheus metric
 func RecordUserDeactivation(successful bool) {
-	if counter, err := userDeactivationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
+	if counter, err := UserDeactivationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
 		log.Error(nil, map[string]interface{}{
 			"metric_name": userDeactivationCounterName,
 			"successful":  successful,
@@ -56,4 +70,3 @@ func RecordUserDeactivation(successful bool) {
 		counter.Inc()
 	}
 }
-
