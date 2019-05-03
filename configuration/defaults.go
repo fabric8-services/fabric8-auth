@@ -119,10 +119,10 @@ vwIDAQAB
 	defaultUserDeactivationNotificationEnabled = true
 	// defaultUserDeactivationFetchLimit the default number of accounts to return when fetching the users to deactivate (and deactivate at once)
 	defaultUserDeactivationFetchLimit = 10
-	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
-	defaultUserDeactivationInactivityNotificationPeriod = 24 // 24 days
-	// defaultUserDeactivationInactivityPeriod the default number of days of inactivity before a user account can be deactivated
-	defaultUserDeactivationInactivityPeriod = defaultUserDeactivationInactivityNotificationPeriod + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
+	// defaultUserDeactivationInactivityNotificationPeriodDays the default number of days of inactivity before a user account can be deactivated
+	defaultUserDeactivationInactivityNotificationPeriodDays = 24 // 24 days
+	// defaultUserDeactivationInactivityPeriodDays the default number of days of inactivity before a user account can be deactivated
+	defaultUserDeactivationInactivityPeriodDays = defaultUserDeactivationInactivityNotificationPeriodDays + 7 // 31 days (7 days after defaultUserDeactivationInactivityNotificationPeriod)
 	// defaultPostDeactivationNotificationDelayMillis the default number of milliseconds between to user account deactivation notifications by the same go routine
 	defaultPostDeactivationNotificationDelayMillis = 500
 	// defaultUserDeactivationWorkerIntervalSeconds the default interval between 2 cycles of the user deactivation worker
