@@ -4,12 +4,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/application"
 	appservice "github.com/fabric8-services/fabric8-auth/application/service"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/sentry"
-
 	"github.com/goadesign/goa"
 )
 
@@ -94,11 +94,17 @@ func (c *NamedusersController) Deactivate(ctx *app.DeactivateNamedusersContext) 
 			"err":      err,
 			"username": ctx.Username,
 		}, "error occurred while deactivating user")
-		return jsonapi.JSONErrorResponse(ctx, err)
+		if notFound, _ := errors.IsNotFoundError(err); !notFound {
+			return jsonapi.JSONErrorResponse(ctx, err)
+		}
+		// Ignore notFound error. If user has not found then we don't want the reg-app keep trying to deactivate it in auth.
+		// We can add some dummy Identity in response here
+		identity = &repository.Identity{}
+	} else {
+		log.Info(ctx, map[string]interface{}{
+			"username": ctx.Username,
+		}, "user deactivated")
 	}
-	log.Info(ctx, map[string]interface{}{
-		"username": ctx.Username,
-	}, "user deactivated")
 
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, &identity.User, identity, true))
 }

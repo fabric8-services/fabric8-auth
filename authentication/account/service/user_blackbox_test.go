@@ -605,6 +605,12 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			MatchHeader("X-Request-Id", reqID).
 			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
 			Reply(204)
+		// call to Che
+		cheCallsCounter := 0
+		gock.New("http://localhost:8091").
+			Delete(fmt.Sprintf("/api/user/%s", userToDeactivate.IdentityID().String())).
+			SetMatcher(gocksupport.SpyOnCalls(&cheCallsCounter)).
+			Reply(204)
 
 		tokenManager, err := manager.DefaultManager(s.Configuration)
 		require.NoError(s.T(), err)
@@ -624,10 +630,6 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			}
 			return false, nil
 		})
-		gock.New("http://localhost:8091").
-			Delete(fmt.Sprintf("api/user/%s", userToDeactivate.IdentityID().String())).
-			SetMatcher(tokenMatcher).
-			Reply(200)
 		// when
 		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
 		// then
@@ -647,15 +649,16 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			require.NotNil(t, tok)
 			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_REVOKED)
 		}
-		// also, verify that WIT and tenant services were called
+		// also, verify that WIT, che, and tenant services were called
 		assert.Equal(t, 1, witCallsCounter)
 		assert.Equal(t, 1, tenantCallsCounter)
+		assert.Equal(t, 1, cheCallsCounter)
 		// also, verify that the external accounts where unlinked
 		_, err = s.Application.ExternalTokens().Load(ctx, githubTokenToRemove.ID())
 		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", githubTokenToRemove.ID()))
 		_, err = s.Application.ExternalTokens().Load(ctx, openshiftTokenToRemove.ID())
 		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", openshiftTokenToRemove.ID()))
-		// lastly, verify that everything belonging to the user to keep intact remainded as-is
+		// lastly, verify that everything belonging to the user to keep intact remained as-is
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.True(t, loadedUser.User().Active)
 		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())

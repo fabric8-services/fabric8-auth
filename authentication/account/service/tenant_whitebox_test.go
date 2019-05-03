@@ -108,8 +108,13 @@ func (s *TestTenantServiceSuite) TestDelete() {
 	err := s.ts.Delete(ctx, identityID)
 	require.NoError(s.T(), err)
 
-	// Fail if returned anything but No Contented
+	// OK if returned Not Found
 	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
+	err = s.ts.Delete(ctx, identityID)
+	require.NoError(s.T(), err)
+
+	// Fail if returned another error
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusInternalServerError}
 	err = s.ts.Delete(ctx, identityID)
 	require.Error(s.T(), err)
 	assert.Equal(s.T(), "unable to delete tenant", err.Error())
