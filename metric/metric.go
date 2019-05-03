@@ -43,6 +43,12 @@ func UnregisterMetrics() {
 
 // RecordUserDeactivationNotification records a new user deactivation notification in the prometheus metric
 func RecordUserDeactivationNotification(successful bool) {
+	if UserDeactivationNotificationCounter == nil {
+		log.Warn(nil, map[string]interface{}{
+			"metric_name": userDeactivationNotificationCounterName,
+		}, "metric not initialized")
+		return
+	}
 	if counter, err := UserDeactivationNotificationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
 		log.Error(nil, map[string]interface{}{
 			"metric_name": userDeactivationNotificationCounterName,
@@ -60,6 +66,12 @@ func RecordUserDeactivationNotification(successful bool) {
 
 // RecordUserDeactivation records a new user deactivation in the prometheus metric
 func RecordUserDeactivation(successful bool) {
+	if UserDeactivationCounter == nil {
+		log.Warn(nil, map[string]interface{}{
+			"metric_name": userDeactivationCounterName,
+		}, "metric not initialized")
+		return
+	}
 	if counter, err := UserDeactivationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
 		log.Error(nil, map[string]interface{}{
 			"metric_name": userDeactivationCounterName,
