@@ -8,6 +8,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/fabric8-services/fabric8-auth/app"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	"github.com/fabric8-services/fabric8-auth/authorization/invitation"
@@ -135,6 +136,13 @@ type SpaceService interface {
 	DeleteSpace(ctx context.Context, byIdentityID uuid.UUID, spaceID string) error
 }
 
+// TenantService represents the Tenant service
+type TenantService interface {
+	Init(ctx context.Context) error
+	Delete(ctx context.Context, identityID uuid.UUID) error
+	View(ctx context.Context) (*tenant.TenantSingle, error)
+}
+
 type TeamService interface {
 	CreateTeam(ctx context.Context, identityID uuid.UUID, spaceID string, teamName string) (*uuid.UUID, error)
 	ListTeamsInSpace(ctx context.Context, identityID uuid.UUID, spaceID string) ([]account.Identity, error)
@@ -171,12 +179,6 @@ type UserService interface {
 	RescheduleDeactivation(ctx context.Context, identityID uuid.UUID) error
 }
 
-// TenantService represents the Tenant service
-type TenantService interface {
-	Init(ctx context.Context) error
-	Delete(ctx context.Context, identityID uuid.UUID) error
-}
-
 // WITService service interface for WIT
 type WITService interface {
 	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
@@ -193,6 +195,7 @@ type CheService interface {
 //Services creates instances of service layer objects
 type Services interface {
 	AuthenticationProviderService() AuthenticationProviderService
+	CheService() CheService
 	ClusterService() ClusterService
 	InvitationService() InvitationService
 	LinkService() LinkService
@@ -206,12 +209,11 @@ type Services interface {
 	RoleManagementService() RoleManagementService
 	SpaceService() SpaceService
 	TeamService() TeamService
+	TenantService() TenantService
 	TokenService() TokenService
 	UserProfileService() UserProfileService
 	UserService() UserService
-	TenantService() TenantService
 	WITService() WITService
-	CheService() CheService
 }
 
 //----------------------------------------------------------------------------------------------------------------------

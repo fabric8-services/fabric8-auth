@@ -80,34 +80,4 @@ var _ = a.Resource("UserService", func() {
 		a.Response(d.InternalServerError, JSONAPIErrors)
 		a.Response(d.Unauthorized, JSONAPIErrors)
 	})
-
-	a.Action("update", func() {
-		a.Security("jwt")
-		a.Routing(
-			a.PATCH(""),
-		)
-		a.Description("Update the authenticated user tenant services")
-		a.Response(d.OK)
-		a.Response(d.NotModified)
-		a.Response(d.BadRequest, JSONAPIErrors)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.Unauthorized, JSONAPIErrors)
-	})
-	a.Action("clean", func() {
-		a.Security("jwt")
-		a.Routing(
-			a.DELETE(""),
-		)
-		a.Params(func() {
-			a.Param("remove", d.Boolean, "Remove user services from provisioned cluster. Restricted to internal users.", func() {
-				a.Default(false)
-			})
-		})
-
-		a.Description("Clean the authenticated user tenant services")
-		a.Response(d.OK)
-		a.Response(d.BadRequest, JSONAPIErrors)
-		a.Response(d.InternalServerError, JSONAPIErrors)
-		a.Response(d.Unauthorized, JSONAPIErrors)
-	})
 })

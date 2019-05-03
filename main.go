@@ -15,7 +15,6 @@ import (
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	appservice "github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
-	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
@@ -245,9 +244,6 @@ func main() {
 
 	// Mount the user service controller
 	userServiceCtrl := controller.NewUserServiceController(service)
-	userServiceCtrl.UpdateTenant = account.NewUpdateTenant(config)
-	userServiceCtrl.CleanTenant = account.NewCleanTenant(config)
-	userServiceCtrl.ShowTenant = account.NewShowTenant(config)
 	app.MountUserServiceController(service, userServiceCtrl)
 
 	// Mount "collaborators" controller

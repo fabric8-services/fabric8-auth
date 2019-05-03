@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
+	autherrs "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/goasupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/rest"
@@ -47,6 +49,41 @@ func (t *tenantServiceImpl) Init(ctx context.Context) error {
 	}
 
 	return err
+}
+
+// View fetches the current tenant state.
+func (t *tenantServiceImpl) View(ctx context.Context) (*tenant.TenantSingle, error) {
+	c, err := t.createClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.ShowTenant(goasupport.ForwardContextRequestID(ctx), tenant.ShowTenantPath())
+	if err != nil {
+		return nil, err
+	}
+	defer rest.CloseResponse(res)
+	switch res.StatusCode {
+	case http.StatusOK:
+		tenant, err := c.DecodeTenantSingle(res)
+		if err != nil {
+			return nil, autherrs.NewInternalError(err)
+		}
+		return tenant, nil
+	case http.StatusNotFound:
+		jsonErr, err := c.DecodeJSONAPIErrors(res)
+		if err == nil {
+			if len(jsonErr.Errors) > 0 {
+				log.Error(ctx, map[string]interface{}{
+					"error_msg": jsonErr.Errors[0].Detail,
+				}, "failed to retrieve tenant")
+				return nil, autherrs.NewNotFoundError("tenants", *jsonErr.Errors[0].ID)
+			}
+		} else {
+			log.Error(ctx, map[string]interface{}{"error_msg": err}, "failed to parse JSON-API error response")
+		}
+
+	}
+	return nil, autherrs.NewInternalError(fmt.Errorf("Unknown response: '%v' (%d)", res.Status, res.StatusCode))
 }
 
 // Delete deletes tenants for the identity

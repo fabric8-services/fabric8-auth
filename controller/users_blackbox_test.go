@@ -3,6 +3,7 @@ package controller_test
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
 	"net/http"
 	"os"
 	"testing"
@@ -1875,4 +1876,8 @@ func (s *dummyTenantService) Init(ctx context.Context) error {
 func (s *dummyTenantService) Delete(ctx context.Context, identityID uuid.UUID) error {
 	s.identityID = identityID
 	return s.error
+}
+
+func (s *dummyTenantService) View(ctx context.Context) (*tenant.TenantSingle, error) {
+	return nil, s.error
 }
