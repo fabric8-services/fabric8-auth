@@ -46,7 +46,10 @@ required = [
   "github.com/jstemmer/go-junit-report",
   "github.com/wadey/gocovmerge",
   "github.com/pilu/fresh",
-  "github.com/gojuno/minimock/cmd/minimock"
+  "github.com/gojuno/minimock/cmd/minimock",
+  "github.com/pact-foundation/pact-go",
+  "github.com/tebeka/selenium",
+  "github.com/pmacik/loginusers-go",
 ]
 
 [[constraint]]
@@ -128,4 +131,16 @@ required = [
 
 [prune]
   go-tests = true
-  unused-packages = true 
+  unused-packages = true
+
+[[constraint]]
+  name = "github.com/pact-foundation/pact-go"
+  revision = "v1.0.0-beta.3"
+
+[[constraint]]
+  name = "github.com/tebeka/selenium"
+  revision = "master"
+
+[[constraint]]
+  name = "github.com/pmacik/loginusers-go"
+  revision = "master"

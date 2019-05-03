@@ -282,6 +282,18 @@
   revision = "5a0325d7fafaac12dda6e7fb8bd222ec1b69875e"
 
 [[projects]]
+  name = "github.com/pact-foundation/pact-go"
+  packages = [
+    "client",
+    "dsl",
+    "install",
+    "types",
+    "utils"
+  ]
+  revision = "v1.0.0-beta.3"
+
+[[projects]]
+  digest = "1:b2ee62e09bec113cf086d2ce0769efcc7bf79481aba8373fd8f7884e94df3462"
   name = "github.com/panjf2000/ants"
   packages = ["."]
   revision = "8bb0cde224fdf3a1c6915b4dbd943bc506b42257"
@@ -320,6 +332,17 @@
   version = "v0.8.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/pmacik/loginusers-go"
+  packages = [
+    "common",
+    "config",
+    "loginusers"
+  ]
+  revision = "master"
+
+[[projects]]
+  digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -408,6 +431,17 @@
   ]
   revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
   version = "v1.3.0"
+
+[[projects]]
+  name = "github.com/tebeka/selenium"
+  packages = [
+    ".",
+    "chrome",
+    "firefox",
+    "internal/zip",
+    "log"
+  ]
+  revision = "master"
 
 [[projects]]
   branch = "master"

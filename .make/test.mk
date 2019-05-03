@@ -174,6 +174,35 @@ test-integration-benchmark: prebuild-check migrate-database $(SOURCES)
 	$(eval TEST_PACKAGES:=$(shell go list ./... | grep -v $(ALL_PKGS_EXCLUDE_PATTERN)))
 	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_LOG_LEVEL=error AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test $(GO_TEST_INTEGRATION_FLAG) -vet off -run=^$$ -bench=. -cpu 1,2,4 -test.benchmem $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
 
+.PHONY: test-contracts-provider-no-coverage
+## Runs the contract tests WITHOUT producing coverage files for each package.
+## Make sure you ran "make dev" before you run this target.
+## The Chrome or Chromium browser with headless feature
+## as well as the [chromedriver](http://chromedriver.chromium.org/) is required
+## to be installed for the user login part of the tests.
+## The following env variables needs to be set in environment:
+## - Pact consumer for whom the contract is verified as provider
+##   PACT_CONSUMER
+## - Pact broker for storing pact files
+##   PACT_BROKER_URL
+##   PACT_BROKER_USERNAME
+##   PACT_BROKER_PASSWORD
+## - RHD account credentials:
+##   OSIO_USERNAME
+##   OSIO_PASSWORD
+##   OSIO_CLUSTER_URL
+## - Service account credentials (according to https://github.com/fabric8-services/fabric8-auth/blob/master/configuration/conf-files/service-account-secrets.conf#L30)
+##   ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_ID
+##   ONLINE_REGISTRATION_SERVICE_ACCOUNT_CLIENT_SERCRET
+test-contracts-provider-no-coverage: prebuild-check migrate-database $(SOURCES)
+	$(call log-info,"Running test: $@")
+	$(eval TEST_PACKAGES:=$(shell go list ./... | grep 'contracts/provider'))
+	$(eval PACT_VERSION?=latest)
+	PACT_DIR=$(TMP_PATH)/test/contracts/pacts \
+	PACT_VERSION=$(PACT_VERSION) \
+	PACT_PROVIDER_BASE_URL=http://localhost:8089 \
+	go test -count=1 $(GO_TEST_VERBOSITY_FLAG) $(TEST_PACKAGES)
+
 .PHONY: test-remote-with-coverage
 ## Runs the remote tests and produces coverage files for each package.
 test-remote-with-coverage: prebuild-check clean-coverage-remote $(COV_PATH_REMOTE)
