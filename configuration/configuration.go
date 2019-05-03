@@ -1130,13 +1130,13 @@ func (c *ConfigurationData) GetPostDeactivationNotificationDelay() time.Duration
 	return time.Duration(c.v.GetInt(varPostDeactivationNotificationDelayMillis)) * time.Millisecond
 }
 
-// GetUserDeactivationWorkerIntervalSeconds returns the interval between 2 cycles of the user deactivation worker.
-func (c *ConfigurationData) GetUserDeactivationWorkerIntervalSeconds() time.Duration {
+// GetUserDeactivationWorkerInterval returns the interval between 2 cycles of the user deactivation worker.
+func (c *ConfigurationData) GetUserDeactivationWorkerInterval() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationWorkerIntervalSeconds)) * time.Second
 }
 
-// GetUserDeactivationNotificationWorkerIntervalSeconds returns the interval between 2 cycles of the user deactivation notification worker.
-func (c *ConfigurationData) GetUserDeactivationNotificationWorkerIntervalSeconds() time.Duration {
+// GetUserDeactivationNotificationWorkerInterval returns the interval between 2 cycles of the user deactivation notification worker.
+func (c *ConfigurationData) GetUserDeactivationNotificationWorkerInterval() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationNotificationWorkerIntervalSeconds)) * time.Second
 }
 

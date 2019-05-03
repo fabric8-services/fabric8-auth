@@ -62,7 +62,7 @@ func main() {
 		log.Panic(nil, map[string]interface{}{
 			"config_file":                 configFile,
 			"service_account_config_file": serviceAccountConfigFile,
-			"err":                         err,
+			"err": err,
 		}, "failed to setup the configuration")
 	}
 
@@ -304,20 +304,20 @@ func main() {
 		log.Info(nil, map[string]interface{}{
 			"user_fetch_limit":               config.GetUserDeactivationFetchLimit(),
 			"inactivity_notification_period": config.GetUserDeactivationInactivityNotificationPeriod(),
-			"notification_interval":          config.GetUserDeactivationNotificationWorkerIntervalSeconds(),
+			"notification_interval":          config.GetUserDeactivationNotificationWorkerInterval(),
 		}, "Deactivation notification worker enabled")
 		userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
-		userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerIntervalSeconds())
+		userDeactivationNotificationWorker.Start(config.GetUserDeactivationNotificationWorkerInterval())
 		workers = append(workers, userDeactivationNotificationWorker)
 	}
 	if config.GetUserDeactivationEnabled() {
 		log.Info(nil, map[string]interface{}{
 			"user_fetch_limit":      config.GetUserDeactivationFetchLimit(),
 			"inactivity_period":     config.GetUserDeactivationInactivityPeriod(),
-			"deactivation_interval": config.GetUserDeactivationWorkerIntervalSeconds(),
+			"deactivation_interval": config.GetUserDeactivationWorkerInterval(),
 		}, "Deactivation worker enabled")
 		userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
-		userDeactivationWorker.Start(config.GetUserDeactivationWorkerIntervalSeconds())
+		userDeactivationWorker.Start(config.GetUserDeactivationWorkerInterval())
 		workers = append(workers, userDeactivationWorker)
 	}
 	// graceful shutdown
