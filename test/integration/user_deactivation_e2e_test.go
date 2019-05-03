@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"testing"
@@ -42,7 +41,7 @@ func (s *UserDeactivationSuite) SetupTest() {
 
 func (s *UserDeactivationSuite) TearDownTest() {
 	// explicitely clean tokens created by the standalone `auth` service
-	fmt.Printf("deleting tokens owned by %v\n", s.identity)
+	log.Printf("deleting tokens owned by %s\n", s.identity.ID)
 	if s.identity != nil {
 		tokens, err := s.Application.TokenRepository().ListForIdentity(context.Background(), s.identity.ID)
 		require.NoError(s.T(), err)
@@ -206,6 +205,8 @@ func (s *UserDeactivationSuite) updateNotificationTime(identityID string, update
 		if identity.DeactivationNotification != nil {
 			log.Printf("[Test runner] user's deactivation notification timestamp will be reset to %v", updatedTime.Format("2006-01-02 15:04:05"))
 			identity.DeactivationNotification = &updatedTime
+			scheduleDeactivation := updatedTime.Add(7 * 24 * time.Hour)
+			identity.DeactivationScheduled = &scheduleDeactivation
 			err = s.Application.Identities().Save(ctx, identity)
 			require.NoError(s.T(), err)
 			return
