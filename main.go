@@ -303,7 +303,7 @@ func main() {
 	if config.GetUserDeactivationNotificationEnabled() {
 		log.Info(nil, map[string]interface{}{
 			"user_fetch_limit":               config.GetUserDeactivationFetchLimit(),
-			"inactivity_notification_period": config.GetUserDeactivationInactivityNotificationPeriodDays(),
+			"inactivity_notification_period": config.GetUserDeactivationInactivityNotificationPeriod(),
 			"notification_interval":          config.GetUserDeactivationNotificationWorkerIntervalSeconds(),
 		}, "Deactivation notification worker enabled")
 		userDeactivationNotificationWorker := userworker.NewUserDeactivationNotificationWorker(ctx, appDB)
@@ -313,7 +313,7 @@ func main() {
 	if config.GetUserDeactivationEnabled() {
 		log.Info(nil, map[string]interface{}{
 			"user_fetch_limit":      config.GetUserDeactivationFetchLimit(),
-			"inactivity_period":     config.GetUserDeactivationInactivityPeriodDays(),
+			"inactivity_period":     config.GetUserDeactivationInactivityPeriod(),
 			"deactivation_interval": config.GetUserDeactivationWorkerIntervalSeconds(),
 		}, "Deactivation worker enabled")
 		userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)

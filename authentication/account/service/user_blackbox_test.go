@@ -48,7 +48,7 @@ type userServiceBlackboxTestSuite struct {
 
 func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
-	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 97 * 24 * time.Hour
 	}
 	ctx := context.Background()
@@ -107,7 +107,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 90 * 24 * time.Hour // 90 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -128,7 +128,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
 		}
 		var msgToSend notification.Message
@@ -162,7 +162,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 1
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -189,7 +189,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
 		var msgToSend []notification.Message
@@ -242,7 +242,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -275,7 +275,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 }
 func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
-	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 31 * 24 * time.Hour // 31 days
 	}
 	ctx := context.Background()
@@ -324,10 +324,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 90 * 24 * time.Hour // 90 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 80 * 24 * time.Hour // 80 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
@@ -343,10 +343,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 55 * 24 * time.Hour // 55 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
@@ -363,10 +363,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 1
 		}
-		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 20 * 24 * time.Hour // 20 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
@@ -383,10 +383,10 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 20 * 24 * time.Hour // 20 days
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
@@ -408,10 +408,10 @@ func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	config.GetUserDeactivationFetchLimitFunc = func() int {
 		return 100
 	}
-	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 30 * 24 * time.Hour // 31 days, ie, 7 days after notification
 	}
-	config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 		return 20 * 24 * time.Hour // 24 days
 	}
 	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {

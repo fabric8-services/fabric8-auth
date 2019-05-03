@@ -1113,13 +1113,13 @@ func (c *ConfigurationData) GetUserDeactivationFetchLimit() int {
 	return c.v.GetInt(varUserDeactivationFetchLimit)
 }
 
-// GetUserDeactivationInactivityNotificationPeriodDays returns the number of days of inactivity before notifying the user of the imminent account deactivation
-func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriodDays() time.Duration {
+// GetUserDeactivationInactivityNotificationPeriodDays returns the time duration of inactivity before notifying the user of the imminent account deactivation
+func (c *ConfigurationData) GetUserDeactivationInactivityNotificationPeriod() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationInactivityNotificationPeriodDays)) * 24 * time.Hour
 }
 
-// GetUserDeactivationInactivityPeriodDays returns the number of days of inactivity before a user account can be deactivated
-func (c *ConfigurationData) GetUserDeactivationInactivityPeriodDays() time.Duration {
+// GetUserDeactivationInactivityPeriod returns the time duration of inactivity before a user account can be deactivated
+func (c *ConfigurationData) GetUserDeactivationInactivityPeriod() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationInactivityPeriodDays)) * 24 * time.Hour
 }
 
