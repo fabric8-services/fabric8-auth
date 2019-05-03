@@ -196,7 +196,7 @@ test-migration: prebuild-check
 ## Make sure you ran "make integration-test-env-prepare" before you run this target.
 test-e2e: prebuild-check migrate-database $(SOURCES)
 	$(call log-info,"Running test: $@")
-	$(eval TEST_PACKAGES:=$(shell go list ./... | grep integration))
+	$(eval TEST_PACKAGES:=$(shell go list ./... | grep /test/integration))
 	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -vet off -v $(TEST_PACKAGES)
 
 # Downloads docker-compose to tmp/docker-compose if it does not already exist.

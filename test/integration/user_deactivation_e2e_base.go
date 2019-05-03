@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	authBinary = "../bin/auth"
+	authBinary = "../../bin/auth"
 	ago7days   = time.Now().Add(-7 * 24 * time.Hour)
 	ago40days  = time.Now().Add(-40 * 24 * time.Hour)
 )
