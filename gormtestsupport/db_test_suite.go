@@ -22,7 +22,6 @@ import (
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq" // need to import postgres driver
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -114,7 +113,7 @@ func (s *DBTestSuite) TearDownTest() {
 	// the SQL queries. In that case, the `AUTH_CLEAN_TEST_DATA` env variable should be set to `false`.
 	// By default, test data will be removed from the DB after each test
 	if s.Configuration.IsCleanTestDataEnabled() {
-		assert.NoError(s.T(), s.CleanTest())
+		s.CleanTest()
 	}
 	s.Graph = nil
 	s.resetConfig()
