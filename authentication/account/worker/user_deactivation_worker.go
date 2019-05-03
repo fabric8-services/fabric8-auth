@@ -41,7 +41,7 @@ type userDeactivationWorker struct {
 }
 
 func (w *userDeactivationWorker) deactivateUsers() {
-	log.Debug(w.Ctx, map[string]interface{}{
+	log.Info(w.Ctx, map[string]interface{}{
 		"owner": w.Owner,
 	}, "starting cycle of inactive users deactivation")
 	// user service has the config settings to limit the number of users to deactivate
@@ -53,11 +53,19 @@ func (w *userDeactivationWorker) deactivateUsers() {
 		}, "error while notifying users to deactivate")
 		return
 	}
+
 	for _, identity := range identities {
+		err := w.App.UserService().RescheduleDeactivation(w.Ctx, identity.ID)
+		if err != nil {
+			log.Error(nil, map[string]interface{}{
+				"err":      err,
+				"username": identity.Username,
+			}, "error updating deactivation schedule while deactivating user")
+		}
 		// to deactivate a user, we need to call the OSO Registration App which will take care of
 		// deactivating the user on OSO and then call back `auth` service (on its `/namedusers/:username/deactivate` endpoint)
 		// which will handle the deactivation on the OSIO platform
-		err := w.App.OSOSubscriptionService().DeactivateUser(w.Ctx, identity.Username)
+		err = w.App.OSOSubscriptionService().DeactivateUser(w.Ctx, identity.Username)
 		if err != nil {
 			// We will just log the error and continue
 			log.Error(nil, map[string]interface{}{
@@ -70,7 +78,7 @@ func (w *userDeactivationWorker) deactivateUsers() {
 			}, "user account deactivation triggered")
 		}
 	}
-	log.Debug(w.Ctx, map[string]interface{}{
+	log.Info(w.Ctx, map[string]interface{}{
 		"identities": len(identities),
 		"owner":      w.Owner,
 	}, "ending cycle of inactive users deactivation")

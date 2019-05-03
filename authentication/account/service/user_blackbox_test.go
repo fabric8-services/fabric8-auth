@@ -210,13 +210,18 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		// also check that the `DeactivationNotification` fields were set for both identities in the DB
 		expiryDate := userservice.GetExpiryDate(config, nowf)
 		customs := []map[string]interface{}{}
+		targetIDs := []string{}
+		for _, msg := range msgToSend {
+			targetIDs = append(targetIDs, msg.TargetID)
+		}
+		require.Len(s.T(), msgToSend, 2)
 		for i, id := range []uuid.UUID{identity1.ID, identity2.ID} {
 			identity, err := s.Application.Identities().Load(ctx, id)
 			require.NoError(s.T(), err)
 			require.NotNil(s.T(), identity.DeactivationNotification)
 			assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 			// also verify that the message to send to the user has the correct data
-			assert.Equal(s.T(), identity.ID.String(), msgToSend[i].TargetID)
+			require.Contains(s.T(), targetIDs, identity.ID.String())
 			customs = append(customs, msgToSend[i].Custom)
 		}
 		// verify that 2 messages were sent, although, we can't be sure in which order
@@ -275,6 +280,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	}
 	ctx := context.Background()
 	yesterday := time.Now().Add(-1 * 24 * time.Hour)
+	ago3days := time.Now().Add(-3 * 24 * time.Hour)
 	ago10days := time.Now().Add(-10 * 24 * time.Hour)
 	ago65days := time.Now().Add(-65 * 24 * time.Hour) // 65 days since last activity and notified...
 	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
@@ -284,6 +290,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	identity1 := user1.Identities[0]
 	identity1.LastActive = &ago40days
 	identity1.DeactivationNotification = &ago10days
+	identity1.DeactivationScheduled = &ago3days
 	err := s.Application.Identities().Save(ctx, &identity1)
 	require.NoError(s.T(), err)
 	// user/identity2: 70 days since last activity and notified
@@ -291,6 +298,7 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 	identity2 := user2.Identities[0]
 	identity2.LastActive = &ago70days
 	identity2.DeactivationNotification = &ago10days
+	identity2.DeactivationScheduled = &ago3days
 	err = s.Application.Identities().Save(ctx, &identity2)
 	require.NoError(s.T(), err)
 	// noise: user/identity: 1 day since last activity and not notified yet
@@ -584,7 +592,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		witCallsCounter := 0
 		gock.Observe(gock.DumpRequest)
 		gock.New("http://localhost:8080").
-			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.IdentityID().String())).
+			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.Identity().Username)).
 			MatchHeader("Authorization", "Bearer "+saToken).
 			MatchHeader("X-Request-Id", reqID).
 			SetMatcher(gocksupport.SpyOnCalls(&witCallsCounter)).
@@ -596,6 +604,12 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			MatchHeader("Authorization", "Bearer "+saToken).
 			MatchHeader("X-Request-Id", reqID).
 			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
+			Reply(204)
+		// call to Che
+		cheCallsCounter := 0
+		gock.New("http://localhost:8091").
+			Delete(fmt.Sprintf("/api/user/%s", userToDeactivate.IdentityID().String())).
+			SetMatcher(gocksupport.SpyOnCalls(&cheCallsCounter)).
 			Reply(204)
 
 		tokenManager, err := manager.DefaultManager(s.Configuration)
@@ -616,10 +630,6 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			}
 			return false, nil
 		})
-		gock.New("http://localhost:8091").
-			Delete(fmt.Sprintf("api/user/%s", userToDeactivate.IdentityID().String())).
-			SetMatcher(tokenMatcher).
-			Reply(200)
 		// when
 		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
 		// then
@@ -639,15 +649,16 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			require.NotNil(t, tok)
 			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_REVOKED)
 		}
-		// also, verify that WIT and tenant services were called
+		// also, verify that WIT, che, and tenant services were called
 		assert.Equal(t, 1, witCallsCounter)
 		assert.Equal(t, 1, tenantCallsCounter)
+		assert.Equal(t, 1, cheCallsCounter)
 		// also, verify that the external accounts where unlinked
 		_, err = s.Application.ExternalTokens().Load(ctx, githubTokenToRemove.ID())
 		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", githubTokenToRemove.ID()))
 		_, err = s.Application.ExternalTokens().Load(ctx, openshiftTokenToRemove.ID())
 		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", openshiftTokenToRemove.ID()))
-		// lastly, verify that everything belonging to the user to keep intact remainded as-is
+		// lastly, verify that everything belonging to the user to keep intact remained as-is
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.True(t, loadedUser.User().Active)
 		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())

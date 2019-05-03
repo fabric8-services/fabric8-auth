@@ -321,7 +321,7 @@ func main() {
 		workers = append(workers, userDeactivationWorker)
 	}
 	// graceful shutdown
-	go handleShutdown(db, workers[:]...)
+	go handleShutdown(db, workers...)
 
 	// Start http
 	if err := http.ListenAndServe(config.GetHTTPAddress(), nil); err != nil {

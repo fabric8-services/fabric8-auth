@@ -86,6 +86,8 @@ type Identity struct {
 	LastActive *time.Time
 	// Timestamp of deactivation notification
 	DeactivationNotification *time.Time `gorm:"column:deactivation_notification"`
+	// Time of scheduled deactivation
+	DeactivationScheduled *time.Time `gorm:"column:deactivation_scheduled"`
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -142,6 +144,7 @@ type IdentityRepository interface {
 	RemoveMember(ctx context.Context, memberOf uuid.UUID, memberID uuid.UUID) error
 	FlagPrivilegeCacheStaleForMembershipChange(ctx context.Context, memberID uuid.UUID, memberOf uuid.UUID) error
 	TouchLastActive(ctx context.Context, identityID uuid.UUID) error
+	BumpDeactivationSchedule(ctx context.Context, identityID uuid.UUID, scheduledTime time.Time) error
 }
 
 // TableName overrides the table name settings in Gorm to force a specific table name
@@ -425,9 +428,9 @@ func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context,
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
 	err := m.db.Model(&Identity{}).
-		Where("last_active < ? and deactivation_notification < ?", lastActivity, notification).
+		Where("last_active < ? and deactivation_notification < ? and deactivation_scheduled < ?", lastActivity, notification, time.Now()).
 		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
-		Order("last_active, created_at").Limit(limit).Find(&identities).Error
+		Order("deactivation_scheduled, last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
@@ -894,7 +897,7 @@ WHERE
 func (m *GormIdentityRepository) TouchLastActive(ctx context.Context, identityID uuid.UUID) error {
 	defer goa.MeasureSince([]string{"goa", "db", "identity", "TouchLastActive"}, time.Now())
 
-	err := m.db.Exec("UPDATE identities SET last_active = ?, deactivation_notification = NULL WHERE id = ?", time.Now(), identityID).Error
+	err := m.db.Exec("UPDATE identities SET last_active = ?, deactivation_notification = NULL, deactivation_scheduled = NULL WHERE id = ?", time.Now(), identityID).Error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"id":  identityID,
@@ -905,6 +908,21 @@ func (m *GormIdentityRepository) TouchLastActive(ctx context.Context, identityID
 	log.Debug(ctx, map[string]interface{}{
 		"id": identityID,
 	}, "updated last active time")
+
+	return nil
+}
+
+func (m *GormIdentityRepository) BumpDeactivationSchedule(ctx context.Context, identityID uuid.UUID, scheduledTime time.Time) error {
+	defer goa.MeasureSince([]string{"goa", "db", "identity", "BumpDeactivationSchedule"}, time.Now())
+
+	err := m.db.Exec("UPDATE identities SET deactivation_scheduled = ? WHERE id = ?", scheduledTime, identityID).Error
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"id":  identityID,
+			"err": err,
+		}, "unable to update deactivation schedule")
+		return errs.WithStack(err)
+	}
 
 	return nil
 }

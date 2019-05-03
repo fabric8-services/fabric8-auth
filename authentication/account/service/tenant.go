@@ -69,16 +69,27 @@ func (t *tenantServiceImpl) Delete(ctx context.Context, identityID uuid.UUID) er
 	defer rest.CloseResponse(response)
 	respBody := rest.ReadBody(response.Body)
 
-	if response.StatusCode != http.StatusNoContent {
-		log.Error(ctx, map[string]interface{}{
+	switch response.StatusCode {
+	case http.StatusNoContent:
+		// OK
+		return nil
+	case http.StatusNotFound:
+		// May happen if the user has been already deleted from Tenant
+		// Log the error but return OK
+		log.Warn(ctx, map[string]interface{}{
 			"identity_id":     identityID.String(),
 			"response_status": response.Status,
 			"response_body":   respBody,
-		}, "unable to delete tenants")
-		return errors.New("unable to delete tenant")
+		}, "unable to delete tenant which is OK if tenant already deleted")
+		return nil
 	}
 
-	return nil
+	log.Error(ctx, map[string]interface{}{
+		"identity_id":     identityID.String(),
+		"response_status": response.Status,
+		"response_body":   respBody,
+	}, "unable to delete tenants")
+	return errors.New("unable to delete tenant")
 }
 
 // createClientWithContextSigner creates with a signer based on current context

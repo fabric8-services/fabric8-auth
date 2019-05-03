@@ -76,7 +76,8 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		// verify that the lock was released
 		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivation)
 		require.NoError(s.T(), err)
-		l.Close()
+		err = l.Close()
+		require.NoError(s.T(), err)
 	})
 
 	s.Run("multiple workers but only one working", func() {
@@ -119,12 +120,14 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		// verify that the lock was released
 		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivation)
 		require.NoError(s.T(), err)
-		l.Close()
+		err = l.Close()
+		require.NoError(s.T(), err)
 	})
 }
 
 func (s *UserDeactivationWorkerTest) newUserDeactivationWorker(ctx context.Context, podname string, app application.Application) worker.UserDeactivationWorker {
-	os.Setenv("AUTH_POD_NAME", podname)
+	err := os.Setenv("AUTH_POD_NAME", podname)
+	require.NoError(s.T(), err)
 	config, err := configuration.GetConfigurationData()
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), podname, config.GetPodName())

@@ -4,9 +4,8 @@
 [[projects]]
   name = "cirello.io/pglock"
   packages = ["."]
-  revision = "96beb072c82169ab35ca0317cb5caebd8faa0429"
-  source = "github.com/cirello-io/pglock"
-  version = "v1.2.0"
+  revision = "0759a5f88d75b7629df0a9714e7fa34f6efb4d07"
+  source = "github.com/alexeykazakov/pglock"
 
 [[projects]]
   name = "github.com/ajg/form"
@@ -528,6 +527,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "282a11aab71bac88520e4ec5b50cb44d1249680bc2023c4e87edb1434874c739"
+  inputs-digest = "f4b9c3a2f4e328503a3f3f1127b02ffdacb4ef6b4f4e79f37e4739d9cfdf0907"
   solver-name = "gps-cdcl"
   solver-version = 1

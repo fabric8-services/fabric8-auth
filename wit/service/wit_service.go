@@ -123,14 +123,14 @@ func (s *witServiceImpl) CreateUser(ctx context.Context, identity *account.Ident
 }
 
 // DeleteUser deletes a user in WIT
-func (s *witServiceImpl) DeleteUser(ctx context.Context, identityID string) error {
-	log.Info(ctx, map[string]interface{}{"identity_id": identityID}, "deleting user on WIT service")
+func (s *witServiceImpl) DeleteUser(ctx context.Context, username string) error {
+	log.Info(ctx, map[string]interface{}{"username": username}, "deleting user on WIT service")
 	// this endpoint is restricted to the `auth` Service Account
 	remoteWITService, err := s.createClientWithContextSigner(ctx)
 	if err != nil {
 		return err
 	}
-	deleteUserAPIPath := witservice.DeleteUsersPath(identityID)
+	deleteUserAPIPath := witservice.DeleteUsersPath(username)
 	res, err := remoteWITService.DeleteUsers(goasupport.ForwardContextRequestID(ctx), deleteUserAPIPath)
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func (s *witServiceImpl) DeleteUser(ctx context.Context, identityID string) erro
 	bodyString := rest.ReadBody(res.Body) // To prevent FDs leaks
 	if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{
-			"identity_id":     identityID,
+			"username":        username,
 			"response_status": res.Status,
 			"response_body":   bodyString,
 		}, "unable to delete user in WIT")

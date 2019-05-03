@@ -167,6 +167,7 @@ type UserService interface {
 	IdentityByUsernameAndEmail(ctx context.Context, username, email string) (*account.Identity, error)
 	ResetBan(ctx context.Context, user account.User) error
 	HardDeleteUser(ctx context.Context, identity account.Identity) error
+	RescheduleDeactivation(ctx context.Context, identityID uuid.UUID) error
 }
 
 // TenantService represents the Tenant service
