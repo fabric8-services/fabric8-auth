@@ -410,7 +410,7 @@ func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx conte
 	}
 	log.Info(ctx, map[string]interface{}{
 		"identities_to_notify_before_deactivation": len(identities),
-	}, "Listing identities to notify before deactivation completed")
+	}, "listing identities to notify before deactivation completed")
 
 	return identities, nil
 }
@@ -432,6 +432,8 @@ func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context,
 		return nil, errs.WithStack(err)
 	}
 	log.Info(ctx, map[string]interface{}{
+		"inactive_since":           lastActivity.Format("2006-01-02 15:04:05"),
+		"notified_before":          notification.Format("2006-01-02 15:04:05"),
 		"identities_to_deactivate": len(identities),
 	}, "Listing identities to deactivate completed")
 
@@ -900,6 +902,9 @@ func (m *GormIdentityRepository) TouchLastActive(ctx context.Context, identityID
 		}, "unable to update last active time")
 		return errs.WithStack(err)
 	}
+	log.Debug(ctx, map[string]interface{}{
+		"id": identityID,
+	}, "updated last active time")
 
 	return nil
 }

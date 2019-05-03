@@ -100,6 +100,7 @@ var _ = a.Resource("token", func() {
 	})
 
 	a.Action("Exchange", func() {
+		a.Security("jwt")
 		a.Routing(
 			a.POST(""),
 		)

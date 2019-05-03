@@ -544,13 +544,13 @@ func testMigration46(t *testing.T) {
 	// null 'last_active' value was set to default
 	err := sqlDB.QueryRow("SELECT last_active FROM identities WHERE id = '00000000-0000-0000-0000-000000000001'").Scan(&lastActive)
 	require.NoError(t, err)
-	defaultTime, err := time.Parse("2006-01-02:03:04:05", "2019-03-04:00:00:00")
+	defaultTime, err := time.Parse("2006-01-02:15:04:05", "2019-03-04:00:00:00")
 	require.NoError(t, err)
 	assert.Equal(t, defaultTime, lastActive)
 	// non-null 'last_active' value remains unchanged
 	err = sqlDB.QueryRow("SELECT last_active FROM identities WHERE id = '00000000-0000-0000-0000-000000000002'").Scan(&lastActive)
 	require.NoError(t, err)
-	defaultTime, err = time.Parse("2006-01-02:03:04:05", "2019-03-11:12:34:56")
+	defaultTime, err = time.Parse("2006-01-02:15:04:05", "2019-03-11:12:34:56")
 	require.NoError(t, err)
 	assert.Equal(t, defaultTime, lastActive)
 	// also, when a new record is inserted, its `last_active` should not be NULL

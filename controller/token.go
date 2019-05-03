@@ -231,6 +231,9 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
 	// retrieve the access token from the request header, but ignore if it was not found
 	accessToken := goajwt.ContextJWT(ctx)
+	if accessToken == nil {
+		return nil, errors.NewBadParameterError("access_token", nil).Expected("not nil")
+	}
 	payload := ctx.Payload
 	refreshToken := payload.RefreshToken
 	if refreshToken == nil {

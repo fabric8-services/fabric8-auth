@@ -226,7 +226,7 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *c
 	f.userServiceFunc = func() service.UserService {
 		return userservice.NewUserService(f.getContext(), f.config)
 	}
-	log.Info(nil, map[string]interface{}{}, "configuring a new service factory with %d option(s)", len(options))
+	log.Debug(nil, map[string]interface{}{}, "configuring a new service factory with %d option(s)", len(options))
 	// and options
 	for _, opt := range options {
 		opt(f)

@@ -262,6 +262,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 	if mainConfigFile != "" {
 		c.v.SetConfigType("yaml")
 		c.v.SetConfigFile(mainConfigFile)
+		log.Infof("loading config from '%s'", mainConfigFile)
 		err := c.v.ReadInConfig() // Find and read the config file
 		if err != nil {           // Handle errors reading the config file
 			return nil, errors.Errorf("Fatal error config file: %s \n", err)
@@ -627,7 +628,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varGitHubClientSecret, defaultGitHubClientSecret)
 	c.v.SetDefault(varGitHubClientDefaultScopes, "admin:repo_hook read:org public_repo read:user")
 	c.v.SetDefault(varOSOClientApiUrl, "https://api.starter-us-east-2.openshift.com")
-	c.v.SetDefault(varOSORegistrationAppURL, "http://oso.regapp.serviceurl")
+	c.v.SetDefault(varOSORegistrationAppURL, defaultOSORegistrationAppURL)
 	c.v.SetDefault(varNotificationServiceURL, "http://notification.serviceurl")
 	c.v.SetDefault(varOSORegistrationAppAdminUsername, "oso.regapp.admin.username")
 	c.v.SetDefault(varOSORegistrationAppAdminToken, "oso.regapp.admin.token")
@@ -675,6 +676,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varPostDeactivationNotificationDelayMillis, defaultPostDeactivationNotificationDelay)
 	c.v.SetDefault(varUserDeactivationWorkerIntervalSeconds, defaultUserDeactivationWorkerIntervalSeconds)
 	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalSeconds, defaultUserDeactivationNotificationWorkerIntervalSeconds)
+	c.v.SetDefault(varPodName, defaultPodName)
 
 	// Che
 	c.v.SetDefault(varCheServiceURL, defaultCheServiceURL)

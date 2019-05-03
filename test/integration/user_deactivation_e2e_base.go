@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -17,14 +18,14 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	"github.com/stretchr/testify/require"
 )
 
-var authBinary = "../../bin/auth"
-
-var saToken string
-
-var ago40days = time.Now().Add(-40 * 24 * time.Hour)
-var ago7days = time.Now().Add(-7 * 24 * time.Hour)
+var (
+	authBinary = "../../bin/auth"
+	ago7days   = time.Now().Add(-7 * 24 * time.Hour)
+	ago40days  = time.Now().Add(-40 * 24 * time.Hour)
+)
 
 type BaseSuite struct {
 	gormtestsupport.DBTestSuite
@@ -35,30 +36,40 @@ type BaseSuite struct {
 	clusterServer      *httptest.Server
 	cheServer          *httptest.Server
 	regAppServer       *httptest.Server
+
+	stopAuth      func()
+	displayErrors func(t *testing.T)
 }
 
-func (s *BaseSuite) SetupSuite() {
-	s.DBTestSuite.SetupSuite()
-
-	saToken, _ = testtoken.TokenManager.GenerateServiceAccountToken(testsupport.TestOnlineRegistrationAppIdentity.ID.String(),
-		testsupport.TestOnlineRegistrationAppIdentity.Username)
-}
-
-func (s *BaseSuite) SetupTest(NotificationDone, DeactivateDone chan string) {
+func (s *BaseSuite) SetupTest(notificationDone, deactivateDone chan string) {
 	s.DBTestSuite.SetupTest()
-
 	// start mock server
-	s.witServer = startServer(8080, ServeWITRequests)
-	s.notificationServer = startServer(8082, GetNotificationServer(NotificationDone))
-	s.tenantServer = startServer(8090, ServeTenantRequests)
-	s.clusterServer = startServer(8083, ServeClusterRequests)
-	s.cheServer = startServer(8091, ServeCheRequests)
-	s.regAppServer = startServer(8085, GetRegAppServer(DeactivateDone))
+	s.witServer = startServer(newWITServer(), 8080)
+	s.notificationServer = startServer(newNotificationServer(notificationDone), 8082)
+	s.tenantServer = startServer(newTenantServer(), 8090)
+	s.clusterServer = startServer(newClusterServer(), 8083)
+	s.cheServer = startServer(newCheServer(), 8091)
+	s.regAppServer = startServer(newRegAppServer(deactivateDone), 8085)
+
+	// start auth_service
+	configFile := os.Getenv("AUTH_CONFIG_FILE_PATH")
+	os.Setenv("AUTH_CONFIG_FILE_PATH", "e2e_test_config.yml")
+	var cmd *exec.Cmd
+	cmd, s.displayErrors = s.runAuthService()
+	err := cmd.Start()
+	require.NoError(s.T(), err)
+	s.stopAuth = func() {
+		_ = cmd.Process.Kill()
+		log.Println("[Test runner] Auth service stopped")
+		os.Setenv("AUTH_CONFIG_FILE_PATH", configFile)
+		log.Println("[Test runner] Restored default config file in env")
+	}
+	log.Println("[Test runner] Auth service started")
 }
 
 func (s *BaseSuite) TearDownTest() {
 	s.DBTestSuite.TearDownTest()
-
+	s.displayErrors(s.T())
 	// stop mock server
 	stopServer(s.witServer)
 	stopServer(s.notificationServer)
@@ -66,18 +77,14 @@ func (s *BaseSuite) TearDownTest() {
 	stopServer(s.clusterServer)
 	stopServer(s.cheServer)
 	stopServer(s.regAppServer)
+	s.stopAuth()
 }
 
-func (s *BaseSuite) cmdAuth(args ...string) (*exec.Cmd, *bytes.Buffer) {
+func (s *BaseSuite) runAuthService(args ...string) (*exec.Cmd, func(*testing.T)) {
 	cmd := exec.Command(authBinary, args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
-	return cmd, &out
-}
-
-func (s *BaseSuite) authCmd(args ...string) (*exec.Cmd, func(*testing.T)) {
-	cmd, out := s.cmdAuth(args...)
 	return cmd, func(t *testing.T) {
 		if t.Failed() {
 			displayAuthLogs(t, out)
@@ -85,10 +92,12 @@ func (s *BaseSuite) authCmd(args ...string) (*exec.Cmd, func(*testing.T)) {
 	}
 }
 
-func GetRegAppServer(DeactivateDone chan string) func(rw http.ResponseWriter, r *http.Request) {
-	return func(rw http.ResponseWriter, r *http.Request) {
-		log.Printf("RegApp service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
+func newRegAppServer(DeactivateDone chan string) func(rw http.ResponseWriter, r *http.Request) {
+	saToken, _ := testtoken.TokenManager.GenerateServiceAccountToken(testsupport.TestOnlineRegistrationAppIdentity.ID.String(),
+		testsupport.TestOnlineRegistrationAppIdentity.Username)
 
+	return func(rw http.ResponseWriter, r *http.Request) {
+		log.Printf("[RegApp service] incoming request: %s %s\n", r.Method, r.URL.Path)
 		username := extractUsername(r.URL.Path)
 		url := fmt.Sprintf("http://127.0.0.1:8089/api/namedusers/%s/deactivate", username)
 		req, _ := http.NewRequest(http.MethodPatch, url, nil)
@@ -98,34 +107,33 @@ func GetRegAppServer(DeactivateDone chan string) func(rw http.ResponseWriter, r 
 		httpClient := http.Client{}
 		res, err := httpClient.Do(req)
 		if err != nil {
-			log.Printf("RegApp service, failed, err:%v\n", err)
+			log.Printf("[RegApp service] error occurred: %v\n", err)
 			rw.WriteHeader(http.StatusInternalServerError)
-			log.Printf("RegApp service, Return Response, status:%d\n", http.StatusInternalServerError)
+			log.Printf("[RegApp service] returning response with status: %d\n", http.StatusInternalServerError)
 			return
 		}
 		userID := extractIDFromRegAppRequestPath(r.URL.Path)
 		DeactivateDone <- userID
-		log.Printf("RegApp service, Return Response, status:%d\n", res.StatusCode)
+		log.Printf("[RegApp service] returning response with status: %d\n", res.StatusCode)
 	}
 }
 
-func GetNotificationServer(NotificationDone chan string) func(rw http.ResponseWriter, r *http.Request) {
+func newNotificationServer(notificationDone chan string) func(rw http.ResponseWriter, r *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		log.Printf("Notification service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
-
+		log.Printf("[Notification service] incoming request: %s %s\n", r.Method, r.URL.Path)
 		defer r.Body.Close()
 		content, _ := ioutil.ReadAll(r.Body)
 		identityID := extractIDFromNotificationPayload(content)
-		NotificationDone <- identityID
-
+		notificationDone <- identityID
 		rw.WriteHeader(http.StatusAccepted)
-		log.Printf("Notification service, Return Response, status:%d\n", http.StatusAccepted)
+		log.Printf("[Notification service] returning response with status: %d\n", http.StatusAccepted)
 	}
 }
 
-func ServeClusterRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("Cluster service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
-	_, _ = rw.Write([]byte(`{
+func newClusterServer() func(rw http.ResponseWriter, r *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		log.Printf("[Cluster service] incoming request: %s %s\n", r.Method, r.URL.Path)
+		_, _ = rw.Write([]byte(`{
 		"data": [
 			{
 				"api-url": "starter-us-east-2",
@@ -141,34 +149,43 @@ func ServeClusterRequests(rw http.ResponseWriter, r *http.Request) {
 			}
 		]
 	}`))
-	log.Printf("Cluster service, Return Response, status:%d\n", http.StatusOK)
+		log.Printf("[Cluster service] returning response with status: %d\n", http.StatusOK)
+	}
 }
 
-func ServeWITRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("WIT service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
-	log.Printf("WIT service, Return Response, status:%d\n", http.StatusOK)
+func newWITServer() func(rw http.ResponseWriter, r *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		log.Printf("[WIT service] incoming request: %s %s\n", r.Method, r.URL.Path)
+		log.Printf("[WIT service] returning response with status: %d\n", http.StatusOK)
+		rw.WriteHeader(http.StatusOK)
+	}
 }
 
-func ServeTenantRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("Tenant service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
-	rw.WriteHeader(http.StatusNoContent)
-	log.Printf("Tenant service, Return Response, status:%d\n", http.StatusNoContent)
+func newTenantServer() func(rw http.ResponseWriter, r *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		log.Printf("[Tenant service] incoming request: %s %s\n", r.Method, r.URL.Path)
+		log.Printf("[Tenant service] returning response with status: %d\n", http.StatusNoContent)
+		rw.WriteHeader(http.StatusNoContent)
+	}
 }
 
-func ServeCheRequests(rw http.ResponseWriter, r *http.Request) {
-	log.Printf("Che service, Got Request, method:%s, path:%s\n", r.Method, r.URL.Path)
-	log.Printf("Che service, Return Response, status:%d\n", http.StatusOK)
+func newCheServer() func(rw http.ResponseWriter, r *http.Request) {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		log.Printf("[Che service] incoming request: %s %s\n", r.Method, r.URL.Path)
+		log.Printf("[Che service] returning response with status: %d\n", http.StatusNoContent)
+		rw.WriteHeader(http.StatusNoContent)
+	}
 }
 
-func displayAuthLogs(t *testing.T, output *bytes.Buffer) {
+func displayAuthLogs(t *testing.T, output bytes.Buffer) {
 	log.Println("***********************************************************")
-	log.Println("-------------------- Auth Servcie Logs --------------------")
+	log.Println("-------------------- Auth Service Logs --------------------")
 	log.Println("***********************************************************")
-	fmt.Print(output.String())
+	log.Println(output.String())
 	log.Println("***********************************************************")
 }
 
-func startServer(port int, handler func(w http.ResponseWriter, r *http.Request)) (ts *httptest.Server) {
+func startServer(handler func(w http.ResponseWriter, r *http.Request), port int) (ts *httptest.Server) {
 	if handler == nil {
 		handler = func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "port=%d", port)
