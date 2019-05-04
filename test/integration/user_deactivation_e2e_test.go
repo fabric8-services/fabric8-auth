@@ -167,16 +167,6 @@ func (s *UserDeactivationSuite) updateLastActive(identity *account.Identity, whe
 	require.NoError(s.T(), err)
 }
 
-type forwardSigner struct {
-	token string
-}
-
-// Sign set the Auth header
-func (f forwardSigner) Sign(request *http.Request) error {
-	request.Header.Set("Authorization", "Bearer "+f.token)
-	return nil
-}
-
 func (s *UserDeactivationSuite) updateNotificationTime(identityID string, updatedTime time.Time) {
 	log.Printf("[Test runner] updating notification timestamp for user '%s'\n", identityID)
 	if identityID == "" {
