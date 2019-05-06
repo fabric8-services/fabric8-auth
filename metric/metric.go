@@ -1,7 +1,7 @@
 package metric
 
 import (
-	"github.com/fabric8-services/fabric8-common/log"
+	"github.com/fabric8-services/fabric8-auth/log"
 	metricsupport "github.com/fabric8-services/fabric8-common/metric"
 
 	"strconv"
