@@ -47,11 +47,11 @@ type userServiceBlackboxTestSuite struct {
 }
 
 func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() {
+	ctx := context.Background()
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
 	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
-		return 97 * 24 * time.Hour
+		return 31 * 24 * time.Hour // 31 days
 	}
-	ctx := context.Background()
 	config.GetPostDeactivationNotificationDelayFunc = func() time.Duration {
 		return 5 * time.Millisecond
 	}

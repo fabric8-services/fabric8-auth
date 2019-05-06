@@ -25,6 +25,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/metric"
 	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/fabric8-services/fabric8-auth/worker"
@@ -291,6 +292,9 @@ func main() {
 			}
 		}(config.GetMetricsHTTPAddress())
 	}
+
+	// register user deactivation prometheus metric
+	metric.RegisterMetrics()
 
 	// Start background workers
 	// token cleanup, running once every hour
