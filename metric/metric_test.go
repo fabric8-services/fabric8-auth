@@ -92,8 +92,8 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 			return 60 * 24 * time.Hour // 60 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
-			return nil, nil
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+			return nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
@@ -118,9 +118,9 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 		}
 		var msgToSend []notification.Message
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 			msgToSend = append(msgToSend, msg)
-			return nil, nil
+			return nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
