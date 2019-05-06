@@ -75,7 +75,7 @@
     "resource",
     "test/suite"
   ]
-  revision = "083c9c890cdf825027a0f009135af153d07d2926"
+  revision = "41fa54b85d3328d6f145ef98c0cb2181975df64d"
 
 [[projects]]
   name = "github.com/fabric8-services/fabric8-notification"
@@ -528,6 +528,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "efa6016961794d17a4894c2b1aa174616dbdbddd2cbb32ed2f9de4e2503a162a"
+  inputs-digest = "1304d710a431b0f0e4bd3407a9f1ac1ba34946a45dda2eb8399af821f9f8fd8e"
   solver-name = "gps-cdcl"
   solver-version = 1

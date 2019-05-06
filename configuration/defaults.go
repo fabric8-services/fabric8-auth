@@ -94,11 +94,12 @@ vwIDAQAB
 	defaultOAuthProviderEndpointUserInfo = "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/userinfo"
 	defaultOAuthProviderEndpointLogout   = "https://sso.prod-preview.openshift.io/auth/realms/fabric8-test/protocol/openid-connect/logout"
 
-	defaultPublicOAuthClientID = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
-	defaultWITDomainPrefix     = "api"
-	devModeWITURL              = "http://localhost:8080"
-	devModeTenantServiceURL    = "http://localhost:8090"
-	devModeCheServiceURL       = "http://localhost:8091"
+	defaultPublicOAuthClientID   = "740650a2-9c44-4db5-b067-a3d1b2cd2d01"
+	defaultWITDomainPrefix       = "api"
+	devModeWITURL                = "http://localhost:8080"
+	devModeTenantServiceURL      = "http://localhost:8090"
+	devModeCheServiceURL         = "http://localhost:8091"
+	defaultOSORegistrationAppURL = "http://localhost:8085"
 
 	// DefaultValidRedirectURLs is a regex to be used to whitelist redirect URL for auth
 	// If the AUTH_REDIRECT_VALID env var is not set then in Dev Mode all redirects allowed - *
@@ -129,6 +130,9 @@ vwIDAQAB
 	defaultUserDeactivationWorkerIntervalSeconds = 60 * 60 // 1 hour
 	// defaultUserDeactivationNotificationWorkerIntervalSeconds the default interval between 2 cycles of the user deactivation notification worker
 	defaultUserDeactivationNotificationWorkerIntervalSeconds = 60 * 60 // 1 hour
+
+	// defaultPodName the default name of the pod (in order to avoid empty value in the logs)
+	defaultPodName = "unknown"
 	// defaultUserDeactivationRescheduleDelayDays default of 1 day to re-attempt a failed deactivation attempt
 	defaultUserDeactivationRescheduleDelayHours = 24 // 24 hours
 

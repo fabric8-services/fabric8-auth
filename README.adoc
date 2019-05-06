@@ -170,6 +170,15 @@ $ cd $GOPATH/src/github.com/fabric8-services/fabric8-auth
 $ make test-integration
 ----
 
+e2e-tests::
+End-to-End tests uses DB (i.e. the PostgreSQL DB must be already
+running). We recommend that you use `docker-compose up -d db`.
++
+----
+$ cd $GOPATH/src/github.com/fabric8-services/fabric8-auth
+$ make test-e2e
+----
+
 all::
 To run both, the unit and the integration tests you can run
 +
