@@ -52,6 +52,7 @@ func (c *UserController) Show(ctx *app.ShowUserContext) error {
 		}, "Bad Token")
 		return jsonapi.JSONErrorResponse(ctx, errors.NewUnauthorizedError("bad or missing token"))
 	}
+	log.Debug(ctx, map[string]interface{}{"identity_id": identityID.String()}, "showing user")
 	user, identity, err := c.app.UserService().UserInfo(ctx, identityID)
 	if err != nil {
 		return jsonapi.JSONErrorResponse(ctx, err)

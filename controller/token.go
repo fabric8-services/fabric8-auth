@@ -229,8 +229,12 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 }
 
 func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTokenContext) (*app.OauthToken, error) {
-	// retrieve the access token from the request header, but ignore if it was not found
+	// retrieve the RPT (passed as access token) from the request header, but ignore if it was not found
 	accessToken := goajwt.ContextJWT(ctx)
+	var rptToken string
+	if accessToken != nil {
+		rptToken = accessToken.Raw
+	}
 	payload := ctx.Payload
 	refreshToken := payload.RefreshToken
 	if refreshToken == nil {
@@ -245,7 +249,7 @@ func (c *TokenController) exchangeWithGrantTypeRefreshToken(ctx *app.ExchangeTok
 		return nil, errors.NewUnauthorizedError("invalid oauth client id")
 	}
 
-	t, err := c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, accessToken.Raw)
+	t, err := c.app.TokenService().ExchangeRefreshToken(ctx, *refreshToken, rptToken)
 	if err != nil {
 		c.TokenManager.AddLoginRequiredHeaderToUnauthorizedError(err, ctx.ResponseData)
 		return nil, err

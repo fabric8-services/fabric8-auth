@@ -40,10 +40,10 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 
 	ctx := context.Background()
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
-	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 97 * 24 * time.Hour
 	}
-	config.GetPostDeactivationNotificationDelayMillisFunc = func() time.Duration {
+	config.GetPostDeactivationNotificationDelayFunc = func() time.Duration {
 		return 5 * time.Millisecond
 	}
 	now := time.Now() // make sure we use the same 'now' everywhere in the test
@@ -85,7 +85,7 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -110,7 +110,7 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
-		config.GetUserDeactivationInactivityNotificationPeriodDaysFunc = func() time.Duration {
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
 		}
 		var msgToSend []notification.Message
