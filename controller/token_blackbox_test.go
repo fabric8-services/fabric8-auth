@@ -131,6 +131,7 @@ func (s *TokenControllerTestSuite) TestRefreshToken() {
 
 		t.Run("without authorization token", func(t *testing.T) {
 			// when
+			svc, ctrl := s.UnsecuredController()
 			_, authToken := test.RefreshTokenOK(t, svc.Context, svc, ctrl, payload)
 			// then
 			token := authToken.Token

@@ -2,13 +2,14 @@ package graph
 
 import (
 	"context"
+	"time"
+
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	tokenRepo "github.com/fabric8-services/fabric8-auth/authorization/token/repository"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 // tokenWrapper represents a Token domain object
@@ -61,6 +62,8 @@ func newTokenWrapper(g *TestGraph, params []interface{}) interface{} {
 			identity = t.Identity()
 		case identityWrapper:
 			identity = t.Identity()
+		case *repository.Identity:
+			identity = t
 		}
 	}
 

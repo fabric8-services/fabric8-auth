@@ -38,10 +38,10 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 	config.GetUserDeactivationFetchLimitFunc = func() int {
 		return 100
 	}
-	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 30 * 24 * time.Hour // 31 days, ie, 7 days after notification
 	}
-	config.GetUserDeactivationInactivityPeriodDaysFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 20 * 24 * time.Hour // 24 days
 	}
 	// yesterday := time.Now().Add(-1 * 24 * time.Hour)

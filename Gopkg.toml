@@ -99,7 +99,7 @@ required = [
 
 [[constraint]]
   name = "github.com/fabric8-services/fabric8-common"
-  revision = "083c9c890cdf825027a0f009135af153d07d2926"
+  revision = "41fa54b85d3328d6f145ef98c0cb2181975df64d"
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"
@@ -123,8 +123,8 @@ required = [
 
 [[constraint]]
   name = "cirello.io/pglock"
-  source = "github.com/alexeykazakov/pglock"
-  revision = "0759a5f88d75b7629df0a9714e7fa34f6efb4d07"
+  source = "github.com/cirello-io/pglock"
+  version = "v1.2.1"
 
 [prune]
   go-tests = true

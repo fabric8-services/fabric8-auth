@@ -139,7 +139,7 @@ GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS
 
 .PHONY: test-all
 ## Runs test-unit, test-integration, and test-remote targets.
-test-all: prebuild-check test-unit test-integration test-remote
+test-all: prebuild-check test-unit test-integration test-remote test-e2e
 
 .PHONY: test-unit-with-coverage
 ## Runs the unit tests and produces coverage files for each package.
@@ -190,6 +190,14 @@ test-remote: prebuild-check $(SOURCES)
 ## in order to have a clean database
 test-migration: prebuild-check
 	AUTH_RESOURCE_DATABASE=1 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -vet off $(GO_TEST_VERBOSITY_FLAG) github.com/fabric8-services/fabric8-auth/migration
+
+.PHONY: test-e2e
+## Runs the e2e tests
+## Make sure you ran "make integration-test-env-prepare" before you run this target.
+test-e2e: prebuild-check migrate-database $(SOURCES)
+	$(call log-info,"Running test: $@")
+	$(eval TEST_PACKAGES:=$(shell go list ./... | grep /test/integration))
+	AUTH_DEVELOPER_MODE_ENABLED=1 AUTH_RESOURCE_DATABASE=1 AUTH_RESOURCE_UNIT_TEST=0 F8_LOG_LEVEL=$(F8_LOG_LEVEL) go test -vet off -v $(TEST_PACKAGES)
 
 # Downloads docker-compose to tmp/docker-compose if it does not already exist.
 define download-docker-compose

@@ -32,8 +32,9 @@ func (w *Worker) Start(freq time.Duration) {
 	}()
 	w.stopCh = make(chan bool, 1)
 	log.Info(w.Ctx, map[string]interface{}{
-		"owner": w.Owner,
-		"name":  w.Name,
+		"owner":     w.Owner,
+		"name":      w.Name,
+		"frequency": freq,
 	}, "starting worker")
 	w.ticker = time.NewTicker(freq)
 	go func() {
