@@ -2,6 +2,8 @@ package metric_test
 
 import (
 	"context"
+	"io/ioutil"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	testsuite "github.com/fabric8-services/fabric8-common/test/suite"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -140,4 +143,22 @@ func (s *MetricTestSuite) verifyCount(counterVec *prometheus.CounterVec, expecte
 	err = counter.Write(metric)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), expected, int(metric.Counter.GetValue()))
+}
+
+func (s *MetricTestSuite) TestMetricsEndpointExposesSpecificMetrics() {
+	// given
+	metric.RegisterMetrics()
+	defer metric.UnregisterMetrics()
+	metric.RecordUserDeactivationNotification(true)
+	metric.RecordUserDeactivation(true)
+	// when
+	handler := promhttp.Handler()
+	request := httptest.NewRequest("GET", "/metrics", nil)
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	// then
+	body, err := ioutil.ReadAll(response.Body)
+	require.NoError(s.T(), err)
+	assert.Contains(s.T(), string(body), metric.UserDeactivationNotificationCounterName)
+	assert.Contains(s.T(), string(body), metric.UserDeactivationCounterName)
 }

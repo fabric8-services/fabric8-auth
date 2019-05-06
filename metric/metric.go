@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	userDeactivationNotificationCounterName string = "user_deactivation_notification_total"
-	userDeactivationCounterName             string = "user_deactivation_total"
+	UserDeactivationNotificationCounterName string = "user_deactivation_notification_total"
+	UserDeactivationCounterName             string = "user_deactivation_total"
 )
 
 var (
@@ -24,13 +24,13 @@ var (
 // RegisterMetrics registers the service-specific metrics
 func RegisterMetrics() {
 	UserDeactivationNotificationCounter = metricsupport.Register(prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: userDeactivationNotificationCounterName,
+		Name: UserDeactivationNotificationCounterName,
 		Help: "Total number of users notified for deactivation",
-	}, []string{"successful"}), userDeactivationNotificationCounterName).(*prometheus.CounterVec)
+	}, []string{"successful"}), UserDeactivationNotificationCounterName).(*prometheus.CounterVec)
 	UserDeactivationCounter = metricsupport.Register(prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: userDeactivationCounterName,
+		Name: UserDeactivationCounterName,
 		Help: "Total number of deactivated users",
-	}, []string{"successful"}), userDeactivationCounterName).(*prometheus.CounterVec)
+	}, []string{"successful"}), UserDeactivationCounterName).(*prometheus.CounterVec)
 	log.Info(nil, nil, "user deactivation/notification metrics registered successfully")
 }
 
@@ -45,19 +45,19 @@ func UnregisterMetrics() {
 func RecordUserDeactivationNotification(successful bool) {
 	if UserDeactivationNotificationCounter == nil {
 		log.Warn(nil, map[string]interface{}{
-			"metric_name": userDeactivationNotificationCounterName,
+			"metric_name": UserDeactivationNotificationCounterName,
 		}, "metric not initialized")
 		return
 	}
 	if counter, err := UserDeactivationNotificationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
 		log.Error(nil, map[string]interface{}{
-			"metric_name": userDeactivationNotificationCounterName,
+			"metric_name": UserDeactivationNotificationCounterName,
 			"successful":  successful,
 			"err":         err,
 		}, "Failed to increment metric")
 	} else {
 		log.Info(nil, map[string]interface{}{
-			"metric_name": userDeactivationNotificationCounterName,
+			"metric_name": UserDeactivationNotificationCounterName,
 			"successful":  successful,
 		}, "incremented metric")
 		counter.Inc()
@@ -68,13 +68,13 @@ func RecordUserDeactivationNotification(successful bool) {
 func RecordUserDeactivation(successful bool) {
 	if UserDeactivationCounter == nil {
 		log.Warn(nil, map[string]interface{}{
-			"metric_name": userDeactivationCounterName,
+			"metric_name": UserDeactivationCounterName,
 		}, "metric not initialized")
 		return
 	}
 	if counter, err := UserDeactivationCounter.GetMetricWithLabelValues(strconv.FormatBool(successful)); err != nil {
 		log.Error(nil, map[string]interface{}{
-			"metric_name": userDeactivationCounterName,
+			"metric_name": UserDeactivationCounterName,
 			"successful":  successful,
 			"err":         err,
 		}, "Failed to get metric")
