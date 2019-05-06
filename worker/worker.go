@@ -10,8 +10,15 @@ import (
 	"cirello.io/pglock"
 )
 
-// Worker the base worker
-type Worker struct {
+// Worker the interface for the workers
+type Worker interface {
+	Start(freq time.Duration)
+	Stop()
+	IsStopped() bool
+}
+
+// BaseWorker the base worker
+type BaseWorker struct {
 	Ctx   context.Context
 	App   application.Application
 	Name  string // name of the lock (eg: "user_deactivation_notification"), to use when claiming a lock
@@ -26,7 +33,7 @@ type Worker struct {
 }
 
 // Start starts the worker with the given timer
-func (w *Worker) Start(freq time.Duration) {
+func (w *BaseWorker) Start(freq time.Duration) {
 	defer func() {
 		w.running = true
 	}()
@@ -51,7 +58,7 @@ func (w *Worker) Start(freq time.Duration) {
 	}()
 }
 
-func (w *Worker) acquireLock() {
+func (w *BaseWorker) acquireLock() {
 	l, err := w.App.WorkerLockRepository().AcquireLock(w.Ctx, w.Owner, w.Name, w.Opts...)
 	if err != nil {
 		log.Warn(w.Ctx, map[string]interface{}{
@@ -70,7 +77,7 @@ func (w *Worker) acquireLock() {
 	w.lock = l
 }
 
-func (w *Worker) execute() {
+func (w *BaseWorker) execute() {
 	// Check if the lock is still hold by the current owner
 	l, err := w.App.WorkerLockRepository().GetLock(w.Ctx, w.Name)
 	if err != nil {
@@ -99,7 +106,7 @@ func (w *Worker) execute() {
 }
 
 // Stop stops the worker
-func (w *Worker) Stop() {
+func (w *BaseWorker) Stop() {
 	if w.stopCh != nil {
 		log.Debug(w.Ctx, map[string]interface{}{
 			"name":  w.Name,
@@ -110,11 +117,11 @@ func (w *Worker) Stop() {
 }
 
 // IsStopped return true if the worker is not in a `running` state, false otherwise.
-func (w *Worker) IsStopped() bool {
+func (w *BaseWorker) IsStopped() bool {
 	return !w.running
 }
 
-func (w *Worker) cleanup() {
+func (w *BaseWorker) cleanup() {
 	defer func() {
 		w.running = false
 	}()
