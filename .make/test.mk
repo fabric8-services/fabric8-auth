@@ -139,7 +139,7 @@ GOANALYSIS_DIRS=$(shell go list -f {{.Dir}} ./... | grep -v -E $(GOANALYSIS_PKGS
 
 .PHONY: test-all
 ## Runs test-unit, test-integration, and test-remote targets.
-test-all: prebuild-check test-unit test-integration test-integration-benchmark test-remote test-e2e
+test-all: prebuild-check test-unit test-integration test-remote test-e2e
 
 .PHONY: test-unit-with-coverage
 ## Runs the unit tests and produces coverage files for each package.

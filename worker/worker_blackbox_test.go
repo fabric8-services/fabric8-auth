@@ -9,37 +9,44 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/gormapplication"
-	gormtestsupport "github.com/fabric8-services/fabric8-auth/gormtestsupport/benchmark"
+	gormtestsupport "github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	"github.com/fabric8-services/fabric8-auth/worker"
 
 	"cirello.io/pglock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-type WorkerBenchSuite struct {
-	gormtestsupport.DBBenchSuite
+type WorkerTestSuite struct {
+	gormtestsupport.DBTestSuite
 	application application.Application
 	ctx         context.Context
 }
 
-func BenchmarkWorker(b *testing.B) {
-	testsupport.Run(b, &WorkerBenchSuite{DBBenchSuite: gormtestsupport.NewDBBenchSuite("../config.yaml")})
+func TestWorker(t *testing.T) {
+	suite.Run(t, &WorkerTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
 // SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
 // The SetupSuite method will run before the tests in the suite are run.
 // It sets up a database connection for all the tests in this suite without polluting global space.
-func (s *WorkerBenchSuite) SetupSuite() {
-	s.DBBenchSuite.SetupSuite()
+func (s *WorkerTestSuite) SetupSuite() {
+	s.DBTestSuite.SetupSuite()
 	s.ctx = migration.NewMigrationContext(context.Background())
 	s.application = gormapplication.NewGormDB(s.DB, s.Configuration, nil)
 }
 
-func (s *WorkerBenchSuite) BenchmarkMultipleWorkers() {
+func (s *WorkerTestSuite) TestMultipleWorkers() {
+	// run this test multiple times
+	for i := 0; i < 5; i++ {
+		s.testMultipleWorkers()
+	}
+}
+
+func (s *WorkerTestSuite) testMultipleWorkers() {
 	// start the workers with a 50ms ticker
 	freq := time.Millisecond * 50
 	latch := sync.WaitGroup{}
@@ -76,7 +83,7 @@ func (s *WorkerBenchSuite) BenchmarkMultipleWorkers() {
 	time.Sleep(freq * 10)
 	// check that the lock has been acquired
 	_, err := s.application.WorkerLockRepository().GetLock(s.ctx, "test-worker")
-	require.NoError(s.B(), err)
+	require.NoError(s.T(), err)
 	// check that the only one doer did all the work
 	var doersCount int
 	for _, doer := range doers {
@@ -84,13 +91,13 @@ func (s *WorkerBenchSuite) BenchmarkMultipleWorkers() {
 			doersCount++
 		}
 	}
-	assert.Equal(s.B(), 1, doersCount, "only one doer was expected to be called")
+	assert.Equal(s.T(), 1, doersCount, "only one doer was expected to be called")
 	// stop all workers
 	stop(workers...)
 	// verify that the lock has been released
 	_, err = s.application.WorkerLockRepository().GetLock(s.ctx, "test-worker")
-	require.Error(s.B(), err)
-	require.Equal(s.B(), "cannot obtain the lock 'test-worker': not exists: lock not found", err.Error())
+	require.Error(s.T(), err)
+	require.Equal(s.T(), "cannot obtain the lock 'test-worker': not exists: lock not found", err.Error())
 }
 
 func stop(workers ...worker.Worker) {
