@@ -364,14 +364,6 @@
   revision = "5a0325d7fafaac12dda6e7fb8bd222ec1b69875e"
 
 [[projects]]
-  digest = "1:ce33c87d3c813074190a3551912c446a05048dafa436429ba9e467532bc9cdd1"
-  name = "github.com/panjf2000/ants"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "8bb0cde224fdf3a1c6915b4dbd943bc506b42257"
-  version = "v4.1"
-
-[[projects]]
   digest = "1:b2ee62e09bec113cf086d2ce0769efcc7bf79481aba8373fd8f7884e94df3462"
   name = "github.com/pelletier/go-buffruneio"
   packages = ["."]
@@ -722,7 +714,6 @@
     "github.com/jstemmer/go-junit-report",
     "github.com/jteeuwen/go-bindata/go-bindata",
     "github.com/lib/pq",
-    "github.com/panjf2000/ants",
     "github.com/pilu/fresh",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
