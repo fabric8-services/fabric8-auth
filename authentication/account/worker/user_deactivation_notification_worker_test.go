@@ -45,9 +45,6 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 	config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 		return 20 * 24 * time.Hour // 24 days
 	}
-	config.GetPostDeactivationNotificationDelayFunc = func() time.Duration {
-		return 5 * time.Millisecond
-	}
 	ctx := context.Background()
 	// yesterday := time.Now().Add(-1 * 24 * time.Hour)
 	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...

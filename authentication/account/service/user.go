@@ -37,7 +37,6 @@ type UserServiceConfiguration interface {
 	GetUserDeactivationFetchLimit() int
 	GetUserDeactivationInactivityNotificationPeriod() time.Duration
 	GetUserDeactivationInactivityPeriod() time.Duration
-	GetPostDeactivationNotificationDelay() time.Duration
 	GetUserDeactivationRescheduleDelay() time.Duration
 }
 
@@ -146,8 +145,6 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 			}, "notified user before account deactivation")
 		}
 		metric.RecordUserDeactivationNotification(err == nil) // record the notification
-		// include a small delay to give time to notification service and database to handle the requests
-		time.Sleep(s.config.GetPostDeactivationNotificationDelay())
 	}
 
 	return identities, nil
