@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/metric"
@@ -21,7 +20,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/notification"
 
 	"github.com/jinzhu/gorm"
-	"github.com/panjf2000/ants"
 	errs "github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
@@ -129,22 +127,13 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 	if err != nil {
 		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
+
+	expirationDate := GetExpiryDate(s.config, now)
+
 	// for each identity, send a notification and record the timestamp in a separate transaction.
 	// perform the task for each identity in a separate Tx, and just log the error if something wrong happened,
 	// but don't stop processing on the rest of the accounts.
-	expirationDate := GetExpiryDate(s.config, now)
-	// run the notification/record update in a separate routine, with pooling of child routines to avoid
-	// sending too many requests at once to the notification service and to the database
-	defer ants.Release()
-	var wg sync.WaitGroup
-	p, err := ants.NewPoolWithFunc(10, func(id interface{}) {
-		defer wg.Done()
-		identity, ok := id.(repository.Identity)
-		// just to make sure that the arg type is valid.
-		if !ok {
-			log.Error(ctx, map[string]interface{}{}, "argument is not an identity")
-			return
-		}
+	for _, identity := range identities {
 		err := s.notifyIdentityBeforeDeactivation(ctx, identity, expirationDate, now)
 		if err != nil {
 			log.Error(ctx, map[string]interface{}{
@@ -159,29 +148,8 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 		metric.RecordUserDeactivationNotification(err == nil) // record the notification
 		// include a small delay to give time to notification service and database to handle the requests
 		time.Sleep(s.config.GetPostDeactivationNotificationDelay())
-	})
-	if err != nil {
-		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
 
-	defer func() {
-		err := p.Release()
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"error": err,
-			}, "error while releasing the go routine pool")
-		}
-	}()
-	for _, identity := range identities {
-		wg.Add(1)
-		err := p.Invoke(identity)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"error": err,
-			}, "error while notifying about account deactivation")
-		}
-	}
-	wg.Wait()
 	return identities, nil
 }
 
