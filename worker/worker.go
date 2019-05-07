@@ -32,6 +32,9 @@ type BaseWorker struct {
 	stopCh  chan bool
 }
 
+// verify that `BaseWorker` is an implementation of `Worker`
+var _ Worker = &BaseWorker{}
+
 // Start starts the worker with the given timer
 func (w *BaseWorker) Start(freq time.Duration) {
 	defer func() {
