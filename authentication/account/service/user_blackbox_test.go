@@ -47,11 +47,11 @@ type userServiceBlackboxTestSuite struct {
 }
 
 func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() {
+	ctx := context.Background()
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
 	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
-		return 97 * 24 * time.Hour
+		return 31 * 24 * time.Hour // 31 days
 	}
-	ctx := context.Background()
 	config.GetPostDeactivationNotificationDelayFunc = func() time.Duration {
 		return 5 * time.Millisecond
 	}
@@ -111,8 +111,8 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 			return 90 * 24 * time.Hour // 90 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
-			return nil, nil
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+			return nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
@@ -120,7 +120,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		// then
 		require.NoError(s.T(), err)
 		assert.Empty(s.T(), result)
-		assert.Equal(s.T(), uint64(0), notificationServiceMock.SendMessageAsyncCounter)
+		assert.Equal(s.T(), uint64(0), notificationServiceMock.SendMessageCounter)
 	})
 
 	s.Run("one user to deactivate without limit", func() {
@@ -133,9 +133,9 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		}
 		var msgToSend notification.Message
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 			msgToSend = msg
-			return nil, nil
+			return nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
@@ -144,7 +144,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
-		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
+		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageCounter)
 		// also check that the `DeactivationNotification` field was set in the DB
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
@@ -166,8 +166,8 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 			return 30 * 24 * time.Hour // 30 days
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
-			return nil, nil
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+			return nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
@@ -176,7 +176,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		require.NoError(s.T(), err)
 		require.Len(s.T(), result, 1)
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
-		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
+		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageCounter)
 		// also check that the `DeactivationNotification` field was set in the DB
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
@@ -194,9 +194,9 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		}
 		var msgToSend []notification.Message
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 			msgToSend = append(msgToSend, msg)
-			return nil, nil
+			return nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
@@ -206,7 +206,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		require.Len(s.T(), result, 2)
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
 		assert.Equal(s.T(), identity1.ID, result[1].ID)
-		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageAsyncCounter)
+		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageCounter)
 		// also check that the `DeactivationNotification` fields were set for both identities in the DB
 		expiryDate := userservice.GetExpiryDate(config, nowf)
 		customs := []map[string]interface{}{}
@@ -246,11 +246,11 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 			return 30 * 24 * time.Hour
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 			if msg.UserID != nil && *msg.UserID == identity2.ID.String() {
-				return nil, fmt.Errorf("mock error!")
+				return fmt.Errorf("mock error!")
 			}
-			return nil, nil
+			return nil
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
 		// when
@@ -260,7 +260,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		require.Len(s.T(), result, 2)
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
 		assert.Equal(s.T(), identity1.ID, result[1].ID)
-		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageAsyncCounter)
+		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageCounter)
 		// also check that the `DeactivationNotification` fields were NOT set for identity #2 in the DB
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
@@ -422,8 +422,8 @@ func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
 
 	notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
-	notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
-		return nil, nil
+	notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+		return nil
 	}
 
 	userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)

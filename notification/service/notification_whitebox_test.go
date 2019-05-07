@@ -145,6 +145,83 @@ func (s *TestNotificationSuite) TestSend() {
 	})
 }
 
+func (s *TestNotificationSuite) TestSendMessage() {
+	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
+
+	tokenManager, err := manager.ReadTokenManagerFromContext(ctx)
+	require.Nil(s.T(), err)
+
+	// extract the token
+	saToken := tokenManager.AuthServiceAccountToken()
+
+	s.T().Run("should send message", func(t *testing.T) {
+		//given
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
+
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			BodyString(WithPayload(msgID)).
+			Reply(202)
+
+		//when
+		err := s.ns.SendMessage(ctx, msg)
+
+		//then
+		require.NoError(t, err)
+	})
+
+	s.T().Run("should fail to send message if client returned an error", func(t *testing.T) {
+		//given
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
+
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			BodyString(WithPayload(msgID)).
+			Reply(400).
+			BodyString("something bad happened")
+
+		//when
+		err = s.ns.SendMessage(ctx, msg)
+
+		//then
+		require.Error(t, err)
+		assert.Equal(t, "unexpected response code: 400 Bad Request; response body: something bad happened", err.Error())
+	})
+
+	s.T().Run("should fail to send message if client returned an unexpected status", func(t *testing.T) {
+		//given
+		msgID := uuid.NewV4()
+		msg := createMessage(msgID)
+
+		defer gock.OffAll()
+		gock.New("https://notification").
+			Post("api/notify").
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("Content-Type", "application/json").
+			MatchHeader("X-Request-Id", reqID).
+			BodyString(WithPayload(msgID)).
+			Reply(500).
+			BodyString("something went wrong")
+
+		//when
+		err = s.ns.SendMessage(ctx, msg)
+
+		//then
+		require.Error(t, err)
+		testsupport.AssertError(t, err, autherrors.InternalError{}, "unexpected response code: 500 Internal Server Error; response body: something went wrong")
+	})
+}
+
 func (s *TestNotificationSuite) TestSendAsync() {
 	// given
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())

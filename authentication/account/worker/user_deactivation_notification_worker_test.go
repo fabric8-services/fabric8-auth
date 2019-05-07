@@ -56,8 +56,8 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 	var app application.Application
 	s.SetupSubtest = func() {
 		notificationServiceMock = appservicemock.NewNotificationServiceMock(s.T())
-		notificationServiceMock.SendMessageAsyncFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (r chan error, r1 error) {
-			return nil, nil
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+			return nil
 		}
 		app = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithNotificationService(notificationServiceMock))
 	}
@@ -82,7 +82,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		require.NoError(s.T(), err)
 		assert.NotNil(s.T(), result.DeactivationNotification)
 		// notification only sent once to the user
-		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
+		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageCounter)
 	})
 
 	s.Run("multiple workers but only one working", func() {
@@ -118,7 +118,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		require.NoError(s.T(), err)
 		assert.NotNil(s.T(), result.DeactivationNotification)
 		// notification only sent once to the user
-		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageAsyncCounter)
+		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageCounter)
 		// verify that the lock was released
 		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivationNotification)
 		require.NoError(s.T(), err)

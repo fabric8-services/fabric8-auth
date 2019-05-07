@@ -91,6 +91,7 @@ type LogoutService interface {
 type NotificationService interface {
 	SendMessageAsync(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) (chan error, error)
 	SendMessagesAsync(ctx context.Context, messages []notification.Message, options ...rest.HTTPClientOption) (chan error, error)
+	SendMessage(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error
 }
 
 type OrganizationService interface {

@@ -55,6 +55,19 @@ func (s *notificationServiceImpl) SendMessageAsync(ctx context.Context, msg noti
 	return errs, nil
 }
 
+// SendMessage sends a message to fabric8-notification service
+func (s *notificationServiceImpl) SendMessage(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+	c, err := s.createClientWithContextSigner(ctx, options...)
+	if err != nil {
+		return err
+	}
+
+	if err = s.send(ctx, c, msg); err != nil {
+		return err
+	}
+	return nil
+}
+
 // SendMessagesAsync creates a new goroutine and sends multiple messages to fabric8-notification service
 // chan error is used to send any errors received from remote notification service.
 // we might get an error while creating client which is before actual remote call to notification service, so using return type (chan error, error)
