@@ -1,4 +1,4 @@
-FROM quay.io/openshiftio/rhel-base-golang:latest
+FROM quay.io/openshiftio/rhel-base-pcp:latest
 
 LABEL maintainer "Devtools <devtools@redhat.com>"
 LABEL author "Devtools <devtools@redhat.com>"
