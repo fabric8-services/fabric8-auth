@@ -8,7 +8,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/test"
 
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -52,6 +52,10 @@ func (s *spaceServiceBlackBoxTest) TestCreateOK() {
 	// If we try to create another space with the same ID it should fail
 	err = s.Application.SpaceService().CreateSpace(s.Ctx, creator.Identity().ID, spaceID)
 	test.AssertError(s.T(), err, errors.DataConflictError{}, "resource with ID %s already exists", spaceID)
+
+	// delete space as tear down step
+	err = s.Application.SpaceService().DeleteSpace(s.Ctx, creator.Identity().ID, spaceID)
+	require.NoError(s.T(), err)
 }
 
 func (s *spaceServiceBlackBoxTest) TestDeleteUnknownSpaceFails() {
