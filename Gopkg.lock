@@ -730,7 +730,6 @@
     "github.com/wadey/gocovmerge",
     "golang.org/x/crypto/bcrypt",
     "golang.org/x/net/context",
-    "golang.org/x/net/websocket",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/github",
     "gopkg.in/h2non/gock.v1",
