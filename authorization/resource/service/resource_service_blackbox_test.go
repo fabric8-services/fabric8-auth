@@ -12,7 +12,7 @@ import (
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 
 	errs "github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -249,11 +249,6 @@ func (s *resourceServiceBlackBoxTest) TestDeleteResourceWithCycleReferencesFails
 
 	err = s.resourceService.Delete(s.Ctx, parent.ResourceID())
 	testsupport.AssertError(s.T(), err, errors.InternalError{}, "cycle resource references detected for resource %s with parent %s", parent.ResourceID(), child.ResourceID())
-
-	// reset cyclic ref to allow delete in tear down
-	parent.Resource().ParentResourceID = nil
-	err = s.Application.ResourceRepository().Save(s.Ctx, parent.Resource())
-	require.NoError(s.T(), err)
 }
 
 func (s *resourceServiceBlackBoxTest) checkRoleMapping(shouldExist bool, roleMappingID uuid.UUID) {
