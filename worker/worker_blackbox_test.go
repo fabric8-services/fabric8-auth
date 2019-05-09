@@ -7,11 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/application"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	gormtestsupport "github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/migration"
 	"github.com/fabric8-services/fabric8-auth/worker"
 
 	"cirello.io/pglock"
@@ -22,8 +19,6 @@ import (
 
 type WorkerTestSuite struct {
 	gormtestsupport.DBTestSuite
-	application application.Application
-	ctx         context.Context
 }
 
 func TestWorker(t *testing.T) {
@@ -35,8 +30,6 @@ func TestWorker(t *testing.T) {
 // It sets up a database connection for all the tests in this suite without polluting global space.
 func (s *WorkerTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
-	s.ctx = migration.NewMigrationContext(context.Background())
-	s.application = gormapplication.NewGormDB(s.DB, s.Configuration, nil)
 }
 
 func (s *WorkerTestSuite) TestMultipleWorkers() {
@@ -48,6 +41,7 @@ func (s *WorkerTestSuite) TestMultipleWorkers() {
 
 func (s *WorkerTestSuite) testMultipleWorkers() {
 	// start the workers with a 50ms ticker
+	ctx := context.Background()
 	freq := time.Millisecond * 50
 	latch := sync.WaitGroup{}
 	latch.Add(1)
@@ -55,8 +49,8 @@ func (s *WorkerTestSuite) testMultipleWorkers() {
 	doers := []*doer{}
 	for i := 0; i < 3; i++ {
 		w := &worker.BaseWorker{
-			Ctx:   s.ctx,
-			App:   s.application,
+			Ctx:   ctx,
+			App:   s.Application,
 			Owner: fmt.Sprintf("test-worker-%d", i),
 			Name:  "test-worker",
 			Opts: []pglock.ClientOption{
@@ -82,7 +76,7 @@ func (s *WorkerTestSuite) testMultipleWorkers() {
 	// wait a few cycles before checking the results
 	time.Sleep(freq * 10)
 	// check that the lock has been acquired
-	_, err := s.application.WorkerLockRepository().GetLock(s.ctx, "test-worker")
+	_, err := s.Application.WorkerLockRepository().GetLock(ctx, "test-worker")
 	require.NoError(s.T(), err)
 	// check that the only one doer did all the work
 	var doersCount int
@@ -95,7 +89,7 @@ func (s *WorkerTestSuite) testMultipleWorkers() {
 	// stop all workers
 	stop(workers...)
 	// verify that the lock has been released
-	_, err = s.application.WorkerLockRepository().GetLock(s.ctx, "test-worker")
+	_, err = s.Application.WorkerLockRepository().GetLock(ctx, "test-worker")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "cannot obtain the lock 'test-worker': not exists: lock not found", err.Error())
 }
