@@ -25,13 +25,6 @@ func TestWorker(t *testing.T) {
 	suite.Run(t, &WorkerTestSuite{DBTestSuite: gormtestsupport.NewDBTestSuite()})
 }
 
-// SetupSuite overrides the DBTestSuite's function but calls it before doing anything else
-// The SetupSuite method will run before the tests in the suite are run.
-// It sets up a database connection for all the tests in this suite without polluting global space.
-func (s *WorkerTestSuite) SetupSuite() {
-	s.DBTestSuite.SetupSuite()
-}
-
 func (s *WorkerTestSuite) TestMultipleWorkers() {
 	// run this test multiple times
 	for i := 0; i < 5; i++ {
