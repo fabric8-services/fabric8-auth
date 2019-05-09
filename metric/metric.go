@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	UserDeactivationNotificationCounterName string = "user_deactivation_notification_total"
-	UserDeactivationCounterName             string = "user_deactivation_total"
+	UserDeactivationNotificationCounterName string = "user_deactivation_notification" // PCP automatically rate-converts *_total counters to Hz. So, we don't use _total in the name to avoid that conversion
+	UserDeactivationCounterName             string = "user_deactivation"
 )
 
 var (
