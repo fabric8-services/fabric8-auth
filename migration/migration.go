@@ -262,6 +262,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 51
 	m = append(m, steps{ExecuteSQLFile("051-identity-deactivation-scheduled.sql")})
 
+	// Version 52
+	m = append(m, steps{ExecuteSQLFile("052-deferrable-constraints2.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the
