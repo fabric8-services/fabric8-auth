@@ -9,13 +9,6 @@ import (
 	worker "github.com/fabric8-services/fabric8-auth/worker"
 )
 
-// UserDeactivationNotificationWorker the interface for the User Deactivation Worker,
-// which takes care of deactivating accounts of inactive users who were previously notified but did not come back afterwards.
-type UserDeactivationNotificationWorker interface {
-	Start(freq time.Duration)
-	Stop()
-}
-
 const (
 	// UserDeactivationNotification the name of the worker that notifies users to deactivate.
 	// Also, the name of the lock used by this worker.
@@ -23,9 +16,9 @@ const (
 )
 
 // NewUserDeactivationNotificationWorker returns a new UserDeactivationNotificationWorker
-func NewUserDeactivationNotificationWorker(ctx context.Context, app application.Application) UserDeactivationNotificationWorker {
+func NewUserDeactivationNotificationWorker(ctx context.Context, app application.Application) worker.Worker {
 	w := &userDeactivationNotificationWorker{
-		worker.Worker{
+		worker.BaseWorker{
 			Ctx:   ctx,
 			App:   app,
 			Owner: worker.GetLockOwner(ctx),
@@ -37,7 +30,7 @@ func NewUserDeactivationNotificationWorker(ctx context.Context, app application.
 }
 
 type userDeactivationNotificationWorker struct {
-	worker.Worker
+	worker.BaseWorker
 }
 
 func (w *userDeactivationNotificationWorker) notifyUsers() {

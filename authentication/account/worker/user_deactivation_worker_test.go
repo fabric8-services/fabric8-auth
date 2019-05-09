@@ -71,8 +71,8 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		w.Start(freq)
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 2)
-		w.Stop()
-		time.Sleep(freq * 10) // give workers some time to stop for good
+		// now stop all workers
+		stop(w)
 		// verify that the lock was released
 		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivation)
 		require.NoError(s.T(), err)
@@ -97,7 +97,7 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		freq := time.Millisecond * 50
 		latch := sync.WaitGroup{}
 		latch.Add(1)
-		workers := []worker.UserDeactivationNotificationWorker{}
+		workers := []baseworker.Worker{}
 		for i := 1; i <= 2; i++ {
 			fmt.Printf("initializing worker %d...\n", i)
 			w := s.newUserDeactivationWorker(context.Background(), fmt.Sprintf("pod-%d", i), app)
@@ -113,10 +113,7 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 5)
 		// now stop all workers
-		for _, w := range workers {
-			w.Stop()
-		}
-		time.Sleep(freq * 10) // give workers some time to stop for good
+		stop(workers...)
 		// verify that the lock was released
 		l, err := s.Application.WorkerLockRepository().AcquireLock(context.Background(), "assert", worker.UserDeactivation)
 		require.NoError(s.T(), err)
@@ -125,7 +122,7 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 	})
 }
 
-func (s *UserDeactivationWorkerTest) newUserDeactivationWorker(ctx context.Context, podname string, app application.Application) worker.UserDeactivationWorker {
+func (s *UserDeactivationWorkerTest) newUserDeactivationWorker(ctx context.Context, podname string, app application.Application) baseworker.Worker {
 	err := os.Setenv("AUTH_POD_NAME", podname)
 	require.NoError(s.T(), err)
 	config, err := configuration.GetConfigurationData()

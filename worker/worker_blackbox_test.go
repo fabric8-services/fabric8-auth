@@ -1,12 +1,13 @@
 package worker_test
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
+	gormtestsupport "github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/worker"
 
@@ -25,15 +26,23 @@ func TestWorker(t *testing.T) {
 }
 
 func (s *WorkerTestSuite) TestMultipleWorkers() {
+	// run this test multiple times
+	for i := 0; i < 5; i++ {
+		s.testMultipleWorkers()
+	}
+}
+
+func (s *WorkerTestSuite) testMultipleWorkers() {
 	// start the workers with a 50ms ticker
+	ctx := context.Background()
 	freq := time.Millisecond * 50
 	latch := sync.WaitGroup{}
 	latch.Add(1)
-	workers := []*worker.Worker{}
+	workers := []worker.Worker{}
 	doers := []*doer{}
 	for i := 0; i < 3; i++ {
-		w := &worker.Worker{
-			Ctx:   s.Ctx,
+		w := &worker.BaseWorker{
+			Ctx:   ctx,
 			App:   s.Application,
 			Owner: fmt.Sprintf("test-worker-%d", i),
 			Name:  "test-worker",
@@ -60,9 +69,8 @@ func (s *WorkerTestSuite) TestMultipleWorkers() {
 	// wait a few cycles before checking the results
 	time.Sleep(freq * 10)
 	// check that the lock has been acquired
-	_, err := s.Application.WorkerLockRepository().GetLock(s.Ctx, "test-worker")
+	_, err := s.Application.WorkerLockRepository().GetLock(ctx, "test-worker")
 	require.NoError(s.T(), err)
-
 	// check that the only one doer did all the work
 	var doersCount int
 	for _, doer := range doers {
@@ -71,16 +79,33 @@ func (s *WorkerTestSuite) TestMultipleWorkers() {
 		}
 	}
 	assert.Equal(s.T(), 1, doersCount, "only one doer was expected to be called")
-
-	// now stop all workers
-	for _, w := range workers {
-		w.Stop()
-	}
-	time.Sleep(freq * 20) // give workers some time to stop for good
-	// verify that the lock has been deleted
-	_, err = s.Application.WorkerLockRepository().GetLock(s.Ctx, "test-worker")
+	// stop all workers
+	stop(workers...)
+	// verify that the lock has been released
+	_, err = s.Application.WorkerLockRepository().GetLock(ctx, "test-worker")
 	require.Error(s.T(), err)
 	require.Equal(s.T(), "cannot obtain the lock 'test-worker': not exists: lock not found", err.Error())
+}
+
+func stop(workers ...worker.Worker) {
+	fmt.Printf("stopping %d workers...\n", len(workers))
+	freq := time.Millisecond * 50
+	// first, stop all workers that did not acquire the lock
+	stopWG := sync.WaitGroup{}
+	for _, w := range workers {
+		stopWG.Add(1)
+		go func(w worker.Worker) {
+			w.Stop()
+			for {
+				time.Sleep(freq) // give workers some time to stop for good
+				if w.IsStopped() {
+					stopWG.Done()
+					return // only exit when the worker is stopped
+				}
+			}
+		}(w)
+	}
+	stopWG.Wait()
 }
 
 type doer struct {

@@ -72,8 +72,8 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		w.Start(freq)
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 5)
-		w.Stop()
-		time.Sleep(freq * 10) // give workers some time to stop for good
+		// now stop all workers
+		stop(w)
 		// then load the user and check her deactivation notification status
 		result, err := s.Application.Identities().Load(context.Background(), identity1.ID)
 		require.NoError(s.T(), err)
@@ -93,7 +93,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		freq := time.Millisecond * 50
 		latch := sync.WaitGroup{}
 		latch.Add(1)
-		workers := []worker.UserDeactivationNotificationWorker{}
+		workers := []baseworker.Worker{}
 		for i := 1; i <= 5; i++ {
 			fmt.Printf("initializing worker %d...\n", i)
 			w := s.newUserDeactivationNotificationWorker(context.Background(), fmt.Sprintf("pod-%d", i), app)
@@ -109,10 +109,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 		// wait a few cycles before checking the results
 		time.Sleep(freq * 5)
 		// now stop all workers
-		for _, w := range workers {
-			w.Stop()
-		}
-		time.Sleep(freq * 10) // give workers some time to stop for good
+		stop(workers...)
 		// then load the user and check her deactivation notification status
 		result, err := s.Application.Identities().Load(context.Background(), identity1.ID)
 		require.NoError(s.T(), err)
@@ -127,7 +124,7 @@ func (s *UserDeactivationNotificationWorkerTest) TestNotifyUsers() {
 	})
 }
 
-func (s *UserDeactivationNotificationWorkerTest) newUserDeactivationNotificationWorker(ctx context.Context, podname string, app application.Application) worker.UserDeactivationNotificationWorker {
+func (s *UserDeactivationNotificationWorkerTest) newUserDeactivationNotificationWorker(ctx context.Context, podname string, app application.Application) baseworker.Worker {
 	err := os.Setenv("AUTH_POD_NAME", podname)
 	require.NoError(s.T(), err)
 	config, err := configuration.GetConfigurationData()
@@ -135,4 +132,25 @@ func (s *UserDeactivationNotificationWorkerTest) newUserDeactivationNotification
 	require.Equal(s.T(), podname, config.GetPodName())
 	ctx = context.WithValue(ctx, baseworker.LockOwner, podname)
 	return worker.NewUserDeactivationNotificationWorker(ctx, app)
+}
+
+// stop stops the given workers and waits until they all actually stopped before returning.
+func stop(workers ...baseworker.Worker) {
+	freq := time.Millisecond * 50
+	// now stop all workers
+	stopWG := sync.WaitGroup{}
+	for _, w := range workers {
+		stopWG.Add(1)
+		go func(w baseworker.Worker) {
+			w.Stop()
+			for {
+				time.Sleep(freq) // give workers some time to stop for good
+				if w.IsStopped() {
+					stopWG.Done()
+					return // only exit when the worker is stopped
+				}
+			}
+		}(w)
+	}
+	stopWG.Wait()
 }

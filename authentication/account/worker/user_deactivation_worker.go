@@ -9,13 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/worker"
 )
 
-// UserDeactivationWorker the interface for the User Deactivation Worker,
-// which takes care of deactivating accounts of inactive users who were previously notified but did not come back afterwards.
-type UserDeactivationWorker interface {
-	Start(freq time.Duration)
-	Stop()
-}
-
 const (
 	// UserDeactivation the name of the worker that deactivates users.
 	// Also, the name of the lock used by this worker.
@@ -23,9 +16,9 @@ const (
 )
 
 // NewUserDeactivationWorker returns a new UserDeactivationWorker
-func NewUserDeactivationWorker(ctx context.Context, app application.Application) UserDeactivationWorker {
+func NewUserDeactivationWorker(ctx context.Context, app application.Application) worker.Worker {
 	w := &userDeactivationWorker{
-		worker.Worker{
+		worker.BaseWorker{
 			Ctx:   ctx,
 			App:   app,
 			Owner: worker.GetLockOwner(ctx),
@@ -37,10 +30,10 @@ func NewUserDeactivationWorker(ctx context.Context, app application.Application)
 }
 
 type userDeactivationWorker struct {
-	worker.Worker
+	worker.BaseWorker
 }
 
-func (w *userDeactivationWorker) deactivateUsers() {
+func (w userDeactivationWorker) deactivateUsers() {
 	log.Info(w.Ctx, map[string]interface{}{
 		"owner": w.Owner,
 	}, "starting cycle of inactive users deactivation")
