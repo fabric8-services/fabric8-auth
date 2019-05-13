@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	UserDeactivationNotificationCounterName string = "user_deactivation_notification" // PCP automatically rate-converts *_total counters to Hz. So, we don't use _total in the name to avoid that conversion
-	UserDeactivationCounterName             string = "user_deactivation"
+	UserDeactivationNotificationCounterName string = "user_deactivation_notification_total" // PCP automatically rate-converts *_total counters to Hz. So, we don't use _total in the name to avoid that conversion
+	UserDeactivationCounterName             string = "user_deactivation_total"
 )
 
 var (
@@ -79,6 +79,10 @@ func RecordUserDeactivation(successful bool) {
 			"err":         err,
 		}, "Failed to get metric")
 	} else {
+		log.Info(nil, map[string]interface{}{
+			"metric_name": UserDeactivationCounterName,
+			"successful":  successful,
+		}, "incremented metric")
 		counter.Inc()
 	}
 }
