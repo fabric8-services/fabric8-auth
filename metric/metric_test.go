@@ -147,6 +147,7 @@ func (s *MetricTestSuite) TestMetricsEndpointExposesSpecificMetrics() {
 	metric.RegisterMetrics()
 	defer metric.UnregisterMetrics()
 	metric.RecordUserDeactivationNotification(true)
+	metric.RecordUserDeactivationTrigger(true)
 	metric.RecordUserDeactivation(true)
 	// when
 	handler := promhttp.Handler()
@@ -157,5 +158,6 @@ func (s *MetricTestSuite) TestMetricsEndpointExposesSpecificMetrics() {
 	body, err := ioutil.ReadAll(response.Body)
 	require.NoError(s.T(), err)
 	assert.Contains(s.T(), string(body), metric.UserDeactivationNotificationCounterName)
+	assert.Contains(s.T(), string(body), metric.UserDeactivationTriggerCounterName)
 	assert.Contains(s.T(), string(body), metric.UserDeactivationCounterName)
 }
