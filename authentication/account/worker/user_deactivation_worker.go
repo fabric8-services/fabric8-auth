@@ -6,6 +6,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/application"
 	"github.com/fabric8-services/fabric8-auth/log"
+	"github.com/fabric8-services/fabric8-auth/metric"
 	"github.com/fabric8-services/fabric8-auth/worker"
 )
 
@@ -59,6 +60,7 @@ func (w userDeactivationWorker) deactivateUsers() {
 		// deactivating the user on OSO and then call back `auth` service (on its `/namedusers/:username/deactivate` endpoint)
 		// which will handle the deactivation on the OSIO platform
 		err = w.App.OSOSubscriptionService().DeactivateUser(w.Ctx, identity.Username)
+		metric.RecordUserDeactivationTrigger(err == nil)
 		if err != nil {
 			// We will just log the error and continue
 			log.Error(nil, map[string]interface{}{
