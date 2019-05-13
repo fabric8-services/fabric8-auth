@@ -76,7 +76,7 @@ func RecordUserDeactivationNotification(successful bool) {
 
 // RecordUserDeactivationTrigger records a new user deactivation trigger in the prometheus metric
 func RecordUserDeactivationTrigger(successful bool) {
-	if UserDeactivationCounter == nil {
+	if UserDeactivationTriggerCounter == nil {
 		log.Warn(nil, map[string]interface{}{
 			"metric_name": UserDeactivationTriggerCounterName,
 		}, "metric not initialized")
