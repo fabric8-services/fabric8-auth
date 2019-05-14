@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	authtest "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
@@ -110,6 +111,16 @@ func (s *TestTenantServiceSuite) TestView() {
 	require.NoError(s.T(), err)
 
 	require.Equal(s.T(), "00000000-0000-0000-0000-000000000123", tenant.Data.ID.String())
+
+	// Test not found
+	json, err = ioutil.ReadFile("../../../test/data/tenant_single_not_found.json")
+	require.NoError(s.T(), err)
+
+	body = ioutil.NopCloser(bytes.NewReader(json))
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
+	tenant, err = s.ts.View(ctx)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), autherrors.NotFoundError{}, err)
 }
 
 func (s *TestTenantServiceSuite) TestDelete() {

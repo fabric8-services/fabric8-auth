@@ -1,0 +1,11 @@
+{
+  "errors": [
+    {
+      "id": "1",
+      "status": "404",
+      "code": "not-found",
+      "title": "Tenant Not Found",
+      "detail": "Tenant 123 is not available on this server"
+    }
+  ]
+}

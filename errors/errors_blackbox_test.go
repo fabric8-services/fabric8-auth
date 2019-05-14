@@ -2,6 +2,7 @@ package errors_test
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -10,6 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFromStatusCode(t *testing.T) {
+	require.IsType(t, errors.NotFoundError{}, errors.FromStatusCode(http.StatusNotFound, ""))
+	require.IsType(t, errors.BadParameterError{}, errors.FromStatusCode(http.StatusBadRequest, ""))
+	require.IsType(t, errors.VersionConflictError{}, errors.FromStatusCode(http.StatusConflict, ""))
+	require.IsType(t, errors.UnauthorizedError{}, errors.FromStatusCode(http.StatusUnauthorized, ""))
+	require.IsType(t, errors.ForbiddenError{}, errors.FromStatusCode(http.StatusForbidden, ""))
+	require.IsType(t, errors.InternalError{}, errors.FromStatusCode(http.StatusInternalServerError, ""))
+}
 
 func TestNewInternalError(t *testing.T) {
 	t.Parallel()
