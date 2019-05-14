@@ -121,6 +121,13 @@ func (s *TestTenantServiceSuite) TestView() {
 	tenant, err = s.ts.View(ctx)
 	require.Error(s.T(), err)
 	require.IsType(s.T(), autherrors.NotFoundError{}, err)
+
+	// Test not found with invalid errors
+	body = ioutil.NopCloser(bytes.NewReader([]byte{}))
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
+	tenant, err = s.ts.View(ctx)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), autherrors.InternalError{}, err)
 }
 
 func (s *TestTenantServiceSuite) TestDelete() {
