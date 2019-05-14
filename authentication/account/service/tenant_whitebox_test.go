@@ -88,6 +88,30 @@ func (s *TestTenantServiceSuite) TestInit() {
 	require.Error(s.T(), err)
 }
 
+func (s *TestTenantServiceSuite) TestView() {
+	ctx, token, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx = manager.ContextWithTokenManager(ctx, testtoken.TokenManager)
+
+	json, err := ioutil.ReadFile("../../../test/data/tenant_single.json")
+	require.NoError(s.T(), err)
+
+	s.doer.Client.Error = nil
+	body := ioutil.NopCloser(bytes.NewReader(json))
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+
+	s.doer.Client.AssertRequest = func(req *http.Request) {
+		require.Equal(s.T(), "GET", req.Method)
+		require.Equal(s.T(), "https://some.tenant.io/api/tenant", req.URL.String())
+		require.Equal(s.T(), "Bearer "+token, req.Header.Get("Authorization"))
+		require.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
+	}
+
+	tenant, err := s.ts.View(ctx)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), "00000000-0000-0000-0000-000000000123", tenant.Data.ID.String())
+}
+
 func (s *TestTenantServiceSuite) TestDelete() {
 	ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
 	ctx = manager.ContextWithTokenManager(ctx, testtoken.TokenManager)

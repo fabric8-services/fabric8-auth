@@ -53,7 +53,7 @@ func (t *tenantServiceImpl) Init(ctx context.Context) error {
 
 // View fetches the current tenant state.
 func (t *tenantServiceImpl) View(ctx context.Context) (*tenant.TenantSingle, error) {
-	c, err := t.createClient(ctx)
+	c, err := t.createClientWithContextSigner(ctx)
 	if err != nil {
 		return nil, err
 	}
