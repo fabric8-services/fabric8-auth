@@ -12,7 +12,6 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authentication/provider"
 	token2 "github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
@@ -29,7 +28,7 @@ import (
 	testoauth "github.com/fabric8-services/fabric8-auth/test/generated/authentication"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/goadesign/goa"
 	"github.com/goadesign/goa/uuid"
 	_ "github.com/lib/pq"
@@ -38,7 +37,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	netcontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
-	gock "gopkg.in/h2non/gock.v1"
+	"gopkg.in/h2non/gock.v1"
 )
 
 type authenticationProviderServiceTestSuite struct {
@@ -63,8 +62,7 @@ func (s *authenticationProviderServiceTestSuite) SetupSuite() {
 	claims["sub"] = uuid.NewV4().String()
 
 	//s.osoSubscriptionManager = &testsupport.DummyOSORegistrationApp{}
-	witServiceMock := testsupport.NewWITMock(s.T(), uuid.NewV4().String(), "test-space")
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(witServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers)
 }
 
 func (s *authenticationProviderServiceTestSuite) TestOAuthAuthorizationRedirect() {

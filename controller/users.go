@@ -177,16 +177,6 @@ func (c *UsersController) Create(ctx *app.CreateUsersContext) error {
 		return jsonapi.JSONErrorResponse(ctx, errs.Wrapf(err, "failed to link identity with id %s to cluster having url %s", identityID, clusterURL))
 	}
 
-	// finally, if all works, we create a user in WIT too.
-	err = c.app.WITService().CreateUser(ctx.Context, identity, identityID.String())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"err":      err,
-			"username": identity.Username,
-		}, "failed to create user in WIT")
-		// Not a blocker. Log the error and proceed.
-	}
-
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
@@ -451,17 +441,6 @@ func (c *UsersController) Update(ctx *app.UpdateUsersContext) error {
 		}
 	}
 
-	err = c.updateWITUser(ctx, identity.ID.String())
-	if err != nil {
-		log.Error(ctx, map[string]interface{}{
-			"user_id":     user.ID,
-			"identity_id": identity.ID,
-			"username":    identity.Username,
-			"err":         err,
-		}, "failed to update WIT user/identity")
-		// Let's not disrupt the response if there was an issue with updating WIT.
-	}
-
 	return ctx.OK(ConvertToAppUser(ctx.RequestData, user, identity, true))
 }
 
@@ -490,27 +469,6 @@ func (c *UsersController) updateFeatureLevel(ctx context.Context, user *accountr
 		}
 	}
 	return nil
-}
-
-func (c *UsersController) updateWITUser(ctx *app.UpdateUsersContext, identityID string) error {
-	updateUserPayload := &app.UpdateUsersPayload{
-		Data: &app.UpdateUserData{
-			Attributes: &app.UpdateIdentityDataAttributes{
-				Bio:                   ctx.Payload.Data.Attributes.Bio,
-				Company:               ctx.Payload.Data.Attributes.Company,
-				ContextInformation:    ctx.Payload.Data.Attributes.ContextInformation,
-				Email:                 ctx.Payload.Data.Attributes.Email,
-				FullName:              ctx.Payload.Data.Attributes.FullName,
-				ImageURL:              ctx.Payload.Data.Attributes.ImageURL,
-				RegistrationCompleted: ctx.Payload.Data.Attributes.RegistrationCompleted,
-				URL:                   ctx.Payload.Data.Attributes.URL,
-				Username:              ctx.Payload.Data.Attributes.Username,
-			},
-			Type: ctx.Payload.Data.Type,
-		},
-	}
-
-	return c.app.WITService().UpdateUser(ctx, updateUserPayload, identityID)
 }
 
 func isEmailValid(email string) bool {

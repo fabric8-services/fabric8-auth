@@ -25,7 +25,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
-	witservice "github.com/fabric8-services/fabric8-auth/wit/service"
 
 	"github.com/pkg/errors"
 )
@@ -137,7 +136,6 @@ type ServiceFactory struct {
 	contextProducer         servicecontext.ServiceContextProducer
 	config                  *configuration.ConfigurationData
 	tenantServiceFunc       func() service.TenantService       // the function to call when `TenantService()` is called on this factory
-	witServiceFunc          func() service.WITService          // the function to call when `WITService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
 	clusterServiceFunc      func() service.ClusterService
 	authProviderServiceFunc func() service.AuthenticationProviderService
@@ -146,14 +144,6 @@ type ServiceFactory struct {
 
 // Option an option to configure the Service Factory
 type Option func(f *ServiceFactory)
-
-func WithWITService(s service.WITService) Option {
-	return func(f *ServiceFactory) {
-		f.witServiceFunc = func() service.WITService {
-			return s
-		}
-	}
-}
 
 func WithTenantService(s service.TenantService) Option {
 	return func(f *ServiceFactory) {
@@ -202,10 +192,6 @@ func WithUserService(s service.UserService) Option {
 // NewServiceFactory returns a new ServiceFactory which can be configured with the options to replace the default implementations of some services
 func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *configuration.ConfigurationData, options ...Option) *ServiceFactory {
 	f := &ServiceFactory{contextProducer: producer, config: config}
-	// default function to return an instance of WIT Service
-	f.witServiceFunc = func() service.WITService {
-		return witservice.NewWITService(f.getContext(), f.config)
-	}
 	// default function to return an instance of Tenant Service
 	f.tenantServiceFunc = func() service.TenantService {
 		return userservice.NewTenantService(f.config)
@@ -300,10 +286,6 @@ func (f *ServiceFactory) UserProfileService() service.UserProfileService {
 
 func (f *ServiceFactory) NotificationService() service.NotificationService {
 	return f.notificationServiceFunc()
-}
-
-func (f *ServiceFactory) WITService() service.WITService {
-	return f.witServiceFunc()
 }
 
 func (f *ServiceFactory) TenantService() service.TenantService {

@@ -249,19 +249,6 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 	teamName := team.IdentityResource.Name
 
 	var spaceName string
-	res, err := s.Repositories().ResourceRepository().Load(ctx, team.IdentityResourceID.String)
-	if err != nil {
-		return err
-	}
-
-	// Every team *should* have a parent space, but we'll put this check here just in case
-	if res.ParentResourceID != nil {
-		sp, err := s.Services().WITService().GetSpace(ctx, *res.ParentResourceID)
-		if err != nil {
-			return errs.Wrap(err, "error while retrieving space from WIT")
-		}
-		spaceName = sp.Name
-	}
 
 	var messages []notification.Message
 
@@ -282,11 +269,8 @@ func (s *invitationServiceImpl) processTeamInviteNotifications(ctx context.Conte
 // processSpaceInviteNotifications sends an e-mail notification to a user.
 func (s *invitationServiceImpl) processSpaceInviteNotifications(ctx context.Context, space *resource.Resource,
 	inviterName string, notifications []invitationNotification) error {
-	sp, err := s.Services().WITService().GetSpace(ctx, space.ResourceID)
-	if err != nil {
-		return err
-	}
-	spaceName := sp.Name
+
+	spaceName := ""
 
 	var messages []notification.Message
 
