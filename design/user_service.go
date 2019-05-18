@@ -23,8 +23,7 @@ var userServiceAttributes = a.Type("UserServiceAttributes", func() {
 	a.Attribute("created-at", d.DateTime, "When the tenant was created", func() {
 		a.Example("2016-11-29T23:18:14Z")
 	})
-	a.Attribute("namespaces", a.ArrayOf(namespaceAttributes), "The tenant namespaces", func() {
-	})
+	a.Attribute("namespaces", a.ArrayOf(namespaceAttributes), "The tenant namespaces")
 })
 
 var namespaceAttributes = a.Type("NamespaceAttributes", func() {
@@ -38,22 +37,14 @@ var namespaceAttributes = a.Type("NamespaceAttributes", func() {
 	a.Attribute("updated-at", d.DateTime, "When the tenant was updated", func() {
 		a.Example("2016-11-29T23:18:14Z")
 	})
-	a.Attribute("version", d.String, "The namespaces version", func() {
-	})
-	a.Attribute("state", d.String, "The namespaces state", func() {
-	})
-	a.Attribute("cluster-url", d.String, "The cluster url", func() {
-	})
-	a.Attribute("cluster-console-url", d.String, "The cluster console url", func() {
-	})
-	a.Attribute("cluster-metrics-url", d.String, "The cluster metrics url", func() {
-	})
-	a.Attribute("cluster-logging-url", d.String, "The cluster logging url", func() {
-	})
-	a.Attribute("cluster-app-domain", d.String, "The cluster app domain", func() {
-	})
-	a.Attribute("cluster-capacity-exhausted", d.Boolean, "Whether cluster hosting this namespace exhausted it's capacity", func() {
-	})
+	a.Attribute("version", d.String, "The namespaces version")
+	a.Attribute("state", d.String, "The namespaces state")
+	a.Attribute("cluster-url", d.String, "The cluster url")
+	a.Attribute("cluster-console-url", d.String, "The cluster console url")
+	a.Attribute("cluster-metrics-url", d.String, "The cluster metrics url")
+	a.Attribute("cluster-logging-url", d.String, "The cluster logging url")
+	a.Attribute("cluster-app-domain", d.String, "The cluster app domain")
+	a.Attribute("cluster-capacity-exhausted", d.Boolean, "Whether cluster hosting this namespace exhausted it's capacity")
 	a.Attribute("type", d.String, "The tenant namespaces", func() {
 		a.Enum("che", "jenkins", "stage", "test", "run")
 	})
