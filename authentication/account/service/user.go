@@ -211,7 +211,7 @@ func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (
 	err = s.Services().WITService().DeleteUser(ctx, username)
 	if err != nil {
 		// just log the error but don't suspend the deactivation
-		log.Error(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")
+		log.Warn(ctx, map[string]interface{}{"identity_id": identity.ID, "error": err}, "error occurred during user deactivation on WIT Service")
 	}
 	// call Che
 	// call WIT and Tenant to deactivate the user there as well,
