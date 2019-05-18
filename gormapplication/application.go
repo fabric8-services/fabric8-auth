@@ -228,10 +228,6 @@ func (g *GormDB) TenantService() service.TenantService {
 	return g.serviceFactory.TenantService()
 }
 
-func (g *GormDB) WITService() service.WITService {
-	return g.serviceFactory.WITService()
-}
-
 func (g *GormDB) CheService() service.CheService {
 	return g.serviceFactory.CheService()
 }

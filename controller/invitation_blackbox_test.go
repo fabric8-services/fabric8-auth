@@ -10,15 +10,12 @@ import (
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
-	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
-
 	"github.com/goadesign/goa"
 
 	"net/url"
 
 	"fmt"
 	"github.com/fabric8-services/fabric8-auth/application/service"
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authorization"
 	invitationrepo "github.com/fabric8-services/fabric8-auth/authorization/invitation/repository"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -40,19 +37,17 @@ func TestInvitationController(t *testing.T) {
 
 type InvitationControllerTestSuite struct {
 	gormtestsupport.DBTestSuite
-	testIdentity   account.Identity
-	service        *goa.Service
-	invService     service.InvitationService
-	invRepo        invitationrepo.InvitationRepository
-	witServiceMock *testservice.WITServiceMock
+	testIdentity account.Identity
+	service      *goa.Service
+	invService   service.InvitationService
+	invRepo      invitationrepo.InvitationRepository
 }
 
 func (s *InvitationControllerTestSuite) SetupSuite() {
 	s.DBTestSuite.SetupSuite()
 	s.invService = s.Application.InvitationService()
 	s.invRepo = invitationrepo.NewInvitationRepository(s.DB)
-	s.witServiceMock = testservice.NewWITServiceMock(s.T())
-	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithWITService(s.witServiceMock))
+	s.Application = gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers)
 
 	var err error
 	s.testIdentity, err = testsupport.CreateTestIdentity(s.DB,
@@ -90,7 +85,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			inviteeID := invitee.IdentityID().String()
 			payload := newCreateInvitationPayload(inviteeID, true)
 			service, controller := s.SecuredController(s.testIdentity)
-			*s.witServiceMock = *testsupport.NewWITMock(t, inviteeID, testSpaceName)
 
 			// when
 			test.CreateInviteInvitationCreated(t, service.Context, service, controller, team.TeamID().String(), payload)
@@ -101,8 +95,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			require.Len(t, invitations, 1)
 			assert.Equal(t, invitee.IdentityID(), invitations[0].IdentityID)
 			assert.True(t, invitations[0].Member)
-			// verify wit service is called once
-			require.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
 		})
 	})
 
@@ -119,7 +111,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			inviteeID := invitee.IdentityID().String()
 			payload := newCreateInvitationPayload(inviteeID, false, r.Role().Name)
 			service, controller := s.SecuredController(s.testIdentity)
-			*s.witServiceMock = *testsupport.NewWITMock(t, inviteeID, testSpaceName)
 
 			// when
 			test.CreateInviteInvitationCreated(t, service.Context, service, controller, team.TeamID().String(), payload)
@@ -136,8 +127,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			require.Len(t, roles, 1)
 			// And it should be the owner role
 			assert.Equal(t, r.Role().Name, roles[0].Name)
-			// verify wit service is called once
-			assert.Equal(t, uint64(1), s.witServiceMock.GetSpaceCounter)
 		})
 
 		t.Run("unauthorized", func(t *testing.T) { // This test will attempt to create a new invitation for a user to become a member of an organization, however perform an unauthorized request to create the invitation
@@ -150,7 +139,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			inviteeID := invitee.ID.String()
 			payload := newCreateInvitationPayload(inviteeID, true)
 			service, controller := s.UnsecuredController()
-			*s.witServiceMock = *testsupport.NewWITMock(t, inviteeID, testSpaceName)
 			// when
 			test.CreateInviteInvitationUnauthorized(t, service.Context, service, controller, orgIdentity.ID.String(), payload)
 			// then
@@ -158,8 +146,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			require.NoError(t, err, "could not list invitations")
 			// We should have no invitations
 			assert.Empty(t, invitations)
-			// verify wit service is not called
-			require.Equal(t, uint64(0), s.witServiceMock.GetSpaceCounter)
 		})
 
 		t.Run("invalid role", func(t *testing.T) { // This test will attempt to create a new invitation for a user to accept an invalid role in an organization, we should get a bad request error as a result
@@ -172,15 +158,12 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			inviteeID := invitee.ID.String()
 			payload := newCreateInvitationPayload(inviteeID, false, "foobar")
 			service, controller := s.SecuredController(s.testIdentity)
-			*s.witServiceMock = *testsupport.NewWITMock(t, inviteeID, testSpaceName)
 			// when
 			test.CreateInviteInvitationBadRequest(t, service.Context, service, controller, orgIdentity.ID.String(), payload)
 			invitations, err := s.invRepo.ListForIdentity(s.Ctx, orgIdentity.ID)
 			require.NoError(t, err, "could not list invitations")
 			// We should have no invitations
 			assert.Empty(t, invitations)
-			// verify wit service is not called
-			require.Equal(t, uint64(0), s.witServiceMock.GetSpaceCounter)
 		})
 
 		t.Run("invalid user", func(t *testing.T) { // This test will attempt to create a new invitation however provide no identifying information for the user we should get a bad request error as a result
@@ -189,7 +172,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			require.NoError(t, err, "could not create organization")
 			service, controller := s.SecuredController(s.testIdentity)
 			payload := newCreateInvitationPayload("", true, "foobar")
-			*s.witServiceMock = *testsupport.NewWITMock(t, uuid.NewV4().String(), testSpaceName)
 			// when
 			test.CreateInviteInvitationBadRequest(t, service.Context, service, controller, orgIdentity.ID.String(), payload)
 			// then
@@ -197,8 +179,6 @@ func (s *InvitationControllerTestSuite) TestCreateInvitation() {
 			require.NoError(t, err, "could not list invitations")
 			// We should have no invitations
 			assert.Empty(t, invitations)
-			// verify wit service is not called
-			require.Equal(t, uint64(0), s.witServiceMock.GetSpaceCounter)
 		})
 	})
 
@@ -271,7 +251,6 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 			}()
 			os.Setenv(authInvitationAcceptedUrl, acceptInvitationEndPoint)
 
-			*s.witServiceMock = *testservice.NewWITServiceMock(s.T())
 			g := s.NewTestGraph(t)
 			team := g.CreateTeam()
 			invitee := g.CreateUser()
@@ -289,7 +268,6 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 			parameters := parsedURL.Query()
 			require.NotNil(t, parameters.Get("error"))
 
-			require.Equal(t, uint64(0), s.witServiceMock.GetSpaceCounter)
 		})
 
 		s.T().Run("invalid code", func(t *testing.T) {
@@ -300,7 +278,6 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 			}()
 			os.Setenv(authInvitationAcceptedUrl, acceptInvitationEndPoint)
 
-			*s.witServiceMock = *testservice.NewWITServiceMock(s.T())
 			service, controller := s.SecuredController(s.testIdentity)
 			// when
 			// This should still work, however there should now be an error param in the redirect URL
@@ -312,7 +289,6 @@ func (s *InvitationControllerTestSuite) TestAcceptInvitation() {
 			require.Equal(t, acceptInvitationEndPoint, fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host, parsedURL.Path))
 			parameters := parsedURL.Query()
 			require.NotNil(t, parameters.Get("error"))
-			require.Equal(t, uint64(0), s.witServiceMock.GetSpaceCounter)
 		})
 	})
 

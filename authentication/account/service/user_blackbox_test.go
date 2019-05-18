@@ -582,15 +582,9 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 						}
 					]
 				}`, userToDeactivate.User().Cluster, userToStayIntact.User().Cluster))
-		// call to WIT Service
-		witCallsCounter := 0
+
 		gock.Observe(gock.DumpRequest)
-		gock.New("http://localhost:8080").
-			Delete(fmt.Sprintf("/api/users/username/%s", userToDeactivate.Identity().Username)).
-			MatchHeader("Authorization", "Bearer "+saToken).
-			MatchHeader("X-Request-Id", reqID).
-			SetMatcher(gocksupport.SpyOnCalls(&witCallsCounter)).
-			Reply(200)
+
 		// call to Tenant Service
 		tenantCallsCounter := 0
 		gock.New("http://localhost:8090").
@@ -643,8 +637,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			require.NotNil(t, tok)
 			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_REVOKED)
 		}
-		// also, verify that WIT, che, and tenant services were called
-		assert.Equal(t, 1, witCallsCounter)
+		// also, verify that che, and tenant services were called
 		assert.Equal(t, 1, tenantCallsCounter)
 		assert.Equal(t, 1, cheCallsCounter)
 		// also, verify that the external accounts where unlinked

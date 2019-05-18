@@ -21,7 +21,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/cluster"
 	"github.com/fabric8-services/fabric8-auth/notification"
 	"github.com/fabric8-services/fabric8-auth/rest"
-	"github.com/fabric8-services/fabric8-auth/wit"
 	"github.com/goadesign/goa"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/oauth2"
@@ -179,14 +178,6 @@ type UserService interface {
 	RescheduleDeactivation(ctx context.Context, identityID uuid.UUID) error
 }
 
-// WITService service interface for WIT
-type WITService interface {
-	UpdateUser(ctx context.Context, updatePayload *app.UpdateUsersPayload, identityID string) error
-	CreateUser(ctx context.Context, identity *account.Identity, identityID string) error
-	DeleteUser(ctx context.Context, identityID string) error
-	GetSpace(ctx context.Context, spaceID string) (space *wit.Space, e error)
-}
-
 // CheService service interface for Che
 type CheService interface {
 	DeleteUser(ctx context.Context, identity account.Identity) error
@@ -213,7 +204,6 @@ type Services interface {
 	TokenService() TokenService
 	UserProfileService() UserProfileService
 	UserService() UserService
-	WITService() WITService
 }
 
 //----------------------------------------------------------------------------------------------------------------------
