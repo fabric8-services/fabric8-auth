@@ -61,7 +61,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 		// Confirm that the user has the 'manage' scope for the space
 		scope, err := permService.HasScope(ctx, identityID, spaceID, authorization.ManageTeamsInSpaceScope)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		if !scope {
@@ -84,7 +84,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 
 		err = s.Repositories().ResourceRepository().Create(ctx, res)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		// Create the team identity
@@ -97,7 +97,7 @@ func (s *teamServiceImpl) CreateTeam(ctx context.Context, identityID uuid.UUID, 
 
 		err = s.Repositories().Identities().Create(ctx, teamIdentity)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		teamID = teamIdentity.ID

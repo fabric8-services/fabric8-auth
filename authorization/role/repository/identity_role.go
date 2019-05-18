@@ -758,7 +758,7 @@ WHERE
   `, identityID, identityID, resourceID)
 
 	if result.Error != nil {
-		return errors.NewInternalError(ctx, result.Error)
+		return errors.NewInternalError(result.Error)
 	}
 
 	log.Debug(ctx, map[string]interface{}{
@@ -821,7 +821,7 @@ WHERE
 `, identityID, identityID, resourceID, token.TOKEN_STATUS_STALE)
 
 	if result.Error != nil {
-		return errors.NewInternalError(ctx, result.Error)
+		return errors.NewInternalError(result.Error)
 	}
 
 	log.Debug(ctx, map[string]interface{}{

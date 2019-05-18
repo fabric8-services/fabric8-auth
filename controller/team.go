@@ -76,7 +76,7 @@ func (c *TeamController) List(ctx *app.ListTeamContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "failed to list teams")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 	}
 
 	return ctx.OK(&app.IdentityTeamArray{

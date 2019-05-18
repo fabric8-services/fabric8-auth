@@ -1,8 +1,8 @@
 package errors_test
 
 import (
-	"context"
 	"fmt"
+	"net/http"
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -12,10 +12,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFromStatusCode(t *testing.T) {
+	require.IsType(t, errors.NotFoundError{}, errors.FromStatusCode(http.StatusNotFound, ""))
+	require.IsType(t, errors.BadParameterError{}, errors.FromStatusCode(http.StatusBadRequest, ""))
+	require.IsType(t, errors.VersionConflictError{}, errors.FromStatusCode(http.StatusConflict, ""))
+	require.IsType(t, errors.UnauthorizedError{}, errors.FromStatusCode(http.StatusUnauthorized, ""))
+	require.IsType(t, errors.ForbiddenError{}, errors.FromStatusCode(http.StatusForbidden, ""))
+	require.IsType(t, errors.InternalError{}, errors.FromStatusCode(http.StatusInternalServerError, ""))
+}
+
 func TestNewInternalError(t *testing.T) {
 	t.Parallel()
 	resource.Require(t, resource.UnitTest)
-	err := errors.NewInternalError(context.Background(), errs.New("system disk could not be read"))
+	err := errors.NewInternalError(errs.New("system disk could not be read"))
 
 	// not sure what assertion to do here.
 	t.Log(err)
@@ -80,15 +89,14 @@ func TestNewForbiddenError(t *testing.T) {
 func TestIsXYError(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()
-	ctx := context.Background()
 	testCases := []struct {
 		name           string
 		arg            error
 		fn             func(err error) (bool, error)
 		expectedResult bool
 	}{
-		{"IsInternalError - is an InternalError", errors.NewInternalError(ctx, errs.New("some message")), errors.IsInternalError, true},
-		{"IsInternalError - is a wrapped InternalError", errs.Wrap(errs.Wrap(errors.NewInternalError(ctx, errs.New("some message")), "msg1"), "msg2"), errors.IsInternalError, true},
+		{"IsInternalError - is an InternalError", errors.NewInternalError(errs.New("some message")), errors.IsInternalError, true},
+		{"IsInternalError - is a wrapped InternalError", errs.Wrap(errs.Wrap(errors.NewInternalError(errs.New("some message")), "msg1"), "msg2"), errors.IsInternalError, true},
 		{"IsInternalError - is not an InternalError", errors.NewNotFoundError("foo", "bar"), errors.IsInternalError, false},
 		{"IsBadParameterError - is a BadParameterError", errors.NewBadParameterError("param", "actual"), errors.IsBadParameterError, true},
 		{"IsBadParameterError - is a wrapped BadParameterError", errs.Wrap(errs.Wrap(errors.NewBadParameterError("param", "actual"), "msg1"), "msg2"), errors.IsBadParameterError, true},
@@ -101,13 +109,13 @@ func TestIsXYError(t *testing.T) {
 		{"IsForbiddenError - is not a ForbiddenError", errors.NewNotFoundError("foo", "bar"), errors.IsForbiddenError, false},
 		{"IsNotFoundError - is a NotFoundError", errors.NewNotFoundError("entity", "id"), errors.IsNotFoundError, true},
 		{"IsNotFoundError - is a wrapped NotFoundError", errs.Wrap(errs.Wrap(errors.NewNotFoundError("entity", "id"), "msg1"), "msg2"), errors.IsNotFoundError, true},
-		{"IsNotFoundError - is not a NotFoundError", errors.NewInternalError(ctx, errs.New("some message")), errors.IsNotFoundError, false},
+		{"IsNotFoundError - is not a NotFoundError", errors.NewInternalError(errs.New("some message")), errors.IsNotFoundError, false},
 		{"IsUnauthorizedError - is an UnauthorizedError", errors.NewUnauthorizedError("some message"), errors.IsUnauthorizedError, true},
 		{"IsUnauthorizedError - is a wrapped UnauthorizedError", errs.Wrap(errs.Wrap(errors.NewUnauthorizedError("some message"), "msg1"), "msg2"), errors.IsUnauthorizedError, true},
-		{"IsUnauthorizedError - is not an UnauthorizedError", errors.NewInternalError(ctx, errs.New("some message")), errors.IsUnauthorizedError, false},
+		{"IsUnauthorizedError - is not an UnauthorizedError", errors.NewInternalError(errs.New("some message")), errors.IsUnauthorizedError, false},
 		{"IsVersionConflictError - is a VersionConflictError", errors.NewVersionConflictError("some message"), errors.IsVersionConflictError, true},
 		{"IsVersionConflictError - is a wrapped VersionConflictError", errs.Wrap(errs.Wrap(errors.NewVersionConflictError("some message"), "msg1"), "msg2"), errors.IsVersionConflictError, true},
-		{"IsVersionConflictError - is not a VersionConflictError", errors.NewInternalError(ctx, errs.New("some message")), errors.IsVersionConflictError, false},
+		{"IsVersionConflictError - is not a VersionConflictError", errors.NewInternalError(errs.New("some message")), errors.IsVersionConflictError, false},
 	}
 	for _, tc := range testCases {
 		// Note that we need to capture the range variable to ensure that tc

@@ -3,6 +3,7 @@ package controller_test
 import (
 	"context"
 	"fmt"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
 	"net/http"
 	"os"
 	"testing"
@@ -1464,7 +1465,7 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountWhenFailedForLi
 
 	clusterServiceMock := testsupport.NewClusterServiceMock(s.T())
 	clusterServiceMock.LinkIdentityToClusterFunc = func(p context.Context, ID uuid.UUID, url string, p3 ...rest.HTTPClientOption) (r error) {
-		return errors.NewInternalErrorFromString(p, fmt.Sprintf("cluster with requested url %s doesn't exist", url))
+		return errors.NewInternalErrorFromString(fmt.Sprintf("cluster with requested url %s doesn't exist", url))
 	}
 	*s.clusterServiceMock = *clusterServiceMock
 
@@ -1856,7 +1857,7 @@ func (s *DummyEmailVerificationService) SendVerificationCode(ctx context.Context
 	if s.success {
 		return nil, nil
 	}
-	return nil, errors.NewInternalErrorFromString(ctx, "failed to send out email")
+	return nil, errors.NewInternalErrorFromString("failed to send out email")
 }
 
 func (s *DummyEmailVerificationService) VerifyCode(ctx context.Context, code string) (*accountrepo.VerificationCode, error) {
@@ -1875,4 +1876,8 @@ func (s *dummyTenantService) Init(ctx context.Context) error {
 func (s *dummyTenantService) Delete(ctx context.Context, identityID uuid.UUID) error {
 	s.identityID = identityID
 	return s.error
+}
+
+func (s *dummyTenantService) View(ctx context.Context) (*tenant.TenantSingle, error) {
+	return nil, s.error
 }

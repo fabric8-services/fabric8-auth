@@ -495,7 +495,7 @@ WHERE
 	value := Identity{}
 	columns, err := rows.Columns()
 	if err != nil {
-		return nil, 0, errors.NewInternalError(ctx, err)
+		return nil, 0, errors.NewInternalError(err)
 	}
 
 	// need to set up a result for Scan() in order to extract total count.
@@ -518,12 +518,12 @@ WHERE
 		db.ScanRows(rows, &value.User)
 
 		if err = rows.Scan(columnValues...); err != nil {
-			return nil, 0, errors.NewInternalError(ctx, err)
+			return nil, 0, errors.NewInternalError(err)
 		}
 
 		value.ID, err = uuid.FromString(identityID)
 		if err != nil {
-			return nil, 0, errors.NewInternalError(ctx, err)
+			return nil, 0, errors.NewInternalError(err)
 		}
 
 		value.Username = identityUsername
@@ -787,7 +787,7 @@ WHERE
   `, memberID, memberID, memberOf, memberOf)
 
 	if result.Error != nil {
-		return errors.NewInternalError(ctx, result.Error)
+		return errors.NewInternalError(result.Error)
 	}
 
 	result = m.db.Exec(`WITH member_identity_hierarchy AS (
@@ -881,7 +881,7 @@ WHERE
   `, memberID, memberID, memberOf, memberOf, token.TOKEN_STATUS_STALE)
 
 	if result.Error != nil {
-		return errors.NewInternalError(ctx, result.Error)
+		return errors.NewInternalError(result.Error)
 	}
 
 	log.Debug(ctx, map[string]interface{}{

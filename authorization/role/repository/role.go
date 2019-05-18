@@ -286,7 +286,7 @@ func (m *GormRoleRepository) FindRolesByResourceType(ctx context.Context, resour
 			"resource_type": resourceType,
 			"err":           err,
 		}, "error getting columns")
-		return roles, errors.NewInternalError(ctx, err)
+		return roles, errors.NewInternalError(err)
 	}
 
 	for rows.Next() {
@@ -303,7 +303,7 @@ func (m *GormRoleRepository) FindRolesByResourceType(ctx context.Context, resour
 				"resource_type": resourceType,
 				"err":           err,
 			}, "error getting rows")
-			return roles, errors.NewInternalError(ctx, err)
+			return roles, errors.NewInternalError(err)
 		}
 		var scopesList []string
 		if scopeNames != "" {

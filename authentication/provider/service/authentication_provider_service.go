@@ -263,7 +263,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 		log.Error(nil, map[string]interface{}{
 			"err": err,
 		}, "failed to retrieve token manager from context")
-		return nil, nil, autherrors.NewInternalError(ctx, err)
+		return nil, nil, autherrors.NewInternalError(err)
 	}
 
 	apiClient := referrerURL.Query().Get(apiClientParam)
@@ -347,14 +347,14 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, userToken.AccessToken, token2.TOKEN_TYPE_ACCESS, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"error": err}, "could not register access token")
-		return nil, nil, autherrors.NewInternalError(ctx, err)
+		return nil, nil, autherrors.NewInternalError(err)
 	}
 
 	// Register the refresh token
 	_, err = s.Services().TokenService().RegisterToken(ctx, identity.ID, userToken.RefreshToken, token2.TOKEN_TYPE_REFRESH, nil)
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{"error": err}, "could not register refresh token")
-		return nil, nil, autherrors.NewInternalError(ctx, err)
+		return nil, nil, autherrors.NewInternalError(err)
 	}
 
 	err = encodeToken(ctx, referrerURL, userToken, apiClient)
@@ -363,7 +363,7 @@ func (s *authenticationProviderServiceImpl) CreateOrUpdateIdentityAndUser(ctx co
 			"err": err,
 		}, "failed to encode token")
 		redirectTo := referrerURL.String() + err.Error()
-		return &redirectTo, nil, autherrors.NewInternalError(ctx, err)
+		return &redirectTo, nil, autherrors.NewInternalError(err)
 	}
 	log.Debug(ctx, map[string]interface{}{
 		"referrerURL": referrerURL.String(),
@@ -421,7 +421,7 @@ func (s *authenticationProviderServiceImpl) UpdateIdentityUsingUserInfoEndPoint(
 	if !identity.RegistrationCompleted {
 		err = fillUserFromUserInfo(*userProfile, identity)
 		if err != nil {
-			return nil, autherrors.NewInternalError(ctx, err)
+			return nil, autherrors.NewInternalError(err)
 		}
 		identity.RegistrationCompleted = true
 		err = s.ExecuteInTransaction(func() error {
@@ -558,7 +558,7 @@ func (s *authenticationProviderServiceImpl) reclaimReferrerAndResponseMode(ctx c
 			"known_referrer": knownReferrer,
 			"err":            err,
 		}, "failed to parse referrer")
-		return nil, nil, autherrors.NewInternalError(ctx, err)
+		return nil, nil, autherrors.NewInternalError(err)
 	}
 
 	log.Debug(ctx, map[string]interface{}{

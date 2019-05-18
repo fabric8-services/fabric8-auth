@@ -92,5 +92,5 @@ func (s *cheServiceImpl) DeleteUser(ctx context.Context, identity repository.Ide
 		"response_status": res.Status,
 		"response_body":   bodyString,
 	}, "unable to delete user in Che")
-	return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("unable to delete user '%s' in Che", identity.ID.String()))
+	return errors.NewInternalErrorFromString(fmt.Sprintf("unable to delete user '%s' in Che", identity.ID.String()))
 }

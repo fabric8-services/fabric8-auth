@@ -59,7 +59,7 @@ func (s *NamedUsersControllerTestSuite) TestDeprovision() { // for backward comp
 		t.Run("with tenant failure", func(t *testing.T) {
 			// OK if tenant service failed
 			s.tenantService.identityID = uuid.NewV4()
-			s.tenantService.error = errors.NewInternalErrorFromString(nil, "tenant service failed")
+			s.tenantService.error = errors.NewInternalErrorFromString("tenant service failed")
 			s.checkDeprovisionOK()
 		})
 	})
@@ -135,7 +135,7 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 		t.Run("with tenant failure", func(t *testing.T) {
 			// OK if tenant service failed
 			s.tenantService.identityID = uuid.NewV4()
-			s.tenantService.error = errors.NewInternalErrorFromString(nil, "tenant service failed")
+			s.tenantService.error = errors.NewInternalErrorFromString("tenant service failed")
 			s.checkBanOK()
 		})
 	})

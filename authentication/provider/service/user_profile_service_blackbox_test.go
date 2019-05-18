@@ -82,7 +82,7 @@ func (s *UserProfileServiceBlackBoxTest) generateAccessToken() (*string, error) 
 		"grant_type":    {"password"},
 	})
 	if err != nil {
-		return nil, errors.NewInternalError(context.Background(), errs.Wrap(err, "error when obtaining token"))
+		return nil, errors.NewInternalError(errs.Wrap(err, "error when obtaining token"))
 	}
 
 	t, err := ReadTokenSet(context.Background(), res)

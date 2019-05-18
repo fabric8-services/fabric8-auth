@@ -51,7 +51,7 @@ func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Conte
 		log.Error(nil, map[string]interface{}{
 			"err": err,
 		}, "failed to create token manager")
-		return "", autherrors.NewInternalError(ctx, err)
+		return "", autherrors.NewInternalError(err)
 	}
 
 	// Extract username from the token
@@ -66,13 +66,13 @@ func (s *osoSubscriptionServiceImpl) LoadOSOSubscriptionStatus(ctx context.Conte
 		if isSignUpNeededError(err) {
 			return signUpNeededStatus, nil
 		}
-		return "", autherrors.NewInternalError(ctx, err)
+		return "", autherrors.NewInternalError(err)
 	}
 
 	for _, sub := range subs.Subscriptions {
 		cluster, err := s.Services().ClusterService().ClusterByURL(ctx, sub.Plan.Service.APIURL)
 		if err != nil {
-			return "", autherrors.NewInternalError(ctx, err)
+			return "", autherrors.NewInternalError(err)
 		}
 		if cluster != nil {
 			return sub.Status, nil
@@ -137,7 +137,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 			"username":    username,
 			"reg_app_url": regAppURL,
 		}, "unable to create http request")
-		return nil, autherrors.NewInternalError(ctx, err)
+		return nil, autherrors.NewInternalError(err)
 	}
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.config.GetOSORegistrationAppAdminToken()))
 	res, err := s.httpClient.Do(req)
@@ -147,7 +147,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 			"username":    username,
 			"reg_app_url": regAppURL,
 		}, "unable to load OSO subscription status")
-		return nil, autherrors.NewInternalError(ctx, err)
+		return nil, autherrors.NewInternalError(err)
 	}
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
@@ -164,7 +164,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 			"response_status": res.Status,
 			"response_body":   bodyString,
 		}, "unable to load OSO subscription status")
-		return nil, autherrors.NewInternalError(ctx, errors.New("unable to load OSO subscription status"))
+		return nil, autherrors.NewInternalError(errors.New("unable to load OSO subscription status"))
 	}
 
 	var sbs Subscriptions
@@ -176,7 +176,7 @@ func (s *osoSubscriptionServiceImpl) loadSubscriptions(ctx context.Context, user
 			"username":    username,
 			"body":        bodyString,
 		}, "unable to unmarshal json with subscription status")
-		return nil, autherrors.NewInternalError(ctx, err)
+		return nil, autherrors.NewInternalError(err)
 	}
 
 	return &sbs, nil

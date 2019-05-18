@@ -80,7 +80,7 @@ func (c *OrganizationController) List(ctx *app.ListOrganizationContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"err": err,
 		}, "failed to list organizations")
-		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+		return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 	}
 
 	return ctx.OK(&app.OrganizationArray{Data: convertToAppOrganization(orgs)})

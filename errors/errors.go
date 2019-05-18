@@ -1,9 +1,9 @@
 package errors
 
 import (
-	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	errs "github.com/pkg/errors"
 )
@@ -22,6 +22,25 @@ const (
 	ErrInternalDatabase = "database_error"
 )
 
+// FromStatusCode returns an error from the given HTTP status code, using the message and args
+func FromStatusCode(statusCode int, format string, args ...interface{}) error {
+	msg := fmt.Sprintf(format, args...)
+	switch statusCode {
+	case http.StatusNotFound:
+		return NewNotFoundErrorFromString(msg)
+	case http.StatusBadRequest:
+		return NewBadParameterErrorFromString(msg, nil, "")
+	case http.StatusConflict:
+		return NewVersionConflictError(msg)
+	case http.StatusUnauthorized:
+		return NewUnauthorizedError(msg)
+	case http.StatusForbidden:
+		return NewForbiddenError(msg)
+	default:
+		return NewInternalErrorFromString(msg)
+	}
+}
+
 type simpleError struct {
 	message string
 }
@@ -31,12 +50,12 @@ func (err simpleError) Error() string {
 }
 
 // NewInternalError returns the custom defined error of type InternalError.
-func NewInternalError(ctx context.Context, err error) InternalError {
+func NewInternalError(err error) InternalError {
 	return InternalError{err}
 }
 
 // NewInternalErrorFromString returns the custom defined error of type InternalError.
-func NewInternalErrorFromString(ctx context.Context, errorMessage string) InternalError {
+func NewInternalErrorFromString(errorMessage string) InternalError {
 	return InternalError{errors.New(errorMessage)}
 }
 

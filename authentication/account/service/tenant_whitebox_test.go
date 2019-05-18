@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fabric8-services/fabric8-auth/configuration"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/rest"
 	authtest "github.com/fabric8-services/fabric8-auth/test"
 	testsuite "github.com/fabric8-services/fabric8-auth/test/suite"
@@ -86,6 +87,47 @@ func (s *TestTenantServiceSuite) TestInit() {
 
 	err = ts.Init(ctx)
 	require.Error(s.T(), err)
+}
+
+func (s *TestTenantServiceSuite) TestView() {
+	ctx, token, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx = manager.ContextWithTokenManager(ctx, testtoken.TokenManager)
+
+	json, err := ioutil.ReadFile("../../../test/data/tenant_single.json")
+	require.NoError(s.T(), err)
+
+	s.doer.Client.Error = nil
+	body := ioutil.NopCloser(bytes.NewReader(json))
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusOK}
+
+	s.doer.Client.AssertRequest = func(req *http.Request) {
+		require.Equal(s.T(), "GET", req.Method)
+		require.Equal(s.T(), "https://some.tenant.io/api/tenant", req.URL.String())
+		require.Equal(s.T(), "Bearer "+token, req.Header.Get("Authorization"))
+		require.Equal(s.T(), reqID, req.Header.Get("X-Request-Id"))
+	}
+
+	tenant, err := s.ts.View(ctx)
+	require.NoError(s.T(), err)
+
+	require.Equal(s.T(), "00000000-0000-0000-0000-000000000123", tenant.Data.ID.String())
+
+	// Test not found
+	json, err = ioutil.ReadFile("../../../test/data/tenant_single_not_found.json")
+	require.NoError(s.T(), err)
+
+	body = ioutil.NopCloser(bytes.NewReader(json))
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
+	tenant, err = s.ts.View(ctx)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), autherrors.NotFoundError{}, err)
+
+	// Test not found with invalid errors
+	body = ioutil.NopCloser(bytes.NewReader([]byte{}))
+	s.doer.Client.Response = &http.Response{Body: body, StatusCode: http.StatusNotFound}
+	tenant, err = s.ts.View(ctx)
+	require.Error(s.T(), err)
+	require.IsType(s.T(), autherrors.InternalError{}, err)
 }
 
 func (s *TestTenantServiceSuite) TestDelete() {

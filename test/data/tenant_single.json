@@ -1,0 +1,29 @@
+{
+  "data": {
+    "attributes": {
+      "created-at": "2019-01-23T18:25:43.500Z",
+      "email": "wilecoyote@acme.com",
+      "namespaces": [{
+        "cluster-app-domain": "cluster.app.domain",
+        "cluster-capacity-exhausted": false,
+        "cluster-console-url": "https://console.cluster.app.domain",
+        "cluster-logging-url": "https://logs.cluster.app.domain",
+        "cluster-metrics-url": "https://metrics.cluster.app.domain",
+        "cluster-url": "https://api.cluster.app.domain",
+        "created-at": "2019-01-23T18:25:43.501Z",
+        "name": "Default",
+        "state": "cluster-state",
+        "type": "cluster-type",
+        "updated-at": "2019-01-23T18:25:43.502Z",
+        "version": "1"
+      }],
+      "profile": ""
+    },
+    "id": "00000000-0000-0000-0000-000000000123",
+    "links": {
+      "related": "",
+      "self": ""
+    },
+    "type":  "tenants"
+  }
+}

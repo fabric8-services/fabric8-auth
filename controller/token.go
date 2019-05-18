@@ -194,7 +194,7 @@ func (c *TokenController) Exchange(ctx *app.ExchangeTokenContext) error {
 				"redirectURL": rest.AbsoluteURL(ctx.RequestData, client.CallbackAuthorizePath(), nil),
 				"err":         err,
 			}, "failed to parse referrer")
-			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(ctx, err))
+			return jsonapi.JSONErrorResponse(ctx, errors.NewInternalError(err))
 		}
 
 		notApprovedRedirect, token, err = c.app.AuthenticationProviderService().ExchangeAuthorizationCodeForUserToken(

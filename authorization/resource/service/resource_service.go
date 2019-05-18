@@ -48,7 +48,7 @@ func (s *resourceServiceImpl) delete(ctx context.Context, resourceID string, vis
 	for _, child := range children {
 		_, alreadyVisited := visitedChildren[child.ResourceID]
 		if alreadyVisited {
-			return errors.NewInternalErrorFromString(ctx, fmt.Sprintf("cycle resource references detected for resource %s with parent %s", child.ResourceID, resourceID))
+			return errors.NewInternalErrorFromString(fmt.Sprintf("cycle resource references detected for resource %s with parent %s", child.ResourceID, resourceID))
 		}
 		err := s.delete(ctx, child.ResourceID, visitedChildren)
 		if err != nil {
@@ -88,7 +88,7 @@ func (s *resourceServiceImpl) Read(ctx context.Context, resourceID string) (*app
 	// Load the resource type scopes
 	scopes, err := s.Repositories().ResourceTypeScopeRepository().LookupForType(ctx, res.ResourceTypeID)
 	if err != nil {
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, errors.NewInternalError(err)
 	}
 
 	var scopeValues []string

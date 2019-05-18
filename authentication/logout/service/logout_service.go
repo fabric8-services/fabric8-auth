@@ -57,7 +57,7 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 			"valid_redirect_urls": s.config.GetValidRedirectURLs(),
 			"err":                 err,
 		}, "Can't match redirect URL and whitelist regex")
-		return "", errors.NewInternalError(ctx, err)
+		return "", errors.NewInternalError(err)
 	}
 	if !matched {
 		log.Error(ctx, map[string]interface{}{
@@ -72,7 +72,7 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 			"logout_endpoint": s.config.GetOAuthProviderEndpointLogout(),
 			"err":             err,
 		}, "Failed to logout. Unable to parse logout url.")
-		return "", errors.NewInternalError(ctx, err)
+		return "", errors.NewInternalError(err)
 	}
 
 	parameters := logoutURL.Query()
@@ -98,13 +98,13 @@ func (s *logoutServiceImpl) Logout(ctx context.Context, redirectURL string) (str
 
 			err = s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identityID, token.TOKEN_STATUS_LOGGED_OUT)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				return errors.NewInternalError(err)
 			}
 
 			// Update the identity's last active timestamp on logout
 			err = s.Repositories().Identities().TouchLastActive(ctx, identityID)
 			if err != nil {
-				return errors.NewInternalError(ctx, err)
+				return errors.NewInternalError(err)
 			}
 
 			return nil

@@ -192,7 +192,7 @@ func (m *GormDefaultRoleMappingRepository) FindForResourceTypeAndRoles(ctx conte
 	var result DefaultRoleMapping
 	err := m.db.Model(&DefaultRoleMapping{}).Where("resource_type_id = ? AND from_role_id = ? AND to_role_id = ? ", resourceTypeID, fromRoleId, toRoleId).Find(&result).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, errors.NewInternalError(ctx, err)
+		return nil, errors.NewInternalError(err)
 	} else if err == gorm.ErrRecordNotFound {
 		return nil, errors.NewNotFoundErrorFromString(fmt.Sprintf("unable to find default mapping role for resource of type of ID '%v' and from role with ID '%v' to role with ID '%v'", resourceTypeID, fromRoleId, toRoleId))
 	}

@@ -58,7 +58,7 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 
 		err = s.Repositories().ResourceRepository().Create(ctx, res)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		// Create the organization identity
@@ -71,7 +71,7 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 
 		err = s.Repositories().Identities().Create(ctx, orgIdentity)
 		if err != nil {
-			return errors.NewInternalError(ctx, err)
+			return errors.NewInternalError(err)
 		}
 
 		organizationID = orgIdentity.ID
@@ -80,7 +80,7 @@ func (s *organizationServiceImpl) CreateOrganization(ctx context.Context, creato
 		adminRole, err := s.Repositories().RoleRepository().Lookup(ctx, authorization.OrganizationAdminRole, authorization.IdentityResourceTypeOrganization)
 
 		if err != nil {
-			return errors.NewInternalErrorFromString(ctx, "Error looking up admin role for 'identity/organization' resource type")
+			return errors.NewInternalErrorFromString("Error looking up admin role for 'identity/organization' resource type")
 		}
 
 		// Assign the admin role for the new organization to the current user
