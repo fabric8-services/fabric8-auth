@@ -10,7 +10,8 @@ if [ ! -f .cico-prepare ]; then
 
     run_tests_without_coverage;
 
-    generate_client_setup fabric8-auth auth tool fabric8-services fabric8-auth-client
+    # remove this once FABRIC8_HUB_TOKEN issue is resolved. it's prompting for password
+    #generate_client_setup fabric8-auth auth tool fabric8-services fabric8-auth-client
 
     touch .cico-prepare
 fi
