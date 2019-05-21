@@ -2,19 +2,20 @@ package controller_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
-	"github.com/fabric8-services/fabric8-auth/application/service/factory"
-	"github.com/fabric8-services/fabric8-auth/gormapplication"
-
 	"github.com/fabric8-services/fabric8-auth/app/test"
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
+	"github.com/fabric8-services/fabric8-auth/gormapplication"
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testsupport "github.com/fabric8-services/fabric8-auth/test"
 	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	uuid "github.com/satori/go.uuid"
+	"gopkg.in/h2non/gock.v1"
 
 	"github.com/goadesign/goa"
 	"github.com/stretchr/testify/assert"
@@ -53,14 +54,19 @@ func (s *NamedUsersControllerTestSuite) TestDeprovision() { // for backward comp
 
 		t.Run("without tenant failure", func(t *testing.T) {
 			// OK if tenant service passed
-			s.checkDeprovisionOK()
+			s.checkDeprovisionOK(t)
 		})
 
-		t.Run("with tenant failure", func(t *testing.T) {
-			// OK if tenant service failed
-			s.tenantService.identityID = uuid.NewV4()
-			s.tenantService.error = errors.NewInternalErrorFromString("tenant service failed")
-			s.checkDeprovisionOK()
+		t.Run("with che failure", func(t *testing.T) {
+			// Fail if che service failed
+			userToBan := s.Graph.CreateUser()
+			defer gock.Off()
+			gock.New("http://localhost:8091").
+				Delete(fmt.Sprintf("/api/user/%s", userToBan.Identity().ID.String())).
+				Reply(500)
+			svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+			test.DeprovisionNamedusersInternalServerError(t, svc.Context, svc, ctrl, userToBan.Identity().Username)
 		})
 	})
 
@@ -68,7 +74,7 @@ func (s *NamedUsersControllerTestSuite) TestDeprovision() { // for backward comp
 
 		t.Run("not found", func(t *testing.T) {
 			svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-			test.DeprovisionNamedusersNotFound(s.T(), svc.Context, svc, ctrl, uuid.NewV4().String())
+			test.DeprovisionNamedusersNotFound(t, svc.Context, svc, ctrl, uuid.NewV4().String())
 		})
 
 		t.Run("forbidden", func(t *testing.T) {
@@ -78,20 +84,20 @@ func (s *NamedUsersControllerTestSuite) TestDeprovision() { // for backward comp
 			t.Run("other service", func(t *testing.T) {
 				// Another service account can't deprovision
 				svc, ctrl := s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
-				test.DeprovisionNamedusersForbidden(s.T(), svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
+				test.DeprovisionNamedusersForbidden(t, svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
 
 			})
 
 			t.Run("missing tokem", func(t *testing.T) {
 				// If no token present in the context then fails too
 				_, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-				test.DeprovisionNamedusersForbidden(s.T(), nil, nil, ctrl, userToDeprovision.Identity().Username)
+				test.DeprovisionNamedusersForbidden(t, nil, nil, ctrl, userToDeprovision.Identity().Username)
 			})
 
 			t.Run("regular user", func(t *testing.T) {
 				// Regular user can't deprovision either
 				svc, ctrl := s.SecuredController(*s.Graph.CreateUser().Identity())
-				test.DeprovisionNamedusersForbidden(s.T(), svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
+				test.DeprovisionNamedusersForbidden(t, svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
 			})
 
 		})
@@ -99,28 +105,34 @@ func (s *NamedUsersControllerTestSuite) TestDeprovision() { // for backward comp
 
 }
 
-func (s *NamedUsersControllerTestSuite) checkDeprovisionOK() {
+func (s *NamedUsersControllerTestSuite) checkDeprovisionOK(t *testing.T) {
 	userToDeprovision := s.Graph.CreateUser()
 	userToStayIntact := s.Graph.CreateUser()
 
-	svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-	_, result := test.DeprovisionNamedusersOK(s.T(), svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
+	defer gock.Off()
+	gock.New("http://localhost:8090").
+		Delete(fmt.Sprintf("/api/tenants/%s", userToDeprovision.Identity().ID.String())).
+		Reply(204)
+	gock.New("http://localhost:8091").
+		Delete(fmt.Sprintf("/api/user/%s", userToDeprovision.Identity().ID.String())).
+		Reply(204)
 
-	// Check if tenant service was called
-	assert.Equal(s.T(), userToDeprovision.IdentityID(), s.tenantService.identityID)
-	assert.Equal(s.T(), userToDeprovision.User().ID.String(), *result.Data.Attributes.UserID)
-	assert.Equal(s.T(), userToDeprovision.IdentityID().String(), *result.Data.Attributes.IdentityID)
+	svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+	_, result := test.DeprovisionNamedusersOK(t, svc.Context, svc, ctrl, userToDeprovision.Identity().Username)
+
+	assert.Equal(t, userToDeprovision.User().ID.String(), *result.Data.Attributes.UserID)
+	assert.Equal(t, userToDeprovision.IdentityID().String(), *result.Data.Attributes.IdentityID)
 
 	// Check if user was banned
 	loadedUser := s.Graph.LoadUser(userToDeprovision.IdentityID())
-	assert.Equal(s.T(), true, loadedUser.User().Banned)
+	assert.Equal(t, true, loadedUser.User().Banned)
 	userToDeprovision.Identity().User.Banned = true
-	testsupport.AssertIdentityEqual(s.T(), userToDeprovision.Identity(), loadedUser.Identity())
+	testsupport.AssertIdentityEqual(t, userToDeprovision.Identity(), loadedUser.Identity())
 
 	// Check the other user was not banned
 	loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
-	assert.Equal(s.T(), false, loadedUser.User().Banned)
-	testsupport.AssertIdentityEqual(s.T(), userToStayIntact.Identity(), loadedUser.Identity())
+	assert.Equal(t, false, loadedUser.User().Banned)
+	testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
 }
 
 func (s *NamedUsersControllerTestSuite) TestBan() {
@@ -129,14 +141,19 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 
 		t.Run("without tenant failure", func(t *testing.T) {
 			// OK if tenant service passed
-			s.checkBanOK()
+			s.checkBanOK(t)
 		})
 
-		t.Run("with tenant failure", func(t *testing.T) {
-			// OK if tenant service failed
-			s.tenantService.identityID = uuid.NewV4()
-			s.tenantService.error = errors.NewInternalErrorFromString("tenant service failed")
-			s.checkBanOK()
+		t.Run("with che failure", func(t *testing.T) {
+			// Fail if che service failed
+			userToBan := s.Graph.CreateUser()
+			defer gock.Off()
+			gock.New("http://localhost:8091").
+				Delete(fmt.Sprintf("/api/user/%s", userToBan.Identity().ID.String())).
+				Reply(500)
+			svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+
+			test.BanNamedusersInternalServerError(t, svc.Context, svc, ctrl, userToBan.Identity().Username)
 		})
 	})
 
@@ -144,7 +161,7 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 
 		t.Run("not found", func(t *testing.T) {
 			svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-			test.BanNamedusersNotFound(s.T(), svc.Context, svc, ctrl, uuid.NewV4().String())
+			test.BanNamedusersNotFound(t, svc.Context, svc, ctrl, uuid.NewV4().String())
 		})
 
 		t.Run("forbidden", func(t *testing.T) {
@@ -154,20 +171,20 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 			t.Run("other service", func(t *testing.T) {
 				// Another service account can't deprovision
 				svc, ctrl := s.SecuredServiceAccountController(testsupport.TestTenantIdentity)
-				test.BanNamedusersForbidden(s.T(), svc.Context, svc, ctrl, userToBan.Identity().Username)
+				test.BanNamedusersForbidden(t, svc.Context, svc, ctrl, userToBan.Identity().Username)
 
 			})
 
 			t.Run("missing token", func(t *testing.T) {
 				// If no token present in the context then fails too
 				_, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-				test.BanNamedusersForbidden(s.T(), nil, nil, ctrl, userToBan.Identity().Username)
+				test.BanNamedusersForbidden(t, nil, nil, ctrl, userToBan.Identity().Username)
 			})
 
 			t.Run("regular user", func(t *testing.T) {
 				// Regular user can't deprovision either
 				svc, ctrl := s.SecuredController(*s.Graph.CreateUser().Identity())
-				test.BanNamedusersForbidden(s.T(), svc.Context, svc, ctrl, userToBan.Identity().Username)
+				test.BanNamedusersForbidden(t, svc.Context, svc, ctrl, userToBan.Identity().Username)
 			})
 
 		})
@@ -175,28 +192,34 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 
 }
 
-func (s *NamedUsersControllerTestSuite) checkBanOK() {
+func (s *NamedUsersControllerTestSuite) checkBanOK(t *testing.T) {
 	userToBan := s.Graph.CreateUser()
 	userToStayIntact := s.Graph.CreateUser()
 
-	svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
-	_, result := test.BanNamedusersOK(s.T(), svc.Context, svc, ctrl, userToBan.Identity().Username)
+	defer gock.Off()
+	gock.New("http://localhost:8090").
+		Delete(fmt.Sprintf("/api/tenants/%s", userToBan.Identity().ID.String())).
+		Reply(204)
+	gock.New("http://localhost:8091").
+		Delete(fmt.Sprintf("/api/user/%s", userToBan.Identity().ID.String())).
+		Reply(204)
 
-	// Check if tenant service was called
-	assert.Equal(s.T(), userToBan.IdentityID(), s.tenantService.identityID)
-	assert.Equal(s.T(), userToBan.User().ID.String(), *result.Data.Attributes.UserID)
-	assert.Equal(s.T(), userToBan.IdentityID().String(), *result.Data.Attributes.IdentityID)
+	svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
+	_, result := test.BanNamedusersOK(t, svc.Context, svc, ctrl, userToBan.Identity().Username)
+
+	assert.Equal(t, userToBan.User().ID.String(), *result.Data.Attributes.UserID)
+	assert.Equal(t, userToBan.IdentityID().String(), *result.Data.Attributes.IdentityID)
 
 	// Check if user was banned
 	loadedUser := s.Graph.LoadUser(userToBan.IdentityID())
-	assert.Equal(s.T(), true, loadedUser.User().Banned)
+	assert.Equal(t, true, loadedUser.User().Banned)
 	userToBan.Identity().User.Banned = true
-	testsupport.AssertIdentityEqual(s.T(), userToBan.Identity(), loadedUser.Identity())
+	testsupport.AssertIdentityEqual(t, userToBan.Identity(), loadedUser.Identity())
 
 	// Check the other user was not banned
 	loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
-	assert.Equal(s.T(), false, loadedUser.User().Banned)
-	testsupport.AssertIdentityEqual(s.T(), userToStayIntact.Identity(), loadedUser.Identity())
+	assert.Equal(t, false, loadedUser.User().Banned)
+	testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
 }
 
 func (s *NamedUsersControllerTestSuite) TestDeactivateUser() {

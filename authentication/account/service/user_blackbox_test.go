@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	gock "gopkg.in/h2non/gock.v1"
+	"gopkg.in/h2non/gock.v1"
 )
 
 func TestUserService(t *testing.T) {
@@ -489,7 +489,53 @@ func (s *userServiceBlackboxTestSuite) TestBanUser() {
 		userToBan := s.Graph.CreateUser()
 		userToStayIntact := s.Graph.CreateUser()
 
-		identity, err := s.Application.UserService().BanUser(s.Ctx, userToBan.Identity().Username)
+		token1 := s.Graph.CreateToken(userToBan)
+		token2 := s.Graph.CreateToken(userToBan)
+		token3 := s.Graph.CreateToken(userToStayIntact)
+		token4 := s.Graph.CreateToken(userToStayIntact)
+		githubTokenToKeep := s.Graph.CreateExternalToken(userToStayIntact, provider.GitHubProviderAlias)
+		openshiftTokenToKeep := s.Graph.CreateExternalToken(userToStayIntact, "1234eee5-d01a-4119-9893-292a7d39b49e") // ID of the OpenShift cluster returned by gock on behalf of the cluster service
+
+		ctx, _, reqID := testtoken.ContextWithTokenAndRequestID(s.T())
+		ctx = testtoken.ContextWithRequest(ctx)
+		saToken := testtoken.TokenManager.AuthServiceAccountToken()
+
+		// call to Tenant Service
+		tenantCallsCounter := 0
+		defer gock.Off()
+		gock.New("http://localhost:8090").
+			Delete(fmt.Sprintf("/api/tenants/%s", userToBan.IdentityID().String())).
+			MatchHeader("Authorization", "Bearer "+saToken).
+			MatchHeader("X-Request-Id", reqID).
+			SetMatcher(gocksupport.SpyOnCalls(&tenantCallsCounter)).
+			Reply(204)
+		// call to Che
+		cheCallsCounter := 0
+		gock.New("http://localhost:8091").
+			Delete(fmt.Sprintf("/api/user/%s", userToBan.IdentityID().String())).
+			SetMatcher(gocksupport.SpyOnCalls(&cheCallsCounter)).
+			Reply(204)
+
+		tokenManager, err := manager.DefaultManager(s.Configuration)
+		require.NoError(s.T(), err)
+		tokenMatcher := gock.NewBasicMatcher()
+		tokenMatcher.Add(func(req *http.Request, ereq *gock.Request) (bool, error) {
+			h := req.Header.Get("Authorization")
+			if strings.HasPrefix(h, "Bearer ") {
+				token := h[len("Bearer "):]
+				// parse the token and check the 'sub' claim
+				tk, err := tokenManager.Parse(context.Background(), token)
+				if err != nil {
+					return false, err
+				}
+				if claims, ok := tk.Claims.(jwt.MapClaims); ok {
+					return claims["sub"] == userToBan.IdentityID().String(), nil
+				}
+			}
+			return false, nil
+		})
+
+		identity, err := s.Application.UserService().BanUser(ctx, userToBan.Identity().Username)
 		require.NoError(t, err)
 		assert.True(t, identity.User.Banned)
 		assert.True(t, identity.User.Deprovisioned) // for backward compatibility
@@ -501,10 +547,32 @@ func (s *userServiceBlackboxTestSuite) TestBanUser() {
 		userToBan.Identity().User.Banned = true
 		testsupport.AssertIdentityEqual(t, userToBan.Identity(), loadedUser.Identity())
 
+		// also, verify that user's tokens were revoked
+		for _, tID := range []uuid.UUID{token1.TokenID(), token2.TokenID()} {
+			tok := s.Graph.LoadToken(tID)
+			require.NotNil(t, tok)
+			assert.Equal(t, tok.Token().Status, token.TOKEN_STATUS_REVOKED)
+		}
+		// also, verify that che, and tenant services were called
+		assert.Equal(t, 1, tenantCallsCounter)
+		assert.Equal(t, 1, cheCallsCounter)
+
+		// lastly, verify that everything belonging to the user to keep intact remained as-is
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.Equal(t, false, loadedUser.User().Banned)
 		assert.Equal(t, false, loadedUser.User().Deprovisioned) // for backward compatibility
 		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
+		assert.True(t, loadedUser.User().Active)
+		testsupport.AssertIdentityEqual(t, userToStayIntact.Identity(), loadedUser.Identity())
+		for _, tID := range []uuid.UUID{token3.TokenID(), token4.TokenID()} {
+			tok := s.Graph.LoadToken(tID)
+			require.NotNil(t, tok)
+			assert.True(t, tok.Token().Valid())
+		}
+		_, err = s.Application.ExternalTokens().Load(ctx, githubTokenToKeep.ID())
+		require.NoError(t, err)
+		_, err = s.Application.ExternalTokens().Load(ctx, openshiftTokenToKeep.ID())
+		require.NoError(t, err)
 	})
 
 	s.T().Run("fail", func(t *testing.T) {
@@ -517,6 +585,45 @@ func (s *userServiceBlackboxTestSuite) TestBanUser() {
 			// then
 			testsupport.AssertError(t, err, errors.NotFoundError{}, "user identity with username '%s' not found", username)
 
+		})
+
+		s.T().Run("tenant fails", func(t *testing.T) {
+			userToBan := s.Graph.CreateUser()
+			ctx, _, _ := testtoken.ContextWithTokenAndRequestID(s.T())
+			ctx = testtoken.ContextWithRequest(ctx)
+
+			// call to Tenant Service
+			defer gock.Off()
+			gock.New("http://localhost:8090").
+				Delete(fmt.Sprintf("/api/tenants/%s", userToBan.IdentityID().String())).
+				Reply(500)
+			// call to Che
+			gock.New("http://localhost:8091").
+				Delete(fmt.Sprintf("/api/user/%s", userToBan.IdentityID().String())).
+				Reply(204)
+
+			identity, err := s.Application.UserService().BanUser(ctx, userToBan.Identity().Username)
+			assert.EqualError(t, err, fmt.Sprintf("error occurred during deleting the user '%s' on Tenant Service: unable to delete tenant", userToBan.Identity().ID.String()))
+
+			// User is marked as banned anyway
+			assert.True(s.T(), identity.User.Banned)
+		})
+
+		s.T().Run("che fails", func(t *testing.T) {
+			userToBan := s.Graph.CreateUser()
+			ctx, _, _ := testtoken.ContextWithTokenAndRequestID(s.T())
+			ctx = testtoken.ContextWithRequest(ctx)
+
+			// call to Che
+			gock.New("http://localhost:8091").
+				Delete(fmt.Sprintf("/api/user/%s", userToBan.IdentityID().String())).
+				Reply(500)
+
+			identity, err := s.Application.UserService().BanUser(ctx, userToBan.Identity().Username)
+			assert.EqualError(t, err, fmt.Sprintf("error occurred during deleting the user '%s' on Che Service: unable to delete user '%s' in Che", userToBan.Identity().ID.String(), userToBan.Identity().ID.String()))
+
+			// User is marked as banned anyway
+			assert.True(s.T(), identity.User.Banned)
 		})
 	})
 }
@@ -542,7 +649,7 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		githubTokenToKeep := s.Graph.CreateExternalToken(userToStayIntact, provider.GitHubProviderAlias)
 		openshiftTokenToKeep := s.Graph.CreateExternalToken(userToStayIntact, "02f2eee5-d01a-4119-9893-292a7d39b49e") // ID of the OpenShift cluster returned by gock on behalf of the cluster service
 
-		defer gock.OffAll()
+		defer gock.Off()
 		// call to Cluster Service
 		gock.New("http://f8cluster").
 			Get("/api/clusters/auth").
@@ -702,21 +809,43 @@ func (s *userServiceBlackboxTestSuite) TestHardDeleteUser() {
 }
 
 func (s *userServiceBlackboxTestSuite) TestResetBan() {
-	userToResetDeprovision := s.Graph.CreateUser()
+
+	userToBan := s.Graph.CreateUser()
 	userToStayIntact := s.Graph.CreateUser()
 
-	identity, err := s.Application.UserService().BanUser(s.Ctx, userToResetDeprovision.Identity().Username)
+	ctx, _, _ := testtoken.ContextWithTokenAndRequestID(s.T())
+	ctx = testtoken.ContextWithRequest(ctx)
+
+	// call to Tenant Service
+	defer gock.Off()
+	gock.New("http://localhost:8090").
+		Delete(fmt.Sprintf("/api/tenants/%s", userToBan.IdentityID().String())).
+		Reply(204)
+	// call to Che
+	gock.New("http://localhost:8091").
+		Delete(fmt.Sprintf("/api/user/%s", userToBan.IdentityID().String())).
+		Reply(204)
+
+	identity, err := s.Application.UserService().BanUser(ctx, userToBan.Identity().Username)
 	require.NoError(s.T(), err)
 	assert.True(s.T(), identity.User.Banned)
 
-	identityToStayIntact, err := s.Application.UserService().BanUser(s.Ctx, userToStayIntact.Identity().Username)
+	gock.New("http://localhost:8090").
+		Delete(fmt.Sprintf("/api/tenants/%s", userToStayIntact.IdentityID().String())).
+		Reply(204)
+	// call to Che
+	gock.New("http://localhost:8091").
+		Delete(fmt.Sprintf("/api/user/%s", userToStayIntact.IdentityID().String())).
+		Reply(204)
+
+	identityToStayIntact, err := s.Application.UserService().BanUser(ctx, userToStayIntact.Identity().Username)
 	require.NoError(s.T(), err)
 	assert.True(s.T(), identityToStayIntact.User.Banned)
 
 	err = s.Application.UserService().ResetBan(s.Ctx, identity.User)
 	require.NoError(s.T(), err)
 
-	loadedUser := s.Graph.LoadUser(userToResetDeprovision.IdentityID())
+	loadedUser := s.Graph.LoadUser(userToBan.IdentityID())
 	assert.False(s.T(), loadedUser.User().Banned)
 
 	loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())

@@ -111,7 +111,13 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 		identity.User.Banned = true
 		identity.User.Deprovisioned = true // for backward compatibility
 
-		return s.Repositories().Users().Save(ctx, &identity.User)
+		err = s.Repositories().Users().Save(ctx, &identity.User)
+		if err != nil {
+			return err
+		}
+
+		// revoke all user's tokens
+		return s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
 	})
 
 	if err == nil {
@@ -271,7 +277,6 @@ func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (
 // deleteUserFromOtherServices deletes the user from Che and Tenant service
 func (s *userServiceImpl) deleteUserFromOtherServices(ctx context.Context, identity *repository.Identity) error {
 	// call Che
-	// using `auth` SA token here, not the request context's token
 	err := s.Services().CheService().DeleteUser(ctx, *identity)
 	if err != nil {
 		// do not proceed with tenant removal if something wrong happened during Che cleanup

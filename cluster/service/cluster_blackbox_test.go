@@ -46,7 +46,7 @@ func (s *ClusterServiceTestSuite) TestClustersFail() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("clusters() fails if can't get clusters", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 
 		gock.New("http://f8cluster").
 			Get("api/clusters/auth").
@@ -61,7 +61,7 @@ func (s *ClusterServiceTestSuite) TestClustersFail() {
 	})
 
 	s.T().Run("cluster by url fails if can't get clusters", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://api.starter-us-east-2.openshift.com/"
 
 		gock.New("http://f8cluster").
@@ -80,7 +80,7 @@ func (s *ClusterServiceTestSuite) TestUnLinkIdentityFromClusterFailOK() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("204", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.ok/"
 		identityID := uuid.NewV4()
 
@@ -100,7 +100,7 @@ func (s *ClusterServiceTestSuite) TestUnLinkIdentityFromClusterFail() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("500", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.error/"
 		identityID := uuid.NewV4()
 
@@ -117,7 +117,7 @@ func (s *ClusterServiceTestSuite) TestUnLinkIdentityFromClusterFail() {
 	})
 
 	s.T().Run("400", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.bad/"
 		identityID := uuid.NewV4()
 
@@ -134,7 +134,7 @@ func (s *ClusterServiceTestSuite) TestUnLinkIdentityFromClusterFail() {
 	})
 
 	s.T().Run("401", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.unauthorized/"
 		identityID := uuid.NewV4()
 
@@ -151,7 +151,7 @@ func (s *ClusterServiceTestSuite) TestUnLinkIdentityFromClusterFail() {
 	})
 
 	s.T().Run("404", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.notfound/"
 		identityID := uuid.NewV4()
 
@@ -172,7 +172,7 @@ func (s *ClusterServiceTestSuite) TestLinkIdentityToClusterOK() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("204", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.ok/"
 		identityID := uuid.NewV4()
 
@@ -192,7 +192,7 @@ func (s *ClusterServiceTestSuite) TestLinkIdentityToClusterFail() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("500", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.error/"
 		identityID := uuid.NewV4()
 
@@ -209,7 +209,7 @@ func (s *ClusterServiceTestSuite) TestLinkIdentityToClusterFail() {
 	})
 
 	s.T().Run("400", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.bad/"
 		identityID := uuid.NewV4()
 
@@ -226,7 +226,7 @@ func (s *ClusterServiceTestSuite) TestLinkIdentityToClusterFail() {
 	})
 
 	s.T().Run("401", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		clusterURL := "https://cluster.unauthorized/"
 		identityID := uuid.NewV4()
 
@@ -256,7 +256,7 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	ctx, _, reqID := tokentestsupport.ContextWithTokenAndRequestID(s.T())
 
 	s.T().Run("start fails if can't get clusters", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 
 		gock.New("http://f8cluster").
 			Get("api/clusters/auth").
@@ -278,7 +278,7 @@ func (s *ClusterServiceTestSuite) TestStart() {
 	})
 
 	s.T().Run("start OK", func(t *testing.T) {
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("http://f8cluster").
 			Get("api/clusters/auth").
 			MatchHeader("Authorization", "Bearer "+s.saToken).
