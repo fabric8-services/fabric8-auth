@@ -265,6 +265,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 52
 	m = append(m, steps{ExecuteSQLFile("052-deferrable-constraints2.sql")})
 
+	// Version 53
+	m = append(m, steps{ExecuteSQLFile("053-deactivation-indexes.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

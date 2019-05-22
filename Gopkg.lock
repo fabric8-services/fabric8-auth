@@ -87,10 +87,11 @@
   revision = "3af1516d1d0e6872998e0b5ae4abc25355d314de"
 
 [[projects]]
-  digest = "1:229c5a9afaa364250f68505356ec998ef1b2d251a0ba6f6a5e84be8a5ae9b977"
+  digest = "1:863c44b9c200bce2b6b9ba5deebccb8ddf7b4a34f7ad1f7da44c1b6b22b01fb5"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
     "configuration",
+    "convert/ptr",
     "errors",
     "gocksupport",
     "httpsupport",
@@ -678,6 +679,7 @@
     "github.com/dgrijalva/jwt-go",
     "github.com/fabric8-services/fabric8-cluster-client/cluster",
     "github.com/fabric8-services/fabric8-cluster/design",
+    "github.com/fabric8-services/fabric8-common/convert/ptr",
     "github.com/fabric8-services/fabric8-common/gocksupport",
     "github.com/fabric8-services/fabric8-common/httpsupport",
     "github.com/fabric8-services/fabric8-common/metric",
