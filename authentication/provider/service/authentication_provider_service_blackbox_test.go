@@ -122,7 +122,7 @@ func (s *authenticationProviderServiceTestSuite) TestUnapprovedUserRedirected() 
 		os.Setenv("AUTH_NOTAPPROVED_REDIRECT", env)
 		s.resetConfiguration()
 	}()
-	defer gock.OffAll()
+	defer gock.Off()
 	gock.Observe(gock.DumpRequest)
 
 	os.Setenv("AUTH_NOTAPPROVED_REDIRECT", "https://xyz.io")

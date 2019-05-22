@@ -25,7 +25,7 @@ type TestCheSuite struct {
 }
 
 func (s *TestCheSuite) TestDeleteUser() {
-	defer gock.OffAll()
+	defer gock.Off()
 	gock.Observe(gock.DumpRequest)
 
 	identity := s.Graph.CreateIdentity().Identity()

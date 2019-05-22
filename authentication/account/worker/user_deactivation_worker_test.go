@@ -50,7 +50,7 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 
 	app := gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers)
 	// also, use gock to intercep calls to other services
-	defer gock.OffAll()
+	defer gock.Off()
 
 	s.Run("one user to deactivate once", func() {
 		// given

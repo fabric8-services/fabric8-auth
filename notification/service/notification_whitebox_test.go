@@ -82,7 +82,7 @@ func (s *TestNotificationSuite) TestSend() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Authorization", "Bearer "+saToken).
@@ -103,7 +103,7 @@ func (s *TestNotificationSuite) TestSend() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Authorization", "Bearer "+saToken).
@@ -126,7 +126,7 @@ func (s *TestNotificationSuite) TestSend() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Authorization", "Bearer "+saToken).
@@ -159,7 +159,7 @@ func (s *TestNotificationSuite) TestSendMessage() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Authorization", "Bearer "+saToken).
@@ -180,7 +180,7 @@ func (s *TestNotificationSuite) TestSendMessage() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Authorization", "Bearer "+saToken).
@@ -203,7 +203,7 @@ func (s *TestNotificationSuite) TestSendMessage() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Authorization", "Bearer "+saToken).
@@ -266,7 +266,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Content-Type", "application/json").
@@ -292,7 +292,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Content-Type", "application/json").
@@ -318,7 +318,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			Times(2).
@@ -343,7 +343,7 @@ func (s *TestNotificationSuite) TestSendAsync() {
 		msgID := uuid.NewV4()
 		msg := createMessage(msgID)
 
-		defer gock.OffAll()
+		defer gock.Off()
 		gock.New("https://notification").
 			Post("api/notify").
 			MatchHeader("Content-Type", "application/json").

@@ -88,7 +88,7 @@ func (s *osoSubscriptionServiceTestSuite) TestLoadOSOSubscriptionStatus() {
 		accessToken, err = testtoken.GenerateToken(uuid.NewV4().String(), username)
 		require.NoError(s.T(), err)
 	}
-	defer gock.OffAll()
+	defer gock.Off()
 	gock.Observe(gock.DumpRequest)
 
 	s.Run("success", func() {
@@ -291,7 +291,7 @@ func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
 	}
 	svc := subscription.NewOSOSubscriptionService(svcCtx, config)
 
-	defer gock.OffAll()
+	defer gock.Off()
 	gock.Observe(gock.DumpRequest)
 
 	s.Run("success", func() {

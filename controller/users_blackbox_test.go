@@ -3,14 +3,10 @@ package controller_test
 import (
 	"context"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
 	"net/http"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
-	uuid "github.com/satori/go.uuid"
 
 	"github.com/fabric8-services/fabric8-auth/app"
 	"github.com/fabric8-services/fabric8-auth/app/test"
@@ -18,6 +14,8 @@ import (
 	"github.com/fabric8-services/fabric8-auth/authentication/account"
 	accountrepo "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/service"
+	"github.com/fabric8-services/fabric8-auth/authentication/account/tenant"
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	. "github.com/fabric8-services/fabric8-auth/controller"
 	"github.com/fabric8-services/fabric8-auth/errors"
@@ -31,6 +29,7 @@ import (
 	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	"github.com/goadesign/goa"
 	"github.com/jinzhu/gorm"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -1511,18 +1510,6 @@ func (s *UsersControllerTestSuite) TestCreateUserAsServiceAccountForExistingUser
 
 	// First attempt should be OK
 	test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
-	// Ban created user
-	_, err := s.Application.UserService().BanUser(s.Ctx, identity.Username)
-	assert.NoError(s.T(), err)
-
-	// Another call with the same email and username should be OK but user should be re-provisioned
-	_, appUser := test.CreateUsersOK(s.T(), secureService.Context, secureService, secureController, createUserPayload)
-	assertCreatedUser(s.T(), appUser.Data, user, identity)
-	id, err := uuid.FromString(*appUser.Data.Attributes.IdentityID)
-	require.NoError(s.T(), err)
-	loadedUser := s.Graph.LoadUser(id)
-	assertCreatedUser(s.T(), appUser.Data, *loadedUser.User(), *loadedUser.Identity())
-	assert.False(s.T(), loadedUser.User().Banned)
 
 	newEmail := uuid.NewV4().String() + user.Email
 	payloadWithSameUsername := newCreateUsersPayload(&newEmail, nil, nil, nil, nil, nil, &identity.Username, nil, user.ID.String(), &user.Cluster, nil, nil, nil)

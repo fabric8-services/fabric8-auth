@@ -9,7 +9,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/jsonapi"
 	"github.com/fabric8-services/fabric8-auth/log"
-	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/goadesign/goa"
 )
 
@@ -44,23 +43,10 @@ func (c *NamedusersController) Ban(ctx *app.BanNamedusersContext) error {
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
 			"username": ctx.Username,
-		}, "unable to deprovision user")
+		}, "unable to ban user")
 		return jsonapi.JSONErrorResponse(ctx, err)
 	}
 
-	// Delete tenant (if access to tenant service is configured/enabled)
-	if c.tenantService != nil {
-		err := c.tenantService.Delete(ctx, identity.ID)
-		if err != nil {
-			log.Error(ctx, map[string]interface{}{
-				"err":         err,
-				"identity_id": identity.ID,
-				"username":    ctx.Username,
-			}, "unable to delete tenant when deprovisioning user")
-			sentry.Sentry().CaptureError(ctx, err)
-			// Just log the error and proceed
-		}
-	}
 	log.Info(ctx, map[string]interface{}{
 		"username": ctx.Username,
 	}, "user banned")

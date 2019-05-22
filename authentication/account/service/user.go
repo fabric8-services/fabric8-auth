@@ -111,8 +111,18 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 		identity.User.Banned = true
 		identity.User.Deprovisioned = true // for backward compatibility
 
-		return s.Repositories().Users().Save(ctx, &identity.User)
+		err = s.Repositories().Users().Save(ctx, &identity.User)
+		if err != nil {
+			return err
+		}
+
+		// revoke all user's tokens
+		return s.Services().TokenService().SetStatusForAllIdentityTokens(ctx, identity.ID, token.TOKEN_STATUS_REVOKED)
 	})
+
+	if err == nil {
+		err = s.deleteUserFromOtherServices(ctx, identity)
+	}
 
 	return identity, err
 }
@@ -206,18 +216,9 @@ func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (
 	}
 	identity := &identities[0]
 
-	// call Che
-	// using `auth` SA token here, not the request context's token
-	err = s.Services().CheService().DeleteUser(ctx, *identity)
+	err = s.deleteUserFromOtherServices(ctx, identity)
 	if err != nil {
-		// do not proceed with tenant removal if something wrong happened during Che cleanup
-		return nil, errs.Wrapf(err, "error occurred during deactivation of user '%s' on Che Service", identity.ID)
-	}
-
-	// call Tenant to deactivate the user there as well,
-	err = s.Services().TenantService().Delete(ctx, identity.ID)
-	if err != nil {
-		return nil, errs.Wrapf(err, "error occurred during deleting of user '%s' on Tenant Service", identity.ID)
+		return nil, err
 	}
 
 	// Now it's safe to clean up Auth DB
@@ -271,6 +272,24 @@ func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (
 	}
 
 	return identity, err
+}
+
+// deleteUserFromOtherServices deletes the user from Che and Tenant service
+func (s *userServiceImpl) deleteUserFromOtherServices(ctx context.Context, identity *repository.Identity) error {
+	// call Che
+	err := s.Services().CheService().DeleteUser(ctx, *identity)
+	if err != nil {
+		// do not proceed with tenant removal if something wrong happened during Che cleanup
+		return errs.Wrapf(err, "error occurred during deleting the user '%s' on Che Service", identity.ID)
+	}
+
+	// call Tenant to delete the user there as well,
+	err = s.Services().TenantService().Delete(ctx, identity.ID)
+	if err != nil {
+		return errs.Wrapf(err, "error occurred during deleting the user '%s' on Tenant Service", identity.ID)
+	}
+
+	return nil
 }
 
 // RescheduleDeactivation sets the deactivation schedule to a configurable point of time in the future
