@@ -139,7 +139,7 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 
 	s.T().Run("ok", func(t *testing.T) {
 
-		t.Run("without tenant failure", func(t *testing.T) {
+		t.Run("without tenant or che failure", func(t *testing.T) {
 			// OK if tenant service passed
 			s.checkBanOK(t)
 		})
@@ -154,6 +154,15 @@ func (s *NamedUsersControllerTestSuite) TestBan() {
 			svc, ctrl := s.SecuredServiceAccountController(testsupport.TestOnlineRegistrationAppIdentity)
 
 			test.BanNamedusersInternalServerError(t, svc.Context, svc, ctrl, userToBan.Identity().Username)
+
+			// If now Che is "fixed" and returns 204 then re-banning should work
+			gock.New("http://localhost:8091").
+				Delete(fmt.Sprintf("/api/user/%s", userToBan.Identity().ID.String())).
+				Reply(204)
+			gock.New("http://localhost:8090").
+				Delete(fmt.Sprintf("/api/tenants/%s", userToBan.Identity().ID.String())).
+				Reply(204)
+			test.BanNamedusersOK(t, svc.Context, svc, ctrl, userToBan.Identity().Username)
 		})
 	})
 
