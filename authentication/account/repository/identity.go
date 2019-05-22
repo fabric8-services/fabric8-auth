@@ -404,7 +404,7 @@ func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx conte
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
 	err := m.db.Model(&Identity{}).Preload("User").
-		Where(`last_active < ? AND deactivation_notification IS NULL`, lastActivity).
+		Where(`last_active < ? AND deactivation_notification IS NULL AND provider_type = ?`, lastActivity, DefaultIDP).
 		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
 		Order("last_active, created_at").
 		Limit(limit).Find(&identities).Error
@@ -428,7 +428,7 @@ func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context,
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
 	err := m.db.Model(&Identity{}).
-		Where("last_active < ? and deactivation_notification < ? and deactivation_scheduled < ?", lastActivity, notification, time.Now()).
+		Where("last_active < ? and deactivation_notification < ? and deactivation_scheduled < ? and provider_type = ?", lastActivity, notification, time.Now(), DefaultIDP).
 		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
 		Order("deactivation_scheduled, last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {

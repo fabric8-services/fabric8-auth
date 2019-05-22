@@ -274,6 +274,14 @@ func (s *IdentityRepositoryTestSuite) TestListIdentitiesToDeactivate() {
 	user4.Banned = true
 	err = s.Application.Users().Save(ctx, user4)
 	require.NoError(s.T(), err)
+	// noise: user/identity with another IDP
+	user5 := s.Graph.CreateUser().User()
+	identity5 := user5.Identities[0]
+	identity5.LastActive = &ago65days
+	identity5.DeactivationNotification = &ago11days
+	identity5.ProviderType = "foo"
+	err = s.Application.Identities().Save(ctx, &identity5)
+	require.NoError(s.T(), err)
 
 	s.T().Run("no user to notify for deactivation - no inactivity", func(t *testing.T) {
 		// given

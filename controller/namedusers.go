@@ -79,7 +79,7 @@ func (c *NamedusersController) Deactivate(ctx *app.DeactivateNamedusersContext) 
 		log.Error(ctx, map[string]interface{}{
 			"err":      err,
 			"username": ctx.Username,
-		}, "error occurred while deactivating user")
+		}, "error while deactivating user")
 		if notFound, _ := errors.IsNotFoundError(err); !notFound {
 			return jsonapi.JSONErrorResponse(ctx, err)
 		}
