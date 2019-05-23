@@ -199,6 +199,8 @@ const (
 	varUserDeactivationInactivityPeriodDays = "user.deactivation.inactivity.period.days"
 	// varUserDeactivationWorkerRescheduleDelayHours the number of hours to wait after a failed deactivation attempt to attempt deactivation again
 	varUserDeactivationWorkerRescheduleDelayHours = "user.deactivation.reschedule.delay.hours"
+	// varAdminConsoleServiceURL the URL to the Admin Console service
+	varAdminConsoleServiceURL = "admin.console.serviceurl"
 
 	//------------------------------------------------------------------------------------------------------------------
 	//
@@ -677,6 +679,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalSeconds, defaultUserDeactivationNotificationWorkerIntervalSeconds)
 	c.v.SetDefault(varPodName, defaultPodName)
 	c.v.SetDefault(varUserDeactivationWorkerRescheduleDelayHours, defaultUserDeactivationRescheduleDelayHours)
+	c.v.SetDefault(varAdminConsoleServiceURL, defaultAdminConsoleServiceURL)
 
 	// Che
 	c.v.SetDefault(varCheServiceURL, defaultCheServiceURL)
@@ -1132,6 +1135,12 @@ func (c *ConfigurationData) GetUserDeactivationNotificationWorkerInterval() time
 	return time.Duration(c.v.GetInt(varUserDeactivationNotificationWorkerIntervalSeconds)) * time.Second
 }
 
+// GetUserDeactivationRescheduleDelay the delay after which a user is automatically scheduled for another deactivation attempt
 func (c *ConfigurationData) GetUserDeactivationRescheduleDelay() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationWorkerRescheduleDelayHours)) * time.Hour
+}
+
+// GetAdminConsoleServiceURL the URL to access to the Admin Console service
+func (c *ConfigurationData) GetAdminConsoleServiceURL() string {
+	return c.v.GetString(varAdminConsoleServiceURL)
 }

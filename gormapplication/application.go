@@ -224,6 +224,10 @@ func (g *GormDB) NotificationService() service.NotificationService {
 	return g.serviceFactory.NotificationService()
 }
 
+func (g *GormDB) AdminConsoleService() service.AdminConsoleService {
+	return g.serviceFactory.AdminConsoleService()
+}
+
 func (g *GormDB) TenantService() service.TenantService {
 	return g.serviceFactory.TenantService()
 }

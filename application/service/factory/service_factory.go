@@ -22,6 +22,7 @@ import (
 	tokenservice "github.com/fabric8-services/fabric8-auth/authorization/token/service"
 	cheservice "github.com/fabric8-services/fabric8-auth/che/service"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
+	adminconsoleService "github.com/fabric8-services/fabric8-auth/adminconsole/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
@@ -137,6 +138,7 @@ type ServiceFactory struct {
 	config                  *configuration.ConfigurationData
 	tenantServiceFunc       func() service.TenantService       // the function to call when `TenantService()` is called on this factory
 	notificationServiceFunc func() service.NotificationService // the function to call when `NotificationService()` is called on this factory
+	adminConsoleServiceFunc func() service.AdminConsoleService // the function to call when `AdminConsoleService()` is called on this factory
 	clusterServiceFunc      func() service.ClusterService
 	authProviderServiceFunc func() service.AuthenticationProviderService
 	userServiceFunc         func() service.UserService
@@ -156,6 +158,14 @@ func WithTenantService(s service.TenantService) Option {
 func WithNotificationService(s service.NotificationService) Option {
 	return func(f *ServiceFactory) {
 		f.notificationServiceFunc = func() service.NotificationService {
+			return s
+		}
+	}
+}
+
+func WithAdminConsoleService(s service.AdminConsoleService) Option {
+	return func(f *ServiceFactory) {
+		f.adminConsoleServiceFunc = func() service.AdminConsoleService {
 			return s
 		}
 	}
@@ -199,6 +209,10 @@ func NewServiceFactory(producer servicecontext.ServiceContextProducer, config *c
 	// default function to return an instance of Notification Service
 	f.notificationServiceFunc = func() service.NotificationService {
 		return notificationservice.NewNotificationService(f.getContext(), f.config)
+	}
+	// default function to return an instance of Notification Service
+	f.adminConsoleServiceFunc = func() service.AdminConsoleService {
+		return adminconsoleService.NewService(f.getContext(), f.config)
 	}
 	// default function to return an instance of Cluster Service
 	f.clusterServiceFunc = func() service.ClusterService {
@@ -286,6 +300,10 @@ func (f *ServiceFactory) UserProfileService() service.UserProfileService {
 
 func (f *ServiceFactory) NotificationService() service.NotificationService {
 	return f.notificationServiceFunc()
+}
+
+func (f *ServiceFactory) AdminConsoleService() service.AdminConsoleService {
+	return f.adminConsoleServiceFunc()
 }
 
 func (f *ServiceFactory) TenantService() service.TenantService {

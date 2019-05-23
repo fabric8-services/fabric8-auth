@@ -7,6 +7,7 @@ import (
 
 	"github.com/fabric8-services/fabric8-auth/metric"
 
+	"github.com/fabric8-services/admin-console/auditlog"
 	"github.com/fabric8-services/fabric8-auth/application/service"
 	"github.com/fabric8-services/fabric8-auth/application/service/base"
 	servicecontext "github.com/fabric8-services/fabric8-auth/application/service/context"
@@ -155,6 +156,14 @@ func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context
 			}, "notified user before account deactivation")
 		}
 		metric.RecordUserDeactivationNotification(err == nil) // record the notification
+		// create an audit log to keep track of the user deactivation notification
+		err = s.Services().AdminConsoleService().CreateAuditLog(ctx, identity.Username, auditlog.UserDeactivationNotificationEvent)
+		if err != nil {
+			log.Error(ctx, map[string]interface{}{
+				"error":    err,
+				"username": identity.Username,
+			}, "error while creating audit log for user deactivation notification")
+		}
 	}
 
 	return identities, nil
@@ -269,6 +278,14 @@ func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (
 		return s.Repositories().Users().Delete(ctx, identity.User.ID)
 	}); err != nil {
 		return nil, err
+	}
+	// create an audit log to keep track of the user deactivation
+	err = s.Services().AdminConsoleService().CreateAuditLog(ctx, identity.Username, auditlog.UserDeactivationEvent)
+	if err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"error":    err,
+			"username": identity.Username,
+		}, "error while creating audit log for user deactivation")
 	}
 
 	return identity, err

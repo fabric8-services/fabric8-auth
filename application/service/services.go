@@ -94,6 +94,11 @@ type NotificationService interface {
 	SendMessage(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error
 }
 
+// AdminConsoleService the Admin Console Service interface
+type AdminConsoleService interface {
+	CreateAuditLog(ctx context.Context, username string, eventType string) error
+}
+
 type OrganizationService interface {
 	CreateOrganization(ctx context.Context, creatorIdentityID uuid.UUID, organizationName string) (*uuid.UUID, error)
 	ListOrganizations(ctx context.Context, identityID uuid.UUID) ([]authorization.IdentityAssociation, error)
@@ -192,6 +197,7 @@ type Services interface {
 	LinkService() LinkService
 	LogoutService() LogoutService
 	NotificationService() NotificationService
+	AdminConsoleService() AdminConsoleService
 	OrganizationService() OrganizationService
 	OSOSubscriptionService() OSOSubscriptionService
 	PermissionService() PermissionService

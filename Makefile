@@ -154,7 +154,7 @@ generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only neces
 	@echo "Generating mocks..."
 	@-rm -rf test/generated/
 	@-mkdir -p test/generated/application/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService,github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService,github.com/fabric8-services/fabric8-auth/application/service.UserService -o ./test/generated/application/service/ -s ".go"
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.AdminConsoleService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService,github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService,github.com/fabric8-services/fabric8-auth/application/service.UserService -o ./test/generated/application/service/ -s ".go"
 	@-mkdir -p test/generated/authentication
 	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/provider.IdentityProvider -o ./test/generated/authentication/ -s ".go"
 	@-mkdir -p test/generated/authentication/account/service
@@ -301,6 +301,7 @@ app/controllers.go: $(DESIGNS) $(GOAGEN_BIN) $(VENDOR_DIR)
 	$(GOAGEN_BIN) swagger -d ${PACKAGE_NAME}/${DESIGN_DIR}
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-tenant/design --notool --pkg tenant -o authentication/account
 	$(GOAGEN_BIN) client -d github.com/fabric8-services/fabric8-notification/design --notool --pkg client -o notification
+	$(GOAGEN_BIN) client -d github.com/fabric8-services/admin-console/design --notool --pkg client -o adminconsole
 
 .PHONY: migrate-database
 ## Compiles the server and runs the database migration with it
