@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/admin-console/auditlog"
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
@@ -111,13 +113,18 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 			return nil
 		}
-		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			return nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
 		// when
 		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
 		require.NoError(s.T(), err)
 		assert.Empty(s.T(), result)
 		assert.Equal(s.T(), uint64(0), notificationServiceMock.SendMessageCounter)
+		assert.Equal(s.T(), uint64(0), adminConsoleServiceMock.CreateAuditLogCounter)
 	})
 
 	s.Run("one user to deactivate without limit", func() {
@@ -134,7 +141,14 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 			msgToSend = msg
 			return nil
 		}
-		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		var usernameToSend, eventTypeToSend string
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			usernameToSend = username
+			eventTypeToSend = eventType
+			return nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
 		// when
 		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
@@ -142,6 +156,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		require.Len(s.T(), result, 1)
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
 		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageCounter)
+		assert.Equal(s.T(), uint64(1), adminConsoleServiceMock.CreateAuditLogCounter)
 		// also check that the `DeactivationNotification` field was set in the DB
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
@@ -152,6 +167,9 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		expiryDate := userservice.GetExpiryDate(config, nowf)
 		assert.Equal(s.T(), expiryDate, msgToSend.Custom["expiryDate"])
 		assert.Equal(s.T(), user2.Email, msgToSend.Custom["userEmail"])
+		assert.Equal(s.T(), identity2.Username, usernameToSend)
+		assert.Equal(s.T(), auditlog.UserDeactivationNotificationEvent, eventTypeToSend)
+
 	})
 
 	s.Run("one user to deactivate with limit reached", func() {
@@ -166,7 +184,11 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 			return nil
 		}
-		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			return nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
 		// when
 		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
@@ -174,6 +196,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		require.Len(s.T(), result, 1)
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
 		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageCounter)
+		assert.Equal(s.T(), uint64(1), adminConsoleServiceMock.CreateAuditLogCounter)
 		// also check that the `DeactivationNotification` field was set in the DB
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
@@ -195,7 +218,14 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 			msgToSend = append(msgToSend, msg)
 			return nil
 		}
-		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		var usernameToSend, eventTypeToSend []string
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			usernameToSend = append(usernameToSend, username)
+			eventTypeToSend = append(eventTypeToSend, eventType)
+			return nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
 		// when
 		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
@@ -204,6 +234,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
 		assert.Equal(s.T(), identity1.ID, result[1].ID)
 		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageCounter)
+		assert.Equal(s.T(), uint64(2), adminConsoleServiceMock.CreateAuditLogCounter)
 		// also check that the `DeactivationNotification` fields were set for both identities in the DB
 		expiryDate := userservice.GetExpiryDate(config, nowf)
 		customs := []map[string]interface{}{}
@@ -232,6 +263,9 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 				"userEmail":  user2.Email,
 			},
 		})
+		// check audit logs creations
+		assert.ElementsMatch(s.T(), []string{identity1.Username, identity2.Username}, usernameToSend)
+		assert.ElementsMatch(s.T(), []string{auditlog.UserDeactivationNotificationEvent, auditlog.UserDeactivationNotificationEvent}, eventTypeToSend)
 	})
 
 	s.Run("error while sending second notification", func() {
@@ -249,7 +283,11 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 			}
 			return nil
 		}
-		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			return nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
 		// when
 		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, time.Now)
 		// then
@@ -258,6 +296,7 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		assert.Equal(s.T(), identity2.ID, result[0].ID)
 		assert.Equal(s.T(), identity1.ID, result[1].ID)
 		assert.Equal(s.T(), uint64(2), notificationServiceMock.SendMessageCounter)
+		assert.Equal(s.T(), uint64(2), adminConsoleServiceMock.CreateAuditLogCounter)
 		// also check that the `DeactivationNotification` fields were NOT set for identity #2 in the DB
 		identity, err := s.Application.Identities().Load(ctx, identity2.ID)
 		require.NoError(s.T(), err)
@@ -419,8 +458,13 @@ func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 		return nil
 	}
+	adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+	adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+		return nil
+	}
 
-	userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+	svcCtx := factory.NewServiceContext(s.Application, s.Application, s.Configuration, factorymanager.NewFactoryWrappers(), factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock))
+	userSvc := userservice.NewUserService(svcCtx, config)
 
 	// ----------------------------------------
 	// Step 1: User A is not active for 40 days
@@ -725,8 +769,15 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			}
 			return false, nil
 		})
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			return nil
+		}
+		svcCtx := factory.NewServiceContext(s.Application, s.Application, s.Configuration, factorymanager.NewFactoryWrappers(), factory.WithAdminConsoleService(adminConsoleServiceMock))
+		userSvc := userservice.NewUserService(svcCtx, s.Configuration)
+
 		// when
-		identity, err := s.Application.UserService().DeactivateUser(ctx, userToDeactivate.Identity().Username)
+		identity, err := userSvc.DeactivateUser(ctx, userToDeactivate.Identity().Username)
 		// then
 		require.NoError(t, err)
 		assert.False(t, identity.User.Active) // user is inactive...

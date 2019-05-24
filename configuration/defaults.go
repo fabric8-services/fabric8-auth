@@ -136,4 +136,7 @@ vwIDAQAB
 
 	// defaultCheServiceURL the default URL to the Che service
 	defaultCheServiceURL = "http://rhche-host:8080"
+
+	// defaultAdminConsoleServiceURL the default URL to the Admin Console service
+	defaultAdminConsoleServiceURL = "http://admin-console"
 )

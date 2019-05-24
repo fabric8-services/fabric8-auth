@@ -38,6 +38,7 @@ required = [
   "github.com/goadesign/goa/goagen/gen_js",
   "github.com/goadesign/goa/goagen/utils",
   "github.com/goadesign/goa/goatest",
+  "github.com/fabric8-services/admin-console/design",
   "github.com/fabric8-services/fabric8-wit/design",
   "github.com/fabric8-services/fabric8-notification/design",
   "github.com/fabric8-services/fabric8-tenant/design",
@@ -94,12 +95,12 @@ required = [
   revision = "7e149ee841ea9fe7d439f206781b51cacde5d4d3"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/fabric8-services/fabric8-cluster-client"
+  name = "github.com/fabric8-services/admin-console"
+  revision = "e18b57d952e4e1ebc666ecaf90bb79147a1aeb00"
 
 [[constraint]]
-  name = "github.com/fabric8-services/fabric8-common"
-  revision = "4c8e64a0bf31bcc267b9c414261f267369bc5cc3"
+  branch = "master"
+  name = "github.com/fabric8-services/fabric8-cluster-client"
 
 [[constraint]]
   name = "github.com/jstemmer/go-junit-report"

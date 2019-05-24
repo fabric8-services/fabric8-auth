@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/service/factory"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
 	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
@@ -92,7 +93,8 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
 			return nil
 		}
-		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		svcCtx := factory.NewServiceContext(s.Application, s.Application, s.Configuration, factorymanager.NewFactoryWrappers(), factory.WithNotificationService(notificationServiceMock))
+		userSvc := userservice.NewUserService(svcCtx, config)
 		// when
 		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then
@@ -119,7 +121,8 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 			msgToSend = append(msgToSend, msg)
 			return nil
 		}
-		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock)), config)
+		svcCtx := factory.NewServiceContext(s.Application, s.Application, s.Configuration, factorymanager.NewFactoryWrappers(), factory.WithNotificationService(notificationServiceMock))
+		userSvc := userservice.NewUserService(svcCtx, config)
 		// when
 		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
 		// then

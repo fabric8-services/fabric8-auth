@@ -72,6 +72,16 @@
   version = "v3.9.0"
 
 [[projects]]
+  digest = "1:dd2ecce7cadfb0c032b6ad26b1db97aeec5ceaa470b384f1f999c71af69e1d3f"
+  name = "github.com/fabric8-services/admin-console"
+  packages = [
+    "auditlog",
+    "design",
+  ]
+  pruneopts = "UT"
+  revision = "e18b57d952e4e1ebc666ecaf90bb79147a1aeb00"
+
+[[projects]]
   digest = "1:393bf58f8daf61a1ffb63c8c9fb104a18d83247f6cc42469d01bfd52b05168d8"
   name = "github.com/fabric8-services/fabric8-cluster"
   packages = ["design"]
@@ -87,10 +97,12 @@
   revision = "3af1516d1d0e6872998e0b5ae4abc25355d314de"
 
 [[projects]]
-  digest = "1:863c44b9c200bce2b6b9ba5deebccb8ddf7b4a34f7ad1f7da44c1b6b22b01fb5"
+  digest = "1:d2d643cfba058d45977b6e627beb7d4356a73d7d6b76be657e564014fab190b1"
   name = "github.com/fabric8-services/fabric8-common"
   packages = [
+    "closeable",
     "configuration",
+    "convert",
     "convert/ptr",
     "errors",
     "gocksupport",
@@ -101,7 +113,7 @@
     "test/suite",
   ]
   pruneopts = "UT"
-  revision = "4c8e64a0bf31bcc267b9c414261f267369bc5cc3"
+  revision = "2cc2344d55776abe18178fc1c2efa8abc9996565"
 
 [[projects]]
   digest = "1:05d2a6527e4b6eb09a6f91127a5c76f14062daf109c4730c879b862873444e82"
@@ -677,6 +689,8 @@
   input-imports = [
     "cirello.io/pglock",
     "github.com/dgrijalva/jwt-go",
+    "github.com/fabric8-services/admin-console/auditlog",
+    "github.com/fabric8-services/admin-console/design",
     "github.com/fabric8-services/fabric8-cluster-client/cluster",
     "github.com/fabric8-services/fabric8-cluster/design",
     "github.com/fabric8-services/fabric8-common/convert/ptr",
