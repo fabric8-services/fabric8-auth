@@ -3,6 +3,7 @@ package factory
 import (
 	"time"
 
+	adminconsoleService "github.com/fabric8-services/fabric8-auth/adminconsole/service"
 	factorymanager "github.com/fabric8-services/fabric8-auth/application/factory/manager"
 	"github.com/fabric8-services/fabric8-auth/application/repository"
 	"github.com/fabric8-services/fabric8-auth/application/service"
@@ -22,7 +23,6 @@ import (
 	tokenservice "github.com/fabric8-services/fabric8-auth/authorization/token/service"
 	cheservice "github.com/fabric8-services/fabric8-auth/che/service"
 	clusterservice "github.com/fabric8-services/fabric8-auth/cluster/service"
-	adminconsoleService "github.com/fabric8-services/fabric8-auth/adminconsole/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/log"
 	notificationservice "github.com/fabric8-services/fabric8-auth/notification/service"
