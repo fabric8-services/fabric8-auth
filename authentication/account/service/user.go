@@ -281,14 +281,15 @@ func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (
 	}
 	// create an audit log to keep track of the user deactivation
 	err = s.Services().AdminConsoleService().CreateAuditLog(ctx, identity.Username, auditlog.UserDeactivationEvent)
+	// just log the error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"error":    err,
 			"username": identity.Username,
 		}, "error while creating audit log for user deactivation")
 	}
-
-	return identity, err
+	// do not return the error logged above.
+	return identity, nil
 }
 
 // deleteUserFromOtherServices deletes the user from Che and Tenant service
