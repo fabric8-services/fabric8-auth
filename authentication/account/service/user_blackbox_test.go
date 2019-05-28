@@ -146,7 +146,8 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
 			usernameToSend = username
 			eventTypeToSend = eventType
-			return nil
+			// The deactivation notification should pass even if the audit log failed
+			return errors.NewInternalErrorFromString("oopsie woopsie")
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
 		// when
@@ -771,7 +772,8 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		})
 		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
 		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
-			return nil
+			// The deactivation should pass even if the audit log failed
+			return errors.NewInternalErrorFromString("oopsie woopsie")
 		}
 		svcCtx := factory.NewServiceContext(s.Application, s.Application, s.Configuration, factorymanager.NewFactoryWrappers(), factory.WithAdminConsoleService(adminConsoleServiceMock))
 		userSvc := userservice.NewUserService(svcCtx, s.Configuration)
