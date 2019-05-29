@@ -771,7 +771,11 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 			return false, nil
 		})
 		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		var auditlogUsername string
 		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			// capture the username to make sure it's the non-obfuscated value that is used when submitting the request
+			// to the admin console service.
+			auditlogUsername = username
 			// The deactivation should pass even if the audit log failed
 			return errors.NewInternalErrorFromString("oopsie woopsie")
 		}
@@ -805,6 +809,8 @@ func (s *userServiceBlackboxTestSuite) TestDeactivate() {
 		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", githubTokenToRemove.ID()))
 		_, err = s.Application.ExternalTokens().Load(ctx, openshiftTokenToRemove.ID())
 		testsupport.AssertError(t, err, errors.NotFoundError{}, fmt.Sprintf("external_token with id '%s' not found", openshiftTokenToRemove.ID()))
+		// also, verify that Auditlog with created with the non-obfuscated username
+		assert.Equal(t, userToDeactivate.Identity().Username, auditlogUsername)
 		// lastly, verify that everything belonging to the user to keep intact remained as-is
 		loadedUser = s.Graph.LoadUser(userToStayIntact.IdentityID())
 		assert.True(t, loadedUser.User().Active)

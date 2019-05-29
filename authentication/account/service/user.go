@@ -280,12 +280,12 @@ func (s *userServiceImpl) deactivateUser(ctx context.Context, username string) (
 		return nil, err
 	}
 	// create an audit log to keep track of the user deactivation
-	err = s.Services().AdminConsoleService().CreateAuditLog(ctx, identity.Username, auditlog.UserDeactivationEvent)
+	err = s.Services().AdminConsoleService().CreateAuditLog(ctx, username, auditlog.UserDeactivationEvent)
 	// just log the error
 	if err != nil {
 		log.Error(ctx, map[string]interface{}{
 			"error":    err,
-			"username": identity.Username,
+			"username": username,
 		}, "error while creating audit log for user deactivation")
 	}
 	// do not return the error logged above.
