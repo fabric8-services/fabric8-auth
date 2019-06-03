@@ -203,6 +203,21 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: user.deactivation.enabled
+          - name: AUTH_USER_DEACTIVATION_FETCH_LIMIT
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: user.deactivation.fetch.limit
+          - name: AUTH_USER_DEACTIVATION_NOTIFICATION_INTERVAL_SECONDS
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: user.deactivation.notification.interval.seconds
+          - name: AUTH_USER_DEACTIVATION_INTERVAL_SECONDS
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: user.deactivation.interval.seconds
           imagePullPolicy: Always
           name: auth
           ports:
