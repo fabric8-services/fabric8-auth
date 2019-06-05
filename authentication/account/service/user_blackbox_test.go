@@ -367,6 +367,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 80 * 24 * time.Hour // 80 days
 		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
+		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
 		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
@@ -385,6 +388,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 55 * 24 * time.Hour // 55 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
@@ -406,6 +412,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 20 * 24 * time.Hour // 20 days
 		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
+		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
 		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
@@ -426,6 +435,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 20 * 24 * time.Hour // 20 days
 		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
+		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
 		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
@@ -436,6 +448,51 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		assert.Equal(s.T(), identity1.ID, result[1].ID) // user 1 was inactive for 40 days and notified 10 days ago
 	})
 
+	s.Run("one user excluded from deactivation", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 20 * 24 * time.Hour // 20 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{identity1.Username}
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)                   // user1 was excluded from deactivation
+		assert.Equal(s.T(), identity2.ID, result[0].ID) // user 2 was inactive for 70 days and notified 10 days ago
+	})
+
+	s.Run("two users excluded from deactivation", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 20 * 24 * time.Hour // 20 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{identity1.Username, identity2.Username}
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
+		// then
+		require.NoError(s.T(), err)
+		require.Empty(s.T(), result) // both user1 and user2 were excluded
+	})
+
 }
 
 // Testing workflow of user to notify and deactivate, or not, depending on their activity, etc.
@@ -444,6 +501,9 @@ func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
 	config.GetUserDeactivationFetchLimitFunc = func() int {
 		return 100
+	}
+	config.GetUserDeactivationWhiteListFunc = func() []string {
+		return []string{}
 	}
 	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 30 * 24 * time.Hour // 31 days, ie, 7 days after notification
