@@ -134,7 +134,7 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context, now func() time.Time) ([]repository.Identity, error) {
 	since := now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriod()) // remove 'n' days from now (default: 24)
 	limit := s.config.GetUserDeactivationFetchLimit()
-	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
+	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, s.config.GetUserDeactivationWhiteList(), limit)
 	if err != nil {
 		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
