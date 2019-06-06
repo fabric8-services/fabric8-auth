@@ -45,7 +45,7 @@ func (s *UserServiceControllerTestSuite) UnsecuredController() (*goa.Service, *U
 	return svc, controller
 }
 
-func (s *UserServiceControllerTestSuite) TestShowOK() {
+func (s *UserServiceControllerTestSuite) TestShowInternalError() {
 	identity, err := testsupport.CreateTestIdentityAndUserWithDefaultProviderType(s.DB, "userTestShowUserOK"+uuid.NewV4().String())
 	require.Nil(s.T(), err)
 
