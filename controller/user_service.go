@@ -16,8 +16,8 @@ type UserServiceController struct {
 }
 
 // NewUserServiceController creates a UserService controller.
-func NewUserServiceController(service *goa.Service) *UserServiceController {
-	return &UserServiceController{Controller: service.NewController("UserServiceController")}
+func NewUserServiceController(service *goa.Service, app application.Application) *UserServiceController {
+	return &UserServiceController{Controller: service.NewController("UserServiceController"), app: app}
 }
 
 // Show runs the show action.

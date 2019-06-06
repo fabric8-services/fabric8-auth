@@ -243,7 +243,7 @@ func main() {
 	app.MountUserinfoController(service, userInfoCtrl)
 
 	// Mount the user service controller
-	userServiceCtrl := controller.NewUserServiceController(service)
+	userServiceCtrl := controller.NewUserServiceController(service, appDB)
 	app.MountUserServiceController(service, userServiceCtrl)
 
 	// Mount "collaborators" controller
