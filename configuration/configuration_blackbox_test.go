@@ -345,3 +345,61 @@ func checkGetKeycloakEndpointSetByEnvVariableOK(t *testing.T, envName string, ge
 	require.Nil(t, err)
 	require.Equal(t, envValue, url)
 }
+
+func TestUserDeactivationExcludeList(t *testing.T) {
+	resource.Require(t, resource.UnitTest)
+	constUserDeactivationExcludeList := "AUTH_USER_DEACTIVATION_WHITELIST"
+	existingUserDeactivationExcludeList := os.Getenv(constUserDeactivationExcludeList)
+	defer func() {
+		os.Setenv(constUserDeactivationExcludeList, existingUserDeactivationExcludeList)
+		resetConfiguration()
+	}()
+
+	t.Run("empty value", func(t *testing.T) {
+		// given
+		os.Setenv(constUserDeactivationExcludeList, "")
+		resetConfiguration()
+		// when
+		whitelist := config.GetUserDeactivationWhiteList()
+		// then
+		assert.Empty(t, whitelist)
+	})
+
+	t.Run("single value", func(t *testing.T) {
+		// given
+		os.Setenv(constUserDeactivationExcludeList, "foo1@bar.com")
+		resetConfiguration()
+		// when
+		whitelist := config.GetUserDeactivationWhiteList()
+		// then
+		require.Len(t, whitelist, 1)
+		assert.Equal(t, "foo1@bar.com", whitelist[0])
+	})
+
+	t.Run("multiple values with space separator and spaces around", func(t *testing.T) {
+		t.Run("with space separator", func(t *testing.T) {
+			// given
+			os.Setenv(constUserDeactivationExcludeList, " foo1@bar.com foo2@bar.com  ")
+			resetConfiguration()
+			// when
+			whitelist := config.GetUserDeactivationWhiteList()
+			// then
+			require.Len(t, whitelist, 2)
+			assert.Equal(t, "foo1@bar.com", whitelist[0])
+			assert.Equal(t, "foo2@bar.com", whitelist[1])
+		})
+
+		t.Run("with newline separator and spaces around", func(t *testing.T) {
+			// given
+			os.Setenv(constUserDeactivationExcludeList, "   foo1@bar.com  \n  foo2@bar.com  ")
+			resetConfiguration()
+			// when
+			whitelist := config.GetUserDeactivationWhiteList()
+			// then
+			require.Len(t, whitelist, 2)
+			assert.Equal(t, "foo1@bar.com", whitelist[0])
+			assert.Equal(t, "foo2@bar.com", whitelist[1])
+		})
+	})
+
+}

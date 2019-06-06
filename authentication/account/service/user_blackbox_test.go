@@ -101,13 +101,16 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		require.NoError(s.T(), err)
 	}
 
-	s.Run("no user to deactivate", func() {
+	s.Run("no user to notify", func() {
 		// given
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 90 * 24 * time.Hour // 90 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
@@ -127,13 +130,16 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		assert.Equal(s.T(), uint64(0), adminConsoleServiceMock.CreateAuditLogCounter)
 	})
 
-	s.Run("one user to deactivate without limit", func() {
+	s.Run("one user to notify without limit", func() {
 		// given
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 60 * 24 * time.Hour // 60 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
 		}
 		var msgToSend notification.Message
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -173,13 +179,16 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 
 	})
 
-	s.Run("one user to deactivate with limit reached", func() {
+	s.Run("one user to notify with limit reached", func() {
 		// given
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 1
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
@@ -205,13 +214,16 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		assert.True(s.T(), time.Now().Sub(*identity.DeactivationNotification) < time.Second*2)
 	})
 
-	s.Run("two users to deactivate", func() {
+	s.Run("two users to notify", func() {
 		// given
 		config.GetUserDeactivationFetchLimitFunc = func() int {
 			return 100
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
 		}
 		var msgToSend []notification.Message
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
@@ -269,6 +281,75 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		assert.ElementsMatch(s.T(), []string{auditlog.UserDeactivationNotificationEvent, auditlog.UserDeactivationNotificationEvent}, eventTypeToSend)
 	})
 
+	s.Run("two users to notify but one whitelisted", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{identity1.Username}
+		}
+		var msgToSend []notification.Message
+		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+			msgToSend = append(msgToSend, msg)
+			return nil
+		}
+		var usernameToSend, eventTypeToSend []string
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			usernameToSend = append(usernameToSend, username)
+			eventTypeToSend = append(eventTypeToSend, eventType)
+			return nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
+		// when
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)
+		assert.Equal(s.T(), identity2.ID, result[0].ID)
+		assert.Equal(s.T(), uint64(1), notificationServiceMock.SendMessageCounter)
+		assert.Equal(s.T(), uint64(1), adminConsoleServiceMock.CreateAuditLogCounter)
+	})
+
+	s.Run("two users to notify but both whitelisted", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{identity1.Username, identity2.Username}
+		}
+		var msgToSend []notification.Message
+		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
+		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
+			msgToSend = append(msgToSend, msg)
+			return nil
+		}
+		var usernameToSend, eventTypeToSend []string
+		adminConsoleServiceMock := servicemock.NewAdminConsoleServiceMock(s.T())
+		adminConsoleServiceMock.CreateAuditLogFunc = func(ctx context.Context, username string, eventType string) error {
+			usernameToSend = append(usernameToSend, username)
+			eventTypeToSend = append(eventTypeToSend, eventType)
+			return nil
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil, factory.WithNotificationService(notificationServiceMock), factory.WithAdminConsoleService(adminConsoleServiceMock)), config)
+		// when
+		result, err := userSvc.NotifyIdentitiesBeforeDeactivation(ctx, nowf)
+		// then
+		require.NoError(s.T(), err)
+		require.Empty(s.T(), result)
+		assert.Equal(s.T(), uint64(0), notificationServiceMock.SendMessageCounter)
+		assert.Equal(s.T(), uint64(0), adminConsoleServiceMock.CreateAuditLogCounter)
+	})
+
 	s.Run("error while sending second notification", func() {
 		// given
 		config.GetUserDeactivationFetchLimitFunc = func() int {
@@ -276,6 +357,9 @@ func (s *userServiceBlackboxTestSuite) TestNotifyIdentitiesBeforeDeactivation() 
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 30 * 24 * time.Hour
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
 		}
 		notificationServiceMock := servicemock.NewNotificationServiceMock(s.T())
 		notificationServiceMock.SendMessageFunc = func(ctx context.Context, msg notification.Message, options ...rest.HTTPClientOption) error {
@@ -367,6 +451,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 80 * 24 * time.Hour // 80 days
 		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
+		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
 		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
@@ -385,6 +472,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		}
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 55 * 24 * time.Hour // 55 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
 		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
@@ -426,6 +516,9 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 			return 20 * 24 * time.Hour // 20 days
 		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{}
+		}
 		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
 		// when
 		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
@@ -436,6 +529,51 @@ func (s *userServiceBlackboxTestSuite) TestListUsersToDeactivate() {
 		assert.Equal(s.T(), identity1.ID, result[1].ID) // user 1 was inactive for 40 days and notified 10 days ago
 	})
 
+	s.Run("one user excluded from deactivation (even if scheduled)", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 20 * 24 * time.Hour // 20 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{identity1.Username}
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
+		// then
+		require.NoError(s.T(), err)
+		require.Len(s.T(), result, 1)                   // user1 was excluded from deactivation
+		assert.Equal(s.T(), identity2.ID, result[0].ID) // user 2 was inactive for 70 days and notified 10 days ago
+	})
+
+	s.Run("two users excluded from deactivation (even if scheduled)", func() {
+		// given
+		config.GetUserDeactivationFetchLimitFunc = func() int {
+			return 100
+		}
+		config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+			return 30 * 24 * time.Hour // 30 days
+		}
+		config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
+			return 20 * 24 * time.Hour // 20 days
+		}
+		config.GetUserDeactivationWhiteListFunc = func() []string {
+			return []string{identity1.Username, identity2.Username}
+		}
+		userSvc := userservice.NewUserService(factory.NewServiceContext(s.Application, s.Application, nil, nil), config)
+		// when
+		result, err := userSvc.ListIdentitiesToDeactivate(ctx, time.Now)
+		// then
+		require.NoError(s.T(), err)
+		require.Empty(s.T(), result) // both user1 and user2 were excluded
+	})
+
 }
 
 // Testing workflow of user to notify and deactivate, or not, depending on their activity, etc.
@@ -444,6 +582,9 @@ func (s *userServiceBlackboxTestSuite) TestUserDeactivationFlow() {
 	config := userservicemock.NewUserServiceConfigurationMock(s.T())
 	config.GetUserDeactivationFetchLimitFunc = func() int {
 		return 100
+	}
+	config.GetUserDeactivationWhiteListFunc = func() []string {
+		return []string{}
 	}
 	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 30 * 24 * time.Hour // 31 days, ie, 7 days after notification

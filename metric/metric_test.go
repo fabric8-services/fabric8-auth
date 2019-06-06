@@ -47,6 +47,9 @@ func (s *MetricTestSuite) TestUserDeactivationNotificationCounter() {
 	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 97 * 24 * time.Hour
 	}
+	config.GetUserDeactivationWhiteListFunc = func() []string {
+		return []string{}
+	}
 	now := time.Now() // make sure we use the same 'now' everywhere in the test
 	nowf := func() time.Time {
 		return now

@@ -134,8 +134,8 @@ type IdentityRepository interface {
 	DeleteForResource(ctx context.Context, resourceID string) error
 	Query(funcs ...func(*gorm.DB) *gorm.DB) ([]Identity, error)
 	List(ctx context.Context) ([]Identity, error)
-	ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error)
-	ListIdentitiesToDeactivate(ctx context.Context, lastActivity, notification time.Time, limit int) ([]Identity, error)
+	ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, whitelist []string, limit int) ([]Identity, error)
+	ListIdentitiesToDeactivate(ctx context.Context, lastActivity, notification time.Time, whitelist []string, limit int) ([]Identity, error)
 	IsValid(context.Context, uuid.UUID) bool
 	Search(ctx context.Context, q string, start int, limit int) ([]Identity, int, error)
 	FindIdentityMemberships(ctx context.Context, identityID uuid.UUID, resourceType *string) ([]authorization.IdentityAssociation, error)
@@ -398,16 +398,19 @@ func (m *GormIdentityRepository) List(ctx context.Context) ([]Identity, error) {
 // ListIdentitiesToNotifyForDeactivation return identities whose last activity is older than the given one. The result size is limited to the given
 // number of identities (ordered by last activity)
 // if limit is a negative value (eg: '-1'), it is ignored
-func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, limit int) ([]Identity, error) {
+func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx context.Context, lastActivity time.Time, whitelist []string, limit int) ([]Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToNotifyForDeactivation"}, time.Now())
 	var identities []Identity
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
-	err := m.db.Model(&Identity{}).Preload("User").
+	query := m.db.Model(&Identity{}).Preload("User").
 		Where(`last_active < ? AND deactivation_notification IS NULL AND provider_type = ?`, lastActivity, DefaultIDP).
-		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
-		Order("last_active, created_at").
-		Limit(limit).Find(&identities).Error
+		Joins("left join users on identities.user_id = users.id").Where("users.banned is false")
+	// check for whitelist if any
+	if len(whitelist) > 0 {
+		query = query.Not("username", whitelist)
+	}
+	err := query.Order("last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
@@ -422,15 +425,19 @@ func (m *GormIdentityRepository) ListIdentitiesToNotifyForDeactivation(ctx conte
 // and for whom there is a `deactivation_notification` value and who were not previously banned.
 // The result size is limited to the given number of identities (ordered by last activity)
 // if limit is a negative value (eg: '-1'), it is ignored
-func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context, lastActivity, notification time.Time, limit int) ([]Identity, error) {
+func (m *GormIdentityRepository) ListIdentitiesToDeactivate(ctx context.Context, lastActivity, notification time.Time, whitelist []string, limit int) ([]Identity, error) {
 	defer goa.MeasureSince([]string{"goa", "db", "user", "listIdentitiesToDeactivate"}, time.Now())
 	var identities []Identity
 	// sort identities by most inactive and then by date of creation to make sure we always get the same sublist of identities between
 	// queries to notify before deactivation and queries to deactivate for real.
-	err := m.db.Model(&Identity{}).
+	query := m.db.Model(&Identity{}).
 		Where("last_active < ? and deactivation_notification < ? and deactivation_scheduled < ? and provider_type = ?", lastActivity, notification, time.Now(), DefaultIDP).
-		Joins("left join users on identities.user_id = users.id").Where("users.banned is false").
-		Order("deactivation_scheduled, last_active, created_at").Limit(limit).Find(&identities).Error
+		Joins("left join users on identities.user_id = users.id").Where("users.banned is false")
+	// check for whitelist if any
+	if len(whitelist) > 0 {
+		query = query.Not("username", whitelist)
+	}
+	err := query.Order("deactivation_scheduled, last_active, created_at").Limit(limit).Find(&identities).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, errs.WithStack(err)
 	}
