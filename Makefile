@@ -154,7 +154,7 @@ generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only neces
 	@echo "Generating mocks..."
 	@-rm -rf test/generated/
 	@-mkdir -p test/generated/application/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.AdminConsoleService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService,github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService,github.com/fabric8-services/fabric8-auth/application/service.UserService -o ./test/generated/application/service/ -s ".go"
+	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.AdminConsoleService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService,github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService,github.com/fabric8-services/fabric8-auth/application/service.UserService,github.com/fabric8-services/fabric8-auth/application/service.TenantService -o ./test/generated/application/service/ -s ".go"
 	@-mkdir -p test/generated/authentication
 	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/provider.IdentityProvider -o ./test/generated/authentication/ -s ".go"
 	@-mkdir -p test/generated/authentication/account/service
