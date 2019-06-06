@@ -39,6 +39,7 @@ type UserServiceConfiguration interface {
 	GetUserDeactivationInactivityNotificationPeriod() time.Duration
 	GetUserDeactivationInactivityPeriod() time.Duration
 	GetUserDeactivationRescheduleDelay() time.Duration
+	GetUserDeactivationWhiteList() []string
 }
 
 // userServiceImpl implements the UserService to manage users
@@ -133,7 +134,7 @@ func (s *userServiceImpl) BanUser(ctx context.Context, username string) (*reposi
 func (s *userServiceImpl) NotifyIdentitiesBeforeDeactivation(ctx context.Context, now func() time.Time) ([]repository.Identity, error) {
 	since := now().Add(-s.config.GetUserDeactivationInactivityNotificationPeriod()) // remove 'n' days from now (default: 24)
 	limit := s.config.GetUserDeactivationFetchLimit()
-	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, limit)
+	identities, err := s.Repositories().Identities().ListIdentitiesToNotifyForDeactivation(ctx, since, s.config.GetUserDeactivationWhiteList(), limit)
 	if err != nil {
 		return nil, errs.Wrap(err, "unable to send notification to users before account deactivation")
 	}
@@ -184,7 +185,7 @@ func (s *userServiceImpl) ListIdentitiesToDeactivate(ctx context.Context, now fu
 	notification := now().Add(s.config.GetUserDeactivationInactivityNotificationPeriod() - s.config.GetUserDeactivationInactivityPeriod()) // make sure that the notification was sent at least `n` days earlier (default: 7)
 	limit := s.config.GetUserDeactivationFetchLimit()
 
-	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, limit)
+	return s.Repositories().Identities().ListIdentitiesToDeactivate(ctx, since, notification, s.config.GetUserDeactivationWhiteList(), limit)
 }
 
 func (s *userServiceImpl) notifyIdentityBeforeDeactivation(ctx context.Context, identity repository.Identity, expirationDate string, now func() time.Time) error {

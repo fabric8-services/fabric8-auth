@@ -199,6 +199,8 @@ const (
 	varUserDeactivationInactivityPeriodDays = "user.deactivation.inactivity.period.days"
 	// varUserDeactivationWorkerRescheduleDelayHours the number of hours to wait after a failed deactivation attempt to attempt deactivation again
 	varUserDeactivationWorkerRescheduleDelayHours = "user.deactivation.reschedule.delay.hours"
+	// varUserExcludeList the list of *space-separated* usernames to exclude from user deactivation
+	varUserDeactivationWhiteList = "user.deactivation.whitelist"
 	// varAdminConsoleServiceURL the URL to the Admin Console service
 	varAdminConsoleServiceURL = "admin.console.serviceurl"
 
@@ -1138,6 +1140,11 @@ func (c *ConfigurationData) GetUserDeactivationNotificationWorkerInterval() time
 // GetUserDeactivationRescheduleDelay the delay after which a user is automatically scheduled for another deactivation attempt
 func (c *ConfigurationData) GetUserDeactivationRescheduleDelay() time.Duration {
 	return time.Duration(c.v.GetInt(varUserDeactivationWorkerRescheduleDelayHours)) * time.Hour
+}
+
+// GetUserDeactivationWhiteList the list of usernames to exclude users from deactivation
+func (c *ConfigurationData) GetUserDeactivationWhiteList() []string {
+	return c.v.GetStringSlice(varUserDeactivationWhiteList)
 }
 
 // GetAdminConsoleServiceURL the URL to access to the Admin Console service

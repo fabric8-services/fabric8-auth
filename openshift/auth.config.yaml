@@ -58,4 +58,5 @@ objects:
     ignore.email.prod: ".+\\+preview.*\\@redhat\\.com"
     user.deactivation.notification.enabled: false
     user.deactivation.enabled: false
+    user.deactivation.whitelist: "username1 username2"
   

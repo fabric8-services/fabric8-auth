@@ -218,6 +218,11 @@ objects:
               configMapKeyRef:
                 name: auth
                 key: user.deactivation.interval.seconds
+          - name: AUTH_USER_DEACTIVATION_WHITELIST
+            valueFrom:
+              configMapKeyRef:
+                name: auth
+                key: user.deactivation.whitelist
           imagePullPolicy: Always
           name: auth
           ports:
