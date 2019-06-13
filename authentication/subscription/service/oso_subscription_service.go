@@ -210,7 +210,14 @@ func (s *osoSubscriptionServiceImpl) DeactivateUser(ctx context.Context, usernam
 	defer rest.CloseResponse(res)
 	bodyString := rest.ReadBody(res.Body)
 
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
+	if res.StatusCode == http.StatusNotFound {
+		log.Warn(ctx, map[string]interface{}{
+			"reg_app_url":     regAppURL,
+			"response_status": res.Status,
+			"response_body":   bodyString,
+		}, "unable to deprovision user")
+		return autherrors.NewNotFoundErrorFromString(bodyString)
+	} else if res.StatusCode != http.StatusOK {
 		log.Error(ctx, map[string]interface{}{
 			"reg_app_url":     regAppURL,
 			"response_status": res.Status,
