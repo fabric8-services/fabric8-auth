@@ -8,8 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/application/service/factory"
+
 	"github.com/fabric8-services/fabric8-auth/application"
 	account "github.com/fabric8-services/fabric8-auth/authentication/account/repository"
+	userservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	"github.com/fabric8-services/fabric8-auth/authentication/account/worker"
 	ososervice "github.com/fabric8-services/fabric8-auth/authentication/subscription/service"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -41,14 +44,23 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
 		return 30 * 24 * time.Hour // 31 days, ie, 7 days after notification
 	}
-	config.GetUserDeactivationInactivityPeriodFunc = func() time.Duration {
+	config.GetUserDeactivationInactivityNotificationPeriodFunc = func() time.Duration {
 		return 20 * 24 * time.Hour // 24 days
 	}
+	config.GetUserDeactivationWhiteListFunc = func() (empty []string) {
+		return empty
+	}
+	config.GetUserDeactivationRescheduleDelayFunc = func() time.Duration {
+		return 10 * 24 * time.Hour
+	}
+
 	// yesterday := time.Now().Add(-1 * 24 * time.Hour)
 	ago40days := time.Now().Add(-40 * 24 * time.Hour) // 40 days since last activity and notified...
 	ago30days := time.Now().Add(-30 * 24 * time.Hour) // 30 days since last activity and notified...
 
-	app := gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers)
+	srvCtx := factory.NewServiceContext(s.Application, s.Application, s.Configuration, s.Wrappers)
+	userSrv := userservice.NewUserService(srvCtx, config)
+	app := gormapplication.NewGormDB(s.DB, s.Configuration, s.Wrappers, factory.WithUserService(userSrv))
 	// also, use gock to intercep calls to other services
 	defer gock.Off()
 
@@ -62,6 +74,8 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		identityToDeactivate := *userToDeactivate.Identity()
 		identityToDeactivate.LastActive = &ago40days
 		identityToDeactivate.DeactivationNotification = &ago30days
+		now := time.Now()
+		identityToDeactivate.DeactivationScheduled = &now
 		err = s.Application.Identities().Save(ctx, &identityToDeactivate)
 		require.NoError(s.T(), err)
 		mockRemoteCalls(userToDeactivate.User(), identityToDeactivate, s.Configuration)
@@ -90,6 +104,8 @@ func (s *UserDeactivationWorkerTest) TestDeactivateUsers() {
 		identityToDeactivate := *userToDeactivate.Identity()
 		identityToDeactivate.LastActive = &ago40days
 		identityToDeactivate.DeactivationNotification = &ago30days
+		now := time.Now()
+		identityToDeactivate.DeactivationScheduled = &now
 		err = s.Application.Identities().Save(ctx, &identityToDeactivate)
 		require.NoError(s.T(), err)
 		mockRemoteCalls(userToDeactivate.User(), identityToDeactivate, s.Configuration)
