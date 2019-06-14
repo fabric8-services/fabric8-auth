@@ -82,7 +82,7 @@ func ReplaceDomainPrefixInAbsoluteURL(req *goa.RequestData, replaceBy, relative 
 }
 
 // ReplaceDomainPrefixInAbsoluteURLStr check ReplaceDomainPrefixInAbsoluteURL.  This works on url string.
-func ReplaceDomainPrefixInAbsoluteURLStr(urlStr string, replaceBy, relative string) (string, error) {
+func ReplaceDomainPrefixInAbsoluteURLStr(urlStr, replaceBy, relative string) (string, error) {
 	if urlStr == "" { // this happens for tests. See https://github.com/goadesign/goa/issues/1861
 		return "", nil
 	}
