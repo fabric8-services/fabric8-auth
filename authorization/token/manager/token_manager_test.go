@@ -68,8 +68,8 @@ func (s *TestTokenSuite) TestGenerateTransientUserAccessTokenForIdentity() {
 	expiresIn := time.Duration(s.Config.GetTransientTokenExpiresIn()) * time.Second
 	s.assertExpiresIn(claims["exp"], expiresIn, 10*time.Second) // 60 seconds days +/- 10 seconds
 	s.assertIntClaim(claims, "nbf", 0)
-	s.assertClaim(claims, "iss", "https://auth.openshift.io")
-	s.assertClaim(claims, "aud", "https://openshift.io")
+	s.assertClaim(claims, "iss", "http://auth.localhost")
+	s.assertClaim(claims, "aud", "http://localhost")
 	s.assertClaim(claims, "typ", "Bearer")
 	s.assertClaim(claims, "auth_time", iat)
 	s.assertClaim(claims, "approved", !identity.User.Banned)
@@ -84,8 +84,8 @@ func (s *TestTokenSuite) TestGenerateTransientUserAccessTokenForIdentity() {
 	s.assertClaim(claims, "family_name", lastName)
 
 	s.assertClaim(claims, "allowed-origins", []interface{}{
-		"https://auth.openshift.io",
-		"https://openshift.io",
+		"http://auth.localhost",
+		"http://localhost",
 	})
 	// and verify that the claim is transient
 	s.assertClaim(claims, "transient", "true")
@@ -225,8 +225,8 @@ func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
 	iat := s.assertIat(rptClaims)
 	s.assertExpiresIn(rptClaims["exp"], 30*24*time.Hour, time.Minute) // 30 days +/- 1 min
 	s.assertIntClaim(rptClaims, "nbf", 0)
-	s.assertClaim(rptClaims, "iss", "https://auth.openshift.io")
-	s.assertClaim(rptClaims, "aud", "https://openshift.io")
+	s.assertClaim(rptClaims, "iss", "http://auth.localhost")
+	s.assertClaim(rptClaims, "aud", "http://localhost")
 	s.assertClaim(rptClaims, "typ", "Bearer")
 	s.assertClaim(rptClaims, "auth_time", iat)
 	s.assertClaim(rptClaims, "approved", !identity.User.Banned)
@@ -240,8 +240,8 @@ func (s *TestTokenSuite) checkGenerateRPTTokenForIdentity() {
 	s.assertClaim(rptClaims, "family_name", lastName)
 
 	s.assertClaim(rptClaims, "allowed-origins", []interface{}{
-		"https://auth.openshift.io",
-		"https://openshift.io",
+		"http://auth.localhost",
+		"http://localhost",
 	})
 }
 
@@ -269,8 +269,8 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	iat := s.assertIat(accessToken)
 	s.assertExpiresIn(accessToken["exp"], 30*24*time.Hour, time.Minute) // 30 days +/- 1 min
 	s.assertIntClaim(accessToken, "nbf", 0)
-	s.assertClaim(accessToken, "iss", "https://auth.openshift.io")
-	s.assertClaim(accessToken, "aud", "https://openshift.io")
+	s.assertClaim(accessToken, "iss", "http://auth.localhost")
+	s.assertClaim(accessToken, "aud", "http://localhost")
 	s.assertClaim(accessToken, "typ", "Bearer")
 	s.assertClaim(accessToken, "auth_time", iat)
 	s.assertClaim(accessToken, "approved", !identity.User.Banned)
@@ -285,8 +285,8 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	s.assertClaim(accessToken, "family_name", lastName)
 
 	s.assertClaim(accessToken, "allowed-origins", []interface{}{
-		"https://auth.openshift.io",
-		"https://openshift.io",
+		"http://auth.localhost",
+		"http://localhost",
 	})
 
 	// Refresh token
@@ -302,8 +302,8 @@ func (s *TestTokenSuite) assertGeneratedToken(generatedToken *oauth2.Token, iden
 	s.assertJti(refreshToken)
 	s.assertIat(refreshToken)
 	s.assertIntClaim(refreshToken, "nbf", 0)
-	s.assertClaim(refreshToken, "iss", "https://auth.openshift.io")
-	s.assertClaim(refreshToken, "aud", "https://openshift.io")
+	s.assertClaim(refreshToken, "iss", "http://auth.localhost")
+	s.assertClaim(refreshToken, "aud", "http://localhost")
 	if offlineToken {
 		s.assertIntClaim(refreshToken, "exp", 0)
 		s.assertClaim(refreshToken, "typ", "Offline")
@@ -362,7 +362,7 @@ func (s *TestTokenSuite) TestAddLoginRequiredHeaderToUnauthorizedError() {
 }
 
 func (s *TestTokenSuite) checkLoginRequiredHeader(rw http.ResponseWriter) {
-	assert.Equal(s.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Equal(s.T(), "LOGIN url=http://auth.localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
 	header := textproto.MIMEHeader(rw.Header())
 	assert.Contains(s.T(), header["Access-Control-Expose-Headers"], "WWW-Authenticate")
 }

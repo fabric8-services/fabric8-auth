@@ -499,7 +499,7 @@ func (c *ConfigurationData) GetAuthServiceURL() string {
 	case prodPreviewEnvironment:
 		return "https://auth.prod-preview.openshift.io"
 	default:
-		return "http://localhost"
+		return "http://auth.localhost"
 	}
 }
 

@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	uuid "github.com/satori/go.uuid"
 
 	config "github.com/fabric8-services/fabric8-auth/configuration"
 	"github.com/fabric8-services/fabric8-auth/resource"
@@ -16,7 +18,6 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -274,7 +275,7 @@ func (s *TestWhiteboxTokenSuite) TestAuthServiceAccount() {
 	_, err = uuid.FromString(jti)
 	require.Nil(s.T(), err)
 	require.NotEmpty(s.T(), claims["iat"])
-	require.Equal(s.T(), "http://localhost", claims["iss"])
+	require.Equal(s.T(), "http://auth.localhost", claims["iss"])
 }
 
 const (

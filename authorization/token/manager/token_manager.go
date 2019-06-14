@@ -433,13 +433,8 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenFromClaims(ctx context.Con
 		claims["email"] = tokenClaims.Email
 	}
 
-	req := goa.ContextRequest(ctx)
-	if req == nil {
-		return nil, errors.New("missing request in context")
-	}
-
-	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
-	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
+	authOpenshiftIO := m.config.GetAuthServiceURL()
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURLStr(authOpenshiftIO, "", "")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -477,12 +472,8 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenForIdentity(ctx context.Co
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = m.userAccountPrivateKey.KeyID
 
-	req := goa.ContextRequest(ctx)
-	if req == nil {
-		return nil, errors.New("missing request in context")
-	}
-	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
-	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
+	authOpenshiftIO := m.config.GetAuthServiceURL()
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURLStr(authOpenshiftIO, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -546,13 +537,8 @@ func (m *tokenManager) GenerateUnsignedUserRefreshTokenForIdentity(ctx context.C
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = m.userAccountPrivateKey.KeyID
 
-	req := goa.ContextRequest(ctx)
-	if req == nil {
-		return nil, errors.New("missing request in context")
-	}
-
-	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
-	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
+	authOpenshiftIO := m.config.GetAuthServiceURL()
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURLStr(authOpenshiftIO, "", "")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -590,13 +576,8 @@ func (m *tokenManager) GenerateUnsignedUserRefreshToken(ctx context.Context, ref
 		return nil, errors.WithStack(err)
 	}
 
-	req := goa.ContextRequest(ctx)
-	if req == nil {
-		return nil, errors.New("missing request in context")
-	}
-
-	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
-	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
+	authOpenshiftIO := m.config.GetAuthServiceURL()
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURLStr(authOpenshiftIO, "", "")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -642,13 +623,8 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenFromRefreshToken(ctx conte
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = m.userAccountPrivateKey.KeyID
 
-	req := goa.ContextRequest(ctx)
-	if req == nil {
-		return nil, errors.New("missing request in context")
-	}
-
-	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
-	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
+	authOpenshiftIO := m.config.GetAuthServiceURL()
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURLStr(authOpenshiftIO, "", "")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -833,13 +809,8 @@ func (m *tokenManager) GenerateUnsignedUserAccessTokenFromClaimsForAPIClient(ctx
 	token := jwt.New(jwt.SigningMethodRS256)
 	token.Header["kid"] = m.userAccountPrivateKey.KeyID
 
-	req := goa.ContextRequest(ctx)
-	if req == nil {
-		return nil, errors.New("missing request in context")
-	}
-
-	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
-	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
+	authOpenshiftIO := m.config.GetAuthServiceURL()
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURLStr(authOpenshiftIO, "", "")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -903,13 +874,8 @@ func (m *tokenManager) GenerateUnsignedUserRefreshTokenForAPIClient(ctx context.
 		return nil, errors.WithStack(err)
 	}
 
-	req := goa.ContextRequest(ctx)
-	if req == nil {
-		return nil, errors.New("missing request in context")
-	}
-
-	authOpenshiftIO := rest.AbsoluteURL(req, "", m.config)
-	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURL(req, "", "", m.config)
+	authOpenshiftIO := m.config.GetAuthServiceURL()
+	openshiftIO, err := rest.ReplaceDomainPrefixInAbsoluteURLStr(authOpenshiftIO, "", "")
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
